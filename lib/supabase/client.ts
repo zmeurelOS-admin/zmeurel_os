@@ -1,15 +1,27 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient } from '@supabase/ssr';
 
-// Creează client Supabase
-const supabaseClient = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+if (typeof window !== 'undefined') {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  console.log('🔍 [Supabase Client Debug]');
+  console.log('URL exists:', !!url);
+  console.log('URL prefix:', url?.substring(0, 20) + '...');
+  console.log('Key exists:', !!key);
+  console.log('Key prefix:', key?.substring(0, 20) + '...');
+}
 
-// Export direct pentru folosire în componente
-export const supabase = supabaseClient
-
-// Export și funcția (pentru backwards compatibility)
 export function createClient() {
-  return supabaseClient
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      '❌ Missing Supabase environment variables!\n' +
+      `URL: ${!!supabaseUrl}\n` +
+      `Key: ${!!supabaseAnonKey}`
+    );
+  }
+
+  return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }

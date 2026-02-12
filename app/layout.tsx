@@ -1,30 +1,26 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from '@/components/Navbar';
+import { Toaster } from '@/components/Toaster';
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Zmeurel OS - ERP pentru Fermieri",
-  description: "Aplicație de management pentru plantații zmeură și mure",
+  title: "Zmeurel OS",
+  description: "ERP pentru plantații zmeură și mure",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="ro">
       <body className={inter.className}>
-        {/* Navbar verifică singur dacă e logat (client-side) */}
-        <Navbar />
-        
-        <main className="min-h-screen bg-gray-50">
-          {children}
-        </main>
-      </body>
+  {children}
+  <Toaster />
+</body>
     </html>
   );
 }
