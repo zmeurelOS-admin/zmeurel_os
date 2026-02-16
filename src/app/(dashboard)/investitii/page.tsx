@@ -1,11 +1,22 @@
 // src/app/(dashboard)/investitii/page.tsx
 import { cookies } from 'next/headers';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import { InvestitiiPageClient } from './InvestitiiPageClient';
 
 export default async function InvestitiiPage() {
   const cookieStore = await cookies();
-  const supabase = createServerClient(cookieStore);
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+      },
+    }
+  );
 
   // Get current user
   const {
@@ -16,7 +27,7 @@ export default async function InvestitiiPage() {
     return <div>Autentificare necesară</div>;
   }
 
-  // Get tenant ID pentru user
+  // Get tenant ID
   const { data: tenants } = await supabase
     .from('tenants')
     .select('id')
@@ -29,14 +40,14 @@ export default async function InvestitiiPage() {
 
   const tenantId = tenants.id;
 
-  // Fetch investiții inițial (pentru SSR)
+  // Fetch investitii
   const { data: investitii = [] } = await supabase
     .from('investitii')
     .select('*')
     .eq('tenant_id', tenantId)
     .order('data', { ascending: false });
 
-  // Fetch parcele pentru mapping (nume parcele)
+  // Fetch parcele pentru dropdown
   const { data: parcele = [] } = await supabase
     .from('parcele')
     .select('id, id_parcela, nume_parcela')

@@ -48,11 +48,9 @@ export function InvestitieCard({
                 {investitie.id_investitie}
               </span>
               <span
-                className="px-2 py-1 rounded-md text-xs font-medium"
-                style={{
-                  backgroundColor: BADGE_COLORS[investitie.categorie]?.bg || '#f3f4f6',
-                  color: BADGE_COLORS[investitie.categorie]?.text || '#374151',
-                }}
+                className={`px-2 py-1 rounded-md text-xs font-medium ${
+                  BADGE_COLORS[investitie.categorie] || 'bg-gray-100 text-gray-800'
+                }`}
               >
                 {investitie.categorie}
               </span>
@@ -97,17 +95,11 @@ export function InvestitieCard({
 
       <CardContent className="pt-0">
         {/* Sumă (highlight roșu - expense) */}
-        <div 
-          className="flex items-center gap-2 mb-3 p-3 rounded-lg border"
-          style={{ 
-            backgroundColor: '#fef2f2',
-            borderColor: '#fee2e2'
-          }}
-        >
-          <DollarSign className="h-5 w-5" style={{ color: '#dc2626' }} />
+        <div className="flex items-center gap-2 mb-3 p-3 bg-red-50 rounded-lg border border-red-100">
+          <DollarSign className="h-5 w-5 text-red-600" />
           <div className="flex-1">
             <div className="text-xs text-gray-600 mb-0.5">Sumă investită</div>
-            <div className="text-2xl font-bold" style={{ color: '#dc2626' }}>
+            <div className="text-2xl font-bold text-red-600">
               -{formatSuma(investitie.suma_lei)} lei
             </div>
           </div>

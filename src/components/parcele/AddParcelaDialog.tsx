@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Plus, Loader2 } from 'lucide-react';
 
-import { createParcela, getNextParcelaId } from '@/lib/supabase/queries/parcele';
+import { createParcela } from '@/lib/supabase/queries/parcele';
 import {
   Dialog,
   DialogContent,
@@ -67,10 +67,9 @@ export function AddParcelaDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: ParcelaFormData) => {
-      const nextId = await getNextParcelaId(tenantId);
+      // ID-ul se generează automat în createParcela
       return createParcela({
         tenant_id: tenantId,
-        id_parcela: nextId,
         nume_parcela: data.nume_parcela,
         suprafata_m2: Number(data.suprafata_m2),
         soi_plantat: data.soi_plantat || null,
@@ -147,7 +146,7 @@ export function AddParcelaDialog({
             <select
               id="soi_plantat"
               {...form.register('soi_plantat')}
-              style={{ 
+              style={{
                 backgroundColor: 'white',
                 color: 'black',
                 fontSize: '14px',
@@ -161,10 +160,10 @@ export function AddParcelaDialog({
               <option value="" style={{ color: 'gray' }}>Selectează soi...</option>
               {soiuriDisponibile.length > 0 ? (
                 soiuriDisponibile.map((soi, index) => (
-                  <option 
-                    key={`${soi}-${index}`} 
+                  <option
+                    key={`${soi}-${index}`}
                     value={soi}
-                    style={{ 
+                    style={{
                       color: 'black',
                       backgroundColor: 'white',
                       padding: '8px'
@@ -213,7 +212,7 @@ export function AddParcelaDialog({
             <Label htmlFor="observatii">Observații</Label>
             <Textarea
               id="observatii"
-              placeholder="Notițe opționale..."
+              placeholder="Notiţe opţionale..."
               className="resize-none"
               {...form.register('observatii')}
             />
