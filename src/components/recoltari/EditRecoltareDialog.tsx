@@ -126,25 +126,17 @@ export function EditRecoltareDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-md max-h-[90vh] overflow-y-auto"
-        style={{
-          backgroundColor: 'white',
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: '28rem',
-        }}
+        className="max-w-md max-h-[75vh] overflow-y-auto"
+        style={{ backgroundColor: 'white' }}
       >
         <DialogHeader>
           <DialogTitle>Editează Recoltare: {recoltare.id_recoltare}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Data */}
-          <div>
-            <Label htmlFor="data">
+          <div className="space-y-1">
+            <Label htmlFor="data" className="text-sm">
               Data recoltării <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -154,13 +146,13 @@ export function EditRecoltareDialog({
               className={errors.data ? 'border-red-500' : ''}
             />
             {errors.data && (
-              <p className="text-sm text-red-500 mt-1">{errors.data.message}</p>
+              <p className="text-xs text-red-500">{errors.data.message}</p>
             )}
           </div>
 
           {/* Culegător */}
-          <div>
-            <Label htmlFor="culegator_id">Culegător (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="culegator_id" className="text-sm">Culegător</Label>
             <select
               id="culegator_id"
               {...register('culegator_id')}
@@ -177,8 +169,8 @@ export function EditRecoltareDialog({
           </div>
 
           {/* Parcelă */}
-          <div>
-            <Label htmlFor="parcela_id">Parcelă (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="parcela_id" className="text-sm">Parcelă</Label>
             <select
               id="parcela_id"
               {...register('parcela_id')}
@@ -194,31 +186,29 @@ export function EditRecoltareDialog({
             </select>
           </div>
 
-          {/* Nr Caserole și Tară */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Nr Caserole */}
-            <div>
-              <Label htmlFor="nr_caserole">
+          {/* Nr Caserole și Tara */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="nr_caserole" className="text-sm">
                 Nr. caserole <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="nr_caserole"
                 type="number"
                 min="1"
-                placeholder="ex: 100"
+                placeholder="100"
                 {...register('nr_caserole')}
                 className={errors.nr_caserole ? 'border-red-500' : ''}
               />
               {errors.nr_caserole && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-xs text-red-500">
                   {errors.nr_caserole.message}
                 </p>
               )}
             </div>
 
-            {/* Tară */}
-            <div>
-              <Label htmlFor="tara_kg">Tară (kg)</Label>
+            <div className="space-y-1">
+              <Label htmlFor="tara_kg" className="text-sm">Tara (kg)</Label>
               <Input
                 id="tara_kg"
                 type="number"
@@ -231,18 +221,18 @@ export function EditRecoltareDialog({
           </div>
 
           {/* Observații */}
-          <div>
-            <Label htmlFor="observatii">Observații (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="observatii" className="text-sm">Observații</Label>
             <Textarea
               id="observatii"
-              rows={3}
-              placeholder="ex: Fructe de calitate superioară"
+              rows={2}
+              placeholder="Fructe de calitate superioară"
               {...register('observatii')}
             />
           </div>
 
           {/* Butoane */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"

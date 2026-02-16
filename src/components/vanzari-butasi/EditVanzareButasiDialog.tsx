@@ -129,16 +129,8 @@ export function EditVanzareButasiDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-md max-h-[90vh] overflow-y-auto"
-        style={{
-          backgroundColor: 'white',
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: '28rem',
-        }}
+        className="max-w-md max-h-[75vh] overflow-y-auto"
+        style={{ backgroundColor: 'white' }}
       >
         <DialogHeader>
           <DialogTitle>
@@ -146,10 +138,10 @@ export function EditVanzareButasiDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Data */}
-          <div>
-            <Label htmlFor="data">
+          <div className="space-y-1">
+            <Label htmlFor="data" className="text-sm">
               Data vânzării <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -159,64 +151,62 @@ export function EditVanzareButasiDialog({
               className={errors.data ? 'border-red-500' : ''}
             />
             {errors.data && (
-              <p className="text-sm text-red-500 mt-1">{errors.data.message}</p>
+              <p className="text-xs text-red-500">{errors.data.message}</p>
             )}
           </div>
 
           {/* Soi Butași */}
-          <div>
-            <Label htmlFor="soi_butasi">
+          <div className="space-y-1">
+            <Label htmlFor="soi_butasi" className="text-sm">
               Soi butași <span className="text-red-500">*</span>
             </Label>
             <Input
               id="soi_butasi"
               type="text"
-              placeholder="ex: Zmeură Polka"
+              placeholder="Zmeură Polka"
               {...register('soi_butasi')}
               className={errors.soi_butasi ? 'border-red-500' : ''}
             />
             {errors.soi_butasi && (
-              <p className="text-sm text-red-500 mt-1">{errors.soi_butasi.message}</p>
+              <p className="text-xs text-red-500">{errors.soi_butasi.message}</p>
             )}
           </div>
 
           {/* Cantitate și Preț */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Cantitate */}
-            <div>
-              <Label htmlFor="cantitate_butasi">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="cantitate_butasi" className="text-sm">
                 Cantitate <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="cantitate_butasi"
                 type="number"
                 min="1"
-                placeholder="ex: 100"
+                placeholder="100"
                 {...register('cantitate_butasi')}
                 className={errors.cantitate_butasi ? 'border-red-500' : ''}
               />
               {errors.cantitate_butasi && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-xs text-red-500">
                   {errors.cantitate_butasi.message}
                 </p>
               )}
             </div>
 
-            {/* Preț Unitar */}
-            <div>
-              <Label htmlFor="pret_unitar_lei">
+            <div className="space-y-1">
+              <Label htmlFor="pret_unitar_lei" className="text-sm">
                 Preț/buc (lei) <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="pret_unitar_lei"
                 type="number"
                 step="0.01"
-                placeholder="ex: 5.00"
+                placeholder="5.00"
                 {...register('pret_unitar_lei')}
                 className={errors.pret_unitar_lei ? 'border-red-500' : ''}
               />
               {errors.pret_unitar_lei && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-xs text-red-500">
                   {errors.pret_unitar_lei.message}
                 </p>
               )}
@@ -224,8 +214,8 @@ export function EditVanzareButasiDialog({
           </div>
 
           {/* Client (optional) */}
-          <div>
-            <Label htmlFor="client_id">Client (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="client_id" className="text-sm">Client</Label>
             <select
               id="client_id"
               {...register('client_id')}
@@ -242,8 +232,8 @@ export function EditVanzareButasiDialog({
           </div>
 
           {/* Parcelă Sursă (optional) */}
-          <div>
-            <Label htmlFor="parcela_sursa_id">Parcelă sursă (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="parcela_sursa_id" className="text-sm">Parcelă sursă</Label>
             <select
               id="parcela_sursa_id"
               {...register('parcela_sursa_id')}
@@ -260,18 +250,18 @@ export function EditVanzareButasiDialog({
           </div>
 
           {/* Observații */}
-          <div>
-            <Label htmlFor="observatii">Observații (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="observatii" className="text-sm">Observații</Label>
             <Textarea
               id="observatii"
-              rows={3}
-              placeholder="ex: Butași înrădăcinați, ambalați în ghivece 1L"
+              rows={2}
+              placeholder="Butași înrădăcinați, ambalați în ghivece"
               {...register('observatii')}
             />
           </div>
 
           {/* Butoane */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"

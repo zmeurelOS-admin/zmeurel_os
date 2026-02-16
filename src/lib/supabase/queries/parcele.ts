@@ -53,9 +53,10 @@ export async function getParcele(tenantId: string): Promise<Parcela[]> {
 export async function getNextParcelaId(tenantId: string): Promise<string> {
   const supabase = createClient();
 
-  const { count, error } = await supabase
+  // ✅ Găsește TOATE parcelele și ia cel mai mare ID numeric
+  const { data, error } = await supabase
     .from('parcele')
-    .select('*', { count: 'exact', head: true })
+    .select('id_parcela')
     .eq('tenant_id', tenantId);
 
   if (error) {
@@ -63,8 +64,24 @@ export async function getNextParcelaId(tenantId: string): Promise<string> {
     throw new Error(`Eroare la generarea ID parcelă: ${error.message}`);
   }
 
-  const nextNumber = (count || 0) + 1;
-  return `P${String(nextNumber).padStart(3, '0')}`;
+  // Dacă nu există parcele, start de la P001
+  if (!data || data.length === 0) {
+    console.log('✅ [getNextParcelaId] No parcels found, starting at P001');
+    return 'P001';
+  }
+
+  // Găsește cel mai mare număr din toate ID-urile
+  const maxNumber = data.reduce((max, parcela) => {
+    const num = parseInt(parcela.id_parcela.replace('P', ''), 10);
+    return num > max ? num : max;
+  }, 0);
+
+  const nextNumber = maxNumber + 1;
+  const nextId = `P${String(nextNumber).padStart(3, '0')}`;
+  
+  console.log('🔍 [getNextParcelaId] Found', data.length, 'parcels, max number:', maxNumber);
+  console.log('✅ [getNextParcelaId] Next ID will be:', nextId);
+  return nextId;
 }
 
 export async function createParcela(parcela: NewParcela): Promise<Parcela> {
@@ -72,9 +89,20 @@ export async function createParcela(parcela: NewParcela): Promise<Parcela> {
   
   const supabase = createClient();
 
+  // ✅ GENEREAZĂ ID-ul ÎNAINTE de insert
+  const nextId = await getNextParcelaId(parcela.tenant_id);
+  console.log('🔍 [createParcela] Generated ID:', nextId);
+
+  const parcelaWithId = {
+    ...parcela,
+    id_parcela: nextId,
+  };
+
+  console.log('🔍 [createParcela] Data with ID:', parcelaWithId);
+
   const { data, error } = await supabase
     .from('parcele')
-    .insert(parcela)
+    .insert(parcelaWithId)
     .select()
     .single();
 

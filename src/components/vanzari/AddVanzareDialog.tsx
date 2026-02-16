@@ -76,7 +76,7 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
   // Auto-populate preț când se selectează client cu preț negociat
   const handleClientChange = (clientId: string) => {
     setValue('client_id', clientId);
-    
+
     if (clientId) {
       const client = clienti.find((c) => c.id === clientId);
       if (client && client.pret_negociat_lei_kg) {
@@ -123,25 +123,17 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
       </DialogTrigger>
 
       <DialogContent
-        className="max-w-md max-h-[90vh] overflow-y-auto"
-        style={{
-          backgroundColor: 'white',
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: '28rem',
-        }}
+        className="max-w-md max-h-[75vh] overflow-y-auto"
+        style={{ backgroundColor: 'white' }}
       >
         <DialogHeader>
           <DialogTitle>Adaugă Vânzare Nouă</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Data */}
-          <div>
-            <Label htmlFor="data">
+          <div className="space-y-1">
+            <Label htmlFor="data" className="text-sm">
               Data vânzării <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -151,13 +143,13 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
               className={errors.data ? 'border-red-500' : ''}
             />
             {errors.data && (
-              <p className="text-sm text-red-500 mt-1">{errors.data.message}</p>
+              <p className="text-xs text-red-500">{errors.data.message}</p>
             )}
           </div>
 
           {/* Client (opțional dar cu auto-preț) */}
-          <div>
-            <Label htmlFor="client_id">Client (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="client_id" className="text-sm">Client</Label>
             <select
               id="client_id"
               value={selectedClientId}
@@ -176,10 +168,9 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
           </div>
 
           {/* Cantitate și Preț */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Cantitate */}
-            <div>
-              <Label htmlFor="cantitate_kg">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="cantitate_kg" className="text-sm">
                 Cantitate (kg) <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -187,20 +178,19 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
                 type="number"
                 step="0.01"
                 min="0.01"
-                placeholder="ex: 50.00"
+                placeholder="50.00"
                 {...register('cantitate_kg')}
                 className={errors.cantitate_kg ? 'border-red-500' : ''}
               />
               {errors.cantitate_kg && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-xs text-red-500">
                   {errors.cantitate_kg.message}
                 </p>
               )}
             </div>
 
-            {/* Preț lei/kg */}
-            <div>
-              <Label htmlFor="pret_lei_kg">
+            <div className="space-y-1">
+              <Label htmlFor="pret_lei_kg" className="text-sm">
                 Preț lei/kg <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -208,12 +198,12 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
                 type="number"
                 step="0.01"
                 min="0.01"
-                placeholder="ex: 25.00"
+                placeholder="25.00"
                 {...register('pret_lei_kg')}
                 className={errors.pret_lei_kg ? 'border-red-500' : ''}
               />
               {errors.pret_lei_kg && (
-                <p className="text-sm text-red-500 mt-1">
+                <p className="text-xs text-red-500">
                   {errors.pret_lei_kg.message}
                 </p>
               )}
@@ -221,8 +211,8 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
           </div>
 
           {/* Status Plată */}
-          <div>
-            <Label htmlFor="status_plata">Status plată</Label>
+          <div className="space-y-1">
+            <Label htmlFor="status_plata" className="text-sm">Status plată</Label>
             <select
               id="status_plata"
               {...register('status_plata')}
@@ -238,18 +228,18 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
           </div>
 
           {/* Observații Lădițe */}
-          <div>
-            <Label htmlFor="observatii_ladite">Observații lădițe (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="observatii_ladite" className="text-sm">Observații lădițe</Label>
             <Textarea
               id="observatii_ladite"
               rows={2}
-              placeholder="ex: Lăsat 15 lădițe, returnat 10"
+              placeholder="Lăsat 15 lădițe, returnat 10"
               {...register('observatii_ladite')}
             />
           </div>
 
           {/* Butoane */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"

@@ -62,7 +62,7 @@ export function AddInvestitieDialog({ tenantId }: AddInvestitieDialogProps) {
   } = useForm<InvestitieFormData>({
     resolver: zodResolver(investitieSchema),
     defaultValues: {
-      data: new Date().toISOString().split('T')[0], // Data azi
+      data: new Date().toISOString().split('T')[0],
       parcela_id: '',
       categorie: '',
       furnizor: '',
@@ -109,25 +109,17 @@ export function AddInvestitieDialog({ tenantId }: AddInvestitieDialogProps) {
       </DialogTrigger>
 
       <DialogContent
-        className="max-w-md max-h-[90vh] overflow-y-auto"
-        style={{
-          backgroundColor: 'white',
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: '28rem',
-        }}
+        className="max-w-md max-h-[75vh] overflow-y-auto"
+        style={{ backgroundColor: 'white' }}
       >
         <DialogHeader>
           <DialogTitle>Adaugă Investiție Nouă (CAPEX)</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           {/* Data */}
-          <div>
-            <Label htmlFor="data">
+          <div className="space-y-1">
+            <Label htmlFor="data" className="text-sm">
               Data investiției <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -137,13 +129,13 @@ export function AddInvestitieDialog({ tenantId }: AddInvestitieDialogProps) {
               className={errors.data ? 'border-red-500' : ''}
             />
             {errors.data && (
-              <p className="text-sm text-red-500 mt-1">{errors.data.message}</p>
+              <p className="text-xs text-red-500">{errors.data.message}</p>
             )}
           </div>
 
           {/* Categorie */}
-          <div>
-            <Label htmlFor="categorie">
+          <div className="space-y-1">
+            <Label htmlFor="categorie" className="text-sm">
               Categorie investiție <span className="text-red-500">*</span>
             </Label>
             <select
@@ -162,13 +154,13 @@ export function AddInvestitieDialog({ tenantId }: AddInvestitieDialogProps) {
               ))}
             </select>
             {errors.categorie && (
-              <p className="text-sm text-red-500 mt-1">{errors.categorie.message}</p>
+              <p className="text-xs text-red-500">{errors.categorie.message}</p>
             )}
           </div>
 
           {/* Parcelă (optional) */}
-          <div>
-            <Label htmlFor="parcela_id">Parcelă (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="parcela_id" className="text-sm">Parcelă</Label>
             <select
               id="parcela_id"
               {...register('parcela_id')}
@@ -185,47 +177,47 @@ export function AddInvestitieDialog({ tenantId }: AddInvestitieDialogProps) {
           </div>
 
           {/* Sumă */}
-          <div>
-            <Label htmlFor="suma_lei">
+          <div className="space-y-1">
+            <Label htmlFor="suma_lei" className="text-sm">
               Sumă investită (lei) <span className="text-red-500">*</span>
             </Label>
             <Input
               id="suma_lei"
               type="number"
               step="0.01"
-              placeholder="ex: 5000.00"
+              placeholder="5000.00"
               {...register('suma_lei')}
               className={errors.suma_lei ? 'border-red-500' : ''}
             />
             {errors.suma_lei && (
-              <p className="text-sm text-red-500 mt-1">{errors.suma_lei.message}</p>
+              <p className="text-xs text-red-500">{errors.suma_lei.message}</p>
             )}
           </div>
 
           {/* Furnizor */}
-          <div>
-            <Label htmlFor="furnizor">Furnizor (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="furnizor" className="text-sm">Furnizor</Label>
             <Input
               id="furnizor"
               type="text"
-              placeholder="ex: SC Agro Plant SRL"
+              placeholder="SC Agro Plant SRL"
               {...register('furnizor')}
             />
           </div>
 
           {/* Descriere */}
-          <div>
-            <Label htmlFor="descriere">Descriere (opțional)</Label>
+          <div className="space-y-1">
+            <Label htmlFor="descriere" className="text-sm">Descriere</Label>
             <Textarea
               id="descriere"
-              rows={3}
-              placeholder="ex: Butași zmeură Polka, 500 bucăți pentru parcelă P001"
+              rows={2}
+              placeholder="Butași zmeură Polka - 500 buc"
               {...register('descriere')}
             />
           </div>
 
           {/* Butoane */}
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"

@@ -40,32 +40,36 @@ export interface UpdateVanzareButasiInput {
 async function generateNextId(tenantId: string): Promise<string> {
   const supabase = createClient();
 
+  // ✅ Ia TOATE vânzările butași și găsește cel mai mare număr
   const { data, error } = await supabase
     .from('vanzari_butasi')
     .select('id_vanzare_butasi')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
-    .limit(1);
+    .eq('tenant_id', tenantId);
 
   if (error) {
-    console.error('Error fetching last vanzare butasi ID:', error);
+    console.error('❌ [generateNextId] Error fetching vanzari butasi:', error);
     return 'VB001';
   }
 
+  // Dacă nu există vânzări, start de la VB001
   if (!data || data.length === 0) {
+    console.log('✅ [generateNextId] No sales found, starting at VB001');
     return 'VB001';
   }
 
-  const lastId = data[0].id_vanzare_butasi;
-  const numericPart = parseInt(lastId.replace('VB', ''), 10);
+  // Găsește cel mai mare număr din toate ID-urile
+  const maxNumber = data.reduce((max, vanzare) => {
+    const num = parseInt(vanzare.id_vanzare_butasi.replace('VB', ''), 10);
+    return num > max ? num : max;
+  }, 0);
+
+  const nextNumber = maxNumber + 1;
+  const nextId = `VB${String(nextNumber).padStart(3, '0')}`;
+
+  console.log('🔍 [generateNextId] Found', data.length, 'sales, max number:', maxNumber);
+  console.log('✅ [generateNextId] Next ID will be:', nextId);
   
-  if (isNaN(numericPart)) {
-    console.error('Invalid ID format:', lastId);
-    return 'VB001';
-  }
-  
-  const nextNumber = numericPart + 1;
-  return `VB${nextNumber.toString().padStart(3, '0')}`;
+  return nextId;
 }
 
 export async function getVanzariButasi(tenantId: string): Promise<VanzareButasi[]> {
@@ -87,6 +91,7 @@ export async function getVanzariButasi(tenantId: string): Promise<VanzareButasi[
 
 export async function createVanzareButasi(input: CreateVanzareButasiInput): Promise<VanzareButasi> {
   const supabase = createClient();
+
   const nextId = await generateNextId(input.tenant_id);
 
   const { data, error } = await supabase

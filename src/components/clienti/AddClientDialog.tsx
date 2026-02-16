@@ -78,17 +78,17 @@ export function AddClientDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto"
+        className="sm:max-w-[500px] max-h-[75vh] overflow-y-auto"
         style={{ backgroundColor: 'white' }}
       >
         <DialogHeader>
           <DialogTitle>Adaugă Client Nou</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-3">
           {/* Nume Client */}
-          <div className="space-y-2">
-            <Label htmlFor="nume_client">
+          <div className="space-y-1">
+            <Label htmlFor="nume_client" className="text-sm">
               Nume Client <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -98,15 +98,15 @@ export function AddClientDialog({
               style={{ backgroundColor: 'white', color: 'black' }}
             />
             {form.formState.errors.nume_client && (
-              <p className="text-sm text-red-500">
+              <p className="text-xs text-red-500">
                 {form.formState.errors.nume_client.message}
               </p>
             )}
           </div>
 
           {/* Telefon */}
-          <div className="space-y-2">
-            <Label htmlFor="telefon">Telefon</Label>
+          <div className="space-y-1">
+            <Label htmlFor="telefon" className="text-sm">Telefon</Label>
             <Input
               id="telefon"
               {...form.register('telefon')}
@@ -117,8 +117,8 @@ export function AddClientDialog({
           </div>
 
           {/* Email */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1">
+            <Label htmlFor="email" className="text-sm">Email</Label>
             <Input
               id="email"
               {...form.register('email')}
@@ -127,15 +127,15 @@ export function AddClientDialog({
               style={{ backgroundColor: 'white', color: 'black' }}
             />
             {form.formState.errors.email && (
-              <p className="text-sm text-red-500">
+              <p className="text-xs text-red-500">
                 {form.formState.errors.email.message}
               </p>
             )}
           </div>
 
           {/* Adresă */}
-          <div className="space-y-2">
-            <Label htmlFor="adresa">Adresă</Label>
+          <div className="space-y-1">
+            <Label htmlFor="adresa" className="text-sm">Adresă</Label>
             <Textarea
               id="adresa"
               {...form.register('adresa')}
@@ -146,8 +146,8 @@ export function AddClientDialog({
           </div>
 
           {/* Preț Negociat */}
-          <div className="space-y-2">
-            <Label htmlFor="pret_negociat_lei_kg">
+          <div className="space-y-1">
+            <Label htmlFor="pret_negociat_lei_kg" className="text-sm">
               Preț Negociat (lei/kg)
             </Label>
             <Input
@@ -156,30 +156,27 @@ export function AddClientDialog({
               type="number"
               step="0.01"
               min="0"
-              placeholder="Ex: 12.50 (lasă gol pentru preț standard)"
+              placeholder="Ex: 12.50"
               style={{ backgroundColor: 'white', color: 'black' }}
             />
-            <p className="text-xs text-muted-foreground">
-              Lasă gol dacă clientul plătește prețul standard (fără negociere)
+            <p className="text-xs text-gray-500">
+              Lasă gol pentru preț standard
             </p>
           </div>
 
           {/* Observații */}
-          <div className="space-y-2">
-            <Label htmlFor="observatii">Observații</Label>
+          <div className="space-y-1">
+            <Label htmlFor="observatii" className="text-sm">Observații</Label>
             <Textarea
               id="observatii"
               {...form.register('observatii')}
-              placeholder="Ex: Are 15 lădițe returnabile. Preferă livrare marți."
-              rows={3}
+              placeholder="Ex: Are 15 lădițe returnabile"
+              rows={2}
               style={{ backgroundColor: 'white', color: 'black' }}
             />
-            <p className="text-xs text-muted-foreground">
-              Tracking lădițe returnabile, preferințe livrare, etc.
-            </p>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
