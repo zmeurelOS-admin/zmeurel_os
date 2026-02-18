@@ -19,12 +19,28 @@ export interface Parcela {
 
 export type NewParcela = Omit<Parcela, 'id' | 'created_at' | 'updated_at'>;
 
+// ✅ Preia tenant_id din sesiunea activă (fix RLS)
+async function getTenantId(): Promise<string> {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('Utilizator neautentificat');
+
+  const { data, error } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('owner_user_id', user.id)
+    .single();
+
+  if (error || !data) throw new Error('Tenant negăsit pentru utilizatorul curent');
+
+  return data.id;
+}
+
 export async function getParcele(tenantId: string): Promise<Parcela[]> {
   console.log('🔍 [getParcele] Starting fetch for tenant:', tenantId);
   
   const supabase = createClient();
-  
-  console.log('🔍 [getParcele] Supabase client created');
 
   const { data, error } = await supabase
     .from('parcele')
@@ -32,17 +48,11 @@ export async function getParcele(tenantId: string): Promise<Parcela[]> {
     .eq('tenant_id', tenantId)
     .order('id_parcela', { ascending: true });
 
-  console.log('🔍 [getParcele] Query executed');
   console.log('🔍 [getParcele] Data:', data);
   console.log('🔍 [getParcele] Error:', JSON.stringify(error, null, 2));
 
   if (error) {
-    console.error('❌ [getParcele] Error details:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    console.error('❌ [getParcele] Error details:', error);
     throw new Error(`Eroare la încărcarea parcelelor: ${error.message || 'Unknown error'}`);
   }
 
@@ -53,7 +63,6 @@ export async function getParcele(tenantId: string): Promise<Parcela[]> {
 export async function getNextParcelaId(tenantId: string): Promise<string> {
   const supabase = createClient();
 
-  // ✅ Găsește TOATE parcelele și ia cel mai mare ID numeric
   const { data, error } = await supabase
     .from('parcele')
     .select('id_parcela')
@@ -64,37 +73,35 @@ export async function getNextParcelaId(tenantId: string): Promise<string> {
     throw new Error(`Eroare la generarea ID parcelă: ${error.message}`);
   }
 
-  // Dacă nu există parcele, start de la P001
   if (!data || data.length === 0) {
-    console.log('✅ [getNextParcelaId] No parcels found, starting at P001');
     return 'P001';
   }
 
-  // Găsește cel mai mare număr din toate ID-urile
   const maxNumber = data.reduce((max, parcela) => {
     const num = parseInt(parcela.id_parcela.replace('P', ''), 10);
     return num > max ? num : max;
   }, 0);
 
-  const nextNumber = maxNumber + 1;
-  const nextId = `P${String(nextNumber).padStart(3, '0')}`;
-  
-  console.log('🔍 [getNextParcelaId] Found', data.length, 'parcels, max number:', maxNumber);
-  console.log('✅ [getNextParcelaId] Next ID will be:', nextId);
+  const nextId = `P${String(maxNumber + 1).padStart(3, '0')}`;
+  console.log('✅ [getNextParcelaId] Next ID:', nextId);
   return nextId;
 }
 
-export async function createParcela(parcela: NewParcela): Promise<Parcela> {
+export async function createParcela(parcela: Omit<NewParcela, 'tenant_id'>): Promise<Parcela> {
   console.log('🔍 [createParcela] Creating:', parcela);
   
   const supabase = createClient();
 
-  // ✅ GENEREAZĂ ID-ul ÎNAINTE de insert
-  const nextId = await getNextParcelaId(parcela.tenant_id);
+  // ✅ Preia tenant_id direct din sesiune, nu din props
+  const tenantId = await getTenantId();
+  console.log('🔍 [createParcela] Tenant ID from session:', tenantId);
+
+  const nextId = await getNextParcelaId(tenantId);
   console.log('🔍 [createParcela] Generated ID:', nextId);
 
   const parcelaWithId = {
     ...parcela,
+    tenant_id: tenantId,
     id_parcela: nextId,
   };
 
@@ -107,12 +114,7 @@ export async function createParcela(parcela: NewParcela): Promise<Parcela> {
     .single();
 
   if (error) {
-    console.error('❌ [createParcela] Error:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    console.error('❌ [createParcela] Error:', error);
     throw new Error(`Eroare la crearea parcelei: ${error.message}`);
   }
 
@@ -136,12 +138,7 @@ export async function updateParcela(
     .single();
 
   if (error) {
-    console.error('❌ [updateParcela] Error:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    console.error('❌ [updateParcela] Error:', error);
     throw new Error(`Eroare la actualizarea parcelei: ${error.message}`);
   }
 
@@ -157,12 +154,7 @@ export async function deleteParcela(id: string): Promise<void> {
   const { error } = await supabase.from('parcele').delete().eq('id', id);
 
   if (error) {
-    console.error('❌ [deleteParcela] Error:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-    });
+    console.error('❌ [deleteParcela] Error:', error);
     throw new Error(`Eroare la ștergerea parcelei: ${error.message}`);
   }
 
