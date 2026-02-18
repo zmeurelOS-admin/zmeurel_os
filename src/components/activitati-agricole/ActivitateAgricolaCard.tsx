@@ -30,7 +30,7 @@ export function ActivitateAgricolaCard({
   };
 
   // Calcul status pauză
-  const { dataRecoltarePermisa, statusPauza } = calculatePauseStatus(
+  const { dataRecoltarePermisa, status } = calculatePauseStatus(
     activitate.data_aplicare,
     activitate.timp_pauza_zile
   );
@@ -55,8 +55,8 @@ export function ActivitateAgricolaCard({
               <span className="font-semibold text-lg text-gray-900">
                 {activitate.id_activitate}
               </span>
-              <span className={`px-2 py-1 rounded-md text-xs font-medium ${getBadgeColor(activitate.tip_activitate)}`}>
-                {activitate.tip_activitate}
+              <span className={`px-2 py-1 rounded-md text-xs font-medium ${getBadgeColor(activitate.tip_activitate || '')}`}>
+                {activitate.tip_activitate || 'Altele'}
               </span>
             </div>
 
@@ -117,21 +117,21 @@ export function ActivitateAgricolaCard({
         {/* Status Pauză (CRITICAL pentru legislație) */}
         {activitate.timp_pauza_zile > 0 && (
           <div className={`p-3 rounded-lg border mb-3 ${
-            statusPauza === 'OK' 
+            status === 'OK' 
               ? 'bg-green-50 border-green-200' 
               : 'bg-yellow-50 border-yellow-200'
           }`}>
             <div className="flex items-center gap-2 mb-2">
-              {statusPauza === 'OK' ? (
+              {status === 'OK' ? (
                 <CheckCircle className="h-5 w-5 text-green-600" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-yellow-600" />
               )}
               <div className="flex-1">
                 <div className={`text-sm font-medium ${
-                  statusPauza === 'OK' ? 'text-green-800' : 'text-yellow-800'
+                  status === 'OK' ? 'text-green-800' : 'text-yellow-800'
                 }`}>
-                  Status: {statusPauza}
+                  Status: {status}
                 </div>
               </div>
             </div>

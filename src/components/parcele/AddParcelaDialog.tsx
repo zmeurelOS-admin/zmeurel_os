@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Plus, Loader2 } from 'lucide-react';
-
-import { createParcela } from '@/lib/supabase/queries/parcele';
+import { createClient } from '@/lib/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -25,9 +24,9 @@ import { Label } from '@/components/ui/label';
 
 const parcelaSchema = z.object({
   nume_parcela: z.string().min(1, 'Numele parcelei este obligatoriu'),
-  suprafata_m2: z.string().min(1, 'Suprafața este obligatorie'),
+  suprafata_m2: z.string().min(1, 'Suprafata este obligatorie'),
   soi_plantat: z.string().optional(),
-  an_plantare: z.string().min(1, 'Anul plantării este obligatoriu'),
+  an_plantare: z.string().min(1, 'Anul plantarii este obligatoriu'),
   nr_plante: z.string().optional(),
   observatii: z.string().optional(),
 });
@@ -47,10 +46,6 @@ export function AddParcelaDialog({
 }: AddParcelaDialogProps) {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    console.log('🔍 [AddParcelaDialog] Soiuri disponibile:', soiuriDisponibile);
-  }, [soiuriDisponibile]);
-
   const form = useForm<ParcelaFormData>({
     resolver: zodResolver(parcelaSchema),
     defaultValues: {
@@ -65,22 +60,64 @@ export function AddParcelaDialog({
 
   const createMutation = useMutation({
     mutationFn: async (data: ParcelaFormData) => {
-      // ✅ NU mai trimitem tenant_id - createParcela îl preia din sesiune
-      return createParcela({
-        id_parcela: '',
-        nume_parcela: data.nume_parcela,
-        suprafata_m2: Number(data.suprafata_m2),
-        soi_plantat: data.soi_plantat || null,
-        an_plantare: Number(data.an_plantare),
-        nr_plante: data.nr_plante ? Number(data.nr_plante) : null,
-        status: 'Activ',
-        gps_lat: null,
-        gps_lng: null,
-        observatii: data.observatii || null,
-      });
+      const supabase = createClient();
+
+      // Preia user din sesiune
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Utilizator neautentificat');
+
+      // Preia tenant direct cu user.id
+      const { data: tenant, error: tenantError } = await supabase
+        .from('tenants')
+        .select('id')
+        .eq('owner_user_id', user.id)
+        .single();
+
+      if (tenantError || !tenant) throw new Error('Tenant negasit: ' + tenantError?.message);
+
+      console.log('Tenant ID gasit:', tenant.id);
+
+      // Genereaza urmatorul ID parcela
+      const { data: parceleExistente } = await supabase
+        .from('parcele')
+        .select('id_parcela')
+        .eq('tenant_id', tenant.id);
+
+      let nextId = 'P001';
+      if (parceleExistente && parceleExistente.length > 0) {
+        const maxNum = parceleExistente.reduce((max, p) => {
+          const num = parseInt(p.id_parcela.replace('P', ''), 10);
+          return num > max ? num : max;
+        }, 0);
+        nextId = `P${String(maxNum + 1).padStart(3, '0')}`;
+      }
+
+      console.log('Next ID:', nextId);
+
+      // Insert
+      const { data: result, error: insertError } = await supabase
+        .from('parcele')
+        .insert({
+          tenant_id: tenant.id,
+          id_parcela: nextId,
+          nume_parcela: data.nume_parcela,
+          suprafata_m2: Number(data.suprafata_m2),
+          soi_plantat: data.soi_plantat || null,
+          an_plantare: Number(data.an_plantare),
+          nr_plante: data.nr_plante ? Number(data.nr_plante) : null,
+          status: 'Activ',
+          gps_lat: null,
+          gps_lng: null,
+          observatii: data.observatii || null,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw new Error(`Eroare insert: ${insertError.message}`);
+      return result;
     },
     onSuccess: () => {
-      toast.success('Parcela a fost adăugată cu succes!');
+      toast.success('Parcela a fost adaugata cu succes!');
       form.reset();
       setOpen(false);
       onSuccess();
@@ -99,24 +136,24 @@ export function AddParcelaDialog({
       <DialogTrigger asChild>
         <Button size="lg" className="bg-[#F16B6B] hover:bg-[#ef4444] min-h-12">
           <Plus className="h-5 w-5 mr-2" />
-          Adaugă Parcelă
+          Adauga Parcela
         </Button>
       </DialogTrigger>
 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>🌱 Adaugă Parcelă Nouă</DialogTitle>
+          <DialogTitle>Adauga Parcela Noua</DialogTitle>
           <DialogDescription>
-            Completează detaliile parcelei. ID-ul se va genera automat (P001, P002...).
+            Completeaza detaliile parcelei. ID-ul se va genera automat (P001, P002...).
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nume_parcela">Nume Parcelă *</Label>
+            <Label htmlFor="nume_parcela">Nume Parcela *</Label>
             <Input
               id="nume_parcela"
-              placeholder="ex: Parcelă Nord, Lot 1..."
+              placeholder="ex: Parcela Nord, Lot 1..."
               {...form.register('nume_parcela')}
             />
             {form.formState.errors.nume_parcela && (
@@ -127,7 +164,7 @@ export function AddParcelaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="suprafata_m2">Suprafață (m²) *</Label>
+            <Label htmlFor="suprafata_m2">Suprafata (m2) *</Label>
             <Input
               id="suprafata_m2"
               type="number"
@@ -157,7 +194,7 @@ export function AddParcelaDialog({
                 minHeight: '40px',
               }}
             >
-              <option value="">Selectează soi...</option>
+              <option value="">Selecteaza soi...</option>
               {soiuriDisponibile.map((soi, index) => (
                 <option key={`${soi}-${index}`} value={soi}>
                   {soi}
@@ -182,7 +219,7 @@ export function AddParcelaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nr_plante">Număr Plante</Label>
+            <Label htmlFor="nr_plante">Numar Plante</Label>
             <Input
               id="nr_plante"
               type="number"
@@ -192,10 +229,10 @@ export function AddParcelaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="observatii">Observații</Label>
+            <Label htmlFor="observatii">Observatii</Label>
             <Textarea
               id="observatii"
-              placeholder="Notițe opționale..."
+              placeholder="Notite optionale..."
               className="resize-none"
               {...form.register('observatii')}
             />
@@ -208,7 +245,7 @@ export function AddParcelaDialog({
               onClick={() => setOpen(false)}
               disabled={createMutation.isPending}
             >
-              Anulează
+              Anuleaza
             </Button>
             <Button
               type="submit"
@@ -218,10 +255,10 @@ export function AddParcelaDialog({
               {createMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Se salvează...
+                  Se salveaza...
                 </>
               ) : (
-                'Salvează Parcelă'
+                'Salveaza Parcela'
               )}
             </Button>
           </DialogFooter>

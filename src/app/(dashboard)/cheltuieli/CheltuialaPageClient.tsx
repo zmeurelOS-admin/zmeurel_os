@@ -63,7 +63,7 @@ export function CheltuialaPageClient({
         suma_lei: Number(data.suma_lei),
         furnizor: data.furnizor || null,
         descriere: data.descriere || null,
-        document_url: null, // Pentru mai târziu
+        document_url: undefined, // Pentru mai târziu
       }),
     onSuccess: (newCheltuiala) => {
       queryClient.invalidateQueries({ queryKey: ['cheltuieli', tenantId] });
@@ -141,7 +141,7 @@ export function CheltuialaPageClient({
   let filteredCheltuieli = cheltuieli.filter((cheltuiala) => {
     const query = searchQuery.toLowerCase();
     return (
-      cheltuiala.categorie.toLowerCase().includes(query) ||
+      cheltuiala.categorie?.toLowerCase().includes(query) ||
       cheltuiala.id_cheltuiala.toLowerCase().includes(query) ||
       cheltuiala.furnizor?.toLowerCase().includes(query) ||
       cheltuiala.descriere?.toLowerCase().includes(query)

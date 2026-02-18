@@ -101,7 +101,7 @@ export function InvestitiiPageClient({
       filtered = filtered.filter(
         (inv) =>
           inv.id_investitie.toLowerCase().includes(term) ||
-          inv.categorie.toLowerCase().includes(term) ||
+          inv.categorie?.toLowerCase().includes(term) ||
           inv.furnizor?.toLowerCase().includes(term) ||
           inv.descriere?.toLowerCase().includes(term)
       );
@@ -317,7 +317,6 @@ export function InvestitiiPageClient({
         onConfirm={confirmDelete}
         itemName={deletingInvestitie?.id_investitie || ''}
         itemType="investiție"
-        isPending={deleteMutation.isPending}
       />
     </div>
   );

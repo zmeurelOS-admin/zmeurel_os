@@ -27,7 +27,7 @@ const culegatorSchema = z.object({
   tip_angajare: z.string().min(1, 'Selectează tipul de angajare'),
   tarif_lei_kg: z.string().min(0, 'Tariful trebuie să fie mai mare sau egal cu 0'),
   data_angajare: z.string().optional(),
-  status_activ: z.boolean().default(true),
+  status_activ: z.boolean().optional(),
 });
 
 type CulegatorFormData = z.infer<typeof culegatorSchema>;

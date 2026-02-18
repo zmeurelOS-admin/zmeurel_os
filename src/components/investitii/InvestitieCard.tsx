@@ -49,10 +49,10 @@ export function InvestitieCard({
               </span>
               <span
                 className={`px-2 py-1 rounded-md text-xs font-medium ${
-                  BADGE_COLORS[investitie.categorie] || 'bg-gray-100 text-gray-800'
+                  BADGE_COLORS[investitie.categorie || "Altele"] || 'bg-gray-100 text-gray-800'
                 }`}
               >
-                {investitie.categorie}
+                {investitie.categorie || "Altele"}
               </span>
             </div>
 

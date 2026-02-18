@@ -44,8 +44,8 @@ export function CheltuialaCard({ cheltuiala, onEdit, onDelete }: CheltuialaCardP
               <CardTitle className="text-lg font-semibold">
                 {cheltuiala.suma_lei} lei
               </CardTitle>
-              <Badge className={getCategorieColor(cheltuiala.categorie)}>
-                {cheltuiala.categorie}
+              <Badge className={getCategorieColor(cheltuiala.categorie || "Altele")}>
+                {cheltuiala.categorie || "Altele"}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -103,7 +103,7 @@ export function CheltuialaCard({ cheltuiala, onEdit, onDelete }: CheltuialaCardP
             variant="outline"
             size="sm"
             style={{ color: '#ef4444', borderColor: '#ef4444' }}
-            onClick={() => onDelete(cheltuiala.id, `${cheltuiala.categorie} - ${cheltuiala.suma_lei} lei`)}
+            onClick={() => onDelete(cheltuiala.id, `${cheltuiala.categorie || "Altele"} - ${cheltuiala.suma_lei} lei`)}
           >
             <Trash2 className="w-4 h-4" />
           </Button>

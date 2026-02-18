@@ -77,7 +77,7 @@ export function EditActivitateAgricolaDialog({
       reset({
         data_aplicare: activitate.data_aplicare.split('T')[0],
         parcela_id: activitate.parcela_id || '',
-        tip_activitate: activitate.tip_activitate,
+        tip_activitate: activitate.tip_activitate || "",
         produs_utilizat: activitate.produs_utilizat || '',
         doza: activitate.doza || '',
         timp_pauza_zile: activitate.timp_pauza_zile.toString(),
@@ -110,7 +110,7 @@ export function EditActivitateAgricolaDialog({
       id: activitate.id,
       data: {
         data_aplicare: data.data_aplicare,
-        parcela_id: data.parcela_id || null,
+        parcela_id: data.parcela_id || undefined,
         tip_activitate: data.tip_activitate,
         produs_utilizat: data.produs_utilizat || undefined,
         doza: data.doza || undefined,

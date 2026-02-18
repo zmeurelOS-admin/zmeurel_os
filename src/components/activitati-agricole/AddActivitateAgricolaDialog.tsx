@@ -95,7 +95,7 @@ export function AddActivitateAgricolaDialog({ tenantId }: AddActivitateAgricolaD
     createMutation.mutate({
       tenant_id: tenantId,
       data_aplicare: data.data_aplicare,
-      parcela_id: data.parcela_id || null,
+      parcela_id: data.parcela_id || undefined,
       tip_activitate: data.tip_activitate,
       produs_utilizat: data.produs_utilizat || undefined,
       doza: data.doza || undefined,

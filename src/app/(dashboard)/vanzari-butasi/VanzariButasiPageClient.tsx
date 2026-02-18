@@ -122,7 +122,7 @@ export function VanzariButasiPageClient({
       filtered = filtered.filter(
         (vb) =>
           vb.id_vanzare_butasi.toLowerCase().includes(term) ||
-          vb.soi_butasi.toLowerCase().includes(term) ||
+          vb.soi_butasi?.toLowerCase().includes(term) ||
           (vb.client_id && clientMap[vb.client_id]?.toLowerCase().includes(term)) ||
           vb.observatii?.toLowerCase().includes(term)
       );
@@ -337,7 +337,6 @@ export function VanzariButasiPageClient({
         onConfirm={confirmDelete}
         itemName={deletingVanzare?.id_vanzare_butasi || ''}
         itemType="vânzare butași"
-        isPending={deleteMutation.isPending}
       />
     </div>
   );

@@ -89,7 +89,7 @@ export function EditCheltuialaDialog({
     if (cheltuiala && open) {
       form.reset({
         data: cheltuiala.data,
-        categorie: cheltuiala.categorie,
+        categorie: cheltuiala.categorie || "",
         suma_lei: String(cheltuiala.suma_lei),
         furnizor: cheltuiala.furnizor || '',
         descriere: cheltuiala.descriere || '',

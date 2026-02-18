@@ -105,7 +105,7 @@ export function AddVanzareDialog({ tenantId }: AddVanzareDialogProps) {
     createMutation.mutate({
       tenant_id: tenantId,
       data: data.data,
-      client_id: data.client_id || null,
+      client_id: data.client_id || undefined,
       cantitate_kg: Number(data.cantitate_kg),
       pret_lei_kg: Number(data.pret_lei_kg),
       status_plata: data.status_plata || 'Plătit',

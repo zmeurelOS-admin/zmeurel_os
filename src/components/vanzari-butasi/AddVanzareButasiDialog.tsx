@@ -97,8 +97,8 @@ export function AddVanzareButasiDialog({ tenantId }: AddVanzareButasiDialogProps
     createMutation.mutate({
       tenant_id: tenantId,
       data: data.data,
-      client_id: data.client_id || null,
-      parcela_sursa_id: data.parcela_sursa_id || null,
+      client_id: data.client_id || undefined,
+      parcela_sursa_id: data.parcela_sursa_id || undefined,
       soi_butasi: data.soi_butasi,
       cantitate_butasi: Number(data.cantitate_butasi),
       pret_unitar_lei: Number(data.pret_unitar_lei),

@@ -95,8 +95,8 @@ export function AddRecoltareDialog({ tenantId }: AddRecoltareDialogProps) {
     createMutation.mutate({
       tenant_id: tenantId,
       data: data.data,
-      culegator_id: data.culegator_id || null,
-      parcela_id: data.parcela_id || null,
+      culegator_id: data.culegator_id || undefined,
+      parcela_id: data.parcela_id || undefined,
       nr_caserole: Number(data.nr_caserole),
       tara_kg: data.tara_kg ? Number(data.tara_kg) : 0,
       observatii: data.observatii || undefined,

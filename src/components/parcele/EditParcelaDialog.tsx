@@ -29,7 +29,8 @@ import {
 } from '@/components/ui/select';
 
 import { updateParcela } from '@/lib/supabase/queries/parcele';
-import type { Parcela, ParcelaUpdate } from '@/types/database.types';
+import type { Parcela, NewParcela } from '@/lib/supabase/queries/parcele';
+type ParcelaUpdate = Partial<Omit<NewParcela, 'tenant_id' | 'id_parcela'>>;
 
 // ============================================================================
 // PROPS

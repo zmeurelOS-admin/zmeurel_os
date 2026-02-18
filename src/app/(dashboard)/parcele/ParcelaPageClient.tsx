@@ -191,7 +191,8 @@ export default function ParcelaPageClient({
           open={!!deletingParcela}
           onOpenChange={(open) => !open && setDeletingParcela(null)}
           onConfirm={handleConfirmDelete}
-          parcelaName={deletingParcela?.name || ''}
+          itemName={deletingParcela?.name || ''}
+          itemType="parcelă"
         />
       </div>
     </div>

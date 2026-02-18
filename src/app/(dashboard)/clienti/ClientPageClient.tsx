@@ -63,7 +63,7 @@ export function ClientPageClient({
         adresa: data.adresa || null,
         pret_negociat_lei_kg: data.pret_negociat_lei_kg 
           ? Number(data.pret_negociat_lei_kg) 
-          : null,
+          : undefined,
         observatii: data.observatii || null,
       }),
     onSuccess: (newClient) => {
@@ -87,7 +87,7 @@ export function ClientPageClient({
         adresa: data.adresa || null,
         pret_negociat_lei_kg: data.pret_negociat_lei_kg 
           ? Number(data.pret_negociat_lei_kg) 
-          : null,
+          : undefined,
         observatii: data.observatii || null,
       }),
     onSuccess: (updatedClient) => {

@@ -1,6 +1,6 @@
 // src/app/(dashboard)/clienti/page.tsx
 import { createClient } from '@/lib/supabase/server';
-import { getClienti } from '@/lib/supabase/queries/clienti';
+import { getClienti, type Client } from '@/lib/supabase/queries/clienti';
 import { ClientPageClient } from './ClientPageClient';
 
 export const metadata = {
@@ -47,7 +47,7 @@ export default async function ClientPage() {
   console.log('[ClientPage] Tenant ID:', tenantId);
 
   // Fetch clienți
-  let clienti = [];
+  let clienti: Client[] = [];
   try {
     clienti = await getClienti(tenantId);
     console.log('[ClientPage] Fetched clienti:', clienti.length);

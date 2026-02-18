@@ -374,7 +374,6 @@ export function RecoltariPageClient({
         onConfirm={confirmDelete}
         itemName={deletingRecoltare?.id_recoltare || ''}
         itemType="recoltare"
-        isPending={deleteMutation.isPending}
       />
     </div>
   );

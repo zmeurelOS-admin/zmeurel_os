@@ -75,7 +75,7 @@ export function EditInvestitieDialog({
       reset({
         data: investitie.data,
         parcela_id: investitie.parcela_id || '',
-        categorie: investitie.categorie,
+        categorie: investitie.categorie || "",
         furnizor: investitie.furnizor || '',
         descriere: investitie.descriere || '',
         suma_lei: investitie.suma_lei.toString(),
@@ -106,7 +106,7 @@ export function EditInvestitieDialog({
       id: investitie.id,
       data: {
         data: data.data,
-        parcela_id: data.parcela_id || null,
+        parcela_id: data.parcela_id || undefined,
         categorie: data.categorie,
         furnizor: data.furnizor || undefined,
         descriere: data.descriere || undefined,

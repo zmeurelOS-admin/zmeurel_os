@@ -91,7 +91,7 @@ export function AddInvestitieDialog({ tenantId }: AddInvestitieDialogProps) {
     createMutation.mutate({
       tenant_id: tenantId,
       data: data.data,
-      parcela_id: data.parcela_id || null,
+      parcela_id: data.parcela_id || undefined,
       categorie: data.categorie,
       furnizor: data.furnizor || undefined,
       descriere: data.descriere || undefined,

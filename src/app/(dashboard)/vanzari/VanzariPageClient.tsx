@@ -315,7 +315,6 @@ export function VanzariPageClient({
         onConfirm={confirmDelete}
         itemName={deletingVanzare?.id_vanzare || ''}
         itemType="vânzare"
-        isPending={deleteMutation.isPending}
       />
     </div>
   );

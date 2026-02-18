@@ -24,7 +24,7 @@ export interface Parcela {
     created_at: string;
     updated_at: string;
   }
-  
+
   // Pentru INSERT (fără id, timestamps auto-generate)
   export interface ParcelaInsert {
     tenant_id: string;
@@ -39,7 +39,7 @@ export interface Parcela {
     gps_lng?: number | null;
     observatii?: string | null;
   }
-  
+
   // Pentru UPDATE (toate câmpurile opționale)
   export interface ParcelaUpdate {
     id_parcela?: string;
@@ -53,17 +53,17 @@ export interface Parcela {
     gps_lng?: number | null;
     observatii?: string | null;
   }
-  
+
   // Extended cu calcule (de la VIEW parcele_extended)
   export interface ParcelaExtended extends Parcela {
     densitate_plante_m2: number; // plante / m²
     varsta_ani: number; // anul curent - an_plantare
   }
-  
+
   // ============================================================================
   // ACTIVITATI EXTRA-SEASON
   // ============================================================================
-  
+
   export interface ActivitateExtraSeason {
     id: string;
     tenant_id: string;
@@ -79,7 +79,7 @@ export interface Parcela {
     created_at: string;
     updated_at: string;
   }
-  
+
   export interface ActivitateExtraSeasonInsert {
     tenant_id: string;
     id_activitate: string;
@@ -92,7 +92,7 @@ export interface Parcela {
     manopera_persoane?: number | null;
     observatii?: string | null;
   }
-  
+
   export interface ActivitateExtraSeasonUpdate {
     id_activitate?: string;
     data?: string;
@@ -104,7 +104,7 @@ export interface Parcela {
     manopera_persoane?: number | null;
     observatii?: string | null;
   }
-  
+
   // Extended cu JOIN parcele
   export interface ActivitateExtraSeasonExtended extends ActivitateExtraSeason {
     nume_parcela: string | null;
@@ -113,11 +113,11 @@ export interface Parcela {
     cost_lei_per_m2: number;
     cost_lei_per_ora: number;
   }
-  
+
   // ============================================================================
   // NOMENCLATOARE (Enums/Dropdowns)
   // ============================================================================
-  
+
   export interface Nomenclator {
     id: string;
     tip: string; // 'Soi', 'Tip_Activitate_Extra', etc.
@@ -125,18 +125,18 @@ export interface Parcela {
     descriere: string | null;
     created_at: string;
   }
-  
+
   // Helper pentru dropdown options
   export interface NomenclatorOption {
     value: string;
     label: string;
     descriere?: string;
   }
-  
+
   // ============================================================================
   // TENANTS (Multi-tenancy)
   // ============================================================================
-  
+
   export interface Tenant {
     id: string;
     nume_ferma: string;
@@ -144,23 +144,23 @@ export interface Parcela {
     plan: string; // 'freemium', 'starter', 'pro', 'enterprise'
     created_at: string;
   }
-  
+
   // ============================================================================
   // HELPER TYPES
   // ============================================================================
-  
+
   // Response wrapper pentru queries
   export interface ApiResponse<T> {
     data: T | null;
     error: Error | null;
   }
-  
+
   // Pagination
   export interface PaginationParams {
     page: number;
     pageSize: number;
   }
-  
+
   export interface PaginatedResponse<T> {
     data: T[];
     total: number;
@@ -168,7 +168,7 @@ export interface Parcela {
     pageSize: number;
     totalPages: number;
   }
-  
+
   // Filter params
   export interface ParcelaFilters {
     soi_plantat?: string;
@@ -176,31 +176,3 @@ export interface Parcela {
     an_plantare_min?: number;
     an_plantare_max?: number;
   }
-  
-  // ============================================================================
-  // EXPORT ALL
-  // ============================================================================
-  
-  export type {
-    // Parcele
-    Parcela,
-    ParcelaInsert,
-    ParcelaUpdate,
-    ParcelaExtended,
-    // Activitati
-    ActivitateExtraSeason,
-    ActivitateExtraSeasonInsert,
-    ActivitateExtraSeasonUpdate,
-    ActivitateExtraSeasonExtended,
-    // Nomenclatoare
-    Nomenclator,
-    NomenclatorOption,
-    // Tenants
-    Tenant,
-    // Helpers
-    ApiResponse,
-    PaginationParams,
-    PaginatedResponse,
-    ParcelaFilters,
-  };
-  

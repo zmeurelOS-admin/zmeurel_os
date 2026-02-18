@@ -3,7 +3,7 @@
 import LogoutButton from './LogoutButton';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
@@ -11,6 +11,8 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const supabase = createClient();
+    
     // Verifică sesiunea la mount
     const checkSession = async () => {
       try {

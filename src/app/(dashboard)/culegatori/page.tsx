@@ -1,6 +1,6 @@
 // src/app/(dashboard)/culegatori/page.tsx
 import { createClient } from '@/lib/supabase/server';
-import { getCulegatori } from '@/lib/supabase/queries/culegatori';
+import { getCulegatori, type Culegator } from '@/lib/supabase/queries/culegatori';
 import { CulegatorPageClient } from './CulegatorPageClient';
 
 export const metadata = {
@@ -47,7 +47,7 @@ export default async function CulegatorPage() {
   console.log('[CulegatorPage] Tenant ID:', tenantId);
 
   // Fetch culegători
-  let culegatori = [];
+  let culegatori: Culegator[] = [];
   try {
     culegatori = await getCulegatori(tenantId);
     console.log('[CulegatorPage] Fetched culegatori:', culegatori.length);
