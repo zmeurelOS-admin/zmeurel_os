@@ -9,7 +9,7 @@
   --tabbar-h: 64px;
   --app-nav-clearance: calc(var(--tabbar-h) + var(--safe-b));
 
-  --agri-bg: #f5f7f5;
+  --agri-bg: #f8faf8;
   --agri-surface: #ffffff;
   --agri-surface-muted: #eef3ee;
   --agri-text: #102015;
@@ -47,10 +47,42 @@ body {
   overscroll-behavior: none;
 }
 
+.value-kg {
+  color: #166534;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-money-positive {
+  color: #15803d;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.value-money-negative {
+  color: #dc2626;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-low-warning {
+  color: #d97706;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   overflow-x: hidden;
   background: var(--agri-bg);
   color: var(--agri-text);
+  font-variant-numeric: tabular-nums;
   font-family: var(--font-inter), "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
   text-rendering: optimizeLegibility;
@@ -82,6 +114,16 @@ body {
   border: var(--agri-border-w) solid var(--agri-border);
   background: var(--agri-surface);
   box-shadow: var(--agri-shadow);
+}
+
+@media (min-width: 1024px) {
+  .agri-card {
+    transition: box-shadow 180ms ease;
+  }
+
+  .agri-card:hover {
+    box-shadow: 0 12px 26px rgba(16, 32, 21, 0.12);
+  }
 }
 
 .agri-muted {

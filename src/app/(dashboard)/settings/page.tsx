@@ -1,180 +1,157 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { KeyRound, Settings2, UserCircle2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Download, KeyRound, Loader2, Settings2, UserCircle2 } from 'lucide-react'
+import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { AppShell } from '@/components/app/AppShell'
 import { FarmSwitcher } from '@/components/app/FarmSwitcher'
 import { PageHeader } from '@/components/app/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useUiDensity } from '@/hooks/useUiDensity'
-import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
+import { track } from '@/lib/analytics/track'
 import { getSupabase } from '@/lib/supabase/client'
 
-interface GoogleContactsStatus {
-  connected: boolean
-  connected_email: string | null
-  last_sync_at: string | null
-  sync_enabled: boolean
-  sync_window: 'dimineata' | 'seara'
+type CsvModule = 'activitati' | 'cheltuieli' | 'vanzari' | 'recoltari' | 'clienti' | 'comenzi'
+
+type TenantTable =
+  | 'activitati_agricole'
+  | 'cheltuieli_diverse'
+  | 'vanzari'
+  | 'recoltari'
+  | 'clienti'
+  | 'parcele'
+  | 'culegatori'
+  | 'investitii'
+  | 'vanzari_butasi'
+  | 'vanzari_butasi_items'
+  | 'comenzi'
+  | 'miscari_stoc'
+  | 'alert_dismissals'
+
+const CSV_MODULES: Array<{ key: CsvModule; label: string; table: TenantTable }> = [
+  { key: 'activitati', label: 'Activitati', table: 'activitati_agricole' },
+  { key: 'cheltuieli', label: 'Cheltuieli', table: 'cheltuieli_diverse' },
+  { key: 'vanzari', label: 'Vanzari', table: 'vanzari' },
+  { key: 'recoltari', label: 'Recoltari', table: 'recoltari' },
+  { key: 'clienti', label: 'Clienti', table: 'clienti' },
+  { key: 'comenzi', label: 'Comenzi', table: 'comenzi' },
+]
+
+const GDPR_TABLES: TenantTable[] = [
+  'activitati_agricole',
+  'cheltuieli_diverse',
+  'vanzari',
+  'recoltari',
+  'clienti',
+  'parcele',
+  'culegatori',
+  'investitii',
+  'vanzari_butasi',
+  'vanzari_butasi_items',
+  'comenzi',
+  'miscari_stoc',
+  'alert_dismissals',
+]
+
+const EXPORT_BATCH_SIZE = 1000
+const PROTECTED_SUPERADMIN_EMAIL = 'popa.andrei.sv@gmail.com'
+
+function escapeCsvValue(value: unknown): string {
+  const raw = value === null || value === undefined ? '' : String(value)
+  const escaped = raw.replace(/"/g, '""')
+  return `"${escaped}"`
+}
+
+function rowsToCsv(rows: Record<string, unknown>[]): string {
+  if (!rows.length) return ''
+
+  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))))
+  const headerLine = headers.map(escapeCsvValue).join(',')
+  const lines = rows.map((row) => headers.map((key) => escapeCsvValue(row[key])).join(','))
+
+  return [headerLine, ...lines].join('\n')
+}
+
+function downloadFile(content: string, fileName: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = fileName
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { density, setDensity } = useUiDensity()
-  const handledGoogleStateRef = useRef<string | null>(null)
+  const { userId, email, isSuperAdmin } = useDashboardAuth()
+  const safeEmail = email ?? 'Necunoscut'
+  const isProtectedSuperadmin = safeEmail.toLowerCase() === PROTECTED_SUPERADMIN_EMAIL
 
-  const [email, setEmail] = useState('...')
-  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false)
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [farmName, setFarmName] = useState('')
+  const [farmNameDraft, setFarmNameDraft] = useState('')
+  const [isSavingFarmName, setIsSavingFarmName] = useState(false)
+
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isSavingPassword, setIsSavingPassword] = useState(false)
 
-  const [googleStatus, setGoogleStatus] = useState<GoogleContactsStatus | null>(null)
-  const [isLoadingGoogleStatus, setIsLoadingGoogleStatus] = useState(false)
-  const [isImportingGoogle, setIsImportingGoogle] = useState(false)
-  const [isUpdatingGoogleSync, setIsUpdatingGoogleSync] = useState(false)
+  const [isExportingJson, setIsExportingJson] = useState(false)
+  const [jsonExportProgress, setJsonExportProgress] = useState<{ done: number; total: number } | null>(null)
+  const [exportingCsvModule, setExportingCsvModule] = useState<CsvModule | null>(null)
+  const [csvExportRowsFetched, setCsvExportRowsFetched] = useState(0)
+
+  const [deleteFarmStep1Open, setDeleteFarmStep1Open] = useState(false)
+  const [deleteFarmStep2Open, setDeleteFarmStep2Open] = useState(false)
+  const [deleteFarmConfirmText, setDeleteFarmConfirmText] = useState('')
+  const [isDeletingFarmData, setIsDeletingFarmData] = useState(false)
+
+  const [deleteAccountStep1Open, setDeleteAccountStep1Open] = useState(false)
+  const [deleteAccountStep2Open, setDeleteAccountStep2Open] = useState(false)
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('')
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   useEffect(() => {
     void (async () => {
+      if (!userId) return
+
       const supabase = getSupabase()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setEmail(user?.email ?? 'Necunoscut')
-      setIsSuperAdminUser(user?.id ? await isSuperAdmin(supabase, user.id) : false)
+
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id,nume_ferma')
+        .eq('owner_user_id', userId)
+        .maybeSingle()
+      const tenantRow = tenant as { id?: string; nume_ferma?: string } | null
+
+      if (tenantRow?.id) {
+        setTenantId(tenantRow.id)
+      }
+      if (tenantRow?.nume_ferma) {
+        setFarmName(tenantRow.nume_ferma)
+        setFarmNameDraft(tenantRow.nume_ferma)
+      }
     })()
-  }, [])
+  }, [userId])
 
   const passwordError = useMemo(() => {
     if (!newPassword && !confirmPassword) return null
-    if (newPassword.length < 8) return 'Parola trebuie să aibă minim 8 caractere.'
+    if (newPassword.length < 8) return 'Parola trebuie sa aiba minim 8 caractere.'
     if (newPassword !== confirmPassword) return 'Parolele nu coincid.'
     return null
   }, [confirmPassword, newPassword])
 
-  const loadGoogleStatus = useCallback(async () => {
-    setIsLoadingGoogleStatus(true)
-    try {
-      const response = await fetch('/api/integrations/google/import', { method: 'GET' })
-      const payload = (await response.json()) as {
-        error?: string
-        connected?: boolean
-        connected_email?: string | null
-        last_sync_at?: string | null
-        sync_enabled?: boolean
-        sync_window?: 'dimineata' | 'seara'
-      }
-
-      if (!response.ok) {
-        throw new Error(payload.error || 'Nu am putut încărca statusul Google Contacts.')
-      }
-
-      setGoogleStatus({
-        connected: Boolean(payload.connected),
-        connected_email: payload.connected_email ?? null,
-        last_sync_at: payload.last_sync_at ?? null,
-        sync_enabled: payload.sync_enabled ?? true,
-        sync_window: payload.sync_window === 'dimineata' ? 'dimineata' : 'seara',
-      })
-    } catch (error: unknown) {
-      const message = (error as { message?: string })?.message || 'Nu am putut încărca statusul Google Contacts.'
-      toast.error(message)
-    } finally {
-      setIsLoadingGoogleStatus(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isSuperAdminUser) return
-    void loadGoogleStatus()
-  }, [isSuperAdminUser, loadGoogleStatus])
-
-  useEffect(() => {
-    if (!isSuperAdminUser) return
-    if (typeof window === 'undefined') return
-
-    const googleState = new URLSearchParams(window.location.search).get('google_contacts')
-    if (!googleState || handledGoogleStateRef.current === googleState) return
-
-    handledGoogleStateRef.current = googleState
-    if (googleState === 'connected') {
-      toast.success('Google Contacts conectat.')
-    } else if (googleState.startsWith('error')) {
-      toast.error('Conectarea Google Contacts a eșuat.')
-    }
-
-    void loadGoogleStatus()
-
-    const url = new URL(window.location.href)
-    url.searchParams.delete('google_contacts')
-    window.history.replaceState({}, '', url.toString())
-  }, [isSuperAdminUser, loadGoogleStatus])
-
-  const handleGoogleConnect = () => {
-    window.location.href = '/api/integrations/google/connect'
-  }
-
-  const handleGoogleImport = async () => {
-    setIsImportingGoogle(true)
-    try {
-      const response = await fetch('/api/integrations/google/import', { method: 'POST' })
-      const payload = (await response.json()) as {
-        error?: string
-        result?: {
-          contacts_fetched?: number
-          clients_upserted?: number
-        }
-      }
-
-      if (!response.ok) {
-        throw new Error(payload.error || 'Importul Google Contacts a eșuat.')
-      }
-
-      const fetched = payload.result?.contacts_fetched ?? 0
-      const upserted = payload.result?.clients_upserted ?? 0
-      toast.success(`Import finalizat: ${fetched} contacte, ${upserted} clienti actualizati.`)
-      await loadGoogleStatus()
-    } catch (error: unknown) {
-      const message = (error as { message?: string })?.message || 'Importul Google Contacts a eșuat.'
-      toast.error(message)
-    } finally {
-      setIsImportingGoogle(false)
-    }
-  }
-
-  const handleGoogleSyncUpdate = async (
-    patch: Partial<Pick<GoogleContactsStatus, 'sync_enabled' | 'sync_window'>>
-  ) => {
-    if (!googleStatus) return
-
-    setIsUpdatingGoogleSync(true)
-    try {
-      const response = await fetch('/api/integrations/google/import', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
-      })
-
-      const payload = (await response.json()) as { error?: string }
-      if (!response.ok) {
-        throw new Error(payload.error || 'Nu am putut salva setările de sync.')
-      }
-
-      setGoogleStatus((prev) => (prev ? { ...prev, ...patch } : prev))
-      toast.success('Setările de sync au fost actualizate.')
-    } catch (error: unknown) {
-      const message = (error as { message?: string })?.message || 'Nu am putut salva setările de sync.'
-      toast.error(message)
-    } finally {
-      setIsUpdatingGoogleSync(false)
-    }
-  }
+  const canConfirmDeleteFarm = deleteFarmConfirmText.trim().toUpperCase() === 'STERGE DATELE'
+  const canConfirmDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === 'STERGE CONTUL'
 
   const handleChangePassword = async () => {
     if (passwordError) {
@@ -188,7 +165,7 @@ export default function SettingsPage() {
       const { error } = await supabase.auth.updateUser({ password: newPassword })
       if (error) throw error
 
-      toast.success('Parola a fost actualizată.')
+      toast.success('Parola a fost actualizata.')
       setPasswordDialogOpen(false)
       setNewPassword('')
       setConfirmPassword('')
@@ -200,96 +177,372 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSaveFarmName = async () => {
+    const nextFarmName = farmNameDraft.trim()
+    if (nextFarmName.length < 2) {
+      toast.error('Numele fermei trebuie sa aiba minim 2 caractere.')
+      return
+    }
+
+    setIsSavingFarmName(true)
+    try {
+      const response = await fetch('/api/gdpr/farm', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ farmName: nextFarmName }),
+      })
+      const payload = (await response.json()) as {
+        ok?: boolean
+        error?: { code?: string; message?: string; details?: string | null } | string
+        data?: { farmName?: string }
+        farmName?: string
+      }
+
+      if (!response.ok || payload.ok === false) {
+        const message =
+          typeof payload.error === 'string'
+            ? payload.error
+            : payload.error?.message || 'Nu am putut actualiza numele fermei.'
+        throw new Error(message)
+      }
+
+      const savedFarmName = payload.data?.farmName ?? payload.farmName ?? nextFarmName
+      setFarmName(savedFarmName)
+      setFarmNameDraft(savedFarmName)
+      toast.success('Numele fermei a fost actualizat')
+      router.refresh()
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut actualiza numele fermei.'
+      toast.error(message)
+    } finally {
+      setIsSavingFarmName(false)
+    }
+  }
+
+  const handleExportAllDataJson = async () => {
+    if (!userId || !tenantId) {
+      toast.error('Context tenant indisponibil pentru export.')
+      return
+    }
+
+    setIsExportingJson(true)
+    setJsonExportProgress({ done: 0, total: GDPR_TABLES.length })
+    try {
+      const supabase = getSupabase()
+      const nowIso = new Date().toISOString()
+
+      const { data: tenantRow } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', tenantId)
+        .maybeSingle()
+
+      const { data: profileRow } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+
+      const tables: Record<string, unknown[]> = {}
+      const errors: Record<string, string> = {}
+
+      const fetchTenantRowsBatched = async (table: TenantTable) => {
+        const rows: unknown[] = []
+        let from = 0
+
+        while (true) {
+          const to = from + EXPORT_BATCH_SIZE - 1
+          const { data, error } = await supabase
+            .from(table)
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .range(from, to)
+
+          if (error) throw error
+
+          const chunk = (data ?? []) as unknown[]
+          if (!chunk.length) break
+
+          rows.push(...chunk)
+          if (chunk.length < EXPORT_BATCH_SIZE) break
+          from += EXPORT_BATCH_SIZE
+        }
+
+        return rows
+      }
+
+      for (let index = 0; index < GDPR_TABLES.length; index += 1) {
+        const table = GDPR_TABLES[index]
+        try {
+          tables[table] = await fetchTenantRowsBatched(table)
+        } catch (error) {
+          errors[table] = (error as { message?: string })?.message || 'Unknown error'
+          tables[table] = []
+        }
+
+        setJsonExportProgress({ done: index + 1, total: GDPR_TABLES.length })
+      }
+
+      const payload = {
+        exported_at: nowIso,
+        compliance: 'Regulamentul (UE) 2016/679 (GDPR)',
+        user: {
+          id: userId,
+          email: safeEmail,
+        },
+        tenant: tenantRow,
+        profile: profileRow,
+        tables,
+        errors,
+      }
+
+      downloadFile(
+        JSON.stringify(payload, null, 2),
+        `zmeurel-gdpr-export-${nowIso.slice(0, 10)}.json`,
+        'application/json;charset=utf-8'
+      )
+      track('export', { type: 'json', module: 'all', rows: Object.values(tables).reduce((sum, tableRows) => sum + (tableRows?.length ?? 0), 0) })
+      toast.success('Export JSON generat.')
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut exporta datele.'
+      toast.error(message)
+    } finally {
+      setIsExportingJson(false)
+      setJsonExportProgress(null)
+    }
+  }
+
+  const handleExportModuleCsv = async (module: CsvModule) => {
+    if (!tenantId) {
+      toast.error('Context tenant indisponibil pentru export.')
+      return
+    }
+
+    const config = CSV_MODULES.find((item) => item.key === module)
+    if (!config) return
+
+    setExportingCsvModule(module)
+    setCsvExportRowsFetched(0)
+    try {
+      const supabase = getSupabase()
+      const rows: Record<string, unknown>[] = []
+      let from = 0
+
+      while (true) {
+        const to = from + EXPORT_BATCH_SIZE - 1
+        const { data, error } = await supabase
+          .from(config.table)
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .range(from, to)
+
+        if (error) throw error
+
+        const chunk = (data ?? []) as Record<string, unknown>[]
+        if (!chunk.length) break
+
+        rows.push(...chunk)
+        setCsvExportRowsFetched(rows.length)
+
+        if (chunk.length < EXPORT_BATCH_SIZE) break
+        from += EXPORT_BATCH_SIZE
+      }
+
+      const csv = rowsToCsv(rows)
+      downloadFile(csv, `zmeurel-${module}-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
+      track('export', { type: 'csv', module, rows: rows.length })
+      toast.success(`Export CSV generat pentru ${config.label}.`)
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut exporta CSV-ul modulului.'
+      toast.error(message)
+    } finally {
+      setExportingCsvModule(null)
+      setCsvExportRowsFetched(0)
+    }
+  }
+
+  const handleDeleteFarmData = async () => {
+    setIsDeletingFarmData(true)
+    try {
+      const response = await fetch('/api/gdpr/farm', { method: 'DELETE' })
+      const payload = (await response.json()) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Nu am putut sterge datele fermei.')
+
+      setDeleteFarmStep2Open(false)
+      setDeleteFarmConfirmText('')
+      toast.success('Datele fermei au fost sterse.')
+      router.refresh()
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut sterge datele fermei.'
+      toast.error(message)
+    } finally {
+      setIsDeletingFarmData(false)
+    }
+  }
+
+  const handleDeleteAccountAndTenant = async () => {
+    setIsDeletingAccount(true)
+    try {
+      const response = await fetch('/api/gdpr/account', { method: 'DELETE' })
+      const payload = (await response.json()) as { error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Nu am putut sterge contul.')
+
+      const supabase = getSupabase()
+      await supabase.auth.signOut()
+      toast.success('Contul si tenantul au fost sterse.')
+      router.push('/login')
+      router.refresh()
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut sterge contul.'
+      toast.error(message)
+    } finally {
+      setIsDeletingAccount(false)
+    }
+  }
+
   return (
     <AppShell
-      header={<PageHeader title="Cont & Setări" subtitle="Profil utilizator și preferințe UI" rightSlot={<Settings2 className="h-5 w-5" />} />}
+      header={<PageHeader title="Cont & Setari" subtitle="Profil utilizator si preferinte UI" rightSlot={<Settings2 className="h-5 w-5" />} />}
     >
-      <div className="mx-auto w-full max-w-3xl space-y-4 py-4">
-        <section id="profil" className="agri-card space-y-3 p-4">
+      <div className="mx-auto w-full max-w-3xl space-y-4 py-4 lg:space-y-6 xl:space-y-8">
+        <section id="profil" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
           <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Profil utilizator</h2>
 
           <div className="space-y-2">
             <Label className="text-xs uppercase text-[var(--agri-text-muted)]">Email</Label>
             <div className="agri-control flex h-11 items-center gap-2 px-3 text-sm font-medium text-[var(--agri-text)]">
               <UserCircle2 className="h-4 w-4 text-[var(--agri-text-muted)]" />
-              {email}
+              {safeEmail}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="farm-name" className="text-xs uppercase text-[var(--agri-text-muted)]">Nume ferma</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="farm-name"
+                className="agri-control h-11"
+                value={farmNameDraft}
+                onChange={(event) => setFarmNameDraft(event.target.value)}
+                placeholder="Nume ferma"
+              />
+              <Button
+                type="button"
+                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+                disabled={isSavingFarmName || farmNameDraft.trim().length < 2 || farmNameDraft.trim() === farmName}
+                onClick={handleSaveFarmName}
+              >
+                {isSavingFarmName ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Se salveaza...
+                  </>
+                ) : (
+                  'Salveaza'
+                )}
+              </Button>
             </div>
           </div>
 
           <Button type="button" variant="outline" className="agri-control h-11 justify-start gap-2" onClick={() => setPasswordDialogOpen(true)}>
             <KeyRound className="h-4 w-4" />
-            Schimbă parola
+            Schimba parola
           </Button>
 
-          {isSuperAdminUser ? (
-            <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3">
-              <div className="mb-3 space-y-1">
-                <h3 className="text-xs font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Google Contacts</h3>
-                <p className="text-sm text-[var(--agri-text-muted)]">
-                  {isLoadingGoogleStatus
-                    ? 'Se încarcă statusul integrării...'
-                    : googleStatus?.connected
-                      ? `Conectat (${googleStatus.connected_email || 'cont Google'})`
-                      : 'Neconectat'}
-                </p>
-                {googleStatus?.last_sync_at ? (
-                  <p className="text-xs text-[var(--agri-text-muted)]">
-                    Ultimul sync: {new Date(googleStatus.last_sync_at).toLocaleString('ro-RO')}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button type="button" variant="outline" className="agri-control h-11" onClick={handleGoogleConnect}>
-                  Conectează Google
-                </Button>
-                <Button
-                  type="button"
-                  className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-                  disabled={!googleStatus?.connected || isImportingGoogle}
-                  onClick={handleGoogleImport}
-                >
-                  {isImportingGoogle ? 'Import în curs...' : 'Importă acum'}
-                </Button>
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Button
-                  type="button"
-                  variant={googleStatus?.sync_enabled ? 'default' : 'outline'}
-                  className="agri-control h-11"
-                  disabled={!googleStatus?.connected || isUpdatingGoogleSync}
-                  onClick={() => handleGoogleSyncUpdate({ sync_enabled: !(googleStatus?.sync_enabled ?? true) })}
-                >
-                  Sync zilnic: {googleStatus?.sync_enabled ? 'Activ' : 'Oprit'}
-                </Button>
-
-                <Select
-                  value={googleStatus?.sync_window ?? 'seara'}
-                  onValueChange={(value: 'dimineata' | 'seara') => handleGoogleSyncUpdate({ sync_window: value })}
-                  disabled={!googleStatus?.connected || isUpdatingGoogleSync}
-                >
-                  <SelectTrigger className="agri-control h-11">
-                    <SelectValue placeholder="Moment sync" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dimineata">Dimineața (06:00)</SelectItem>
-                    <SelectItem value="seara">Seara (20:00)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ) : null}
         </section>
 
-        {isSuperAdminUser ? (
-          <section id="ferma" className="agri-card space-y-3 p-4">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Schimbă fermă</h2>
+        <section id="gdpr" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Protecția datelor (GDPR)</h2>
+            <p className="text-sm text-[var(--agri-text-muted)]">
+              Zmeurel OS respectă Regulamentul (UE) 2016/679 privind protecția datelor.
+            </p>
+            <p className="text-xs text-[var(--agri-text-muted)]">
+              Exportul include datele operaționale: Parcele, Activitati, Recoltari, Cheltuieli, Vanzari, Vanzari Butasi, Clienti, Comenzi, Culegatori.
+            </p>
+            <p className="text-xs text-[var(--agri-text-muted)]">
+              Evenimentele de analytics sunt metrici interne de utilizare si nu sunt incluse in export.
+            </p>
+            <p className="text-xs text-[var(--agri-text-muted)]">
+              Evenimentele de analytics sunt eliminate cand stergi datele fermei sau contul.
+            </p>
+            <p className="text-xs text-[var(--agri-text-muted)]">
+              Datele operationale sunt pastrate pana cand le stergi. Evenimentele de analytics sunt pastrate maximum 90 de zile pentru imbunatatirea produsului.
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="agri-control h-11 w-full justify-start gap-2"
+            disabled={isExportingJson}
+            onClick={handleExportAllDataJson}
+          >
+            {isExportingJson ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {isExportingJson
+              ? `Se genereaza JSON... (${jsonExportProgress?.done ?? 0}/${jsonExportProgress?.total ?? GDPR_TABLES.length})`
+              : 'Export all my data (JSON)'}
+          </Button>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Export CSV per modul</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CSV_MODULES.map((module) => (
+                <Button
+                  key={module.key}
+                  type="button"
+                  variant="outline"
+                  className="agri-control h-10 text-xs"
+                  disabled={Boolean(exportingCsvModule)}
+                  onClick={() => handleExportModuleCsv(module.key)}
+                >
+                  {exportingCsvModule === module.key ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {`Se exporta... (${csvExportRowsFetched} randuri)`}
+                    </>
+                  ) : (
+                    module.label
+                  )}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 border-red-300 text-red-700 hover:bg-red-50"
+              onClick={() => setDeleteFarmStep1Open(true)}
+            >
+              Delete all farm data
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 border-red-500 text-red-800 hover:bg-red-50"
+              onClick={() => setDeleteAccountStep1Open(true)}
+              disabled={isProtectedSuperadmin}
+            >
+              Delete my account and tenant
+            </Button>
+            {isProtectedSuperadmin ? (
+              <p className="text-xs font-medium text-[var(--agri-text-muted)]">
+                Cont protejat: acest cont nu poate fi șters.
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        {isSuperAdmin ? (
+          <section id="ferma" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Schimba ferma</h2>
             <FarmSwitcher variant="panel" />
           </section>
         ) : null}
 
-        <section id="interfata" className="agri-card space-y-3 p-4">
+        <section id="interfata" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
           <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Densitate UI</h2>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -311,15 +564,14 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
-
       <AppDialog
         open={passwordDialogOpen}
         onOpenChange={setPasswordDialogOpen}
-        title="Schimbă parola"
+        title="Schimba parola"
         footer={
           <>
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setPasswordDialogOpen(false)}>
-              Anulează
+              Anuleaza
             </Button>
             <Button
               type="button"
@@ -327,14 +579,21 @@ export default function SettingsPage() {
               disabled={isSavingPassword || !!passwordError || newPassword.length === 0}
               onClick={handleChangePassword}
             >
-              Salvează
+              {isSavingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Se salveaza...
+                </>
+              ) : (
+                'Salveaza'
+              )}
             </Button>
           </>
         }
       >
         <div id="password" className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="new-password">Parolă nouă</Label>
+            <Label htmlFor="new-password">Parola noua</Label>
             <Input
               id="new-password"
               type="password"
@@ -345,7 +604,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirmă parola</Label>
+            <Label htmlFor="confirm-password">Confirma parola</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -358,6 +617,131 @@ export default function SettingsPage() {
           {passwordError ? <p className="text-sm font-medium text-red-700">{passwordError}</p> : null}
         </div>
       </AppDialog>
+
+      <AppDialog
+        open={deleteFarmStep1Open}
+        onOpenChange={setDeleteFarmStep1Open}
+        title="Stergi toate datele fermei?"
+        description="Actiunea sterge toate inregistrarile operationale ale fermei, fara stergerea contului de utilizator."
+        footer={
+          <>
+            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteFarmStep1Open(false)}>
+              Anuleaza
+            </Button>
+            <Button
+              type="button"
+              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              onClick={() => {
+                setDeleteFarmStep1Open(false)
+                setDeleteFarmStep2Open(true)
+              }}
+            >
+              Continua
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-[var(--agri-text-muted)]">
+          Confirma in pasul urmator pentru a preveni stergerea accidentala.
+        </p>
+      </AppDialog>
+
+      <AppDialog
+        open={deleteFarmStep2Open}
+        onOpenChange={setDeleteFarmStep2Open}
+        title="Confirmare finala - date ferma"
+        description="Tasteaza STERGE DATELE pentru confirmare."
+        footer={
+          <>
+            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteFarmStep2Open(false)}>
+              Anuleaza
+            </Button>
+            <Button
+              type="button"
+              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              disabled={!canConfirmDeleteFarm || isDeletingFarmData}
+              onClick={handleDeleteFarmData}
+            >
+              {isDeletingFarmData ? 'Se sterge...' : 'Sterge datele'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <Label htmlFor="confirm-delete-farm">Confirmare</Label>
+          <Input
+            id="confirm-delete-farm"
+            className="agri-control h-11"
+            placeholder="STERGE DATELE"
+            value={deleteFarmConfirmText}
+            onChange={(event) => setDeleteFarmConfirmText(event.target.value)}
+          />
+        </div>
+      </AppDialog>
+
+      <AppDialog
+        open={deleteAccountStep1Open}
+        onOpenChange={setDeleteAccountStep1Open}
+        title="Stergi contul si tenantul?"
+        description="Actiunea elimina contul, tenantul si toate datele asociate. Aceasta actiune este ireversibila."
+        footer={
+          <>
+            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep1Open(false)}>
+              Anuleaza
+            </Button>
+            <Button
+              type="button"
+              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              onClick={() => {
+                setDeleteAccountStep1Open(false)
+                setDeleteAccountStep2Open(true)
+              }}
+            >
+              Continua
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-[var(--agri-text-muted)]">
+          Vei fi deconectat imediat dupa finalizare.
+        </p>
+      </AppDialog>
+
+      <AppDialog
+        open={deleteAccountStep2Open}
+        onOpenChange={setDeleteAccountStep2Open}
+        title="Confirmare finala - cont si tenant"
+        description="Tasteaza STERGE CONTUL pentru confirmare."
+        footer={
+          <>
+            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep2Open(false)}>
+              Anuleaza
+            </Button>
+            <Button
+              type="button"
+              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              disabled={!canConfirmDeleteAccount || isDeletingAccount}
+              onClick={handleDeleteAccountAndTenant}
+            >
+              {isDeletingAccount ? 'Se sterge...' : 'Sterge contul'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <Label htmlFor="confirm-delete-account">Confirmare</Label>
+          <Input
+            id="confirm-delete-account"
+            className="agri-control h-11"
+            placeholder="STERGE CONTUL"
+            value={deleteAccountConfirmText}
+            onChange={(event) => setDeleteAccountConfirmText(event.target.value)}
+          />
+        </div>
+      </AppDialog>
     </AppShell>
   )
 }
+
+
+

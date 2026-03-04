@@ -2,10 +2,22 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Toaster } from 'sonner'
 import { DensityProvider } from '@/components/app/DensityProvider'
+import {
+  DashboardAuthProvider,
+  type DashboardAuthValue,
+} from '@/components/app/DashboardAuthContext'
+import { NavigationPerfLogger } from '@/components/app/NavigationPerfLogger'
+import { PageViewTracker } from '@/components/app/PageViewTracker'
+import { AddActionProvider } from '@/contexts/AddActionContext'
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  initialAuth,
+}: {
+  children: React.ReactNode
+  initialAuth: DashboardAuthValue
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -22,10 +34,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <DensityProvider>
-        {children}
-        <Toaster position="top-center" />
-      </DensityProvider>
+      <DashboardAuthProvider value={initialAuth}>
+        <AddActionProvider>
+            <DensityProvider>
+              <NavigationPerfLogger />
+              <PageViewTracker />
+              {children}
+            </DensityProvider>
+        </AddActionProvider>
+      </DashboardAuthProvider>
     </QueryClientProvider>
   )
 }

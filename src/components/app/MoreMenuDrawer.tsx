@@ -2,28 +2,29 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   Archive,
+  BanknoteArrowUp,
   BarChart3,
   ClipboardList,
   LayoutDashboard,
   Leaf,
   LogOut,
   MapPin,
+  Receipt,
   Settings,
   ShieldCheck,
   ShoppingBag,
   Users,
   UsersRound,
-  Wallet,
   type LucideIcon,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
-import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { getSupabase } from '@/lib/supabase/client'
 
 interface MoreMenuDrawerProps {
@@ -45,21 +46,24 @@ type MenuGroup = {
 
 const groups: MenuGroup[] = [
   {
-    title: 'Operațiuni',
+    title: 'Operatiuni',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/parcele', label: 'Parcele', icon: MapPin },
+      { href: '/activitati-agricole', label: 'Activitati agricole', icon: ClipboardList },
+      { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
+      { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
+      { href: '/vanzari', label: 'Vanzari fructe', icon: BanknoteArrowUp },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
-      { href: '/vanzari-butasi', label: 'Vânzări butași', icon: ShoppingBag },
+      { href: '/vanzari-butasi', label: 'Vanzari butasi', icon: ShoppingBag },
     ],
   },
   {
     title: 'Administrare',
     items: [
-      { href: '/clienti', label: 'Clienți', icon: Users },
-      { href: '/culegatori', label: 'Culegători', icon: Leaf },
+      { href: '/clienti', label: 'Clienti', icon: Users },
+      { href: '/culegatori', label: 'Culegatori', icon: Leaf },
       { href: '/rapoarte', label: 'Rapoarte', icon: BarChart3 },
-      { href: '/planuri', label: 'Planuri', icon: Wallet },
     ],
   },
 ]
@@ -69,30 +73,25 @@ const adminGroup: MenuGroup = {
   badge: 'Admin',
   items: [
     { href: '/admin/analytics', label: 'Analytics global (agregat)', icon: BarChart3 },
-    { href: '/admin', label: 'Planuri / Pricing', icon: Wallet },
-    { href: '/admin/audit', label: 'Audit planuri', icon: ClipboardList },
-    { href: '/admin', label: 'Listă tenanți', icon: UsersRound },
+    { href: '/admin', label: 'Lista tenanti', icon: UsersRound },
   ],
 }
+
+// Modules rendered in the mobile bottom navbar should not be duplicated in More.
+const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/recoltari', '/comenzi'])
 
 export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false)
-
-  useEffect(() => {
-    void (async () => {
-      const supabase = getSupabase()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setIsSuperAdminUser(user?.id ? await isSuperAdmin(supabase, user.id) : false)
-    })()
-  }, [])
+  const { isSuperAdmin: isSuperAdminUser } = useDashboardAuth()
 
   const sections = useMemo(() => {
-    if (!isSuperAdminUser) return groups
-    return [...groups, adminGroup]
+    const cleanedGroups = groups.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !MOBILE_NAV_PRIMARY.has(item.href)),
+    }))
+    if (!isSuperAdminUser) return cleanedGroups
+    return [...cleanedGroups, adminGroup]
   }, [isSuperAdminUser])
 
   const handleLogout = async () => {
@@ -141,7 +140,7 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
         ))}
 
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">Cont & Setări</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">Cont & Setari</h3>
           <div className="space-y-2">
             <Link
               href="/settings#profil"
@@ -150,6 +149,15 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
             >
               <Settings className="h-4 w-4" />
               Profil utilizator
+            </Link>
+
+            <Link
+              href="/termeni"
+              onClick={() => onOpenChange(false)}
+              className="agri-control flex h-12 items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Ajutor
             </Link>
 
             <Button
@@ -167,5 +175,4 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
     </AppDrawer>
   )
 }
-
 
