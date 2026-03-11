@@ -40,7 +40,7 @@ export default async function RapoartePage() {
       initialCheltuieli={cheltuieli ?? []}
       initialParcele={parcele ?? []}
       initialCulegatori={culegatori ?? []}
-      initialClienti={clienti ?? []}
+      initialClienți={clienti ?? []}
       initialActivitati={activitati ?? []}
     />
   )

@@ -2,17 +2,16 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Map } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { AddParcelDrawer } from '@/components/parcele/AddParcelDrawer'
 import { EditParcelDialog } from '@/components/parcele/EditParcelDialog'
-import { Fab } from '@/components/parcele/Fab'
 import { ParcelaCard } from '@/components/parcele/ParcelaCard'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
+import { queryKeys } from '@/lib/query-keys'
 
 interface ParceleLayoutProps {
   initialParcele: Parcela[]
@@ -29,7 +28,7 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
   const [selectedParcela, setSelectedParcela] = useState<Parcela | null>(null)
 
   const { data: parcele = initialParcele, isLoading } = useQuery({
-    queryKey: ['parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
     initialData: initialParcele,
   })
@@ -37,8 +36,8 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
   const deleteMutation = useMutation({
     mutationFn: deleteParcela,
     onSuccess: () => {
-      toast.success('Parcela a fost stearsa')
-      queryClient.invalidateQueries({ queryKey: ['parcele'] })
+      toast.success('Teren sters')
+      queryClient.invalidateQueries({ queryKey: queryKeys.parcele })
       setDeleteOpen(false)
       setSelectedParcela(null)
     },
@@ -48,7 +47,7 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
   })
 
   const refreshParcele = () => {
-    queryClient.invalidateQueries({ queryKey: ['parcele'] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.parcele })
   }
 
   const handleDelete = (parcela: Parcela) => {
@@ -59,18 +58,17 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
   return (
     <div className="fixed inset-0 flex h-[100dvh] min-h-[100svh] flex-col overflow-hidden bg-slate-50 lg:static lg:h-full lg:min-h-full">
       <CompactPageHeader
-        title="Parcele"
+        title="Terenuri"
         subtitle="Administrare terenuri cultivate"
-        rightSlot={<Map className="h-5 w-5" />}
       />
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--safe-b)+24px)]">
         <div className="mx-auto w-full max-w-3xl space-y-4 py-4">
-          {isLoading && <p className="text-center text-sm text-slate-600">Se incarca...</p>}
+          {isLoading && <p className="text-center text-sm text-slate-600">Se încarcă...</p>}
 
           {!isLoading && parcele.length === 0 && (
             <p className="rounded-2xl bg-white p-5 text-center text-sm text-slate-600 shadow-sm">
-              Nu exista parcele.
+              Nu exist? terenuri.
             </p>
           )}
 
@@ -88,8 +86,6 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
             ))}
         </div>
       </main>
-
-      <Fab onClick={() => setAddOpen(true)} />
 
       <AddParcelDrawer
         open={addOpen}
@@ -113,8 +109,8 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         itemName={buildParcelaDeleteLabel(selectedParcela)}
-        itemType="Parcela"
-        description="Parcela selectata va fi stearsa definitiv."
+        itemType="Teren"
+        description={`Ștergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (!selectedParcela) return
@@ -124,3 +120,5 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
     </div>
   )
 }
+
+

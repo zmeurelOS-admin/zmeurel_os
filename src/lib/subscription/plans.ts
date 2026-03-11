@@ -1,3 +1,5 @@
+﻿import { BETA_EFFECTIVE_PLAN, BETA_MODE } from '@/lib/config/beta'
+
 export type SubscriptionPlan = 'freemium' | 'pro' | 'enterprise'
 
 export type SubscriptionFeature =
@@ -36,12 +38,19 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   enterprise: { maxParcels: null },
 }
 
+export function getEffectivePlan(plan: SubscriptionPlan): SubscriptionPlan {
+  if (BETA_MODE) return BETA_EFFECTIVE_PLAN
+  return plan
+}
+
 export function hasFeature(plan: SubscriptionPlan, feature: SubscriptionFeature): boolean {
-  return FEATURE_MATRIX[plan].includes(feature)
+  const effectivePlan = getEffectivePlan(plan)
+  return FEATURE_MATRIX[effectivePlan].includes(feature)
 }
 
 export function canCreateParcel(plan: SubscriptionPlan, currentParcelCount: number): boolean {
-  const { maxParcels } = PLAN_LIMITS[plan]
+  const effectivePlan = getEffectivePlan(plan)
+  const maxParcels = PLAN_LIMITS[effectivePlan].maxParcels
   if (maxParcels === null) return true
   return currentParcelCount < maxParcels
 }

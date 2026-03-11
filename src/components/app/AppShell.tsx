@@ -13,14 +13,14 @@ export function AppShell({
   children,
   fab,
   bottomBar,
-  bottomInset = 'var(--app-nav-clearance)',
+  bottomInset = 'calc(var(--app-nav-clearance) + var(--mobile-scroll-padding))',
 }: AppShellProps) {
   return (
     <div className="bg-[var(--agri-bg)]">
-      <div className="relative z-20">{header}</div>
+      <div className="relative z-20 lg:z-40">{header}</div>
 
       <main
-        className="relative z-10 px-4"
+        className="relative z-10 px-4 lg:px-8 xl:px-10"
         style={{ paddingBottom: bottomInset }}
       >
         {children}

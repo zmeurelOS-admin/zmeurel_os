@@ -3,18 +3,20 @@
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { useForm, useWatch } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { getClienti } from '@/lib/supabase/queries/clienti'
+import { track } from '@/lib/analytics/track'
+import { getClienți } from '@/lib/supabase/queries/clienti'
 import { STATUS_PLATA, updateVanzare, type Vanzare } from '@/lib/supabase/queries/vanzari'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+import { queryKeys } from '@/lib/query-keys'
 
 const schema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
@@ -76,8 +78,8 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
   }, [open, vanzare, form])
 
   const { data: clienti = [] } = useQuery({
-    queryKey: ['clienti'],
-    queryFn: getClienti,
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
   })
 
   const selectedClientId = useWatch({ control: form.control, name: 'client_id' }) ?? ''
@@ -92,13 +94,18 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
         status_plata: data.status_plata,
         observatii_ladite: data.observatii_ladite?.trim() || undefined,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vanzari'] })
-      toast.success('Vanzare actualizata')
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      track('vanzare_edit', { id: variables.id })
+      hapticSuccess()
+      toast.success('Vânzare actualizata')
       onOpenChange(false)
     },
     onError: (error) => {
       console.error('Error updating vanzare:', error)
+      hapticError()
       toast.error('Eroare la actualizarea vanzarii')
     },
   })
@@ -114,21 +121,15 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza vanzare"
+      title="Editează vânzare"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)}>
-            Anuleaza
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-            onClick={form.handleSubmit(onSubmit)}
-            disabled={updateMutation.isPending}
-          >
-            {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
-          </Button>
-        </div>
+        <DialogFormActions
+          onCancel={() => onOpenChange(false)}
+          onSave={form.handleSubmit(onSubmit)}
+          saving={updateMutation.isPending}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
       <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -141,7 +142,7 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
         <div className="space-y-2">
           <Label htmlFor="ev_client">Client</Label>
           <select id="ev_client" className="agri-control h-12 w-full px-3 text-base" value={selectedClientId} onChange={(e) => form.setValue('client_id', e.target.value, { shouldDirty: true })}>
-            <option value="">Fara client specificat</option>
+            <option value="">Fără client specificat</option>
             {clienti.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.nume_client}
@@ -176,7 +177,7 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ev_obs">Observatii ladite</Label>
+          <Label htmlFor="ev_obs">Observații ladite</Label>
           <Textarea id="ev_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii_ladite')} />
         </div>
       </form>

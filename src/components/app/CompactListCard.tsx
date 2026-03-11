@@ -1,12 +1,24 @@
 'use client'
 
-import { Pencil, Trash2 } from 'lucide-react'
-
+import { ActionIcons } from '@/components/app/ActionIcons'
+import { CardLeftColumn, CardRightColumn } from '@/components/app/BaseCard'
 import { useDensity } from '@/components/app/DensityProvider'
-import { Button } from '@/components/ui/button'
+import { ListCard } from '@/components/ui/app-card'
 import { cn } from '@/lib/utils'
 
+export interface CompactCardRow {
+  label: React.ReactNode
+  value?: React.ReactNode
+  emphasis?: 'primary' | 'financial'
+  allowWrap?: boolean
+  valueClassName?: string
+  forceSingleLine?: boolean
+  rowClassName?: string
+}
+
 interface CompactListCardProps {
+  leftRows?: CompactCardRow[]
+  rightRows?: CompactCardRow[]
   title: React.ReactNode
   subtitle?: React.ReactNode
   metadata?: React.ReactNode
@@ -14,10 +26,43 @@ interface CompactListCardProps {
   trailingMeta?: React.ReactNode
   onEdit?: () => void
   onDelete?: () => void
+  borderTone?: 'default' | 'danger' | 'warning'
+  cornerBadge?: React.ReactNode
   className?: string
+  onClick?: () => void
+}
+
+function CardRow({
+  label,
+  value,
+  emphasis = 'primary',
+  allowWrap = false,
+  valueClassName,
+  forceSingleLine = false,
+  rowClassName,
+}: CompactCardRow) {
+  if (value === undefined || value === null || value === '') return null
+
+  return (
+    <div className={cn('space-y-0.5 sm:space-y-1 lg:text-left', rowClassName)}>
+      <p className="truncate overflow-hidden whitespace-nowrap text-sm leading-tight text-muted-foreground sm:text-sm">{label}</p>
+      <div
+        className={cn(
+          'text-base leading-tight text-[var(--agri-text)] sm:text-base sm:leading-normal',
+          emphasis === 'financial' ? 'font-semibold' : 'font-medium',
+          forceSingleLine || !allowWrap ? 'truncate overflow-hidden whitespace-nowrap' : 'break-words',
+          valueClassName
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  )
 }
 
 export function CompactListCard({
+  leftRows,
+  rightRows,
   title,
   subtitle,
   metadata,
@@ -25,64 +70,52 @@ export function CompactListCard({
   trailingMeta,
   onEdit,
   onDelete,
+  borderTone = 'default',
+  cornerBadge,
   className,
+  onClick,
 }: CompactListCardProps) {
   const { density } = useDensity()
+  const contentDensity = density === 'compact' ? 'space-y-1 sm:space-y-2.5' : 'space-y-1.5 sm:space-y-2.5'
+  const computedLeftRows = (leftRows ?? [
+    { label: 'Titlu', value: title, emphasis: 'primary' as const },
+    subtitle !== undefined ? { label: 'Detalii', value: subtitle, emphasis: 'primary' as const } : null,
+    metadata !== undefined ? { label: 'Informatii', value: metadata, emphasis: 'primary' as const } : null,
+  ].filter(Boolean) as CompactCardRow[]).slice(0, 4)
+  const computedRightRows = (rightRows ?? [
+    status !== undefined ? { label: 'Status', value: status, emphasis: 'primary' as const, allowWrap: true } : null,
+    trailingMeta !== undefined ? { label: 'Valoare', value: trailingMeta, emphasis: 'financial' as const } : null,
+  ].filter(Boolean) as CompactCardRow[]).slice(0, 4)
 
   return (
-    <article
+    <ListCard
       className={cn(
-        'rounded-xl border bg-white shadow-sm',
-        density === 'compact' ? 'p-2.5' : 'p-3',
+        'relative min-h-[146px] sm:min-h-[208px] lg:min-h-[208px] lg:text-left',
+        borderTone === 'danger' && 'border-red-500',
+        borderTone === 'warning' && 'border-amber-400',
         className
       )}
+      onClick={onClick}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="line-clamp-1 text-base font-semibold text-[var(--agri-text)]">{title}</h3>
+      <ActionIcons onEdit={onEdit} onDelete={onDelete} />
 
-        <div className="flex items-center gap-1">
-          {onEdit ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-md hover:bg-muted flex items-center justify-center"
-              onClick={onEdit}
-              aria-label="Editează"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-          ) : null}
+      <div className="grid grid-cols-2 gap-1.5 pr-14 pt-6 sm:gap-3 sm:pr-16 sm:pt-6 lg:gap-4 lg:pr-14 lg:pt-6">
+        <CardLeftColumn className={contentDensity}>
+          {computedLeftRows.map((row, index) => (
+            <CardRow key={`left-${index}`} {...row} forceSingleLine={row.forceSingleLine ?? true} />
+          ))}
+        </CardLeftColumn>
 
-          {onDelete ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-md hover:bg-muted flex items-center justify-center text-red-600 hover:bg-red-50"
-              onClick={onDelete}
-              aria-label="Șterge"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </div>
+        <CardRightColumn className={contentDensity}>
+          {computedRightRows.map((row, index) => (
+            <CardRow key={`right-${index}`} {...row} forceSingleLine={row.forceSingleLine ?? true} />
+          ))}
+        </CardRightColumn>
       </div>
 
-      {(subtitle || metadata) ? (
-        <div className={cn('mt-1 flex items-center gap-2 text-[var(--agri-text-muted)]', density === 'compact' ? 'text-xs' : 'text-sm')}>
-          {subtitle ? <span className="line-clamp-1">{subtitle}</span> : null}
-          {metadata ? <span className="line-clamp-1">{metadata}</span> : null}
-        </div>
+      {cornerBadge ? (
+        <div className="absolute right-3 bottom-3">{cornerBadge}</div>
       ) : null}
-
-      {(status || trailingMeta) ? (
-        <div className={cn('mt-2 flex items-center justify-between gap-2', density === 'compact' ? '[&_*]:text-[11px]' : '')}>
-          <div className="min-w-0">{status}</div>
-          {trailingMeta ? <div className="line-clamp-1 text-xs text-[var(--agri-text-muted)]">{trailingMeta}</div> : null}
-        </div>
-      ) : null}
-    </article>
+    </ListCard>
   )
 }
-

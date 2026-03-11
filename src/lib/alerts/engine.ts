@@ -104,8 +104,8 @@ export function generateSmartAlerts(input: SmartAlertInput): SmartAlert[] {
         id: `no-harvest-${parcela.id}`,
         alertKey: `no_harvest:${parcela.id}`,
         severity: 'warning',
-        title: 'Parcela fara recoltare',
-        message: `${parcela.nume_parcela ?? 'Parcela'} nu are recoltari inregistrate.`,
+        title: 'Parcelă fără recoltare',
+        message: `${parcela.nume_parcela ?? 'Parcelă'} nu are recoltări înregistrate.`,
       })
       return
     }
@@ -116,8 +116,8 @@ export function generateSmartAlerts(input: SmartAlertInput): SmartAlert[] {
         id: `stale-harvest-${parcela.id}`,
         alertKey: `stale_harvest:${parcela.id}`,
         severity: 'warning',
-        title: 'Parcela fara recoltare recenta',
-        message: `${parcela.nume_parcela ?? 'Parcela'} nu a avut recoltare de ${diffDays} zile.`,
+        title: 'Parcelă fără recoltare recentă',
+        message: `${parcela.nume_parcela ?? 'Parcelă'} nu a avut recoltare de ${diffDays} zile.`,
       })
     }
   })
@@ -131,8 +131,8 @@ export function generateSmartAlerts(input: SmartAlertInput): SmartAlert[] {
         id: `late-activity-${activity.id}`,
         alertKey: `late_activity:${activity.id}`,
         severity: 'warning',
-        title: 'Activitate posibil intarziata',
-        message: `${activity.tip_activitate ?? 'Activitate'} are data ${applyDate.toLocaleDateString('ro-RO')} si nu are operator.`,
+        title: 'Activitate posibil întârziată',
+        message: `${activity.tip_activitate ?? 'Activitate'} are data ${applyDate.toLocaleDateString('ro-RO')} și nu are operator.`,
       })
     }
 
@@ -145,8 +145,8 @@ export function generateSmartAlerts(input: SmartAlertInput): SmartAlert[] {
           id: `pause-active-${activity.id}`,
           alertKey: `pauza_activa:${activity.id}`,
           severity: 'info',
-          title: 'Timp pauza tratament activ',
-          message: `${activity.tip_activitate ?? 'Tratament'} are inca ${remaining} zile pana la expirare.`,
+          title: 'Timp pauză tratament activ',
+          message: `${activity.tip_activitate ?? 'Tratament'} are încă ${remaining} zile până la expirare.`,
         })
       }
     }

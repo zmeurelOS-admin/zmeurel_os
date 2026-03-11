@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Tractor } from 'lucide-react'
 
 import { getSupabase } from '@/lib/supabase/client'
+import { getTenantByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 interface FarmSwitcherProps {
   variant?: 'chip' | 'panel'
@@ -24,11 +25,7 @@ function useCurrentFarmLabel() {
 
       if (!session?.user?.id || !mounted) return
 
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('nume_ferma')
-        .eq('owner_user_id', session.user.id)
-        .single()
+      const tenant = await getTenantByUserIdOrNull(supabase, session.user.id)
 
       if (tenant?.nume_ferma && mounted) {
         setFarmName(tenant.nume_ferma)
@@ -47,7 +44,7 @@ function useCurrentFarmLabel() {
 export function FarmSwitcher({ variant = 'panel', onActivate }: FarmSwitcherProps) {
   const farmName = useCurrentFarmLabel()
 
-  const label = useMemo(() => farmName || 'Ferma curentă', [farmName])
+  const label = useMemo(() => farmName || 'Fermă curentă', [farmName])
 
   if (variant === 'chip') {
     return (
@@ -66,7 +63,7 @@ export function FarmSwitcher({ variant = 'panel', onActivate }: FarmSwitcherProp
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-[var(--agri-text-muted)]">Ferma activă</p>
+      <p className="text-sm text-[var(--agri-text-muted)]">Fermă activă</p>
       <div className="agri-control flex h-12 items-center justify-between rounded-xl border px-3">
         <span className="truncate text-sm font-semibold text-[var(--agri-text)]">{label}</span>
         <ChevronDown className="h-4 w-4 text-[var(--agri-text-muted)]" />

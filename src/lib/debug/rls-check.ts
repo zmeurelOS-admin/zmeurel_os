@@ -5,35 +5,36 @@
 // ============================================================================
 
 import { getSupabase } from '@/lib/supabase/client';
+import { getTenantId } from '@/lib/tenant/get-tenant';
+
+declare global {
+  interface Window {
+    testRLS?: () => Promise<unknown>
+  }
+}
 
 export async function testRLSAutoPopulation() {
   const supabase = getSupabase();
 
-  console.log('đź”Ť Starting RLS Check...');
 
   // 1. Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   
   if (userError || !user) {
-    console.error('âťŚ User not authenticated:', userError);
+    console.error('User not authenticated:', userError);
     return { success: false, error: 'User not authenticated' };
   }
 
-  console.log('âś… Authenticated user:', user.id);
 
   // 2. Get user's tenant
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('id')
-    .eq('owner_user_id', user.id)
-    .single();
-
-  if (tenantError || !tenant) {
-    console.error('âťŚ Tenant not found:', tenantError);
+  let tenantId: string
+  try {
+    tenantId = await getTenantId(supabase)
+  } catch (tenantError) {
+    console.error('Tenant not found:', tenantError);
     return { success: false, error: 'Tenant not found' };
   }
 
-  console.log('âś… User tenant_id:', tenant.id);
 
   // 3. Insert a test client record WITHOUT tenant_id
   const testClientName = `RLS_TEST_${Date.now()}`;
@@ -51,15 +52,14 @@ export async function testRLSAutoPopulation() {
     .single();
 
   if (insertError) {
-    console.error('âťŚ Insert failed:', insertError);
+    console.error('Insert failed:', insertError);
     return { success: false, error: insertError.message };
   }
 
-  console.log('âś… Record inserted:', insertedClient);
 
   // 4. Check if tenant_id was auto-populated
   if (!insertedClient.tenant_id) {
-    console.error('âťŚ tenant_id was NOT auto-populated!');
+    console.error('tenant_id was NOT auto-populated!');
     return { 
       success: false, 
       error: 'tenant_id not auto-populated',
@@ -67,19 +67,18 @@ export async function testRLSAutoPopulation() {
     };
   }
 
-  if (insertedClient.tenant_id !== tenant.id) {
-    console.error('âťŚ tenant_id mismatch!');
-    console.error('Expected:', tenant.id);
+  if (insertedClient.tenant_id !== tenantId) {
+    console.error('tenant_id mismatch!');
+    console.error('Expected:', tenantId);
     console.error('Got:', insertedClient.tenant_id);
     return { 
       success: false, 
       error: 'tenant_id mismatch',
-      expected: tenant.id,
+      expected: tenantId,
       got: insertedClient.tenant_id 
     };
   }
 
-  console.log('âś… tenant_id correctly auto-populated:', insertedClient.tenant_id);
 
   // 5. Verify we can only see our own records (RLS SELECT policy)
   const { data: allClients, error: selectError } = await supabase
@@ -87,10 +86,9 @@ export async function testRLSAutoPopulation() {
     .select('id,tenant_id');
 
   if (selectError) {
-    console.error('âťŚ Select failed:', selectError);
+    console.error('Select failed:', selectError);
   } else {
-    const ourClients = allClients?.filter((c: { tenant_id: string | null }) => c.tenant_id === tenant.id);
-    console.log(`âś… RLS SELECT working: ${ourClients?.length}/${allClients?.length} records visible`);
+    const ourClients = allClients?.filter((c: { tenant_id: string | null }) => c.tenant_id === tenantId);
   }
 
   // 6. Clean up test record
@@ -100,15 +98,13 @@ export async function testRLSAutoPopulation() {
     .eq('id', insertedClient.id);
 
   if (deleteError) {
-    console.warn('âš ď¸Ź Failed to clean up test record:', deleteError);
   } else {
-    console.log('âś… Test record cleaned up');
   }
 
   return {
     success: true,
     userId: user.id,
-    tenantId: tenant.id,
+    tenantId,
     autoPopulatedTenantId: insertedClient.tenant_id,
     message: 'RLS and tenant_id auto-population working correctly!'
   };
@@ -116,7 +112,7 @@ export async function testRLSAutoPopulation() {
 
 // Export for manual testing in browser console
 if (typeof window !== 'undefined') {
-  (window as any).testRLS = testRLSAutoPopulation;
+  window.testRLS = testRLSAutoPopulation;
 }
 
 

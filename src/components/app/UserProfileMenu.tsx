@@ -65,11 +65,11 @@ export function UserProfileMenu() {
     'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-gray-50'
 
   return (
-    <div ref={wrapperRef} className="relative hidden lg:z-[60] lg:flex">
+    <div ref={wrapperRef} className="relative hidden md:z-[60] md:flex">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="hidden cursor-pointer items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-2.5 py-1.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/30 lg:flex"
+        className="cursor-pointer items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-2.5 py-1.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/30 md:inline-flex"
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -106,7 +106,7 @@ export function UserProfileMenu() {
           </Link>
           <Link href="/settings#ferma" onClick={() => setOpen(false)} className={itemClassName}>
             <House className="h-4 w-4" />
-            Setari ferma
+            Setari fermă
           </Link>
           <Link href="/settings#gdpr" onClick={() => setOpen(false)} className={itemClassName}>
             <Download className="h-4 w-4" />

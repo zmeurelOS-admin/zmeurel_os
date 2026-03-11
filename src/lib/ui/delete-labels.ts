@@ -22,7 +22,7 @@ export function buildParcelaDeleteLabel(parcela: {
   soi_plantat?: MaybeString
   an_plantare?: MaybeNumber
 } | null | undefined): string {
-  if (!parcela) return 'Parcela selectata'
+  if (!parcela) return 'Teren selectat'
 
   const name = joinParts([parcela.id_parcela, parcela.nume_parcela])
   const crop = joinParts([
@@ -30,7 +30,7 @@ export function buildParcelaDeleteLabel(parcela: {
     parcela.an_plantare ? String(parcela.an_plantare) : '',
   ], ' ')
 
-  return joinParts([name || 'Parcela', crop], ' - ')
+  return joinParts([name || 'Teren', crop], ' - ')
 }
 
 export function buildRecoltareDeleteLabel(recoltare: {

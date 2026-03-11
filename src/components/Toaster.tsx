@@ -1,12 +1,31 @@
-'use client';
+'use client'
 
-import { Toaster as SonnerToaster } from 'sonner';
+import { useEffect, useState } from 'react'
+import { Toaster as SonnerToaster } from 'sonner'
+
+import { DEFAULT_TOAST_DURATION_MS } from '@/lib/ui/toast'
+
+const MOBILE_MEDIA_QUERY = '(max-width: 1023px)'
 
 export function Toaster() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(MOBILE_MEDIA_QUERY).matches
+  )
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY)
+    const onChange = () => setIsMobile(mediaQuery.matches)
+
+    onChange()
+    mediaQuery.addEventListener('change', onChange)
+    return () => mediaQuery.removeEventListener('change', onChange)
+  }, [])
+
   return (
     <SonnerToaster
-      position="top-right"
+      position={isMobile ? 'top-center' : 'top-right'}
       toastOptions={{
+        duration: DEFAULT_TOAST_DURATION_MS,
         style: {
           background: 'white',
           color: '#312E3F',
@@ -24,6 +43,8 @@ export function Toaster() {
           color: '#312E3F',
         },
       }}
+      expand={false}
+      visibleToasts={4}
     />
-  );
+  )
 }

@@ -7,7 +7,6 @@ import { AppDialog } from '@/components/app/AppDialog'
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { AppShell } from '@/components/app/AppShell'
 import { EmptyState } from '@/components/app/EmptyState'
-import { Fab } from '@/components/app/Fab'
 import { LoadingState } from '@/components/app/LoadingState'
 import { NumericField } from '@/components/app/NumericField'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -27,7 +26,6 @@ export default function UiTemplateDemoPage() {
           rightSlot={<Map className="h-5 w-5" />}
         />
       }
-      fab={<Fab onClick={() => setDrawerOpen(true)} label="Adauga" />}
       bottomBar={
         <StickyActionBar>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -49,7 +47,7 @@ export default function UiTemplateDemoPage() {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto w-full max-w-4xl space-y-4 py-4">
+      <div className="mx-auto mt-4 w-full max-w-4xl space-y-4 py-4 sm:mt-0">
         <LoadingState label="Se pregateste lista..." />
 
         <div className="agri-card space-y-4 p-4">
@@ -60,27 +58,27 @@ export default function UiTemplateDemoPage() {
             type="button"
             className="agri-cta w-full bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
           >
-            Salveaza
+            Salvează
           </Button>
         </div>
 
         <EmptyState
-          title="Nu exista inregistrari"
-          description="Adauga prima inregistrare folosind butonul flotant."
+          title="Nu exist? înregistrări"
+          description="Adaugă prima înregistrare folosind butonul flotant."
         />
       </div>
 
       <AppDrawer
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
-        title="Adauga inregistrare"
+        title="Adaugă înregistrare"
         footer={
           <div className="grid grid-cols-2 gap-3">
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDrawerOpen(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button type="button" className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700" onClick={() => setDrawerOpen(false)}>
-              Salveaza
+              Salvează
             </Button>
           </div>
         }
@@ -94,11 +92,11 @@ export default function UiTemplateDemoPage() {
       <AppDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Editeaza inregistrare"
+        title="Editează înregistrare"
         footer={
           <div className="grid grid-cols-2 gap-3">
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDialogOpen(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button type="button" className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700" onClick={() => setDialogOpen(false)}>
               Actualizeaza
@@ -114,3 +112,4 @@ export default function UiTemplateDemoPage() {
     </AppShell>
   )
 }
+

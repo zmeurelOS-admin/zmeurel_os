@@ -4,6 +4,7 @@ import LogoutButton from './LogoutButton';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getSupabase } from '@/lib/supabase/client';
+import { getTenantByUserIdOrNull } from '@/lib/tenant/get-tenant';
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 
 export default function Navbar() {
@@ -14,7 +15,7 @@ export default function Navbar() {
   useEffect(() => {
     const supabase = getSupabase();
 
-    // VerificÄ sesiunea la mount
+    // Verifica sesiunea la mount
     const checkSession = async () => {
       try {
         const {
@@ -24,12 +25,7 @@ export default function Navbar() {
         if (session?.user) {
           setUser(session.user);
 
-          // Ia numele fermei
-          const { data: tenant } = await supabase
-            .from('tenants')
-            .select('nume_ferma')
-            .eq('owner_user_id', session.user.id)
-            .single();
+          const tenant = await getTenantByUserIdOrNull(supabase, session.user.id);
 
           if (tenant?.nume_ferma) {
             setFarmName(tenant.nume_ferma);
@@ -44,7 +40,7 @@ export default function Navbar() {
 
     checkSession();
 
-    // AscultÄ schimbÄri autentificare
+    // Asculta schimbari autentificare
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
@@ -56,7 +52,7 @@ export default function Navbar() {
     };
   }, []);
 
-  // DacÄ nu e logat, nu afiČ™a navbar
+  // Daca nu e logat, nu afisa navbar
   if (loading) return null;
   if (!user) return null;
 
@@ -64,10 +60,10 @@ export default function Navbar() {
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo + Nume FermÄ */}
+          {/* Logo + Nume Ferma */}
           <div className="flex items-center gap-4">
             <Link href="/test" className="flex items-center gap-2">
-              <span className="text-2xl">đźŤ“</span>
+              <span className="text-2xl">🫐</span>
               <span className="text-xl font-bold text-[#312E3F]">Zmeurel OS</span>
             </Link>
             {farmName && (
@@ -78,7 +74,7 @@ export default function Navbar() {
           {/* User Info + Logout */}
           <div className="flex items-center gap-4">
             {user.email && (
-              <span className="text-sm text-gray-600 hidden md:block">đź‘¤ {user.email}</span>
+              <span className="text-sm text-gray-600 hidden md:block">👤 {user.email}</span>
             )}
             <LogoutButton />
           </div>

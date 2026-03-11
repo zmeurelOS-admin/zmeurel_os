@@ -242,7 +242,7 @@ export function SyncStatusIndicator() {
               <li key={item.id} className="rounded-md bg-red-50 px-2 py-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-[11px] font-medium text-red-900">
-                    {item.table}:{item.id.slice(0, 8)} · incercari {item.retries}
+                    {item.table} · incercari {item.retries}
                   </span>
                   <Button
                     type="button"

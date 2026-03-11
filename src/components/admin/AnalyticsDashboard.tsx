@@ -91,7 +91,7 @@ export async function AnalyticsDashboard() {
       <div className="mx-auto w-full max-w-6xl space-y-4 py-4">
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <KpiCard title="Tenanți activi (zi curentă)" value={formatNumber(latest.total_tenants)} />
-          <KpiCard title="Total parcele" value={formatNumber(latest.total_parcele)} />
+          <KpiCard title="Total terenuri" value={formatNumber(latest.total_parcele)} />
           <KpiCard title="Înregistrări recoltări" value={formatNumber(latest.total_recoltari)} />
           <KpiCard title="Kg recoltate" value={formatNumber(totalKgHarvested)} />
           <KpiCard title="Venit agregat" value={formatLei(Number(latest.total_revenue_lei || 0))} />

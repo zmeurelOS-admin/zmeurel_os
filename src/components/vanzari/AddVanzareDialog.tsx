@@ -3,20 +3,22 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { useForm, useWatch } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { generateClientId } from '@/lib/offline/generateClientId'
-import { getClienti } from '@/lib/supabase/queries/clienti'
+import { getClienți } from '@/lib/supabase/queries/clienti'
 import { createVanzare, STATUS_PLATA } from '@/lib/supabase/queries/vanzari'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+import { queryKeys } from '@/lib/query-keys'
 
 const schema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
@@ -77,8 +79,8 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
   }, [dialogOpen, form])
 
   const { data: clienti = [] } = useQuery({
-    queryKey: ['clienti'],
-    queryFn: getClienti,
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
   })
 
   const selectedClientId = useWatch({ control: form.control, name: 'client_id' }) ?? ''
@@ -96,17 +98,24 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
 
   const createMutation = useMutation({
     mutationFn: createVanzare,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vanzari'] })
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       trackEvent('create_vanzare', 'vanzari', { source: 'AddVanzareDialog' })
-      toast.success('Vanzare adaugata')
+      track('vanzare_add', {
+        amount: Number(variables.cantitate_kg || 0) * Number(variables.pret_lei_kg || 0),
+        client_id: variables.client_id ?? null,
+      })
+      hapticSuccess()
+      toast.success('Vânzare adaugata')
       setDialogOpen(false)
     },
     onError: (error) => {
       const maybeError = error as { status?: number; code?: string; message?: string; details?: string; hint?: string }
       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
-        toast.info('Inregistrarea era deja sincronizata.')
+        toast.info('Inregistrarea era deja sincronizat?.')
         setDialogOpen(false)
         return
       }
@@ -123,6 +132,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
         details: maybeError?.details,
         hint: maybeError?.hint,
       })
+      hapticError()
       toast.error(message)
     },
   })
@@ -143,30 +153,18 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
 
   return (
     <>
-      {!hideTrigger ? (
-        <Button type="button" className="h-14 w-full rounded-xl font-semibold" onClick={() => setDialogOpen(true)}>
-          + Vanzare
-        </Button>
-      ) : null}
-
       <AppDrawer
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Adauga vanzare"
+        title="Adaugă vânzare"
         footer={
-          <div className="grid grid-cols-2 gap-3">
-            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDialogOpen(false)}>
-              Anuleaza
-            </Button>
-            <Button
-              type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-              onClick={form.handleSubmit(onSubmit)}
-              disabled={createMutation.isPending}
-            >
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
-            </Button>
-          </div>
+          <DialogFormActions
+            onCancel={() => setDialogOpen(false)}
+            onSave={form.handleSubmit(onSubmit)}
+            saving={createMutation.isPending}
+            cancelLabel="Anulează"
+            saveLabel="Salvează"
+          />
         }
       >
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -184,7 +182,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
               onChange={(e) => handleClientChange(e.target.value)}
               className="agri-control h-12 w-full px-3 text-base"
             >
-              <option value="">Fara client specificat</option>
+              <option value="">Fără client specificat</option>
               {clienti.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.nume_client}
@@ -235,7 +233,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="v_obs">Observatii ladite</Label>
+            <Label htmlFor="v_obs">Observații ladite</Label>
             <Textarea id="v_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii_ladite')} />
           </div>
         </form>

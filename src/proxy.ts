@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
+import type { Database } from '@/types/supabase'
+
 function clearStaleSupabaseAuthCookies(request: NextRequest, response: NextResponse) {
   const authCookieRegex = /^sb-.*-auth-token(?:\.\d+)?$/
   const codeVerifierRegex = /^sb-.*-auth-token-code-verifier$/
@@ -15,12 +18,19 @@ function clearStaleSupabaseAuthCookies(request: NextRequest, response: NextRespo
   })
 }
 
+function redirectTo(request: NextRequest, pathname: string) {
+  const redirectUrl = request.nextUrl.clone()
+  redirectUrl.pathname = pathname
+  redirectUrl.search = ''
+  return NextResponse.redirect(redirectUrl)
+}
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -45,14 +55,36 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  const isApiRoute = pathname.startsWith('/api/')
+  const isPublicAssetRoute =
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/service-worker.js' ||
+    pathname === '/favicon.ico' ||
+    pathname.startsWith('/icons/')
+
   // Public routes that should NOT require authentication
   const isPublicRoute =
+    pathname === '/' ||
     pathname === '/login' ||
-    pathname === '/callback' ||
+    pathname === '/register' ||
+    pathname === '/termeni' ||
+    pathname === '/confidentialitate' ||
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/update-password') ||
-    pathname.startsWith('/api/cron/google-contacts-sync')
+    pathname.startsWith('/api/cron/google-contacts-sync') ||
+    isPublicAssetRoute
+
+  const isAuthCallbackRoute =
+    pathname === '/auth/callback' ||
+    pathname === '/auth/callback/'
+
+  // Never touch auth cookies on callback routes; PKCE exchange depends on code_verifier.
+  if (isAuthCallbackRoute) {
+    return supabaseResponse
+  }
 
   // Get the current user session
   let user = null
@@ -81,18 +113,54 @@ export async function proxy(request: NextRequest) {
     if (isPublicRoute) {
       return supabaseResponse
     }
-    
+
     // Redirect to login for protected routes
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    return NextResponse.redirect(redirectUrl)
+    return redirectTo(request, '/login')
   }
 
-  // If user IS authenticated and trying to access auth entry pages, redirect to dashboard
-  if (user && (pathname === '/login' || pathname === '/reset-password-request')) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/dashboard'
-    return NextResponse.redirect(redirectUrl)
+  // Landing is always visible, even for authenticated users.
+  if (pathname === '/') {
+    return supabaseResponse
+  }
+
+  const needsTenantGuard =
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/reset-password-request' ||
+    pathname === '/start' ||
+    (!isPublicRoute && !isApiRoute)
+
+  if (!needsTenantGuard) {
+    return supabaseResponse
+  }
+
+  let tenantId: string | null = null
+
+  try {
+    tenantId = await getTenantIdByUserIdOrNull(supabase, user.id)
+  } catch (error) {
+    console.error('[proxy] tenant lookup failed', {
+      pathname,
+      userId: user.id,
+      message: error instanceof Error ? error.message : 'unknown',
+    })
+    return supabaseResponse
+  }
+
+  if (pathname === '/login' || pathname === '/register' || pathname === '/reset-password-request') {
+    return redirectTo(request, tenantId ? '/dashboard' : '/start')
+  }
+
+  if (pathname === '/start') {
+    if (tenantId) {
+      return redirectTo(request, '/dashboard')
+    }
+
+    return supabaseResponse
+  }
+
+  if (!tenantId && !isPublicRoute && !isApiRoute) {
+    return redirectTo(request, '/start')
   }
 
   // User is authenticated, allow access to protected routes
@@ -106,9 +174,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - manifest + service worker assets
+     * - icons directory
      * - public files (images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|service-worker\\.js|icons/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-

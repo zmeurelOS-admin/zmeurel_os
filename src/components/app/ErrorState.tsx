@@ -11,7 +11,7 @@ interface ErrorStateProps {
   retryLabel?: string
 }
 
-export function ErrorState({ title, message, onRetry, retryLabel = 'Reincearca' }: ErrorStateProps) {
+export function ErrorState({ title, message, onRetry, retryLabel = 'Reîncearcă' }: ErrorStateProps) {
   return (
     <div className="agri-card space-y-3 border-red-300 bg-red-50 p-6 text-center">
       <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-red-300 bg-white text-red-700">

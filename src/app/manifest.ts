@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Zmeurel Agricultura',
     short_name: 'Zmeurel',
-    description: 'Management agricol pentru parcele, recoltari si vanzari.',
+    description: 'Management agricol pentru parcele, recoltări ți vânzări.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

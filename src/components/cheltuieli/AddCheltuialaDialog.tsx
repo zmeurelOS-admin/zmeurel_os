@@ -2,17 +2,17 @@
 
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { generateClientId } from '@/lib/offline/generateClientId'
+import { hapticError } from '@/lib/utils/haptic'
 
 const CATEGORII_CHELTUIELI = [
   'Electricitate',
@@ -25,6 +25,7 @@ const CATEGORII_CHELTUIELI = [
   'Pesticide',
   'Intretinere Curenta',
   'Cules',
+  'Manoperă cules',
   'Material Saditor',
   'Sistem Sustinere',
   'Sistem Irigatie',
@@ -81,15 +82,17 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltui
       })
       form.reset(defaultValues())
       onOpenChange(false)
-    } catch (error: any) {
-      const conflict = error?.status === 409 || error?.code === '23505'
+    } catch (error: unknown) {
+      const maybeError = error as { status?: number; code?: string }
+      const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
-        toast.info('Inregistrarea era deja sincronizata.')
+        toast.info('Inregistrarea era deja sincronizat?.')
         onOpenChange(false)
         return
       }
 
       console.error('Error creating cheltuiala:', error)
+      hapticError()
       toast.error('Eroare la salvare.')
     } finally {
       setIsSubmitting(false)
@@ -100,28 +103,15 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltui
     <AppDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title="Adauga cheltuiala"
+      title="Adaugă cheltuială"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={handleClose} disabled={isSubmitting}>
-            Anuleaza
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-            onClick={form.handleSubmit(handleSubmit)}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="ml-2">Se salveaza...</span>
-              </>
-            ) : (
-              'Salveaza'
-            )}
-          </Button>
-        </div>
+        <DialogFormActions
+          onCancel={handleClose}
+          onSave={form.handleSubmit(handleSubmit)}
+          saving={isSubmitting}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
@@ -134,7 +124,7 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltui
         <div className="space-y-2">
           <Label htmlFor="chelt_categorie">Categorie</Label>
           <select id="chelt_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
-            <option value="">Selecteaza categoria</option>
+            <option value="">Selectează categoria</option>
             {CATEGORII_CHELTUIELI.map((categorie) => (
               <option key={categorie} value={categorie}>
                 {categorie}
@@ -174,9 +164,11 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltui
             placeholder="Ex: Electricitate pompa, factura 12345"
             {...form.register('descriere')}
           />
-          <p className="text-xs text-[var(--agri-text-muted)]">Detalii suplimentare (factura, observatii etc.)</p>
+          <p className="text-xs text-[var(--agri-text-muted)]">Detalii suplimentare (factura, observații etc.)</p>
         </div>
       </form>
     </AppDrawer>
   )
 }
+
+

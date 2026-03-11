@@ -1,95 +1,280 @@
 ﻿'use client'
 
-import { Pencil, Sprout, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
+
+type ParcelInsight = {
+  productionKg: number
+  latestHarvest?: { date: string; kg: number } | null
+  latestActivity?: { date: string; type: string } | null
+}
 
 interface ParceleListProps {
   parcele: Parcela[]
   onEdit: (parcela: Parcela) => void
   onDelete: (parcela: Parcela) => void
-  parcelProfitMap?: Record<string, { profit: number; margin: number }>
-  parcelPauseMap?: Record<string, { remainingDays: number; products: string[] }>
+  onOpen?: (parcela: Parcela) => void
+  parcelInsights?: Record<string, ParcelInsight>
+  focusParcelId?: string | null
 }
 
-export function ParceleList({ parcele, onEdit, onDelete, parcelProfitMap, parcelPauseMap }: ParceleListProps) {
+function formatDate(value: string | undefined): string {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('ro-RO')
+}
+
+function getUnitateMeta(tipUnitate: string | null | undefined): {
+  label: 'Camp' | 'Solar' | 'Livada'
+  background: string
+  color: string
+} {
+  const value = (tipUnitate ?? 'camp').toLowerCase()
+  if (value === 'solar') {
+    return { label: 'Solar', background: colors.yellowLight, color: '#8a4b00' }
+  }
+  if (value === 'livada') {
+    return { label: 'Livada', background: colors.blueLight, color: '#1d4ed8' }
+  }
+  return { label: 'Camp', background: colors.greenLight, color: colors.primaryDark }
+}
+
+export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights = {}, focusParcelId }: ParceleListProps) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const nowDate = useMemo(() => new Date(), [])
+
+  useEffect(() => {
+    if (!focusParcelId) return
+    const target = cardRefs.current[focusParcelId]
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focusParcelId])
+
+  const currentYear = new Date().getFullYear()
+
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
       {parcele.map((parcela) => {
-        const rei = parcelPauseMap?.[parcela.id]
-        const hasActiveRei = !!rei && rei.remainingDays > 0
-        const sprayProducts = rei?.products ?? []
+        const insight = parcelInsights[parcela.id]
+        const productionKg = Number(insight?.productionKg || 0)
+        const latestHarvest = insight?.latestHarvest ?? null
+        const latestActivity = insight?.latestActivity ?? null
+        const hasRecentHarvest = latestHarvest?.date
+          ? (nowDate.getTime() - new Date(latestHarvest.date).getTime()) / (1000 * 60 * 60 * 24) <= 14
+          : false
+        const isExpanded = !!expanded[parcela.id]
+
+        const area = Number(parcela.suprafata_m2 || 0)
+        const plants = Number(parcela.nr_plante || 0)
+        const density = area > 0 ? plants / area : 0
+        const plantationAge = parcela.an_plantare ? Math.max(0, currentYear - Number(parcela.an_plantare)) : 0
+
+        const titleId = parcela.id_parcela || 'PAR'
+        const titleName = parcela.nume_parcela || 'Teren'
+        const soi = parcela.soi_plantat || parcela.soi || 'Soi necunoscut'
+        const unitate = getUnitateMeta(parcela.tip_unitate)
 
         return (
-          <Card key={parcela.id} className="rounded-2xl border border-[var(--agri-border)] shadow-sm">
-            <CardContent className="p-5 md:p-6">
-              <div className="mb-4 flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <h3 className="text-base font-semibold text-[var(--agri-text)]">{parcela.nume_parcela || 'Parcela'}</h3>
-                  <p className="text-xs text-[var(--agri-text-muted)]">{parcela.id_parcela || 'ID parcela indisponibil'}</p>
+          <div
+            key={parcela.id}
+            ref={(node) => {
+              cardRefs.current[parcela.id] = node
+            }}
+            style={{
+              borderRadius: radius.lg,
+              border: `1px solid ${colors.grayLight}`,
+              boxShadow: shadows.card,
+              background: hasRecentHarvest ? colors.greenLight : colors.white,
+              overflow: 'hidden',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setExpanded((current) => ({ ...current, [parcela.id]: !current[parcela.id] }))
+              }}
+              style={{
+                width: '100%',
+                border: 'none',
+                background: 'transparent',
+                textAlign: 'left',
+                padding: spacing.md,
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: radius.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: colors.white,
+                    border: `1px solid ${colors.grayLight}`,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  PAR
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => onEdit(parcela)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon" className="h-9 w-9 rounded-full text-red-700 hover:bg-red-50 hover:text-red-800" onClick={() => onDelete(parcela)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2.5 text-sm">
-                  <p><span className="font-medium text-[var(--agri-text-muted)]">Tip cultura:</span> {parcela.tip_fruct || '-'}</p>
-                  <p><span className="font-medium text-[var(--agri-text-muted)]">Soi:</span> {parcela.soi_plantat || '-'}</p>
-                  <p><span className="font-medium text-[var(--agri-text-muted)]">An plantare:</span> {parcela.an_plantare || '-'}</p>
-                  <p><span className="font-medium text-[var(--agri-text-muted)]">Nr plante:</span> {parcela.nr_plante || '-'}</p>
-                  <p><span className="font-medium text-[var(--agri-text-muted)]">Suprafata:</span> {Number(parcela.suprafata_m2 || 0).toFixed(0)} m2</p>
-                  {parcelProfitMap?.[parcela.id] ? (
-                    <p className="text-xs text-[var(--agri-text-muted)]">
-                      Profit: {parcelProfitMap[parcela.id].profit.toFixed(0)} lei ({parcelProfitMap[parcela.id].margin.toFixed(1)}%)
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="relative flex min-h-[180px] flex-col rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-4">
-                  <p className="mb-2 text-sm font-semibold text-[var(--agri-text)]">Stropiri active</p>
-                  {sprayProducts.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {sprayProducts.map((product) => (
-                        <Badge key={product} variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
-                          <Sprout className="h-3 w-3" />
-                          {product}
-                        </Badge>
-                      ))}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div
+                      style={{
+                        minWidth: 0,
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: colors.dark,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {titleId} - {titleName}
                     </div>
-                  ) : (
-                    <p className="text-xs text-[var(--agri-text-muted)]">Nu exista stropiri active in perioada de pauza.</p>
-                  )}
-
-                  <div className="mt-4 space-y-1">
-                    <p className="text-sm font-semibold text-[var(--agri-text)]">Timp pauza activ</p>
-                    {hasActiveRei ? (
-                      <p className="text-sm font-medium text-red-700">Activ - restrictionare recoltare</p>
-                    ) : (
-                      <p className="text-sm font-medium text-emerald-700">Inactiv</p>
-                    )}
+                    <span
+                      style={{
+                        borderRadius: radius.full,
+                        background: unitate.background,
+                        color: unitate.color,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        padding: '4px 8px',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {unitate.label}
+                    </span>
                   </div>
-
-                  <div className="mt-auto flex justify-end pt-3">
-                    {hasActiveRei ? (
-                      <Badge className="bg-red-600 text-white hover:bg-red-600">{rei.remainingDays} zile ramase</Badge>
-                    ) : (
-                      <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800">OK la recoltare</Badge>
-                    )}
+                  <div style={{ fontSize: 11, color: colors.gray }}>
+                    {soi} · {area.toFixed(0)} mp · {plants.toFixed(0)} plante
                   </div>
                 </div>
+
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: colors.green }}>{productionKg.toFixed(1)}</div>
+                  <div style={{ fontSize: 10, color: colors.gray }}>kg</div>
+                  <div style={{ fontSize: 10, color: colors.gray }}>{density.toFixed(2)} plante/mp</div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </button>
+
+            {isExpanded ? (
+              <div
+                style={{
+                  borderTop: `1px solid ${colors.grayLight}`,
+                  padding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
+                  display: 'grid',
+                  gap: spacing.sm,
+                  background: colors.white,
+                }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: spacing.xs }}>
+                  {[
+                    ['Suprafata', `${area.toFixed(0)} mp`],
+                    ['Nr plante', `${plants.toFixed(0)}`],
+                    ['Densitate', `${density.toFixed(2)}/mp`],
+                    ['Varsta', `${plantationAge} ani`],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      style={{ borderRadius: radius.md, background: colors.grayLight, padding: `${spacing.xs + 2}px ${spacing.xs}` }}
+                    >
+                      <div style={{ fontSize: 9, color: colors.gray }}>{label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: colors.dark }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div style={{ fontSize: 11, color: colors.gray }}>
+                    <strong style={{ color: colors.dark }}>Ultima recoltare:</strong>{' '}
+                    {latestHarvest ? `${formatDate(latestHarvest.date)} · ${latestHarvest.kg.toFixed(1)} kg` : 'Nicio recoltare'}
+                  </div>
+                  <div style={{ fontSize: 11, color: colors.gray }}>
+                    <strong style={{ color: colors.dark }}>Ultima activitate:</strong>{' '}
+                    {latestActivity ? `${formatDate(latestActivity.date)} · ${latestActivity.type}` : 'Nicio activitate'}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: onOpen ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+                    gap: spacing.sm,
+                  }}
+                >
+                  {onOpen ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onOpen(parcela)
+                      }}
+                      style={{
+                        minHeight: 46,
+                        border: 'none',
+                        borderRadius: radius.md,
+                        background: colors.blueLight,
+                        color: '#1d4ed8',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Detalii
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onEdit(parcela)
+                    }}
+                    style={{
+                      minHeight: 46,
+                      border: 'none',
+                      borderRadius: radius.md,
+                      background: colors.yellowLight,
+                      color: colors.dark,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onDelete(parcela)
+                    }}
+                    style={{
+                      minHeight: 46,
+                      border: 'none',
+                      borderRadius: radius.md,
+                      background: colors.coralLight,
+                      color: colors.coral,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         )
       })}
     </div>

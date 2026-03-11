@@ -18,6 +18,7 @@ export default async function VanzariButasiPage() {
       data_livrare_estimata,
       status,
       client_id,
+      client_nume_manual,
       parcela_sursa_id,
       adresa_livrare,
       avans_suma,
@@ -45,7 +46,7 @@ export default async function VanzariButasiPage() {
 
   const { data: clienti } = await supabase
     .from('clienti')
-    .select('id, id_client, nume_client')
+    .select('id, id_client, nume_client, telefon')
 
   const { data: parcele } = await supabase
     .from('parcele')
@@ -53,13 +54,13 @@ export default async function VanzariButasiPage() {
 
   // Type-safe fallback pentru null
   const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []) as unknown as VanzareButasi[]
-  const safeClienti = clienti ?? []
+  const safeClienți = clienti ?? []
   const safeParcele = parcele ?? []
 
   return (
     <VanzariButasiPageClient
       initialVanzari={safeVanzari}
-      clienti={safeClienti}
+      clienti={safeClienți}
       parcele={safeParcele}
     />
   )

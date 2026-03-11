@@ -1,8 +1,9 @@
 'use client'
 
 import { FormEvent, useMemo, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,7 +69,14 @@ export default function ResetPasswordRequestPage() {
           </div>
 
           <Button type="submit" className="w-full bg-[#F16B6B] text-white hover:bg-[#e05555]" disabled={loading}>
-            {loading ? 'Se trimite...' : 'Trimite email resetare'}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Se trimite...
+              </>
+            ) : (
+              'Trimite email resetare'
+            )}
           </Button>
         </form>
 
@@ -79,5 +87,6 @@ export default function ResetPasswordRequestPage() {
     </div>
   )
 }
+
 
 

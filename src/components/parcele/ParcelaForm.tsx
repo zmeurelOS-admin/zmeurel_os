@@ -4,6 +4,7 @@ import { UseFormReturn } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { formatM2ToHa } from '@/lib/utils/area'
 import {
   Select,
   SelectContent,
@@ -36,15 +37,17 @@ export const IOS_SELECT_TRIGGER_CLASS =
   'h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm transition-all duration-150 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
 
 export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
+  const suprafataValue = form.watch('suprafata_m2')
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="nume_parcela" className={IOS_LABEL_CLASS}>
-          Nume Parcela *
+          Nume Parcelă *
         </Label>
         <Input
           id="nume_parcela"
-          placeholder="ex: Parcela Nord"
+          placeholder="ex: Parcelă Nord"
           className={IOS_INPUT_CLASS}
           {...form.register('nume_parcela')}
         />
@@ -57,7 +60,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="suprafata_m2" className={IOS_LABEL_CLASS}>
-          Suprafata (m2) *
+          Suprafață (m2) *
         </Label>
         <Input
           id="suprafata_m2"
@@ -69,6 +72,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
           className={IOS_INPUT_CLASS}
           {...form.register('suprafata_m2')}
         />
+        <p className="text-xs text-muted-foreground">≈ {formatM2ToHa(suprafataValue)}</p>
         {form.formState.errors.suprafata_m2 && (
           <p className="text-sm text-destructive">
             {form.formState.errors.suprafata_m2.message}
@@ -85,7 +89,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
           onValueChange={(value) => form.setValue('soi_plantat', value)}
         >
           <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue placeholder="Selecteaza soi..." />
+            <SelectValue placeholder="Selectează soi..." />
           </SelectTrigger>
           <SelectContent>
             {soiuriDisponibile.map((soi) => (
@@ -155,7 +159,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="observatii" className={IOS_LABEL_CLASS}>
-          Observatii
+          Observații
         </Label>
         <Textarea
           id="observatii"

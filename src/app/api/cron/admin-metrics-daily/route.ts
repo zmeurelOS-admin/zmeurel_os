@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { captureApiError } from '@/lib/monitoring/sentry'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ ok: true, metrics: data })
   } catch (error) {
+    captureApiError(error, { route: '/api/cron/admin-metrics-daily' })
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to refresh metrics' },
       { status: 500 }

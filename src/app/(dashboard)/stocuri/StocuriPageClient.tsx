@@ -10,10 +10,14 @@ import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
+import AlertCard from '@/components/ui/AlertCard'
+import MiniCard from '@/components/ui/MiniCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { colors, radius } from '@/lib/design-tokens'
 import { getStocuriPeLocatii, type StocFilters } from '@/lib/supabase/queries/miscari-stoc'
+import { queryKeys } from '@/lib/query-keys'
 
 interface ParcelaOption {
   id: string
@@ -23,6 +27,8 @@ interface ParcelaOption {
 interface StocuriPageClientProps {
   initialParcele: ParcelaOption[]
 }
+
+const LOW_STOCK_THRESHOLD = 20
 
 export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
   const [locatieId, setLocatieId] = useState<string>('all')
@@ -47,32 +53,62 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['stocuri-locatii', queryFilters],
+    queryKey: queryKeys.stocuriLocatii(queryFilters),
     queryFn: () => getStocuriPeLocatii(queryFilters),
   })
 
-  const totalKg = useMemo(
-    () => stocuri.reduce((sum, item) => sum + Number(item.total_kg ?? 0), 0),
+  const totalKg = useMemo(() => stocuri.reduce((sum, item) => sum + Number(item.total_kg ?? 0), 0), [stocuri])
+  const activeLocations = useMemo(() => stocuri.filter((item) => Number(item.total_kg || 0) > 0).length, [stocuri])
+
+  const lowStockRows = useMemo(
+    () => stocuri.filter((row) => Number(row.total_kg || 0) > 0 && Number(row.total_kg || 0) < LOW_STOCK_THRESHOLD),
     [stocuri]
   )
 
   return (
     <AppShell
-      header={<PageHeader title="Stocuri" subtitle="Inventar real pe locatie (parcela/solar)" rightSlot={<Archive className="h-5 w-5" />} />}
+      header={<PageHeader title="Stocuri" subtitle="Inventar real pe locație" rightSlot={<Archive className="h-5 w-5" />} />}
       bottomBar={
         <StickyActionBar>
           <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total stoc: {totalKg.toFixed(2)} kg</p>
         </StickyActionBar>
       }
     >
-      <div className="mx-auto w-full max-w-5xl space-y-4 py-4">
+      <div className="mx-auto mt-4 w-full max-w-5xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div
+            style={{
+              border: `1px solid ${totalKg > 0 ? colors.green : colors.coral}`,
+              borderRadius: radius.xl,
+            }}
+          >
+            <MiniCard icon="📦" value={totalKg.toFixed(1)} sub="kg disponibil" label="" />
+          </div>
+          <MiniCard icon="🗺️" value={String(activeLocations)} sub="locatii active" label="" />
+        </div>
+
+        {lowStockRows.length > 0 ? (
+          <div className="space-y-2">
+            {lowStockRows.map((row) => (
+              <AlertCard
+                key={`low-${row.locatie_id}`}
+                icon="⚠️"
+                label={`Stoc scazut la ${row.locatie_nume}: ${Number(row.total_kg || 0).toFixed(1)} kg`}
+                value={`${Number(row.total_kg || 0).toFixed(1)} kg`}
+                sub={`Prag recomandat: ${LOW_STOCK_THRESHOLD} kg`}
+                variant="warning"
+              />
+            ))}
+          </div>
+        ) : null}
+
         <Card className="rounded-2xl border border-[var(--agri-border)] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Filtre stoc</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label>Locatie</Label>
+              <Label>Locație</Label>
               <Select value={locatieId} onValueChange={setLocatieId}>
                 <SelectTrigger className="agri-control h-11">
                   <SelectValue placeholder="Toate locatiile" />
@@ -131,41 +167,54 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
           </CardContent>
         </Card>
 
-        {isError ? <ErrorState title="Eroare la incarcare stocuri" message={(error as Error).message} onRetry={() => refetch()} /> : null}
+        {isError ? <ErrorState title="Eroare la înc?rcare stocuri" message={(error as Error).message} onRetry={() => refetch()} /> : null}
         {isLoading ? <LoadingState label="Se calculeaza stocurile..." /> : null}
-        {!isLoading && !isError && stocuri.length === 0 ? <EmptyState title="Nu exista miscari de stoc" /> : null}
+        {!isLoading && !isError && stocuri.length === 0 ? <EmptyState title="Nu exist? miscari de stoc" /> : null}
 
         {!isLoading && !isError && stocuri.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {stocuri.map((row) => (
-              <Card key={`${row.locatie_id}-${row.produs}`} className="rounded-2xl border border-[var(--agri-border)] shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold">{row.locatie_nume}</CardTitle>
-                  <p className="text-xs text-[var(--agri-text-muted)]">Produs: {row.produs}</p>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span>Stoc Fresh Cal1</span>
-                    <span className="font-semibold">{row.stoc_fresh_cal1.toFixed(2)} kg</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Stoc Fresh Cal2</span>
-                    <span className="font-semibold">{row.stoc_fresh_cal2.toFixed(2)} kg</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Stoc Congelat</span>
-                    <span className="font-semibold">{row.stoc_congelat.toFixed(2)} kg</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Stoc Procesat</span>
-                    <span className="font-semibold">{row.stoc_procesat.toFixed(2)} kg</span>
-                  </div>
-                  <div className="mt-2 border-t border-[var(--agri-border)] pt-2 text-base font-semibold">
-                    Total: {row.total_kg.toFixed(2)} kg
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {stocuri.map((row) => {
+              const cal1 = Number(row.stoc_fresh_cal1 || 0)
+              const cal2 = Number(row.stoc_fresh_cal2 || 0)
+              const totalFresh = cal1 + cal2
+              const cal1Percent = totalFresh > 0 ? (cal1 / totalFresh) * 100 : 0
+              const cal2Percent = totalFresh > 0 ? (cal2 / totalFresh) * 100 : 0
+
+              return (
+                <Card key={`${row.locatie_id}-${row.produs}`} className="rounded-2xl border border-[var(--agri-border)] shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base font-semibold">{row.locatie_nume}</CardTitle>
+                    <p className="text-xs text-[var(--agri-text-muted)]">Stoc total: {Number(row.total_kg || 0).toFixed(2)} kg</p>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span>Cal I</span>
+                        <span className="font-semibold">{cal1.toFixed(2)} kg</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--agri-border)]">
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(0, Math.min(100, cal1Percent))}%` }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span>Cal II</span>
+                        <span className="font-semibold">{cal2.toFixed(2)} kg</span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--agri-border)]">
+                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.max(0, Math.min(100, cal2Percent))}%` }} />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs text-[var(--agri-text-muted)]">
+                      <div>Congelat: {Number(row.stoc_congelat || 0).toFixed(2)} kg</div>
+                      <div>Procesat: {Number(row.stoc_procesat || 0).toFixed(2)} kg</div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         ) : null}
       </div>

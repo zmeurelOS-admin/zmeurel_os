@@ -35,9 +35,9 @@ export function DeleteConfirmDialog({
       itemType={targetType}
       description={description}
       loading={loading}
-      title="Confirma stergerea"
-      cancelText="Anuleaza"
-      confirmText="Sterge"
+      title="Confirmi ștergerea?"
+      cancelText="Anulează"
+      confirmText="Șterge"
     />
   )
 }

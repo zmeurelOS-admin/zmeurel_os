@@ -7,7 +7,7 @@ interface LoadingStateProps {
   rows?: number
 }
 
-export function LoadingState({ label = 'Se incarca...', rows = 3 }: LoadingStateProps) {
+export function LoadingState({ label = 'Se încarcă...', rows = 3 }: LoadingStateProps) {
   return (
     <div className="agri-card p-4 sm:p-5" aria-live="polite" aria-busy="true">
       <div className="mb-4 flex items-center gap-2">

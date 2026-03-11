@@ -32,7 +32,6 @@ export async function isSuperAdmin(
   }
 
   if (!data) {
-    console.warn('[isSuperAdmin] Missing profile row for user', { userId: resolvedUserId })
     return false
   }
 

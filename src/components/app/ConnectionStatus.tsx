@@ -10,12 +10,12 @@ export function ConnectionStatus() {
   const queryClient = useQueryClient()
   const isFetching = useIsFetching()
   const isMutating = useIsMutating()
-  const [isOnline, setIsOnline] = useState<boolean>(true)
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof window === 'undefined' ? true : window.navigator.onLine
+  )
   const [hasSyncError, setHasSyncError] = useState(false)
 
   useEffect(() => {
-    setIsOnline(window.navigator.onLine)
-
     const onOnline = () => setIsOnline(true)
     const onOffline = () => setIsOnline(false)
 

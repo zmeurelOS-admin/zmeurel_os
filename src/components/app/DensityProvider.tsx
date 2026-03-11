@@ -39,11 +39,7 @@ function writePreferences(preferences: UiPreferences) {
 }
 
 export function DensityProvider({ children }: { children: React.ReactNode }) {
-  const [density, setDensityState] = useState<DensityMode>(DEFAULT_PREFERENCES.density)
-
-  useEffect(() => {
-    setDensityState(readPreferences().density)
-  }, [])
+  const [density, setDensityState] = useState<DensityMode>(() => readPreferences().density)
 
   useEffect(() => {
     writePreferences({ density })

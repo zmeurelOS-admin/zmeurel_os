@@ -9,6 +9,8 @@ export type ParcelPauseStatus = {
   products: string[]
 }
 
+export type PauseVisualTone = 'default' | 'danger' | 'warning'
+
 function toDateOnly(value: string): Date | null {
   if (!value) return null
   const datePart = value.slice(0, 10)
@@ -56,6 +58,12 @@ export function computeParcelPauseStatus(activities: ActivityPauseInput[], today
     remainingDays,
     products: Array.from(products),
   }
+}
+
+export function getPauseVisualTone(remainingDays: number): PauseVisualTone {
+  if (remainingDays <= 0) return 'default'
+  if (remainingDays < 3) return 'warning'
+  return 'danger'
 }
 
 /*

@@ -4,13 +4,14 @@ import { useEffect, useMemo } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Loader2, Minus, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { getClienti } from '@/lib/supabase/queries/clienti'
+import { getClienți } from '@/lib/supabase/queries/clienti'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import {
   VANZARE_BUTASI_STATUSES,
@@ -31,7 +32,9 @@ import {
   type VanzareButasiStatus,
   updateVanzareButasi,
 } from '@/lib/supabase/queries/vanzari-butasi'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 
 interface EditVanzareButasiDialogProps {
   vanzare: VanzareButasi | null
@@ -43,7 +46,7 @@ const statusLabels: Record<VanzareButasiStatus, string> = {
   noua: 'Noua',
   confirmata: 'Confirmata',
   pregatita: 'Pregatita',
-  livrata: 'Livrata',
+  livrata: 'Livrată',
   anulata: 'Anulata',
 }
 
@@ -65,7 +68,7 @@ const schema = z.object({
         pret_unitar: z.coerce.number().gt(0, 'Pretul trebuie sa fie > 0'),
       })
     )
-    .min(1, 'Adauga cel putin un produs'),
+    .min(1, 'Adauga cel puțin un produs'),
 })
 
 type FormValues = z.input<typeof schema>
@@ -134,12 +137,12 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
   }, [vanzare, open, form])
 
   const { data: clienti = [] } = useQuery({
-    queryKey: ['clienti'],
-    queryFn: getClienti,
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
   })
 
   const { data: parcele = [] } = useQuery({
-    queryKey: ['parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
 
@@ -160,7 +163,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     onSuccess: (updatedOrder) => {
       if (!vanzare) return
 
-      queryClient.invalidateQueries({ queryKey: ['vanzari-butasi'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.vanzariButasi })
 
       if (updatedOrder.status !== vanzare.status) {
         trackEvent('butasi_order_status_changed', 'vanzari-butasi', {
@@ -189,10 +192,12 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
         })
       }
 
+      hapticSuccess()
       toast.success('Comanda actualizata')
       onOpenChange(false)
     },
     onError: (error: Error) => {
+      hapticError()
       toast.error(error.message || 'Eroare la actualizare')
     },
   })
@@ -227,21 +232,15 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza comanda butasi"
+      title="Editează vanzarea de material saditor"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)}>
-            Anuleaza
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-            onClick={form.handleSubmit(onSubmit)}
-            disabled={updateMutation.isPending}
-          >
-            {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza comanda'}
-          </Button>
-        </div>
+        <DialogFormActions
+          onCancel={() => onOpenChange(false)}
+          onSave={form.handleSubmit(onSubmit)}
+          saving={updateMutation.isPending}
+          cancelLabel="Anulează"
+          saveLabel="Salvează comanda"
+        />
       }
     >
       <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
@@ -255,10 +254,10 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                 render={({ field }) => (
                   <Select value={field.value || '__none'} onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}>
                     <SelectTrigger className="agri-control h-12">
-                      <SelectValue placeholder="Selecteaza client" />
+                      <SelectValue placeholder="Selectează client" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">Fara client</SelectItem>
+                      <SelectItem value="__none">Fără client</SelectItem>
                       {clienti.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.nume_client}
@@ -272,7 +271,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
 
             <div className="space-y-2">
               <Label>Status</Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-1.5 min-[380px]:grid-cols-3 sm:grid-cols-3">
                 {VANZARE_BUTASI_STATUSES.map((option) => {
                   const isActive = status === option
                   return (
@@ -282,7 +281,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                       variant="outline"
                       onClick={() => form.setValue('status', option, { shouldDirty: true })}
                       className={cn(
-                        'h-10 rounded-full border text-xs font-semibold',
+                        'h-8 rounded-full border px-2 text-[11px] font-semibold',
                         isActive && option !== 'anulata' && 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
                         isActive && option === 'anulata' && 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200',
                         !isActive && 'bg-white text-slate-600'
@@ -324,22 +323,22 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit_vb_obs">Observatii</Label>
+              <Label htmlFor="edit_vb_obs">Observații</Label>
               <Textarea id="edit_vb_obs" rows={4} className="agri-control" {...form.register('observatii')} />
             </div>
 
             <div className="space-y-2">
-              <Label>Parcela sursa</Label>
+              <Label>Teren sursa</Label>
               <Controller
                 control={form.control}
                 name="parcela_sursa_id"
                 render={({ field }) => (
                   <Select value={field.value || '__none'} onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}>
                     <SelectTrigger className="agri-control h-12">
-                      <SelectValue placeholder="Selecteaza parcela" />
+                      <SelectValue placeholder="Selectează teren" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">Fara parcela</SelectItem>
+                      <SelectItem value="__none">Fără teren</SelectItem>
                       {parcele.map((parcela) => (
                         <SelectItem key={parcela.id} value={parcela.id}>
                           {parcela.nume_parcela}
@@ -354,17 +353,8 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
         </div>
 
         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3">
             <h3 className="text-base font-semibold text-[var(--agri-text)]">Produse</h3>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => append({ soi: '', cantitate: 1, pret_unitar: 0 })}
-              disabled={isProductsReadonly}
-            >
-              + Adauga soi
-            </Button>
           </div>
 
           {isProductsReadonly ? (
@@ -459,6 +449,18 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                 </div>
               )
             })}
+          </div>
+
+          <div className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 w-full rounded-xl"
+              onClick={() => append({ soi: '', cantitate: 1, pret_unitar: 0 })}
+              disabled={isProductsReadonly}
+            >
+              + Adaugă soi
+            </Button>
           </div>
         </div>
 

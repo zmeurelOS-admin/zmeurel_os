@@ -1,5 +1,6 @@
 // src/lib/supabase/queries/cheltuieli.ts
 import { getSupabase } from '../client';
+import { generateBusinessId } from '@/lib/supabase/business-ids';
 
 export interface Cheltuiala {
   id: string;
@@ -17,6 +18,7 @@ export interface Cheltuiala {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  tenant_id: string | null;
 }
 
 export interface CreateCheltuialaInput {
@@ -125,37 +127,8 @@ function normalizeCheltuialaRow(row: Record<string, unknown>): Cheltuiala {
     updated_by: (row.updated_by as string | null) ?? null,
     created_at: String(row.created_at ?? ''),
     updated_at: String(row.updated_at ?? ''),
+    tenant_id: (row.tenant_id as string | null) ?? null,
   };
-}
-
-async function generateNextId(): Promise<string> {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from('cheltuieli_diverse')
-    .select('id_cheltuiala')
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  if (error) {
-    console.error('Error fetching last cheltuiala ID:', error);
-    return 'CH001';
-  }
-
-  if (!data || data.length === 0) {
-    return 'CH001';
-  }
-
-  const lastId = data[0].id_cheltuiala;
-  const numericPart = parseInt(lastId.replace('CH', ''), 10);
-
-  if (isNaN(numericPart)) {
-    console.error('Invalid ID format:', lastId);
-    return 'CH001';
-  }
-
-  const nextNumber = numericPart + 1;
-  return `CH${nextNumber.toString().padStart(3, '0')}`;
 }
 
 export async function getCheltuieli(): Promise<Cheltuiala[]> {
@@ -183,7 +156,7 @@ export async function getCheltuieli(): Promise<Cheltuiala[]> {
         details: legacyError.details,
         hint: legacyError.hint,
       });
-      throw toReadableError(legacyError, 'Nu am putut incarca cheltuielile.');
+      throw toReadableError(legacyError, 'Nu am putut încărca cheltuielile.');
     }
 
     return ((legacyData ?? []) as unknown as Record<string, unknown>[]).map(normalizeCheltuialaRow);
@@ -195,14 +168,14 @@ export async function getCheltuieli(): Promise<Cheltuiala[]> {
     details: error.details,
     hint: error.hint,
   });
-  throw toReadableError(error, 'Nu am putut incarca cheltuielile.');
+  throw toReadableError(error, 'Nu am putut încărca cheltuielile.');
 }
 
 export async function createCheltuiala(
   input: CreateCheltuialaInput
 ): Promise<Cheltuiala> {
   const supabase = getSupabase();
-  const nextId = await generateNextId();
+  const nextId = await generateBusinessId(supabase, 'CH');
   const {
     data: { user },
   } = await supabase.auth.getUser();

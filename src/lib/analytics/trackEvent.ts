@@ -1,6 +1,7 @@
 'use client'
 
 import { getSupabase } from '@/lib/supabase/client'
+import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 
 type EventMetadata = Record<string, unknown>
 
@@ -25,15 +26,10 @@ async function getAnalyticsContext(): Promise<AnalyticsContext | null> {
 
       if (!user) return null
 
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('id')
-        .eq('owner_user_id', user.id)
-        .maybeSingle()
+      const tenantId = await getTenantIdOrNull(supabase)
+      if (!tenantId) return null
 
-      if (!tenant?.id) return null
-
-      cachedContext = { userId: user.id, tenantId: tenant.id }
+      cachedContext = { userId: user.id, tenantId }
       return cachedContext
     } catch {
       return null
@@ -54,7 +50,7 @@ export function trackEvent(
 ): void {
   if (typeof window === 'undefined') return
 
-  const module = typeof moduleOrMetadata === 'string' ? moduleOrMetadata : 'general'
+  const moduleName = typeof moduleOrMetadata === 'string' ? moduleOrMetadata : 'general'
   const payloadMetadata = typeof moduleOrMetadata === 'string' ? metadata : moduleOrMetadata
 
   queueMicrotask(() => {
@@ -64,12 +60,13 @@ export function trackEvent(
         if (!context) return
 
         const supabase = getSupabase()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any).from('analytics_events').insert({
           tenant_id: context.tenantId,
           user_id: context.userId,
           event_name: eventType,
           event_type: eventType,
-          module,
+          module: moduleName,
           metadata: payloadMetadata ?? {},
         })
       } catch {

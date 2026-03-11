@@ -1,6 +1,7 @@
-// scripts/check-env.js
+﻿// scripts/check-env.js
 
-// 🔹 Încarcă .env.local explicit
+// đź”ą ĂŽncarcÄ .env.local explicit
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 require('dotenv').config({ path: '.env.local' });
 
 const required = [
@@ -13,14 +14,15 @@ const missing = required.filter(
 );
 
 if (missing.length > 0) {
-  console.error("\n❌ Lipsesc variabile de mediu necesare pentru Supabase:");
+  console.error("\nâťŚ Lipsesc variabile de mediu necesare pentru Supabase:");
   for (const k of missing) console.error(" - " + k);
 
-  console.error("\n✅ Fix: completează fișierul .env.local din rădăcina proiectului cu:");
+  console.error("\nâś… Fix: completeazÄ fiČ™ierul .env.local din rÄdÄcina proiectului cu:");
   console.error("NEXT_PUBLIC_SUPABASE_URL=...");
   console.error("NEXT_PUBLIC_SUPABASE_ANON_KEY=...\n");
 
   process.exit(1);
 }
 
-console.log("✅ Env vars ok:", required.join(", "));
+console.log("âś… Env vars ok:", required.join(", "));
+

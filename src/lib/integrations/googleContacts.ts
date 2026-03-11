@@ -122,6 +122,7 @@ async function trackIntegrationEvent(
   }
 ) {
   const { tenantId, userId, event, metadata = {} } = payload
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any).from('analytics_events').insert({
     tenant_id: tenantId,
     user_id: userId,

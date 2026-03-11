@@ -25,6 +25,7 @@ export interface VanzareButasi {
   data_livrare_estimata: string | null
   status: VanzareButasiStatus
   client_id: string | null
+  client_nume_manual: string | null
   parcela_sursa_id: string | null
   adresa_livrare: string | null
   avans_suma: number
@@ -86,6 +87,7 @@ interface RawVanzareButasiRow {
   data_livrare_estimata: string | null
   status: string
   client_id: string | null
+  client_nume_manual: string | null
   parcela_sursa_id: string | null
   adresa_livrare: string | null
   avans_suma: number
@@ -106,10 +108,61 @@ type SupabaseLikeError = {
   code?: string
   details?: string
   hint?: string
+  error?: unknown
+  cause?: unknown
+  statusText?: string
+}
+
+function extractErrorParts(error: unknown): SupabaseLikeError {
+  if (error instanceof Error) {
+    const withCause = error as Error & { cause?: unknown }
+    const causeParts = withCause.cause ? extractErrorParts(withCause.cause) : {}
+
+    return {
+      message: error.message || causeParts.message,
+      code: causeParts.code,
+      details: causeParts.details,
+      hint: causeParts.hint,
+      statusText: causeParts.statusText,
+      error: causeParts.error,
+      cause: withCause.cause,
+    }
+  }
+
+  const e = (error ?? {}) as SupabaseLikeError
+  if (e.error) {
+    const nested = extractErrorParts(e.error)
+    return {
+      ...nested,
+      message: e.message || nested.message,
+      code: e.code || nested.code,
+      details: e.details || nested.details,
+      hint: e.hint || nested.hint,
+      statusText: e.statusText || nested.statusText,
+      error: e.error,
+      cause: e.cause,
+    }
+  }
+
+  if (e.cause) {
+    const nested = extractErrorParts(e.cause)
+    return {
+      ...nested,
+      message: e.message || nested.message,
+      code: e.code || nested.code,
+      details: e.details || nested.details,
+      hint: e.hint || nested.hint,
+      statusText: e.statusText || nested.statusText,
+      error: e.error,
+      cause: e.cause,
+    }
+  }
+
+  return e
 }
 
 function isSchemaCacheMismatch(error: unknown): boolean {
-  const e = (error ?? {}) as SupabaseLikeError
+  const e = extractErrorParts(error)
   const message = (e.message ?? '').toLowerCase()
   return (
     e?.code === 'PGRST204' ||
@@ -125,11 +178,23 @@ function toReadableError(error: unknown, fallbackMessage: string): Error & {
   hint?: string
   isSchemaCacheError?: boolean
 } {
-  const e = (error ?? {}) as SupabaseLikeError
+  const e = extractErrorParts(error)
+
+  let serialized = ''
+  if (!e.message && !e.details && !e.hint && error && typeof error === 'object') {
+    try {
+      serialized = JSON.stringify(error)
+    } catch {
+      serialized = ''
+    }
+  }
+
   const message =
     e?.message ||
     e?.details ||
     e?.hint ||
+    e?.statusText ||
+    serialized ||
     (error instanceof Error && error.message) ||
     fallbackMessage
 
@@ -141,23 +206,13 @@ function toReadableError(error: unknown, fallbackMessage: string): Error & {
   })
 }
 
-function logSupabaseError(context: string, error: unknown) {
-  const e = (error ?? {}) as SupabaseLikeError
-  console.error(context, {
-    message: e?.message,
-    code: e?.code,
-    details: e?.details,
-    hint: e?.hint,
-  })
-}
-
 function roundTo2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
 function assertStatus(status: string): VanzareButasiStatus {
   if (!VANZARE_BUTASI_STATUSES.includes(status as VanzareButasiStatus)) {
-    throw new Error('Status invalid pentru comanda de butasi')
+    throw new Error('Status invalid pentru comanda de butași')
   }
 
   return status as VanzareButasiStatus
@@ -165,7 +220,7 @@ function assertStatus(status: string): VanzareButasiStatus {
 
 function normalizeItems(items: VanzareButasiItemInput[]): NormalizedItemsResult {
   if (!Array.isArray(items) || items.length === 0) {
-    throw new Error('Comanda trebuie sa contina cel putin un produs')
+    throw new Error('Comanda trebuie sa contina cel puțin un produs')
   }
 
   const normalized = items.map((item, index) => {
@@ -207,34 +262,6 @@ function mapVanzareRow(row: RawVanzareButasiRow): VanzareButasi {
   }
 }
 
-async function generateNextId(): Promise<string> {
-  const supabase = getSupabase()
-
-  const { data, error } = await supabase
-    .from('vanzari_butasi')
-    .select('id_vanzare_butasi')
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (error) {
-    logSupabaseError('Error fetching last vanzare butasi ID:', error)
-    return 'VB001'
-  }
-
-  if (!data || data.length === 0) {
-    return 'VB001'
-  }
-
-  const lastId = data[0].id_vanzare_butasi
-  const numericPart = parseInt(lastId.replace('VB', ''), 10)
-
-  if (isNaN(numericPart)) {
-    return 'VB001'
-  }
-
-  return `VB${(numericPart + 1).toString().padStart(3, '0')}`
-}
-
 async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
   const supabase = getSupabase()
 
@@ -248,6 +275,7 @@ async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
       data_livrare_estimata,
       status,
       client_id,
+      client_nume_manual,
       parcela_sursa_id,
       adresa_livrare,
       avans_suma,
@@ -274,7 +302,7 @@ async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
     .eq('id', id)
     .single()
 
-  if (error) throw toReadableError(error, 'Nu am putut incarca comanda de butasi.')
+  if (error) throw toReadableError(error, 'Nu am putut încărca comanda de butasi.')
 
   return mapVanzareRow(data as unknown as RawVanzareButasiRow)
 }
@@ -292,6 +320,7 @@ export async function getVanzariButasi(): Promise<VanzareButasi[]> {
       data_livrare_estimata,
       status,
       client_id,
+      client_nume_manual,
       parcela_sursa_id,
       adresa_livrare,
       avans_suma,
@@ -317,14 +346,13 @@ export async function getVanzariButasi(): Promise<VanzareButasi[]> {
     `)
     .order('data_comanda', { ascending: false })
 
-  if (error) throw toReadableError(error, 'Nu am putut incarca comenzile de butasi.')
+  if (error) throw toReadableError(error, 'Nu am putut încărca comenzile de butasi.')
 
   return (data ?? []).map((row) => mapVanzareRow(row as unknown as RawVanzareButasiRow))
 }
 
 export async function createVanzareButasi(input: CreateVanzareButasiInput): Promise<VanzareButasi> {
   const supabase = getSupabase()
-  const nextId = await generateNextId()
   const normalized = normalizeItems(input.items)
   const avansSuma = roundTo2(Number(input.avans_suma ?? 0))
 
@@ -338,7 +366,6 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const { data, error } = await supabase
     .from('vanzari_butasi')
     .insert({
-      id_vanzare_butasi: nextId,
       data: input.data_comanda,
       data_comanda: input.data_comanda,
       data_livrare_estimata: input.data_livrare_estimata || null,
@@ -387,7 +414,7 @@ export async function updateVanzareButasi(id: string, input: UpdateVanzareButasi
     .eq('id', id)
     .single()
 
-  if (existingError) throw toReadableError(existingError, 'Nu am putut incarca comanda pentru editare.')
+  if (existingError) throw toReadableError(existingError, 'Nu am putut încărca comanda pentru editare.')
 
   const currentStatus = assertStatus(existing.status)
 
@@ -485,4 +512,3 @@ export async function deleteVanzareButasi(id: string): Promise<void> {
 
   if (error) throw toReadableError(error, 'Nu am putut sterge comanda de butasi.')
 }
-

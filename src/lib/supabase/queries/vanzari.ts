@@ -1,5 +1,6 @@
 // src/lib/supabase/queries/vanzari.ts
 import { getSupabase } from '../client';
+import { insertMiscareStoc, deleteMiscariStocByReference } from './miscari-stoc';
 
 // Constants
 export const STATUS_PLATA = ['Platit', 'Restanta', 'Avans'] as const;
@@ -10,6 +11,7 @@ export interface Vanzare {
   client_sync_id: string;
   data: string;
   client_id: string | null;
+  comanda_id?: string | null;
   cantitate_kg: number;
   pret_lei_kg: number;
   pret_unitar_lei: number;
@@ -21,13 +23,16 @@ export interface Vanzare {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  tenant_id: string | null;
 }
 
 export interface CreateVanzareInput {
   client_sync_id?: string;
   sync_status?: string;
+  tenant_id?: string;
   data: string;
   client_id?: string;
+  comanda_id?: string | null;
   cantitate_kg: number;
   pret_lei_kg: number;
   status_plata?: string;
@@ -50,28 +55,35 @@ type SupabaseLikeError = {
   hint?: string;
 };
 
-const isMissingColumnError = (error: SupabaseLikeError, column: string) =>
-  error?.code === 'PGRST204' || error?.message?.includes(`'${column}'`);
-
-const shouldFallbackToLegacyInsert = (error: unknown) => {
-  const e = (error ?? {}) as SupabaseLikeError;
-  const message = (e.message ?? '').toLowerCase();
-  const code = e.code ?? '';
-
-  if (!e || (Object.keys(e).length === 0 && e.constructor === Object)) return true;
-
-  return (
-    code === 'PGRST204' || // missing column in PostgREST schema cache
-    code === '42703' || // undefined column
-    code === '42P10' || // invalid ON CONFLICT target
-    isMissingColumnError(e, 'client_sync_id') ||
-    isMissingColumnError(e, 'sync_status') ||
-    isMissingColumnError(e, 'created_by') ||
-    isMissingColumnError(e, 'updated_by') ||
-    message.includes('client_sync_id') ||
-    message.includes('on conflict')
-  );
+type VanzareRpcClient = ReturnType<typeof getSupabase> & {
+  rpc: {
+    (
+      fn: 'create_vanzare_with_stock',
+      args: {
+        p_data: string;
+        p_client_id?: string | null;
+        p_comanda_id?: string | null;
+        p_cantitate_kg: number;
+        p_pret_lei_kg: number;
+        p_status_plata?: string;
+        p_observatii_ladite?: string | null;
+        p_client_sync_id?: string;
+        p_sync_status?: string;
+        p_tenant_id?: string;
+      }
+    ): Promise<{ data: Vanzare | null; error: SupabaseLikeError | null }>;
+    (
+      fn: 'delete_vanzare_with_stock',
+      args: { p_vanzare_id: string }
+    ): Promise<{ data: null; error: SupabaseLikeError | null }>;
+  };
 };
+
+const isMissingColumnError = (error: SupabaseLikeError, column: string) =>
+  error?.code === 'PGRST204' ||
+  error?.code === '42703' ||
+  error?.message?.includes(`'${column}'`) ||
+  error?.message?.includes(column);
 
 const toReadableError = (error: unknown, fallbackMessage: string) => {
   const e = (error ?? {}) as SupabaseLikeError;
@@ -88,46 +100,32 @@ const toReadableError = (error: unknown, fallbackMessage: string) => {
   });
 };
 
-async function generateNextId(): Promise<string> {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from('vanzari')
-    .select('id_vanzare')
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  if (error) {
-    console.error('Error fetching last vanzare ID:', error);
-    return 'V001';
-  }
-
-  if (!data || data.length === 0) {
-    return 'V001';
-  }
-
-  const lastId = data[0].id_vanzare;
-  const numericPart = parseInt(lastId.replace('V', ''), 10);
-
-  if (isNaN(numericPart)) {
-    console.error('Invalid ID format:', lastId);
-    return 'V001';
-  }
-
-  const nextNumber = numericPart + 1;
-  return `V${nextNumber.toString().padStart(3, '0')}`;
-}
-
 export async function getVanzari(): Promise<Vanzare[]> {
   const supabase = getSupabase();
+  const selectWithComanda = 'id,id_vanzare,data,client_id,comanda_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id';
+  const selectLegacy = 'id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id';
 
   const { data, error } = await supabase
     .from('vanzari')
-    .select('id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id')
+    .select(selectWithComanda)
     .order('data', { ascending: false });
 
+  if (error && isMissingColumnError(error, 'comanda_id')) {
+    const { data: legacyData, error: legacyError } = await supabase
+      .from('vanzari')
+      .select(selectLegacy)
+      .order('data', { ascending: false });
+
+    if (legacyError) {
+      console.error('Error fetching vanzari:', JSON.stringify(legacyError));
+      throw legacyError;
+    }
+
+    return (legacyData ?? []) as unknown as Vanzare[];
+  }
+
   if (error) {
-    console.error('Error fetching vanzari:', error);
+    console.error('Error fetching vanzari:', JSON.stringify(error));
     throw error;
   }
 
@@ -136,63 +134,22 @@ export async function getVanzari(): Promise<Vanzare[]> {
 
 export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare> {
   const supabase = getSupabase();
-  const nextId = await generateNextId();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const rpcClient = supabase as VanzareRpcClient;
+  const { data, error } = await rpcClient.rpc('create_vanzare_with_stock', {
+    p_data: input.data,
+    p_client_id: input.client_id || null,
+    p_comanda_id: input.comanda_id ?? null,
+    p_cantitate_kg: Number(input.cantitate_kg || 0),
+    p_pret_lei_kg: Number(input.pret_lei_kg || 0),
+    p_status_plata: input.status_plata || 'Platit',
+    p_observatii_ladite: input.observatii_ladite || null,
+    p_client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
+    p_sync_status: input.sync_status ?? 'synced',
+    ...(input.tenant_id ? { p_tenant_id: input.tenant_id } : {}),
+  });
 
-  const payloadWithSync = {
-    client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
-    id_vanzare: nextId,
-    data: input.data,
-    client_id: input.client_id || null,
-    cantitate_kg: input.cantitate_kg,
-    pret_lei_kg: input.pret_lei_kg,
-    status_plata: input.status_plata || 'Platit',
-    observatii_ladite: input.observatii_ladite || null,
-    sync_status: input.sync_status ?? 'synced',
-    created_by: user?.id ?? null,
-    updated_by: user?.id ?? null,
-  };
-
-  const { data, error } = await supabase
-    .from('vanzari')
-    .upsert(payloadWithSync, { onConflict: 'client_sync_id' })
-    .select()
-    .single();
-
-  if (!error) {
+  if (!error && data) {
     return data as unknown as Vanzare;
-  }
-
-  if (shouldFallbackToLegacyInsert(error)) {
-    const payloadLegacy = {
-      id_vanzare: nextId,
-      data: input.data,
-      client_id: input.client_id || null,
-      cantitate_kg: input.cantitate_kg,
-      pret_lei_kg: input.pret_lei_kg,
-      status_plata: input.status_plata || 'Platit',
-      observatii_ladite: input.observatii_ladite || null,
-    };
-
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('vanzari')
-      .insert(payloadLegacy)
-      .select()
-      .single();
-
-    if (fallbackError) {
-      console.error('Error creating vanzare (fallback):', {
-        message: fallbackError.message,
-        code: fallbackError.code,
-        details: fallbackError.details,
-        hint: fallbackError.hint,
-      });
-      throw toReadableError(fallbackError, 'Nu am putut salva vanzarea.')
-    }
-
-    return fallbackData as unknown as Vanzare;
   }
 
   const maybeError = error as SupabaseLikeError;
@@ -209,6 +166,18 @@ export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare>
 export async function updateVanzare(id: string, input: UpdateVanzareInput): Promise<Vanzare> {
   const supabase = getSupabase();
 
+  // First, fetch the old vanzare to compare cantitate_kg
+  const { data: oldVanzare, error: fetchError } = await supabase
+    .from('vanzari')
+    .select('cantitate_kg, data')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching old vanzare:', fetchError);
+    throw fetchError;
+  }
+
   const { data, error } = await supabase
     .from('vanzari')
     .update({
@@ -224,18 +193,38 @@ export async function updateVanzare(id: string, input: UpdateVanzareInput): Prom
     throw error;
   }
 
+  // If cantitate_kg changed, update the stock movement
+  if (input.cantitate_kg !== undefined && input.cantitate_kg !== oldVanzare.cantitate_kg) {
+    // Delete old miscari_stoc record
+    await deleteMiscariStocByReference(id, 'vanzare');
+
+    // Create new miscari_stoc record with updated cantitate_kg
+    try {
+      await insertMiscareStoc({
+        tip: 'vanzare',
+        cantitate_cal1: -Number(data.cantitate_kg),
+        cantitate_cal2: 0,
+        referinta_id: data.id,
+        data: data.data,
+        descriere: 'Scadere stoc la vanzare',
+      });
+    } catch (stockError) {
+      console.error('Warning: failed to write stock movement for vanzare update:', stockError);
+    }
+  }
+
   return data as unknown as Vanzare;
 }
 
 export async function deleteVanzare(id: string): Promise<void> {
   const supabase = getSupabase();
-
-  const { error } = await supabase.from('vanzari').delete().eq('id', id);
+  const rpcClient = supabase as VanzareRpcClient;
+  const { error } = await rpcClient.rpc('delete_vanzare_with_stock', {
+    p_vanzare_id: id,
+  });
 
   if (error) {
     console.error('Error deleting vanzare:', error);
     throw error;
   }
 }
-
-

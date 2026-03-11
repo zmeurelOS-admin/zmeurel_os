@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Pencil } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/ui/toast';
 
 import { AppDialog } from '@/components/app/AppDialog';
-import { Button } from '@/components/ui/button';
+import { DialogFormActions } from '@/components/ui/dialog-form-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { updateParcela } from '@/lib/supabase/queries/parcele';
 import type { Parcela } from '@/lib/supabase/queries/parcele';
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
+import { formatM2ToHa } from '@/lib/utils/area';
 
 type ParcelaUpdate = Partial<Omit<Parcela, 'id' | 'tenant_id' | 'id_parcela' | 'created_at' | 'updated_at'>>;
 
@@ -64,6 +65,7 @@ export function EditParcelaDialog({
     setLoading(true);
     try {
       if (!formData.nume_parcela || !formData.suprafata_m2 || !formData.an_plantare) {
+        hapticError();
         toast.error('Completeaza campurile obligatorii');
         return;
       }
@@ -79,11 +81,13 @@ export function EditParcelaDialog({
       };
 
       await updateParcela(parcela.id, updateData);
-      toast.success(`Parcela ${parcela.id_parcela} actualizata`);
+      hapticSuccess();
+      toast.success(`Terenul ${parcela.nume_parcela} a fost actualizat`);
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error('Error updating parcela:', error);
+      hapticError();
       toast.error('Eroare la actualizare');
     } finally {
       setLoading(false);
@@ -96,45 +100,38 @@ export function EditParcelaDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Editeaza Parcela ${parcela.id_parcela}`}
-      description={`Modifica detaliile pentru ${parcela.nume_parcela}.`}
+      title={`Editează teren ${parcela.nume_parcela}`}
+      description={`Modifica detaliile pentru terenul ${parcela.nume_parcela}.`}
       footer={
-        <>
-          <Button type="button" variant="outline" disabled={loading} onClick={() => onOpenChange(false)}>
-            Anuleaza
-          </Button>
-          <Button type="submit" form="edit-parcela-form" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Se salveaza...
-              </>
-            ) : (
-              <>
-                <Pencil className="mr-2 h-4 w-4" />
-                Salveaza
-              </>
-            )}
-          </Button>
-        </>
+        <DialogFormActions
+          onCancel={() => onOpenChange(false)}
+          onSave={() => {
+            const formElement = document.getElementById('edit-parcela-form') as HTMLFormElement | null;
+            formElement?.requestSubmit();
+          }}
+          saving={loading}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
       <form id="edit-parcela-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="nume_parcela">Nume Parcela</Label>
+          <Label htmlFor="nume_parcela">Nume teren</Label>
           <Input id="nume_parcela" value={formData.nume_parcela} onChange={(e) => handleInputChange('nume_parcela', e.target.value)} required />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="suprafata_m2">Suprafata (m2)</Label>
+          <Label htmlFor="suprafata_m2">Suprafață (m2)</Label>
           <Input id="suprafata_m2" type="number" step="0.01" value={formData.suprafata_m2} onChange={(e) => handleInputChange('suprafata_m2', e.target.value)} required />
+          <p className="text-xs text-muted-foreground">?? {formatM2ToHa(formData.suprafata_m2)}</p>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="soi_plantat">Soi Plantat</Label>
           <Select value={formData.soi_plantat} onValueChange={(value) => handleInputChange('soi_plantat', value)}>
             <SelectTrigger>
-              <SelectValue placeholder="Selecteaza soi" />
+              <SelectValue placeholder="Selectează soi" />
             </SelectTrigger>
             <SelectContent>
               {soiuriDisponibile.map((soi) => (
@@ -171,10 +168,11 @@ export function EditParcelaDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="observatii">Observatii</Label>
+          <Label htmlFor="observatii">Observații</Label>
           <Input id="observatii" value={formData.observatii} onChange={(e) => handleInputChange('observatii', e.target.value)} />
         </div>
       </form>
     </AppDialog>
   );
 }
+

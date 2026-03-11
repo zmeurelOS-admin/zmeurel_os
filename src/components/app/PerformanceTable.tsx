@@ -29,7 +29,7 @@ export function PerformanceTable({ title, rows }: PerformanceTableProps) {
       <h3 className="text-base font-semibold text-[var(--agri-text)]">{title}</h3>
 
       {sortedRows.length === 0 ? (
-        <p className="text-sm font-medium text-[var(--agri-text-muted)]">Nu exista date pentru perioada selectata.</p>
+        <p className="text-sm font-medium text-[var(--agri-text-muted)]">Nu exist? date pentru perioada selectata.</p>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-[var(--agri-border)]">
           <table className="w-full text-sm">

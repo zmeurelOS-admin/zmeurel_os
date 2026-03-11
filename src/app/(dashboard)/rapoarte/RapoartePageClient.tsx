@@ -1,17 +1,15 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { BarChart3, Download, FileSpreadsheet, FileText, Filter } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
 import { EmptyState } from '@/components/app/EmptyState'
-import { FeatureGate } from '@/components/app/FeatureGate'
-import { KpiCard } from '@/components/app/KpiCard'
 import { PageHeader } from '@/components/app/PageHeader'
 import { PerformanceTable, type PerformanceRow } from '@/components/app/PerformanceTable'
-import { ProfitSummaryCard } from '@/components/app/ProfitSummaryCard'
+import MiniCard from '@/components/ui/MiniCard'
+import TrendBadge from '@/components/ui/TrendBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -31,9 +29,8 @@ import {
 } from '@/components/ui/table'
 import { calculateProfit } from '@/lib/calculations/profit'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { hasFeature } from '@/lib/subscription/plans'
-import { useMockPlan } from '@/lib/subscription/useMockPlan'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
+import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 
 type PeriodType = 'zi' | 'luna' | 'sezon' | 'custom'
 type ReportType =
@@ -108,7 +105,7 @@ interface RapoartePageClientProps {
   initialCheltuieli: CheltuialaLite[]
   initialParcele: ParcelaLite[]
   initialCulegatori: CulegatorLite[]
-  initialClienti: ClientLite[]
+  initialClienți: ClientLite[]
   initialActivitati: ActivitateLite[]
 }
 
@@ -139,18 +136,20 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url)
 }
 
+function trendPercent(current: number, previous: number): number {
+  if (previous > 0) return ((current - previous) / previous) * 100
+  return current > 0 ? 100 : 0
+}
+
 export function RapoartePageClient({
   initialRecoltari,
   initialVanzari,
   initialCheltuieli,
   initialParcele,
   initialCulegatori,
-  initialClienti,
+  initialClienți,
   initialActivitati,
 }: RapoartePageClientProps) {
-  const { plan } = useMockPlan()
-  const canAdvancedReports = hasFeature(plan, 'advanced_reports')
-  const canFullSeasonExport = hasFeature(plan, 'full_season_export')
   const today = useMemo(() => new Date(), [])
   const seasonStart = useMemo(() => new Date(today.getFullYear(), 2, 1), [today])
 
@@ -165,19 +164,6 @@ export function RapoartePageClient({
     trackEvent('view_rapoarte', { source: 'RapoartePageClient' })
   }, [])
 
-  useEffect(() => {
-    if (!canAdvancedReports) {
-      const advancedTypes: ReportType[] = [
-        'productivitate_parcela',
-        'productivitate_culegator',
-        'vanzari_client',
-      ]
-      if (advancedTypes.includes(reportType)) {
-        setReportType('productie_totala')
-      }
-    }
-  }, [canAdvancedReports, reportType])
-
   const parcelaMap = useMemo(
     () => Object.fromEntries(initialParcele.map((p) => [p.id, p])),
     [initialParcele]
@@ -187,8 +173,8 @@ export function RapoartePageClient({
     [initialCulegatori]
   )
   const clientMap = useMemo(
-    () => Object.fromEntries(initialClienti.map((c) => [c.id, c])),
-    [initialClienti]
+    () => Object.fromEntries(initialClienți.map((c) => [c.id, c])),
+    [initialClienți]
   )
 
   const cultures = useMemo(
@@ -264,6 +250,45 @@ export function RapoartePageClient({
     })
   }, [initialCheltuieli, range.end, range.start])
 
+  const previousRange = useMemo(() => {
+    const lengthMs = Math.max(24 * 60 * 60 * 1000, range.end.getTime() - range.start.getTime() + 1)
+    const prevEnd = new Date(range.start.getTime() - 1)
+    const prevStart = new Date(prevEnd.getTime() - lengthMs + 1)
+    return { start: prevStart, end: prevEnd }
+  }, [range.end, range.start])
+
+  const previousFilteredRecoltari = useMemo(() => {
+    return initialRecoltari.filter((r) => {
+      const date = new Date(r.data)
+      const inRange = date >= previousRange.start && date <= previousRange.end
+      if (!inRange) return false
+
+      if (selectedParcelaId !== 'all' && r.parcela_id !== selectedParcelaId) return false
+
+      if (selectedCultura !== 'all') {
+        const parcela = r.parcela_id ? parcelaMap[r.parcela_id] : null
+        const cultura = parcela?.soi_plantat?.trim() || ''
+        if (cultura !== selectedCultura) return false
+      }
+
+      return true
+    })
+  }, [initialRecoltari, parcelaMap, previousRange.end, previousRange.start, selectedCultura, selectedParcelaId])
+
+  const previousFilteredVanzari = useMemo(() => {
+    return initialVanzari.filter((v) => {
+      const date = new Date(v.data)
+      return date >= previousRange.start && date <= previousRange.end
+    })
+  }, [initialVanzari, previousRange.end, previousRange.start])
+
+  const previousFilteredCheltuieli = useMemo(() => {
+    return initialCheltuieli.filter((c) => {
+      const date = new Date(c.data)
+      return date >= previousRange.start && date <= previousRange.end
+    })
+  }, [initialCheltuieli, previousRange.end, previousRange.start])
+
   const kpi = useMemo(() => {
     const productieKg = filteredRecoltari.reduce((sum, row) => sum + recoltareTotalKg(row), 0)
     const venitLei = filteredVanzari.reduce(
@@ -276,6 +301,65 @@ export function RapoartePageClient({
       ...calculateProfit(venitLei, costLei),
     }
   }, [filteredCheltuieli, filteredRecoltari, filteredVanzari])
+
+  const previousKpi = useMemo(() => {
+    const productieKg = previousFilteredRecoltari.reduce((sum, row) => sum + recoltareTotalKg(row), 0)
+    const venitLei = previousFilteredVanzari.reduce(
+      (sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0),
+      0
+    )
+    const costLei = previousFilteredCheltuieli.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+    return {
+      productieKg,
+      revenue: venitLei,
+      cost: costLei,
+      profit: venitLei - costLei,
+    }
+  }, [previousFilteredCheltuieli, previousFilteredRecoltari, previousFilteredVanzari])
+
+  const kpiTrend = useMemo(
+    () => ({
+      venit: trendPercent(kpi.revenue, previousKpi.revenue),
+      cheltuieli: trendPercent(kpi.cost, previousKpi.cost),
+      productie: trendPercent(kpi.productieKg, previousKpi.productieKg),
+    }),
+    [kpi.cost, kpi.productieKg, kpi.revenue, previousKpi.cost, previousKpi.productieKg, previousKpi.revenue]
+  )
+
+  const monthlyFinancialRows = useMemo(() => {
+    const grouped = new Map<string, { venit: number; cheltuieli: number }>()
+    filteredVanzari.forEach((row) => {
+      const date = new Date(row.data)
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const current = grouped.get(key) ?? { venit: 0, cheltuieli: 0 }
+      current.venit += Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0)
+      grouped.set(key, current)
+    })
+    filteredCheltuieli.forEach((row) => {
+      const date = new Date(row.data)
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const current = grouped.get(key) ?? { venit: 0, cheltuieli: 0 }
+      current.cheltuieli += Number(row.suma_lei || 0)
+      grouped.set(key, current)
+    })
+
+    return Array.from(grouped.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([key, value]) => ({
+        key,
+        label: key.slice(5),
+        venit: value.venit,
+        cheltuieli: value.cheltuieli,
+      }))
+  }, [filteredCheltuieli, filteredVanzari])
+
+  const financialChartMax = useMemo(() => {
+    return Math.max(
+      1,
+      ...monthlyFinancialRows.flatMap((row) => [row.venit, row.cheltuieli])
+    )
+  }, [monthlyFinancialRows])
 
   const reportRows = useMemo<DetailRow[]>(() => {
     if (reportType === 'productie_totala') {
@@ -292,7 +376,7 @@ export function RapoartePageClient({
     if (reportType === 'venit_total') {
       const grouped = new Map<string, number>()
       filteredVanzari.forEach((row) => {
-        const key = row.client_id ? clientMap[row.client_id]?.nume_client || 'Client necunoscut' : 'Fara client'
+        const key = row.client_id ? clientMap[row.client_id]?.nume_client || 'Client necunoscut' : 'Fără client'
         grouped.set(key, (grouped.get(key) ?? 0) + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0))
       })
       return Array.from(grouped.entries())
@@ -303,7 +387,7 @@ export function RapoartePageClient({
     if (reportType === 'costuri_totale') {
       const grouped = new Map<string, number>()
       filteredCheltuieli.forEach((row) => {
-        const key = row.categorie || 'Fara categorie'
+        const key = row.categorie || 'Fără categorie'
         grouped.set(key, (grouped.get(key) ?? 0) + Number(row.suma_lei || 0))
       })
       return Array.from(grouped.entries())
@@ -323,7 +407,7 @@ export function RapoartePageClient({
       const grouped = new Map<string, number>()
       filteredRecoltari.forEach((row) => {
         const parcela = row.parcela_id ? parcelaMap[row.parcela_id] : null
-        const key = parcela?.nume_parcela || parcela?.id_parcela || 'Parcela necunoscuta'
+        const key = parcela?.nume_parcela || 'Parcela necunoscuta'
         grouped.set(key, (grouped.get(key) ?? 0) + recoltareTotalKg(row))
       })
       return Array.from(grouped.entries())
@@ -345,7 +429,7 @@ export function RapoartePageClient({
 
     const grouped = new Map<string, number>()
     filteredVanzari.forEach((row) => {
-      const key = row.client_id ? clientMap[row.client_id]?.nume_client || 'Client necunoscut' : 'Fara client'
+      const key = row.client_id ? clientMap[row.client_id]?.nume_client || 'Client necunoscut' : 'Fără client'
       grouped.set(key, (grouped.get(key) ?? 0) + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0))
     })
     return Array.from(grouped.entries())
@@ -376,7 +460,7 @@ export function RapoartePageClient({
     filteredRecoltari.forEach((row) => {
       const parcela = row.parcela_id ? parcelaMap[row.parcela_id] : null
       const key = row.parcela_id ?? 'unknown'
-      const name = parcela?.nume_parcela || parcela?.id_parcela || 'Parcela necunoscuta'
+      const name = parcela?.nume_parcela || 'Parcela necunoscuta'
       const dayKey = new Date(row.data).toISOString().slice(0, 10)
 
       if (!grouped.has(key)) {
@@ -491,13 +575,13 @@ export function RapoartePageClient({
   )
 
   const reportLabel = {
-    productie_totala: 'Productie totala (kg)',
+    productie_totala: 'Producție totala (kg)',
     venit_total: 'Venit total',
     costuri_totale: 'Costuri totale',
     profit_estimat: 'Profit estimat',
-    productivitate_parcela: 'Productivitate per parcela',
+    productivitate_parcela: 'Productivitate per parcelă',
     productivitate_culegator: 'Productivitate per culegator',
-    vanzari_client: 'Vanzari per client',
+    vanzari_client: 'Vânzări per client',
   }[reportType]
 
   const exportRows = reportRows.map((row) => ({
@@ -570,7 +654,7 @@ export function RapoartePageClient({
         const culegator = row.culegator_id ? culegatorMap[row.culegator_id] : null
         return {
           Data: new Date(row.data).toLocaleDateString('ro-RO'),
-          Parcela: parcela?.nume_parcela || parcela?.id_parcela || '-',
+          Parcela: parcela?.nume_parcela || '-',
           Culegator: culegator?.nume_prenume || culegator?.id_culegator || '-',
           Kg: recoltareTotalKg(row).toFixed(2),
         }
@@ -612,7 +696,7 @@ export function RapoartePageClient({
 
         return {
           DataAplicare: new Date(activitate.data_aplicare).toLocaleDateString('ro-RO'),
-          Parcela: parcela?.nume_parcela || parcela?.id_parcela || 'Parcela necunoscuta',
+          Parcela: parcela?.nume_parcela || 'Parcela necunoscuta',
           TipActivitate: activitate.tip_activitate || '',
           Produs: activitate.produs_utilizat || '',
           Doza: activitate.doza || '',
@@ -624,7 +708,7 @@ export function RapoartePageClient({
       })
 
     if (rows.length === 0) {
-      toast.info('Nu exista tratamente pentru export.')
+      toast.info('Nu exist? tratamente pentru export.')
       return
     }
 
@@ -677,38 +761,57 @@ export function RapoartePageClient({
       header={
         <PageHeader
           title="Rapoarte"
-          subtitle="Analiza comerciala si operationala"
+          subtitle="Analiza comerciala ți operationala"
           rightSlot={<BarChart3 className="h-5 w-5" />}
         />
       }
     >
-      <div className="mx-auto w-full max-w-5xl space-y-4 py-4">
-        <section className="agri-card space-y-4 p-4 sm:p-5">
+      <div className="mx-auto mt-4 w-full max-w-5xl space-y-4 py-4 sm:mt-0">
+        <section className="agri-card space-y-4 p-4">
           <div className="flex items-center gap-2 text-[var(--agri-text)]">
             <Filter className="h-4 w-4" />
             <h2 className="text-sm font-bold uppercase tracking-wide">Filtre raport</h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Perioada</p>
-              <Select value={periodType} onValueChange={(value) => setPeriodType(value as PeriodType)}>
-                <SelectTrigger className="agri-control h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="zi">Zi</SelectItem>
-                  <SelectItem value="luna">Luna</SelectItem>
-                  <SelectItem value="sezon">Sezon</SelectItem>
-                  <SelectItem value="custom">Custom range</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Perioada</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                ['zi', 'Zi'],
+                ['luna', 'Luna'],
+                ['sezon', 'Sezon'],
+                ['custom', 'Custom'],
+              ] as Array<[PeriodType, string]>).map(([value, label]) => {
+                const active = periodType === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPeriodType(value)}
+                    style={{
+                      minHeight: 34,
+                      borderRadius: 20,
+                      border: active ? 'none' : `1px solid ${colors.grayLight}`,
+                      background: active ? colors.primary : colors.white,
+                      color: active ? colors.white : colors.gray,
+                      padding: '0 12px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Cultura</p>
               <Select value={selectedCultura} onValueChange={setSelectedCultura}>
-                <SelectTrigger className="agri-control h-11">
+                <SelectTrigger className="agri-control h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -723,16 +826,16 @@ export function RapoartePageClient({
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Parcela</p>
+              <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Parcelă</p>
               <Select value={selectedParcelaId} onValueChange={setSelectedParcelaId}>
-                <SelectTrigger className="agri-control h-11">
+                <SelectTrigger className="agri-control h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Toate parcelele</SelectItem>
                   {initialParcele.map((parcela) => (
                     <SelectItem key={parcela.id} value={parcela.id}>
-                      {parcela.nume_parcela || parcela.id_parcela || 'Parcela'}
+                      {parcela.nume_parcela || 'Parcela'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -742,21 +845,17 @@ export function RapoartePageClient({
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Tip raport</p>
               <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
-                <SelectTrigger className="agri-control h-11">
+                <SelectTrigger className="agri-control h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="productie_totala">Productie totala (kg)</SelectItem>
+                  <SelectItem value="productie_totala">Producție totala (kg)</SelectItem>
                   <SelectItem value="venit_total">Venit total</SelectItem>
                   <SelectItem value="costuri_totale">Costuri totale</SelectItem>
                   <SelectItem value="profit_estimat">Profit estimat</SelectItem>
-                  {canAdvancedReports ? (
-                    <>
-                      <SelectItem value="productivitate_parcela">Productivitate per parcela</SelectItem>
-                      <SelectItem value="productivitate_culegator">Productivitate per culegator</SelectItem>
-                      <SelectItem value="vanzari_client">Vanzari per client</SelectItem>
-                    </>
-                  ) : null}
+                  <SelectItem value="productivitate_parcela">Productivitate per parcelă</SelectItem>
+                  <SelectItem value="productivitate_culegator">Productivitate per culegator</SelectItem>
+                  <SelectItem value="vanzari_client">Vânzări per client</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -786,39 +885,89 @@ export function RapoartePageClient({
           ) : null}
         </section>
 
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard title="Productie totala" value={`${numberFormatter.format(kpi.productieKg)} kg`} trend={kpi.productieKg > 0 ? 'up' : 'neutral'} />
-          <KpiCard title="Venit total" value={currencyFormatter.format(kpi.revenue)} trend={kpi.revenue > 0 ? 'up' : 'neutral'} />
-          <KpiCard title="Costuri totale" value={currencyFormatter.format(kpi.cost)} trend={kpi.cost > 0 ? 'down' : 'neutral'} />
-          <ProfitSummaryCard title="Profit si marja" subtitle="Calcul automat din date filtrate" revenue={kpi.revenue} cost={kpi.cost} />
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MiniCard
+            icon="💰"
+            label="Venit total"
+            value={currencyFormatter.format(kpi.revenue)}
+            sub="RON"
+            trend={{ value: Number(Math.abs(kpiTrend.venit).toFixed(0)), positive: kpiTrend.venit >= 0 }}
+          />
+          <div style={{ border: `1px solid ${colors.coral}`, borderRadius: radius.xl }}>
+            <MiniCard
+              icon="📉"
+              label="Cheltuieli"
+              value={currencyFormatter.format(kpi.cost)}
+              sub="RON"
+              trend={{ value: Number(Math.abs(kpiTrend.cheltuieli).toFixed(0)), positive: kpiTrend.cheltuieli <= 0 }}
+            />
+          </div>
+          <div
+            style={{
+              background: colors.white,
+              borderRadius: radius.xl,
+              boxShadow: shadows.card,
+              padding: `${spacing.lg}px`,
+              minHeight: 110,
+            }}
+          >
+            <div style={{ fontSize: 16, marginBottom: spacing.sm }}>📊</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: kpi.profit >= 0 ? colors.green : colors.coral }}>
+              {currencyFormatter.format(kpi.profit)}
+            </div>
+            <div style={{ fontSize: 10, color: colors.gray, marginTop: spacing.xs }}>Profit</div>
+          </div>
+          <MiniCard
+            icon="🫐"
+            label="Producție"
+            value={`${numberFormatter.format(kpi.productieKg)} kg`}
+            sub="kg recoltat"
+            trend={{ value: Number(Math.abs(kpiTrend.productie).toFixed(0)), positive: kpiTrend.productie >= 0 }}
+          />
         </section>
 
-        <section className="agri-card space-y-4 p-4 sm:p-5">
+        {monthlyFinancialRows.length > 0 ? (
+          <section className="agri-card space-y-3 p-4">
+            <h3 className="text-base font-semibold text-[var(--agri-text)]">Venit vs cheltuieli (max 6 luni)</h3>
+            <svg width="100%" height="170" viewBox="0 0 600 170" role="img" aria-label="Grafic venit ți cheltuieli per luna">
+              {monthlyFinancialRows.map((row, index) => {
+                const groupWidth = 600 / monthlyFinancialRows.length
+                const xBase = index * groupWidth + 18
+                const chartHeight = 110
+                const venitHeight = (row.venit / financialChartMax) * chartHeight
+                const cheltHeight = (row.cheltuieli / financialChartMax) * chartHeight
+                return (
+                  <g key={row.key}>
+                    <rect x={xBase} y={125 - venitHeight} width={20} height={Math.max(2, venitHeight)} fill={colors.green} rx={4} />
+                    <rect x={xBase + 24} y={125 - cheltHeight} width={20} height={Math.max(2, cheltHeight)} fill={colors.coral} rx={4} />
+                    <text x={xBase + 22} y={150} textAnchor="middle" fontSize="10" fill={colors.gray}>
+                      {row.label}
+                    </text>
+                  </g>
+                )
+              })}
+            </svg>
+          </section>
+        ) : null}
+
+        <section className="agri-card space-y-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-base font-semibold text-[var(--agri-text)]">{reportLabel}</h3>
             <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" className="agri-control h-11" onClick={exportExcel}>
-                <FileSpreadsheet className="mr-1 h-4 w-4" />
-                Export Excel
+              <Button type="button" variant="outline" className="h-10 rounded-[10px] border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]" onClick={exportCsv}>
+                📥 CSV
               </Button>
-              <Button type="button" variant="outline" className="agri-control h-11" onClick={exportCsv}>
-                <Download className="mr-1 h-4 w-4" />
-                Export CSV
+              <Button type="button" variant="outline" className="h-10 rounded-[10px] border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]" onClick={exportExcel}>
+                📥 Excel
               </Button>
               <Button type="button" variant="outline" className="agri-control h-11" onClick={exportPdf}>
                 <FileText className="mr-1 h-4 w-4" />
                 Export PDF
               </Button>
-              {canFullSeasonExport ? (
-                <Button type="button" variant="outline" className="agri-control h-11" onClick={exportSeasonCsv}>
-                  <Download className="mr-1 h-4 w-4" />
-                  Export sezon complet
-                </Button>
-              ) : (
-                <Button asChild type="button" variant="outline" className="agri-control h-11 border-amber-400 text-amber-800">
-                  <Link href="/planuri">Export sezon complet (Pro+)</Link>
-                </Button>
-              )}
+              <Button type="button" variant="outline" className="agri-control h-11" onClick={exportSeasonCsv}>
+                <Download className="mr-1 h-4 w-4" />
+                Export sezon complet
+              </Button>
               <Button type="button" variant="outline" className="agri-control h-11" onClick={exportTratamenteCsv}>
                 <Download className="mr-1 h-4 w-4" />
                 Export tratamente
@@ -828,14 +977,14 @@ export function RapoartePageClient({
 
           {reportRows.length === 0 ? (
             <EmptyState
-              title="Fara rezultate pentru filtrele curente"
-              description="Ajusteaza perioada sau selectorii de cultura/parcela."
+              title="Fără rezultate pentru filtrele curente"
+              description="Ajusteaza perioada sau selectorii de cultura/parcelă."
             />
           ) : (
             <>
               <div className="space-y-2">
-                {chartRows.map((row) => (
-                  <div key={row.label} className="space-y-1">
+                {chartRows.map((row, index) => (
+                  <div key={`${row.label}-${row.value}-${index}`} className="space-y-1">
                     <div className="flex items-center justify-between text-xs font-semibold text-[var(--agri-text-muted)]">
                       <span className="truncate pr-2">{row.label}</span>
                       <span>{numberFormatter.format(row.value)}</span>
@@ -877,23 +1026,17 @@ export function RapoartePageClient({
             </>
           )}
         </section>
-
-        <FeatureGate
-          feature="advanced_reports"
-          title="Rapoarte avansate disponibile in Pro+"
-          message="Upgrade pentru analiza productivitate, top performeri si evolutie detaliata."
-        >
-          <section className="agri-card space-y-4 p-4 sm:p-5">
+          <section className="agri-card space-y-4 p-4">
             <h3 className="text-base font-semibold text-[var(--agri-text)]">Analiza productivitate</h3>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-[var(--agri-text)]">Productie per parcela</p>
+                <p className="text-sm font-semibold text-[var(--agri-text)]">Producție per parcelă</p>
                 {parcelaChart.length === 0 ? (
-                  <p className="text-sm text-[var(--agri-text-muted)]">Fara date.</p>
+                  <p className="text-sm text-[var(--agri-text-muted)]">Fără date.</p>
                 ) : (
-                  parcelaChart.map((row) => (
-                    <div key={row.label} className="space-y-1">
+                  parcelaChart.map((row, index) => (
+                    <div key={`${row.label}-${row.value}-${index}`} className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-semibold text-[var(--agri-text-muted)]">
                         <span className="truncate pr-2">{row.label}</span>
                         <span>{numberFormatter.format(row.value)} kg</span>
@@ -910,12 +1053,12 @@ export function RapoartePageClient({
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-[var(--agri-text)]">Productie per culegator</p>
+                <p className="text-sm font-semibold text-[var(--agri-text)]">Producție per culegator</p>
                 {culegatorChart.length === 0 ? (
-                  <p className="text-sm text-[var(--agri-text-muted)]">Fara date.</p>
+                  <p className="text-sm text-[var(--agri-text-muted)]">Fără date.</p>
                 ) : (
-                  culegatorChart.map((row) => (
-                    <div key={row.label} className="space-y-1">
+                  culegatorChart.map((row, index) => (
+                    <div key={`${row.label}-${row.value}-${index}`} className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-semibold text-[var(--agri-text-muted)]">
                         <span className="truncate pr-2">{row.label}</span>
                         <span>{numberFormatter.format(row.value)} kg</span>
@@ -934,7 +1077,7 @@ export function RapoartePageClient({
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-[var(--agri-text)]">Evolutie lunara</p>
                 {monthlyEvolution.length === 0 ? (
-                  <p className="text-sm text-[var(--agri-text-muted)]">Fara date.</p>
+                  <p className="text-sm text-[var(--agri-text-muted)]">Fără date.</p>
                 ) : (
                   monthlyEvolution.map((row) => (
                     <div key={row.key} className="space-y-1">
@@ -957,9 +1100,8 @@ export function RapoartePageClient({
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <PerformanceTable title="Top parcele" rows={parcelaPerformance} />
-            <PerformanceTable title="Top culegatori" rows={culegatorPerformance} />
+            <PerformanceTable title="Top culegători" rows={culegatorPerformance} />
           </div>
-        </FeatureGate>
       </div>
     </AppShell>
   )

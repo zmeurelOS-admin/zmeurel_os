@@ -2,6 +2,7 @@
 
 import { TrendingDown, TrendingUp } from 'lucide-react'
 
+import { BaseCard } from '@/components/app/BaseCard'
 import { calculateProfit } from '@/lib/calculations/profit'
 
 interface ProfitSummaryCardProps {
@@ -29,14 +30,14 @@ export function ProfitSummaryCard({
   const positive = metrics.profit >= 0
 
   return (
-    <article className={`agri-card p-4 sm:p-5 ${positive ? 'border-emerald-500' : 'border-red-500'}`}>
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">{title}</p>
-          <p className="mt-1 text-sm font-medium text-[var(--agri-text-muted)]">{subtitle}</p>
+    <BaseCard className={positive ? 'border-emerald-500' : 'border-red-500'}>
+      <div className="mb-3 flex justify-between items-start gap-3 lg:gap-2">
+        <div className="min-w-0">
+          <p className="text-sm text-muted-foreground">{title}</p>
+          <p className="mt-1 text-base font-medium text-[var(--agri-text)]">{subtitle}</p>
         </div>
         <span
-          className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl ${
+          className={`ml-0 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl lg:ml-2 ${
             positive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
           }`}
         >
@@ -46,26 +47,26 @@ export function ProfitSummaryCard({
 
       <dl className="grid grid-cols-2 gap-2 text-sm">
         <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2.5">
-          <dt className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Venit</dt>
-          <dd className="mt-1 text-base font-bold text-[var(--agri-text)]">{formatCurrency(metrics.revenue)}</dd>
+          <dt className="text-sm text-muted-foreground">Venit</dt>
+          <dd className="value-money-positive mt-1 text-base">{formatCurrency(metrics.revenue)}</dd>
         </div>
         <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2.5">
-          <dt className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Cost</dt>
-          <dd className="mt-1 text-base font-bold text-[var(--agri-text)]">{formatCurrency(metrics.cost)}</dd>
+          <dt className="text-sm text-muted-foreground">Cost</dt>
+          <dd className="value-money-negative mt-1 text-base">{formatCurrency(metrics.cost)}</dd>
         </div>
         <div className={`rounded-xl border p-2.5 ${positive ? 'border-emerald-500 bg-emerald-50' : 'border-red-500 bg-red-50'}`}>
-          <dt className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Profit</dt>
-          <dd className={`mt-1 text-base font-black ${positive ? 'text-emerald-800' : 'text-red-800'}`}>
+          <dt className="text-sm text-muted-foreground">Profit</dt>
+          <dd className={`mt-1 text-base ${positive ? 'value-money-positive' : 'value-money-negative'}`}>
             {formatCurrency(metrics.profit)}
           </dd>
         </div>
         <div className={`rounded-xl border p-2.5 ${positive ? 'border-emerald-500 bg-emerald-50' : 'border-red-500 bg-red-50'}`}>
-          <dt className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Marja</dt>
-          <dd className={`mt-1 text-base font-black ${positive ? 'text-emerald-800' : 'text-red-800'}`}>
+          <dt className="text-sm text-muted-foreground">Marja</dt>
+          <dd className={`mt-1 text-base font-semibold ${positive ? 'text-emerald-800' : 'text-red-800'}`}>
             {metrics.margin.toFixed(1)}%
           </dd>
         </div>
       </dl>
-    </article>
+    </BaseCard>
   )
 }

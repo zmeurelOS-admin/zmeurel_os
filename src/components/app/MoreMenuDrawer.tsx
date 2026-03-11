@@ -49,20 +49,20 @@ const groups: MenuGroup[] = [
     title: 'Operatiuni',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/parcele', label: 'Parcele', icon: MapPin },
-      { href: '/activitati-agricole', label: 'Activitati agricole', icon: ClipboardList },
+      { href: '/parcele', label: 'Terenuri', icon: MapPin },
+      { href: '/activitati-agricole', label: 'Activități agricole', icon: ClipboardList },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
-      { href: '/vanzari', label: 'Vanzari fructe', icon: BanknoteArrowUp },
+      { href: '/vanzari', label: 'Vânzări fructe', icon: BanknoteArrowUp },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
-      { href: '/vanzari-butasi', label: 'Vanzari butasi', icon: ShoppingBag },
+      { href: '/vanzari-butasi', label: 'Material săditor', icon: ShoppingBag },
     ],
   },
   {
     title: 'Administrare',
     items: [
-      { href: '/clienti', label: 'Clienti', icon: Users },
-      { href: '/culegatori', label: 'Culegatori', icon: Leaf },
+      { href: '/clienti', label: 'Clienți', icon: Users },
+      { href: '/culegatori', label: 'Culegători', icon: Leaf },
       { href: '/rapoarte', label: 'Rapoarte', icon: BarChart3 },
     ],
   },
@@ -73,7 +73,7 @@ const adminGroup: MenuGroup = {
   badge: 'Admin',
   items: [
     { href: '/admin/analytics', label: 'Analytics global (agregat)', icon: BarChart3 },
-    { href: '/admin', label: 'Lista tenanti', icon: UsersRound },
+    { href: '/admin', label: 'Lista tenanți', icon: UsersRound },
   ],
 }
 

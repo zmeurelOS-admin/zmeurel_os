@@ -1,17 +1,20 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
-import { Loader2, Plus } from 'lucide-react';
+import { toast } from '@/lib/ui/toast';
+import { Plus } from 'lucide-react';
 
 import { AppDialog } from '@/components/app/AppDialog';
 import { Button } from '@/components/ui/button';
+import { DialogFormActions } from '@/components/ui/dialog-form-actions';
 import { createParcela } from '@/lib/supabase/queries/parcele';
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
 import { ParcelaForm, type ParcelaFormData } from './ParcelaForm';
+import { queryKeys } from '@/lib/query-keys'
 
 const parcelaSchema = z.object({
   nume_parcela: z.string().min(1, 'Numele parcelei este obligatoriu'),
@@ -60,13 +63,15 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['parcele'] });
-      toast.success('Parcela a fost adaugata cu succes');
+      queryClient.invalidateQueries({ queryKey: queryKeys.parcele });
+      hapticSuccess();
+      toast.success('Teren adaugat cu succes');
       form.reset();
       setOpen(false);
       onSuccess();
     },
     onError: (error: Error) => {
+      hapticError();
       toast.error(`Eroare: ${error.message}`);
     },
   });
@@ -79,30 +84,22 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
     <>
       <Button size="lg" className="h-14 w-full rounded-2xl shadow-sm" onClick={() => setOpen(true)}>
         <Plus className="mr-2 h-5 w-5" />
-        Adauga Parcela
+        Adaugă teren
       </Button>
 
       <AppDialog
         open={open}
         onOpenChange={setOpen}
-        title="Adauga Parcela Noua"
-        description="Completeaza detaliile parcelei. ID-ul se genereaza automat."
+        title="Adaugă teren nou"
+        description="Completeaza detaliile terenului."
         footer={
-          <>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={createMutation.isPending}>
-              Anuleaza
-            </Button>
-            <Button type="submit" form="add-parcela-form" disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Se salveaza...
-                </>
-              ) : (
-                'Salveaza Parcela'
-              )}
-            </Button>
-          </>
+          <DialogFormActions
+            onCancel={() => setOpen(false)}
+            onSave={form.handleSubmit(onSubmit)}
+            saving={createMutation.isPending}
+            cancelLabel="Anulează"
+            saveLabel="Salvează teren"
+          />
         }
       >
         <form id="add-parcela-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -112,3 +109,4 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
     </>
   );
 }
+

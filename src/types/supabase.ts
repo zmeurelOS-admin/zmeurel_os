@@ -192,6 +192,41 @@ export type Database = {
           },
         ]
       }
+      alert_dismissals: {
+        Row: {
+          alert_key: string
+          created_at: string
+          dismissed_on: string
+          id: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          alert_key: string
+          created_at?: string
+          dismissed_on?: string
+          id?: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          alert_key?: string
+          created_at?: string
+          dismissed_on?: string
+          id?: string
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_dismissals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cheltuieli_diverse: {
         Row: {
           categorie: string | null
@@ -250,6 +285,75 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "cheltuieli_diverse_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comenzi: {
+        Row: {
+          cantitate_kg: number
+          client_id: string | null
+          client_nume_manual: string | null
+          created_at: string
+          data_comanda: string
+          data_livrare: string
+          id: string
+          locatie_livrare: string | null
+          observatii: string | null
+          pret_per_kg: number
+          status: string
+          telefon: string | null
+          tenant_id: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          cantitate_kg: number
+          client_id?: string | null
+          client_nume_manual?: string | null
+          created_at?: string
+          data_comanda?: string
+          data_livrare: string
+          id?: string
+          locatie_livrare?: string | null
+          observatii?: string | null
+          pret_per_kg: number
+          status?: string
+          telefon?: string | null
+          tenant_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          cantitate_kg?: number
+          client_id?: string | null
+          client_nume_manual?: string | null
+          created_at?: string
+          data_comanda?: string
+          data_livrare?: string
+          id?: string
+          locatie_livrare?: string | null
+          observatii?: string | null
+          pret_per_kg?: number
+          status?: string
+          telefon?: string | null
+          tenant_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comenzi_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clienti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comenzi_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -435,46 +539,58 @@ export type Database = {
       }
       miscari_stoc: {
         Row: {
-          calitate: string
-          cantitate_kg: number
+          calitate: string | null
+          cantitate_cal1: number
+          cantitate_cal2: number
+          cantitate_kg: number | null
           created_at: string
           data: string
-          depozit: string
+          depozit: string | null
+          descriere: string | null
           id: string
-          locatie_id: string
+          locatie_id: string | null
           observatii: string | null
-          produs: string
+          produs: string | null
           referinta_id: string | null
           tenant_id: string
-          tip_miscare: string
+          tip: string | null
+          tip_miscare: string | null
         }
         Insert: {
-          calitate: string
-          cantitate_kg: number
+          calitate?: string | null
+          cantitate_cal1?: number
+          cantitate_cal2?: number
+          cantitate_kg?: number | null
           created_at?: string
           data?: string
-          depozit: string
+          depozit?: string | null
+          descriere?: string | null
           id?: string
-          locatie_id: string
+          locatie_id?: string | null
           observatii?: string | null
-          produs: string
+          produs?: string | null
           referinta_id?: string | null
           tenant_id?: string
-          tip_miscare: string
+          tip?: string | null
+          tip_miscare?: string | null
         }
         Update: {
-          calitate?: string
-          cantitate_kg?: number
+          calitate?: string | null
+          cantitate_cal1?: number
+          cantitate_cal2?: number
+          cantitate_kg?: number | null
           created_at?: string
           data?: string
-          depozit?: string
+          depozit?: string | null
+          descriere?: string | null
           id?: string
-          locatie_id?: string
+          locatie_id?: string | null
           observatii?: string | null
-          produs?: string
+          produs?: string | null
           referinta_id?: string | null
           tenant_id?: string
-          tip_miscare?: string
+          tip?: string | null
+          tip_miscare?: string | null
         }
         Relationships: [
           {
@@ -616,52 +732,73 @@ export type Database = {
       parcele: {
         Row: {
           an_plantare: number
+          cultura: string | null
           created_at: string | null
+          data_plantarii: string | null
+          distanta_intre_randuri: number | null
           gps_lat: number | null
           gps_lng: number | null
           id: string
           id_parcela: string
           nr_plante: number | null
+          nr_randuri: number | null
           nume_parcela: string
           observatii: string | null
+          sistem_irigare: string | null
+          soi: string | null
           soi_plantat: string | null
           status: string | null
           suprafata_m2: number
           tenant_id: string
+          tip_unitate: string
           tip_fruct: string | null
           updated_at: string | null
         }
         Insert: {
           an_plantare: number
+          cultura?: string | null
           created_at?: string | null
+          data_plantarii?: string | null
+          distanta_intre_randuri?: number | null
           gps_lat?: number | null
           gps_lng?: number | null
           id?: string
           id_parcela: string
           nr_plante?: number | null
+          nr_randuri?: number | null
           nume_parcela: string
           observatii?: string | null
+          sistem_irigare?: string | null
+          soi?: string | null
           soi_plantat?: string | null
           status?: string | null
           suprafata_m2: number
           tenant_id?: string
+          tip_unitate?: string
           tip_fruct?: string | null
           updated_at?: string | null
         }
         Update: {
           an_plantare?: number
+          cultura?: string | null
           created_at?: string | null
+          data_plantarii?: string | null
+          distanta_intre_randuri?: number | null
           gps_lat?: number | null
           gps_lng?: number | null
           id?: string
           id_parcela?: string
           nr_plante?: number | null
+          nr_randuri?: number | null
           nume_parcela?: string
           observatii?: string | null
+          sistem_irigare?: string | null
+          soi?: string | null
           soi_plantat?: string | null
           status?: string | null
           suprafata_m2?: number
           tenant_id?: string
+          tip_unitate?: string
           tip_fruct?: string | null
           updated_at?: string | null
         }
@@ -675,20 +812,206 @@ export type Database = {
           },
         ]
       }
+      culture_stage_logs: {
+        Row: {
+          created_at: string
+          data: string
+          etapa: string
+          id: string
+          observatii: string | null
+          tenant_id: string
+          unitate_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          etapa: string
+          id?: string
+          observatii?: string | null
+          tenant_id: string
+          unitate_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          etapa?: string
+          id?: string
+          observatii?: string | null
+          tenant_id?: string
+          unitate_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "culture_stage_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "culture_stage_logs_unitate_id_fkey"
+            columns: ["unitate_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "culture_stage_logs_unitate_id_fkey"
+            columns: ["unitate_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crop_varieties: {
+        Row: {
+          created_at: string
+          crop_id: string
+          id: string
+          name: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          crop_id: string
+          id?: string
+          name: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          crop_id?: string
+          id?: string
+          name?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crop_varieties_crop_id_fkey"
+            columns: ["crop_id"]
+            isOneToOne: false
+            referencedRelation: "crops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crop_varieties_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crops: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string | null
+          unit_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id?: string | null
+          unit_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string | null
+          unit_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crops_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           id: string
           is_superadmin: boolean
+          tenant_id: string | null
         }
         Insert: {
           id: string
           is_superadmin?: boolean
+          tenant_id?: string | null
         }
         Update: {
           id?: string
           is_superadmin?: boolean
+          tenant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_tenant_fk"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solar_climate_logs: {
+        Row: {
+          created_at: string
+          id: string
+          observatii: string | null
+          temperatura: number
+          tenant_id: string
+          umiditate: number
+          unitate_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observatii?: string | null
+          temperatura: number
+          tenant_id: string
+          umiditate: number
+          unitate_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observatii?: string | null
+          temperatura?: number
+          tenant_id?: string
+          umiditate?: number
+          unitate_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solar_climate_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solar_climate_logs_unitate_id_fkey"
+            columns: ["unitate_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solar_climate_logs_unitate_id_fkey"
+            columns: ["unitate_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recoltari: {
         Row: {
@@ -855,6 +1178,7 @@ export type Database = {
         Row: {
           cantitate_kg: number
           client_id: string | null
+          comanda_id: string | null
           created_at: string | null
           data: string
           id: string
@@ -868,6 +1192,7 @@ export type Database = {
         Insert: {
           cantitate_kg: number
           client_id?: string | null
+          comanda_id?: string | null
           created_at?: string | null
           data: string
           id?: string
@@ -881,6 +1206,7 @@ export type Database = {
         Update: {
           cantitate_kg?: number
           client_id?: string | null
+          comanda_id?: string | null
           created_at?: string | null
           data?: string
           id?: string
@@ -892,6 +1218,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vanzari_comanda_id_fkey"
+            columns: ["comanda_id"]
+            isOneToOne: false
+            referencedRelation: "comenzi"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vanzari_client_id_fkey"
             columns: ["client_id"]
@@ -942,7 +1275,7 @@ export type Database = {
           data_comanda?: string
           data_livrare_estimata?: string | null
           id?: string
-          id_vanzare_butasi: string
+          id_vanzare_butasi?: string
           observatii?: string | null
           parcela_sursa_id?: string | null
           pret_unitar_lei: number
@@ -1429,6 +1762,10 @@ export type Database = {
           updated_at: string | null
         }[]
       }
+      bucharest_today: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       refresh_tenant_metrics_daily: {
         Args: {
           p_date?: string
@@ -1584,4 +1921,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

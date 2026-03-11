@@ -12,11 +12,18 @@ export interface Parcela {
     id: string;
     tenant_id: string;
     id_parcela: string; // "P001", "P002" - ID vizibil
+    tip_unitate: 'camp' | 'solar' | 'livada';
     nume_parcela: string;
     suprafata_m2: number;
     soi_plantat: string | null;
+    cultura: string | null;
+    soi: string | null;
+    nr_randuri: number | null;
     an_plantare: number;
     nr_plante: number | null;
+    distanta_intre_randuri: number | null;
+    sistem_irigare: string | null;
+    data_plantarii: string | null;
     status: string;
     gps_lat: number | null;
     gps_lng: number | null;
@@ -26,14 +33,21 @@ export interface Parcela {
   }
 
   // Pentru INSERT (fără id, timestamps auto-generate)
-  export interface ParcelaInsert {
+export interface ParcelaInsert {
     tenant_id: string;
     id_parcela: string;
+    tip_unitate?: 'camp' | 'solar' | 'livada';
     nume_parcela: string;
     suprafata_m2: number;
     soi_plantat?: string | null;
+    cultura?: string | null;
+    soi?: string | null;
+    nr_randuri?: number | null;
     an_plantare: number;
     nr_plante?: number | null;
+    distanta_intre_randuri?: number | null;
+    sistem_irigare?: string | null;
+    data_plantarii?: string | null;
     status?: string;
     gps_lat?: number | null;
     gps_lng?: number | null;
@@ -41,13 +55,20 @@ export interface Parcela {
   }
 
   // Pentru UPDATE (toate câmpurile opționale)
-  export interface ParcelaUpdate {
+export interface ParcelaUpdate {
     id_parcela?: string;
+    tip_unitate?: 'camp' | 'solar' | 'livada';
     nume_parcela?: string;
     suprafata_m2?: number;
     soi_plantat?: string | null;
+    cultura?: string | null;
+    soi?: string | null;
+    nr_randuri?: number | null;
     an_plantare?: number;
     nr_plante?: number | null;
+    distanta_intre_randuri?: number | null;
+    sistem_irigare?: string | null;
+    data_plantarii?: string | null;
     status?: string;
     gps_lat?: number | null;
     gps_lng?: number | null;
@@ -137,12 +158,56 @@ export interface Parcela {
   // TENANTS (Multi-tenancy)
   // ============================================================================
 
-  export interface Tenant {
+export interface Tenant {
     id: string;
     nume_ferma: string;
     owner_user_id: string;
     plan: string; // 'freemium', 'starter', 'pro', 'enterprise'
     created_at: string;
+  }
+
+  // ============================================================================
+  // SOLAR CLIMATE LOGS
+  // ============================================================================
+
+  export interface SolarClimateLog {
+    id: string;
+    tenant_id: string;
+    unitate_id: string; // FK -> parcele.id
+    temperatura: number;
+    umiditate: number;
+    observatii: string | null;
+    created_at: string;
+  }
+
+  export interface SolarClimateLogInsert {
+    tenant_id: string;
+    unitate_id: string;
+    temperatura: number;
+    umiditate: number;
+    observatii?: string | null;
+  }
+
+  // ============================================================================
+  // CULTURE STAGE LOGS
+  // ============================================================================
+
+  export interface CultureStageLog {
+    id: string;
+    tenant_id: string;
+    unitate_id: string; // FK -> parcele.id
+    etapa: string;
+    data: string; // ISO date
+    observatii: string | null;
+    created_at: string;
+  }
+
+  export interface CultureStageLogInsert {
+    tenant_id: string;
+    unitate_id: string;
+    etapa: string;
+    data: string;
+    observatii?: string | null;
   }
 
   // ============================================================================

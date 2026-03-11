@@ -3,19 +3,22 @@
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 
+import { track } from '@/lib/analytics/track'
+import { ensureCropVarietyForCrop } from '@/lib/supabase/queries/crop-varieties'
+import { ensureCropForUnitType } from '@/lib/supabase/queries/crops'
 import { createParcela } from '@/lib/supabase/queries/parcele'
 import { AppDrawer } from '@/components/app/AppDrawer'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
   getParcelFormDefaults,
   parcelFormSchema,
   ParcelForm,
   type ParcelFormValues,
 } from '@/components/parcele/ParcelForm'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
 interface AddParcelDrawerProps {
   open: boolean
@@ -45,24 +48,48 @@ export function AddParcelDrawer({
   }, [open, form])
 
   const createMutation = useMutation({
-    mutationFn: async (values: ParcelFormValues) =>
-      createParcela({
+    mutationFn: async (values: ParcelFormValues) => {
+      const isSolar = values.tip_unitate === 'solar'
+      const cropName = values.tip_fruct.trim()
+      const crop = await ensureCropForUnitType(cropName, values.tip_unitate)
+      const varietyName = values.soi_plantat.trim()
+      if (varietyName) {
+        await ensureCropVarietyForCrop(crop.id, varietyName)
+      }
+
+      return createParcela({
         id_parcela: generateParcelCode(),
         nume_parcela: values.nume_parcela.trim(),
-        tip_fruct: values.tip_fruct,
+        tip_unitate: values.tip_unitate,
+        tip_fruct: cropName,
         suprafata_m2: toDecimal(values.suprafata_m2),
         soi_plantat: values.soi_plantat || undefined,
         an_plantare: Number(values.an_plantare),
         nr_plante: values.nr_plante ? Number(values.nr_plante) : undefined,
+        cultura: isSolar ? values.cultura || cropName || null : null,
+        soi: isSolar ? values.soi || values.soi_plantat || null : null,
+        nr_randuri: isSolar && values.nr_randuri ? Number(values.nr_randuri) : null,
+        distanta_intre_randuri:
+          isSolar && values.distanta_intre_randuri ? toDecimal(values.distanta_intre_randuri) : null,
+        sistem_irigare: isSolar ? values.sistem_irigare || null : null,
+        data_plantarii: isSolar ? values.data_plantarii || null : null,
         status: values.status,
         observatii: values.observatii || undefined,
-      }),
-    onSuccess: () => {
-      toast.success('Parcela adaugata')
+      })
+    },
+    onSuccess: (_, values) => {
+      track('parcela_add', {
+        suprafata: Number(values.suprafata_m2.replace(',', '.')) || 0,
+        soi: values.soi_plantat || null,
+        tip_unitate: values.tip_unitate,
+      })
+      hapticSuccess()
+      toast.success('Teren adaugat')
       onOpenChange(false)
       onCreated()
     },
     onError: (error: Error) => {
+      hapticError()
       toast.error(error.message)
     },
   })
@@ -71,23 +98,19 @@ export function AddParcelDrawer({
     <AppDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title="Adauga parcela"
+      title="Adaugă teren"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)}>
-            Anuleaza
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-            onClick={form.handleSubmit((values) => createMutation.mutate(values))}
-          >
-            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
-          </Button>
-        </div>
+        <DialogFormActions
+          onCancel={() => onOpenChange(false)}
+          onSave={form.handleSubmit((values) => createMutation.mutate(values))}
+          saving={createMutation.isPending}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
       <ParcelForm form={form} soiuriDisponibile={soiuriDisponibile} />
     </AppDrawer>
   )
 }
+

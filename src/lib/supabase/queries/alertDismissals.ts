@@ -1,6 +1,7 @@
 'use client'
 
 import { getSupabase } from '@/lib/supabase/client'
+import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 
 interface AlertContext {
   userId: string
@@ -36,13 +37,9 @@ export async function getAlertContext(): Promise<AlertContext | null> {
 
       if (!user?.id) return null
 
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('id')
-        .eq('owner_user_id', user.id)
-        .maybeSingle()
+      const tenantId = await getTenantIdOrNull(supabase)
 
-      cachedContext = { userId: user.id, tenantId: tenant?.id ?? null }
+      cachedContext = { userId: user.id, tenantId }
       return cachedContext
     } catch {
       return null

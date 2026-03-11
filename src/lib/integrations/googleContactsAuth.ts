@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 export interface AdminAuthContext {
   supabase: SupabaseClient<Database>
@@ -25,13 +26,10 @@ export async function requireGoogleContactsAdmin(): Promise<AdminAuthContext> {
     throw new Error('FORBIDDEN')
   }
 
-  const { data: tenant, error: tenantError } = await supabase
-    .from('tenants')
-    .select('id')
-    .eq('owner_user_id', user.id)
-    .maybeSingle()
-
-  if (tenantError || !tenant?.id) {
+  let tenantId: string
+  try {
+    tenantId = await getTenantId(supabase)
+  } catch {
     throw new Error('TENANT_NOT_FOUND')
   }
 
@@ -39,6 +37,6 @@ export async function requireGoogleContactsAdmin(): Promise<AdminAuthContext> {
     supabase,
     userId: user.id,
     userEmail: user.email.toLowerCase(),
-    tenantId: tenant.id,
+    tenantId,
   }
 }

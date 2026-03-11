@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Info, OctagonAlert, X } from 'lucide-react'
 
+import { BaseCard } from '@/components/app/BaseCard'
 import type { SmartAlert } from '@/lib/alerts/engine'
 
 interface AlertCardProps {
@@ -32,7 +33,7 @@ export function AlertCard({ alert, onDismiss, dismissing = false }: AlertCardPro
   const Icon = config.icon
 
   return (
-    <article className={`rounded-2xl border p-3 ${config.className}`}>
+    <BaseCard className={`h-auto min-h-0 p-4 ${config.className}`}>
       <div className="flex items-start gap-2">
         <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${config.iconWrap}`}>
           <Icon className="h-4 w-4" />
@@ -53,6 +54,6 @@ export function AlertCard({ alert, onDismiss, dismissing = false }: AlertCardPro
           </button>
         ) : null}
       </div>
-    </article>
+    </BaseCard>
   )
 }

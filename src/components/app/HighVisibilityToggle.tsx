@@ -6,13 +6,13 @@ import { SunMedium } from 'lucide-react'
 const STORAGE_KEY = 'agri.highVisibility'
 
 export function HighVisibilityToggle() {
-  const [enabled, setEnabled] = useState(false)
+  const [enabled, setEnabled] = useState(() =>
+    typeof window === 'undefined' ? false : window.localStorage.getItem(STORAGE_KEY) === '1'
+  )
 
   useEffect(() => {
-    const initial = window.localStorage.getItem(STORAGE_KEY) === '1'
-    setEnabled(initial)
-    document.documentElement.classList.toggle('high-visibility-mode', initial)
-  }, [])
+    document.documentElement.classList.toggle('high-visibility-mode', enabled)
+  }, [enabled])
 
   const onToggle = () => {
     const next = !enabled

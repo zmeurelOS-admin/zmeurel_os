@@ -1,7 +1,11 @@
 import * as Sentry from '@sentry/nextjs'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
+
+import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
+import type { Database } from '@/types/supabase'
 
 type ServerSupabase = ReturnType<typeof createServerClient>
 type CallbackUser = {
@@ -10,9 +14,8 @@ type CallbackUser = {
   user_metadata?: Record<string, unknown> | null
 }
 
-type TenantEnsureResult = {
-  id: string
-  created: boolean
+function asDbClient(client: ServerSupabase): SupabaseClient<Database> {
+  return client as unknown as SupabaseClient<Database>
 }
 
 function errorCode(error: unknown): string | null {
@@ -49,9 +52,15 @@ function addBreadcrumb(step: string, payload: Record<string, unknown>) {
 }
 
 function captureException(error: unknown, payload: Record<string, unknown>) {
+  const tenantId =
+    (typeof payload.tenantId === 'string' && payload.tenantId) ||
+    (typeof payload.tenant_id === 'string' && payload.tenant_id) ||
+    null
+
   Sentry.captureException(error, {
     tags: {
       module: 'auth-callback',
+      ...(tenantId ? { tenant_id: tenantId } : {}),
     },
     extra: payload,
   })
@@ -105,73 +114,24 @@ function toLoginErrorRedirect(baseUrl: string, errorValue: string) {
   return buildRedirect(baseUrl, '/login', { error: errorValue })
 }
 
-async function ensureTenantForUser(
+async function waitForTenantIdAssignment(
   supabase: ServerSupabase,
-  user: CallbackUser
-): Promise<TenantEnsureResult> {
-  const { data: existingTenant, error: existingTenantError } = await supabase
-    .from('tenants')
-    .select('id')
-    .eq('owner_user_id', user.id)
-    .maybeSingle()
+  userId: string,
+  attempts = 5,
+  delayMs = 200
+): Promise<string | null> {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const tenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), userId)
+    if (tenantId) {
+      return tenantId
+    }
 
-  if (existingTenantError) {
-    throw new Error(`[tenant] read failed: ${existingTenantError.message}`)
-  }
-
-  if (existingTenant?.id) {
-    return {
-      id: existingTenant.id,
-      created: false,
+    if (attempt < attempts) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
     }
   }
 
-  const farmNameRaw = user.user_metadata?.farm_name
-  const farmName =
-    typeof farmNameRaw === 'string' && farmNameRaw.trim().length > 0
-      ? farmNameRaw.trim()
-      : 'Ferma mea'
-
-  const { data: insertedTenant, error: insertTenantError } = await supabase
-    .from('tenants')
-    .insert({
-      nume_ferma: farmName,
-      owner_user_id: user.id,
-    })
-    .select('id')
-    .maybeSingle()
-
-  if (insertTenantError) {
-    if (errorCode(insertTenantError) === '23505') {
-      const { data: concurrentTenant, error: concurrentReadError } = await supabase
-        .from('tenants')
-        .select('id')
-        .eq('owner_user_id', user.id)
-        .maybeSingle()
-
-      if (concurrentReadError) {
-        throw new Error(`[tenant] race read failed: ${concurrentReadError.message}`)
-      }
-
-      if (concurrentTenant?.id) {
-        return {
-          id: concurrentTenant.id,
-          created: false,
-        }
-      }
-    }
-
-    throw new Error(`[tenant] insert failed: ${insertTenantError.message}`)
-  }
-
-  if (!insertedTenant?.id) {
-    throw new Error('[tenant] insert returned null tenant id')
-  }
-
-  return {
-    id: insertedTenant.id,
-    created: true,
-  }
+  return null
 }
 
 async function buildSupabaseClient() {
@@ -200,35 +160,55 @@ async function completeOnboardingForUser(
   user: CallbackUser,
   baseUrl: string
 ) {
-  let tenant: TenantEnsureResult
+  let tenantId: string | null
 
   try {
-    tenant = await ensureTenantForUser(supabase, user)
-    logInfo('tenant.ensure_success', {
+    tenantId = await waitForTenantIdAssignment(supabase, user.id)
+    logInfo('tenant.assignment_resolved', {
       userId: user.id,
-      tenantId: tenant.id,
-      created: tenant.created,
+      tenantId,
     })
   } catch (error) {
-    logError('tenant.ensure_failed', {
+    logError('tenant.assignment_failed', {
       userId: user.id,
       message: (error as Error).message,
     })
     captureException(error, {
-      step: 'tenant.ensure',
+      step: 'tenant.assignment',
       userId: user.id,
     })
-    return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'tenant_create_failed'))
+    return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'tenant_lookup_failed'))
   }
 
-  if (!tenant.id) {
-    logError('tenant.missing_id', {
+  if (!tenantId) {
+    logInfo('tenant.pending_assignment', {
       userId: user.id,
     })
-    return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'tenant_create_failed'))
+    return null
   }
 
   return null
+}
+
+async function resolvePostLoginPath(
+  supabase: ServerSupabase,
+  userId: string,
+  safeNext: string | null,
+  resolvedTenantId?: string | null
+): Promise<string> {
+  if (safeNext && safeNext !== '/dashboard') return safeNext
+
+  let tenantId = resolvedTenantId ?? null
+  try {
+    if (tenantId === null) {
+      tenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), userId)
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown'
+    throw new Error(`[tenant] read for redirect failed: ${message}`)
+  }
+
+  return tenantId ? '/dashboard' : '/start'
 }
 
 export async function GET(request: NextRequest) {
@@ -306,9 +286,11 @@ export async function GET(request: NextRequest) {
         email: user?.email ?? null,
       })
 
+      let resolvedTenantId: string | null = null
       if (user && (type === 'email' || type === 'signup')) {
         const onboardingRedirect = await completeOnboardingForUser(supabase, user, baseUrl)
         if (onboardingRedirect) return onboardingRedirect
+        resolvedTenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), user.id)
       }
 
       if (type === 'recovery') {
@@ -320,7 +302,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(recoveryRedirect)
       }
 
-      const otpTarget = buildRedirect(baseUrl, safeNext ?? '/dashboard')
+      const otpPath = user
+        ? await resolvePostLoginPath(supabase, user.id, safeNext, resolvedTenantId)
+        : safeNext ?? '/dashboard'
+      const otpTarget = buildRedirect(baseUrl, otpPath)
       logInfo('redirect.final', {
         target: otpTarget,
         reason: 'verify_otp',
@@ -368,7 +353,9 @@ export async function GET(request: NextRequest) {
       const onboardingRedirect = await completeOnboardingForUser(supabase, user, baseUrl)
       if (onboardingRedirect) return onboardingRedirect
 
-      const oauthTarget = buildRedirect(baseUrl, safeNext ?? '/dashboard')
+      const resolvedTenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), user.id)
+      const oauthPath = await resolvePostLoginPath(supabase, user.id, safeNext, resolvedTenantId)
+      const oauthTarget = buildRedirect(baseUrl, oauthPath)
       logInfo('redirect.final', {
         target: oauthTarget,
         reason: 'oauth_code_flow',

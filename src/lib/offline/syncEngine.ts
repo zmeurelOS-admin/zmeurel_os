@@ -148,6 +148,7 @@ export class SyncEngine {
     await markSyncing(item.id)
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (this.supabase as any).rpc('upsert_with_idempotency', {
         table_name: item.table,
         payload: item.payload,

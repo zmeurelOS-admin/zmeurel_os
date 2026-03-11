@@ -1,16 +1,15 @@
-﻿'use client'
+'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -21,10 +20,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { formatUnitateDisplayName, getUnitateTipLabel } from '@/lib/parcele/unitate'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { createRecoltare } from '@/lib/supabase/queries/recoltari'
+import { getActivitatiAgricole, calculatePauseStatus, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+import { queryKeys } from '@/lib/query-keys'
 
 const schema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
@@ -93,20 +97,32 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
   }, [dialogOpen, form])
 
   const { data: parcele = [] } = useQuery({
-    queryKey: ['parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
 
   const { data: culegatori = [] } = useQuery({
-    queryKey: ['culegatori'],
+    queryKey: queryKeys.culegatori,
     queryFn: getCulegatori,
+  })
+
+  const { data: activitati = [] } = useQuery({
+    queryKey: queryKeys.activitati,
+    queryFn: getActivitatiAgricole,
   })
 
   const mutation = useMutation({
     mutationFn: createRecoltare,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recoltari'] })
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.recoltari })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       trackEvent('create_recoltare', 'recoltari', { source: 'AddRecoltareDialog' })
+      track('recoltare_add', {
+        kg: Number(variables.kg_cal1 || 0) + Number(variables.kg_cal2 || 0),
+        parcela_id: variables.parcela_id ?? null,
+      })
+      hapticSuccess()
       toast.success('Recoltare adaugata')
       setDialogOpen(false)
     },
@@ -114,14 +130,16 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
       const maybeError = error as { status?: number; code?: string; message?: string }
       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
-        toast.info('Inregistrarea era deja sincronizata.')
+        toast.info('Inregistrarea era deja sincronizat?.')
         setDialogOpen(false)
         return
       }
+      hapticError()
       toast.error(maybeError?.message || 'Eroare la salvare')
     },
   })
 
+  const selectedParcelaId = form.watch('parcela_id')
   const selectedCulegatorId = form.watch('culegator_id')
   const kgCal1 = toNumber(form.watch('kg_cal1'))
   const kgCal2 = toNumber(form.watch('kg_cal2'))
@@ -131,9 +149,38 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
   const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
   const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
 
+  // Check for active treatment pause
+  const activePauseWarning = useMemo(() => {
+    if (!selectedParcelaId) return null
+
+    const parcelaActivitati = activitati.filter((act) => act.parcela_id === selectedParcelaId)
+    if (parcelaActivitati.length === 0) return null
+
+    for (const activitate of parcelaActivitati) {
+      const { dataRecoltarePermisa, status } = calculatePauseStatus(
+        activitate.data_aplicare,
+        activitate.timp_pauza_zile
+      )
+      
+      if (status === 'Pauza') {
+        const selectedParcela = parcele.find((p) => p.id === selectedParcelaId)
+        const parcelaName = formatUnitateDisplayName(selectedParcela?.nume_parcela, selectedParcela?.tip_unitate, 'Parcela selectata')
+        const dataAplicare = new Date(activitate.data_aplicare).toLocaleDateString('ro-RO')
+        const dataPermisa = new Date(dataRecoltarePermisa).toLocaleDateString('ro-RO')
+        
+        return {
+          message: `⚠️ Parcelă ${parcelaName} are tratament activ (${activitate.produs_utilizat || 'produs necunoscut'}, aplicat ${dataAplicare}). Recoltare permisă de la ${dataPermisa}.`
+        }
+      }
+    }
+    
+    return null
+  }, [selectedParcelaId, activitati, parcele])
+
   const onSubmit = (data: FormData) => {
     if (mutation.isPending) return
     if (!hasValidTarif) {
+      hapticError()
       toast.error('Culegatorul nu are tarif setat in profil')
       return
     }
@@ -150,30 +197,18 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
 
   return (
     <>
-      {!hideTrigger ? (
-        <Button onClick={() => setDialogOpen(true)} className="h-14 w-full rounded-xl font-semibold">
-          + Recoltare
-        </Button>
-      ) : null}
-
       <AppDrawer
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Adauga recoltare"
+        title="Adaugă recoltare"
         footer={
-          <div className="grid grid-cols-2 gap-3">
-            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDialogOpen(false)}>
-              Anuleaza
-            </Button>
-            <Button
-              type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-              onClick={form.handleSubmit(onSubmit)}
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
-            </Button>
-          </div>
+          <DialogFormActions
+            onCancel={() => setDialogOpen(false)}
+            onSave={form.handleSubmit(onSubmit)}
+            saving={mutation.isPending}
+            cancelLabel="Anulează"
+            saveLabel="Salvează"
+          />
         }
       >
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
@@ -186,25 +221,30 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="recoltare_parcela">Parcela</Label>
+            <Label htmlFor="recoltare_parcela">Parcelă</Label>
             <Select
               value={form.watch('parcela_id') || '__none'}
               onValueChange={(value) => form.setValue('parcela_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })}
             >
               <SelectTrigger id="recoltare_parcela" className="agri-control h-12">
-                <SelectValue placeholder="Selecteaza parcela" />
+                <SelectValue placeholder="Selectează parcelă" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none">Selecteaza parcela</SelectItem>
+                <SelectItem value="__none">Selectează parcelă</SelectItem>
                 {parcele.map((parcela) => (
                   <SelectItem key={parcela.id} value={parcela.id}>
-                    {parcela.nume_parcela || 'Parcela'}
+                    {parcela.nume_parcela || 'Parcela'} ({getUnitateTipLabel(parcela.tip_unitate)})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {form.formState.errors.parcela_id ? (
               <p className="text-xs text-red-600">{form.formState.errors.parcela_id.message}</p>
+            ) : null}
+            {activePauseWarning ? (
+              <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                {activePauseWarning.message}
+              </div>
             ) : null}
           </div>
 
@@ -215,10 +255,10 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
               onValueChange={(value) => form.setValue('culegator_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })}
             >
               <SelectTrigger id="recoltare_culegator" className="agri-control h-12">
-                <SelectValue placeholder="Selecteaza culegator" />
+                <SelectValue placeholder="Selectează culegator" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none">Selecteaza culegator</SelectItem>
+                <SelectItem value="__none">Selectează culegator</SelectItem>
                 {culegatori.map((culegator) => (
                   <SelectItem key={culegator.id} value={culegator.id}>
                     {culegator.nume_prenume || 'Culegator'}
@@ -290,7 +330,7 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
                 </>
               ) : (
                 <>
-                  <p className="text-[var(--agri-text-muted)]">Selecteaza culegatorul ca sa calculez plata</p>
+                  <p className="text-[var(--agri-text-muted)]">Selectează culegatorul ca sa calculez plata</p>
                   <p>De plata: <span className="font-semibold">—</span></p>
                 </>
               )}
@@ -298,7 +338,7 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
           </Card>
 
           <div className="space-y-2">
-            <Label htmlFor="recoltare_observatii">Observatii</Label>
+            <Label htmlFor="recoltare_observatii">Observații</Label>
             <Textarea
               id="recoltare_observatii"
               rows={4}
@@ -312,3 +352,4 @@ export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: 
     </>
   )
 }
+

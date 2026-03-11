@@ -5,12 +5,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { createRecoltare } from '@/lib/supabase/queries/recoltari'
+import { queryKeys } from '@/lib/query-keys'
 
 const schema = z.object({
   data: z.string().min(1, 'Selecteaza data'),
@@ -28,12 +29,12 @@ export default function NewRecoltarePage() {
   const queryClient = useQueryClient()
 
   const { data: parcele = [] } = useQuery({
-    queryKey: ['parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
 
   const { data: culegatori = [] } = useQuery({
-    queryKey: ['culegatori'],
+    queryKey: queryKeys.culegatori,
     queryFn: getCulegatori,
   })
 
@@ -63,7 +64,7 @@ export default function NewRecoltarePage() {
   const mutation = useMutation({
     mutationFn: createRecoltare,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recoltari'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.recoltari })
       toast.success('Recoltare adaugata')
       router.back()
     },
@@ -98,7 +99,7 @@ export default function NewRecoltarePage() {
         >
           <ArrowLeft className="h-5 w-5 text-gray-700" />
         </button>
-        <h1 className="text-xl font-bold text-[#312E3F]">Adauga Recoltare</h1>
+        <h1 className="text-xl font-bold text-[#312E3F]">Adaugă Recoltare</h1>
       </div>
 
       <div className="overflow-y-auto px-4 pb-28 pt-4">
@@ -113,7 +114,7 @@ export default function NewRecoltarePage() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Culegator</label>
               <select {...register('culegator_id')} className="min-h-12 w-full rounded-xl border border-gray-200 px-4">
-                <option value="">Selecteaza...</option>
+                <option value="">Selectează...</option>
                 {culegatori.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nume_prenume}
@@ -124,12 +125,12 @@ export default function NewRecoltarePage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Parcela</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Parcelă</label>
               <select {...register('parcela_id')} className="min-h-12 w-full rounded-xl border border-gray-200 px-4">
-                <option value="">Selecteaza...</option>
+                <option value="">Selectează...</option>
                 {parcele.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.id_parcela} {p.nume_parcela ? `- ${p.nume_parcela}` : ''}
+                    {p.nume_parcela || 'Parcela'}
                   </option>
                 ))}
               </select>
@@ -162,7 +163,7 @@ export default function NewRecoltarePage() {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Observatii</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Observații</label>
               <textarea {...register('observatii')} rows={3} className="w-full rounded-xl border border-gray-200 px-4 py-3" />
             </div>
 
@@ -193,13 +194,14 @@ export default function NewRecoltarePage() {
           {mutation.isPending ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              Se salveaza...
+              Se salvează...
             </>
           ) : (
-            'Salveaza Recoltare'
+            'Salvează Recoltare'
           )}
         </button>
       </div>
     </div>
   )
 }
+

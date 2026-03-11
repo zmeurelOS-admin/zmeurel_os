@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,6 +23,7 @@ const CATEGORII_CHELTUIELI = [
   'Pesticide',
   'Intretinere Curenta',
   'Cules',
+  'Manoperă cules',
   'Material Saditor',
   'Sistem Sustinere',
   'Sistem Irigatie',
@@ -98,28 +98,15 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza cheltuiala"
+      title="Editează cheltuială"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={handleClose} disabled={isSubmitting}>
-            Anuleaza
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-            onClick={form.handleSubmit(handleSubmit)}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="ml-2">Se salveaza...</span>
-              </>
-            ) : (
-              'Salveaza'
-            )}
-          </Button>
-        </div>
+        <DialogFormActions
+          onCancel={handleClose}
+          onSave={form.handleSubmit(handleSubmit)}
+          saving={isSubmitting}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
@@ -132,7 +119,7 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
         <div className="space-y-2">
           <Label htmlFor="edit_chelt_categorie">Categorie</Label>
           <select id="edit_chelt_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
-            <option value="">Selecteaza categoria</option>
+            <option value="">Selectează categoria</option>
             {CATEGORII_CHELTUIELI.map((categorie) => (
               <option key={categorie} value={categorie}>
                 {categorie}
@@ -182,3 +169,4 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
     </AppDialog>
   )
 }
+

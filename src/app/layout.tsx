@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 
 import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
 import { MonitoringInit } from '@/components/app/MonitoringInit'
+import { Toaster } from '@/components/Toaster'
 import './globals.css'
 
 const inter = Inter({
@@ -13,19 +14,13 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Zmeurel',
-  description: 'Aplicatie agricola pentru management de teren, productie si vanzari.',
-  manifest: '/manifest.json',
+  description: 'Aplicatie agricola pentru management de teren, producție ți vânzări.',
+  manifest: '/manifest.webmanifest',
   applicationName: 'Zmeurel',
-  appleWebApp: {
-    capable: true,
-    title: 'Zmeurel',
-    statusBarStyle: 'default',
-  },
   formatDetection: {
     telephone: false,
   },
   icons: {
-    apple: '/icons/icon-192.png',
     icon: [
       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
       { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -44,7 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ro">
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <meta charSet="utf-8" />
         <meta name="theme-color" content="#166534" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -56,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <HighVisibilityInit />
         <MonitoringInit />
         {children}
+        <Toaster />
       </body>
     </html>
   )

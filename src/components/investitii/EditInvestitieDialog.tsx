@@ -1,4 +1,4 @@
-﻿// src/components/investitii/EditInvestitieDialog.tsx
+// src/components/investitii/EditInvestitieDialog.tsx
 'use client'
 
 import { useEffect } from 'react'
@@ -6,7 +6,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
+import { toast } from '@/lib/ui/toast'
 
 import {
   AppDialog,
@@ -21,8 +22,10 @@ import {
   updateInvestitie,
   CATEGORII_INVESTITII,
 } from '@/lib/supabase/queries/investitii'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import { queryKeys } from '@/lib/query-keys'
 
 // ===============================
 // VALIDATION
@@ -57,7 +60,7 @@ export function EditInvestitieDialog({
   const queryClient = useQueryClient()
 
   const { data: parcele = [] } = useQuery({
-    queryKey: ['parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
 
@@ -65,7 +68,6 @@ export function EditInvestitieDialog({
     register,
     handleSubmit,
     reset,
-    formState: { errors },
   } = useForm<InvestitieFormData>({
     resolver: zodResolver(investitieSchema),
   })
@@ -99,13 +101,15 @@ export function EditInvestitieDialog({
       }
     }) => updateInvestitie(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investitii'] })
-      toast.success('InvestiČ›ie actualizatÄ cu succes!')
+      queryClient.invalidateQueries({ queryKey: queryKeys.investitii })
+      hapticSuccess()
+      toast.success('Investiție actualizată cu succes!')
       onOpenChange(false)
     },
     onError: (error) => {
       console.error('Error updating investitie:', error)
-      toast.error('Eroare la actualizarea investiČ›iei')
+      hapticError()
+      toast.error('Eroare la actualizarea investiției')
     },
   })
 
@@ -131,7 +135,7 @@ export function EditInvestitieDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza investitie"
+      title="Editează investitie"
       footer={
         <>
           <Button
@@ -139,7 +143,7 @@ export function EditInvestitieDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Anuleaza
+            Anulează
           </Button>
           <Button
             type="submit"
@@ -147,9 +151,14 @@ export function EditInvestitieDialog({
             disabled={updateMutation.isPending}
             className="bg-[#F16B6B] hover:bg-[#E05A5A]"
           >
-            {updateMutation.isPending
-              ? 'Se salveaza...'
-              : 'Salveaza'}
+            {updateMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Se salvează...
+              </>
+            ) : (
+              'Salvează'
+            )}
           </Button>
         </>
       }
@@ -166,7 +175,7 @@ export function EditInvestitieDialog({
               {...register('categorie')}
               className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
             >
-              <option value="">SelecteazÄ categoria...</option>
+              <option value="">Selectează categoria...</option>
               {CATEGORII_INVESTITII.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
@@ -176,13 +185,13 @@ export function EditInvestitieDialog({
           </div>
 
           <div>
-            <Label>ParcelÄ</Label>
+            <Label>Parcelă</Label>
             <select
               {...register('parcela_id')}
               className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
             >
-              <option value="">FÄrÄ legÄturÄ cu parcelÄ</option>
-              {parcele.map((parcela: any) => (
+              <option value="">Fără legătură cu parcelă</option>
+              {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
                 <option key={parcela.id} value={parcela.id}>
                   {parcela.nume_parcela || 'Parcela'}
                 </option>
@@ -191,7 +200,7 @@ export function EditInvestitieDialog({
           </div>
 
           <div>
-            <Label>SumÄ (lei)</Label>
+            <Label>Sumă (lei)</Label>
             <Input type="number" step="0.01" {...register('suma_lei')} />
           </div>
 
@@ -209,3 +218,4 @@ export function EditInvestitieDialog({
     </AppDialog>
   )
 }
+

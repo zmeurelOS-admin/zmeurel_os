@@ -23,38 +23,40 @@ export function FormDialogLayout({
 }: FormDialogLayoutProps) {
   return (
     <DialogContent
+      aria-describedby={undefined}
       showCloseButton={false}
       className={cn(
-        'fixed inset-0 z-[100000120] flex items-center justify-center border-0 bg-black/35 p-4 backdrop-blur-sm data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+        'w-[95%] overflow-hidden rounded-2xl border-0 bg-white p-0 shadow-2xl sm:max-w-lg',
         contentClassName
       )}
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex max-h-[min(88dvh,860px)] flex-col">
-          <div className="flex-1 overflow-y-auto p-6">
-            <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
-              <div className="space-y-1.5">
-                <DialogTitle className="text-left text-lg font-semibold text-[var(--agri-text)]">{title}</DialogTitle>
-                {description ? (
-                  <DialogDescription className="text-left text-sm text-[var(--agri-text-muted)]">{description}</DialogDescription>
-                ) : null}
-              </div>
-              <DialogClose asChild>
-                <Button type="button" variant="ghost" size="icon" className="rounded-full">
-                  <X className="h-4 w-4" />
-                </Button>
-              </DialogClose>
-            </DialogHeader>
-
-            {children}
-          </div>
-
-          {footer ? (
-            <div className="border-t border-[var(--agri-border)] bg-white p-6 pt-4">
-              <div className="grid grid-cols-2 gap-3">{footer}</div>
+      <DialogHeader>
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
+      </DialogHeader>
+      <div className="flex max-h-[min(88dvh,860px)] flex-col">
+        <div className="flex-1 overflow-y-auto p-6">
+          <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
+            <div className="space-y-1.5">
+              <DialogTitle className="text-left text-lg font-semibold text-[var(--agri-text)]">{title}</DialogTitle>
+              {description ? (
+                <DialogDescription className="text-left text-sm text-[var(--agri-text-muted)]">{description}</DialogDescription>
+              ) : null}
             </div>
-          ) : null}
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" size="icon" className="rounded-full">
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogClose>
+          </DialogHeader>
+
+          {children}
         </div>
+
+        {footer ? (
+          <div className="border-t border-[var(--agri-border)] bg-white p-6 pt-4">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </DialogContent>
   )

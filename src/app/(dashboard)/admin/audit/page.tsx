@@ -59,11 +59,11 @@ export default async function AdminAuditPage({
     <AppShell
       header={<PageHeader title="Audit Planuri" subtitle="Istoric schimbari plan (superadmin only)" rightSlot={<ShieldCheck className="h-5 w-5" />} />}
     >
-      <div className="mx-auto w-full max-w-6xl space-y-4 py-4">
+      <div className="mx-auto mt-4 w-full max-w-6xl space-y-4 py-4 sm:mt-0">
         {(logsError || countError) ? (
           <Card className="rounded-2xl border-red-200 bg-red-50">
             <CardContent className="p-4 text-sm text-red-800">
-              Eroare la incarcare audit logs: {logsError?.message ?? countError?.message}
+              Eroare la înc?rcare audit logs: {logsError?.message ?? countError?.message}
             </CardContent>
           </Card>
         ) : (
@@ -71,7 +71,7 @@ export default async function AdminAuditPage({
             <CardContent className="space-y-4 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm text-[var(--agri-text-muted)]">
-                  Total inregistrari: <strong className="text-[var(--agri-text)]">{total}</strong>
+                  Total înregistrări: <strong className="text-[var(--agri-text)]">{total}</strong>
                 </p>
                 <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800">
                   Read-only
@@ -83,7 +83,7 @@ export default async function AdminAuditPage({
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Superadmin</TableHead>
-                    <TableHead>Ferma</TableHead>
+                    <TableHead>Fermă</TableHead>
                     <TableHead>Actiune</TableHead>
                     <TableHead>Plan vechi</TableHead>
                     <TableHead>Plan nou</TableHead>

@@ -2,38 +2,35 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Archive,
   BadgeCheck,
-  ClipboardList,
   LayoutDashboard,
   Leaf,
   MapPin,
   Menu,
   PackageOpen,
+  Plus,
   Receipt,
   ShoppingBag,
-  ShoppingCart,
   Sprout,
   TrendingUp,
   UserCheck,
   Users,
   UsersRound,
-  Wallet,
   X,
 } from 'lucide-react'
 
 import LogoutButton from '@/components/LogoutButton'
-import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
-import { getSupabase } from '@/lib/supabase/client'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 
 const navGroups = [
   {
     label: 'OPERAȚIUNI',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/parcele', label: 'Parcele', icon: MapPin },
+      { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/recoltari', label: 'Recoltări', icon: PackageOpen },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
       { href: '/activitati-agricole', label: 'Activități Agricole', icon: Sprout },
@@ -49,8 +46,8 @@ const navGroups = [
   {
     label: 'FINANCIAR',
     items: [
-      { href: '/vanzari', label: 'Vânzări Fructe', icon: ShoppingCart },
-      { href: '/vanzari-butasi', label: 'Vânzări Butași', icon: ShoppingBag },
+      { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
+      { href: '/vanzari-butasi', label: 'Material săditor', icon: ShoppingBag },
       { href: '/investitii', label: 'Investiții', icon: TrendingUp },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
     ],
@@ -59,8 +56,6 @@ const navGroups = [
 
 const adminItems = [
   { href: '/admin/analytics', label: 'Analytics global', icon: BadgeCheck },
-  { href: '/admin', label: 'Planuri / Pricing', icon: Wallet },
-  { href: '/admin/audit', label: 'Audit planuri', icon: ClipboardList },
   { href: '/admin', label: 'Listă tenanți', icon: UsersRound },
 ]
 
@@ -102,8 +97,10 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
                     <Link
                       href={href}
                       onClick={onNavigate}
-                      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                        active ? 'bg-[#F16B6B]/15 text-[#F16B6B]' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all transition-colors duration-200 ${
+                        active
+                          ? 'bg-[#F16B6B]/15 text-[#F16B6B] lg:bg-white/10 lg:text-white'
+                          : 'text-slate-400 hover:bg-white/5 hover:text-white lg:hover:bg-white/5 lg:hover:text-white'
                       }`}
                     >
                       <div
@@ -122,6 +119,26 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
             </ul>
           </div>
         ))}
+
+        {isActive('/dashboard') ? (
+          <div className="hidden lg:block">
+            <p className="mb-2 px-3 text-[10px] font-semibold tracking-widest text-slate-500">DASHBOARD</p>
+            <ul className="space-y-0.5">
+              <li>
+                <Link
+                  href="/recoltarișadd=1"
+                  onClick={onNavigate}
+                  className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition-all transition-colors duration-200 hover:bg-white/5 hover:text-white lg:hover:bg-white/5 lg:hover:text-white"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-transparent transition-all duration-200 group-hover:bg-white/5">
+                    <Plus className="h-4 w-4" />
+                  </div>
+                  Adaugă recoltare
+                </Link>
+              </li>
+            </ul>
+          </div>
+        ) : null}
       </nav>
 
       {isSuperAdminUser ? (
@@ -137,11 +154,13 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
               const active = isActive(href)
               return (
                 <li key={`${href}-${label}`}>
-                  <Link
+                    <Link
                     href={href}
                     onClick={onNavigate}
-                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                      active ? 'bg-[#F16B6B]/15 text-[#F16B6B]' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all transition-colors duration-200 ${
+                      active
+                        ? 'bg-[#F16B6B]/15 text-[#F16B6B] lg:bg-white/10 lg:text-white'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white lg:hover:bg-white/5 lg:hover:text-white'
                     }`}
                   >
                     <div
@@ -160,7 +179,7 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
         </div>
       ) : null}
 
-      <div className="border-t border-white/10 px-3 py-4">
+      <div className="border-t border-white/10 px-3 py-4 lg:hidden">
         <LogoutButton />
       </div>
     </div>
@@ -170,17 +189,7 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
 export function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [isSuperAdminUser, setIsSuperAdminUser] = useState(false)
-
-  useEffect(() => {
-    void (async () => {
-      const supabase = getSupabase()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setIsSuperAdminUser(user?.id ? await isSuperAdmin(supabase, user.id) : false)
-    })()
-  }, [])
+  const { isSuperAdmin: isSuperAdminUser } = useDashboardAuth()
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
@@ -234,3 +243,6 @@ export function Sidebar() {
     </>
   )
 }
+
+
+

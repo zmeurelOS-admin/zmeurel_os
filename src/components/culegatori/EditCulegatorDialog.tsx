@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -80,26 +79,20 @@ export function EditCulegatorDialog({ culegator, open, onOpenChange, onSubmit }:
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza culegator"
+      title="Editează culegator"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Anuleaza
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
-            onClick={form.handleSubmit(handleSubmit)}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
-          </Button>
-        </div>
+        <DialogFormActions
+          onCancel={() => onOpenChange(false)}
+          onSave={form.handleSubmit(handleSubmit)}
+          saving={isSubmitting}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
         <div className="space-y-2">
-          <Label htmlFor="edit_culegator_nume">Nume si prenume</Label>
+          <Label htmlFor="edit_culegator_nume">Nume ți prenume</Label>
           <Input id="edit_culegator_nume" className="agri-control h-12" {...form.register('nume_prenume')} />
           {form.formState.errors.nume_prenume ? <p className="text-xs text-red-600">{form.formState.errors.nume_prenume.message}</p> : null}
         </div>
@@ -151,7 +144,7 @@ export function EditCulegatorDialog({ culegator, open, onOpenChange, onSubmit }:
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="edit_culegator_obs">Observatii</Label>
+          <Label htmlFor="edit_culegator_obs">Observații</Label>
           <Textarea id="edit_culegator_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
         </div>
       </form>

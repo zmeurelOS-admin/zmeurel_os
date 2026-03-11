@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
-import { ClipboardList, LayoutDashboard, Leaf, MoreHorizontal, Plus, Receipt } from 'lucide-react'
+import { ClipboardList, Leaf, Receipt } from 'lucide-react'
 
 import { MoreMenuDrawer } from '@/components/app/MoreMenuDrawer'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -11,19 +11,19 @@ import { useAddAction } from '@/contexts/AddActionContext'
 type Tab = {
   label: string
   href: string
-  icon: ComponentType<{ className?: string }>
+  icon: string
 }
 
-const DASHBOARD_TAB: Tab = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
-const RECOLTARI_TAB: Tab = { label: 'Recoltari', href: '/recoltari', icon: Leaf }
-const COMENZI_TAB: Tab = { label: 'Comenzi', href: '/comenzi', icon: ClipboardList }
+const DASHBOARD_TAB: Tab = { label: 'Dashboard', href: '/dashboard', icon: '📊' }
+const RECOLTARI_TAB: Tab = { label: 'Recoltări', href: '/recoltari', icon: '🫐' }
+const COMENZI_TAB: Tab = { label: 'Comenzi', href: '/comenzi', icon: '📦' }
 
 const PRIMARY_HREFS = [DASHBOARD_TAB.href, RECOLTARI_TAB.href, COMENZI_TAB.href]
 
 const quickActions: Array<{ label: string; href: string; icon: ComponentType<{ className?: string }> }> = [
-  { label: 'Adauga recoltare', href: '/recoltari?add=1', icon: Leaf },
-  { label: 'Adauga comanda', href: '/comenzi?add=1', icon: ClipboardList },
-  { label: 'Adauga cheltuiala', href: '/cheltuieli?add=1', icon: Receipt },
+  { label: 'Adaugă recoltare', href: '/recoltarișadd=1', icon: Leaf },
+  { label: 'Adaugă comanda', href: '/comenzișadd=1', icon: ClipboardList },
+  { label: 'Adaugă cheltuială', href: '/cheltuielișadd=1', icon: Receipt },
 ]
 
 type RouteAddConfig = {
@@ -32,39 +32,51 @@ type RouteAddConfig = {
 }
 
 function getRouteAddConfig(pathname: string): RouteAddConfig {
-  if (pathname === '/dashboard') return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
-  if (pathname === '/recoltari' || pathname.startsWith('/recoltari/')) return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
-  if (pathname === '/comenzi' || pathname.startsWith('/comenzi/')) return { label: 'Adauga comanda', href: '/comenzi?add=1' }
-  if (pathname === '/parcele' || pathname.startsWith('/parcele/')) return { label: 'Adauga parcela', href: '/parcele' }
-  if (pathname === '/cheltuieli' || pathname.startsWith('/cheltuieli/')) return { label: 'Adauga cheltuiala', href: '/cheltuieli?add=1' }
-  if (pathname === '/activitati-agricole' || pathname.startsWith('/activitati-agricole/')) return { label: 'Adauga activitate', href: '/activitati-agricole' }
-  if (pathname === '/vanzari' || pathname.startsWith('/vanzari/')) return { label: 'Adauga vanzare', href: '/vanzari' }
-  if (pathname === '/clienti' || pathname.startsWith('/clienti/')) return { label: 'Adauga client', href: '/clienti' }
-  if (pathname === '/culegatori' || pathname.startsWith('/culegatori/')) return { label: 'Adauga culegator', href: '/culegatori' }
-  if (pathname === '/stocuri' || pathname.startsWith('/stocuri/') || pathname === '/stoc' || pathname.startsWith('/stoc/')) {
-    return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
+  if (pathname === '/dashboard') return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
+  if (pathname === '/recoltari' || pathname.startsWith('/recoltari/')) return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
+  if (pathname === '/comenzi' || pathname.startsWith('/comenzi/')) return { label: 'Adaugă comanda', href: '/comenzișadd=1' }
+  if (pathname === '/parcele' || pathname.startsWith('/parcele/')) return { label: 'Adaugă teren', href: '/parcele' }
+  if (pathname === '/cheltuieli' || pathname.startsWith('/cheltuieli/')) return { label: 'Adaugă cheltuială', href: '/cheltuielișadd=1' }
+  if (pathname === '/activitati-agricole' || pathname.startsWith('/activitati-agricole/')) return { label: 'Adaugă activitate', href: '/activitati-agricole' }
+  if (pathname === '/vanzari' || pathname.startsWith('/vanzari/')) return { label: 'Adaugă vânzare', href: '/vanzari' }
+  if (pathname === '/clienti' || pathname.startsWith('/clienti/')) return { label: 'Adaugă client', href: '/clienti' }
+  if (pathname === '/culegatori' || pathname.startsWith('/culegatori/')) return { label: 'Adaugă culegator', href: '/culegatori' }
+  if (pathname === '/stocuri' || pathname.startsWith('/stocuri/')) {
+    return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
   }
   if (pathname === '/vanzari-butasi' || pathname.startsWith('/vanzari-butasi/')) {
-    return { label: 'Adauga comanda butasi', href: '/vanzari-butasi' }
+    return { label: 'Adaugă vanzare material saditor', href: '/vanzari-butasi' }
   }
 
-  return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
+  return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
 }
 
 function TabLink({ tab, active, router }: { tab: Tab; active: boolean; router: ReturnType<typeof useRouter> }) {
-  const Icon = tab.icon
-
   return (
     <Link
       href={tab.href}
       onTouchStart={() => {
         router.prefetch(tab.href)
       }}
-      className="group relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1"
+      className="group relative flex min-h-[56px] flex-col items-center justify-center rounded-xl px-1 transition-transform duration-150 active:scale-95"
     >
-      <span className={`absolute top-1 h-1 w-8 rounded-full transition ${active ? 'bg-[var(--agri-primary)]' : 'bg-transparent'}`} />
-      <Icon className={`h-5 w-5 ${active ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`} />
-      <span className={`text-[11px] font-semibold ${active ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`}>{tab.label}</span>
+      <span
+        className="leading-none"
+        style={{ opacity: active ? 1 : 0.5, fontSize: '20px' }}
+      >
+        {tab.icon}
+      </span>
+      <span
+        style={{
+          color: active ? '#2D6A4F' : '#95A5A6',
+          fontWeight: active ? 700 : 500,
+          fontSize: '10px',
+          lineHeight: 1.2,
+        }}
+      >
+        {tab.label}
+      </span>
+      {active ? <div style={{ width: '16px', height: '2px', background: '#2D6A4F', borderRadius: '1px', marginTop: '2px' }} /> : null}
     </Link>
   )
 }
@@ -88,6 +100,7 @@ export function BottomTabBar() {
   }, [router])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuickAddOpen(false)
   }, [pathname])
 
@@ -163,20 +176,34 @@ export function BottomTabBar() {
       ) : null}
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-[100000080] border-t border-[var(--agri-border)] bg-white/95 backdrop-blur"
-        style={{ paddingBottom: 'var(--safe-b)' }}
+        className="fixed inset-x-0 bottom-0 z-[100000080]"
+        style={{
+          background: '#FFFFFF',
+          borderTop: '1px solid rgba(0,0,0,0.06)',
+          paddingTop: '8px',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 26px)',
+        }}
         aria-label="Navigare principala"
       >
-        <div className="mx-auto grid h-[var(--tabbar-h)] w-full max-w-4xl grid-cols-5 gap-1 px-2">
+        <div
+          className="mx-auto w-full max-w-4xl px-2"
+          style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}
+        >
           <TabLink tab={DASHBOARD_TAB} active={isTabActive(DASHBOARD_TAB.href)} router={router} />
           <TabLink tab={RECOLTARI_TAB} active={isTabActive(RECOLTARI_TAB.href)} router={router} />
 
-          <div className="relative flex min-h-[56px] items-center justify-center">
+          <div className="flex min-h-[72px] items-center justify-center" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) * 0.15)' }}>
             <button
               type="button"
               aria-label={centerLabel}
               title={centerLabel}
-              className="absolute -top-5 inline-flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-amber-500 text-white shadow-xl transition hover:bg-amber-600 active:scale-95"
+              data-tutorial="quick-add-button"
+              className="inline-flex h-20 w-20 items-center justify-center rounded-full text-white shadow-xl ring-4 ring-white transition-transform duration-150 active:scale-95"
+              style={{
+                marginTop: '-32px',
+                background: 'linear-gradient(135deg, var(--agri-primary) 0%, #2fa65e 100%)',
+                boxShadow: '0 14px 28px rgba(0,0,0,0.22), 0 8px 18px rgba(45,106,79,0.35)',
+              }}
               onPointerDown={handleCenterPointerDown}
               onPointerUp={handleCenterPointerUp}
               onPointerLeave={handleCenterPointerUp}
@@ -187,7 +214,7 @@ export function BottomTabBar() {
               }}
               onClick={handleCenterDefaultAction}
             >
-              <Plus className="h-6 w-6" />
+              <span className="text-3xl font-bold leading-none text-white">+</span>
             </button>
           </div>
 
@@ -196,12 +223,26 @@ export function BottomTabBar() {
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className="group relative flex min-h-[56px] flex-col items-center justify-center gap-1 rounded-xl px-1"
+            className="group relative flex min-h-[56px] flex-col items-center justify-center rounded-xl px-1 transition-transform duration-150 active:scale-95"
             aria-label="Mai multe module"
           >
-            <span className={`absolute top-1 h-1 w-8 rounded-full transition ${moreActive ? 'bg-[var(--agri-primary)]' : 'bg-transparent'}`} />
-            <MoreHorizontal className={`h-5 w-5 ${moreActive ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`} />
-            <span className={`text-[11px] font-semibold ${moreActive ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`}>More</span>
+            <span
+              className="leading-none"
+              style={{ opacity: moreActive ? 1 : 0.5, fontSize: '20px' }}
+            >
+              •••
+            </span>
+            <span
+              style={{
+                color: moreActive ? '#2D6A4F' : '#95A5A6',
+                fontWeight: moreActive ? 700 : 500,
+                fontSize: '10px',
+                lineHeight: 1.2,
+              }}
+            >
+              More
+            </span>
+            {moreActive ? <div style={{ width: '16px', height: '2px', background: '#2D6A4F', borderRadius: '1px', marginTop: '2px' }} /> : null}
           </button>
         </div>
       </nav>

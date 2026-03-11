@@ -1,7 +1,18 @@
 import { getSupabase } from "@/lib/supabase/client"
-import type { Tables } from "@/types/supabase"
-
-export type Client = Tables<"clienti">
+import { generateBusinessId } from "@/lib/supabase/business-ids"
+export interface Client {
+  id: string
+  id_client: string
+  nume_client: string
+  telefon: string | null
+  email: string | null
+  adresa: string | null
+  pret_negociat_lei_kg: number | null
+  observatii: string | null
+  created_at: string | null
+  updated_at: string | null
+  tenant_id: string
+}
 
 export interface CreateClientInput {
   nume_client: string
@@ -21,39 +32,22 @@ export interface UpdateClientInput {
   observatii?: string | null
 }
 
-async function generateNextId(supabase: ReturnType<typeof getSupabase>): Promise<string> {
-  const { data, error } = await supabase
-    .from("clienti")
-    .select("id_client")
-    .order("created_at", { ascending: true })
-
-  if (error) throw error
-
-  const ids = (data ?? [])
-    .map((r) => r.id_client)
-    .filter((id) => id && /^C\d+$/.test(id))
-    .map((id) => parseInt(id!.substring(1)))
-
-  const maxId = ids.length > 0 ? Math.max(...ids) : 0
-  return `C${String(maxId + 1).padStart(3, "0")}`
-}
-
-export async function getClienti(): Promise<Client[]> {
+export async function getClienți(): Promise<Client[]> {
   const supabase = getSupabase()
 
   const { data, error } = await supabase
     .from("clienti")
-    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,google_resource_name,google_etag,created_at,updated_at,tenant_id")
+    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id")
     .order("created_at", { ascending: false })
 
   if (error) throw error
-  return data ?? []
+  return (data ?? []) as Client[]
 }
 
-export async function createClienti(input: CreateClientInput): Promise<Client> {
+export async function createClienți(input: CreateClientInput): Promise<Client> {
   const supabase = getSupabase()
 
-  const id_client = await generateNextId(supabase)
+  const id_client = await generateBusinessId(supabase, 'C')
 
   const { data, error } = await supabase
     .from("clienti")
@@ -73,7 +67,7 @@ export async function createClienti(input: CreateClientInput): Promise<Client> {
   return data
 }
 
-export async function updateClienti(
+export async function updateClienți(
   id: string,
   input: UpdateClientInput
 ): Promise<Client> {
@@ -93,9 +87,42 @@ export async function updateClienti(
   return data
 }
 
-export async function deleteClienti(id: string): Promise<void> {
+export async function deleteClienți(id: string): Promise<void> {
   const supabase = getSupabase()
 
+  // Check for related records before deleting
+  const { count: vanzariCount, error: vanzariError } = await supabase
+    .from("vanzari")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", id)
+
+  if (vanzariError) throw vanzariError
+
+  const { count: comenziCount, error: comenziError } = await supabase
+    .from("comenzi")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", id)
+
+  if (comenziError) throw comenziError
+
+  const { count: vanzariButasiCount, error: vanzariButasiError } = await supabase
+    .from("vanzari_butasi")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", id)
+
+  if (vanzariButasiError) throw vanzariButasiError
+
+  // If any related records exist, throw a descriptive error
+  if ((vanzariCount ?? 0) > 0 || (comenziCount ?? 0) > 0 || (vanzariButasiCount ?? 0) > 0) {
+    const parts: string[] = []
+    if ((vanzariCount ?? 0) > 0) parts.push(`${vanzariCount} vânzări`)
+    if ((comenziCount ?? 0) > 0) parts.push(`${comenziCount} comenzi`)
+    if ((vanzariButasiCount ?? 0) > 0) parts.push(`${vanzariButasiCount} vânzări butași`)
+    
+    throw new Error(`Nu poți șterge acest client. Are ${parts.join(" și ")} asociate.`)
+  }
+
+  // Only proceed with delete if all counts are 0
   const { error } = await supabase
     .from("clienti")
     .delete()
@@ -103,4 +130,3 @@ export async function deleteClienti(id: string): Promise<void> {
 
   if (error) throw error
 }
-

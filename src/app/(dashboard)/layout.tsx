@@ -1,8 +1,6 @@
-import { redirect } from 'next/navigation'
-
 import { Sidebar } from '@/components/layout/Sidebar'
+import { BetaBanner } from '@/components/layout/BetaBanner'
 import { BottomTabBar } from '@/components/app/BottomTabBar'
-import { BetaBanner } from '@/components/app/BetaBanner'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { createClient } from '@/lib/supabase/server'
 import { Providers } from '../providers'
@@ -14,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login')
+    throw new Error('DashboardLayout requires an authenticated user. Access should be guarded by src/proxy.ts.')
   }
 
   const initialAuth = {

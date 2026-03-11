@@ -1,6 +1,7 @@
-﻿import { getSupabase } from '../client'
-import type { TablesInsert, TablesUpdate } from '@/types/supabase'
+import { getSupabase } from '../client'
+import type { TablesUpdate } from '@/types/supabase'
 import { deleteMiscariStocByReference, insertMiscareStoc } from './miscari-stoc'
+import { upsertManoperaCheltuiala } from './manopera-auto'
 
 const RECOLTARI_SELECT =
   'id,id_recoltare,data,parcela_id,culegator_id,kg_cal1,kg_cal2,pret_lei_pe_kg_snapshot,valoare_munca_lei,observatii,created_at,updated_at,tenant_id'
@@ -39,11 +40,27 @@ export interface UpdateRecoltareInput {
   observatii?: string
 }
 
-type RecoltareInsert = TablesInsert<'recoltari'>
 type RecoltareUpdate = TablesUpdate<'recoltari'>
 
 type CulegatorTarifRow = {
   tarif_lei_kg: number | null
+}
+
+type RecoltareRpcClient = ReturnType<typeof getSupabase> & {
+  rpc: (
+    fn: 'create_recoltare_with_stock',
+    args: {
+      p_data: string
+      p_parcela_id: string
+      p_culegator_id: string
+      p_kg_cal1: number
+      p_kg_cal2: number
+      p_observatii?: string | null
+    }
+  ) => Promise<{
+    data: Parameters<typeof mapRecoltare>[0] | null
+    error: { message?: string } | null
+  }>
 }
 
 function round2(value: number): number {
@@ -83,28 +100,6 @@ async function getCulegatorTarif(culegatorId: string): Promise<number> {
   }
 
   return round2(tarif)
-}
-
-async function generateNextId(): Promise<string> {
-  const supabase = getSupabase()
-
-  const { data, error } = await supabase
-    .from('recoltari')
-    .select('id_recoltare')
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (error) throw error
-
-  if (!data || data.length === 0) return 'REC001'
-
-  const lastId = data[0].id_recoltare
-  const numericPart = parseInt(lastId.replace('REC', ''), 10)
-
-  if (Number.isNaN(numericPart)) throw new Error('Invalid id_recoltare format')
-
-  const nextNumber = numericPart + 1
-  return `REC${nextNumber.toString().padStart(3, '0')}`
 }
 
 function mapRecoltare(row: {
@@ -171,7 +166,7 @@ async function replaceRecoltareMovements(params: {
 
   if (!parcelaId) return
 
-  await deleteMiscariStocByReference(params.recoltareId)
+  await deleteMiscariStocByReference(params.recoltareId, 'recoltare')
 
   if (params.kgCal1 > 0) {
     await insertMiscareStoc({
@@ -202,30 +197,34 @@ async function replaceRecoltareMovements(params: {
   }
 }
 
+function scheduleAutoManoperaSync(params: {
+  supabase: ReturnType<typeof getSupabase>
+  tenantId?: string | null
+  dates: Array<string | null | undefined>
+}) {
+  const tenantId = params.tenantId ?? null
+  if (!tenantId) return
+
+  const uniqueDates = Array.from(new Set(params.dates.map((d) => String(d || '').slice(0, 10)).filter(Boolean)))
+  if (!uniqueDates.length) return
+
+  void Promise.all(uniqueDates.map((date) => upsertManoperaCheltuiala(params.supabase, tenantId, date))).catch((error) => {
+    console.error('Auto manopera sync failed:', error)
+  })
+}
+
 export async function createRecoltare(input: CreateRecoltareInput): Promise<Recoltare> {
   const supabase = getSupabase()
-  const nextId = await generateNextId()
-  const tarifSnapshot = await getCulegatorTarif(input.culegator_id)
   const kg = computeKg(input)
-  const valoareMunca = round2(kg.totalKg * tarifSnapshot)
-
-  const payload: RecoltareInsert = {
-    id_recoltare: nextId,
-    data: input.data,
-    parcela_id: input.parcela_id,
-    culegator_id: input.culegator_id,
-    kg_cal1: kg.kgCal1,
-    kg_cal2: kg.kgCal2,
-    pret_lei_pe_kg_snapshot: tarifSnapshot,
-    valoare_munca_lei: valoareMunca,
-    observatii: input.observatii ?? null,
-  }
-
-  const { data, error } = await supabase
-    .from('recoltari')
-    .insert(payload)
-    .select(RECOLTARI_SELECT)
-    .single()
+  const rpcClient = supabase as RecoltareRpcClient
+  const { data, error } = await rpcClient.rpc('create_recoltare_with_stock', {
+    p_data: input.data,
+    p_parcela_id: input.parcela_id,
+    p_culegator_id: input.culegator_id,
+    p_kg_cal1: kg.kgCal1,
+    p_kg_cal2: kg.kgCal2,
+    p_observatii: input.observatii ?? null,
+  })
 
   if (error) {
     const message = (error.message || '').toLowerCase()
@@ -235,15 +234,16 @@ export async function createRecoltare(input: CreateRecoltareInput): Promise<Reco
     throw error
   }
 
-  const recoltare = mapRecoltare(data as Parameters<typeof mapRecoltare>[0])
+  if (!data) {
+    throw new Error('Nu am primit recoltarea creata de la baza de date.')
+  }
 
-  await replaceRecoltareMovements({
-    recoltareId: recoltare.id,
+  const recoltare = mapRecoltare(data)
+
+  scheduleAutoManoperaSync({
+    supabase,
     tenantId: recoltare.tenant_id,
-    parcelaId: recoltare.parcela_id,
-    data: recoltare.data,
-    kgCal1: recoltare.kg_cal1,
-    kgCal2: recoltare.kg_cal2,
+    dates: [recoltare.data],
   })
 
   return recoltare
@@ -254,7 +254,7 @@ export async function updateRecoltare(id: string, input: UpdateRecoltareInput): 
 
   const { data: existing, error: existingError } = await supabase
     .from('recoltari')
-    .select('id,culegator_id,kg_cal1,kg_cal2')
+    .select('id,culegator_id,kg_cal1,kg_cal2,data,tenant_id')
     .eq('id', id)
     .single()
 
@@ -303,15 +303,32 @@ export async function updateRecoltare(id: string, input: UpdateRecoltareInput): 
     kgCal2: recoltare.kg_cal2,
   })
 
+  scheduleAutoManoperaSync({
+    supabase,
+    tenantId: recoltare.tenant_id ?? existing.tenant_id,
+    dates: [existing.data, recoltare.data],
+  })
+
   return recoltare
 }
 
 export async function deleteRecoltare(id: string): Promise<void> {
   const supabase = getSupabase()
+  const { data: existing } = await supabase
+    .from('recoltari')
+    .select('tenant_id,data')
+    .eq('id', id)
+    .maybeSingle()
 
-  await deleteMiscariStocByReference(id)
+  await deleteMiscariStocByReference(id, 'recoltare')
 
   const { error } = await supabase.from('recoltari').delete().eq('id', id)
 
   if (error) throw error
+
+  scheduleAutoManoperaSync({
+    supabase,
+    tenantId: existing?.tenant_id ?? null,
+    dates: [existing?.data ?? null],
+  })
 }

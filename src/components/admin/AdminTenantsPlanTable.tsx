@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { CheckCircle2, ShieldAlert } from 'lucide-react'
-import { toast } from 'sonner'
+import { CheckCircle2, Loader2, ShieldAlert } from 'lucide-react'
+import { toast } from '@/lib/ui/toast'
 
 import {
   AlertDialog,
@@ -20,8 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { SubscriptionPlan } from '@/lib/subscription/plans'
-import { getSupabase } from '@/lib/supabase/client'
+import { BETA_MODE, BETA_PLAN_LABEL } from '@/lib/config/beta'
+import { getEffectivePlan, type SubscriptionPlan } from '@/lib/subscription/plans'
 
 export interface AdminTenantRow {
   tenant_id: string
@@ -65,17 +65,31 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
 
   const updatePlanMutation = useMutation({
     mutationFn: async (payload: PendingPlanChange) => {
-      const supabase = getSupabase()
-      const { data, error } = await supabase.rpc('admin_set_tenant_plan', {
-        p_tenant_id: payload.tenantId,
-        p_plan: payload.nextPlan,
+      const response = await fetch('/api/admin/tenant-plan', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantId: payload.tenantId,
+          plan: payload.nextPlan,
+        }),
       })
 
-      if (error) {
-        throw error
+      const result = (await response.json()) as {
+        ok?: boolean
+        error?: string
+        code?: string | null
+        details?: string | null
+        hint?: string | null
       }
 
-      return data
+      if (!response.ok || !result.ok) {
+        const errorParts = [result.error, result.code, result.details, result.hint].filter(Boolean)
+        throw new Error(errorParts.join(' | ') || 'Nu am putut actualiza planul.')
+      }
+
+      return result
     },
     onSuccess: (_data, payload) => {
       setRows((current) =>
@@ -94,14 +108,14 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
     onError: (error) => {
       const message = (error as { message?: string })?.message ?? 'Nu am putut actualiza planul.'
       if (message.includes('FORBIDDEN')) {
-        toast.error('Doar superadmin poate modifica planurile tenantilor.')
+        toast.error('Doar superadmin poate modifica planurile tenanților.')
         return
       }
       if (message.includes('INVALID_PLAN')) {
         toast.error('Plan invalid. Alege Freemium, Pro sau Enterprise.')
         return
       }
-      toast.error('Nu am putut actualiza planul tenantului.')
+      toast.error(message)
     },
   })
 
@@ -110,7 +124,7 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
       <CardHeader>
         <CardTitle className="text-lg">Tenanti</CardTitle>
         <CardDescription>
-          Superadmin poate vedea toate fermele si poate modifica planul de abonament.
+          Superadmin poate vedea toate fermele ți poate modifica planul de abonament.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -118,28 +132,35 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
           <CheckCircle2 className="h-4 w-4" />
           Actiunile de schimbare plan sunt protejate prin rolul `is_superadmin`.
         </div>
+        {BETA_MODE ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            Plan management disabled during beta.
+          </div>
+        ) : null}
 
         {rows.length === 0 ? (
           <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <ShieldAlert className="h-4 w-4" />
-            Nu exista tenanti disponibili.
+            Nu exist? tenanți disponibili.
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Ferma</TableHead>
+                <TableHead>Fermă</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Creat la</TableHead>
-                <TableHead className="text-right">Parcele</TableHead>
+                <TableHead className="text-right">Terenuri</TableHead>
                 <TableHead className="text-right">Utilizatori</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((row) => {
-                const currentPlan = normalizePlan(row.plan)
+                const tenantPlan = normalizePlan(row.plan)
+                const currentPlan = getEffectivePlan(tenantPlan)
                 const createdAt = row.created_at ? row.created_at.slice(0, 10) : '-'
+                const planLabel = BETA_MODE ? BETA_PLAN_LABEL : currentPlan
 
                 return (
                   <TableRow key={row.tenant_id}>
@@ -148,19 +169,20 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
                     <TableCell>
                       <div className="flex min-w-[190px] items-center gap-2">
                         <Badge variant="outline" className={planBadgeClass(currentPlan)}>
-                          {currentPlan}
+                          {planLabel}
                         </Badge>
                         <Select
-                          value={currentPlan}
+                          value={tenantPlan}
+                          disabled={BETA_MODE}
                           onValueChange={(value: SubscriptionPlan) => {
                             const nextPlan = normalizePlan(value)
-                            if (nextPlan === currentPlan) {
+                            if (nextPlan === tenantPlan) {
                               return
                             }
                             setPendingChange({
                               tenantId: row.tenant_id,
                               tenantName: row.tenant_name,
-                              currentPlan,
+                              currentPlan: tenantPlan,
                               nextPlan,
                             })
                           }}
@@ -190,28 +212,35 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
       </CardContent>
 
       <AlertDialog open={Boolean(pendingChange)} onOpenChange={(open) => (!open ? setPendingChange(null) : null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95%] max-w-md overflow-hidden p-0 sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmi schimbarea planului?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="px-6 pt-6">Confirmi schimbarea planului?</AlertDialogTitle>
+            <AlertDialogDescription className="px-6 pb-2">
               {pendingChange
                 ? `Ferma ${pendingChange.tenantName} va fi schimbata din ${pendingChange.currentPlan} in ${pendingChange.nextPlan}.`
                 : 'Selecteaza un plan pentru confirmare.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Anuleaza</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 border-t px-6 py-4">
+            <AlertDialogCancel className="w-full sm:w-auto">Anulează</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 type="button"
-                className="bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+                className="w-full bg-[var(--agri-primary)] text-white hover:bg-emerald-700 sm:w-auto"
                 disabled={!pendingChange || updatePlanMutation.isPending}
                 onClick={() => {
                   if (!pendingChange) return
                   updatePlanMutation.mutate(pendingChange)
                 }}
               >
-                {updatePlanMutation.isPending ? 'Se salveaza...' : 'Confirma'}
+                {updatePlanMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Se salvează...
+                  </>
+                ) : (
+                  'Confirma'
+                )}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

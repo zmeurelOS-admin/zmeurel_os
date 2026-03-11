@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Search, ClipboardList, Droplets, Scissors, Bug, Sprout, ArrowRight } from 'lucide-react'
-import { Fab } from '@/components/app/Fab'
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
 
 export default function ActivitatiPage() {
@@ -130,9 +129,8 @@ export default function ActivitatiPage() {
           Exemplu activitate...
         </div>
       </div>
-
-      <Fab onClick={() => setAddOpen(true)} label="Adauga activitate" />
       <AddActivitateAgricolaDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
     </div>
   )
 }
+

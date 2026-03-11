@@ -77,11 +77,11 @@ export function EditClientDialog({ client, open, onOpenChange, onSubmit }: EditC
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza client"
+      title="Editează client"
       footer={
         <div className="grid grid-cols-2 gap-3">
           <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Anuleaza
+            Anulează
           </Button>
           <Button
             type="button"
@@ -89,7 +89,14 @@ export function EditClientDialog({ client, open, onOpenChange, onSubmit }: EditC
             onClick={form.handleSubmit(handleSubmit)}
             disabled={isSubmitting}
           >
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Se salvează...
+              </>
+            ) : (
+              'Salvează'
+            )}
           </Button>
         </div>
       }
@@ -131,7 +138,7 @@ export function EditClientDialog({ client, open, onOpenChange, onSubmit }: EditC
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="edit_client_obs">Observatii</Label>
+          <Label htmlFor="edit_client_obs">Observații</Label>
           <Textarea id="edit_client_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
         </div>
       </form>

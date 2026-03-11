@@ -1,4 +1,5 @@
 import { getSupabase } from '../client'
+import { generateBusinessId } from '@/lib/supabase/business-ids'
 
 // ========================================
 // TYPES
@@ -42,26 +43,6 @@ export interface UpdateCulegatorInput {
 // GENERATE NEXT ID
 // ========================================
 
-async function generateNextId(
-  supabase: ReturnType<typeof getSupabase>
-): Promise<string> {
-  const { data, error } = await supabase
-    .from('culegatori')
-    .select('id_culegator')
-    .order('created_at', { ascending: true })
-
-  if (error) throw error
-
-  const ids = (data ?? [])
-    .map((r) => r.id_culegator)
-    .filter((id) => id && /^CUL\d+$/.test(id))
-    .map((id) => parseInt(id!.substring(3)))
-
-  const maxId = ids.length > 0 ? Math.max(...ids) : 0
-
-  return `CUL${String(maxId + 1).padStart(3, '0')}`
-}
-
 // ========================================
 // GET
 // ========================================
@@ -87,7 +68,7 @@ export async function createCulegator(
   input: CreateCulegatorInput
 ): Promise<Culegator> {
   const supabase = getSupabase()
-  const id_culegator = await generateNextId(supabase)
+  const id_culegator = await generateBusinessId(supabase, 'CUL')
 
   const payload = {
     id_culegator,
@@ -169,6 +150,20 @@ export async function updateCulegator(
 export async function deleteCulegator(id: string): Promise<void> {
   const supabase = getSupabase()
 
+  // Check for related recoltari before deleting
+  const { count: recoltariCount, error: recoltariError } = await supabase
+    .from('recoltari')
+    .select('*', { count: 'exact', head: true })
+    .eq('culegator_id', id)
+
+  if (recoltariError) throw recoltariError
+
+  // If any related records exist, throw a descriptive error
+  if ((recoltariCount ?? 0) > 0) {
+    throw new Error(`Nu poți șterge. Are ${recoltariCount} recoltări asociate.`)
+  }
+
+  // Only proceed with delete if count is 0
   const { error } = await supabase
     .from('culegatori')
     .delete()
@@ -176,4 +171,3 @@ export async function deleteCulegator(id: string): Promise<void> {
 
   if (error) throw error
 }
-

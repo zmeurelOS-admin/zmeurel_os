@@ -2,8 +2,15 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { normalizeSubscriptionPlan, type SubscriptionPlan } from '@/lib/subscription/plans'
+import { BETA_MODE } from '@/lib/config/beta'
+import {
+  getEffectivePlan,
+  normalizeSubscriptionPlan,
+  type SubscriptionPlan,
+} from '@/lib/subscription/plans'
 import { getSupabase } from '@/lib/supabase/client'
+import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
+import { queryKeys } from '@/lib/query-keys'
 
 type PlanSource = 'tenant' | 'fallback'
 
@@ -15,11 +22,8 @@ interface TenantPlanResult {
 
 async function fetchTenantPlan(): Promise<TenantPlanResult> {
   const supabase = getSupabase()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user?.id) {
+  const tenantId = await getTenantIdOrNull(supabase)
+  if (!tenantId) {
     return {
       plan: 'freemium',
       tenantId: null,
@@ -30,7 +34,7 @@ async function fetchTenantPlan(): Promise<TenantPlanResult> {
   const { data, error } = await supabase
     .from('tenants')
     .select('id,plan')
-    .eq('owner_user_id', user.id)
+    .eq('id', tenantId)
     .maybeSingle()
 
   if (error || !data?.id) {
@@ -52,15 +56,18 @@ export function useMockPlan() {
   const queryClient = useQueryClient()
 
   const { data } = useQuery({
-    queryKey: ['subscription-plan', 'tenant'],
+    queryKey: queryKeys.subscriptionPlanTenant,
     queryFn: fetchTenantPlan,
     staleTime: 60_000,
   })
 
-  const plan = data?.plan ?? 'freemium'
+  const tenantPlan = data?.plan ?? 'freemium'
+  const plan = getEffectivePlan(tenantPlan)
   const source: PlanSource = data?.source ?? 'fallback'
 
   const updatePlan = (nextPlan: SubscriptionPlan) => {
+    if (BETA_MODE) return
+
     void (async () => {
       const tenantId = data?.tenantId
       if (!tenantId) {
@@ -74,11 +81,10 @@ export function useMockPlan() {
         .eq('id', tenantId)
 
       if (!error) {
-        await queryClient.invalidateQueries({ queryKey: ['subscription-plan', 'tenant'] })
+        await queryClient.invalidateQueries({ queryKey: queryKeys.subscriptionPlanTenant })
       }
     })()
   }
 
   return { plan, setPlan: updatePlan, source }
 }
-

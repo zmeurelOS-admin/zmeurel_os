@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { createInvestitie, CATEGORII_INVESTITII } from '@/lib/supabase/queries/investitii'
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+import { queryKeys } from '@/lib/query-keys'
 
 const investitieSchema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
@@ -54,7 +56,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
   const queryClient = useQueryClient()
 
   const { data: parcele = [] } = useQuery({
-    queryKey: ['parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
 
@@ -70,18 +72,21 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
   const createMutation = useMutation({
     mutationFn: createInvestitie,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['investitii'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.investitii })
+      hapticSuccess()
       toast.success('Investitie adaugata')
       setDialogOpen(false)
     },
-    onError: (error: any) => {
-      const conflict = error?.status === 409 || error?.code === '23505'
+    onError: (error: unknown) => {
+      const maybeError = error as { status?: number; code?: string }
+      const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
-        toast.info('Inregistrarea era deja sincronizata.')
+        toast.info('Inregistrarea era deja sincronizat?.')
         setDialogOpen(false)
         return
       }
       console.error('Error creating investitie:', error)
+      hapticError()
       toast.error('Eroare la adaugarea investitiei')
     },
   })
@@ -110,11 +115,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
       <AppDrawer
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Adauga investitie (CAPEX)"
+        title="Adaugă investitie (CAPEX)"
         footer={
           <div className="grid grid-cols-2 gap-3">
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDialogOpen(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button
               type="button"
@@ -122,7 +127,14 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
               onClick={form.handleSubmit(onSubmit)}
               disabled={createMutation.isPending}
             >
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salveaza'}
+              {createMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Se salvează...
+                </>
+              ) : (
+                'Salvează'
+              )}
             </Button>
           </div>
         }
@@ -137,7 +149,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
           <div className="space-y-2">
             <Label htmlFor="inv_categorie">Categorie</Label>
             <select id="inv_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
-              <option value="">Selecteaza categoria</option>
+              <option value="">Selectează categoria</option>
               {CATEGORII_INVESTITII.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}
@@ -148,10 +160,10 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="inv_parcela_id">Parcela</Label>
+            <Label htmlFor="inv_parcela_id">Parcelă</Label>
             <select id="inv_parcela_id" className="agri-control h-12 w-full px-3 text-base" {...form.register('parcela_id')}>
-              <option value="">Fara legatura cu parcela</option>
-              {parcele.map((parcela: any) => (
+              <option value="">Fără legătură cu parcelă</option>
+              {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
                 <option key={parcela.id} value={parcela.id}>
                   {parcela.nume_parcela || 'Parcela'}
                 </option>

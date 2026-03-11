@@ -1,14 +1,15 @@
 // src/lib/supabase/queries/investitii.ts
 
 import { getSupabase } from '../client'
+import { generateBusinessId } from '@/lib/supabase/business-ids'
 
 // ===============================
 // CONSTANTS
 // ===============================
 
 export const CATEGORII_INVESTITII = [
-  'ButaČ™i',
-  'Sistem IrigaČ›ie',
+  'Butași',
+  'Sistem Irigație',
   'Solar / Tunel',
   'Utilaje',
   'Depozitare',
@@ -16,10 +17,10 @@ export const CATEGORII_INVESTITII = [
   'Altele',
 ] as const
 
-// đź”µ BADGE COLORS (pentru UI)
+// BADGE COLORS (pentru UI)
 export const BADGE_COLORS: Record<string, string> = {
-  'ButaČ™i': 'bg-green-100 text-green-700',
-  'Sistem IrigaČ›ie': 'bg-blue-100 text-blue-700',
+  'Butași': 'bg-green-100 text-green-700',
+  'Sistem Irigație': 'bg-blue-100 text-blue-700',
   'Solar / Tunel': 'bg-purple-100 text-purple-700',
   Utilaje: 'bg-yellow-100 text-yellow-700',
   Depozitare: 'bg-indigo-100 text-indigo-700',
@@ -66,28 +67,6 @@ export interface UpdateInvestitieInput {
 // INTERNAL ID GENERATOR
 // ===============================
 
-async function generateNextId(): Promise<string> {
-  const supabase = getSupabase()
-
-  const { data, error } = await supabase
-    .from('investitii')
-    .select('id_investitie')
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (error) throw error
-
-  if (!data || data.length === 0) return 'INV001'
-
-  const lastId = data[0].id_investitie
-  const numericPart = parseInt(lastId.replace('INV', ''), 10)
-
-  if (isNaN(numericPart)) throw new Error('Invalid id_investitie format')
-
-  const nextNumber = numericPart + 1
-  return `INV${nextNumber.toString().padStart(3, '0')}`
-}
-
 // ===============================
 // QUERIES (RLS-FIRST)
 // ===============================
@@ -108,22 +87,22 @@ export async function getInvestitii(): Promise<Investitie[]> {
 /**
  * CREATE INVESTITIE (RLS-FIRST)
  * 
- * đź” RLS REQUIREMENTS:
+ * RLS REQUIREMENTS:
  * - tenant_id MUST be set automatically via BEFORE INSERT trigger OR RLS WITH CHECK policy
  * - INSERT policy must exist with WITH CHECK validating tenant_id matches current user's tenant
  * 
- * đź“‹ DB SCHEMA EXPECTATIONS:
+ * DB SCHEMA EXPECTATIONS:
  * - tenant_id: NOT NULL (required)
  * - tenant_id: No DEFAULT value (set via trigger)
  * 
- * đź”§ REQUIRED TRIGGER (if not using RLS WITH CHECK to set):
+ * REQUIRED TRIGGER (if not using RLS WITH CHECK to set):
  * CREATE FUNCTION set_tenant_id_investitii()
  * RETURNS trigger AS $$
  * BEGIN
- *   NEW.tenant_id := (
- *     SELECT id FROM tenants
- *     WHERE owner_user_id = auth.uid()
- *   );
+ *   SELECT tenant_id
+ *   INTO NEW.tenant_id
+ *   FROM public.profiles
+ *   WHERE id = auth.uid();
  *   RETURN NEW;
  * END;
  * $$ LANGUAGE plpgsql;
@@ -132,22 +111,19 @@ export async function getInvestitii(): Promise<Investitie[]> {
  * BEFORE INSERT ON investitii
  * FOR EACH ROW EXECUTE FUNCTION set_tenant_id_investitii();
  * 
- * đź”’ REQUIRED RLS POLICY:
+ * REQUIRED RLS POLICY:
  * CREATE POLICY tenant_isolation_insert_investitii
  * ON investitii
  * FOR INSERT
  * WITH CHECK (
- *   tenant_id = (
- *     SELECT id FROM tenants
- *     WHERE owner_user_id = auth.uid()
- *   )
+ *   tenant_id = public.current_tenant_id()
  * );
  */
 export async function createInvestitie(
   input: CreateInvestitieInput
 ): Promise<Investitie> {
   const supabase = getSupabase()
-  const nextId = await generateNextId()
+  const nextId = await generateBusinessId(supabase, 'INV')
 
   const { data, error } = await supabase
     .from('investitii')

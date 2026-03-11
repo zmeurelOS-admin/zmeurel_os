@@ -15,7 +15,21 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUiDensity } from '@/hooks/useUiDensity'
 import { track } from '@/lib/analytics/track'
+import {
+  clearDemoSeedAttempted,
+  disableFarmSetupMode,
+  disableDemoMode,
+  enableDemoMode,
+  enableFarmSetupMode,
+  markDemoSeedAttempted,
+} from '@/lib/demo/onboarding-storage'
+import {
+  clearDemoTutorialPending,
+  markDemoTutorialPending,
+  resetDemoTutorialSeen,
+} from '@/lib/demo/tutorial-storage'
 import { getSupabase } from '@/lib/supabase/client'
+import { getTenantByIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 type CsvModule = 'activitati' | 'cheltuieli' | 'vanzari' | 'recoltari' | 'clienti' | 'comenzi'
 
@@ -35,11 +49,11 @@ type TenantTable =
   | 'alert_dismissals'
 
 const CSV_MODULES: Array<{ key: CsvModule; label: string; table: TenantTable }> = [
-  { key: 'activitati', label: 'Activitati', table: 'activitati_agricole' },
+  { key: 'activitati', label: 'Activități', table: 'activitati_agricole' },
   { key: 'cheltuieli', label: 'Cheltuieli', table: 'cheltuieli_diverse' },
-  { key: 'vanzari', label: 'Vanzari', table: 'vanzari' },
-  { key: 'recoltari', label: 'Recoltari', table: 'recoltari' },
-  { key: 'clienti', label: 'Clienti', table: 'clienti' },
+  { key: 'vanzari', label: 'Vânzări', table: 'vanzari' },
+  { key: 'recoltari', label: 'Recoltări', table: 'recoltari' },
+  { key: 'clienti', label: 'Clienți', table: 'clienti' },
   { key: 'comenzi', label: 'Comenzi', table: 'comenzi' },
 ]
 
@@ -111,8 +125,9 @@ export default function SettingsPage() {
   const [csvExportRowsFetched, setCsvExportRowsFetched] = useState(0)
 
   const [deleteFarmStep1Open, setDeleteFarmStep1Open] = useState(false)
-  const [deleteFarmStep2Open, setDeleteFarmStep2Open] = useState(false)
-  const [deleteFarmConfirmText, setDeleteFarmConfirmText] = useState('')
+  const [isDeletingDemoData, setIsDeletingDemoData] = useState(false)
+  const [isReseedingDemoData, setIsReseedingDemoData] = useState(false)
+  const [isExitingDemoMode, setIsExitingDemoMode] = useState(false)
   const [isDeletingFarmData, setIsDeletingFarmData] = useState(false)
 
   const [deleteAccountStep1Open, setDeleteAccountStep1Open] = useState(false)
@@ -125,13 +140,9 @@ export default function SettingsPage() {
       if (!userId) return
 
       const supabase = getSupabase()
+      const resolvedTenantId = await getTenantIdByUserIdOrNull(supabase, userId)
 
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('id,nume_ferma')
-        .eq('owner_user_id', userId)
-        .maybeSingle()
-      const tenantRow = tenant as { id?: string; nume_ferma?: string } | null
+      const tenantRow = await getTenantByIdOrNull(supabase, resolvedTenantId)
 
       if (tenantRow?.id) {
         setTenantId(tenantRow.id)
@@ -150,7 +161,6 @@ export default function SettingsPage() {
     return null
   }, [confirmPassword, newPassword])
 
-  const canConfirmDeleteFarm = deleteFarmConfirmText.trim().toUpperCase() === 'STERGE DATELE'
   const canConfirmDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === 'STERGE CONTUL'
 
   const handleChangePassword = async () => {
@@ -364,19 +374,118 @@ export default function SettingsPage() {
   const handleDeleteFarmData = async () => {
     setIsDeletingFarmData(true)
     try {
-      const response = await fetch('/api/gdpr/farm', { method: 'DELETE' })
-      const payload = (await response.json()) as { error?: string }
-      if (!response.ok) throw new Error(payload.error || 'Nu am putut sterge datele fermei.')
+      const response = await fetch('/api/farm/reset', { method: 'POST' })
+      const payload = (await response.json()) as {
+        success?: boolean
+        error?: string | { message?: string }
+      }
+      if (!response.ok || payload.success !== true) {
+        const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
+        throw new Error(message || 'Nu am putut reseta datele fermei.')
+      }
 
-      setDeleteFarmStep2Open(false)
-      setDeleteFarmConfirmText('')
-      toast.success('Datele fermei au fost sterse.')
+      disableDemoMode()
+      disableFarmSetupMode()
+      clearDemoSeedAttempted()
+      clearDemoTutorialPending()
+      resetDemoTutorialSeen()
+      setDeleteFarmStep1Open(false)
+      toast.success('Datele fermei au fost resetate.')
+      router.push('/start')
       router.refresh()
     } catch (error: unknown) {
-      const message = (error as { message?: string })?.message || 'Nu am putut sterge datele fermei.'
+      const message = (error as { message?: string })?.message || 'Nu am putut reseta datele fermei.'
       toast.error(message)
     } finally {
       setIsDeletingFarmData(false)
+    }
+  }
+
+  const handleDeleteDemoData = async () => {
+    if (!tenantId) {
+      toast.error('Context tenant indisponibil.')
+      return
+    }
+
+    setIsDeletingDemoData(true)
+    try {
+      const response = await fetch('/api/demo/reset', { method: 'POST' })
+      const payload = (await response.json()) as { ok?: boolean; error?: { message?: string } | string }
+      if (!response.ok || payload.ok === false) {
+        const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
+        throw new Error(message || 'Nu am putut sterge datele demo.')
+      }
+
+      disableDemoMode()
+      clearDemoSeedAttempted()
+      clearDemoTutorialPending()
+      toast.success('Datele demo au fost sterse.')
+      router.refresh()
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut șterge datele demo.'
+      toast.error(message)
+    } finally {
+      setIsDeletingDemoData(false)
+    }
+  }
+
+  const handleReseedDemoData = async () => {
+    if (!tenantId) {
+      toast.error('Context tenant indisponibil.')
+      return
+    }
+
+    setIsReseedingDemoData(true)
+    try {
+      const response = await fetch('/api/demo/reload', { method: 'POST' })
+      const payload = (await response.json()) as { ok?: boolean; error?: { message?: string } | string }
+      if (!response.ok || payload.ok === false) {
+        const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
+        throw new Error(message || 'Nu am putut reîncărca datele demo.')
+      }
+
+      enableDemoMode()
+      markDemoSeedAttempted()
+      clearDemoTutorialPending()
+      resetDemoTutorialSeen()
+      toast.success('Datele demo au fost reîncărcate.')
+      router.refresh()
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut reîncărca datele demo.'
+      toast.error(message)
+    } finally {
+      setIsReseedingDemoData(false)
+    }
+  }
+
+  const handleExitDemoMode = async () => {
+    if (!tenantId) {
+      toast.error('Context tenant indisponibil.')
+      return
+    }
+
+    setIsExitingDemoMode(true)
+    try {
+      const response = await fetch('/api/demo/reset', { method: 'POST' })
+      const payload = (await response.json()) as { ok?: boolean; error?: { message?: string } | string }
+      if (!response.ok || payload.ok === false) {
+        const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
+        throw new Error(message || 'Nu am putut iesi din modul demo.')
+      }
+
+      disableDemoMode()
+      clearDemoSeedAttempted()
+      enableFarmSetupMode()
+      resetDemoTutorialSeen()
+      markDemoTutorialPending()
+      toast.success('Ai iesit din modul demo.')
+      router.push('/dashboard')
+      router.refresh()
+    } catch (error: unknown) {
+      const message = (error as { message?: string })?.message || 'Nu am putut iesi din modul demo.'
+      toast.error(message)
+    } finally {
+      setIsExitingDemoMode(false)
     }
   }
 
@@ -389,11 +498,11 @@ export default function SettingsPage() {
 
       const supabase = getSupabase()
       await supabase.auth.signOut()
-      toast.success('Contul si tenantul au fost sterse.')
+      toast.success('Contul ți tenantul au fost sterse.')
       router.push('/login')
       router.refresh()
     } catch (error: unknown) {
-      const message = (error as { message?: string })?.message || 'Nu am putut sterge contul.'
+      const message = (error as { message?: string })?.message || 'Nu am putut șterge contul.'
       toast.error(message)
     } finally {
       setIsDeletingAccount(false)
@@ -402,10 +511,10 @@ export default function SettingsPage() {
 
   return (
     <AppShell
-      header={<PageHeader title="Cont & Setari" subtitle="Profil utilizator si preferinte UI" rightSlot={<Settings2 className="h-5 w-5" />} />}
+      header={<PageHeader title="Cont & Setari" subtitle="Profil utilizator și preferințe" rightSlot={<Settings2 className="h-5 w-5" />} />}
     >
-      <div className="mx-auto w-full max-w-3xl space-y-4 py-4 lg:space-y-6 xl:space-y-8">
-        <section id="profil" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+      <div className="mx-auto mt-4 w-full max-w-3xl space-y-4 py-4 sm:mt-0 lg:space-y-6 xl:space-y-8">
+        <section id="profil" className="agri-card space-y-3 p-4">
           <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Profil utilizator</h2>
 
           <div className="space-y-2">
@@ -417,14 +526,14 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="farm-name" className="text-xs uppercase text-[var(--agri-text-muted)]">Nume ferma</Label>
+            <Label htmlFor="farm-name" className="text-xs uppercase text-[var(--agri-text-muted)]">Nume fermă</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 id="farm-name"
                 className="agri-control h-11"
                 value={farmNameDraft}
                 onChange={(event) => setFarmNameDraft(event.target.value)}
-                placeholder="Nume ferma"
+                placeholder="Nume fermă"
               />
               <Button
                 type="button"
@@ -435,10 +544,10 @@ export default function SettingsPage() {
                 {isSavingFarmName ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Se salveaza...
+                    Se salvează...
                   </>
                 ) : (
-                  'Salveaza'
+                  'Salvează'
                 )}
               </Button>
             </div>
@@ -451,23 +560,23 @@ export default function SettingsPage() {
 
         </section>
 
-        <section id="gdpr" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+        <section id="gdpr" className="agri-card space-y-3 p-4">
           <div className="space-y-1">
             <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Protecția datelor (GDPR)</h2>
             <p className="text-sm text-[var(--agri-text-muted)]">
               Zmeurel OS respectă Regulamentul (UE) 2016/679 privind protecția datelor.
             </p>
             <p className="text-xs text-[var(--agri-text-muted)]">
-              Exportul include datele operaționale: Parcele, Activitati, Recoltari, Cheltuieli, Vanzari, Vanzari Butasi, Clienti, Comenzi, Culegatori.
+              Exportul include datele operaționale: Terenuri, Activități, Recoltări, Cheltuieli, Vânzări, Material săditor, Clienți, Comenzi, Culegători.
             </p>
             <p className="text-xs text-[var(--agri-text-muted)]">
-              Evenimentele de analytics sunt metrici interne de utilizare si nu sunt incluse in export.
+              Evenimentele de analytics sunt metrici interne de utilizare ți nu sunt incluse in export.
             </p>
             <p className="text-xs text-[var(--agri-text-muted)]">
               Evenimentele de analytics sunt eliminate cand stergi datele fermei sau contul.
             </p>
             <p className="text-xs text-[var(--agri-text-muted)]">
-              Datele operationale sunt pastrate pana cand le stergi. Evenimentele de analytics sunt pastrate maximum 90 de zile pentru imbunatatirea produsului.
+              Datele operaționale sunt păstrate până când le ștergi. Evenimentele de analytics sunt păstrate maximum 90 de zile pentru îmbunătățirea produsului.
             </p>
           </div>
 
@@ -513,10 +622,37 @@ export default function SettingsPage() {
             <Button
               type="button"
               variant="outline"
+              className="agri-control h-11 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+              disabled={!tenantId || isReseedingDemoData}
+              onClick={handleReseedDemoData}
+            >
+              {isReseedingDemoData ? 'Se reîncarcă datele demo...' : 'Reîncarcă datele demo'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 border-amber-300 text-amber-800 hover:bg-amber-50"
+              disabled={!tenantId || isDeletingDemoData}
+              onClick={handleDeleteDemoData}
+            >
+              {isDeletingDemoData ? 'Se sterg datele demo...' : 'Sterge datele demo'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 border-blue-300 text-blue-800 hover:bg-blue-50"
+              disabled={!tenantId || isExitingDemoMode}
+              onClick={handleExitDemoMode}
+            >
+              {isExitingDemoMode ? 'Se inchide modul demo...' : 'Ieși din modul demo'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
               className="agri-control h-11 border-red-300 text-red-700 hover:bg-red-50"
               onClick={() => setDeleteFarmStep1Open(true)}
             >
-              Delete all farm data
+              Reseteaza datele fermei
             </Button>
             <Button
               type="button"
@@ -536,13 +672,13 @@ export default function SettingsPage() {
         </section>
 
         {isSuperAdmin ? (
-          <section id="ferma" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Schimba ferma</h2>
+          <section id="ferma" className="agri-card space-y-3 p-4">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Schimba fermă</h2>
             <FarmSwitcher variant="panel" />
           </section>
         ) : null}
 
-        <section id="interfata" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+        <section id="interfata" className="agri-card space-y-3 p-4">
           <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Densitate UI</h2>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -571,7 +707,7 @@ export default function SettingsPage() {
         footer={
           <>
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setPasswordDialogOpen(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button
               type="button"
@@ -582,10 +718,10 @@ export default function SettingsPage() {
               {isSavingPassword ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Se salveaza...
+                  Se salvează...
                 </>
               ) : (
-                'Salveaza'
+                'Salvează'
               )}
             </Button>
           </>
@@ -604,7 +740,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirma parola</Label>
+            <Label htmlFor="confirm-password">Confirmă parola</Label>
             <Input
               id="confirm-password"
               type="password"
@@ -621,73 +757,38 @@ export default function SettingsPage() {
       <AppDialog
         open={deleteFarmStep1Open}
         onOpenChange={setDeleteFarmStep1Open}
-        title="Stergi toate datele fermei?"
-        description="Actiunea sterge toate inregistrarile operationale ale fermei, fara stergerea contului de utilizator."
+        title="Resetezi datele fermei?"
+        description="Resetarea va sterge toate datele fermei. Continui?"
         footer={
           <>
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteFarmStep1Open(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button
               type="button"
               className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
-              onClick={() => {
-                setDeleteFarmStep1Open(false)
-                setDeleteFarmStep2Open(true)
-              }}
+              disabled={isDeletingFarmData}
+              onClick={handleDeleteFarmData}
             >
-              Continua
+              {isDeletingFarmData ? 'Se reseteaza...' : 'Continua'}
             </Button>
           </>
         }
       >
         <p className="text-sm text-[var(--agri-text-muted)]">
-          Confirma in pasul urmator pentru a preveni stergerea accidentala.
+          Contul ți tenant-ul raman active, se sterg doar datele fermei pentru tenantul curent.
         </p>
-      </AppDialog>
-
-      <AppDialog
-        open={deleteFarmStep2Open}
-        onOpenChange={setDeleteFarmStep2Open}
-        title="Confirmare finala - date ferma"
-        description="Tasteaza STERGE DATELE pentru confirmare."
-        footer={
-          <>
-            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteFarmStep2Open(false)}>
-              Anuleaza
-            </Button>
-            <Button
-              type="button"
-              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
-              disabled={!canConfirmDeleteFarm || isDeletingFarmData}
-              onClick={handleDeleteFarmData}
-            >
-              {isDeletingFarmData ? 'Se sterge...' : 'Sterge datele'}
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          <Label htmlFor="confirm-delete-farm">Confirmare</Label>
-          <Input
-            id="confirm-delete-farm"
-            className="agri-control h-11"
-            placeholder="STERGE DATELE"
-            value={deleteFarmConfirmText}
-            onChange={(event) => setDeleteFarmConfirmText(event.target.value)}
-          />
-        </div>
       </AppDialog>
 
       <AppDialog
         open={deleteAccountStep1Open}
         onOpenChange={setDeleteAccountStep1Open}
-        title="Stergi contul si tenantul?"
-        description="Actiunea elimina contul, tenantul si toate datele asociate. Aceasta actiune este ireversibila."
+        title="Stergi contul ți tenantul?"
+        description="Actiunea elimina contul, tenantul ți toate datele asociate. Aceasta actiune este ireversibila."
         footer={
           <>
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep1Open(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button
               type="button"
@@ -710,12 +811,12 @@ export default function SettingsPage() {
       <AppDialog
         open={deleteAccountStep2Open}
         onOpenChange={setDeleteAccountStep2Open}
-        title="Confirmare finala - cont si tenant"
+        title="Confirmare finala - cont ți tenant"
         description="Tasteaza STERGE CONTUL pentru confirmare."
         footer={
           <>
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep2Open(false)}>
-              Anuleaza
+              Anulează
             </Button>
             <Button
               type="button"

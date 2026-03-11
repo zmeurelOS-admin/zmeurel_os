@@ -13,6 +13,7 @@ import {
   Receipt,
   ShoppingBag,
 } from 'lucide-react';
+import { ActionCard, EntityCard, InfoCard, ListCard } from '@/components/ui/app-card';
 import { getRecoltari } from '@/lib/supabase/queries/recoltari';
 import { getVanzari } from '@/lib/supabase/queries/vanzari';
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole';
@@ -20,7 +21,7 @@ import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricol
 const modules = [
   {
     href: '/parcele',
-    label: 'Parcele',
+    label: 'Terenuri',
     description: 'Gestionează terenurile',
     icon: MapPin,
     color: '#F16B6B',
@@ -55,7 +56,7 @@ const modules = [
   },
   {
     href: '/vanzari-butasi',
-    label: 'Vânzări Butași',
+    label: 'Material săditor',
     description: 'Material săditor',
     icon: ShoppingBag,
     color: '#F16B6B',
@@ -163,7 +164,7 @@ function useActivityFeed() {
           normalized.push({
             id: r.id,
             type: 'recoltare',
-            title: `Recoltare ${r.id_recoltare}`,
+            title: 'Recoltare',
             subtitle: `${totalKg} kg`,
             value: `${totalKg} kg`,
             date: r.data,
@@ -174,7 +175,7 @@ function useActivityFeed() {
           normalized.push({
             id: v.id,
             type: 'vanzare',
-            title: `Vânzare ${v.id_vanzare}`,
+            title: 'Vânzare',
             subtitle: `${v.cantitate_kg} kg · ${v.pret_lei_kg} lei/kg`,
             value: `${(v.cantitate_kg * v.pret_lei_kg).toFixed(2)} lei`,
             date: v.data,
@@ -186,7 +187,7 @@ function useActivityFeed() {
             id: a.id,
             type: 'activitate',
             title: a.tip_activitate || 'Activitate agricolă',
-            subtitle: a.produs_utilizat || a.id_activitate,
+            subtitle: a.produs_utilizat || 'Fără produs specificat',
             date: a.data_aplicare,
           });
         });
@@ -217,7 +218,7 @@ function ActivityCard({ activity }: { activity: ActivityItem }) {
   const Icon = iconMap[activity.type];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3">
+    <ListCard className="bg-white flex items-center gap-3">
       <div className="w-10 h-10 rounded-xl bg-[#F16B6B]/10 flex items-center justify-center flex-shrink-0">
         <Icon className="w-5 h-5 text-[#F16B6B]" />
       </div>
@@ -234,13 +235,13 @@ function ActivityCard({ activity }: { activity: ActivityItem }) {
           {activity.value}
         </div>
       )}
-    </div>
+    </ListCard>
   );
 }
 
 function KPICard({ label, value, loading }: { label: string; value: string; loading: boolean }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col items-center">
+    <InfoCard className="bg-white flex flex-col items-center">
       {loading ? (
         <div className="h-10 w-24 bg-slate-200 rounded animate-pulse"></div>
       ) : (
@@ -251,7 +252,7 @@ function KPICard({ label, value, loading }: { label: string; value: string; load
       <div className="text-xs text-slate-600 mt-2 text-center">
         {label}
       </div>
-    </div>
+    </InfoCard>
   );
 }
 
@@ -276,31 +277,30 @@ export function DashboardHome() {
         {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {modules.map(({ href, label, description, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className="group bg-white rounded-2xl p-6 flex flex-col items-center text-center
-                border border-gray-100 shadow-sm
-                hover:shadow-xl hover:-translate-y-1.5 hover:border-[#F16B6B]/20
-                transition-all duration-250 ease-out cursor-pointer"
-            >
-              {/* Icon bubble */}
-              <div
-                className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4
-                  bg-[#F16B6B]/10 group-hover:bg-[#F16B6B]/20 transition-colors duration-200"
+            <Link key={href} href={href} className="group block">
+              <ActionCard
+                className="bg-white border-gray-100 p-6 flex flex-col items-center text-center
+                  lg:hover:shadow-md hover:-translate-y-1.5 hover:border-[#F16B6B]/20
+                  transition-all duration-250 ease-out cursor-pointer"
               >
-                <Icon
-                  className="w-7 h-7 text-[#F16B6B] group-hover:scale-110 transition-transform duration-200"
-                />
-              </div>
+                {/* Icon bubble */}
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4
+                    bg-[#F16B6B]/10 group-hover:bg-[#F16B6B]/20 transition-colors duration-200"
+                >
+                  <Icon
+                    className="w-7 h-7 text-[#F16B6B] group-hover:scale-110 transition-transform duration-200"
+                  />
+                </div>
 
-              {/* Text */}
-              <p className="text-[#312E3F] font-semibold text-sm leading-tight mb-1">
-                {label}
-              </p>
-              <p className="text-gray-400 text-xs leading-snug">
-                {description}
-              </p>
+                {/* Text */}
+                <p className="text-[#312E3F] font-semibold text-sm leading-tight mb-1">
+                  {label}
+                </p>
+                <p className="text-gray-400 text-xs leading-snug">
+                  {description}
+                </p>
+              </ActionCard>
             </Link>
           ))}
         </div>
@@ -353,8 +353,8 @@ export function DashboardHome() {
             Module
           </h2>
           {modules.map(({ href, label, description, icon: Icon }) => (
-            <Link key={href} href={href}>
-              <div className="rounded-2xl shadow-md p-4 bg-white flex items-center gap-4 active:scale-98 transition-transform">
+            <Link key={href} href={href} className="block">
+              <EntityCard className="bg-white flex items-center gap-4 active:scale-[0.98] transition-transform">
                 <div className="w-12 h-12 rounded-xl bg-[#F16B6B]/10 flex items-center justify-center flex-shrink-0">
                   <Icon className="w-6 h-6 text-[#F16B6B]" />
                 </div>
@@ -366,7 +366,7 @@ export function DashboardHome() {
                     {description}
                   </div>
                 </div>
-              </div>
+              </EntityCard>
             </Link>
           ))}
         </div>

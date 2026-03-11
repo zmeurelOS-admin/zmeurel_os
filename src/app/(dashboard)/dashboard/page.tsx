@@ -1,152 +1,228 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
-  Banknote,
-  CalendarClock,
-  ClipboardList,
-  Coins,
-  MapPinned,
-  Package,
-  Scale,
-  ShoppingBasket,
-  Sprout,
-  Tractor,
-} from 'lucide-react'
-import { toast } from '@/lib/ui/toast'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
-import { AlertCard } from '@/components/app/AlertCard'
-import { BaseCard } from '@/components/app/BaseCard'
 import { ErrorState } from '@/components/app/ErrorState'
-import { FeatureGate } from '@/components/app/FeatureGate'
-import { KpiCard, KpiCardSkeleton } from '@/components/app/KpiCard'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
-import { FinanciarAziCard } from '@/components/dashboard/FinanciarAziCard'
-import { ProductieAziCard } from '@/components/dashboard/ProductieAziCard'
-import { RecentActivityCard, type RecentActivityItem } from '@/components/dashboard/RecentActivityCard'
-import { generateSmartAlerts } from '@/lib/alerts/engine'
+import { DemoFirstRunTutorial } from '@/components/dashboard/DemoFirstRunTutorial'
+import AlertCard from '@/components/ui/AlertCard'
+import MiniCard from '@/components/ui/MiniCard'
+import Sparkline from '@/components/ui/Sparkline'
+import StatusBadge from '@/components/ui/StatusBadge'
+import TrendBadge from '@/components/ui/TrendBadge'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import {
-  dismissAlert,
-  dismissAlertsBulk,
-  getAlertContext,
-  getTodayDismissals,
-} from '@/lib/supabase/queries/alertDismissals'
+  isDemoModeEnabled,
+  isFarmSetupEnabled,
+} from '@/lib/demo/onboarding-storage'
+import {
+  clearDemoTutorialPending,
+  hasSeenDemoTutorial,
+  isDemoTutorialPending,
+  markDemoTutorialSeen,
+} from '@/lib/demo/tutorial-storage'
+import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
-import { getClienti } from '@/lib/supabase/queries/clienti'
+import { getClienți } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
-import { getStocGlobal } from '@/lib/supabase/queries/stoc'
+import { getCultureStageLogsForUnitati, getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
+import { toast } from '@/lib/ui/toast'
+import { queryKeys } from '@/lib/query-keys'
 
-const PRICE_PER_KG_ESTIMATE = 18
-const LABOR_COST_PER_KG = 3
-
-type DashboardActionItem = {
-  id: string
-  tone: 'danger' | 'warning' | 'info'
-  text: string
-  href: string
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('ro-RO', {
-    style: 'currency',
-    currency: 'RON',
-    maximumFractionDigits: 0,
-  }).format(value)
-}
+const DAY_MS = 24 * 60 * 60 * 1000
 
 function toDateOnly(value: string | null | undefined): string {
   return (value ?? '').slice(0, 10)
 }
 
+function asNumber(value: unknown): number {
+  const n = Number(value ?? 0)
+  return Number.isFinite(n) ? n : 0
+}
+
+function getIsoDay(offset = 0): string {
+  const date = new Date()
+  date.setHours(0, 0, 0, 0)
+  if (offset !== 0) date.setTime(date.getTime() + offset * DAY_MS)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function formatNumber(value: number, fractionDigits = 1): string {
+  return new Intl.NumberFormat('ro-RO', {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : Math.min(fractionDigits, 1),
+  }).format(value)
+}
+
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(value))
+}
+
+function formatDateLabel(isoDate: string): string {
+  const parsed = new Date(`${isoDate}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return isoDate || '-'
+  return new Intl.DateTimeFormat('ro-RO', { day: '2-digit', month: 'short' }).format(parsed)
+}
+
+function formatTimestamp(value: string): string {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed)
+}
+
+function toTrend(current: number, previous: number): { value: number; positive: boolean } | undefined {
+  if (previous <= 0) return undefined
+  const delta = ((current - previous) / previous) * 100
+  return { value: Math.round(Math.abs(delta)), positive: delta >= 0 }
+}
+
+function isActiveParcela(status: string | null): boolean {
+  const normalized = String(status ?? '').trim().toLowerCase()
+  return !['anulat', 'inactiv', 'inactiva'].includes(normalized)
+}
+
+function isSolarTip(tipUnitate: string | null | undefined): boolean {
+  return String(tipUnitate ?? '').trim().toLowerCase() === 'solar'
+}
+
+type FeedItem = {
+  key: string
+  icon: string
+  iconBg: string
+  text: string
+  timestamp: string
+  href: string
+}
+
+type SolarPlanItem = {
+  key: string
+  label: string
+  value: string
+  sub: string
+  variant: 'success' | 'warning' | 'danger'
+  href: string
+}
+
+type OnboardingStep = {
+  key: string
+  title: string
+  description: string
+  href: string
+  cta: string
+  done: boolean
+}
+
 export default function DashboardPage() {
-  const [enableSecondaryQueries, setEnableSecondaryQueries] = useState(false)
-  const [optimisticDismissedKeys, setOptimisticDismissedKeys] = useState<Set<string>>(new Set())
-  const queryClient = useQueryClient()
+  const router = useRouter()
+  const [showTutorial, setShowTutorial] = useState(false)
 
   useEffect(() => {
     trackEvent('open_dashboard', 'dashboard')
-
-    const timer = window.setTimeout(() => {
-      setEnableSecondaryQueries(true)
-    }, 300)
-
-    return () => window.clearTimeout(timer)
   }, [])
 
   const recoltariQuery = useQuery({
-    queryKey: ['dashboard', 'recoltari'],
+    queryKey: queryKeys.recoltari,
     queryFn: getRecoltari,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const parceleQuery = useQuery({
-    queryKey: ['dashboard', 'parcele'],
+    queryKey: queryKeys.parcele,
     queryFn: getParcele,
-    enabled: enableSecondaryQueries,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const activitatiQuery = useQuery({
-    queryKey: ['dashboard', 'activitati'],
+    queryKey: queryKeys.activitati,
     queryFn: getActivitatiAgricole,
-    enabled: enableSecondaryQueries,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const vanzariQuery = useQuery({
-    queryKey: ['dashboard', 'vanzari'],
+    queryKey: queryKeys.vanzari,
     queryFn: getVanzari,
-    enabled: enableSecondaryQueries,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const cheltuieliQuery = useQuery({
-    queryKey: ['dashboard', 'cheltuieli'],
+    queryKey: queryKeys.cheltuieli,
     queryFn: getCheltuieli,
-    enabled: enableSecondaryQueries,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const comenziQuery = useQuery({
-    queryKey: ['dashboard', 'comenzi'],
+    queryKey: queryKeys.comenzi,
     queryFn: getComenzi,
-    enabled: enableSecondaryQueries,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const clientiQuery = useQuery({
-    queryKey: ['dashboard', 'clienti'],
-    queryFn: getClienti,
-    enabled: enableSecondaryQueries,
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  const stocGlobalQuery = useQuery({
-    queryKey: ['dashboard', 'stoc-global'],
-    queryFn: getStocGlobal,
-    enabled: enableSecondaryQueries,
+  const solarParcelaIdsForQuery = useMemo(
+    () => (parceleQuery.data ?? []).filter((parcela) => isSolarTip(parcela.tip_unitate)).map((parcela) => parcela.id),
+    [parceleQuery.data],
+  )
+
+  const solarClimateQuery = useQuery({
+    queryKey: queryKeys.solarClimate(solarParcelaIdsForQuery.join(',')),
+    queryFn: () => getSolarClimateLogsForUnitati(solarParcelaIdsForQuery, 240),
+    enabled: solarParcelaIdsForQuery.length > 0,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  const alertContextQuery = useQuery({
-    queryKey: ['dashboard', 'alert-context'],
-    queryFn: getAlertContext,
+  const solarStagesQuery = useQuery({
+    queryKey: queryKeys.solarStages(solarParcelaIdsForQuery.join(',')),
+    queryFn: () => getCultureStageLogsForUnitati(solarParcelaIdsForQuery, 240),
+    enabled: solarParcelaIdsForQuery.length > 0,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
-  const isLoading = recoltariQuery.isLoading
-  const hasError =
-    recoltariQuery.isError ||
-    parceleQuery.isError ||
-    activitatiQuery.isError ||
-    vanzariQuery.isError ||
-    cheltuieliQuery.isError ||
-    comenziQuery.isError ||
-    clientiQuery.isError ||
-    stocGlobalQuery.isError
+  const isLoading = [
+    recoltariQuery,
+    parceleQuery,
+    activitatiQuery,
+    vanzariQuery,
+    cheltuieliQuery,
+    comenziQuery,
+    clientiQuery,
+  ].some((query) => query.isLoading)
+
+  const hasError = [
+    recoltariQuery,
+    parceleQuery,
+    activitatiQuery,
+    vanzariQuery,
+    cheltuieliQuery,
+    comenziQuery,
+    clientiQuery,
+  ].some((query) => query.isError)
 
   const errorMessage =
     (recoltariQuery.error as Error | null)?.message ||
@@ -155,8 +231,7 @@ export default function DashboardPage() {
     (vanzariQuery.error as Error | null)?.message ||
     (cheltuieliQuery.error as Error | null)?.message ||
     (comenziQuery.error as Error | null)?.message ||
-    (clientiQuery.error as Error | null)?.message ||
-    (stocGlobalQuery.error as Error | null)?.message
+    (clientiQuery.error as Error | null)?.message
 
   const recoltari = recoltariQuery.data ?? []
   const parcele = parceleQuery.data ?? []
@@ -165,561 +240,1064 @@ export default function DashboardPage() {
   const cheltuieli = cheltuieliQuery.data ?? []
   const comenzi = comenziQuery.data ?? []
   const clienti = clientiQuery.data ?? []
-  const stocGlobal = stocGlobalQuery.data ?? { cal1: 0, cal2: 0 }
-  const fallbackTenantId =
-    recoltari.find((item) => item.tenant_id)?.tenant_id ??
-    parcele.find((item) => item.tenant_id)?.tenant_id ??
-    activitati.find((item) => item.tenant_id)?.tenant_id ??
-    vanzari.find((item) => item.tenant_id)?.tenant_id ??
-    cheltuieli.find((item) => item.tenant_id)?.tenant_id ??
-    comenzi.find((item) => item.tenant_id)?.tenant_id ??
-    clienti.find((item) => item.tenant_id)?.tenant_id ??
-    null
-  const activeTenantId = alertContextQuery.data?.tenantId ?? fallbackTenantId
+  const solarClimateLogs = solarClimateQuery.data ?? []
+  const solarStageLogs = solarStagesQuery.data ?? []
+  const shouldRedirectToStart = false
 
-  const dismissalsQuery = useQuery({
-    queryKey: ['dashboard', 'alert-dismissals', activeTenantId],
-    queryFn: () => getTodayDismissals(activeTenantId!),
-    enabled: Boolean(activeTenantId),
+  useEffect(() => {
+    if (isLoading || hasError) return
+    if (isDemoModeEnabled()) {
+      if (showTutorial) setShowTutorial(false)
+      return
+    }
+
+    if (!isFarmSetupEnabled()) return
+    if (parcele.length > 0) return
+
+    const shouldShow = isDemoTutorialPending() || !hasSeenDemoTutorial()
+    if (!shouldShow) return
+
+    clearDemoTutorialPending()
+    setShowTutorial(true)
+  }, [hasError, isLoading, parcele.length, showTutorial])
+
+  const closeTutorial = () => {
+    markDemoTutorialSeen()
+    clearDemoTutorialPending()
+    setShowTutorial(false)
+  }
+
+  const finishTutorial = () => {
+    closeTutorial()
+    toast.success('Gata! Poți începe cu datele demo sau poți adăuga datele tale.')
+  }
+
+  const todayIso = getIsoDay(0)
+  const yesterdayIso = getIsoDay(-1)
+  const recentPlantingThresholdIso = getIsoDay(-14)
+  const weekDays = Array.from({ length: 7 }, (_, i) => getIsoDay(i - 6))
+  const prevWeekDays = Array.from({ length: 7 }, (_, i) => getIsoDay(i - 13))
+  const nowMs = useMemo(() => new Date(`${todayIso}T12:00:00`).getTime(), [todayIso])
+
+  const activeParcele = useMemo(() => parcele.filter((p) => isActiveParcela(p.status ?? null)), [parcele])
+  const solarParcele = useMemo(() => activeParcele.filter((parcela) => isSolarTip(parcela.tip_unitate)), [activeParcele])
+  const solarParcelaIdSet = useMemo(() => new Set(solarParcele.map((parcela) => parcela.id)), [solarParcele])
+  const parcelaById = useMemo(
+    () =>
+      new Map(
+        activeParcele.map((p) => [
+          p.id,
+          {
+            name: formatUnitateDisplayName(p.nume_parcela, p.tip_unitate),
+            soi: p.soi_plantat || p.tip_fruct || '-',
+          },
+        ]),
+      ),
+    [activeParcele],
+  )
+
+  const recoltariAzi = useMemo(() => recoltari.filter((r) => toDateOnly(r.data) === todayIso), [recoltari, todayIso])
+  const recoltariIeri = useMemo(() => recoltari.filter((r) => toDateOnly(r.data) === yesterdayIso), [recoltari, yesterdayIso])
+  const totalKgAzi = recoltariAzi.reduce((sum, r) => sum + asNumber(r.kg_cal1) + asNumber(r.kg_cal2), 0)
+  const totalKgIeri = recoltariIeri.reduce((sum, r) => sum + asNumber(r.kg_cal1) + asNumber(r.kg_cal2), 0)
+  const recoltareTrend = toTrend(totalKgAzi, totalKgIeri)
+
+  const comenziActive = useMemo(
+    () => comenzi.filter((c) => c.status !== 'livrata' && c.status !== 'anulata'),
+    [comenzi],
+  )
+  const comenziAzi = comenziActive.filter((c) => toDateOnly(c.data_livrare) === todayIso)
+  const comenziViitoare = comenziActive.filter((c) => {
+    const date = toDateOnly(c.data_livrare)
+    return !!date && date > todayIso
+  })
+  const comenziRestante = comenziActive.filter((c) => {
+    const date = toDateOnly(c.data_livrare)
+    return !!date && date < todayIso
   })
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const kgComenziAzi = comenziAzi.reduce((sum, c) => sum + asNumber(c.cantitate_kg), 0)
+  const kgComenziViitoare = comenziViitoare.reduce((sum, c) => sum + asNumber(c.cantitate_kg), 0)
+  const kgComenziActive = comenziActive.reduce((sum, c) => sum + asNumber(c.cantitate_kg), 0)
 
-  const recoltariAzi = recoltari.filter((r) => toDateOnly(r.data) === todayIso)
-  const cal1Azi = recoltariAzi.reduce((sum, r) => sum + Number(r.kg_cal1 || 0), 0)
-  const cal2Azi = recoltariAzi.reduce((sum, r) => sum + Number(r.kg_cal2 || 0), 0)
-  const kgAzi = cal1Azi + cal2Azi
+  const activitatiAziCount = activitati.filter((a) => toDateOnly(a.data_aplicare) === todayIso).length
 
-  const venitEstimat = kgAzi * PRICE_PER_KG_ESTIMATE
-  const costMunca = kgAzi * LABOR_COST_PER_KG
-  const parceleActive = parcele.filter((p) => p.status !== 'anulat').length
-  const lucrariProgramate = activitati.filter((a) => {
-    if (!a.data_aplicare) return false
-    const date = new Date(a.data_aplicare)
-    date.setHours(0, 0, 0, 0)
-    return date >= today
-  }).length
+  const harvestedTodayIds = useMemo(() => new Set(recoltariAzi.map((r) => r.parcela_id).filter(Boolean)), [recoltariAzi])
+  const unrecoltateParcele = useMemo(
+    () => activeParcele.filter((p) => !harvestedTodayIds.has(p.id)),
+    [activeParcele, harvestedTodayIds],
+  )
 
-  const seasonStartIso = `${today.getFullYear()}-03-01`
-  const seasonEndIso = todayIso
+  const dismissKey = `dashboard-unrecoltate-${todayIso}`
+  const [dismissed, setDismissed] = useState<string[]>([])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(dismissKey)
+      if (!raw) {
+        setDismissed([])
+        return
+      }
+      const parsed = JSON.parse(raw)
+      setDismissed(Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [])
+    } catch {
+      setDismissed([])
+    }
+  }, [dismissKey])
+
+  const visibleUnrecoltata = unrecoltateParcele.find((p) => !dismissed.includes(p.id))
+
+  const dismissUnrecoltata = (id: string) => {
+    const next = Array.from(new Set([...dismissed, id]))
+    setDismissed(next)
+    try {
+      localStorage.setItem(dismissKey, JSON.stringify(next))
+    } catch {
+      // ignore
+    }
+  }
+
+  const activePauseByParcela = useMemo(() => {
+    const byParcela = new Map<string, { exp: string; produs: string; data: string }>()
+
+    for (const activity of activitati) {
+      const tip = String(activity.tip_activitate ?? '').toLowerCase()
+      if (!tip.includes('tratament')) continue
+      if (!activity.parcela_id) continue
+      const pauseDays = asNumber(activity.timp_pauza_zile)
+      if (pauseDays <= 0) continue
+
+      const dateOnly = toDateOnly(activity.data_aplicare)
+      const expDate = new Date(`${dateOnly}T12:00:00`)
+      expDate.setDate(expDate.getDate() + pauseDays)
+      const expIso = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}-${String(expDate.getDate()).padStart(2, '0')}`
+      if (expIso <= todayIso) continue
+
+      if (!byParcela.has(activity.parcela_id)) {
+        byParcela.set(activity.parcela_id, {
+          exp: expIso,
+          produs: activity.produs_utilizat || 'produs',
+          data: dateOnly,
+        })
+      }
+    }
+
+    return byParcela
+  }, [activitati, todayIso])
+
+  const pauseAlert = useMemo(() => {
+    const first = Array.from(activePauseByParcela.entries())[0]
+    if (!first) return undefined
+    const [parcelaId, info] = first
+    return {
+      parcelaName: parcelaById.get(parcelaId)?.name || 'Parcela',
+      exp: info.exp,
+      produs: info.produs,
+      data: info.data,
+    }
+  }, [activePauseByParcela, parcelaById])
+
+  const recoltarePerParcelaAzi = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const row of recoltariAzi) {
+      if (!row.parcela_id) continue
+      const value = asNumber(row.kg_cal1) + asNumber(row.kg_cal2)
+      map.set(row.parcela_id, asNumber(map.get(row.parcela_id)) + value)
+    }
+    return map
+  }, [recoltariAzi])
+
+  const seasonStartIso = `${new Date().getFullYear()}-03-01`
+
+  const solarPlantTotal = solarParcele.reduce((sum, parcela) => sum + asNumber(parcela.nr_plante), 0)
+  const solarHarvestAziKg = recoltariAzi
+    .filter((row) => !!row.parcela_id && solarParcelaIdSet.has(row.parcela_id))
+    .reduce((sum, row) => sum + asNumber(row.kg_cal1) + asNumber(row.kg_cal2), 0)
+  const solarHarvestSezonKg = recoltari
+    .filter((row) => {
+      const day = toDateOnly(row.data)
+      return !!row.parcela_id && solarParcelaIdSet.has(row.parcela_id) && day >= seasonStartIso && day <= todayIso
+    })
+    .reduce((sum, row) => sum + asNumber(row.kg_cal1) + asNumber(row.kg_cal2), 0)
+
+  const recentClimateSamples = useMemo(() => {
+    const recent = solarClimateLogs.filter((entry) => {
+      const ts = new Date(entry.created_at).getTime()
+      return Number.isFinite(ts) && nowMs - ts <= 2 * DAY_MS
+    })
+    if (recent.length > 0) return recent
+    return solarClimateLogs.slice(0, 12)
+  }, [nowMs, solarClimateLogs])
+
+  const solarAvgTemp = useMemo(() => {
+    if (recentClimateSamples.length === 0) return null
+    const total = recentClimateSamples.reduce((sum, entry) => sum + asNumber(entry.temperatura), 0)
+    return total / recentClimateSamples.length
+  }, [recentClimateSamples])
+
+  const solarAvgHumidity = useMemo(() => {
+    if (recentClimateSamples.length === 0) return null
+    const total = recentClimateSamples.reduce((sum, entry) => sum + asNumber(entry.umiditate), 0)
+    return total / recentClimateSamples.length
+  }, [recentClimateSamples])
 
   const venitSezon = vanzari
     .filter((v) => {
-      const rowDate = toDateOnly(v.data)
-      return rowDate >= seasonStartIso && rowDate <= seasonEndIso
+      const date = toDateOnly(v.data)
+      return date >= seasonStartIso && date <= todayIso
     })
-    .reduce((sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0), 0)
+    .reduce((sum, v) => sum + asNumber(v.cantitate_kg) * asNumber(v.pret_lei_kg), 0)
 
   const costSezon = cheltuieli
     .filter((c) => {
-      const rowDate = toDateOnly(c.data)
-      return rowDate >= seasonStartIso && rowDate <= seasonEndIso
+      const date = toDateOnly(c.data)
+      return date >= seasonStartIso && date <= todayIso
     })
-    .reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+    .reduce((sum, c) => sum + asNumber(c.suma_lei), 0)
 
   const profitSezon = venitSezon - costSezon
-  const marjaSezon = venitSezon > 0 ? (profitSezon / venitSezon) * 100 : 0
-  const kgLivrateAzi = vanzari
-    .filter((v) => toDateOnly(v.data) === todayIso)
-    .reduce((sum, row) => sum + Number(row.cantitate_kg || 0), 0)
-  const venitAzi = vanzari
-    .filter((v) => toDateOnly(v.data) === todayIso)
-    .reduce((sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0), 0)
-  const cheltuieliAzi = cheltuieli
-    .filter((c) => toDateOnly(c.data) === todayIso)
-    .reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
-  const profitAzi = venitAzi - cheltuieliAzi
 
-  const comenziAzi = comenzi.filter((c) => c.data_livrare === todayIso && c.status !== 'livrata' && c.status !== 'anulata')
-  const comenziAziCount = comenziAzi.length
-  const kgDeLivratAzi = comenziAzi.reduce((sum, c) => sum + Number(c.cantitate_kg || 0), 0)
-  const restanteCount = comenzi.filter((c) => {
-    if (!c.data_livrare) return false
-    const date = new Date(c.data_livrare)
-    date.setHours(0, 0, 0, 0)
-    return date < today && c.status !== 'livrata' && c.status !== 'anulata'
-  }).length
+  const venitByDay = new Map<string, number>()
+  for (const row of vanzari) {
+    const date = toDateOnly(row.data)
+    venitByDay.set(date, asNumber(venitByDay.get(date)) + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg))
+  }
 
-  const comenziViitoareByDateMap = comenzi.reduce<Record<string, number>>((acc, c) => {
-    if (!c.data_livrare) return acc
-    if (c.data_livrare <= todayIso) return acc
-    if (c.status === 'livrata' || c.status === 'anulata') return acc
-    acc[c.data_livrare] = (acc[c.data_livrare] ?? 0) + Number(c.cantitate_kg || 0)
-    return acc
-  }, {})
+  const costByDay = new Map<string, number>()
+  for (const row of cheltuieli) {
+    const date = toDateOnly(row.data)
+    costByDay.set(date, asNumber(costByDay.get(date)) + asNumber(row.suma_lei))
+  }
 
-  const comenziViitoareSummary = Object.entries(comenziViitoareByDateMap)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(0, 2)
-    .map(([date, kg]) => `${new Date(date).toLocaleDateString('ro-RO')}: ${kg.toFixed(1)} kg`)
-    .join(' | ')
-  const comenziActiveCount = comenzi.filter((c) => c.status !== 'livrata' && c.status !== 'anulata').length
+  const venitSeries = weekDays.map((day) => asNumber(venitByDay.get(day)))
+  const costSeries = weekDays.map((day) => asNumber(costByDay.get(day)))
+  const profitSeries = weekDays.map((_, index) => venitSeries[index] - costSeries[index])
+  const hasSparkline = (arr: number[]) => arr.length > 1 && arr.some((v) => v !== 0)
 
-  const getComandaClientName = (comanda: (typeof comenzi)[number]) =>
-    comanda.client_nume || comanda.client_nume_manual || 'Client'
-
-  const restanteComenzi = comenzi
-    .filter((c) => {
-      if (!c.data_livrare) return false
-      const date = new Date(c.data_livrare)
-      date.setHours(0, 0, 0, 0)
-      return date < today && c.status !== 'livrata' && c.status !== 'anulata'
-    })
-    .sort((a, b) => (a.data_livrare ?? '').localeCompare(b.data_livrare ?? ''))
-
-  const comenziDePregatit = comenzi
-    .filter((c) => c.data_livrare && c.data_livrare > todayIso && c.status !== 'livrata' && c.status !== 'anulata')
-    .sort((a, b) => (a.data_livrare ?? '').localeCompare(b.data_livrare ?? ''))
-
-  const tratamenteActive = activitati
-    .filter((activity) => Number(activity.timp_pauza_zile ?? 0) > 0)
-    .map((activity) => {
-      const applyDate = new Date(activity.data_aplicare)
-      applyDate.setHours(0, 0, 0, 0)
-      const pauseEnd = new Date(applyDate)
-      pauseEnd.setDate(pauseEnd.getDate() + Number(activity.timp_pauza_zile ?? 0))
-      pauseEnd.setHours(0, 0, 0, 0)
-      const remainingDays = Math.ceil((pauseEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-      return { activity, remainingDays }
-    })
-    .filter((item) => item.remainingDays > 0)
-    .sort((a, b) => a.remainingDays - b.remainingDays)
-
-  const actionItems: DashboardActionItem[] = [
-    ...restanteComenzi.slice(0, 2).map((comanda) => ({
-      id: `restanta-${comanda.id}`,
-      tone: 'danger' as const,
-      text: `Comanda restanta: ${getComandaClientName(comanda)}, ${Number(comanda.cantitate_kg || 0).toFixed(1)} kg ? livreaza azi`,
-      href: '/comenzi',
-    })),
-    ...tratamenteActive.slice(0, 2).map(({ activity, remainingDays }) => ({
-      id: `tratament-${activity.id}`,
-      tone: 'warning' as const,
-      text: `Tratament ${activity.tip_activitate ?? 'activ'} expira in ${remainingDays} zile`,
-      href: '/activitati-agricole',
-    })),
-    ...comenziDePregatit.slice(0, 2).map((comanda) => ({
-      id: `pregatit-${comanda.id}`,
-      tone: 'info' as const,
-      text: `Comanda de pregatit: ${getComandaClientName(comanda)}, ${Number(comanda.cantitate_kg || 0).toFixed(1)} kg ? ${new Date(comanda.data_livrare as string).toLocaleDateString('ro-RO')}`,
-      href: '/comenzi',
-    })),
-  ]
-
-  const alerts = generateSmartAlerts({
-    today,
-    recoltari,
-    vanzari,
-    cheltuieli,
-    activitati,
-    parcele: parcele.map((parcela) => ({
-      id: parcela.id,
-      nume_parcela: parcela.nume_parcela,
-    })),
-  })
-
-  const dismissedKeys = new Set(dismissalsQuery.data ?? [])
-  const filteredAlerts = alerts.filter(
-    (alert) => !dismissedKeys.has(alert.alertKey) && !optimisticDismissedKeys.has(alert.alertKey)
+  const venitTrend = toTrend(
+    venitSeries.reduce((sum, v) => sum + v, 0),
+    prevWeekDays.reduce((sum, day) => sum + asNumber(venitByDay.get(day)), 0),
   )
-  const recentActivityItems: RecentActivityItem[] = [
-    ...recoltari.slice(0, 4).map((row) => ({
-      id: `recoltare-${row.id}`,
-      type: 'recoltare' as const,
-      description: 'Recoltare adaugata',
-      timestamp: row.created_at || row.data,
-    })),
-    ...cheltuieli.slice(0, 4).map((row) => ({
-      id: `cheltuiala-${row.id}`,
-      type: 'cheltuiala' as const,
-      description: 'Cheltuiala inregistrata',
-      timestamp: row.created_at || row.data,
-    })),
-    ...comenzi.slice(0, 4).map((row) => ({
-      id: `comanda-${row.id}`,
-      type: 'comanda' as const,
-      description: 'Comanda noua',
-      timestamp: row.created_at || row.data_comanda || '',
-    })),
-    ...clienti.slice(0, 4).map((row) => ({
-      id: `client-${row.id}`,
-      type: 'client' as const,
-      description: 'Client nou',
-      timestamp: row.created_at || row.updated_at || '',
-    })),
-  ]
-    .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
-    .slice(0, 6)
+  const costTrend = toTrend(
+    costSeries.reduce((sum, v) => sum + v, 0),
+    prevWeekDays.reduce((sum, day) => sum + asNumber(costByDay.get(day)), 0),
+  )
+  const profitTrend = toTrend(
+    profitSeries.reduce((sum, v) => sum + v, 0),
+    prevWeekDays.reduce((sum, day) => sum + asNumber(venitByDay.get(day)) - asNumber(costByDay.get(day)), 0),
+  )
 
-  const dismissAlertMutation = useMutation({
-    mutationFn: (alertKey: string) => {
-      const tenantId = activeTenantId
-      if (!tenantId) throw new Error('Tenant context missing')
-      return dismissAlert(tenantId, alertKey)
-    },
-    onSuccess: () => {
-      toast.success('Ascuns pentru azi')
-      void queryClient.invalidateQueries({ queryKey: ['dashboard', 'alert-dismissals'] })
-    },
-    onError: (error, alertKey) => {
-      setOptimisticDismissedKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(alertKey)
-        return next
-      })
-      const message = (error as { message?: string } | null)?.message
-      toast.error(message ? `Nu am putut ascunde alerta: ${message}` : 'Nu am putut ascunde alerta.')
-    },
-  })
+  const orderName = (row: (typeof comenzi)[number]) => {
+    const joined = String(row.client_nume ?? '').trim()
+    const manual = String(row.client_nume_manual ?? '').trim()
+    return joined || manual || 'Client'
+  }
 
-  const dismissAllMutation = useMutation({
-    mutationFn: (alertKeys: string[]) => {
-      const tenantId = activeTenantId
-      if (!tenantId) throw new Error('Tenant context missing')
-      return dismissAlertsBulk(tenantId, alertKeys)
-    },
-    onSuccess: () => {
-      toast.success('Alertele au fost ascunse pentru azi')
-      void queryClient.invalidateQueries({ queryKey: ['dashboard', 'alert-dismissals'] })
-    },
-    onError: (error, alertKeys) => {
-      setOptimisticDismissedKeys((prev) => {
-        const next = new Set(prev)
-        alertKeys.forEach((key) => next.delete(key))
-        return next
+  const linkedOrderBySaleId = useMemo(() => {
+    const map = new Map<string, (typeof comenzi)[number]>()
+    for (const row of comenzi) {
+      if (row.linked_vanzare_id) map.set(row.linked_vanzare_id, row)
+    }
+    return map
+  }, [comenzi])
+
+  const latestSolarClimateByParcela = useMemo(() => {
+    const byParcela = new Map<string, (typeof solarClimateLogs)[number]>()
+    for (const entry of solarClimateLogs) {
+      const current = byParcela.get(entry.unitate_id)
+      if (!current) {
+        byParcela.set(entry.unitate_id, entry)
+        continue
+      }
+      const currentTs = new Date(current.created_at).getTime()
+      const nextTs = new Date(entry.created_at).getTime()
+      if (Number.isFinite(nextTs) && nextTs > currentTs) {
+        byParcela.set(entry.unitate_id, entry)
+      }
+    }
+    return byParcela
+  }, [solarClimateLogs])
+
+  const stageCountByParcela = useMemo(() => {
+    const byParcela = new Map<string, number>()
+    for (const entry of solarStageLogs) {
+      byParcela.set(entry.unitate_id, asNumber(byParcela.get(entry.unitate_id)) + 1)
+    }
+    return byParcela
+  }, [solarStageLogs])
+
+  const latestSolarActivityByParcela = useMemo(() => {
+    const byParcela = new Map<string, (typeof activitati)[number]>()
+    for (const activity of activitati) {
+      if (!activity.parcela_id || !solarParcelaIdSet.has(activity.parcela_id)) continue
+      const current = byParcela.get(activity.parcela_id)
+      if (!current) {
+        byParcela.set(activity.parcela_id, activity)
+        continue
+      }
+      const currentTs = new Date(current.data_aplicare).getTime()
+      const nextTs = new Date(activity.data_aplicare).getTime()
+      if (Number.isFinite(nextTs) && nextTs > currentTs) {
+        byParcela.set(activity.parcela_id, activity)
+      }
+    }
+    return byParcela
+  }, [activitati, solarParcelaIdSet])
+
+  const solarPlanItems = useMemo<SolarPlanItem[]>(() => {
+    if (solarParcele.length === 0) return []
+
+    const items: SolarPlanItem[] = []
+
+    for (const parcela of solarParcele) {
+      const parcelaName = formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate, 'Solar')
+      const latestClimate = latestSolarClimateByParcela.get(parcela.id)
+      const latestActivity = latestSolarActivityByParcela.get(parcela.id)
+      const stageCount = asNumber(stageCountByParcela.get(parcela.id))
+
+      if (!latestClimate) {
+        items.push({
+          key: `climate-missing-${parcela.id}`,
+          label: 'Climat neactualizat',
+          value: `${parcelaName}: adauga prima masuratoare`,
+          sub: 'Regula: fiecare solar trebuie sa aiba minim o masuratoare de climat.',
+          variant: 'warning',
+          href: `/parcele/${parcela.id}`,
+        })
+      } else {
+        const climateAgeDays = Math.floor((nowMs - new Date(latestClimate.created_at).getTime()) / DAY_MS)
+        if (climateAgeDays >= 2) {
+          items.push({
+            key: `climate-stale-${parcela.id}`,
+            label: 'Climat neactualizat',
+            value: `${parcelaName}: f?r? update de ${climateAgeDays} zile`,
+            sub: 'Regula: daca ultimul climat este mai vechi de 2 zile, cere verificare.',
+            variant: 'warning',
+            href: `/parcele/${parcela.id}`,
+          })
+        }
+
+        const latestTemp = asNumber(latestClimate.temperatura)
+        if (latestTemp >= 32) {
+          items.push({
+            key: `temp-high-${parcela.id}`,
+            label: 'Temperatura ridicata',
+            value: `${parcelaName}: ${formatNumber(latestTemp, 1)}°C`,
+            sub: 'Regula: peste 32°C se recomanda aerisire ți verificare irigare.',
+            variant: 'danger',
+            href: `/parcele/${parcela.id}`,
+          })
+        }
+      }
+
+      const plantingDay = toDateOnly(parcela.data_plantarii)
+      if (plantingDay && plantingDay >= recentPlantingThresholdIso && stageCount === 0) {
+        items.push({
+          key: `stages-missing-${parcela.id}`,
+          label: 'Etape cultura lipsa',
+          value: `${parcelaName}: plantat recent, f?r? etape`,
+          sub: 'Regula: daca data plantarii e in ultimele 14 zile, trebuie macar o etapa notata.',
+          variant: 'warning',
+          href: `/parcele/${parcela.id}`,
+        })
+      }
+
+      if (!latestActivity) {
+        items.push({
+          key: `activity-missing-${parcela.id}`,
+          label: 'Activități lipsă',
+          value: `${parcelaName}: fără activități înregistrate`,
+          sub: 'Regula: pentru solarii păstrăm cel puțin o activitate recentă în jurnal.',
+          variant: 'warning',
+          href: '/activitati-agricole',
+        })
+      } else {
+        const activityAgeDays = Math.floor((nowMs - new Date(latestActivity.data_aplicare).getTime()) / DAY_MS)
+        if (activityAgeDays >= 4) {
+          items.push({
+            key: `activity-stale-${parcela.id}`,
+            label: 'Activitate veche',
+            value: `${parcelaName}: ultima activitate acum ${activityAgeDays} zile`,
+            sub: 'Regula: daca ultima activitate depaseste 4 zile, verificam planul zilnic.',
+            variant: 'warning',
+            href: '/activitati-agricole',
+          })
+        }
+      }
+    }
+
+    if (items.length === 0) {
+      items.push({
+        key: 'solar-ok',
+        label: 'Plan in grafic',
+        value: 'Nu exist? prioritati urgente in solarii',
+        sub: 'Regulile simple de climat, etape ți activitati sunt acoperite azi.',
+        variant: 'success',
+        href: '/parcele',
       })
-      const message = (error as { message?: string } | null)?.message
-      toast.error(message ? `Nu am putut ascunde toate alertele: ${message}` : 'Nu am putut ascunde toate alertele.')
-    },
-  })
+    }
+
+    return items.slice(0, 6)
+  }, [
+    activitati,
+    latestSolarActivityByParcela,
+    latestSolarClimateByParcela,
+    nowMs,
+    recentPlantingThresholdIso,
+    solarParcele,
+    stageCountByParcela,
+  ])
+
+  const hasSolarWarnings = solarPlanItems.some((item) => item.variant !== 'success')
+
+  const recentActivity = useMemo<FeedItem[]>(() => {
+    const feed: FeedItem[] = []
+
+    for (const row of recoltari) {
+      const kg = asNumber(row.kg_cal1) + asNumber(row.kg_cal2)
+      const parcelaName = parcelaById.get(row.parcela_id ?? '')?.name || 'Parcela'
+      feed.push({
+        key: `rec-${row.id}`,
+        icon: '🫐',
+        iconBg: colors.blueLight,
+        text: `Recoltat ${formatNumber(kg)} kg — ${parcelaName}`,
+        timestamp: row.created_at || `${toDateOnly(row.data)}T00:00:00`,
+        href: '/recoltari',
+      })
+    }
+
+    for (const row of vanzari) {
+      const linked = linkedOrderBySaleId.get(row.id)
+      feed.push({
+        key: `van-${row.id}`,
+        icon: '💰',
+        iconBg: colors.greenLight,
+        text: `Vândut ${formatNumber(asNumber(row.cantitate_kg))} kg → ${linked ? orderName(linked) : 'Client'}`,
+        timestamp: row.created_at || `${toDateOnly(row.data)}T00:00:00`,
+        href: '/vanzari',
+      })
+    }
+
+    for (const row of activitati) {
+      const parcelaName = parcelaById.get(row.parcela_id ?? '')?.name || 'Parcela'
+      feed.push({
+        key: `act-${row.id}`,
+        icon: '✂️',
+        iconBg: colors.yellowLight,
+        text: `${row.tip_activitate || 'Activitate'} — ${parcelaName}`,
+        timestamp: row.created_at || `${toDateOnly(row.data_aplicare)}T00:00:00`,
+        href: '/activitati-agricole',
+      })
+    }
+
+    for (const row of comenzi.filter((c) => c.status === 'livrata')) {
+      feed.push({
+        key: `com-${row.id}`,
+        icon: '📦',
+        iconBg: colors.coralLight,
+        text: `Livrat ${formatNumber(asNumber(row.cantitate_kg))} kg → ${orderName(row)}`,
+        timestamp: row.updated_at || row.created_at || `${toDateOnly(row.data_livrare || row.data_comanda)}T00:00:00`,
+        href: '/comenzi',
+      })
+    }
+
+    return feed
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 5)
+  }, [activitati, comenzi, linkedOrderBySaleId, parcelaById, recoltari, vanzari])
+
+  const emptyState = activeParcele.length === 0
+  const hasAlerts = Boolean(visibleUnrecoltata) || comenziRestante.length > 0 || Boolean(pauseAlert)
+  const onboardingSteps = useMemo<OnboardingStep[]>(
+    () => [
+      {
+        key: 'terrain',
+        title: 'Creeaza primul teren',
+        description: 'Adauga o unitate de productie (camp, solar sau livada).',
+        href: '/parcele',
+        cta: 'Adauga teren',
+        done: parcele.length > 0,
+      },
+      {
+        key: 'harvest',
+        title: 'Adauga prima recoltare',
+        description: 'Inregistreaza cantitatea recoltata pentru un teren.',
+        href: '/recoltari',
+        cta: 'Adauga recoltare',
+        done: recoltari.length > 0,
+      },
+      {
+        key: 'client',
+        title: 'Adauga primul client',
+        description: 'Creeaza contactul clientului pentru comenzi ți vanzari.',
+        href: '/clienti',
+        cta: 'Adauga client',
+        done: clienti.length > 0,
+      },
+      {
+        key: 'order',
+        title: 'Creeaza prima comanda',
+        description: 'Introdu o comanda noua ți urmareste livrarea.',
+        href: '/comenzișadd=1',
+        cta: 'Adauga comanda',
+        done: comenzi.length > 0,
+      },
+    ],
+    [clienti.length, comenzi.length, parcele.length, recoltari.length],
+  )
+  const onboardingCompletedCount = onboardingSteps.filter((step) => step.done).length
+  const onboardingProgress = Math.round((onboardingCompletedCount / onboardingSteps.length) * 100)
+  const shouldShowOnboardingGuide = !isDemoModeEnabled() && onboardingCompletedCount < onboardingSteps.length
+  const nextOnboardingStep = onboardingSteps.find((step) => !step.done) ?? onboardingSteps[0]
 
   return (
-    <AppShell
-      header={
-        <PageHeader
-          title="Dashboard"
-          subtitle="Metrici cheie pentru ziua curenta"
-          rightSlot={<Sprout className="h-6 w-6" />}
-        />
-      }
-    >
-      <div className="mx-auto w-full max-w-5xl space-y-4 py-4 lg:mx-auto lg:max-w-7xl lg:space-y-6 xl:max-w-screen-xl xl:space-y-8">`n        {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut incarca datele.'} /> : null}
-        {isLoading ? <LoadingState label="Se incarca metricile..." /> : null}
+    <AppShell header={<PageHeader title="Dashboard" subtitle="Planul de azi" />}>
+      <div className="mx-auto mt-4 w-full max-w-[980px] sm:mt-0 lg:max-w-[1360px]" style={{ paddingTop: spacing.xxl, paddingBottom: spacing.md }}>
+        {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
+        {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
+
+        {!isLoading && !hasError && shouldRedirectToStart ? (
+          <LoadingState label="Se pregătește onboarding..." />
+        ) : null}
 
         {!isLoading && !hasError ? (
-          <div className="space-y-4 lg:hidden">
-            <section className="rounded-xl border border-[var(--agri-border)] bg-white shadow-sm">
-              <div className="grid grid-cols-2">
-                {[
-                  { key: 'cules', label: 'Cules azi', value: `${kgAzi.toFixed(1)} kg`, icon: Scale },
-                  { key: 'livrat', label: 'Livrat azi', value: `${kgLivrateAzi.toFixed(1)} kg`, icon: Package },
-                  { key: 'venit', label: 'Venit azi', value: formatCurrency(venitAzi), icon: Banknote },
-                  { key: 'comenzi', label: 'Comenzi active', value: String(comenziActiveCount), icon: ClipboardList },
-                ].map((item, index) => {
-                  const Icon = item.icon
-                  return (
-                    <div
-                      key={item.key}
-                      className={`px-4 py-3 ${index % 2 === 0 ? 'border-r border-[var(--agri-border)]' : ''} ${index < 2 ? 'border-b border-[var(--agri-border)]' : ''}`}
-                    >
-                      <div className="mb-1 flex items-center gap-1.5 text-xs text-slate-500">
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </div>
-                      <p className={`text-xl font-bold leading-none ${item.key === 'venit' ? 'value-money-positive' : item.key === 'comenzi' ? 'text-[var(--agri-text)]' : 'value-kg'}`}>{item.value}</p>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-
-            {actionItems.length > 0 ? (
-              <section className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-[var(--agri-text)]">De facut</h2>
-                  <span className="rounded-full bg-[var(--agri-surface-muted)] px-2 py-0.5 text-xs font-semibold text-[var(--agri-text-muted)]">
-                    {actionItems.length}
-                  </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            {shouldShowOnboardingGuide ? (
+              <section
+                style={{
+                  background: colors.white,
+                  borderRadius: radius.xl,
+                  boxShadow: shadows.card,
+                  border: `1px solid ${colors.blueLight}`,
+                  padding: spacing.lg,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: spacing.sm,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+                  <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Ghid de pornire</h3>
+                  <StatusBadge text={`${onboardingCompletedCount}/${onboardingSteps.length}`} variant="info" />
                 </div>
-                <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white shadow-sm">
-                  {actionItems.map((item, index) => (
-                    <Link
-                      key={item.id}
-                      href={item.href}
-                      className={`flex items-center gap-2 px-4 py-2 text-sm text-[var(--agri-text)] ${index > 0 ? 'border-t border-[var(--agri-border)]' : ''}`}
+                <div style={{ height: 6, borderRadius: radius.full, background: colors.grayLight, overflow: 'hidden' }}>
+                  <div style={{ width: `${onboardingProgress}%`, height: '100%', background: colors.primary }} />
+                </div>
+                <div style={{ display: 'grid', gap: spacing.xs }}>
+                  {onboardingSteps.map((step, index) => (
+                    <button
+                      key={step.key}
+                      type="button"
+                      onClick={() => router.push(step.href)}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        border: `1px solid ${step.done ? colors.green : colors.grayLight}`,
+                        borderRadius: radius.md,
+                        background: step.done ? colors.greenLight : colors.white,
+                        padding: `${spacing.xs + 2}px ${spacing.sm}px`,
+                        cursor: 'pointer',
+                        display: 'grid',
+                        gridTemplateColumns: 'auto 1fr auto',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                      }}
                     >
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          item.tone === 'danger'
-                            ? 'bg-red-500'
-                            : item.tone === 'warning'
-                              ? 'bg-amber-500'
-                              : 'bg-blue-500'
-                        }`}
-                      />
-                      <span className="line-clamp-2">{item.text}</span>
-                    </Link>
+                      <span style={{ fontSize: 13 }}>{step.done ? '✅' : `${index + 1}.`}</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: colors.dark }}>{step.title}</span>
+                        <span style={{ display: 'block', fontSize: 10, color: colors.gray }}>{step.description}</span>
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.primary }}>{step.cta}</span>
+                    </button>
                   ))}
                 </div>
+                {nextOnboardingStep ? (
+                  <button
+                    type="button"
+                    onClick={() => router.push(nextOnboardingStep.href)}
+                    style={{
+                      border: 'none',
+                      borderRadius: radius.lg,
+                      background: colors.primary,
+                      color: colors.white,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      padding: '12px 14px',
+                      minHeight: 46,
+                      width: '100%',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Continua: {nextOnboardingStep.cta}
+                  </button>
+                ) : null}
               </section>
             ) : null}
 
-            <section className="space-y-2">
-              <h2 className="text-sm font-semibold text-[var(--agri-text)]">Profit sezon {today.getFullYear()}</h2>
-              <div className="rounded-xl border border-[var(--agri-border)] bg-white shadow-sm">
-                <div className="grid grid-cols-2">
-                  {[
-                    { key: 'venit', label: 'Venit', value: formatCurrency(venitSezon) },
-                    { key: 'cost', label: 'Cost', value: formatCurrency(costSezon) },
-                    { key: 'profit', label: 'Profit', value: formatCurrency(profitSezon) },
-                    { key: 'marja', label: 'Marja', value: `${marjaSezon.toFixed(1)}%` },
-                  ].map((item, index) => (
-                    <div
-                      key={item.key}
-                      className={`px-4 py-3 ${index % 2 === 0 ? 'border-r border-[var(--agri-border)]' : ''} ${index < 2 ? 'border-b border-[var(--agri-border)]' : ''}`}
-                    >
-                      <p className="text-xs text-slate-500">{item.label}</p>
-                      <p className={`mt-1 text-base font-bold leading-none ${item.key === 'cost' ? 'value-money-negative' : item.key === 'marja' ? (marjaSezon < 0 ? 'value-money-negative' : 'value-money-positive') : item.key === 'profit' ? (profitSezon < 0 ? 'value-money-negative' : 'value-money-positive') : 'value-money-positive'}`}>{item.value}</p>
-                    </div>
-                  ))}
-                </div>
+            {emptyState ? (
+              <div
+                style={{
+                  background: colors.coralLight,
+                  borderRadius: radius.xl,
+                  boxShadow: shadows.card,
+                  border: `1px solid ${colors.coral}`,
+                  padding: spacing.xxl,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 40, lineHeight: 1, marginBottom: spacing.md }}>🌱</div>
+                <h2 style={{ fontSize: 20, lineHeight: 1.2, margin: 0, color: colors.dark }}>Bun venit în Zmeurel OS!</h2>
+                <p style={{ margin: `${spacing.sm}px 0 ${spacing.lg}px`, color: colors.gray, fontSize: 13 }}>
+                  Începe prin a-ți adăuga primul teren.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => router.push('/parcele')}
+                  style={{
+                    border: 'none',
+                    borderRadius: radius.lg,
+                    background: colors.primary,
+                    color: colors.white,
+                    fontWeight: 700,
+                    fontSize: 14,
+                    padding: '14px',
+                    minHeight: 48,
+                    width: '100%',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🗺️ Adaugă primul teren
+                </button>
+                <p style={{ marginTop: spacing.sm, color: colors.gray, fontSize: 11 }}>
+                  Apoi poți adăuga recoltări, comenzi și cheltuieli.
+                </p>
               </div>
-            </section>
-          </div>
-        ) : null}
-
-        <div className="hidden lg:block space-y-4 lg:space-y-6 xl:space-y-8">
-          <section className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-6 xl:gap-5">
-            {isLoading
-              ? Array.from({ length: 14 }).map((_, index) => <KpiCardSkeleton key={index} />)
-              : (
-                <>
-                  <BaseCard className="min-h-[196px] lg:min-h-[110px] sm:col-span-2">
-                    <div className="grid h-full grid-cols-2 gap-3">
-                      <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 lg:flex lg:flex-col lg:gap-1 lg:space-y-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-muted-foreground">Cal1</p>
-                          <ShoppingBasket className="h-4 w-4 text-[var(--agri-text-muted)]" />
-                        </div>
-                        <p className="text-base font-medium leading-none text-[var(--agri-text)] sm:text-2xl lg:text-xl lg:font-semibold">
-                          <span className="value-kg">{`${Number(stocGlobal.cal1 || 0).toFixed(1)} kg`}</span>
-                        </p>
-                        <span
-                          className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold ${
-                            Number(stocGlobal.cal1 || 0) > 0
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-slate-200 text-slate-800'
-                          }`}
-                        >
-                          {Number(stocGlobal.cal1 || 0) > 0 ? (
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          ) : (
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          )}
-                          {Number(stocGlobal.cal1 || 0) > 0 ? 'Up' : 'Stabil'}
-                        </span>
-                      </div>
-
-                      <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 lg:flex lg:flex-col lg:gap-1 lg:space-y-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-muted-foreground">Cal2</p>
-                          <ShoppingBasket className="h-4 w-4 text-[var(--agri-text-muted)]" />
-                        </div>
-                        <p className="text-base font-medium leading-none text-[var(--agri-text)] sm:text-2xl lg:text-xl lg:font-semibold">
-                          <span className="value-kg">{`${Number(stocGlobal.cal2 || 0).toFixed(1)} kg`}</span>
-                        </p>
-                        <span
-                          className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold ${
-                            Number(stocGlobal.cal2 || 0) > 0
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-slate-200 text-slate-800'
-                          }`}
-                        >
-                          {Number(stocGlobal.cal2 || 0) > 0 ? (
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                          ) : (
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          )}
-                          {Number(stocGlobal.cal2 || 0) > 0 ? 'Up' : 'Stabil'}
-                        </span>
-                      </div>
-                    </div>
-                  </BaseCard>
-                  <BaseCard className="min-h-[196px] lg:min-h-[110px] sm:col-span-2">
-                    <div className="grid h-full grid-cols-2 gap-3">
-                      <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 lg:flex lg:flex-col lg:gap-1 lg:space-y-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-muted-foreground">Culese azi</p>
-                          <ShoppingBasket className="h-4 w-4 text-[var(--agri-text-muted)]" />
-                        </div>
-                        <p className="text-base font-medium leading-none text-[var(--agri-text)] sm:text-2xl lg:text-xl lg:font-semibold">
-                          <span className="value-kg">{`${kgAzi.toFixed(1)} kg`}</span>
-                        </p>
-                        <span
-                          className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold ${
-                            kgAzi > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-800'
-                          }`}
-                        >
-                          {kgAzi > 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                          {kgAzi > 0 ? 'Up' : 'Stabil'}
-                        </span>
-                      </div>
-
-                      <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 lg:flex lg:flex-col lg:gap-1 lg:space-y-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm text-muted-foreground">Livrate azi</p>
-                          <ShoppingBasket className="h-4 w-4 text-[var(--agri-text-muted)]" />
-                        </div>
-                        <p className="text-base font-medium leading-none text-[var(--agri-text)] sm:text-2xl lg:text-xl lg:font-semibold">
-                          <span className="value-kg">{`${kgLivrateAzi.toFixed(1)} kg`}</span>
-                        </p>
-                        <span
-                          className={`inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold ${
-                            kgLivrateAzi > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-800'
-                          }`}
-                        >
-                          {kgLivrateAzi > 0 ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
-                          {kgLivrateAzi > 0 ? 'Down' : 'Stabil'}
-                        </span>
-                      </div>
-                    </div>
-                  </BaseCard>
-                  <KpiCard
-                    title="Venit estimat"
-                    value={<span className="value-money-positive">{formatCurrency(venitEstimat)}</span>}
-                    subtitle={`Estimare la ${PRICE_PER_KG_ESTIMATE} lei/kg`}
-                    trend={venitEstimat > 0 ? 'up' : 'neutral'}
-                    icon={<Coins className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Cost munca"
-                    value={<span className="value-money-negative">{formatCurrency(costMunca)}</span>}
-                    subtitle={`Estimare la ${LABOR_COST_PER_KG} lei/kg`}
-                    trend={costMunca > 0 ? 'down' : 'neutral'}
-                    icon={<Tractor className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Parcele active"
-                    value={parceleActive}
-                    subtitle={`${parcele.length} parcele in total`}
-                    trend="neutral"
-                    icon={<MapPinned className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Lucrari programate"
-                    value={lucrariProgramate}
-                    subtitle="Azi si zilele urmatoare"
-                    trend={lucrariProgramate > 0 ? 'up' : 'neutral'}
-                    icon={<CalendarClock className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Profit sezon"
-                    value={<span className={profitSezon >= 0 ? 'value-money-positive' : 'value-money-negative'}>{formatCurrency(profitSezon)}</span>}
-                    subtitle="Venit - cost sezon curent"
-                    trend={profitSezon >= 0 ? 'up' : 'down'}
-                    icon={<Coins className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Comenzi azi"
-                    value={comenziAziCount}
-                    subtitle="Total comenzi de livrat azi"
-                    trend={comenziAziCount > 0 ? 'up' : 'neutral'}
-                    icon={<ShoppingBasket className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Kg de livrat azi"
-                    value={<span className="value-kg">{`${kgDeLivratAzi.toFixed(1)} kg`}</span>}
-                    subtitle="Cantitate programata pentru azi"
-                    trend={kgDeLivratAzi > 0 ? 'up' : 'neutral'}
-                    icon={<MapPinned className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Comenzi viitoare"
-                    value={Object.keys(comenziViitoareByDateMap).length}
-                    subtitle={comenziViitoareSummary || 'Fara livrari viitoare'}
-                    trend={Object.keys(comenziViitoareByDateMap).length > 0 ? 'up' : 'neutral'}
-                    icon={<CalendarClock className="h-5 w-5" />}
-                  />
-                  <KpiCard
-                    title="Comenzi restante"
-                    value={restanteCount}
-                    subtitle="Comenzi cu termen depasit"
-                    trend={restanteCount > 0 ? 'down' : 'neutral'}
-                    icon={<Tractor className="h-5 w-5" />}
-                  />
-                </>
-              )}
-          </section>
-
-          {!isLoading ? (
-            <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-6">
-              <FeatureGate feature="smart_alerts">
-                <section className="agri-card space-y-3 p-4 sm:p-5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-[var(--agri-text)]">Smart Alerts</h3>
-                    <div className="flex items-center gap-2">
-                      {filteredAlerts.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const keys = filteredAlerts.map((alert) => alert.alertKey)
-                            setOptimisticDismissedKeys((prev) => {
-                              const next = new Set(prev)
-                              keys.forEach((key) => next.add(key))
-                              return next
-                            })
-                            dismissAllMutation.mutate(keys)
-                          }}
-                          className="rounded-lg border border-[var(--agri-border)] bg-white px-2 py-1 text-xs font-semibold text-[var(--agri-text)]"
-                          disabled={dismissAllMutation.isPending}
-                        >
-                          Ascunde toate azi
-                        </button>
-                      ) : null}
-                      <span className="rounded-full bg-[var(--agri-surface-muted)] px-2 py-1 text-xs font-semibold text-[var(--agri-text-muted)]">
-                        {filteredAlerts.length}
-                      </span>
-                    </div>
+            ) : (
+              <>
+                <section data-tutorial="dashboard-stats">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    <MiniCard
+                      icon="🫐"
+                      label="Recoltat azi"
+                      value={`${formatNumber(totalKgAzi)} kg`}
+                      sub={`${recoltariAzi.length} recoltări`}
+                      trend={recoltareTrend}
+                      onClick={() => router.push('/recoltari')}
+                    />
+                    <MiniCard
+                      icon="📦"
+                      label="De livrat"
+                      value={`${comenziActive.length}`}
+                      sub={`${formatNumber(kgComenziActive)} kg`}
+                      onClick={() => router.push('/comenzi')}
+                    />
+                    <MiniCard
+                      icon="✂️"
+                      label="Activități"
+                      value={`${activitatiAziCount}`}
+                      sub="azi"
+                      onClick={() => router.push('/activitati-agricole')}
+                    />
                   </div>
+                </section>
 
-                  {filteredAlerts.length === 0 ? (
-                    <p className="text-sm font-medium text-[var(--agri-text-muted)]">Nu exista alerte active.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {filteredAlerts.map((alert) => (
+                {solarParcele.length > 0 ? (
+                  <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Solarii</h3>
+                      <StatusBadge text={`${solarParcele.length} active`} variant="success" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                      <MiniCard
+                        icon="🌿"
+                        label="Număr solarii"
+                        value={`${solarParcele.length}`}
+                        sub="unitati de tip solar"
+                        onClick={() => router.push('/parcele')}
+                      />
+                      <MiniCard
+                        icon="🪴"
+                        label="Plante totale"
+                        value={`${formatNumber(solarPlantTotal, 0)}`}
+                        sub="plante in solarii"
+                        onClick={() => router.push('/parcele')}
+                      />
+                      <MiniCard
+                        icon="🧺"
+                        label="Recoltat azi"
+                        value={`${formatNumber(solarHarvestAziKg)} kg`}
+                        sub="din solarii"
+                        onClick={() => router.push('/recoltari')}
+                      />
+                      <MiniCard
+                        icon="📈"
+                        label="Sezon solarii"
+                        value={`${formatNumber(solarHarvestSezonKg)} kg`}
+                        sub={`de la ${formatDateLabel(seasonStartIso)}`}
+                        onClick={() => router.push('/recoltari')}
+                      />
+                      <MiniCard
+                        icon="🌡️"
+                        label="Temp. medie recentă"
+                        value={solarAvgTemp === null ? '-' : `${formatNumber(solarAvgTemp, 1)}°C`}
+                        sub={
+                          solarClimateQuery.isLoading
+                            ? 'se încarcă climatul...'
+                            : recentClimateSamples.length > 0
+                              ? `${recentClimateSamples.length} înregistrări`
+                              : 'f?r? date climat'
+                        }
+                        onClick={() => router.push('/parcele')}
+                      />
+                      <MiniCard
+                        icon="💧"
+                        label="Umiditate medie"
+                        value={solarAvgHumidity === null ? '-' : `${formatNumber(solarAvgHumidity, 0)}%`}
+                        sub={
+                          solarClimateQuery.isLoading
+                            ? 'se încarcă climatul...'
+                            : recentClimateSamples.length > 0
+                              ? 'fereastra recent?'
+                              : 'f?r? date climat'
+                        }
+                        onClick={() => router.push('/parcele')}
+                      />
+                    </div>
+                  </section>
+                ) : null}
+
+                {solarParcele.length > 0 ? (
+                  <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Planul zilei in solarii</h3>
+                      <StatusBadge text={hasSolarWarnings ? 'prioritati' : 'ok'} variant={hasSolarWarnings ? 'warning' : 'success'} />
+                    </div>
+
+                    {solarStagesQuery.isError || solarClimateQuery.isError ? (
+                      <AlertCard
+                        icon="⚠️"
+                        label="Date partiale"
+                        value="Nu am putut încărca toate datele pentru solarii"
+                        sub="Planul zilei foloseste doar datele disponibile momentan."
+                        variant="warning"
+                        onClick={() => router.push('/parcele')}
+                      />
+                    ) : null}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                      {solarPlanItems.map((item) => (
                         <AlertCard
-                          key={alert.id}
-                          alert={alert}
-                          onDismiss={(selectedAlert) => {
-                            setOptimisticDismissedKeys((prev) => new Set(prev).add(selectedAlert.alertKey))
-                            dismissAlertMutation.mutate(selectedAlert.alertKey)
-                          }}
-                          dismissing={dismissAlertMutation.isPending}
+                          key={item.key}
+                          icon={item.variant === 'danger' ? '🔥' : item.variant === 'warning' ? '⚠️' : '✅'}
+                          label={item.label}
+                          value={item.value}
+                          sub={item.sub}
+                          variant={item.variant}
+                          onClick={() => router.push(item.href)}
                         />
                       ))}
                     </div>
-                  )}
+                  </section>
+                ) : null}
+
+                {hasAlerts ? (
+                  <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Alerte</h3>
+                      <StatusBadge text="active" variant="warning" />
+                    </div>
+
+                    {visibleUnrecoltata ? (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            dismissUnrecoltata(visibleUnrecoltata.id)
+                          }}
+                          aria-label="Dismiss"
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            right: 6,
+                            border: 'none',
+                            background: colors.white,
+                            borderRadius: radius.full,
+                            width: 22,
+                            height: 22,
+                            fontWeight: 700,
+                            color: colors.coral,
+                            cursor: 'pointer',
+                            zIndex: 2,
+                          }}
+                        >
+                          ×
+                        </button>
+                        <AlertCard
+                          icon="⚠️"
+                          label="Terenuri nerecoltate"
+                          value={`${formatUnitateDisplayName(visibleUnrecoltata.nume_parcela, visibleUnrecoltata.tip_unitate, 'Parcela')} — nerecoltat azi`}
+                          sub={`${unrecoltateParcele.length} terenuri active fără recoltare azi`}
+                          variant="danger"
+                          onClick={() => router.push('/recoltari')}
+                        />
+                      </div>
+                    ) : null}
+
+                    {comenziRestante.length > 0 ? (
+                      <AlertCard
+                        icon="⚠️"
+                        label="Comenzi restante"
+                        value={`${comenziRestante.length} comenzi restante`}
+                        sub="Au depășit data de livrare"
+                        variant="warning"
+                        onClick={() => router.push('/comenzi')}
+                      />
+                    ) : null}
+
+                    {pauseAlert ? (
+                      <AlertCard
+                        icon="⚠️"
+                        label="Timp pauză activ"
+                        value={`${pauseAlert.parcelaName} — pauză până ${formatDateLabel(pauseAlert.exp)}`}
+                        sub={`${pauseAlert.produs} aplicat pe ${formatDateLabel(pauseAlert.data)}`}
+                        variant="warning"
+                        onClick={() => router.push('/activitati-agricole')}
+                      />
+                    ) : null}
+                  </section>
+                ) : null}
+
+                <div className="lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)] lg:gap-4">
+                <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Recoltare azi pe terenuri</h3>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/recoltari')}
+                      style={{ border: 'none', background: 'transparent', color: colors.primary, fontSize: 12, fontWeight: 700 }}
+                    >
+                      Vezi tot →
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {activeParcele.map((parcela) => {
+                      const kg = asNumber(recoltarePerParcelaAzi.get(parcela.id))
+                      const harvested = kg > 0
+                      return (
+                        <button
+                          key={parcela.id}
+                          type="button"
+                          onClick={() => router.push(`/recoltari?parcela=${parcela.id}`)}
+                          style={{
+                            textAlign: 'left',
+                            borderRadius: radius.lg,
+                            border: `1px solid ${harvested ? colors.green : colors.grayLight}`,
+                            background: harvested ? colors.greenLight : colors.grayLight,
+                            boxShadow: shadows.card,
+                            padding: spacing.md,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>
+                            {formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate)}
+                          </div>
+                          <div style={{ fontSize: 10, color: colors.gray, marginTop: 2 }}>{parcela.soi_plantat || '-'}</div>
+                          <div style={{ marginTop: spacing.sm, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                            <span style={{ fontSize: 20, fontWeight: 700, color: harvested ? colors.green : colors.dark }}>
+                              {formatNumber(kg)}
+                            </span>
+                            <span style={{ fontSize: 10, color: colors.gray }}>kg</span>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </section>
-              </FeatureGate>
 
-              <RecentActivityCard items={recentActivityItems} />
-            </div>
-          ) : null}
+                <section data-tutorial="dashboard-comenzi" style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Financiar sezon</h3>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/rapoarte')}
+                      style={{ border: 'none', background: 'transparent', color: colors.primary, fontSize: 12, fontWeight: 700 }}
+                    >
+                      Rapoarte →
+                    </button>
+                  </div>
 
-          {!isLoading ? (
-            <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:gap-6">
-              <ProductieAziCard cal1Kg={cal1Azi} cal2Kg={cal2Azi} totalKg={kgAzi} />
-              <FinanciarAziCard venit={venitAzi} cheltuieli={cheltuieliAzi} profit={profitAzi} />
-            </div>
-          ) : null}
-        </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {[
+                      { key: 'venit', label: 'Venit', value: venitSezon, series: venitSeries, color: colors.green, trend: venitTrend },
+                      { key: 'cost', label: 'Cheltuieli', value: costSezon, series: costSeries, color: colors.coral, trend: costTrend },
+                      { key: 'profit', label: 'Profit', value: profitSezon, series: profitSeries, color: colors.primary, trend: profitTrend },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => router.push('/rapoarte')}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          background: colors.white,
+                          border: `1px solid ${colors.grayLight}`,
+                          borderRadius: radius.xl,
+                          boxShadow: shadows.card,
+                          padding: spacing.lg,
+                          minHeight: 110,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: 10, color: colors.gray }}>{item.label}</span>
+                          {item.trend ? <TrendBadge value={item.trend.value} positive={item.trend.positive} /> : null}
+                        </div>
+                        <div style={{ marginTop: spacing.xs, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                          <span
+                            style={{
+                              fontSize: 16,
+                              fontWeight: 700,
+                              color: item.key === 'profit' ? (item.value >= 0 ? colors.green : colors.coral) : colors.dark,
+                            }}
+                          >
+                            {formatMoney(item.value)}
+                          </span>
+                          <span style={{ fontSize: 9, color: colors.gray }}>RON</span>
+                        </div>
+                        {hasSparkline(item.series) ? (
+                          <div style={{ marginTop: spacing.sm }}>
+                            <Sparkline data={item.series} color={item.color} width={64} height={22} />
+                          </div>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                </section>
 
+                <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Comenzi de livrat</h3>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/comenzi')}
+                      style={{ border: 'none', background: 'transparent', color: colors.primary, fontSize: 12, fontWeight: 700 }}
+                    >
+                      Toate →
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/comenzi?filter=azi')}
+                      style={{
+                        textAlign: 'left',
+                        border: `1px solid ${comenziAzi.length > 0 ? colors.coral : colors.gray}`,
+                        borderLeft: `4px solid ${comenziAzi.length > 0 ? colors.coral : colors.gray}`,
+                        background: comenziAzi.length > 0 ? colors.coralLight : colors.grayLight,
+                        borderRadius: radius.xl,
+                        boxShadow: shadows.card,
+                        padding: spacing.lg,
+                        minHeight: 110,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 10, fontWeight: 700, color: comenziAzi.length > 0 ? colors.coral : colors.gray }}>AZI</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: colors.dark, lineHeight: 1 }}>{comenziAzi.length}</div>
+                      <div style={{ fontSize: 12, color: colors.gray }}>{formatNumber(kgComenziAzi)} kg</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => router.push('/comenzi?filter=viitoare')}
+                      style={{
+                        textAlign: 'left',
+                        border: `1px solid ${colors.yellow}`,
+                        borderLeft: `4px solid ${colors.yellow}`,
+                        background: colors.yellowLight,
+                        borderRadius: radius.xl,
+                        boxShadow: shadows.card,
+                        padding: spacing.lg,
+                        minHeight: 110,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ fontSize: 10, fontWeight: 700, color: colors.dark }}>VIITOARE</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: colors.dark, lineHeight: 1 }}>{comenziViitoare.length}</div>
+                      <div style={{ fontSize: 12, color: colors.gray }}>{formatNumber(kgComenziViitoare)} kg</div>
+                    </button>
+                  </div>
+                </section>
+
+                {recentActivity.length > 0 ? (
+                  <section className="lg:self-start" style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Activitate recentă</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                      {recentActivity.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => router.push(item.href)}
+                          style={{
+                            width: '100%',
+                            border: `1px solid ${colors.grayLight}`,
+                            background: colors.white,
+                            borderRadius: radius.lg,
+                            boxShadow: shadows.card,
+                            padding: spacing.sm,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: spacing.sm,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: radius.md,
+                              background: item.iconBg,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 16,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {item.icon}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 700,
+                                color: colors.dark,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {item.text}
+                            </div>
+                            <div style={{ marginTop: 2, fontSize: 10, color: colors.gray }}>{formatTimestamp(item.timestamp)}</div>
+                          </div>
+                          <div style={{ fontSize: 20, color: colors.gray, lineHeight: 1 }}>›</div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
       </div>
+      <DemoFirstRunTutorial open={showTutorial} onSkip={closeTutorial} onFinish={finishTutorial} />
     </AppShell>
   )
 }
-
-
-

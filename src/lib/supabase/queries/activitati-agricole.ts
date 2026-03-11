@@ -1,5 +1,6 @@
 // src/lib/supabase/queries/activitati-agricole.ts
 import { getSupabase } from '../client'
+import { generateBusinessId } from '@/lib/supabase/business-ids'
 
 export const TIPURI_ACTIVITATI = [
   'Tratament Fungicid',
@@ -31,6 +32,7 @@ export interface ActivitateAgricola {
   updated_by: string | null
   created_at: string
   updated_at: string
+  tenant_id: string | null
 }
 
 export interface CreateActivitateAgricolaInput {
@@ -78,33 +80,6 @@ const toError = (error: SupabaseLikeError): Error & SupabaseLikeError => {
   })
 }
 
-async function generateNextId(): Promise<string> {
-  const supabase = getSupabase()
-
-  const { data, error } = await supabase
-    .from('activitati_agricole')
-    .select('id_activitate')
-    .like('id_activitate', 'AA%')
-    .order('id_activitate', { ascending: false })
-    .limit(1)
-
-  if (error) throw error
-
-  if (!data || data.length === 0 || !data[0]?.id_activitate) {
-    return 'AA001'
-  }
-
-  const lastId = data[0].id_activitate
-  const numericPart = parseInt(lastId.replace('AA', ''), 10)
-
-  if (Number.isNaN(numericPart)) {
-    return 'AA001'
-  }
-
-  const nextNumber = numericPart + 1
-  return `AA${nextNumber.toString().padStart(3, '0')}`
-}
-
 export async function getActivitatiAgricole(): Promise<ActivitateAgricola[]> {
   const supabase = getSupabase()
 
@@ -126,7 +101,7 @@ export async function createActivitateAgricola(
   input: CreateActivitateAgricolaInput
 ): Promise<ActivitateAgricola> {
   const supabase = getSupabase()
-  const nextId = await generateNextId()
+  const nextId = await generateBusinessId(supabase, 'AA')
   const {
     data: { user },
   } = await supabase.auth.getUser()

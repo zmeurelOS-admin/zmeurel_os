@@ -22,3 +22,7 @@ export function getSupabase() {
   return supabaseInstance
 }
 
+export function createClient() {
+  return getSupabase()
+}
+
