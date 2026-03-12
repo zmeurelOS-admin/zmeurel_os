@@ -1,0 +1,138 @@
+﻿1	import { createServerClient } from '@supabase/ssr'
+2	import { NextResponse, type NextRequest } from 'next/server'
+3	
+4	function clearStaleSupabaseAuthCookies(request: NextRequest, response: NextResponse) {
+5	  const authCookieRegex = /^sb-.*-auth-token(?:\.\d+)?$/
+6	  const codeVerifierRegex = /^sb-.*-auth-token-code-verifier$/
+7	
+8	  request.cookies.getAll().forEach(({ name }) => {
+9	    if (!authCookieRegex.test(name) && !codeVerifierRegex.test(name)) {
+10	      return
+11	    }
+12	
+13	    request.cookies.delete(name)
+14	    response.cookies.delete(name)
+15	  })
+16	}
+17	
+18	export async function proxy(request: NextRequest) {
+19	  let supabaseResponse = NextResponse.next({
+20	    request,
+21	  })
+22	
+23	  const supabase = createServerClient(
+24	    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+25	    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+26	    {
+27	      cookies: {
+28	        getAll() {
+29	          return request.cookies.getAll()
+30	        },
+31	        setAll(cookiesToSet) {
+32	          cookiesToSet.forEach(({ name, value }) =>
+33	            request.cookies.set(name, value)
+34	          )
+35	          supabaseResponse = NextResponse.next({
+36	            request,
+37	          })
+38	          cookiesToSet.forEach(({ name, value, options }) =>
+39	            supabaseResponse.cookies.set(name, value, options)
+40	          )
+41	        },
+42	      },
+43	    }
+44	  )
+45	
+46	  const { pathname } = request.nextUrl
+47	
+48	  const isPublicAssetRoute =
+49	    pathname === '/manifest.webmanifest' ||
+50	    pathname === '/manifest.json' ||
+51	    pathname === '/sw.js' ||
+52	    pathname === '/service-worker.js' ||
+53	    pathname === '/favicon.ico' ||
+54	    pathname.startsWith('/icons/')
+55	
+56	  // Public routes that should NOT require authentication
+57	  const isPublicRoute =
+58	    pathname === '/' ||
+59	    pathname === '/login' ||
+60	    pathname === '/register' ||
+61	    pathname === '/callback' ||
+62	    pathname.startsWith('/auth/') ||
+63	    pathname.startsWith('/reset-password') ||
+64	    pathname.startsWith('/update-password') ||
+65	    pathname.startsWith('/api/cron/google-contacts-sync') ||
+66	    isPublicAssetRoute
+67	
+68	  const isAuthCallbackRoute =
+69	    pathname === '/auth/callback' ||
+70	    pathname === '/auth/callback/' ||
+71	    pathname === '/callback' ||
+72	    pathname === '/callback/'
+73	
+74	  // Never touch auth cookies on callback routes; PKCE exchange depends on code_verifier.
+75	  if (isAuthCallbackRoute) {
+76	    return supabaseResponse
+77	  }
+78	
+79	  // Get the current user session
+80	  let user = null
+81	  let authErrorCode: string | null = null
+82	
+83	  try {
+84	    const {
+85	      data: { user: currentUser },
+86	      error,
+87	    } = await supabase.auth.getUser()
+88	
+89	    user = currentUser
+90	    authErrorCode = (error as { code?: string } | null)?.code ?? null
+91	  } catch (error) {
+92	    authErrorCode = (error as { code?: string } | null)?.code ?? null
+93	  }
+94	
+95	  if (authErrorCode === 'refresh_token_not_found') {
+96	    clearStaleSupabaseAuthCookies(request, supabaseResponse)
+97	    user = null
+98	  }
+99	
+100	  // If user is NOT authenticated
+101	  if (!user) {
+102	    // Allow access to public routes
+103	    if (isPublicRoute) {
+104	      return supabaseResponse
+105	    }
+106	    
+107	    // Redirect to login for protected routes
+108	    const redirectUrl = request.nextUrl.clone()
+109	    redirectUrl.pathname = '/login'
+110	    return NextResponse.redirect(redirectUrl)
+111	  }
+112	
+113	  // If user IS authenticated and trying to access auth entry pages, redirect to dashboard
+114	  if (user && (pathname === '/login' || pathname === '/reset-password-request')) {
+115	    const redirectUrl = request.nextUrl.clone()
+116	    redirectUrl.pathname = '/dashboard'
+117	    return NextResponse.redirect(redirectUrl)
+118	  }
+119	
+120	  // User is authenticated, allow access to protected routes
+121	  return supabaseResponse
+122	}
+123	
+124	export const config = {
+125	  matcher: [
+126	    /*
+127	     * Match all request paths except:
+128	     * - _next/static (static files)
+129	     * - _next/image (image optimization files)
+130	     * - favicon.ico (favicon file)
+131	     * - manifest + service worker assets
+132	     * - icons directory
+133	     * - public files (images, etc.)
+134	     */
+135	    '/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|service-worker\\.js|icons/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+136	  ],
+137	}
+138	

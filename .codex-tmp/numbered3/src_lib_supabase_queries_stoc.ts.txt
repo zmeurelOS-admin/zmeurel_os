@@ -1,0 +1,100 @@
+1	import { getSupabase } from '../client'
+2	
+3	export interface StocGlobal {
+4	  cal1: number
+5	  cal2: number
+6	}
+7	
+8	export interface AjustareStocInput {
+9	  cantitate_cal1: number
+10	  cantitate_cal2: number
+11	  motiv?: string | null
+12	  data?: string
+13	}
+14	
+15	type SupabaseLikeError = {
+16	  code?: string
+17	  message?: string
+18	}
+19	
+20	function round2(value: number): number {
+21	  return Math.round((Number(value) || 0) * 100) / 100
+22	}
+23	
+24	function isMissingColumnError(error: unknown, columnName: string): boolean {
+25	  const e = (error ?? {}) as SupabaseLikeError
+26	  const message = (e.message ?? '').toLowerCase()
+27	  return e.code === 'PGRST204' || message.includes(columnName.toLowerCase())
+28	}
+29	
+30	async function getTenantIdFromSession(): Promise<string> {
+31	  const supabase = getSupabase()
+32	  const {
+33	    data: { user },
+34	    error: authError,
+35	  } = await supabase.auth.getUser()
+36	
+37	  if (authError || !user) throw new Error('Neautorizat')
+38	
+39	  const { data: tenant, error: tenantError } = await supabase
+40	    .from('tenants')
+41	    .select('id')
+42	    .eq('owner_user_id', user.id)
+43	    .single()
+44	
+45	  if (tenantError || !tenant?.id) throw new Error('Tenant invalid')
+46	  return tenant.id
+47	}
+48	
+49	export async function getStocGlobal(): Promise<StocGlobal> {
+50	  const supabase = getSupabase()
+51	
+52	  const { data, error } = await (supabase as any)
+53	    .from('miscari_stoc')
+54	    .select('cantitate_cal1,cantitate_cal2')
+55	
+56	  if (error) {
+57	    if (isMissingColumnError(error, 'cantitate_cal1') || isMissingColumnError(error, 'cantitate_cal2')) {
+58	      return { cal1: 0, cal2: 0 }
+59	    }
+60	    throw error
+61	  }
+62	
+63	  const totals = (data ?? []).reduce(
+64	    (acc: StocGlobal, row: { cantitate_cal1?: number | null; cantitate_cal2?: number | null }) => {
+65	      acc.cal1 += Number(row.cantitate_cal1 ?? 0)
+66	      acc.cal2 += Number(row.cantitate_cal2 ?? 0)
+67	      return acc
+68	    },
+69	    { cal1: 0, cal2: 0 }
+70	  )
+71	
+72	  return { cal1: round2(totals.cal1), cal2: round2(totals.cal2) }
+73	}
+74	
+75	export async function getStocCal1(): Promise<number> {
+76	  const global = await getStocGlobal()
+77	  return global.cal1
+78	}
+79	
+80	export async function getStocCal2(): Promise<number> {
+81	  const global = await getStocGlobal()
+82	  return global.cal2
+83	}
+84	
+85	export async function createAjustareStoc(input: AjustareStocInput): Promise<void> {
+86	  const supabase = getSupabase()
+87	  const tenantId = await getTenantIdFromSession()
+88	
+89	  const payload = {
+90	    tenant_id: tenantId,
+91	    tip: 'ajustare',
+92	    data: input.data ?? new Date().toISOString().split('T')[0],
+93	    cantitate_cal1: round2(input.cantitate_cal1),
+94	    cantitate_cal2: round2(input.cantitate_cal2),
+95	    descriere: input.motiv?.trim() || null,
+96	  }
+97	
+98	  const { error } = await (supabase as any).from('miscari_stoc').insert(payload)
+99	  if (error) throw error
+100	}

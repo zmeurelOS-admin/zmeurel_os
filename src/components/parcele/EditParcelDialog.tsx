@@ -117,7 +117,7 @@ export function EditParcelDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editeaza teren"
+      title="Editează teren"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}

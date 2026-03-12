@@ -1,0 +1,150 @@
+1	import type { SupabaseClient } from '@supabase/supabase-js'
+2	import type { Database } from '@/types/supabase'
+3	
+4	export const AUTO_MANOPERA_CATEGORY = 'Manoper\u0103 cules'
+5	export const AUTO_MANOPERA_DESCRIPTION_MARKER = '[AUTO_MANOPERA]'
+6	export const AUTO_MANOPERA_SYNC_PREFIX = 'auto_manopera'
+7	
+8	type SupabaseDbClient = SupabaseClient<Database>
+9	
+10	type RecoltareForManopera = {
+11	  culegator_id: string | null
+12	  kg_cal1: number | null
+13	  kg_cal2: number | null
+14	  valoare_munca_lei: number | null
+15	  pret_lei_pe_kg_snapshot: number | null
+16	}
+17	
+18	function round2(value: number): number {
+19	  return Math.round((Number(value) || 0) * 100) / 100
+20	}
+21	
+22	function normalizeDate(date: string): string {
+23	  return String(date || '').slice(0, 10)
+24	}
+25	
+26	function formatDateRo(date: string): string {
+27	  const normalized = normalizeDate(date)
+28	  const parsed = new Date(`${normalized}T00:00:00`)
+29	  if (Number.isNaN(parsed.getTime())) return normalized
+30	  return parsed.toLocaleDateString('ro-RO')
+31	}
+32	
+33	export function buildAutoManoperaSyncId(tenantId: string, date: string): string {
+34	  return `${AUTO_MANOPERA_SYNC_PREFIX}:${tenantId}:${normalizeDate(date)}`
+35	}
+36	
+37	export function isAutoManoperaCheltuiala(input: {
+38	  client_sync_id?: string | null
+39	  descriere?: string | null
+40	}): boolean {
+41	  const syncId = input.client_sync_id ?? ''
+42	  const descriere = input.descriere ?? ''
+43	  return syncId.startsWith(`${AUTO_MANOPERA_SYNC_PREFIX}:`) || descriere.startsWith(AUTO_MANOPERA_DESCRIPTION_MARKER)
+44	}
+45	
+46	async function generateNextCheltuialaId(supabase: SupabaseDbClient): Promise<string> {
+47	  const { data, error } = await supabase
+48	    .from('cheltuieli_diverse')
+49	    .select('id_cheltuiala')
+50	    .order('created_at', { ascending: false })
+51	    .limit(1)
+52	
+53	  if (error || !data?.length) return 'CH001'
+54	
+55	  const numericPart = Number.parseInt(String(data[0].id_cheltuiala || '').replace('CH', ''), 10)
+56	  if (!Number.isFinite(numericPart)) return 'CH001'
+57	  return `CH${String(numericPart + 1).padStart(3, '0')}`
+58	}
+59	
+60	export async function upsertManoperaCheltuiala(
+61	  supabase: SupabaseDbClient,
+62	  tenantId: string,
+63	  date: string
+64	): Promise<void> {
+65	  const normalizedDate = normalizeDate(date)
+66	  if (!tenantId || !normalizedDate) return
+67	
+68	  const syncId = buildAutoManoperaSyncId(tenantId, normalizedDate)
+69	
+70	  const { data: recoltariRows, error: recoltariError } = await supabase
+71	    .from('recoltari')
+72	    .select('culegator_id,kg_cal1,kg_cal2,valoare_munca_lei,pret_lei_pe_kg_snapshot')
+73	    .eq('tenant_id', tenantId)
+74	    .eq('data', normalizedDate)
+75	
+76	  if (recoltariError) throw recoltariError
+77	
+78	  const recoltari = (recoltariRows ?? []) as RecoltareForManopera[]
+79	
+80	  let totalKg = 0
+81	  let totalPlata = 0
+82	  const uniqueCulegatori = new Set<string>()
+83	
+84	  for (const row of recoltari) {
+85	    const kgCal1 = Number(row.kg_cal1 ?? 0)
+86	    const kgCal2 = Number(row.kg_cal2 ?? 0)
+87	    const totalKgRow = round2(kgCal1 + kgCal2)
+88	    totalKg = round2(totalKg + totalKgRow)
+89	
+90	    const plataRowStored = Number(row.valoare_munca_lei ?? 0)
+91	    const tarifSnapshot = Number(row.pret_lei_pe_kg_snapshot ?? 0)
+92	    const plataRow = plataRowStored > 0 ? plataRowStored : round2(totalKgRow * tarifSnapshot)
+93	    totalPlata = round2(totalPlata + plataRow)
+94	
+95	    if (row.culegator_id) uniqueCulegatori.add(row.culegator_id)
+96	  }
+97	
+98	  const { data: existing, error: existingError } = await supabase
+99	    .from('cheltuieli_diverse')
+100	    .select('id')
+101	    .eq('tenant_id', tenantId)
+102	    .eq('data', normalizedDate)
+103	    .eq('client_sync_id', syncId)
+104	    .maybeSingle()
+105	
+106	  if (existingError) throw existingError
+107	
+108	  if (totalPlata <= 0) {
+109	    if (existing?.id) {
+110	      const { error: deleteError } = await supabase
+111	        .from('cheltuieli_diverse')
+112	        .delete()
+113	        .eq('id', existing.id)
+114	      if (deleteError) throw deleteError
+115	    }
+116	    return
+117	  }
+118	
+119	  const descriere = `${AUTO_MANOPERA_DESCRIPTION_MARKER} Manoper\u0103 cules ${formatDateRo(normalizedDate)} - ${uniqueCulegatori.size} culeg\u0103tori, ${totalKg.toFixed(2)} kg total`
+120	  const payload = {
+121	    data: normalizedDate,
+122	    categorie: AUTO_MANOPERA_CATEGORY,
+123	    descriere,
+124	    suma_lei: round2(totalPlata),
+125	    client_sync_id: syncId,
+126	    sync_status: 'synced',
+127	    updated_at: new Date().toISOString(),
+128	  }
+129	
+130	  if (existing?.id) {
+131	    const { error: updateError } = await supabase
+132	      .from('cheltuieli_diverse')
+133	      .update(payload)
+134	      .eq('id', existing.id)
+135	
+136	    if (updateError) throw updateError
+137	    return
+138	  }
+139	
+140	  const nextId = await generateNextCheltuialaId(supabase)
+141	  const { error: insertError } = await supabase
+142	    .from('cheltuieli_diverse')
+143	    .insert({
+144	      tenant_id: tenantId,
+145	      id_cheltuiala: nextId,
+146	      ...payload,
+147	    })
+148	
+149	  if (insertError) throw insertError
+150	}

@@ -1,0 +1,337 @@
+    1: -- Fix runtime mismatches for admin RPCs + metrics refresh compatibility
+    2: -- Safe and idempotent: does not drop tables or data.
+    3: 
+    4: create extension if not exists pgcrypto;
+    5: 
+    6: -- -----------------------------------------------------------------------------
+    7: -- 1) admin_list_audit_logs: force exact return shape used by app
+    8: -- -----------------------------------------------------------------------------
+    9: drop function if exists public.admin_list_audit_logs(integer, integer);
+   10: 
+   11: create function public.admin_list_audit_logs(
+   12:   p_limit integer default 50,
+   13:   p_offset integer default 0
+   14: )
+   15: returns table (
+   16:   id uuid,
+   17:   created_at timestamptz,
+   18:   actor_email text,
+   19:   tenant_name text,
+   20:   old_plan text,
+   21:   new_plan text,
+   22:   action text
+   23: )
+   24: language plpgsql
+   25: stable
+   26: security definer
+   27: set search_path = public
+   28: as $$
+   29: begin
+   30:   if not public.is_superadmin(auth.uid()) then
+   31:     raise exception 'FORBIDDEN';
+   32:   end if;
+   33: 
+   34:   return query
+   35:   select
+   36:     a.id::uuid,
+   37:     a.created_at::timestamptz,
+   38:     u.email::text as actor_email,
+   39:     t.nume_ferma::text as tenant_name,
+   40:     a.old_plan::text,
+   41:     a.new_plan::text,
+   42:     a.action::text
+   43:   from public.audit_logs a
+   44:   left join public.tenants t on t.id = a.target_tenant_id
+   45:   left join auth.users u on u.id = a.actor_user_id
+   46:   order by a.created_at desc
+   47:   limit greatest(coalesce(p_limit, 50), 1)
+   48:   offset greatest(coalesce(p_offset, 0), 0);
+   49: end;
+   50: $$;
+   51: 
+   52: grant execute on function public.admin_list_audit_logs(integer, integer) to authenticated;
+   53: grant execute on function public.admin_list_audit_logs(integer, integer) to service_role;
+   54: 
+   55: drop function if exists public.admin_count_audit_logs();
+   56: 
+   57: create function public.admin_count_audit_logs()
+   58: returns bigint
+   59: language plpgsql
+   60: stable
+   61: security definer
+   62: set search_path = public
+   63: as $$
+   64: declare
+   65:   total_count bigint;
+   66: begin
+   67:   if not public.is_superadmin(auth.uid()) then
+   68:     raise exception 'FORBIDDEN';
+   69:   end if;
+   70: 
+   71:   select count(*)::bigint
+   72:   into total_count
+   73:   from public.audit_logs;
+   74: 
+   75:   return total_count;
+   76: end;
+   77: $$;
+   78: 
+   79: grant execute on function public.admin_count_audit_logs() to authenticated;
+   80: grant execute on function public.admin_count_audit_logs() to service_role;
+   81: 
+   82: -- -----------------------------------------------------------------------------
+   83: -- 2) admin_list_tenants: force exact return shape used by app
+   84: -- -----------------------------------------------------------------------------
+   85: drop function if exists public.admin_list_tenants();
+   86: 
+   87: create function public.admin_list_tenants()
+   88: returns table (
+   89:   tenant_id uuid,
+   90:   tenant_name text,
+   91:   owner_email text,
+   92:   plan text,
+   93:   created_at timestamptz,
+   94:   parcels_count bigint,
+   95:   users_count bigint
+   96: )
+   97: language plpgsql
+   98: stable
+   99: security definer
+  100: set search_path = public
+  101: as $$
+  102: begin
+  103:   if not public.is_superadmin(auth.uid()) then
+  104:     raise exception 'FORBIDDEN';
+  105:   end if;
+  106: 
+  107:   return query
+  108:   select
+  109:     t.id::uuid as tenant_id,
+  110:     t.nume_ferma::text as tenant_name,
+  111:     u.email::text as owner_email,
+  112:     t.plan::text,
+  113:     t.created_at::timestamptz,
+  114:     (
+  115:       select count(*)::bigint
+  116:       from public.parcele p
+  117:       where p.tenant_id = t.id
+  118:     ) as parcels_count,
+  119:     (
+  120:       select count(*)::bigint
+  121:       from auth.users ux
+  122:       where ux.id = t.owner_user_id
+  123:     ) as users_count
+  124:   from public.tenants t
+  125:   left join auth.users u on u.id = t.owner_user_id
+  126:   order by t.created_at desc nulls last;
+  127: end;
+  128: $$;
+  129: 
+  130: grant execute on function public.admin_list_tenants() to authenticated;
+  131: grant execute on function public.admin_list_tenants() to service_role;
+  132: 
+  133: -- -----------------------------------------------------------------------------
+  134: -- 3) Metrics compatibility: ensure refresh function and table columns align
+  135: -- -----------------------------------------------------------------------------
+  136: create table if not exists public.tenant_metrics_daily (
+  137:   date date primary key,
+  138:   total_tenants integer not null default 0,
+  139:   total_parcele integer not null default 0,
+  140:   total_recoltari integer not null default 0,
+  141:   total_vanzari integer not null default 0,
+  142:   total_kg_cal1 numeric not null default 0,
+  143:   total_kg_cal2 numeric not null default 0,
+  144:   total_revenue_lei numeric not null default 0,
+  145:   created_at timestamptz not null default now(),
+  146:   updated_at timestamptz not null default now()
+  147: );
+  148: 
+  149: alter table public.tenant_metrics_daily
+  150:   add column if not exists total_revenue_lei numeric not null default 0,
+  151:   add column if not exists updated_at timestamptz not null default now();
+  152: 
+  153: do $$
+  154: begin
+  155:   if exists (
+  156:     select 1
+  157:     from information_schema.columns
+  158:     where table_schema = 'public'
+  159:       and table_name = 'tenant_metrics_daily'
+  160:       and column_name = 'total_revenue'
+  161:   ) then
+  162:     execute '
+  163:       update public.tenant_metrics_daily
+  164:       set total_revenue_lei = coalesce(total_revenue, 0)
+  165:       where coalesce(total_revenue_lei, 0) = 0
+  166:         and coalesce(total_revenue, 0) <> 0
+  167:     ';
+  168:   end if;
+  169: end
+  170: $$;
+  171: 
+  172: create unique index if not exists tenant_metrics_daily_date_key_idx
+  173:   on public.tenant_metrics_daily (date);
+  174: 
+  175: create index if not exists tenant_metrics_daily_date_desc_idx
+  176:   on public.tenant_metrics_daily (date desc);
+  177: 
+  178: create or replace function public.refresh_tenant_metrics_daily(p_date date default current_date)
+  179: returns public.tenant_metrics_daily
+  180: language plpgsql
+  181: security definer
+  182: set search_path = public
+  183: as $$
+  184: declare
+  185:   target_date date := coalesce(p_date, current_date);
+  186:   metrics_row public.tenant_metrics_daily;
+  187:   butasi_revenue numeric := 0;
+  188:   butasi_revenue_expr text := '0';
+  189:   butasi_date_column text := null;
+  190: begin
+  191:   if auth.uid() is not null and not public.is_superadmin(auth.uid()) then
+  192:     raise exception 'FORBIDDEN';
+  193:   end if;
+  194: 
+  195:   if to_regclass('public.vanzari_butasi') is not null then
+  196:     if exists (
+  197:       select 1
+  198:       from information_schema.columns
+  199:       where table_schema = 'public'
+  200:         and table_name = 'vanzari_butasi'
+  201:         and column_name = 'total_lei'
+  202:     ) then
+  203:       butasi_revenue_expr := 'coalesce(sum(coalesce(vb.total_lei, 0)), 0)';
+  204:     elsif exists (
+  205:       select 1
+  206:       from information_schema.columns
+  207:       where table_schema = 'public'
+  208:         and table_name = 'vanzari_butasi'
+  209:         and column_name = 'valoare_totala_lei'
+  210:     ) then
+  211:       butasi_revenue_expr := 'coalesce(sum(coalesce(vb.valoare_totala_lei, 0)), 0)';
+  212:     elsif exists (
+  213:       select 1
+  214:       from information_schema.columns
+  215:       where table_schema = 'public'
+  216:         and table_name = 'vanzari_butasi'
+  217:         and column_name = 'cantitate_butasi'
+  218:     ) and exists (
+  219:       select 1
+  220:       from information_schema.columns
+  221:       where table_schema = 'public'
+  222:         and table_name = 'vanzari_butasi'
+  223:         and column_name = 'pret_unitar_lei'
+  224:     ) then
+  225:       butasi_revenue_expr := 'coalesce(sum(coalesce(vb.cantitate_butasi, 0) * coalesce(vb.pret_unitar_lei, 0)), 0)';
+  226:     end if;
+  227: 
+  228:     if exists (
+  229:       select 1
+  230:       from information_schema.columns
+  231:       where table_schema = 'public'
+  232:         and table_name = 'vanzari_butasi'
+  233:         and column_name = 'data_comanda'
+  234:     ) then
+  235:       butasi_date_column := 'data_comanda';
+  236:     elsif exists (
+  237:       select 1
+  238:       from information_schema.columns
+  239:       where table_schema = 'public'
+  240:         and table_name = 'vanzari_butasi'
+  241:         and column_name = 'data'
+  242:     ) then
+  243:       butasi_date_column := 'data';
+  244:     end if;
+  245: 
+  246:     if butasi_date_column is not null then
+  247:       execute format(
+  248:         'select %s from public.vanzari_butasi vb where vb.%I = $1',
+  249:         butasi_revenue_expr,
+  250:         butasi_date_column
+  251:       )
+  252:       into butasi_revenue
+  253:       using target_date;
+  254:     end if;
+  255:   end if;
+  256: 
+  257:   insert into public.tenant_metrics_daily (
+  258:     date,
+  259:     total_tenants,
+  260:     total_parcele,
+  261:     total_recoltari,
+  262:     total_vanzari,
+  263:     total_kg_cal1,
+  264:     total_kg_cal2,
+  265:     total_revenue_lei,
+  266:     updated_at
+  267:   )
+  268:   values (
+  269:     target_date,
+  270:     (
+  271:       select count(distinct tenant_id)::int
+  272:       from (
+  273:         select r.tenant_id from public.recoltari r where r.data = target_date
+  274:         union all
+  275:         select v.tenant_id from public.vanzari v where v.data = target_date
+  276:         union all
+  277:         select a.tenant_id from public.activitati_agricole a where a.data_aplicare = target_date
+  278:       ) active_tenants
+  279:       where tenant_id is not null
+  280:     ),
+  281:     (
+  282:       select count(*)::int
+  283:       from public.parcele p
+  284:       where p.tenant_id is not null
+  285:     ),
+  286:     (
+  287:       select count(*)::int
+  288:       from public.recoltari r
+  289:       where r.data = target_date
+  290:     ),
+  291:     (
+  292:       select count(*)::int
+  293:       from public.vanzari v
+  294:       where v.data = target_date
+  295:     ),
+  296:     (
+  297:       select coalesce(sum(coalesce(r.kg_cal1, 0)), 0)
+  298:       from public.recoltari r
+  299:       where r.data = target_date
+  300:     ),
+  301:     (
+  302:       select coalesce(sum(coalesce(r.kg_cal2, 0)), 0)
+  303:       from public.recoltari r
+  304:       where r.data = target_date
+  305:     ),
+  306:     (
+  307:       coalesce((
+  308:         select sum(coalesce(v.cantitate_kg, 0) * coalesce(v.pret_lei_kg, 0))
+  309:         from public.vanzari v
+  310:         where v.data = target_date
+  311:       ), 0) + coalesce(butasi_revenue, 0)
+  312:     ),
+  313:     now()
+  314:   )
+  315:   on conflict (date)
+  316:   do update set
+  317:     total_tenants = excluded.total_tenants,
+  318:     total_parcele = excluded.total_parcele,
+  319:     total_recoltari = excluded.total_recoltari,
+  320:     total_vanzari = excluded.total_vanzari,
+  321:     total_kg_cal1 = excluded.total_kg_cal1,
+  322:     total_kg_cal2 = excluded.total_kg_cal2,
+  323:     total_revenue_lei = excluded.total_revenue_lei,
+  324:     updated_at = now()
+  325:   returning * into metrics_row;
+  326: 
+  327:   return metrics_row;
+  328: end;
+  329: $$;
+  330: 
+  331: grant execute on function public.refresh_tenant_metrics_daily(date) to authenticated;
+  332: grant execute on function public.refresh_tenant_metrics_daily(date) to service_role;
+  333: 
+  334: -- Seed one row for current day so admin analytics has baseline data
+  335: select public.refresh_tenant_metrics_daily(current_date);
+  336: 
+  337: select pg_notify('pgrst', 'reload schema');

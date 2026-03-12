@@ -1,0 +1,251 @@
+    1: do $$
+    2: begin
+    3:   if to_regclass('public.cheltuieli') is not null then
+    4:     execute 'alter table public.cheltuieli
+    5:       add column if not exists created_at timestamptz default now(),
+    6:       add column if not exists updated_at timestamptz default now(),
+    7:       add column if not exists created_by uuid,
+    8:       add column if not exists updated_by uuid';
+    9:   end if;
+   10: 
+   11:   if to_regclass('public.cheltuieli_diverse') is not null then
+   12:     execute 'alter table public.cheltuieli_diverse
+   13:       add column if not exists created_at timestamptz default now(),
+   14:       add column if not exists updated_at timestamptz default now(),
+   15:       add column if not exists created_by uuid,
+   16:       add column if not exists updated_by uuid';
+   17:   end if;
+   18: end
+   19: $$;
+   20: 
+   21: alter table public.recoltari
+   22:   add column if not exists created_at timestamptz default now(),
+   23:   add column if not exists updated_at timestamptz default now(),
+   24:   add column if not exists created_by uuid,
+   25:   add column if not exists updated_by uuid;
+   26: 
+   27: alter table public.vanzari
+   28:   add column if not exists created_at timestamptz default now(),
+   29:   add column if not exists updated_at timestamptz default now(),
+   30:   add column if not exists created_by uuid,
+   31:   add column if not exists updated_by uuid;
+   32: 
+   33: alter table public.activitati_agricole
+   34:   add column if not exists created_at timestamptz default now(),
+   35:   add column if not exists updated_at timestamptz default now(),
+   36:   add column if not exists created_by uuid,
+   37:   add column if not exists updated_by uuid;
+   38: 
+   39: alter table public.clienti
+   40:   add column if not exists created_at timestamptz default now(),
+   41:   add column if not exists updated_at timestamptz default now(),
+   42:   add column if not exists created_by uuid,
+   43:   add column if not exists updated_by uuid;
+   44: 
+   45: alter table public.parcele
+   46:   add column if not exists created_at timestamptz default now(),
+   47:   add column if not exists updated_at timestamptz default now(),
+   48:   add column if not exists created_by uuid,
+   49:   add column if not exists updated_by uuid;
+   50: 
+   51: update public.recoltari set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now());
+   52: update public.vanzari set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now());
+   53: update public.activitati_agricole set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now());
+   54: update public.clienti set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now());
+   55: update public.parcele set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now());
+   56: 
+   57: do $$
+   58: begin
+   59:   if to_regclass('public.cheltuieli') is not null then
+   60:     execute 'update public.cheltuieli set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now())';
+   61:   end if;
+   62: 
+   63:   if to_regclass('public.cheltuieli_diverse') is not null then
+   64:     execute 'update public.cheltuieli_diverse set created_at = coalesce(created_at, now()), updated_at = coalesce(updated_at, now())';
+   65:   end if;
+   66: end
+   67: $$;
+   68: 
+   69: alter table public.recoltari alter column created_at set default now();
+   70: alter table public.recoltari alter column updated_at set default now();
+   71: alter table public.recoltari alter column created_at set not null;
+   72: alter table public.recoltari alter column updated_at set not null;
+   73: 
+   74: alter table public.vanzari alter column created_at set default now();
+   75: alter table public.vanzari alter column updated_at set default now();
+   76: alter table public.vanzari alter column created_at set not null;
+   77: alter table public.vanzari alter column updated_at set not null;
+   78: 
+   79: alter table public.activitati_agricole alter column created_at set default now();
+   80: alter table public.activitati_agricole alter column updated_at set default now();
+   81: alter table public.activitati_agricole alter column created_at set not null;
+   82: alter table public.activitati_agricole alter column updated_at set not null;
+   83: 
+   84: alter table public.clienti alter column created_at set default now();
+   85: alter table public.clienti alter column updated_at set default now();
+   86: alter table public.clienti alter column created_at set not null;
+   87: alter table public.clienti alter column updated_at set not null;
+   88: 
+   89: alter table public.parcele alter column created_at set default now();
+   90: alter table public.parcele alter column updated_at set default now();
+   91: alter table public.parcele alter column created_at set not null;
+   92: alter table public.parcele alter column updated_at set not null;
+   93: 
+   94: do $$
+   95: begin
+   96:   if to_regclass('public.cheltuieli') is not null then
+   97:     execute 'alter table public.cheltuieli alter column created_at set default now()';
+   98:     execute 'alter table public.cheltuieli alter column updated_at set default now()';
+   99:     execute 'alter table public.cheltuieli alter column created_at set not null';
+  100:     execute 'alter table public.cheltuieli alter column updated_at set not null';
+  101:   end if;
+  102: 
+  103:   if to_regclass('public.cheltuieli_diverse') is not null then
+  104:     execute 'alter table public.cheltuieli_diverse alter column created_at set default now()';
+  105:     execute 'alter table public.cheltuieli_diverse alter column updated_at set default now()';
+  106:     execute 'alter table public.cheltuieli_diverse alter column created_at set not null';
+  107:     execute 'alter table public.cheltuieli_diverse alter column updated_at set not null';
+  108:   end if;
+  109: end
+  110: $$;
+  111: 
+  112: do $$
+  113: begin
+  114:   if not exists (select 1 from pg_constraint where conname = 'recoltari_created_by_fkey') then
+  115:     alter table public.recoltari add constraint recoltari_created_by_fkey foreign key (created_by) references auth.users(id);
+  116:   end if;
+  117:   if not exists (select 1 from pg_constraint where conname = 'recoltari_updated_by_fkey') then
+  118:     alter table public.recoltari add constraint recoltari_updated_by_fkey foreign key (updated_by) references auth.users(id);
+  119:   end if;
+  120: 
+  121:   if not exists (select 1 from pg_constraint where conname = 'vanzari_created_by_fkey') then
+  122:     alter table public.vanzari add constraint vanzari_created_by_fkey foreign key (created_by) references auth.users(id);
+  123:   end if;
+  124:   if not exists (select 1 from pg_constraint where conname = 'vanzari_updated_by_fkey') then
+  125:     alter table public.vanzari add constraint vanzari_updated_by_fkey foreign key (updated_by) references auth.users(id);
+  126:   end if;
+  127: 
+  128:   if not exists (select 1 from pg_constraint where conname = 'activitati_agricole_created_by_fkey') then
+  129:     alter table public.activitati_agricole add constraint activitati_agricole_created_by_fkey foreign key (created_by) references auth.users(id);
+  130:   end if;
+  131:   if not exists (select 1 from pg_constraint where conname = 'activitati_agricole_updated_by_fkey') then
+  132:     alter table public.activitati_agricole add constraint activitati_agricole_updated_by_fkey foreign key (updated_by) references auth.users(id);
+  133:   end if;
+  134: 
+  135:   if not exists (select 1 from pg_constraint where conname = 'clienti_created_by_fkey') then
+  136:     alter table public.clienti add constraint clienti_created_by_fkey foreign key (created_by) references auth.users(id);
+  137:   end if;
+  138:   if not exists (select 1 from pg_constraint where conname = 'clienti_updated_by_fkey') then
+  139:     alter table public.clienti add constraint clienti_updated_by_fkey foreign key (updated_by) references auth.users(id);
+  140:   end if;
+  141: 
+  142:   if not exists (select 1 from pg_constraint where conname = 'parcele_created_by_fkey') then
+  143:     alter table public.parcele add constraint parcele_created_by_fkey foreign key (created_by) references auth.users(id);
+  144:   end if;
+  145:   if not exists (select 1 from pg_constraint where conname = 'parcele_updated_by_fkey') then
+  146:     alter table public.parcele add constraint parcele_updated_by_fkey foreign key (updated_by) references auth.users(id);
+  147:   end if;
+  148: 
+  149:   if to_regclass('public.cheltuieli') is not null then
+  150:     if not exists (select 1 from pg_constraint where conname = 'cheltuieli_created_by_fkey') then
+  151:       execute 'alter table public.cheltuieli add constraint cheltuieli_created_by_fkey foreign key (created_by) references auth.users(id)';
+  152:     end if;
+  153:     if not exists (select 1 from pg_constraint where conname = 'cheltuieli_updated_by_fkey') then
+  154:       execute 'alter table public.cheltuieli add constraint cheltuieli_updated_by_fkey foreign key (updated_by) references auth.users(id)';
+  155:     end if;
+  156:   end if;
+  157: 
+  158:   if to_regclass('public.cheltuieli_diverse') is not null then
+  159:     if not exists (select 1 from pg_constraint where conname = 'cheltuieli_diverse_created_by_fkey') then
+  160:       execute 'alter table public.cheltuieli_diverse add constraint cheltuieli_diverse_created_by_fkey foreign key (created_by) references auth.users(id)';
+  161:     end if;
+  162:     if not exists (select 1 from pg_constraint where conname = 'cheltuieli_diverse_updated_by_fkey') then
+  163:       execute 'alter table public.cheltuieli_diverse add constraint cheltuieli_diverse_updated_by_fkey foreign key (updated_by) references auth.users(id)';
+  164:     end if;
+  165:   end if;
+  166: end
+  167: $$;
+  168: 
+  169: create or replace function public.set_audit_fields_minimal()
+  170: returns trigger
+  171: language plpgsql
+  172: security definer
+  173: as $$
+  174: begin
+  175:   if tg_op = 'INSERT' then
+  176:     new.created_at := coalesce(new.created_at, now());
+  177:     new.updated_at := coalesce(new.updated_at, now());
+  178:     new.created_by := coalesce(auth.uid(), new.created_by);
+  179:     new.updated_by := coalesce(auth.uid(), new.updated_by, new.created_by);
+  180:   else
+  181:     new.created_at := old.created_at;
+  182:     new.created_by := old.created_by;
+  183:     new.updated_at := now();
+  184:     new.updated_by := coalesce(auth.uid(), old.updated_by, old.created_by);
+  185:   end if;
+  186:   return new;
+  187: end;
+  188: $$;
+  189: 
+  190: drop trigger if exists recoltari_set_audit_fields_minimal on public.recoltari;
+  191: create trigger recoltari_set_audit_fields_minimal
+  192: before insert or update on public.recoltari
+  193: for each row execute function public.set_audit_fields_minimal();
+  194: 
+  195: drop trigger if exists vanzari_set_audit_fields_minimal on public.vanzari;
+  196: create trigger vanzari_set_audit_fields_minimal
+  197: before insert or update on public.vanzari
+  198: for each row execute function public.set_audit_fields_minimal();
+  199: 
+  200: drop trigger if exists activitati_agricole_set_audit_fields_minimal on public.activitati_agricole;
+  201: create trigger activitati_agricole_set_audit_fields_minimal
+  202: before insert or update on public.activitati_agricole
+  203: for each row execute function public.set_audit_fields_minimal();
+  204: 
+  205: drop trigger if exists clienti_set_audit_fields_minimal on public.clienti;
+  206: create trigger clienti_set_audit_fields_minimal
+  207: before insert or update on public.clienti
+  208: for each row execute function public.set_audit_fields_minimal();
+  209: 
+  210: drop trigger if exists parcele_set_audit_fields_minimal on public.parcele;
+  211: create trigger parcele_set_audit_fields_minimal
+  212: before insert or update on public.parcele
+  213: for each row execute function public.set_audit_fields_minimal();
+  214: 
+  215: do $$
+  216: begin
+  217:   if to_regclass('public.cheltuieli') is not null then
+  218:     execute 'drop trigger if exists cheltuieli_set_audit_fields_minimal on public.cheltuieli';
+  219:     execute 'create trigger cheltuieli_set_audit_fields_minimal before insert or update on public.cheltuieli for each row execute function public.set_audit_fields_minimal()';
+  220:   end if;
+  221: 
+  222:   if to_regclass('public.cheltuieli_diverse') is not null then
+  223:     execute 'drop trigger if exists cheltuieli_diverse_set_audit_fields_minimal on public.cheltuieli_diverse';
+  224:     execute 'create trigger cheltuieli_diverse_set_audit_fields_minimal before insert or update on public.cheltuieli_diverse for each row execute function public.set_audit_fields_minimal()';
+  225:   end if;
+  226: end
+  227: $$;
+  228: 
+  229: do $$
+  230: declare
+  231:   tbl text;
+  232:   tenant_check text := 'tenant_id = (select id from public.tenants where owner_user_id = auth.uid())';
+  233: begin
+  234:   foreach tbl in array array['recoltari', 'vanzari', 'activitati_agricole', 'clienti', 'parcele', 'cheltuieli_diverse'] loop
+  235:     if to_regclass('public.' || tbl) is null then
+  236:       continue;
+  237:     end if;
+  238: 
+  239:     execute format('alter table public.%I enable row level security', tbl);
+  240: 
+  241:     execute format('drop policy if exists %I on public.%I', tbl || '_tenant_select', tbl);
+  242:     execute format('create policy %I on public.%I for select using (%s)', tbl || '_tenant_select', tbl, tenant_check);
+  243: 
+  244:     execute format('drop policy if exists %I on public.%I', tbl || '_tenant_insert', tbl);
+  245:     execute format('create policy %I on public.%I for insert with check (%s)', tbl || '_tenant_insert', tbl, tenant_check);
+  246: 
+  247:     execute format('drop policy if exists %I on public.%I', tbl || '_tenant_update', tbl);
+  248:     execute format('create policy %I on public.%I for update using (%s) with check (%s)', tbl || '_tenant_update', tbl, tenant_check, tenant_check);
+  249:   end loop;
+  250: end
+  251: $$;

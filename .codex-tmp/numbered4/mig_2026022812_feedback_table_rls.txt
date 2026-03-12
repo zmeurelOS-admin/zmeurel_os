@@ -1,0 +1,53 @@
+1	create table if not exists public.feedback (
+2	  id uuid primary key default gen_random_uuid(),
+3	  tenant_id uuid not null references public.tenants(id) on delete cascade,
+4	  user_id uuid not null references auth.users(id) on delete cascade,
+5	  rating integer not null check (rating between 1 and 5),
+6	  message text not null,
+7	  page_url text,
+8	  created_at timestamptz not null default now()
+9	);
+10	
+11	create index if not exists idx_feedback_tenant_id on public.feedback(tenant_id);
+12	create index if not exists idx_feedback_user_id on public.feedback(user_id);
+13	create index if not exists idx_feedback_created_at on public.feedback(created_at desc);
+14	
+15	alter table public.feedback enable row level security;
+16	
+17	drop policy if exists feedback_insert_own on public.feedback;
+18	create policy feedback_insert_own
+19	on public.feedback
+20	for insert
+21	to authenticated
+22	with check (
+23	  auth.uid() = user_id
+24	  and (
+25	    exists (
+26	      select 1
+27	      from public.tenants t
+28	      where t.id = feedback.tenant_id
+29	        and t.owner_user_id = auth.uid()
+30	    )
+31	    or exists (
+32	      select 1
+33	      from public.profiles p
+34	      where p.id = auth.uid()
+35	        and p.is_superadmin = true
+36	    )
+37	  )
+38	);
+39	
+40	drop policy if exists feedback_select_superadmin on public.feedback;
+41	create policy feedback_select_superadmin
+42	on public.feedback
+43	for select
+44	to authenticated
+45	using (
+46	  exists (
+47	    select 1
+48	    from public.profiles p
+49	    where p.id = auth.uid()
+50	      and p.is_superadmin = true
+51	  )
+52	);
+53	

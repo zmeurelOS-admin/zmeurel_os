@@ -1,0 +1,6 @@
+    1: import { ParcelePageClient } from '@/components/parcele/ParcelePageClient'
+    2: 
+    3: export default function ParcelePage() {
+    4:   return <ParcelePageClient />
+    5: }
+    6: 

@@ -54,7 +54,8 @@ export async function getAlertContext(): Promise<AlertContext | null> {
 export async function getTodayDismissals(tenantId: string): Promise<string[]> {
   const supabase = getSupabase()
   const context = await getAlertContext()
-  if (!context?.userId) return []
+  const resolvedTenantId = context?.tenantId
+  if (!context?.userId || !resolvedTenantId || tenantId !== resolvedTenantId) return []
 
   const { data: roToday, error: todayError } = await supabase.rpc('bucharest_today')
   if (todayError) throw todayError
@@ -62,7 +63,7 @@ export async function getTodayDismissals(tenantId: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('alert_dismissals')
     .select('alert_key')
-    .eq('tenant_id', tenantId)
+    .eq('tenant_id', resolvedTenantId)
     .eq('user_id', context.userId)
     .eq('dismissed_on', roToday)
 
@@ -73,12 +74,13 @@ export async function getTodayDismissals(tenantId: string): Promise<string[]> {
 export async function dismissAlert(tenantId: string, alertKey: string): Promise<void> {
   const supabase = getSupabase()
   const context = await getAlertContext()
-  if (!context?.userId) {
+  const resolvedTenantId = context?.tenantId
+  if (!context?.userId || !resolvedTenantId || tenantId !== resolvedTenantId) {
     throw new Error('User context invalid')
   }
 
   const payload = {
-    tenant_id: tenantId,
+    tenant_id: resolvedTenantId,
     user_id: context.userId,
     alert_key: alertKey,
   }
@@ -109,12 +111,13 @@ export async function dismissAlertsBulk(tenantId: string, alertKeys: string[]): 
 
   const supabase = getSupabase()
   const context = await getAlertContext()
-  if (!context?.userId) {
+  const resolvedTenantId = context?.tenantId
+  if (!context?.userId || !resolvedTenantId || tenantId !== resolvedTenantId) {
     throw new Error('User context invalid')
   }
 
   const rows = alertKeys.map((alertKey) => ({
-    tenant_id: tenantId,
+    tenant_id: resolvedTenantId,
     user_id: context.userId,
     alert_key: alertKey,
   }))

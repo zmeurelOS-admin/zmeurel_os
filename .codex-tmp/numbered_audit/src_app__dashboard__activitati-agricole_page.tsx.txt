@@ -1,0 +1,415 @@
+﻿   1: 'use client'
+   2: 
+   3: import { useEffect, useMemo, useRef, useState } from 'react'
+   4: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+   5: import { Calendar, ClipboardList, Pencil, Search, Trash2 } from 'lucide-react'
+   6: import { useRouter } from 'next/navigation'
+   7: import { toast } from '@/lib/ui/toast'
+   8: 
+   9: import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
+  10: import { EditActivitateAgricolaDialog } from '@/components/activitati-agricole/EditActivitateAgricolaDialog'
+  11: import { AppShell } from '@/components/app/AppShell'
+  12: import { CompactListCard } from '@/components/app/CompactListCard'
+  13: import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+  14: import { DashboardCard, DashboardGrid, StatRow } from '@/components/dashboard'
+  15: import { EmptyState } from '@/components/ui/EmptyState'
+  16: import { ErrorState } from '@/components/app/ErrorState'
+  17: import { LoadingState } from '@/components/app/LoadingState'
+  18: import { PageHeader } from '@/components/app/PageHeader'
+  19: import { StickyActionBar } from '@/components/app/StickyActionBar'
+  20: import { AppCardContent, AppCardFooter, AppCardHeader, EntityCard } from '@/components/ui/app-card'
+  21: import { Button } from '@/components/ui/button'
+  22: import { Input } from '@/components/ui/input'
+  23: import { track } from '@/lib/analytics/track'
+  24: import { trackEvent } from '@/lib/analytics/trackEvent'
+  25: import { Badge } from '@/components/ui/badge'
+  26: import { computeActivityRemainingDays, getPauseVisualTone } from '@/lib/parcele/pauza'
+  27: import {
+  28:   deleteActivitateAgricola,
+  29:   getActivitatiAgricole,
+  30:   type ActivitateAgricola,
+  31: } from '@/lib/supabase/queries/activitati-agricole'
+  32: import { getParcele } from '@/lib/supabase/queries/parcele'
+  33: import { buildActivitateDeleteLabel } from '@/lib/ui/delete-labels'
+  34: import { useAddAction } from '@/contexts/AddActionContext'
+  35: 
+  36: export default function ActivitatiPage() {
+  37:   const router = useRouter()
+  38:   const queryClient = useQueryClient()
+  39:   const { registerAddAction } = useAddAction()
+  40:   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  41:   const pendingDeletedItems = useRef<Record<string, { item: ActivitateAgricola; index: number }>>({})
+  42: 
+  43:   const {
+  44:     data: activitati = [],
+  45:     isLoading,
+  46:     isError,
+  47:     error,
+  48:   } = useQuery({
+  49:     queryKey: ['activitati'],
+  50:     queryFn: getActivitatiAgricole,
+  51:   })
+  52:   const { data: parcele = [] } = useQuery({
+  53:     queryKey: ['parcele'],
+  54:     queryFn: getParcele,
+  55:   })
+  56: 
+  57:   const [addOpen, setAddOpen] = useState(false)
+  58:   const [searchQuery, setSearchQuery] = useState('')
+  59:   const [editOpen, setEditOpen] = useState(false)
+  60:   const [selected, setSelected] = useState<ActivitateAgricola | null>(null)
+  61: 
+  62:   const [deleteOpen, setDeleteOpen] = useState(false)
+  63:   const [toDelete, setToDelete] = useState<ActivitateAgricola | null>(null)
+  64: 
+  65:   const deleteMutation = useMutation({
+  66:     mutationFn: deleteActivitateAgricola,
+  67:     onSuccess: (_, deletedId) => {
+  68:       queryClient.invalidateQueries({ queryKey: ['activitati'] })
+  69:       trackEvent('delete_item', 'activitati')
+  70:       track('activitate_delete', { id: deletedId })
+  71:       toast.success('Activitate Č™tearsÄ')
+  72:     },
+  73:     onError: (err: Error) => {
+  74:       toast.error(err.message)
+  75:       queryClient.invalidateQueries({ queryKey: ['activitati'] })
+  76:     },
+  77:   })
+  78: 
+  79:   useEffect(() => {
+  80:     return () => {
+  81:       Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+  82:     }
+  83:   }, [])
+  84: 
+  85:   useEffect(() => {
+  86:     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga activitate')
+  87:     return unregister
+  88:   }, [registerAddAction])
+  89: 
+  90:   useEffect(() => {
+  91:     const query = searchQuery.trim()
+  92:     if (!query) return
+  93: 
+  94:     const timer = setTimeout(() => {
+  95:       track('search', { module: 'activitati', query })
+  96:     }, 500)
+  97: 
+  98:     return () => clearTimeout(timer)
+  99:   }, [searchQuery])
+ 100: 
+ 101:   const scheduleDelete = (activitate: ActivitateAgricola) => {
+ 102:     const activitateId = activitate.id
+ 103:     const currentItems = queryClient.getQueryData<ActivitateAgricola[]>(['activitati']) ?? []
+ 104:     const deleteIndex = currentItems.findIndex((item) => item.id === activitateId)
+ 105: 
+ 106:     pendingDeletedItems.current[activitateId] = { item: activitate, index: deleteIndex }
+ 107:     queryClient.setQueryData<ActivitateAgricola[]>(['activitati'], (current = []) =>
+ 108:       current.filter((item) => item.id !== activitateId)
+ 109:     )
+ 110: 
+ 111:     const timer = setTimeout(() => {
+ 112:       delete pendingDeleteTimers.current[activitateId]
+ 113:       delete pendingDeletedItems.current[activitateId]
+ 114:       deleteMutation.mutate(activitateId)
+ 115:     }, 5000)
+ 116: 
+ 117:     pendingDeleteTimers.current[activitateId] = timer
+ 118: 
+ 119:     toast('Element Č™ters', {
+ 120:       duration: 5000,
+ 121:       action: {
+ 122:         label: 'Undo',
+ 123:         onClick: () => {
+ 124:           const pendingTimer = pendingDeleteTimers.current[activitateId]
+ 125:           if (!pendingTimer) return
+ 126:           clearTimeout(pendingTimer)
+ 127:           delete pendingDeleteTimers.current[activitateId]
+ 128:           const pendingItem = pendingDeletedItems.current[activitateId]
+ 129:           delete pendingDeletedItems.current[activitateId]
+ 130:           if (!pendingItem) return
+ 131: 
+ 132:           queryClient.setQueryData<ActivitateAgricola[]>(['activitati'], (current = []) => {
+ 133:             if (current.some((item) => item.id === activitateId)) return current
+ 134: 
+ 135:             const next = [...current]
+ 136:             const insertAt =
+ 137:               pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+ 138:             next.splice(insertAt, 0, pendingItem.item)
+ 139:             return next
+ 140:           })
+ 141:         },
+ 142:       },
+ 143:     })
+ 144:   }
+ 145: 
+ 146:   const refresh = () => {
+ 147:     queryClient.invalidateQueries({ queryKey: ['activitati'] })
+ 148:   }
+ 149: 
+ 150:   const filteredActivitati = useMemo(() => {
+ 151:     if (!searchQuery.trim()) return activitati
+ 152: 
+ 153:     const term = searchQuery.toLowerCase().trim()
+ 154:     return activitati.filter((item) =>
+ 155:       [
+ 156:         item.tip_activitate,
+ 157:         item.produs_utilizat,
+ 158:         item.doza,
+ 159:         item.observatii,
+ 160:         item.operator,
+ 161:         item.id_activitate,
+ 162:       ]
+ 163:         .filter(Boolean)
+ 164:         .some((value) => value?.toLowerCase().includes(term))
+ 165:     )
+ 166:   }, [activitati, searchQuery])
+ 167:   const parcelaMap = useMemo(() => {
+ 168:     const map: Record<string, string> = {}
+ 169:     parcele.forEach((p) => {
+ 170:       map[p.id] = p.nume_parcela || 'Parcela'
+ 171:     })
+ 172:     return map
+ 173:   }, [parcele])
+ 174: 
+ 175:   const todayIso = new Date().toISOString().split('T')[0]
+ 176:   const dashboardSummary = useMemo(() => {
+ 177:     const activitatiAzi = activitati.filter((item) => (item.data_aplicare ?? '').slice(0, 10) === todayIso)
+ 178:     const activitatiRestante = activitati.filter((item) => computeActivityRemainingDays(item) <= 0)
+ 179:     const ultimaActivitate = [...activitati].sort((a, b) => (b.data_aplicare ?? '').localeCompare(a.data_aplicare ?? ''))[0]
+ 180: 
+ 181:     return {
+ 182:       activitatiAzi: activitatiAzi.length,
+ 183:       activitatiRestante: activitatiRestante.length,
+ 184:       ultimaActivitate,
+ 185:     }
+ 186:   }, [activitati, todayIso])
+ 187: 
+ 188:   return (
+ 189:     <AppShell
+ 190:       header={<PageHeader title="ActivitÄČ›i Agricole" subtitle="Istoric lucrÄri Č™i tratamente" rightSlot={<ClipboardList className="h-5 w-5" />} />}
+ 191:       bottomBar={
+ 192:         <StickyActionBar>
+ 193:           <div className="flex items-center justify-between gap-3">
+ 194:             <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total activitati: {activitati.length}</p>
+ 195:           </div>
+ 196:         </StickyActionBar>
+ 197:       }
+ 198:     >
+ 199:       <div className="mx-auto w-full max-w-4xl space-y-4 py-4">
+ 200:         <DashboardGrid>
+ 201:           <DashboardCard
+ 202:             title="Activitati azi"
+ 203:             onClick={() => router.push('/activitati-agricole')}
+ 204:             contentClassName="grid grid-cols-2 gap-2"
+ 205:           >
+ 206:             <StatRow label="Total" value={dashboardSummary.activitatiAzi} />
+ 207:           </DashboardCard>
+ 208: 
+ 209:           <DashboardCard
+ 210:             title="Activitati restante"
+ 211:             onClick={() => router.push('/activitati-agricole')}
+ 212:             contentClassName="grid grid-cols-2 gap-2"
+ 213:           >
+ 214:             <StatRow label="Total" value={dashboardSummary.activitatiRestante} />
+ 215:           </DashboardCard>
+ 216: 
+ 217:           <DashboardCard
+ 218:             title="Ultima activitate"
+ 219:             className="md:col-span-2"
+ 220:             onClick={() => router.push('/activitati-agricole')}
+ 221:             contentClassName="grid grid-cols-2 gap-2"
+ 222:           >
+ 223:             <StatRow label="Tip" value={dashboardSummary.ultimaActivitate?.tip_activitate || '-'} />
+ 224:             <StatRow
+ 225:               label="Data"
+ 226:               value={dashboardSummary.ultimaActivitate?.data_aplicare ? new Date(dashboardSummary.ultimaActivitate.data_aplicare).toLocaleDateString('ro-RO') : '-'}
+ 227:             />
+ 228:             <StatRow
+ 229:               label="Parcela"
+ 230:               value={
+ 231:                 dashboardSummary.ultimaActivitate?.parcela_id
+ 232:                   ? parcelaMap[dashboardSummary.ultimaActivitate.parcela_id] || 'Parcela necunoscuta'
+ 233:                   : '-'
+ 234:               }
+ 235:             />
+ 236:           </DashboardCard>
+ 237:         </DashboardGrid>
+ 238: 
+ 239:         <div className="flex items-center gap-2">
+ 240:           <Input
+ 241:             className="agri-control h-12"
+ 242:             placeholder="CautÄ activitate, produs, dozÄ..."
+ 243:             value={searchQuery}
+ 244:             onChange={(e) => setSearchQuery(e.target.value)}
+ 245:           />
+ 246:           <Button type="button" variant="outline" className="h-12 w-12 shrink-0 p-0" aria-label="CautÄ activitÄČ›i">
+ 247:             <Search className="h-4 w-4" />
+ 248:           </Button>
+ 249:         </div>
+ 250: 
+ 251:         {isError ? <ErrorState title="Eroare la Ă®ncÄrcare" message={(error as Error).message} onRetry={refresh} /> : null}
+ 252:         {isLoading ? <LoadingState label="Se Ă®ncarcÄ activitÄČ›ile..." /> : null}
+ 253:         {!isLoading && !isError && filteredActivitati.length === 0 ? (
+ 254:           <EmptyState
+ 255:             icon={<Calendar className="h-16 w-16" />}
+ 256:             title="Nicio activitate Ă®ncÄ"
+ 257:             description="AdaugÄ prima activitate pentru a Ă®ncepe"
+ 258:           />
+ 259:         ) : null}
+ 260: 
+ 261:         {filteredActivitati.length > 0 ? (
+ 262:           <>
+ 263:             <div className="space-y-2 sm:hidden">
+ 264:               {filteredActivitati.map((a) => {
+ 265:                 const remainingDays = computeActivityRemainingDays(a)
+ 266:                 const pauseTone = getPauseVisualTone(remainingDays)
+ 267:                 const statusText = remainingDays > 0 ? (remainingDays < 3 ? 'Aproape expirat' : 'Pauza activa') : 'Expirat'
+ 268:                 const statusClass =
+ 269:                   pauseTone === 'danger'
+ 270:                     ? 'bg-red-100 text-red-700'
+ 271:                     : pauseTone === 'warning'
+ 272:                       ? 'bg-amber-100 text-amber-700'
+ 273:                       : 'bg-slate-100 text-slate-700'
+ 274: 
+ 275:                 return (
+ 276:                   <EntityCard
+ 277:                     key={a.id}
+ 278:                     className={
+ 279:                       pauseTone === 'danger'
+ 280:                         ? 'border-red-500 bg-white'
+ 281:                         : pauseTone === 'warning'
+ 282:                           ? 'border-amber-400 bg-white'
+ 283:                           : 'border-[var(--agri-border)] bg-white'
+ 284:                     }
+ 285:                   >
+ 286:                     <AppCardHeader className="items-start">
+ 287:                       <p className="truncate text-base font-semibold text-[var(--agri-text)]">{a.tip_activitate || '-'}</p>
+ 288:                       <span className={`badge-consistent inline-flex items-center ${statusClass}`}>{statusText}</span>
+ 289:                     </AppCardHeader>
+ 290: 
+ 291:                     <AppCardContent className="space-y-1.5">
+ 292:                       <p className="text-sm text-[var(--agri-text-muted)]">
+ 293:                         {a.data_aplicare ? new Date(a.data_aplicare).toLocaleDateString('ro-RO') : '-'} Â· {a.parcela_id ? parcelaMap[a.parcela_id] || 'Parcela necunoscuta' : 'Parcela necunoscuta'}
+ 294:                       </p>
+ 295:                       <p className="text-sm text-[var(--agri-text-muted)]">{a.produs_utilizat || '-'}</p>
+ 296:                     </AppCardContent>
+ 297: 
+ 298:                     <AppCardFooter className="items-center justify-between gap-2 pt-0">
+ 299:                       <div className="flex items-center gap-1.5 text-sm text-[var(--agri-text-muted)]">
+ 300:                         <span>{remainingDays > 0 ? `${remainingDays} zile` : 'fara pauza'}</span>
+ 301:                       </div>
+ 302:                       <div className="flex items-center gap-1">
+ 303:                         <button
+ 304:                           type="button"
+ 305:                           aria-label="Editeaza activitate"
+ 306:                           className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-blue-600"
+ 307:                           onClick={() => {
+ 308:                             setSelected(a)
+ 309:                             setEditOpen(true)
+ 310:                           }}
+ 311:                         >
+ 312:                           <Pencil className="h-4 w-4" />
+ 313:                         </button>
+ 314:                         <button
+ 315:                           type="button"
+ 316:                           aria-label="Sterge activitate"
+ 317:                           className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-red-600"
+ 318:                           onClick={() => {
+ 319:                             setToDelete(a)
+ 320:                             setDeleteOpen(true)
+ 321:                           }}
+ 322:                         >
+ 323:                           <Trash2 className="h-4 w-4" />
+ 324:                         </button>
+ 325:                       </div>
+ 326:                     </AppCardFooter>
+ 327:                   </EntityCard>
+ 328:                 )
+ 329:               })}
+ 330:             </div>
+ 331: 
+ 332:             <div className="hidden space-y-4 sm:block">
+ 333:               {filteredActivitati.map((a) => {
+ 334:                 const remainingDays = computeActivityRemainingDays(a)
+ 335:                 const pauseTone = getPauseVisualTone(remainingDays)
+ 336: 
+ 337:                 return (
+ 338:                   <CompactListCard
+ 339:                     key={a.id}
+ 340:                     title={
+ 341:                       <Badge className="badge-consistent bg-emerald-100 text-emerald-800">
+ 342:                         {a.tip_activitate || '-'}
+ 343:                       </Badge>
+ 344:                     }
+ 345:                     borderTone={pauseTone}
+ 346:                     cornerBadge={
+ 347:                       remainingDays > 0 ? (
+ 348:                         <Badge className={pauseTone === 'warning' ? 'badge-consistent bg-amber-500 text-white' : 'badge-consistent bg-red-600 text-white'}>
+ 349:                           {remainingDays} zile pauza
+ 350:                         </Badge>
+ 351:                       ) : null
+ 352:                     }
+ 353:                     leftRows={[
+ 354:                       { label: 'Data aplicare', value: a.data_aplicare ? new Date(a.data_aplicare).toLocaleDateString('ro-RO') : '-' },
+ 355:                       { label: 'Parcela', value: a.parcela_id ? parcelaMap[a.parcela_id] || 'Parcela necunoscuta' : 'Parcela necunoscuta' },
+ 356:                       { label: 'Produs', value: a.produs_utilizat || '-' },
+ 357:                     ]}
+ 358:                     rightRows={[
+ 359:                       { label: 'Pauza setata', value: `${a.timp_pauza_zile || 0} zile` },
+ 360:                       { label: 'Ramase', value: `${remainingDays} zile`, emphasis: 'financial' },
+ 361:                       {
+ 362:                         label: 'Status',
+ 363:                         value: remainingDays > 0 ? (remainingDays < 3 ? 'Aproape expirat' : 'Pauza activa') : 'Expirat',
+ 364:                       },
+ 365:                       { label: 'Observatii', value: a.observatii || '-' },
+ 366:                     ]}
+ 367:                     onEdit={() => {
+ 368:                       setSelected(a)
+ 369:                       setEditOpen(true)
+ 370:                     }}
+ 371:                     onDelete={() => {
+ 372:                       setToDelete(a)
+ 373:                       setDeleteOpen(true)
+ 374:                     }}
+ 375:                   />
+ 376:                 )
+ 377:               })}
+ 378:             </div>
+ 379:           </>
+ 380:         ) : null}
+ 381:       </div>
+ 382: 
+ 383:       <AddActivitateAgricolaDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+ 384: 
+ 385:       <EditActivitateAgricolaDialog
+ 386:         activitate={selected}
+ 387:         open={editOpen}
+ 388:         onOpenChange={(open) => {
+ 389:           setEditOpen(open)
+ 390:           if (!open) setSelected(null)
+ 391:         }}
+ 392:       />
+ 393: 
+ 394:       <ConfirmDeleteDialog
+ 395:         open={deleteOpen}
+ 396:         onOpenChange={(open) => {
+ 397:           setDeleteOpen(open)
+ 398:           if (!open) setToDelete(null)
+ 399:         }}
+ 400:         itemType="Activitate"
+ 401:         itemName={buildActivitateDeleteLabel(toDelete)}
+ 402:         description={`Čtergi activitatea ${toDelete?.tip_activitate || 'necunoscutÄ'} din ${toDelete?.data_aplicare ? new Date(toDelete.data_aplicare).toLocaleDateString('ro-RO') : 'data necunoscutÄ'} - parcela ${toDelete?.parcela_id ? parcelaMap[toDelete.parcela_id] || 'necunoscutÄ' : 'necunoscutÄ'}?`}
+ 403:         loading={deleteMutation.isPending}
+ 404:         onConfirm={() => {
+ 405:           if (!toDelete) return
+ 406:           setDeleteOpen(false)
+ 407:           scheduleDelete(toDelete)
+ 408:           setToDelete(null)
+ 409:         }}
+ 410:       />
+ 411:     </AppShell>
+ 412:   )
+ 413: }
+ 414: 
+ 415: 

@@ -33,7 +33,7 @@ const navGroups = [
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/recoltari', label: 'Recoltări', icon: PackageOpen },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
-      { href: '/activitati-agricole', label: 'Activități Agricole', icon: Sprout },
+      { href: '/activitati-agricole', label: 'Activități agricole', icon: Sprout },
     ],
   },
   {
@@ -126,7 +126,7 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
             <ul className="space-y-0.5">
               <li>
                 <Link
-                  href="/recoltarișadd=1"
+                  href="/recoltari?add=1"
                   onClick={onNavigate}
                   className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition-all transition-colors duration-200 hover:bg-white/5 hover:text-white lg:hover:bg-white/5 lg:hover:text-white"
                 >
@@ -154,7 +154,7 @@ function SidebarContent({ isActive, onNavigate, isSuperAdminUser }: SidebarConte
               const active = isActive(href)
               return (
                 <li key={`${href}-${label}`}>
-                    <Link
+                  <Link
                     href={href}
                     onClick={onNavigate}
                     className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all transition-colors duration-200 ${
@@ -243,6 +243,3 @@ export function Sidebar() {
     </>
   )
 }
-
-
-

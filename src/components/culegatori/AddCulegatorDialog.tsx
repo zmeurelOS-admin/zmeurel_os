@@ -65,7 +65,7 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
     <AppDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title="Adaugă culegator nou"
+      title="Adaugă culegător nou"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}
@@ -78,7 +78,7 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
     >
       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
         <div className="space-y-2">
-          <Label htmlFor="culegator_nume">Nume ți prenume</Label>
+          <Label htmlFor="culegator_nume">Nume și prenume</Label>
           <Input id="culegator_nume" className="agri-control h-12" placeholder="Popescu Ion" {...form.register('nume_prenume')} />
           {form.formState.errors.nume_prenume ? <p className="text-xs text-red-600">{form.formState.errors.nume_prenume.message}</p> : null}
         </div>
@@ -126,7 +126,7 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
             onChange={(event) => form.setValue('status_activ', event.target.checked, { shouldDirty: true })}
           />
           <Label htmlFor="culegator_activ" className="cursor-pointer text-sm font-normal">
-            Culegator activ
+            Culegător activ
           </Label>
         </div>
 

@@ -1,0 +1,1156 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useMemo, useRef, useState } from 'react'
+    4: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    5: import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+    6: import { ClipboardList, Loader2, Package, Pencil, Trash2, Truck, UserRoundPlus } from 'lucide-react'
+    7: import { toast } from '@/lib/ui/toast'
+    8: 
+    9: import { AppDialog } from '@/components/app/AppDialog'
+   10: import { AppShell } from '@/components/app/AppShell'
+   11: import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+   12: import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
+   13: import { EmptyState } from '@/components/ui/EmptyState'
+   14: import { ErrorState } from '@/components/app/ErrorState'
+   15: import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+   16: import { PageHeader } from '@/components/app/PageHeader'
+   17: import { StickyActionBar } from '@/components/app/StickyActionBar'
+   18: import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+   19: import { AppCardContent, AppCardFooter, AppCardHeader, EntityCard } from '@/components/ui/app-card'
+   20: import { Badge } from '@/components/ui/badge'
+   21: import { Button } from '@/components/ui/button'
+   22: import { DashboardCard, DashboardGrid, StatRow } from '@/components/dashboard'
+   23: import { Input } from '@/components/ui/input'
+   24: import { Label } from '@/components/ui/label'
+   25: import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+   26: import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+   27: import { Textarea } from '@/components/ui/textarea'
+   28: import { track } from '@/lib/analytics/track'
+   29: import { getStatusBadgeClass, STATUS_BADGE_LAYOUT_CLASS } from '@/lib/ui/status-badges'
+   30: import { getClienti, type Client } from '@/lib/supabase/queries/clienti'
+   31: import { downloadVCard } from '@/lib/utils/downloadVCard'
+   32: import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+   33: import { useAddAction } from '@/contexts/AddActionContext'
+   34: import {
+   35:   COMENZI_STATUSES,
+   36:   createComanda,
+   37:   deleteComanda,
+   38:   deliverComanda,
+   39:   getComenzi,
+   40:   reopenComanda,
+   41:   type Comanda,
+   42:   type ComandaPlata,
+   43:   type ComandaStatus,
+   44:   updateComanda,
+   45: } from '@/lib/supabase/queries/comenzi'
+   46: import { getStocGlobal } from '@/lib/supabase/queries/stoc'
+   47: 
+   48: const quickFilters = ['azi', 'viitoare', 'restante', 'livrate', 'anulate', 'toate'] as const
+   49: 
+   50: type QuickFilter = (typeof quickFilters)[number]
+   51: type TabKey = 'active' | 'istoric'
+   52: 
+   53: const statusLabelMap: Record<ComandaStatus, string> = {
+   54:   noua: 'Nouã',
+   55:   confirmata: 'Confirmatã',
+   56:   programata: 'Programatã',
+   57:   in_livrare: 'În livrare',
+   58:   livrata: 'Livratã',
+   59:   anulata: 'Anulatã',
+   60: }
+   61: 
+   62: const statusClassMap: Record<ComandaStatus, string> = {
+   63:   noua: getStatusBadgeClass('noua'),
+   64:   confirmata: getStatusBadgeClass('confirmata'),
+   65:   programata: getStatusBadgeClass('programata'),
+   66:   in_livrare: getStatusBadgeClass('in_livrare'),
+   67:   livrata: getStatusBadgeClass('livrata'),
+   68:   anulata: getStatusBadgeClass('anulata'),
+   69: }
+   70: 
+   71: interface ComandaFormState {
+   72:   client_id: string
+   73:   client_nume_manual: string
+   74:   telefon: string
+   75:   locatie_livrare: string
+   76:   data_comanda: string
+   77:   data_livrare: string
+   78:   cantitate_kg: string
+   79:   pret_per_kg: string
+   80:   status: ComandaStatus
+   81:   observatii: string
+   82: }
+   83: 
+   84: function todayIso(): string {
+   85:   return new Date().toISOString().split('T')[0]
+   86: }
+   87: 
+   88: function formatDate(value: string | null | undefined): string {
+   89:   if (!value) return '-'
+   90:   const parsed = new Date(value)
+   91:   if (Number.isNaN(parsed.getTime())) return '-'
+   92:   return parsed.toLocaleDateString('ro-RO')
+   93: }
+   94: 
+   95: function formatKg(value: number): string {
+   96:   return `${Number(value || 0).toFixed(2)} kg`
+   97: }
+   98: 
+   99: function formatLei(value: number): string {
+  100:   return `${Number(value || 0).toFixed(2)} lei`
+  101: }
+  102: 
+  103: function normalize(value: string): string {
+  104:   return value.trim().toLowerCase()
+  105: }
+  106: 
+  107: function canDeliverStatus(status: string): boolean {
+  108:   const normalized = normalize(status)
+  109:   return normalized === 'confirmata' || normalized === 'pregatita' || normalized === 'programata' || normalized === 'in_livrare'
+  110: }
+  111: 
+  112: function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
+  113:   return {
+  114:     client_id: '',
+  115:     client_nume_manual: '',
+  116:     telefon: '',
+  117:     locatie_livrare: '',
+  118:     data_comanda: todayIso(),
+  119:     data_livrare: todayIso(),
+  120:     cantitate_kg: '',
+  121:     pret_per_kg: '',
+  122:     status,
+  123:     observatii: '',
+  124:   }
+  125: }
+  126: 
+  127: function getClientName(comanda: Comanda, clientMap: Record<string, Client>): string {
+  128:   if (comanda.client_id && clientMap[comanda.client_id]) {
+  129:     return clientMap[comanda.client_id].nume_client
+  130:   }
+  131:   return comanda.client_nume || comanda.client_nume_manual || 'Client manual'
+  132: }
+  133: 
+  134: function toFilterLabel(filter: QuickFilter): string {
+  135:   switch (filter) {
+  136:     case 'azi':
+  137:       return 'Azi'
+  138:     case 'viitoare':
+  139:       return 'Viitoare'
+  140:     case 'restante':
+  141:       return 'Restante'
+  142:     case 'livrate':
+  143:       return 'Livrate'
+  144:     case 'anulate':
+  145:       return 'Anulate'
+  146:     default:
+  147:       return 'Toate'
+  148:   }
+  149: }
+  150: 
+  151: function saveContactAsVCard(name: string, phone: string) {
+  152:   const trimmedName = name.trim()
+  153:   const trimmedPhone = phone.trim()
+  154:   if (!trimmedName || !trimmedPhone) return
+  155:   downloadVCard(trimmedName, trimmedPhone)
+  156: }
+  157: 
+  158: function matchFilter(comanda: Comanda, filter: QuickFilter, today: string): boolean {
+  159:   const delivery = comanda.data_livrare ?? ''
+  160: 
+  161:   if (filter === 'toate') return true
+  162:   if (filter === 'livrate') return comanda.status === 'livrata'
+  163:   if (filter === 'anulate') return comanda.status === 'anulata'
+  164:   if (filter === 'azi') return delivery === today && comanda.status !== 'livrata' && comanda.status !== 'anulata'
+  165:   if (filter === 'viitoare') return delivery > today && comanda.status !== 'livrata' && comanda.status !== 'anulata'
+  166:   if (filter === 'restante') {
+  167:     return Boolean(delivery) && delivery < today && comanda.status !== 'livrata' && comanda.status !== 'anulata'
+  168:   }
+  169:   return true
+  170: }
+  171: 
+  172: function ComandaCard({
+  173:   comanda,
+  174:   clientName,
+  175:   onView,
+  176:   onEdit,
+  177:   onDelete,
+  178:   onDeliver,
+  179:   onReopen,
+  180:   showReopen,
+  181: }: {
+  182:   comanda: Comanda
+  183:   clientName: string
+  184:   onView: (comanda: Comanda) => void
+  185:   onEdit: (comanda: Comanda) => void
+  186:   onDelete: (comanda: Comanda) => void
+  187:   onDeliver: (comanda: Comanda) => void
+  188:   onReopen: (comanda: Comanda) => void
+  189:   showReopen: boolean
+  190: }) {
+  191:   const isDelivered = comanda.status === 'livrata'
+  192:   const isCanceled = comanda.status === 'anulata'
+  193:   const canDeliver = canDeliverStatus(comanda.status)
+  194:   const restDePlata = isDelivered ? 0 : Number(comanda.total || 0)
+  195: 
+  196:   return (
+  197:     <EntityCard
+  198:       className="cursor-pointer border-[var(--agri-border)] bg-white transition-opacity active:opacity-95"
+  199:       onClick={() => onView(comanda)}
+  200:     >
+  201:       <AppCardHeader className="items-start">
+  202:         <p className="line-clamp-2 text-base font-semibold text-gray-900 [hyphens:none]">{clientName}</p>
+  203:         <Badge className={`badge-consistent ${STATUS_BADGE_LAYOUT_CLASS} shrink-0 ${statusClassMap[comanda.status]}`}>{statusLabelMap[comanda.status]}</Badge>
+  204:       </AppCardHeader>
+  205: 
+  206:       <AppCardContent>
+  207:         <p className="text-sm text-[var(--agri-text-muted)]">
+  208:           Livrare: {formatDate(comanda.data_livrare)} | Cantitate: <span className="value-kg">{formatKg(comanda.cantitate_kg)}</span> | Total:{' '}
+  209:           <span className="value-money-positive">{formatLei(comanda.total)}</span>
+  210:         </p>
+  211: 
+  212:         {restDePlata > 0 ? (
+  213:           <p className="text-sm font-medium text-amber-600">Rest de plata: {formatLei(restDePlata)}</p>
+  214:         ) : null}
+  215:       </AppCardContent>
+  216: 
+  217:       <AppCardFooter className="items-center justify-between gap-3 pt-0.5">
+  218:         <div className="min-h-11">
+  219:           {canDeliver && !isCanceled ? (
+  220:             <button
+  221:               type="button"
+  222:               className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 lg:hover:opacity-95"
+  223:               onClick={(event) => {
+  224:                 event.stopPropagation()
+  225:                 onDeliver(comanda)
+  226:               }}
+  227:             >
+  228:               <Truck className="h-4 w-4" />
+  229:               Livreaza
+  230:             </button>
+  231:           ) : isDelivered && showReopen ? (
+  232:             <Button
+  233:               type="button"
+  234:               variant="outline"
+  235:               className="h-8 rounded-md px-2 text-xs lg:hover:opacity-95"
+  236:               onClick={(event) => {
+  237:                 event.stopPropagation()
+  238:                 onReopen(comanda)
+  239:               }}
+  240:             >
+  241:               Redeschide
+  242:             </Button>
+  243:           ) : null}
+  244:         </div>
+  245: 
+  246:         <div className="flex items-center gap-1">
+  247:           <button
+  248:             type="button"
+  249:             aria-label="Editeaza comanda"
+  250:             className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-blue-600"
+  251:             onClick={(event) => {
+  252:               event.stopPropagation()
+  253:               if (!isDelivered) onEdit(comanda)
+  254:             }}
+  255:           >
+  256:             <Pencil className="h-4 w-4" />
+  257:           </button>
+  258:           <button
+  259:             type="button"
+  260:             aria-label="Sterge comanda"
+  261:             className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-red-600"
+  262:             onClick={(event) => {
+  263:               event.stopPropagation()
+  264:               onDelete(comanda)
+  265:             }}
+  266:           >
+  267:             <Trash2 className="h-4 w-4" />
+  268:           </button>
+  269:         </div>
+  270:       </AppCardFooter>
+  271:     </EntityCard>
+  272:   )
+  273: }
+  274: function ComandaDialog({
+  275:   open,
+  276:   onOpenChange,
+  277:   onSave,
+  278:   saving,
+  279:   clienti,
+  280:   mode,
+  281:   initial,
+  282: }: {
+  283:   open: boolean
+  284:   onOpenChange: (open: boolean) => void
+  285:   onSave: (values: ComandaFormState) => Promise<void>
+  286:   saving: boolean
+  287:   clienti: Client[]
+  288:   mode: 'create' | 'edit'
+  289:   initial?: Comanda | null
+  290: }) {
+  291:   const [form, setForm] = useState<ComandaFormState>(defaultFormState())
+  292:   const manualName = form.client_nume_manual.trim()
+  293:   const selectedClient = clienti.find((client) => client.id === form.client_id)
+  294:   const suggestedClientName = manualName || selectedClient?.nume_client || 'Client'
+  295:   const canSaveContact = suggestedClientName.trim().length > 0 && form.telefon.trim().length > 0
+  296: 
+  297:   useEffect(() => {
+  298:     if (!open) return
+  299:     if (!initial) {
+  300:       setForm(defaultFormState('confirmata'))
+  301:       return
+  302:     }
+  303: 
+  304:     setForm({
+  305:       client_id: initial.client_id ?? '',
+  306:       client_nume_manual: initial.client_nume_manual ?? '',
+  307:       telefon: initial.telefon ?? '',
+  308:       locatie_livrare: initial.locatie_livrare ?? '',
+  309:       data_comanda: initial.data_comanda ?? todayIso(),
+  310:       data_livrare: initial.data_livrare ?? todayIso(),
+  311:       cantitate_kg: String(initial.cantitate_kg ?? ''),
+  312:       pret_per_kg: String(initial.pret_per_kg ?? ''),
+  313:       status: initial.status,
+  314:       observatii: initial.observatii ?? '',
+  315:     })
+  316:   }, [open, initial])
+  317: 
+  318:   return (
+  319:     <AppDialog
+  320:       open={open}
+  321:       onOpenChange={onOpenChange}
+  322:       title={mode === 'create' ? 'Adauga comanda' : 'Editeaza comanda'}
+  323:       footer={
+  324:         <div className="flex justify-center gap-3">
+  325:           <Button
+  326:             type="button"
+  327:             variant="outline"
+  328:             className="agri-cta h-12 min-w-[132px] rounded-xl text-sm"
+  329:             disabled={saving}
+  330:             onClick={() => onOpenChange(false)}
+  331:           >
+  332:             Anuleaza
+  333:           </Button>
+  334:           <Button
+  335:             type="button"
+  336:             className="agri-cta h-12 min-w-[132px] rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700"
+  337:             disabled={saving}
+  338:             onClick={async () => {
+  339:               await onSave(form)
+  340:             }}
+  341:           >
+  342:             {saving ? (
+  343:               <>
+  344:                 <Loader2 className="h-4 w-4 animate-spin" />
+  345:                 Se salveaza...
+  346:               </>
+  347:             ) : (
+  348:               'Salveaza'
+  349:             )}
+  350:           </Button>
+  351:         </div>
+  352:       }
+  353:     >
+  354:       <div className="space-y-3">
+  355:         <div className="space-y-1.5">
+  356:           <Label>Client existent</Label>
+  357:           <Select value={form.client_id || '__none'} onValueChange={(value) => setForm((prev) => ({ ...prev, client_id: value === '__none' ? '' : value }))}>
+  358:             <SelectTrigger className="agri-control h-12">
+  359:               <SelectValue placeholder="Selecteaza client" />
+  360:             </SelectTrigger>
+  361:             <SelectContent>
+  362:               <SelectItem value="__none">Fara client</SelectItem>
+  363:               {clienti.map((client) => (
+  364:                 <SelectItem key={client.id} value={client.id}>
+  365:                   {client.nume_client}
+  366:                 </SelectItem>
+  367:               ))}
+  368:             </SelectContent>
+  369:           </Select>
+  370:         </div>
+  371: 
+  372:         <div className="space-y-1.5">
+  373:           <Label>Nume client manual</Label>
+  374:           <Input className="agri-control h-12" value={form.client_nume_manual} onChange={(e) => setForm((prev) => ({ ...prev, client_nume_manual: e.target.value }))} />
+  375:         </div>
+  376: 
+  377:         <div className="space-y-1.5">
+  378:           <Label>Telefon</Label>
+  379:           <div className="grid grid-cols-[1fr_auto] gap-2">
+  380:             <Input className="agri-control h-12" value={form.telefon} onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))} />
+  381:             <Button
+  382:               type="button"
+  383:               variant="outline"
+  384:               className="h-12 whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm"
+  385:               disabled={!canSaveContact}
+  386:               onClick={() => saveContactAsVCard(suggestedClientName, form.telefon)}
+  387:             >
+  388:               <UserRoundPlus className="h-4 w-4" />
+  389:               Salveaza contact
+  390:             </Button>
+  391:           </div>
+  392:         </div>
+  393: 
+  394:         <div className="space-y-1.5">
+  395:           <Label>Locatie livrare</Label>
+  396:           <Input className="agri-control h-12" value={form.locatie_livrare} onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))} />
+  397:         </div>
+  398: 
+  399:         <div className="grid grid-cols-2 gap-3">
+  400:           <div className="space-y-1.5">
+  401:             <Label>Data comanda</Label>
+  402:             <Input type="date" className="agri-control h-12" value={form.data_comanda} onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))} />
+  403:           </div>
+  404:           <div className="space-y-1.5">
+  405:             <Label>Data livrare</Label>
+  406:             <Input type="date" className="agri-control h-12" value={form.data_livrare} onChange={(e) => setForm((prev) => ({ ...prev, data_livrare: e.target.value }))} />
+  407:           </div>
+  408:         </div>
+  409: 
+  410:         <div className="grid grid-cols-2 gap-3">
+  411:           <div className="space-y-1.5">
+  412:             <Label>Cantitate (kg)</Label>
+  413:             <Input type="number" min="0" step="0.01" className="agri-control h-12" value={form.cantitate_kg} onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))} />
+  414:           </div>
+  415:           <div className="space-y-1.5">
+  416:             <Label>Pret per kg</Label>
+  417:             <Input type="number" min="0" step="0.01" className="agri-control h-12" value={form.pret_per_kg} onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))} />
+  418:           </div>
+  419:         </div>
+  420: 
+  421:         <div className="space-y-1.5">
+  422:           <Label>Status</Label>
+  423:           <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}>
+  424:             <SelectTrigger className="agri-control h-12">
+  425:               <SelectValue />
+  426:             </SelectTrigger>
+  427:             <SelectContent>
+  428:               {COMENZI_STATUSES.map((status) => (
+  429:                 <SelectItem key={status} value={status}>
+  430:                   {statusLabelMap[status]}
+  431:                 </SelectItem>
+  432:               ))}
+  433:             </SelectContent>
+  434:           </Select>
+  435:         </div>
+  436: 
+  437:         <div className="space-y-1.5">
+  438:           <Label>Observatii</Label>
+  439:           <Textarea className="agri-control" value={form.observatii} onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))} />
+  440:         </div>
+  441:       </div>
+  442:     </AppDialog>
+  443:   )
+  444: }
+  445: 
+  446: function DeliverDialog({
+  447:   open,
+  448:   onOpenChange,
+  449:   comanda,
+  450:   clientName,
+  451:   availableKg,
+  452:   onConfirm,
+  453:   loading,
+  454: }: {
+  455:   open: boolean
+  456:   onOpenChange: (open: boolean) => void
+  457:   comanda: Comanda | null
+  458:   clientName: string
+  459:   availableKg: number
+  460:   onConfirm: () => Promise<void>
+  461:   loading: boolean
+  462: }) {
+  463:   if (!comanda) return null
+  464: 
+  465:   const ordered = Number(comanda.cantitate_kg || 0)
+  466:   const total = Number(comanda.total || 0)
+  467:   const hasInsufficientStock = availableKg < ordered
+  468:   const hasZeroStock = availableKg === 0
+  469: 
+  470:   return (
+  471:     <AppDialog
+  472:       open={open}
+  473:       onOpenChange={onOpenChange}
+  474:       title="Confirmã livrarea"
+  475:       description={`Livrezi ${formatKg(ordered)} cãtre ${clientName}? Se va crea automat o vânzare de ${formatLei(total)}.`}
+  476:       footer={
+  477:         <>
+  478:           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+  479:             Anuleazã
+  480:           </Button>
+  481:           <Button type="button" className="bg-green-600 text-white hover:bg-green-700 lg:hover:opacity-95" onClick={onConfirm} disabled={loading}>
+  482:             <Package className="mr-1.5 h-4 w-4" />
+  483:             Confirmã livrarea
+  484:           </Button>
+  485:         </>
+  486:       }
+  487:     >
+  488:       <div className="space-y-3">
+  489:         <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 text-sm text-[var(--agri-text-muted)]">
+  490:           <p>
+  491:             Cantitate comandatã: <span className="font-semibold text-[var(--agri-text)]">{formatKg(ordered)}</span>
+  492:           </p>
+  493:           <p>
+  494:             Total comandã: <span className="font-semibold text-[var(--agri-text)]">{formatLei(total)}</span>
+  495:           </p>
+  496:         </div>
+  497: 
+  498:         {hasZeroStock ? (
+  499:           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+  500:             ?? Stocul este gol. Livrarea va fi înregistratã fãrã scãdere de stoc.
+  501:           </div>
+  502:         ) : hasInsufficientStock ? (
+  503:           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+  504:             ?? Stoc insuficient: ai {formatKg(availableKg)} disponibil, comanda este {formatKg(ordered)}. Livrarea va fi înregistratã, dar stocul va fi negativ.
+  505:           </div>
+  506:         ) : null}
+  507:       </div>
+  508:     </AppDialog>
+  509:   )
+  510: }
+  511: 
+  512: export function ComenziPageClient() {
+  513:   const queryClient = useQueryClient()
+  514:   const { registerAddAction } = useAddAction()
+  515:   const pathname = usePathname()
+  516:   const router = useRouter()
+  517:   const searchParams = useSearchParams()
+  518:   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  519:   const pendingDeletedItems = useRef<Record<string, { item: Comanda; index: number }>>({})
+  520: 
+  521:   const [search, setSearch] = useState('')
+  522:   const [activeFilter, setActiveFilter] = useState<QuickFilter>('toate')
+  523:   const [activeTab, setActiveTab] = useState<TabKey>('active')
+  524:   const [addOpen, setAddOpen] = useState(false)
+  525:   const [selectedComanda, setSelectedComanda] = useState<Comanda | null>(null)
+  526:   const [dialogOpen, setDialogOpen] = useState(false)
+  527:   const [editing, setEditing] = useState<Comanda | null>(null)
+  528:   const [deleting, setDeleting] = useState<Comanda | null>(null)
+  529:   const [delivering, setDelivering] = useState<Comanda | null>(null)
+  530:   const [reopening, setReopening] = useState<Comanda | null>(null)
+  531: 
+  532:   const {
+  533:     data: comenzi = [],
+  534:     isLoading,
+  535:     isError,
+  536:     error,
+  537:   } = useQuery({
+  538:     queryKey: ['comenzi'],
+  539:     queryFn: getComenzi,
+  540:   })
+  541: 
+  542:   useMobileScrollRestore({
+  543:     storageKey: 'scroll:comenzi',
+  544:     ready: !isLoading,
+  545:   })
+  546: 
+  547:   const { data: clienti = [] } = useQuery({
+  548:     queryKey: ['clienti'],
+  549:     queryFn: getClienti,
+  550:   })
+  551: 
+  552:   const { data: stocGlobal = { cal1: 0, cal2: 0 } } = useQuery({
+  553:     queryKey: ['stoc-global'],
+  554:     queryFn: getStocGlobal,
+  555:   })
+  556: 
+  557:   const clientMap = useMemo(() => {
+  558:     const map: Record<string, Client> = {}
+  559:     clienti.forEach((client) => {
+  560:       map[client.id] = client
+  561:     })
+  562:     return map
+  563:   }, [clienti])
+  564: 
+  565:   const createMutation = useMutation({
+  566:     mutationFn: createComanda,
+  567:     onSuccess: (_, variables) => {
+  568:       queryClient.invalidateQueries({ queryKey: ['comenzi'] })
+  569:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  570:       track('comanda_add', {
+  571:         cantitate: Number(variables.cantitate_kg || 0),
+  572:         client_id: variables.client_id ?? null,
+  573:       })
+  574:       hapticSuccess()
+  575:       const matchedClientName = variables.client_id ? clientMap[variables.client_id]?.nume_client ?? '' : ''
+  576:       const clientName = (variables.client_nume_manual || matchedClientName || '').trim()
+  577:       const phone = (variables.telefon ?? '').trim()
+  578:       const canSaveContactFromToast = clientName.length > 0 && phone.length > 0
+  579: 
+  580:       toast('Comanda a fost salvata', {
+  581:         action: canSaveContactFromToast
+  582:           ? {
+  583:               label: 'Salveaza clientul in telefon',
+  584:               onClick: () => saveContactAsVCard(clientName, phone),
+  585:             }
+  586:           : undefined,
+  587:       })
+  588:       setAddOpen(false)
+  589:     },
+  590:     onError: (err: Error) => {
+  591:       hapticError()
+  592:       toast.error(err.message)
+  593:     },
+  594:   })
+  595: 
+  596:   const updateMutation = useMutation({
+  597:     mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) => updateComanda(id, payload),
+  598:     onSuccess: (_, variables) => {
+  599:       queryClient.invalidateQueries({ queryKey: ['comenzi'] })
+  600:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  601:       track('comanda_edit', { id: variables.id })
+  602:       hapticSuccess()
+  603:       toast.success('Comanda actualizata')
+  604:       setEditing(null)
+  605:     },
+  606:     onError: (err: Error) => {
+  607:       hapticError()
+  608:       toast.error(err.message)
+  609:     },
+  610:   })
+  611: 
+  612:   const deleteMutation = useMutation({
+  613:     mutationFn: deleteComanda,
+  614:     onSuccess: (_, deletedId) => {
+  615:       queryClient.invalidateQueries({ queryKey: ['comenzi'] })
+  616:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  617:       track('comanda_delete', { id: deletedId })
+  618:       hapticSuccess()
+  619:       toast.success('Comanda stearsa')
+  620:       setDeleting(null)
+  621:     },
+  622:     onError: (err: Error) => {
+  623:       hapticError()
+  624:       toast.error(err.message)
+  625:       queryClient.invalidateQueries({ queryKey: ['comenzi'] })
+  626:     },
+  627:   })
+  628: 
+  629:   const deliverMutation = useMutation({
+  630:     mutationFn: ({ comandaId, cantitateLivrataKg, plata, dataLivrareRamasa }: { comandaId: string; cantitateLivrataKg: number; plata: ComandaPlata; dataLivrareRamasa: string | null }) =>
+  631:       deliverComanda({ comandaId, cantitateLivrataKg, plata, dataLivrareRamasa }),
+  632:     onSuccess: (result) => {
+  633:       queryClient.invalidateQueries({ queryKey: ['comenzi'] })
+  634:       queryClient.invalidateQueries({ queryKey: ['vanzari'] })
+  635:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  636:       queryClient.invalidateQueries({ queryKey: ['stoc-global'] })
+  637:       queryClient.invalidateQueries({ queryKey: ['stoc-global', 'cal1'] })
+  638:       hapticSuccess()
+  639:       const valoareVanzareLei = Number(result.vanzare.cantitate_kg || 0) * Number(result.vanzare.pret_lei_kg || 0)
+  640:       toast.success(`? Livrare înregistratã — vânzare de ${formatLei(valoareVanzareLei)} creatã`)
+  641:       setDelivering(null)
+  642:       setDialogOpen(false)
+  643:       setSelectedComanda(null)
+  644:     },
+  645:     onError: (err: Error) => {
+  646:       hapticError()
+  647:       toast.error(err.message)
+  648:     },
+  649:   })
+  650: 
+  651:   const reopenMutation = useMutation({
+  652:     mutationFn: reopenComanda,
+  653:     onSuccess: () => {
+  654:       queryClient.invalidateQueries({ queryKey: ['comenzi'] })
+  655:       queryClient.invalidateQueries({ queryKey: ['vanzari'] })
+  656:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  657:       queryClient.invalidateQueries({ queryKey: ['stoc-global'] })
+  658:       queryClient.invalidateQueries({ queryKey: ['stoc-global', 'cal1'] })
+  659:       hapticSuccess()
+  660:       toast.success('Comanda redeschisa')
+  661:       setReopening(null)
+  662:     },
+  663:     onError: (err: Error) => {
+  664:       hapticError()
+  665:       toast.error(err.message)
+  666:       setReopening(null)
+  667:     },
+  668:   })
+  669: 
+  670:   useEffect(() => {
+  671:     return () => {
+  672:       Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+  673:     }
+  674:   }, [])
+  675: 
+  676:   useEffect(() => {
+  677:     if (searchParams.get('add') !== '1') return
+  678: 
+  679:     setAddOpen(true)
+  680:     const nextParams = new URLSearchParams(searchParams.toString())
+  681:     nextParams.delete('add')
+  682:     const query = nextParams.toString()
+  683:     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  684:   }, [pathname, router, searchParams])
+  685: 
+  686:   useEffect(() => {
+  687:     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga comanda')
+  688:     return unregister
+  689:   }, [registerAddAction])
+  690: 
+  691:   useEffect(() => {
+  692:     const filterParam = searchParams.get('filter')
+  693:     if (!filterParam) return
+  694:     if (!quickFilters.includes(filterParam as QuickFilter)) return
+  695:     setActiveTab(filterParam === 'livrate' ? 'istoric' : 'active')
+  696:     setActiveFilter(filterParam as QuickFilter)
+  697:   }, [searchParams])
+  698: 
+  699:   useEffect(() => {
+  700:     const query = search.trim()
+  701:     if (!query) return
+  702: 
+  703:     const timer = setTimeout(() => {
+  704:       track('search', { module: 'comenzi', query })
+  705:     }, 500)
+  706: 
+  707:     return () => clearTimeout(timer)
+  708:   }, [search])
+  709: 
+  710:   useEffect(() => {
+  711:     if (activeTab === 'istoric' && activeFilter !== 'livrate' && activeFilter !== 'toate') {
+  712:       setActiveFilter('livrate')
+  713:       return
+  714:     }
+  715:     if (activeTab === 'active' && activeFilter === 'livrate') {
+  716:       setActiveFilter('toate')
+  717:     }
+  718:   }, [activeFilter, activeTab])
+  719: 
+  720:   const scheduleDelete = (comanda: Comanda) => {
+  721:     const comandaId = comanda.id
+  722:     const currentItems = queryClient.getQueryData<Comanda[]>(['comenzi']) ?? []
+  723:     const deleteIndex = currentItems.findIndex((item) => item.id === comandaId)
+  724: 
+  725:     pendingDeletedItems.current[comandaId] = { item: comanda, index: deleteIndex }
+  726:     queryClient.setQueryData<Comanda[]>(['comenzi'], (current = []) =>
+  727:       current.filter((item) => item.id !== comandaId)
+  728:     )
+  729: 
+  730:     const timer = setTimeout(() => {
+  731:       delete pendingDeleteTimers.current[comandaId]
+  732:       delete pendingDeletedItems.current[comandaId]
+  733:       deleteMutation.mutate(comandaId)
+  734:     }, 5000)
+  735: 
+  736:     pendingDeleteTimers.current[comandaId] = timer
+  737: 
+  738:     toast('Element sters', {
+  739:       duration: 5000,
+  740:       action: {
+  741:         label: 'Undo',
+  742:         onClick: () => {
+  743:           const pendingTimer = pendingDeleteTimers.current[comandaId]
+  744:           if (!pendingTimer) return
+  745: 
+  746:           clearTimeout(pendingTimer)
+  747:           delete pendingDeleteTimers.current[comandaId]
+  748: 
+  749:           const pendingItem = pendingDeletedItems.current[comandaId]
+  750:           delete pendingDeletedItems.current[comandaId]
+  751:           if (!pendingItem) return
+  752: 
+  753:           queryClient.setQueryData<Comanda[]>(['comenzi'], (current = []) => {
+  754:             if (current.some((item) => item.id === comandaId)) return current
+  755: 
+  756:             const next = [...current]
+  757:             const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+  758:             next.splice(insertAt, 0, pendingItem.item)
+  759:             return next
+  760:           })
+  761:         },
+  762:       },
+  763:     })
+  764:   }
+  765: 
+  766:   const today = todayIso()
+  767: 
+  768:   const activeComenzi = useMemo(() => comenzi.filter((item) => item.status !== 'livrata'), [comenzi])
+  769:   const historyComenzi = useMemo(() => comenzi.filter((item) => item.status === 'livrata'), [comenzi])
+  770: 
+  771:   const listSource = activeTab === 'active' ? activeComenzi : historyComenzi
+  772: 
+  773:   const filteredComenzi = useMemo(() => {
+  774:     const term = normalize(search)
+  775: 
+  776:     return listSource.filter((item) => {
+  777:       if (!matchFilter(item, activeFilter, today)) return false
+  778:       if (!term) return true
+  779: 
+  780:       const clientName = normalize(getClientName(item, clientMap))
+  781:       const phone = normalize(item.telefon || '')
+  782:       return clientName.includes(term) || phone.includes(term)
+  783:     })
+  784:   }, [activeFilter, clientMap, listSource, search, today])
+  785: 
+  786:   const totalActiveKg = useMemo(
+  787:     () => activeComenzi.reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0),
+  788:     [activeComenzi]
+  789:   )
+  790: 
+  791:   const totalActiveValue = useMemo(
+  792:     () => activeComenzi.reduce((sum, item) => sum + Number(item.total || 0), 0),
+  793:     [activeComenzi]
+  794:   )
+  795: 
+  796:   const totalKgAziProgramate = useMemo(
+  797:     () =>
+  798:       activeComenzi
+  799:         .filter((item) => item.data_livrare === today && item.status !== 'anulata')
+  800:         .reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0),
+  801:     [activeComenzi, today]
+  802:   )
+  803: 
+  804:   const dashboardSummary = useMemo(() => {
+  805:     const isOpen = (status: ComandaStatus) => status !== 'livrata' && status !== 'anulata'
+  806:     const livrariAzi = comenzi.filter((item) => item.data_livrare === today && isOpen(item.status))
+  807:     const livrariViitoare = comenzi.filter(
+  808:       (item) => Boolean(item.data_livrare) && item.data_livrare! > today && isOpen(item.status)
+  809:     )
+  810: 
+  811:     const livrariAziKg = livrariAzi.reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0)
+  812:     const livrariViitoareKg = livrariViitoare.reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0)
+  813: 
+  814:     const confirmateCount = comenzi.filter((item) => item.status === 'confirmata' || item.status === 'in_livrare').length
+  815:     const inAsteptareCount = comenzi.filter((item) => item.status === 'noua' || item.status === 'programata').length
+  816:     const livrateCount = comenzi.filter((item) => item.status === 'livrata').length
+  817: 
+  818:     return {
+  819:       livrariAziCount: livrariAzi.length,
+  820:       livrariAziKg,
+  821:       livrariViitoareCount: livrariViitoare.length,
+  822:       livrariViitoareKg,
+  823:       confirmateCount,
+  824:       inAsteptareCount,
+  825:       livrateCount,
+  826:     }
+  827:   }, [comenzi, today])
+  828: 
+  829:   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
+  830:   const showStockWarning = activeFilter === 'azi' && activeTab === 'active' && totalKgAziProgramate > totalStocDisponibilKg
+  831: 
+  832:   const comenziLoadingSkeleton = (
+  833:     <div className="grid grid-cols-1 gap-3 lg:gap-4 xl:gap-5">
+  834:       {Array.from({ length: 4 }).map((_, index) => (
+  835:         <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
+  836:       ))}
+  837:     </div>
+  838:   )
+  839: 
+  840:   const openViewDialog = (comanda: Comanda) => {
+  841:     setSelectedComanda(comanda)
+  842:     setDialogOpen(true)
+  843:   }
+  844: 
+  845:   return (
+  846:     <AppShell
+  847:       header={<PageHeader title="Comenzi" subtitle="Planificare livrari si conversie in vanzari" />}
+  848:       bottomBar={
+  849:         <StickyActionBar>
+  850:           <div className="flex items-center justify-between gap-3">
+  851:             <p className="text-sm font-medium text-[var(--agri-text-muted)]">Active: {formatKg(totalActiveKg)}</p>
+  852:             <p className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Valoare: {formatLei(totalActiveValue)}</p>
+  853:           </div>
+  854:         </StickyActionBar>
+  855:       }
+  856:     >
+  857:       <div className="mx-auto w-full max-w-4xl space-y-4 py-4 lg:space-y-6 xl:space-y-8">
+  858:         <DashboardGrid>
+  859:           <DashboardCard
+  860:             title="Livrari azi"
+  861:             onClick={() => {
+  862:               setActiveTab('active')
+  863:               setActiveFilter('azi')
+  864:               router.push('/comenzi?filter=azi', { scroll: false })
+  865:             }}
+  866:             className="border-red-200 bg-red-50"
+  867:             contentClassName="grid grid-cols-2 gap-2"
+  868:           >
+  869:             <StatRow label="Comenzi" value={dashboardSummary.livrariAziCount} valueClassName="text-red-700" />
+  870:             <StatRow label="Cantitate" value={formatKg(dashboardSummary.livrariAziKg)} valueClassName="text-red-700" />
+  871:           </DashboardCard>
+  872: 
+  873:           <DashboardCard
+  874:             title="Livrari viitoare"
+  875:             onClick={() => {
+  876:               setActiveTab('active')
+  877:               setActiveFilter('viitoare')
+  878:               router.push('/comenzi?filter=viitoare', { scroll: false })
+  879:             }}
+  880:             className="border-amber-200 bg-amber-50"
+  881:             contentClassName="grid grid-cols-2 gap-2"
+  882:           >
+  883:             <StatRow label="Comenzi" value={dashboardSummary.livrariViitoareCount} valueClassName="text-amber-700" />
+  884:             <StatRow label="Cantitate" value={formatKg(dashboardSummary.livrariViitoareKg)} valueClassName="text-amber-700" />
+  885:           </DashboardCard>
+  886: 
+  887:           <DashboardCard
+  888:             title="Status comenzi"
+  889:             className="md:col-span-2"
+  890:             onClick={() => {
+  891:               setActiveTab('active')
+  892:               setActiveFilter('toate')
+  893:               router.push('/comenzi?filter=toate', { scroll: false })
+  894:             }}
+  895:             contentClassName="grid grid-cols-2 gap-2"
+  896:           >
+  897:             <StatRow label="Confirmate" value={dashboardSummary.confirmateCount} />
+  898:             <StatRow label="In asteptare" value={dashboardSummary.inAsteptareCount} />
+  899:             <StatRow label="Livrate" value={dashboardSummary.livrateCount} />
+  900:           </DashboardCard>
+  901:         </DashboardGrid>
+  902: 
+  903:         <Input
+  904:           className="agri-control h-12"
+  905:           placeholder="Cauta dupa client sau telefon..."
+  906:           value={search}
+  907:           onChange={(e) => setSearch(e.target.value)}
+  908:         />
+  909: 
+  910:         <div className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  911:           <div className="flex w-max flex-nowrap gap-1.5">
+  912:             {quickFilters.map((filter) => (
+  913:               <Button
+  914:                 key={filter}
+  915:                 type="button"
+  916:                 variant="outline"
+  917:                 className={`h-8 rounded-full px-2.5 text-[11px] whitespace-nowrap ${activeFilter === filter ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : ''}`}
+  918:                 onClick={() => setActiveFilter(filter)}
+  919:               >
+  920:                 {toFilterLabel(filter)}
+  921:               </Button>
+  922:             ))}
+  923:           </div>
+  924:         </div>
+  925: 
+  926:         {showStockWarning ? (
+  927:           <div className="stock-low-warning rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-medium">
+  928:             Stoc insuficient pentru livrarile programate.
+  929:             <span className="ml-2">Programat: {formatKg(totalKgAziProgramate)} | Disponibil: {formatKg(totalStocDisponibilKg)}</span>
+  930:           </div>
+  931:         ) : null}
+  932: 
+  933:         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabKey)}>
+  934:           <TabsList className="grid w-full grid-cols-2">
+  935:             <TabsTrigger value="active">Comenzi active</TabsTrigger>
+  936:             <TabsTrigger value="istoric">Istoric livrari</TabsTrigger>
+  937:           </TabsList>
+  938: 
+  939:           <TabsContent value="active" className="space-y-3">
+  940:             {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+  941:             {isLoading ? comenziLoadingSkeleton : null}
+  942:             {!isLoading && !isError && filteredComenzi.length === 0 ? (
+  943:               <EmptyState
+  944:                 icon={<ClipboardList className="h-16 w-16" />}
+  945:                 title="Nicio comandã încã"
+  946:                 description="Adaugã prima comandã pentru a începe"
+  947:               />
+  948:             ) : null}
+  949: 
+  950:             {!isLoading && !isError && filteredComenzi.length > 0 ? (
+  951:               <div className="grid grid-cols-1 gap-3 lg:gap-4 xl:gap-5">
+  952:                 {filteredComenzi.map((comanda) => (
+  953:                   <ComandaCard
+  954:                     key={comanda.id}
+  955:                     comanda={comanda}
+  956:                     clientName={getClientName(comanda, clientMap)}
+  957:                     onView={openViewDialog}
+  958:                     onEdit={setEditing}
+  959:                     onDelete={setDeleting}
+  960:                     onDeliver={setDelivering}
+  961:                     onReopen={setReopening}
+  962:                     showReopen={false}
+  963:                   />
+  964:                 ))}
+  965:               </div>
+  966:             ) : null}
+  967:           </TabsContent>
+  968: 
+  969:           <TabsContent value="istoric" className="space-y-3">
+  970:             {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+  971:             {isLoading ? comenziLoadingSkeleton : null}
+  972:             {!isLoading && !isError && filteredComenzi.length === 0 ? (
+  973:               <EmptyState
+  974:                 icon={<ClipboardList className="h-16 w-16" />}
+  975:                 title="Nicio comandã încã"
+  976:                 description="Adaugã prima comandã pentru a începe"
+  977:               />
+  978:             ) : null}
+  979: 
+  980:             {!isLoading && !isError && filteredComenzi.length > 0 ? (
+  981:               <div className="grid grid-cols-1 gap-3 lg:gap-4 xl:gap-5">
+  982:                 {filteredComenzi.map((comanda) => (
+  983:                   <ComandaCard
+  984:                     key={comanda.id}
+  985:                     comanda={comanda}
+  986:                     clientName={getClientName(comanda, clientMap)}
+  987:                     onView={openViewDialog}
+  988:                     onEdit={setEditing}
+  989:                     onDelete={setDeleting}
+  990:                     onDeliver={setDelivering}
+  991:                     onReopen={setReopening}
+  992:                     showReopen
+  993:                   />
+  994:                 ))}
+  995:               </div>
+  996:             ) : null}
+  997:           </TabsContent>
+  998:         </Tabs>
+  999:       </div>
+ 1000: 
+ 1001:       <ComandaDialog
+ 1002:         open={addOpen}
+ 1003:         onOpenChange={setAddOpen}
+ 1004:         saving={createMutation.isPending}
+ 1005:         clienti={clienti}
+ 1006:         mode="create"
+ 1007:         onSave={async (values) => {
+ 1008:           const cantitate = Number(values.cantitate_kg)
+ 1009:           const pret = Number(values.pret_per_kg)
+ 1010:           if (!Number.isFinite(cantitate) || cantitate <= 0) {
+ 1011:             hapticError()
+ 1012:             toast.error('Cantitatea trebuie sa fie mai mare decat 0.')
+ 1013:             return
+ 1014:           }
+ 1015:           if (!Number.isFinite(pret) || pret <= 0) {
+ 1016:             hapticError()
+ 1017:             toast.error('Pretul trebuie sa fie mai mare decat 0.')
+ 1018:             return
+ 1019:           }
+ 1020: 
+ 1021:           await createMutation.mutateAsync({
+ 1022:             client_id: values.client_id || null,
+ 1023:             client_nume_manual: values.client_nume_manual || null,
+ 1024:             telefon: values.telefon || null,
+ 1025:             locatie_livrare: values.locatie_livrare || null,
+ 1026:             data_comanda: values.data_comanda || today,
+ 1027:             data_livrare: values.data_livrare || null,
+ 1028:             cantitate_kg: cantitate,
+ 1029:             pret_per_kg: pret,
+ 1030:             status: values.status,
+ 1031:             observatii: values.observatii || null,
+ 1032:           })
+ 1033:         }}
+ 1034:       />
+ 1035: 
+ 1036:       <ViewComandaDialog
+ 1037:         open={dialogOpen}
+ 1038:         onOpenChange={(open) => {
+ 1039:           setDialogOpen(open)
+ 1040:           if (!open) setSelectedComanda(null)
+ 1041:         }}
+ 1042:         comanda={selectedComanda}
+ 1043:         clientName={selectedComanda ? getClientName(selectedComanda, clientMap) : 'Client'}
+ 1044:         clientTelefon={selectedComanda?.client_id ? clientMap[selectedComanda.client_id]?.telefon : null}
+ 1045:         canDeliver={!!selectedComanda && canDeliverStatus(selectedComanda.status) && selectedComanda.status !== 'anulata'}
+ 1046:         onDeliver={setDelivering}
+ 1047:         onEdit={setEditing}
+ 1048:         onDelete={setDeleting}
+ 1049:       />
+ 1050: 
+ 1051:       <ComandaDialog
+ 1052:         open={!!editing}
+ 1053:         onOpenChange={(open) => {
+ 1054:           if (!open) setEditing(null)
+ 1055:         }}
+ 1056:         saving={updateMutation.isPending}
+ 1057:         clienti={clienti}
+ 1058:         mode="edit"
+ 1059:         initial={editing}
+ 1060:         onSave={async (values) => {
+ 1061:           if (!editing) return
+ 1062:           const cantitate = Number(values.cantitate_kg)
+ 1063:           const pret = Number(values.pret_per_kg)
+ 1064:           if (!Number.isFinite(cantitate) || cantitate <= 0) {
+ 1065:             hapticError()
+ 1066:             toast.error('Cantitatea trebuie sa fie mai mare decat 0.')
+ 1067:             return
+ 1068:           }
+ 1069:           if (!Number.isFinite(pret) || pret <= 0) {
+ 1070:             hapticError()
+ 1071:             toast.error('Pretul trebuie sa fie mai mare decat 0.')
+ 1072:             return
+ 1073:           }
+ 1074: 
+ 1075:           await updateMutation.mutateAsync({
+ 1076:             id: editing.id,
+ 1077:             payload: {
+ 1078:               client_id: values.client_id || null,
+ 1079:               client_nume_manual: values.client_nume_manual || null,
+ 1080:               telefon: values.telefon || null,
+ 1081:               locatie_livrare: values.locatie_livrare || null,
+ 1082:               data_comanda: values.data_comanda || today,
+ 1083:               data_livrare: values.data_livrare || null,
+ 1084:               cantitate_kg: cantitate,
+ 1085:               pret_per_kg: pret,
+ 1086:               status: values.status,
+ 1087:               observatii: values.observatii || null,
+ 1088:             },
+ 1089:           })
+ 1090:         }}
+ 1091:       />
+ 1092: 
+ 1093:       <DeliverDialog
+ 1094:         open={!!delivering}
+ 1095:         onOpenChange={(open) => {
+ 1096:           if (!open) setDelivering(null)
+ 1097:         }}
+ 1098:         comanda={delivering}
+ 1099:         clientName={delivering ? getClientName(delivering, clientMap) : 'Client'}
+ 1100:         availableKg={totalStocDisponibilKg}
+ 1101:         loading={deliverMutation.isPending}
+ 1102:         onConfirm={async () => {
+ 1103:           if (!delivering) return
+ 1104:           await deliverMutation.mutateAsync({
+ 1105:             comandaId: delivering.id,
+ 1106:             cantitateLivrataKg: Number(delivering.cantitate_kg || 0),
+ 1107:             plata: 'integral',
+ 1108:             dataLivrareRamasa: null,
+ 1109:           })
+ 1110:         }}
+ 1111:       />
+ 1112: 
+ 1113:       <ConfirmDeleteDialog
+ 1114:         open={!!deleting}
+ 1115:         onOpenChange={(open) => {
+ 1116:           if (!open) setDeleting(null)
+ 1117:         }}
+ 1118:         onConfirm={() => {
+ 1119:           if (!deleting) return
+ 1120:           scheduleDelete(deleting)
+ 1121:           setDeleting(null)
+ 1122:         }}
+ 1123:         itemType="Comanda"
+ 1124:         itemName={deleting ? `${getClientName(deleting, clientMap)} - ${formatDate(deleting.data_livrare)}` : 'Comanda selectata'}
+ 1125:         description={`Stergi comanda pentru ${deleting ? getClientName(deleting, clientMap) : 'client'} din ${deleting ? formatDate(deleting.data_livrare) : 'data necunoscuta'}?`}
+ 1126:         loading={deleteMutation.isPending}
+ 1127:       />
+ 1128: 
+ 1129:       <ConfirmDeleteDialog
+ 1130:         open={!!reopening}
+ 1131:         onOpenChange={(open) => {
+ 1132:           if (!open) setReopening(null)
+ 1133:         }}
+ 1134:         onConfirm={() => {
+ 1135:           if (!reopening) return
+ 1136:           reopenMutation.mutate(reopening.id)
+ 1137:         }}
+ 1138:         itemType="Comanda"
+ 1139:         itemName={reopening ? getClientName(reopening, clientMap) : 'Comanda livrata'}
+ 1140:         title="Confirmi redeschiderea?"
+ 1141:         description="Redeschiderea va anula vanzarea asociata si va restaura stocul aferent livrarii."
+ 1142:         confirmText="Redeschide"
+ 1143:         loading={reopenMutation.isPending}
+ 1144:       />
+ 1145:     </AppShell>
+ 1146:   )
+ 1147: }
+ 1148: 
+ 1149: 
+ 1150: 
+ 1151: 
+ 1152: 
+ 1153: 
+ 1154: 
+ 1155: 
+ 1156: 

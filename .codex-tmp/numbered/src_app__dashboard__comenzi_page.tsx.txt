@@ -1,0 +1,5 @@
+﻿1	import { ComenziPageClient } from './ComenziPageClient'
+2	
+3	export default function ComenziPage() {
+4	  return <ComenziPageClient />
+5	}

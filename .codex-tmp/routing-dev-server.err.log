@@ -1,0 +1,23 @@
+⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+[proxy] tenant lookup failed {
+  pathname: '/dashboard',
+  userId: 'b7f3a835-ef48-4598-bdab-e6a132990452',
+  message: 'unknown'
+}
+[proxy] tenant lookup failed {
+  pathname: '/dashboard',
+  userId: 'b7f3a835-ef48-4598-bdab-e6a132990452',
+  message: 'unknown'
+}
+[proxy] tenant lookup failed {
+  pathname: '/start',
+  userId: 'b7f3a835-ef48-4598-bdab-e6a132990452',
+  message: 'unknown'
+}
+[proxy] tenant lookup failed {
+  pathname: '/start',
+  userId: 'b7f3a835-ef48-4598-bdab-e6a132990452',
+  message: 'unknown'
+}
+^C

@@ -1,0 +1,100 @@
+    1: create extension if not exists pgcrypto;
+    2: 
+    3: alter table public.clienti
+    4:   add column if not exists google_resource_name text,
+    5:   add column if not exists google_etag text;
+    6: 
+    7: create unique index if not exists clienti_tenant_google_resource_name_uq
+    8:   on public.clienti (tenant_id, google_resource_name)
+    9:   where google_resource_name is not null;
+   10: 
+   11: create table if not exists public.integrations_google_contacts (
+   12:   id uuid primary key default gen_random_uuid(),
+   13:   tenant_id uuid not null references public.tenants(id) on delete cascade,
+   14:   user_id uuid not null references auth.users(id) on delete cascade,
+   15:   user_email text not null,
+   16:   connected_email text,
+   17:   access_token text,
+   18:   refresh_token text,
+   19:   token_expires_at timestamptz,
+   20:   scope text,
+   21:   sync_token text,
+   22:   sync_enabled boolean not null default true,
+   23:   sync_window text not null default 'seara' check (sync_window in ('dimineata', 'seara')),
+   24:   last_sync_at timestamptz,
+   25:   created_at timestamptz not null default now(),
+   26:   updated_at timestamptz not null default now(),
+   27:   unique (user_id)
+   28: );
+   29: 
+   30: create or replace function public.integrations_google_contacts_set_updated_at()
+   31: returns trigger
+   32: language plpgsql
+   33: as $$
+   34: begin
+   35:   new.updated_at := now();
+   36:   return new;
+   37: end;
+   38: $$;
+   39: 
+   40: drop trigger if exists trg_integrations_google_contacts_updated_at on public.integrations_google_contacts;
+   41: create trigger trg_integrations_google_contacts_updated_at
+   42: before update on public.integrations_google_contacts
+   43: for each row
+   44: execute function public.integrations_google_contacts_set_updated_at();
+   45: 
+   46: alter table public.integrations_google_contacts enable row level security;
+   47: 
+   48: drop policy if exists integrations_google_contacts_admin_select on public.integrations_google_contacts;
+   49: create policy integrations_google_contacts_admin_select
+   50: on public.integrations_google_contacts
+   51: for select
+   52: using (
+   53:   user_email = 'popa.andrei.sv@gmail.com'
+   54:   and auth.uid() = user_id
+   55: );
+   56: 
+   57: drop policy if exists integrations_google_contacts_admin_insert on public.integrations_google_contacts;
+   58: create policy integrations_google_contacts_admin_insert
+   59: on public.integrations_google_contacts
+   60: for insert
+   61: with check (
+   62:   user_email = 'popa.andrei.sv@gmail.com'
+   63:   and auth.uid() = user_id
+   64:   and tenant_id = (
+   65:     select id
+   66:     from public.tenants
+   67:     where owner_user_id = auth.uid()
+   68:     limit 1
+   69:   )
+   70: );
+   71: 
+   72: drop policy if exists integrations_google_contacts_admin_update on public.integrations_google_contacts;
+   73: create policy integrations_google_contacts_admin_update
+   74: on public.integrations_google_contacts
+   75: for update
+   76: using (
+   77:   user_email = 'popa.andrei.sv@gmail.com'
+   78:   and auth.uid() = user_id
+   79: )
+   80: with check (
+   81:   user_email = 'popa.andrei.sv@gmail.com'
+   82:   and auth.uid() = user_id
+   83:   and tenant_id = (
+   84:     select id
+   85:     from public.tenants
+   86:     where owner_user_id = auth.uid()
+   87:     limit 1
+   88:   )
+   89: );
+   90: 
+   91: drop policy if exists integrations_google_contacts_admin_delete on public.integrations_google_contacts;
+   92: create policy integrations_google_contacts_admin_delete
+   93: on public.integrations_google_contacts
+   94: for delete
+   95: using (
+   96:   user_email = 'popa.andrei.sv@gmail.com'
+   97:   and auth.uid() = user_id
+   98: );
+   99: 
+  100: notify pgrst, 'reload schema';

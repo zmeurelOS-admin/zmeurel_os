@@ -1,0 +1,6 @@
+    1: import * as Sentry from '@sentry/nextjs'
+    2: 
+    3: Sentry.init({
+    4:   dsn: process.env.SENTRY_DSN,
+    5:   tracesSampleRate: 0.2,
+    6: })

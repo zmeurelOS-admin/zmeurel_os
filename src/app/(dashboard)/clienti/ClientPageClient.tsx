@@ -347,7 +347,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         >
           <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark, marginBottom: spacing.sm }}>Top clienti (valoare)</h3>
           {ranking.length === 0 ? (
-            <p style={{ fontSize: 11, color: colors.gray }}>Nu exist? vânzări pentru ranking.</p>
+            <p style={{ fontSize: 11, color: colors.gray }}>Nu există vânzări pentru clasament.</p>
           ) : (
             <div style={{ display: 'grid', gap: spacing.xs }}>
               {ranking.map((row, index) => {
@@ -412,7 +412,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         {clientsWithUnpaid.length > 0 ? (
           <AlertCard
             icon="💸"
-            label={`${clientsWithUnpaid.length} clienti cu sold neincasat`}
+            label={`${clientsWithUnpaid.length} clienți cu sold neîncasat`}
             value={totalUnpaidRon.toFixed(0)}
             sub="RON de colectat"
             variant="warning"
@@ -435,7 +435,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           ) : null}
         </div>
 
-        {isError ? <ErrorState title="Eroare la înc?rcare" message={(error as Error).message} onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.clienti })} /> : null}
+        {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.clienti })} /> : null}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -445,7 +445,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         ) : null}
 
         {!isLoading && !isError && filteredClienți.length === 0 ? (
-          <EmptyState icon={<Users className="h-16 w-16" />} title="Niciun client inca" description="Adaugă primul client pentru a incepe" />
+          <EmptyState icon={<Users className="h-16 w-16" />} title="Niciun client încă" description="Adaugă primul client pentru a începe" />
         ) : null}
 
         {!isLoading && !isError && filteredClienți.length > 0 ? (
@@ -490,9 +490,9 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                     <tr>
                       <th className="px-4 py-3 font-semibold">Client</th>
                       <th className="px-4 py-3 font-semibold">Telefon</th>
-                      <th className="px-4 py-3 font-semibold">Vanzari</th>
+                      <th className="px-4 py-3 font-semibold">Vânzări</th>
                       <th className="px-4 py-3 font-semibold">Comenzi</th>
-                      <th className="px-4 py-3 font-semibold">Neincasat</th>
+                      <th className="px-4 py-3 font-semibold">Neîncasat</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -525,9 +525,9 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                     <p><span className="font-medium text-gray-900">Telefon:</span> {desktopSelectedClient.telefon || '-'}</p>
                     <p><span className="font-medium text-gray-900">Email:</span> {desktopSelectedClient.email || '-'}</p>
                     <p><span className="font-medium text-gray-900">Adresa:</span> {desktopSelectedClient.adresa || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Vanzari:</span> {metricsByClient[desktopSelectedClient.id]?.vanzariCount ?? 0}</p>
+                    <p><span className="font-medium text-gray-900">Vânzări:</span> {metricsByClient[desktopSelectedClient.id]?.vanzariCount ?? 0}</p>
                     <p><span className="font-medium text-gray-900">Comenzi:</span> {metricsByClient[desktopSelectedClient.id]?.comenziCount ?? 0}</p>
-                    <p><span className="font-medium text-gray-900">Sold neincasat:</span> {(metricsByClient[desktopSelectedClient.id]?.unpaidRon ?? 0).toFixed(0)} RON</p>
+                    <p><span className="font-medium text-gray-900">Sold neîncasat:</span> {(metricsByClient[desktopSelectedClient.id]?.unpaidRon ?? 0).toFixed(0)} RON</p>
                     <div className="flex flex-wrap gap-2 pt-2">
                       <button
                         type="button"
@@ -547,14 +547,14 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                           setEditOpen(true)
                         }}
                       >
-                        Editeaza
+                        Editează
                       </button>
                       <button
                         type="button"
                         className="rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
                         onClick={() => setDeletingClient(desktopSelectedClient)}
                       >
-                        Sterge
+                        Șterge
                       </button>
                     </div>
                   </div>
@@ -632,7 +632,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         }}
         itemType="Client"
         itemName={deletingClient?.nume_client}
-        description={`Stergi clientul ${deletingClient?.nume_client || 'selectat'}?`}
+        description={`Ștergi clientul ${deletingClient?.nume_client || 'selectat'}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (!deletingClient) return

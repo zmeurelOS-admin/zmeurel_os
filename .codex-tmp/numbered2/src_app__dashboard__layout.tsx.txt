@@ -1,0 +1,43 @@
+﻿1	import { redirect } from 'next/navigation'
+2	
+3	import { Sidebar } from '@/components/layout/Sidebar'
+4	import { BetaBanner } from '@/components/layout/BetaBanner'
+5	import { BottomTabBar } from '@/components/app/BottomTabBar'
+6	import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
+7	import { createClient } from '@/lib/supabase/server'
+8	import { Providers } from '../providers'
+9	
+10	export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+11	  const supabase = await createClient()
+12	  const {
+13	    data: { user },
+14	  } = await supabase.auth.getUser()
+15	
+16	  if (!user) {
+17	    redirect('/login')
+18	  }
+19	
+20	  const initialAuth = {
+21	    userId: user.id,
+22	    email: user.email ?? null,
+23	    isSuperAdmin: await isSuperAdmin(supabase, user.id),
+24	  }
+25	
+26	  return (
+27	    <Providers initialAuth={initialAuth}>
+28	      <div className="hidden min-h-screen bg-[var(--agri-bg)] lg:flex">
+29	        <Sidebar />
+30	        <main className="flex-1 overflow-y-auto">
+31	          <BetaBanner />
+32	          <div className="min-h-screen">{children}</div>
+33	        </main>
+34	      </div>
+35	
+36	      <div className="bg-[var(--agri-bg)] lg:hidden">
+37	        <BetaBanner />
+38	        {children}
+39	        <BottomTabBar />
+40	      </div>
+41	    </Providers>
+42	  )
+43	}

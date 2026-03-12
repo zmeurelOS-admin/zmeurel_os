@@ -1,0 +1,33 @@
+1	'use client'
+2	
+3	import { CompactListCard } from '@/components/app/CompactListCard'
+4	import type { Parcela } from '@/lib/supabase/queries/parcele'
+5	import { formatM2ToHa } from '@/lib/utils/area'
+6	
+7	interface ParcelaCardProps {
+8	  parcela: Parcela
+9	  onEdit: () => void
+10	  onDelete: () => void
+11	}
+12	
+13	export function ParcelaCard({ parcela, onEdit, onDelete }: ParcelaCardProps) {
+14	  return (
+15	    <CompactListCard
+16	      className="transition-opacity active:opacity-95"
+17	      title={parcela.nume_parcela || 'Parcela'}
+18	      leftRows={[
+19	        { label: 'Parcela', value: parcela.nume_parcela || 'Parcela' },
+20	        { label: 'Tip cultura', value: parcela.tip_fruct || '-' },
+21	        { label: 'Soi', value: parcela.soi_plantat || '-' },
+22	      ]}
+23	      rightRows={[
+24	        { label: 'An plantare', value: parcela.an_plantare || '-' },
+25	        { label: 'Nr plante', value: parcela.nr_plante || '-' },
+26	        { label: 'Suprafata', value: formatM2ToHa(parcela.suprafata_m2), emphasis: 'financial' },
+27	        { label: 'Status REI', value: 'Date indisponibile' },
+28	      ]}
+29	      onEdit={onEdit}
+30	      onDelete={onDelete}
+31	    />
+32	  )
+33	}

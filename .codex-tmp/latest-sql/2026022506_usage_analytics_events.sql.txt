@@ -1,0 +1,76 @@
+    1: create extension if not exists pgcrypto;
+    2: 
+    3: create table if not exists public.analytics_events (
+    4:   id uuid primary key default gen_random_uuid(),
+    5:   tenant_id uuid not null references public.tenants(id) on delete cascade,
+    6:   user_id uuid not null references auth.users(id) on delete cascade,
+    7:   event_name text not null,
+    8:   metadata jsonb not null default '{}'::jsonb,
+    9:   created_at timestamptz not null default now()
+   10: );
+   11: 
+   12: create index if not exists analytics_events_tenant_id_idx
+   13:   on public.analytics_events (tenant_id);
+   14: 
+   15: create index if not exists analytics_events_event_name_idx
+   16:   on public.analytics_events (event_name);
+   17: 
+   18: create index if not exists analytics_events_created_at_idx
+   19:   on public.analytics_events (created_at desc);
+   20: 
+   21: create or replace function public.set_analytics_event_context()
+   22: returns trigger
+   23: language plpgsql
+   24: security definer
+   25: as $$
+   26: begin
+   27:   if new.user_id is null then
+   28:     new.user_id := auth.uid();
+   29:   end if;
+   30: 
+   31:   if new.tenant_id is null then
+   32:     select t.id into new.tenant_id
+   33:     from public.tenants t
+   34:     where t.owner_user_id = auth.uid()
+   35:     limit 1;
+   36:   end if;
+   37: 
+   38:   if new.metadata is null then
+   39:     new.metadata := '{}'::jsonb;
+   40:   end if;
+   41: 
+   42:   if new.created_at is null then
+   43:     new.created_at := now();
+   44:   end if;
+   45: 
+   46:   return new;
+   47: end;
+   48: $$;
+   49: 
+   50: drop trigger if exists analytics_events_set_context on public.analytics_events;
+   51: create trigger analytics_events_set_context
+   52: before insert on public.analytics_events
+   53: for each row execute function public.set_analytics_event_context();
+   54: 
+   55: alter table public.analytics_events enable row level security;
+   56: 
+   57: drop policy if exists analytics_events_insert_own_tenant on public.analytics_events;
+   58: create policy analytics_events_insert_own_tenant
+   59: on public.analytics_events
+   60: for insert
+   61: with check (
+   62:   user_id = auth.uid()
+   63:   and tenant_id = (
+   64:     select id
+   65:     from public.tenants
+   66:     where owner_user_id = auth.uid()
+   67:     limit 1
+   68:   )
+   69: );
+   70: 
+   71: drop policy if exists analytics_events_no_read_for_tenant_users on public.analytics_events;
+   72: create policy analytics_events_no_read_for_tenant_users
+   73: on public.analytics_events
+   74: for select
+   75: using (auth.role() = 'service_role');
+   76: 

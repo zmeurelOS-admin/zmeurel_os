@@ -1,0 +1,157 @@
+﻿[
+    {
+        "name":  "admin_count_audit_logs",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  155
+    },
+    {
+        "name":  "admin_list_audit_logs",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  114
+    },
+    {
+        "name":  "admin_list_tenants",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  78
+    },
+    {
+        "name":  "admin_set_tenant_plan",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  124
+    },
+    {
+        "name":  "admin_set_tenant_plan",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  48
+    },
+    {
+        "name":  "bucharest_today",
+        "file":  "2026022602_alert_dismissals.sql",
+        "line":  5
+    },
+    {
+        "name":  "delete_demo_for_tenant",
+        "file":  "2026022706_demo_seed_first_signup.sql",
+        "line":  437
+    },
+    {
+        "name":  "delete_demo_for_tenant",
+        "file":  "2026022710_demo_seed_realistic_refresh.sql",
+        "line":  227
+    },
+    {
+        "name":  "enforce_vanzari_butasi_items_tenant",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  60
+    },
+    {
+        "name":  "integrations_google_contacts_set_updated_at",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  30
+    },
+    {
+        "name":  "is_superadmin",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  6
+    },
+    {
+        "name":  "is_superadmin",
+        "file":  "2026022611_superadmin_role_rls.sql",
+        "line":  19
+    },
+    {
+        "name":  "is_superadmin",
+        "file":  "2026022704_fix_tenants_superadmin_update_policy.sql",
+        "line":  6
+    },
+    {
+        "name":  "recoltari_sync_cantitate_kg",
+        "file":  "2026022505_recoltari_kg_cal_columns.sql",
+        "line":  8
+    },
+    {
+        "name":  "refresh_tenant_metrics_daily",
+        "file":  "2026022607_fix_admin_rpc_runtime_mismatches.sql",
+        "line":  178
+    },
+    {
+        "name":  "refresh_tenant_metrics_daily",
+        "file":  "2026022612_tenant_metrics_daily.sql",
+        "line":  46
+    },
+    {
+        "name":  "seed_demo_for_tenant",
+        "file":  "2026022706_demo_seed_first_signup.sql",
+        "line":  161
+    },
+    {
+        "name":  "seed_demo_for_tenant",
+        "file":  "2026022710_demo_seed_realistic_refresh.sql",
+        "line":  4
+    },
+    {
+        "name":  "seed_demo_for_tenant",
+        "file":  "2026030402_demo_seed_today_dataset.sql",
+        "line":  4
+    },
+    {
+        "name":  "seed_demo_for_tenant",
+        "file":  "2026030403_seed_demo_service_role_auth_guard.sql",
+        "line":  4
+    },
+    {
+        "name":  "set_analytics_event_context",
+        "file":  "2026022506_usage_analytics_events.sql",
+        "line":  21
+    },
+    {
+        "name":  "set_audit_fields_minimal",
+        "file":  "2026022501_audit_trail_mvp.sql",
+        "line":  169
+    },
+    {
+        "name":  "set_comenzi_tenant_and_audit",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  43
+    },
+    {
+        "name":  "set_comenzi_tenant_and_audit",
+        "file":  "2026022702_comenzi_schema_cache_repair.sql",
+        "line":  86
+    },
+    {
+        "name":  "set_sync_audit_fields",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  54
+    },
+    {
+        "name":  "set_vanzari_butasi_tenant_and_public_id",
+        "file":  "2026030301_vanzari_butasi_server_generated_id.sql",
+        "line":  1
+    },
+    {
+        "name":  "tenant_has_core_data",
+        "file":  "2026022706_demo_seed_first_signup.sql",
+        "line":  119
+    },
+    {
+        "name":  "update_my_farm_name",
+        "file":  "2026022711_update_my_farm_name_rpc.sql",
+        "line":  4
+    },
+    {
+        "name":  "upsert_with_idempotency",
+        "file":  "2026022503_conflict_handling_multi_device.sql",
+        "line":  13
+    },
+    {
+        "name":  "upsert_with_idempotency",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  169
+    },
+    {
+        "name":  "user_can_manage_tenant",
+        "file":  "2026022706_demo_seed_first_signup.sql",
+        "line":  48
+    }
+]

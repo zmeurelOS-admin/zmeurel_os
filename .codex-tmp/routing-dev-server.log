@@ -1,0 +1,39 @@
+
+> zmeurel@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.141:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+Creating turbopack project { dir: 'C:\\Users\\Andrei\\Desktop\\zmeurel', testMode: true }
+✓ Ready in 38.9s
+○ Compiling / ...
+ GET / 200 in 8.3s (compile: 6.5s, proxy.ts: 637ms, render: 1203ms)
+ GET / 200 in 694ms (compile: 31ms, proxy.ts: 51ms, render: 612ms)
+ GET /login 200 in 1037ms (compile: 659ms, proxy.ts: 25ms, render: 353ms)
+ GET /login 200 in 92ms (compile: 8ms, proxy.ts: 11ms, render: 74ms)
+ GET /login 200 in 320ms (compile: 19ms, proxy.ts: 17ms, render: 284ms)
+ GET /dashboard 200 in 1429ms (compile: 240ms, proxy.ts: 514ms, render: 675ms)
+ GET /dashboard 200 in 621ms (compile: 13ms, proxy.ts: 298ms, render: 310ms)
+ GET /dashboard 200 in 1285ms (compile: 13ms, proxy.ts: 372ms, render: 901ms)
+○ Compiling /start ...
+ GET /start 200 in 11.6s (compile: 11.0s, proxy.ts: 216ms, render: 345ms)
+ GET / 200 in 1591ms (compile: 17ms, proxy.ts: 312ms, render: 1263ms)
+ GET /start 200 in 467ms (compile: 20ms, proxy.ts: 216ms, render: 231ms)
+ GET /login 200 in 263ms (compile: 19ms, proxy.ts: 21ms, render: 223ms)
+ GET /dashboard 200 in 786ms (compile: 15ms, proxy.ts: 345ms, render: 426ms)
+ GET /dashboard 200 in 756ms (compile: 17ms, proxy.ts: 386ms, render: 353ms)
+ GET /start 200 in 578ms (compile: 21ms, proxy.ts: 321ms, render: 236ms)
+ GET / 200 in 504ms (compile: 45ms, proxy.ts: 167ms, render: 293ms)
+ GET /start 200 in 502ms (compile: 14ms, proxy.ts: 321ms, render: 167ms)
+✓ Compiled in 1254ms
+ GET /dashboard 200 in 6.7s (compile: 1942ms, proxy.ts: 242ms, render: 4.6s)
+ GET /dashboard 200 in 1013ms (compile: 19ms, proxy.ts: 253ms, render: 741ms)
+ GET /dashboard 200 in 1939ms (compile: 55ms, proxy.ts: 324ms, render: 1560ms)
+ GET / 200 in 1686ms (compile: 495ms, proxy.ts: 193ms, render: 998ms)
+ GET /login 200 in 1751ms (compile: 581ms, proxy.ts: 29ms, render: 1142ms)

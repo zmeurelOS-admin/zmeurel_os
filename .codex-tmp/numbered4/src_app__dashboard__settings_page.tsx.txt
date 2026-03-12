@@ -1,0 +1,747 @@
+1	'use client'
+2	
+3	import { useEffect, useMemo, useState } from 'react'
+4	import { useRouter } from 'next/navigation'
+5	import { Download, KeyRound, Loader2, Settings2, UserCircle2 } from 'lucide-react'
+6	import { toast } from '@/lib/ui/toast'
+7	
+8	import { AppDialog } from '@/components/app/AppDialog'
+9	import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+10	import { AppShell } from '@/components/app/AppShell'
+11	import { FarmSwitcher } from '@/components/app/FarmSwitcher'
+12	import { PageHeader } from '@/components/app/PageHeader'
+13	import { Button } from '@/components/ui/button'
+14	import { Input } from '@/components/ui/input'
+15	import { Label } from '@/components/ui/label'
+16	import { useUiDensity } from '@/hooks/useUiDensity'
+17	import { track } from '@/lib/analytics/track'
+18	import { getSupabase } from '@/lib/supabase/client'
+19	
+20	type CsvModule = 'activitati' | 'cheltuieli' | 'vanzari' | 'recoltari' | 'clienti' | 'comenzi'
+21	
+22	type TenantTable =
+23	  | 'activitati_agricole'
+24	  | 'cheltuieli_diverse'
+25	  | 'vanzari'
+26	  | 'recoltari'
+27	  | 'clienti'
+28	  | 'parcele'
+29	  | 'culegatori'
+30	  | 'investitii'
+31	  | 'vanzari_butasi'
+32	  | 'vanzari_butasi_items'
+33	  | 'comenzi'
+34	  | 'miscari_stoc'
+35	  | 'alert_dismissals'
+36	
+37	const CSV_MODULES: Array<{ key: CsvModule; label: string; table: TenantTable }> = [
+38	  { key: 'activitati', label: 'Activitati', table: 'activitati_agricole' },
+39	  { key: 'cheltuieli', label: 'Cheltuieli', table: 'cheltuieli_diverse' },
+40	  { key: 'vanzari', label: 'Vanzari', table: 'vanzari' },
+41	  { key: 'recoltari', label: 'Recoltari', table: 'recoltari' },
+42	  { key: 'clienti', label: 'Clienti', table: 'clienti' },
+43	  { key: 'comenzi', label: 'Comenzi', table: 'comenzi' },
+44	]
+45	
+46	const GDPR_TABLES: TenantTable[] = [
+47	  'activitati_agricole',
+48	  'cheltuieli_diverse',
+49	  'vanzari',
+50	  'recoltari',
+51	  'clienti',
+52	  'parcele',
+53	  'culegatori',
+54	  'investitii',
+55	  'vanzari_butasi',
+56	  'vanzari_butasi_items',
+57	  'comenzi',
+58	  'miscari_stoc',
+59	  'alert_dismissals',
+60	]
+61	
+62	const EXPORT_BATCH_SIZE = 1000
+63	const PROTECTED_SUPERADMIN_EMAIL = 'popa.andrei.sv@gmail.com'
+64	
+65	function escapeCsvValue(value: unknown): string {
+66	  const raw = value === null || value === undefined ? '' : String(value)
+67	  const escaped = raw.replace(/"/g, '""')
+68	  return `"${escaped}"`
+69	}
+70	
+71	function rowsToCsv(rows: Record<string, unknown>[]): string {
+72	  if (!rows.length) return ''
+73	
+74	  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))))
+75	  const headerLine = headers.map(escapeCsvValue).join(',')
+76	  const lines = rows.map((row) => headers.map((key) => escapeCsvValue(row[key])).join(','))
+77	
+78	  return [headerLine, ...lines].join('\n')
+79	}
+80	
+81	function downloadFile(content: string, fileName: string, mimeType: string) {
+82	  const blob = new Blob([content], { type: mimeType })
+83	  const url = URL.createObjectURL(blob)
+84	  const anchor = document.createElement('a')
+85	  anchor.href = url
+86	  anchor.download = fileName
+87	  anchor.click()
+88	  URL.revokeObjectURL(url)
+89	}
+90	
+91	export default function SettingsPage() {
+92	  const router = useRouter()
+93	  const { density, setDensity } = useUiDensity()
+94	  const { userId, email, isSuperAdmin } = useDashboardAuth()
+95	  const safeEmail = email ?? 'Necunoscut'
+96	  const isProtectedSuperadmin = safeEmail.toLowerCase() === PROTECTED_SUPERADMIN_EMAIL
+97	
+98	  const [tenantId, setTenantId] = useState<string | null>(null)
+99	  const [farmName, setFarmName] = useState('')
+100	  const [farmNameDraft, setFarmNameDraft] = useState('')
+101	  const [isSavingFarmName, setIsSavingFarmName] = useState(false)
+102	
+103	  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+104	  const [newPassword, setNewPassword] = useState('')
+105	  const [confirmPassword, setConfirmPassword] = useState('')
+106	  const [isSavingPassword, setIsSavingPassword] = useState(false)
+107	
+108	  const [isExportingJson, setIsExportingJson] = useState(false)
+109	  const [jsonExportProgress, setJsonExportProgress] = useState<{ done: number; total: number } | null>(null)
+110	  const [exportingCsvModule, setExportingCsvModule] = useState<CsvModule | null>(null)
+111	  const [csvExportRowsFetched, setCsvExportRowsFetched] = useState(0)
+112	
+113	  const [deleteFarmStep1Open, setDeleteFarmStep1Open] = useState(false)
+114	  const [deleteFarmStep2Open, setDeleteFarmStep2Open] = useState(false)
+115	  const [deleteFarmConfirmText, setDeleteFarmConfirmText] = useState('')
+116	  const [isDeletingFarmData, setIsDeletingFarmData] = useState(false)
+117	
+118	  const [deleteAccountStep1Open, setDeleteAccountStep1Open] = useState(false)
+119	  const [deleteAccountStep2Open, setDeleteAccountStep2Open] = useState(false)
+120	  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('')
+121	  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+122	
+123	  useEffect(() => {
+124	    void (async () => {
+125	      if (!userId) return
+126	
+127	      const supabase = getSupabase()
+128	
+129	      const { data: tenant } = await supabase
+130	        .from('tenants')
+131	        .select('id,nume_ferma')
+132	        .eq('owner_user_id', userId)
+133	        .maybeSingle()
+134	      const tenantRow = tenant as { id?: string; nume_ferma?: string } | null
+135	
+136	      if (tenantRow?.id) {
+137	        setTenantId(tenantRow.id)
+138	      }
+139	      if (tenantRow?.nume_ferma) {
+140	        setFarmName(tenantRow.nume_ferma)
+141	        setFarmNameDraft(tenantRow.nume_ferma)
+142	      }
+143	    })()
+144	  }, [userId])
+145	
+146	  const passwordError = useMemo(() => {
+147	    if (!newPassword && !confirmPassword) return null
+148	    if (newPassword.length < 8) return 'Parola trebuie sa aiba minim 8 caractere.'
+149	    if (newPassword !== confirmPassword) return 'Parolele nu coincid.'
+150	    return null
+151	  }, [confirmPassword, newPassword])
+152	
+153	  const canConfirmDeleteFarm = deleteFarmConfirmText.trim().toUpperCase() === 'STERGE DATELE'
+154	  const canConfirmDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === 'STERGE CONTUL'
+155	
+156	  const handleChangePassword = async () => {
+157	    if (passwordError) {
+158	      toast.error(passwordError)
+159	      return
+160	    }
+161	
+162	    setIsSavingPassword(true)
+163	    try {
+164	      const supabase = getSupabase()
+165	      const { error } = await supabase.auth.updateUser({ password: newPassword })
+166	      if (error) throw error
+167	
+168	      toast.success('Parola a fost actualizata.')
+169	      setPasswordDialogOpen(false)
+170	      setNewPassword('')
+171	      setConfirmPassword('')
+172	    } catch (error: unknown) {
+173	      const message = (error as { message?: string })?.message || 'Nu am putut actualiza parola.'
+174	      toast.error(message)
+175	    } finally {
+176	      setIsSavingPassword(false)
+177	    }
+178	  }
+179	
+180	  const handleSaveFarmName = async () => {
+181	    const nextFarmName = farmNameDraft.trim()
+182	    if (nextFarmName.length < 2) {
+183	      toast.error('Numele fermei trebuie sa aiba minim 2 caractere.')
+184	      return
+185	    }
+186	
+187	    setIsSavingFarmName(true)
+188	    try {
+189	      const response = await fetch('/api/gdpr/farm', {
+190	        method: 'PATCH',
+191	        headers: { 'Content-Type': 'application/json' },
+192	        body: JSON.stringify({ farmName: nextFarmName }),
+193	      })
+194	      const payload = (await response.json()) as {
+195	        ok?: boolean
+196	        error?: { code?: string; message?: string; details?: string | null } | string
+197	        data?: { farmName?: string }
+198	        farmName?: string
+199	      }
+200	
+201	      if (!response.ok || payload.ok === false) {
+202	        const message =
+203	          typeof payload.error === 'string'
+204	            ? payload.error
+205	            : payload.error?.message || 'Nu am putut actualiza numele fermei.'
+206	        throw new Error(message)
+207	      }
+208	
+209	      const savedFarmName = payload.data?.farmName ?? payload.farmName ?? nextFarmName
+210	      setFarmName(savedFarmName)
+211	      setFarmNameDraft(savedFarmName)
+212	      toast.success('Numele fermei a fost actualizat')
+213	      router.refresh()
+214	    } catch (error: unknown) {
+215	      const message = (error as { message?: string })?.message || 'Nu am putut actualiza numele fermei.'
+216	      toast.error(message)
+217	    } finally {
+218	      setIsSavingFarmName(false)
+219	    }
+220	  }
+221	
+222	  const handleExportAllDataJson = async () => {
+223	    if (!userId || !tenantId) {
+224	      toast.error('Context tenant indisponibil pentru export.')
+225	      return
+226	    }
+227	
+228	    setIsExportingJson(true)
+229	    setJsonExportProgress({ done: 0, total: GDPR_TABLES.length })
+230	    try {
+231	      const supabase = getSupabase()
+232	      const nowIso = new Date().toISOString()
+233	
+234	      const { data: tenantRow } = await supabase
+235	        .from('tenants')
+236	        .select('*')
+237	        .eq('id', tenantId)
+238	        .maybeSingle()
+239	
+240	      const { data: profileRow } = await supabase
+241	        .from('profiles')
+242	        .select('*')
+243	        .eq('id', userId)
+244	        .maybeSingle()
+245	
+246	      const tables: Record<string, unknown[]> = {}
+247	      const errors: Record<string, string> = {}
+248	
+249	      const fetchTenantRowsBatched = async (table: TenantTable) => {
+250	        const rows: unknown[] = []
+251	        let from = 0
+252	
+253	        while (true) {
+254	          const to = from + EXPORT_BATCH_SIZE - 1
+255	          const { data, error } = await supabase
+256	            .from(table)
+257	            .select('*')
+258	            .eq('tenant_id', tenantId)
+259	            .range(from, to)
+260	
+261	          if (error) throw error
+262	
+263	          const chunk = (data ?? []) as unknown[]
+264	          if (!chunk.length) break
+265	
+266	          rows.push(...chunk)
+267	          if (chunk.length < EXPORT_BATCH_SIZE) break
+268	          from += EXPORT_BATCH_SIZE
+269	        }
+270	
+271	        return rows
+272	      }
+273	
+274	      for (let index = 0; index < GDPR_TABLES.length; index += 1) {
+275	        const table = GDPR_TABLES[index]
+276	        try {
+277	          tables[table] = await fetchTenantRowsBatched(table)
+278	        } catch (error) {
+279	          errors[table] = (error as { message?: string })?.message || 'Unknown error'
+280	          tables[table] = []
+281	        }
+282	
+283	        setJsonExportProgress({ done: index + 1, total: GDPR_TABLES.length })
+284	      }
+285	
+286	      const payload = {
+287	        exported_at: nowIso,
+288	        compliance: 'Regulamentul (UE) 2016/679 (GDPR)',
+289	        user: {
+290	          id: userId,
+291	          email: safeEmail,
+292	        },
+293	        tenant: tenantRow,
+294	        profile: profileRow,
+295	        tables,
+296	        errors,
+297	      }
+298	
+299	      downloadFile(
+300	        JSON.stringify(payload, null, 2),
+301	        `zmeurel-gdpr-export-${nowIso.slice(0, 10)}.json`,
+302	        'application/json;charset=utf-8'
+303	      )
+304	      track('export', { type: 'json', module: 'all', rows: Object.values(tables).reduce((sum, tableRows) => sum + (tableRows?.length ?? 0), 0) })
+305	      toast.success('Export JSON generat.')
+306	    } catch (error: unknown) {
+307	      const message = (error as { message?: string })?.message || 'Nu am putut exporta datele.'
+308	      toast.error(message)
+309	    } finally {
+310	      setIsExportingJson(false)
+311	      setJsonExportProgress(null)
+312	    }
+313	  }
+314	
+315	  const handleExportModuleCsv = async (module: CsvModule) => {
+316	    if (!tenantId) {
+317	      toast.error('Context tenant indisponibil pentru export.')
+318	      return
+319	    }
+320	
+321	    const config = CSV_MODULES.find((item) => item.key === module)
+322	    if (!config) return
+323	
+324	    setExportingCsvModule(module)
+325	    setCsvExportRowsFetched(0)
+326	    try {
+327	      const supabase = getSupabase()
+328	      const rows: Record<string, unknown>[] = []
+329	      let from = 0
+330	
+331	      while (true) {
+332	        const to = from + EXPORT_BATCH_SIZE - 1
+333	        const { data, error } = await supabase
+334	          .from(config.table)
+335	          .select('*')
+336	          .eq('tenant_id', tenantId)
+337	          .range(from, to)
+338	
+339	        if (error) throw error
+340	
+341	        const chunk = (data ?? []) as Record<string, unknown>[]
+342	        if (!chunk.length) break
+343	
+344	        rows.push(...chunk)
+345	        setCsvExportRowsFetched(rows.length)
+346	
+347	        if (chunk.length < EXPORT_BATCH_SIZE) break
+348	        from += EXPORT_BATCH_SIZE
+349	      }
+350	
+351	      const csv = rowsToCsv(rows)
+352	      downloadFile(csv, `zmeurel-${module}-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv;charset=utf-8')
+353	      track('export', { type: 'csv', module, rows: rows.length })
+354	      toast.success(`Export CSV generat pentru ${config.label}.`)
+355	    } catch (error: unknown) {
+356	      const message = (error as { message?: string })?.message || 'Nu am putut exporta CSV-ul modulului.'
+357	      toast.error(message)
+358	    } finally {
+359	      setExportingCsvModule(null)
+360	      setCsvExportRowsFetched(0)
+361	    }
+362	  }
+363	
+364	  const handleDeleteFarmData = async () => {
+365	    setIsDeletingFarmData(true)
+366	    try {
+367	      const response = await fetch('/api/gdpr/farm', { method: 'DELETE' })
+368	      const payload = (await response.json()) as { error?: string }
+369	      if (!response.ok) throw new Error(payload.error || 'Nu am putut sterge datele fermei.')
+370	
+371	      setDeleteFarmStep2Open(false)
+372	      setDeleteFarmConfirmText('')
+373	      toast.success('Datele fermei au fost sterse.')
+374	      router.refresh()
+375	    } catch (error: unknown) {
+376	      const message = (error as { message?: string })?.message || 'Nu am putut sterge datele fermei.'
+377	      toast.error(message)
+378	    } finally {
+379	      setIsDeletingFarmData(false)
+380	    }
+381	  }
+382	
+383	  const handleDeleteAccountAndTenant = async () => {
+384	    setIsDeletingAccount(true)
+385	    try {
+386	      const response = await fetch('/api/gdpr/account', { method: 'DELETE' })
+387	      const payload = (await response.json()) as { error?: string }
+388	      if (!response.ok) throw new Error(payload.error || 'Nu am putut sterge contul.')
+389	
+390	      const supabase = getSupabase()
+391	      await supabase.auth.signOut()
+392	      toast.success('Contul si tenantul au fost sterse.')
+393	      router.push('/login')
+394	      router.refresh()
+395	    } catch (error: unknown) {
+396	      const message = (error as { message?: string })?.message || 'Nu am putut sterge contul.'
+397	      toast.error(message)
+398	    } finally {
+399	      setIsDeletingAccount(false)
+400	    }
+401	  }
+402	
+403	  return (
+404	    <AppShell
+405	      header={<PageHeader title="Cont & Setari" subtitle="Profil utilizator si preferinte UI" rightSlot={<Settings2 className="h-5 w-5" />} />}
+406	    >
+407	      <div className="mx-auto w-full max-w-3xl space-y-4 py-4 lg:space-y-6 xl:space-y-8">
+408	        <section id="profil" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+409	          <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Profil utilizator</h2>
+410	
+411	          <div className="space-y-2">
+412	            <Label className="text-xs uppercase text-[var(--agri-text-muted)]">Email</Label>
+413	            <div className="agri-control flex h-11 items-center gap-2 px-3 text-sm font-medium text-[var(--agri-text)]">
+414	              <UserCircle2 className="h-4 w-4 text-[var(--agri-text-muted)]" />
+415	              {safeEmail}
+416	            </div>
+417	          </div>
+418	
+419	          <div className="space-y-2">
+420	            <Label htmlFor="farm-name" className="text-xs uppercase text-[var(--agri-text-muted)]">Nume ferma</Label>
+421	            <div className="flex flex-col gap-2 sm:flex-row">
+422	              <Input
+423	                id="farm-name"
+424	                className="agri-control h-11"
+425	                value={farmNameDraft}
+426	                onChange={(event) => setFarmNameDraft(event.target.value)}
+427	                placeholder="Nume ferma"
+428	              />
+429	              <Button
+430	                type="button"
+431	                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+432	                disabled={isSavingFarmName || farmNameDraft.trim().length < 2 || farmNameDraft.trim() === farmName}
+433	                onClick={handleSaveFarmName}
+434	              >
+435	                {isSavingFarmName ? (
+436	                  <>
+437	                    <Loader2 className="h-4 w-4 animate-spin" />
+438	                    Se salveaza...
+439	                  </>
+440	                ) : (
+441	                  'Salveaza'
+442	                )}
+443	              </Button>
+444	            </div>
+445	          </div>
+446	
+447	          <Button type="button" variant="outline" className="agri-control h-11 justify-start gap-2" onClick={() => setPasswordDialogOpen(true)}>
+448	            <KeyRound className="h-4 w-4" />
+449	            Schimba parola
+450	          </Button>
+451	
+452	        </section>
+453	
+454	        <section id="gdpr" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+455	          <div className="space-y-1">
+456	            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Protecția datelor (GDPR)</h2>
+457	            <p className="text-sm text-[var(--agri-text-muted)]">
+458	              Zmeurel OS respectă Regulamentul (UE) 2016/679 privind protecția datelor.
+459	            </p>
+460	            <p className="text-xs text-[var(--agri-text-muted)]">
+461	              Exportul include datele operaționale: Parcele, Activitati, Recoltari, Cheltuieli, Vanzari, Vanzari Butasi, Clienti, Comenzi, Culegatori.
+462	            </p>
+463	            <p className="text-xs text-[var(--agri-text-muted)]">
+464	              Evenimentele de analytics sunt metrici interne de utilizare si nu sunt incluse in export.
+465	            </p>
+466	            <p className="text-xs text-[var(--agri-text-muted)]">
+467	              Evenimentele de analytics sunt eliminate cand stergi datele fermei sau contul.
+468	            </p>
+469	            <p className="text-xs text-[var(--agri-text-muted)]">
+470	              Datele operationale sunt pastrate pana cand le stergi. Evenimentele de analytics sunt pastrate maximum 90 de zile pentru imbunatatirea produsului.
+471	            </p>
+472	          </div>
+473	
+474	          <Button
+475	            type="button"
+476	            variant="outline"
+477	            className="agri-control h-11 w-full justify-start gap-2"
+478	            disabled={isExportingJson}
+479	            onClick={handleExportAllDataJson}
+480	          >
+481	            {isExportingJson ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+482	            {isExportingJson
+483	              ? `Se genereaza JSON... (${jsonExportProgress?.done ?? 0}/${jsonExportProgress?.total ?? GDPR_TABLES.length})`
+484	              : 'Export all my data (JSON)'}
+485	          </Button>
+486	
+487	          <div className="space-y-2">
+488	            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Export CSV per modul</p>
+489	            <div className="grid grid-cols-2 gap-2">
+490	              {CSV_MODULES.map((module) => (
+491	                <Button
+492	                  key={module.key}
+493	                  type="button"
+494	                  variant="outline"
+495	                  className="agri-control h-10 text-xs"
+496	                  disabled={Boolean(exportingCsvModule)}
+497	                  onClick={() => handleExportModuleCsv(module.key)}
+498	                >
+499	                  {exportingCsvModule === module.key ? (
+500	                    <>
+501	                      <Loader2 className="h-4 w-4 animate-spin" />
+502	                      {`Se exporta... (${csvExportRowsFetched} randuri)`}
+503	                    </>
+504	                  ) : (
+505	                    module.label
+506	                  )}
+507	                </Button>
+508	              ))}
+509	            </div>
+510	          </div>
+511	
+512	          <div className="grid grid-cols-1 gap-2">
+513	            <Button
+514	              type="button"
+515	              variant="outline"
+516	              className="agri-control h-11 border-red-300 text-red-700 hover:bg-red-50"
+517	              onClick={() => setDeleteFarmStep1Open(true)}
+518	            >
+519	              Delete all farm data
+520	            </Button>
+521	            <Button
+522	              type="button"
+523	              variant="outline"
+524	              className="agri-control h-11 border-red-500 text-red-800 hover:bg-red-50"
+525	              onClick={() => setDeleteAccountStep1Open(true)}
+526	              disabled={isProtectedSuperadmin}
+527	            >
+528	              Delete my account and tenant
+529	            </Button>
+530	            {isProtectedSuperadmin ? (
+531	              <p className="text-xs font-medium text-[var(--agri-text-muted)]">
+532	                Cont protejat: acest cont nu poate fi șters.
+533	              </p>
+534	            ) : null}
+535	          </div>
+536	        </section>
+537	
+538	        {isSuperAdmin ? (
+539	          <section id="ferma" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+540	            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Schimba ferma</h2>
+541	            <FarmSwitcher variant="panel" />
+542	          </section>
+543	        ) : null}
+544	
+545	        <section id="interfata" className="agri-card space-y-3 p-4 lg:shadow-sm lg:hover:shadow-md transition-shadow">
+546	          <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Densitate UI</h2>
+547	          <div className="grid grid-cols-2 gap-2">
+548	            <Button
+549	              type="button"
+550	              variant={density === 'compact' ? 'default' : 'outline'}
+551	              className="agri-control h-11"
+552	              onClick={() => setDensity('compact')}
+553	            >
+554	              Compact
+555	            </Button>
+556	            <Button
+557	              type="button"
+558	              variant={density === 'normal' ? 'default' : 'outline'}
+559	              className="agri-control h-11"
+560	              onClick={() => setDensity('normal')}
+561	            >
+562	              Normal
+563	            </Button>
+564	          </div>
+565	        </section>
+566	      </div>
+567	      <AppDialog
+568	        open={passwordDialogOpen}
+569	        onOpenChange={setPasswordDialogOpen}
+570	        title="Schimba parola"
+571	        footer={
+572	          <>
+573	            <Button type="button" variant="outline" className="agri-cta" onClick={() => setPasswordDialogOpen(false)}>
+574	              Anuleaza
+575	            </Button>
+576	            <Button
+577	              type="button"
+578	              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+579	              disabled={isSavingPassword || !!passwordError || newPassword.length === 0}
+580	              onClick={handleChangePassword}
+581	            >
+582	              {isSavingPassword ? (
+583	                <>
+584	                  <Loader2 className="h-4 w-4 animate-spin" />
+585	                  Se salveaza...
+586	                </>
+587	              ) : (
+588	                'Salveaza'
+589	              )}
+590	            </Button>
+591	          </>
+592	        }
+593	      >
+594	        <div id="password" className="space-y-4">
+595	          <div className="space-y-2">
+596	            <Label htmlFor="new-password">Parola noua</Label>
+597	            <Input
+598	              id="new-password"
+599	              type="password"
+600	              className="agri-control h-12"
+601	              value={newPassword}
+602	              onChange={(event) => setNewPassword(event.target.value)}
+603	            />
+604	          </div>
+605	
+606	          <div className="space-y-2">
+607	            <Label htmlFor="confirm-password">Confirma parola</Label>
+608	            <Input
+609	              id="confirm-password"
+610	              type="password"
+611	              className="agri-control h-12"
+612	              value={confirmPassword}
+613	              onChange={(event) => setConfirmPassword(event.target.value)}
+614	            />
+615	          </div>
+616	
+617	          {passwordError ? <p className="text-sm font-medium text-red-700">{passwordError}</p> : null}
+618	        </div>
+619	      </AppDialog>
+620	
+621	      <AppDialog
+622	        open={deleteFarmStep1Open}
+623	        onOpenChange={setDeleteFarmStep1Open}
+624	        title="Stergi toate datele fermei?"
+625	        description="Actiunea sterge toate inregistrarile operationale ale fermei, fara stergerea contului de utilizator."
+626	        footer={
+627	          <>
+628	            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteFarmStep1Open(false)}>
+629	              Anuleaza
+630	            </Button>
+631	            <Button
+632	              type="button"
+633	              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+634	              onClick={() => {
+635	                setDeleteFarmStep1Open(false)
+636	                setDeleteFarmStep2Open(true)
+637	              }}
+638	            >
+639	              Continua
+640	            </Button>
+641	          </>
+642	        }
+643	      >
+644	        <p className="text-sm text-[var(--agri-text-muted)]">
+645	          Confirma in pasul urmator pentru a preveni stergerea accidentala.
+646	        </p>
+647	      </AppDialog>
+648	
+649	      <AppDialog
+650	        open={deleteFarmStep2Open}
+651	        onOpenChange={setDeleteFarmStep2Open}
+652	        title="Confirmare finala - date ferma"
+653	        description="Tasteaza STERGE DATELE pentru confirmare."
+654	        footer={
+655	          <>
+656	            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteFarmStep2Open(false)}>
+657	              Anuleaza
+658	            </Button>
+659	            <Button
+660	              type="button"
+661	              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+662	              disabled={!canConfirmDeleteFarm || isDeletingFarmData}
+663	              onClick={handleDeleteFarmData}
+664	            >
+665	              {isDeletingFarmData ? 'Se sterge...' : 'Sterge datele'}
+666	            </Button>
+667	          </>
+668	        }
+669	      >
+670	        <div className="space-y-2">
+671	          <Label htmlFor="confirm-delete-farm">Confirmare</Label>
+672	          <Input
+673	            id="confirm-delete-farm"
+674	            className="agri-control h-11"
+675	            placeholder="STERGE DATELE"
+676	            value={deleteFarmConfirmText}
+677	            onChange={(event) => setDeleteFarmConfirmText(event.target.value)}
+678	          />
+679	        </div>
+680	      </AppDialog>
+681	
+682	      <AppDialog
+683	        open={deleteAccountStep1Open}
+684	        onOpenChange={setDeleteAccountStep1Open}
+685	        title="Stergi contul si tenantul?"
+686	        description="Actiunea elimina contul, tenantul si toate datele asociate. Aceasta actiune este ireversibila."
+687	        footer={
+688	          <>
+689	            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep1Open(false)}>
+690	              Anuleaza
+691	            </Button>
+692	            <Button
+693	              type="button"
+694	              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+695	              onClick={() => {
+696	                setDeleteAccountStep1Open(false)
+697	                setDeleteAccountStep2Open(true)
+698	              }}
+699	            >
+700	              Continua
+701	            </Button>
+702	          </>
+703	        }
+704	      >
+705	        <p className="text-sm text-[var(--agri-text-muted)]">
+706	          Vei fi deconectat imediat dupa finalizare.
+707	        </p>
+708	      </AppDialog>
+709	
+710	      <AppDialog
+711	        open={deleteAccountStep2Open}
+712	        onOpenChange={setDeleteAccountStep2Open}
+713	        title="Confirmare finala - cont si tenant"
+714	        description="Tasteaza STERGE CONTUL pentru confirmare."
+715	        footer={
+716	          <>
+717	            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep2Open(false)}>
+718	              Anuleaza
+719	            </Button>
+720	            <Button
+721	              type="button"
+722	              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+723	              disabled={!canConfirmDeleteAccount || isDeletingAccount}
+724	              onClick={handleDeleteAccountAndTenant}
+725	            >
+726	              {isDeletingAccount ? 'Se sterge...' : 'Sterge contul'}
+727	            </Button>
+728	          </>
+729	        }
+730	      >
+731	        <div className="space-y-2">
+732	          <Label htmlFor="confirm-delete-account">Confirmare</Label>
+733	          <Input
+734	            id="confirm-delete-account"
+735	            className="agri-control h-11"
+736	            placeholder="STERGE CONTUL"
+737	            value={deleteAccountConfirmText}
+738	            onChange={(event) => setDeleteAccountConfirmText(event.target.value)}
+739	          />
+740	        </div>
+741	      </AppDialog>
+742	    </AppShell>
+743	  )
+744	}
+745	
+746	
+747	

@@ -1,0 +1,211 @@
+﻿   1: 'use client'
+   2: 
+   3: import Link from 'next/link'
+   4: import { usePathname, useRouter } from 'next/navigation'
+   5: import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
+   6: import { ClipboardList, LayoutDashboard, Leaf, MoreHorizontal, Plus, Receipt } from 'lucide-react'
+   7: 
+   8: import { MoreMenuDrawer } from '@/components/app/MoreMenuDrawer'
+   9: import { useAddAction } from '@/contexts/AddActionContext'
+  10: 
+  11: type Tab = {
+  12:   label: string
+  13:   href: string
+  14:   icon: ComponentType<{ className?: string }>
+  15: }
+  16: 
+  17: const DASHBOARD_TAB: Tab = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
+  18: const RECOLTARI_TAB: Tab = { label: 'Recoltari', href: '/recoltari', icon: Leaf }
+  19: const COMENZI_TAB: Tab = { label: 'Comenzi', href: '/comenzi', icon: ClipboardList }
+  20: 
+  21: const PRIMARY_HREFS = [DASHBOARD_TAB.href, RECOLTARI_TAB.href, COMENZI_TAB.href]
+  22: 
+  23: const quickActions: Array<{ label: string; href: string; icon: ComponentType<{ className?: string }> }> = [
+  24:   { label: 'Adauga recoltare', href: '/recoltari?add=1', icon: Leaf },
+  25:   { label: 'Adauga comanda', href: '/comenzi?add=1', icon: ClipboardList },
+  26:   { label: 'Adauga cheltuiala', href: '/cheltuieli?add=1', icon: Receipt },
+  27: ]
+  28: 
+  29: type RouteAddConfig = {
+  30:   label: string
+  31:   href: string
+  32: }
+  33: 
+  34: function getRouteAddConfig(pathname: string): RouteAddConfig {
+  35:   if (pathname === '/dashboard') return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
+  36:   if (pathname === '/recoltari' || pathname.startsWith('/recoltari/')) return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
+  37:   if (pathname === '/comenzi' || pathname.startsWith('/comenzi/')) return { label: 'Adauga comanda', href: '/comenzi?add=1' }
+  38:   if (pathname === '/parcele' || pathname.startsWith('/parcele/')) return { label: 'Adauga parcela', href: '/parcele' }
+  39:   if (pathname === '/cheltuieli' || pathname.startsWith('/cheltuieli/')) return { label: 'Adauga cheltuiala', href: '/cheltuieli?add=1' }
+  40:   if (pathname === '/activitati-agricole' || pathname.startsWith('/activitati-agricole/')) return { label: 'Adauga activitate', href: '/activitati-agricole' }
+  41:   if (pathname === '/vanzari' || pathname.startsWith('/vanzari/')) return { label: 'Adauga vanzare', href: '/vanzari' }
+  42:   if (pathname === '/clienti' || pathname.startsWith('/clienti/')) return { label: 'Adauga client', href: '/clienti' }
+  43:   if (pathname === '/culegatori' || pathname.startsWith('/culegatori/')) return { label: 'Adauga culegator', href: '/culegatori' }
+  44:   if (pathname === '/stocuri' || pathname.startsWith('/stocuri/') || pathname === '/stoc' || pathname.startsWith('/stoc/')) {
+  45:     return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
+  46:   }
+  47:   if (pathname === '/vanzari-butasi' || pathname.startsWith('/vanzari-butasi/')) {
+  48:     return { label: 'Adauga comanda butasi', href: '/vanzari-butasi' }
+  49:   }
+  50: 
+  51:   return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
+  52: }
+  53: 
+  54: function TabLink({ tab, active, router }: { tab: Tab; active: boolean; router: ReturnType<typeof useRouter> }) {
+  55:   const Icon = tab.icon
+  56: 
+  57:   return (
+  58:     <Link
+  59:       href={tab.href}
+  60:       onTouchStart={() => {
+  61:         router.prefetch(tab.href)
+  62:       }}
+  63:       className="group relative flex min-h-[56px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 transition-transform duration-150 active:scale-95"
+  64:     >
+  65:       <span className={`absolute top-1 h-1 w-8 rounded-full transition ${active ? 'bg-[var(--agri-primary)]' : 'bg-transparent'}`} />
+  66:       <Icon className={`h-5 w-5 transition-colors ${active ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`} />
+  67:       <span className={`text-[11px] font-semibold transition-colors ${active ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`}>{tab.label}</span>
+  68:     </Link>
+  69:   )
+  70: }
+  71: 
+  72: export function BottomTabBar() {
+  73:   const pathname = usePathname()
+  74:   const router = useRouter()
+  75:   const { triggerAddAction } = useAddAction()
+  76:   const [moreOpen, setMoreOpen] = useState(false)
+  77:   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  78:   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  79:   const longPressTriggeredRef = useRef(false)
+  80:   const routeAddConfig = useMemo(() => getRouteAddConfig(pathname), [pathname])
+  81:   const centerLabel = routeAddConfig.label
+  82: 
+  83:   useEffect(() => {
+  84:     router.prefetch('/dashboard')
+  85:     router.prefetch('/recoltari')
+  86:     router.prefetch('/comenzi')
+  87:     router.prefetch('/cheltuieli')
+  88:   }, [router])
+  89: 
+  90:   useEffect(() => {
+  91:     setQuickAddOpen(false)
+  92:   }, [pathname])
+  93: 
+  94:   const clearLongPressTimer = () => {
+  95:     if (longPressTimerRef.current) {
+  96:       clearTimeout(longPressTimerRef.current)
+  97:       longPressTimerRef.current = null
+  98:     }
+  99:   }
+ 100: 
+ 101:   const handleCenterPointerDown = () => {
+ 102:     longPressTriggeredRef.current = false
+ 103:     clearLongPressTimer()
+ 104:     longPressTimerRef.current = setTimeout(() => {
+ 105:       longPressTriggeredRef.current = true
+ 106:       setQuickAddOpen(true)
+ 107:     }, 450)
+ 108:   }
+ 109: 
+ 110:   const handleCenterPointerUp = () => {
+ 111:     clearLongPressTimer()
+ 112:   }
+ 113: 
+ 114:   const handleCenterDefaultAction = () => {
+ 115:     if (longPressTriggeredRef.current) {
+ 116:       longPressTriggeredRef.current = false
+ 117:       return
+ 118:     }
+ 119:     setQuickAddOpen(false)
+ 120:     const triggered = triggerAddAction()
+ 121:     if (!triggered) {
+ 122:       router.push(routeAddConfig.href)
+ 123:     }
+ 124:   }
+ 125: 
+ 126:   const handleQuickAction = (href: string) => {
+ 127:     setQuickAddOpen(false)
+ 128:     router.push(href)
+ 129:   }
+ 130: 
+ 131:   const isTabActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+ 132:   const moreActive = !PRIMARY_HREFS.some((href) => isTabActive(href))
+ 133: 
+ 134:   return (
+ 135:     <>
+ 136:       {quickAddOpen ? (
+ 137:         <>
+ 138:           <button
+ 139:             type="button"
+ 140:             aria-label="Inchide meniul de adaugare rapida"
+ 141:             onClick={() => setQuickAddOpen(false)}
+ 142:             className="fixed inset-0 z-[100000060] bg-transparent"
+ 143:           />
+ 144:           <div className="fixed left-1/2 bottom-[calc(var(--tabbar-h)+var(--safe-b)+16px)] z-[100000070] w-[min(92vw,280px)] -translate-x-1/2 rounded-2xl border border-[var(--agri-border)] bg-white p-2 shadow-2xl">
+ 145:             <div className="space-y-1">
+ 146:               {quickActions.map((action) => {
+ 147:                 const Icon = action.icon
+ 148:                 return (
+ 149:                   <button
+ 150:                     key={action.href}
+ 151:                     type="button"
+ 152:                     className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+ 153:                     onClick={() => handleQuickAction(action.href)}
+ 154:                   >
+ 155:                     <Icon className="h-4 w-4 text-[var(--agri-primary)]" />
+ 156:                     {action.label}
+ 157:                   </button>
+ 158:                 )
+ 159:               })}
+ 160:             </div>
+ 161:           </div>
+ 162:         </>
+ 163:       ) : null}
+ 164: 
+ 165:       <nav
+ 166:         className="fixed inset-x-0 bottom-0 z-[100000080] min-h-[72px] border-t border-white/70 bg-white/80 pt-2 pb-[calc(env(safe-area-inset-bottom)+8px)] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-md supports-[backdrop-filter]:bg-white/75"
+ 167:         aria-label="Navigare principala"
+ 168:       >
+ 169:         <div className="mx-auto grid h-full w-full max-w-4xl grid-cols-5 items-center gap-1 px-2">
+ 170:           <TabLink tab={DASHBOARD_TAB} active={isTabActive(DASHBOARD_TAB.href)} router={router} />
+ 171:           <TabLink tab={RECOLTARI_TAB} active={isTabActive(RECOLTARI_TAB.href)} router={router} />
+ 172: 
+ 173:           <div className="relative flex min-h-[56px] w-full items-center justify-center">
+ 174:             <button
+ 175:               type="button"
+ 176:               aria-label={centerLabel}
+ 177:               title={centerLabel}
+ 178:               className="absolute -top-6 inline-flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white bg-amber-500 text-white shadow-[0_12px_28px_rgba(245,158,11,0.45)] transition-transform duration-150 hover:bg-amber-600 active:scale-95"
+ 179:               onPointerDown={handleCenterPointerDown}
+ 180:               onPointerUp={handleCenterPointerUp}
+ 181:               onPointerLeave={handleCenterPointerUp}
+ 182:               onPointerCancel={handleCenterPointerUp}
+ 183:               onContextMenu={(event) => {
+ 184:                 event.preventDefault()
+ 185:                 setQuickAddOpen(true)
+ 186:               }}
+ 187:               onClick={handleCenterDefaultAction}
+ 188:             >
+ 189:               <Plus className="h-6 w-6" />
+ 190:             </button>
+ 191:           </div>
+ 192: 
+ 193:           <TabLink tab={COMENZI_TAB} active={isTabActive(COMENZI_TAB.href)} router={router} />
+ 194: 
+ 195:           <button
+ 196:             type="button"
+ 197:             onClick={() => setMoreOpen(true)}
+ 198:             className="group relative flex min-h-[56px] w-full flex-col items-center justify-center gap-1 rounded-xl px-1 transition-transform duration-150 active:scale-95"
+ 199:             aria-label="Mai multe module"
+ 200:           >
+ 201:             <span className={`absolute top-1 h-1 w-8 rounded-full transition ${moreActive ? 'bg-[var(--agri-primary)]' : 'bg-transparent'}`} />
+ 202:             <MoreHorizontal className={`h-5 w-5 ${moreActive ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`} />
+ 203:             <span className={`text-[11px] font-semibold ${moreActive ? 'text-[var(--agri-primary)]' : 'text-[var(--agri-text-muted)]'}`}>More</span>
+ 204:           </button>
+ 205:         </div>
+ 206:       </nav>
+ 207: 
+ 208:       <MoreMenuDrawer open={moreOpen} onOpenChange={setMoreOpen} />
+ 209:     </>
+ 210:   )
+ 211: }

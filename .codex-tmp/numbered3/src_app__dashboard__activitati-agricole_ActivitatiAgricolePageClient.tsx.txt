@@ -1,0 +1,136 @@
+1	'use client'
+2	
+3	import { useState } from 'react'
+4	import { Search, ClipboardList, Droplets, Scissors, Bug, Sprout, ArrowRight } from 'lucide-react'
+5	import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
+6	
+7	export default function ActivitatiPage() {
+8	  const [searchQuery, setSearchQuery] = useState('')
+9	  const [addOpen, setAddOpen] = useState(false)
+10	
+11	  const categorii = [
+12	    { name: 'Tratamente', icon: Bug, color: '#EF4444', bg: '#FEF2F2' },
+13	    { name: 'Irigare', icon: Droplets, color: '#3B82F6', bg: '#EFF6FF' },
+14	    { name: 'Tăieri', icon: Scissors, color: '#F59E0B', bg: '#FFFBEB' },
+15	    { name: 'Fertilizare', icon: Sprout, color: '#10B981', bg: '#ECFDF5' },
+16	  ]
+17	
+18	  return (
+19	    <div
+20	      style={{
+21	        backgroundColor: '#F8F9FB',
+22	        width: '100%',
+23	        minHeight: '100%',
+24	        paddingBottom: 20,
+25	        overflowX: 'hidden',
+26	        fontFamily: 'inherit',
+27	      }}
+28	    >
+29	      <div style={{ marginLeft: -16, marginRight: -16 }}>
+30	        <div
+31	          style={{
+32	            background: 'linear-gradient(135deg, #064E3B 0%, #065F46 100%)',
+33	            padding: '60px 24px 80px 24px',
+34	            borderBottomLeftRadius: 45,
+35	            borderBottomRightRadius: 45,
+36	            boxShadow: '0 10px 30px rgba(6, 78, 59, 0.15)',
+37	          }}
+38	        >
+39	          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+40	            <div>
+41	              <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: 'white' }}>
+42	                Operațiuni
+43	              </h1>
+44	              <p style={{ opacity: 0.8, fontSize: 14, marginTop: 4, color: '#ECFDF5' }}>
+45	                Planifică și monitorizează cultura.
+46	              </p>
+47	            </div>
+48	            <div style={{ backgroundColor: 'rgba(255,255,255,0.15)', padding: 10, borderRadius: 18 }}>
+49	              <ClipboardList color="white" size={24} />
+50	            </div>
+51	          </div>
+52	        </div>
+53	      </div>
+54	
+55	      <div style={{ padding: '0 20px', marginTop: -30 }}>
+56	        <div
+57	          style={{
+58	            backgroundColor: 'white',
+59	            borderRadius: 20,
+60	            display: 'flex',
+61	            alignItems: 'center',
+62	            padding: '12px 16px',
+63	            boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+64	            border: '1px solid #eee',
+65	          }}
+66	        >
+67	          <Search size={18} color="#94a3b8" />
+68	          <input
+69	            value={searchQuery}
+70	            onChange={(e) => setSearchQuery(e.target.value)}
+71	            placeholder="Caută o intervenție..."
+72	            style={{
+73	              border: 'none',
+74	              outline: 'none',
+75	              marginLeft: 12,
+76	              width: '100%',
+77	              fontSize: 16,
+78	              fontFamily: 'inherit',
+79	            }}
+80	          />
+81	        </div>
+82	      </div>
+83	
+84	      <div style={{ padding: '24px 20px' }}>
+85	        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 32 }}>
+86	          {categorii.map((cat) => (
+87	            <div key={cat.name} style={{ textAlign: 'center' }}>
+88	              <div
+89	                style={{
+90	                  backgroundColor: cat.bg,
+91	                  width: '100%',
+92	                  aspectRatio: '1/1',
+93	                  borderRadius: 20,
+94	                  display: 'flex',
+95	                  alignItems: 'center',
+96	                  justifyContent: 'center',
+97	                  marginBottom: 6,
+98	                }}
+99	              >
+100	                <cat.icon size={22} color={cat.color} />
+101	              </div>
+102	              <span
+103	                style={{
+104	                  fontSize: 10,
+105	                  fontWeight: 800,
+106	                  color: '#64748b',
+107	                  textTransform: 'uppercase',
+108	                }}
+109	              >
+110	                {cat.name}
+111	              </span>
+112	            </div>
+113	          ))}
+114	        </div>
+115	
+116	        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+117	          <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>Istoric Lucrări</h2>
+118	          <ArrowRight size={20} color="#94a3b8" />
+119	        </div>
+120	
+121	        <div
+122	          style={{
+123	            backgroundColor: 'white',
+124	            padding: 20,
+125	            borderRadius: 24,
+126	            border: '1px solid #eee',
+127	          }}
+128	        >
+129	          Exemplu activitate...
+130	        </div>
+131	      </div>
+132	      <AddActivitateAgricolaDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+133	    </div>
+134	  )
+135	}
+136	

@@ -1,0 +1,49 @@
+1	'use client'
+2	
+3	import { CompactListCard } from '@/components/app/CompactListCard'
+4	import { getStatusBadgeClass } from '@/lib/ui/status-badges'
+5	import type { Culegator } from '@/lib/supabase/queries/culegatori'
+6	
+7	interface CulegatorCardProps {
+8	  culegator: Culegator
+9	  onEdit: (culegator: Culegator) => void
+10	  onDelete: (id: string, name: string) => void
+11	}
+12	
+13	export function CulegatorCard({ culegator, onEdit, onDelete }: CulegatorCardProps) {
+14	  return (
+15	    <CompactListCard
+16	      title={culegator.nume_prenume}
+17	      leftRows={[
+18	        { label: 'Sezonier', value: culegator.nume_prenume },
+19	        { label: 'Telefon', value: culegator.telefon || '-' },
+20	        { label: 'Tip angajare', value: culegator.tip_angajare || '-' },
+21	        {
+22	          label: 'Data angajare',
+23	          value: culegator.data_angajare
+24	            ? new Date(culegator.data_angajare).toLocaleDateString('ro-RO')
+25	            : '-',
+26	        },
+27	      ]}
+28	      rightRows={[
+29	        {
+30	          label: 'Status',
+31	          value: (
+32	            <span
+33	              className={`badge-consistent inline-flex items-center ${
+34	                culegator.status_activ ? getStatusBadgeClass('activ') : getStatusBadgeClass('inactiv')
+35	              }`}
+36	            >
+37	              {culegator.status_activ ? 'Activ' : 'Inactiv'}
+38	            </span>
+39	          ),
+40	          allowWrap: true,
+41	        },
+42	        { label: 'Tarif', value: `${culegator.tarif_lei_kg} lei/kg`, emphasis: 'financial', valueClassName: 'value-money-positive' },
+43	        { label: 'Observatii', value: culegator.observatii || '-' },
+44	      ]}
+45	      onEdit={() => onEdit(culegator)}
+46	      onDelete={() => onDelete(culegator.id, culegator.nume_prenume)}
+47	    />
+48	  )
+49	}

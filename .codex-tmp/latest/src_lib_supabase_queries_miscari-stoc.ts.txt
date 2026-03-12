@@ -1,0 +1,283 @@
+    1: import { getSupabase } from '../client'
+    2: import type { Tables } from '@/types/supabase'
+    3: 
+    4: export type MiscareStoc = Tables<'miscari_stoc'>
+    5: 
+    6: export type CalitateStoc = 'cal1' | 'cal2'
+    7: export type DepozitStoc = 'fresh' | 'congelat' | 'procesat'
+    8: export type TipMiscareStoc =
+    9:   | 'recoltare'
+   10:   | 'vanzare'
+   11:   | 'consum'
+   12:   | 'oferit_gratuit'
+   13:   | 'procesare'
+   14:   | 'congelare'
+   15:   | 'pierdere'
+   16:   | 'ajustare'
+   17: 
+   18: export type TipMiscareStocGlobal = 'recoltare' | 'ajustare' | 'vanzare' | 'transformare' | 'corectie'
+   19: 
+   20: export interface InsertMiscareStocInput {
+   21:   tenant_id?: string
+   22:   locatie_id?: string
+   23:   produs?: string
+   24:   calitate?: CalitateStoc
+   25:   depozit?: DepozitStoc
+   26:   tip_miscare?: TipMiscareStoc
+   27:   cantitate_kg?: number
+   28:   tip?: TipMiscareStocGlobal
+   29:   cantitate_cal1?: number
+   30:   cantitate_cal2?: number
+   31:   referinta_id?: string | null
+   32:   data?: string
+   33:   observatii?: string | null
+   34:   descriere?: string | null
+   35: }
+   36: 
+   37: export interface StocFilters {
+   38:   locatieId?: string
+   39:   produs?: string
+   40:   depozit?: DepozitStoc | 'all'
+   41:   calitate?: CalitateStoc | 'all'
+   42: }
+   43: 
+   44: export interface StocLocationRow {
+   45:   locatie_id: string
+   46:   locatie_nume: string
+   47:   produs: string
+   48:   stoc_fresh_cal1: number
+   49:   stoc_fresh_cal2: number
+   50:   stoc_congelat: number
+   51:   stoc_procesat: number
+   52:   total_kg: number
+   53: }
+   54: 
+   55: interface MiscareStocWithParcela {
+   56:   locatie_id: string
+   57:   produs: string
+   58:   calitate: CalitateStoc
+   59:   depozit: DepozitStoc
+   60:   tip_miscare: TipMiscareStoc
+   61:   cantitate_kg: number
+   62:   parcele: {
+   63:     nume_parcela: string | null
+   64:   } | null
+   65: }
+   66: 
+   67: type SupabaseLikeError = {
+   68:   code?: string
+   69:   message?: string
+   70: }
+   71: 
+   72: function round2(value: number): number {
+   73:   return Math.round(value * 100) / 100
+   74: }
+   75: 
+   76: function isMissingInventoryTableError(error: unknown): boolean {
+   77:   const err = (error ?? {}) as SupabaseLikeError
+   78:   const message = (err.message ?? '').toLowerCase()
+   79:   return (
+   80:     err.code === 'PGRST205' ||
+   81:     message.includes('could not find the table') ||
+   82:     message.includes('relation "public.miscari_stoc" does not exist')
+   83:   )
+   84: }
+   85: 
+   86: function signedQuantity(tipMiscare: TipMiscareStoc, cantitateKg: number): number {
+   87:   const outflowTypes: TipMiscareStoc[] = ['vanzare', 'consum', 'oferit_gratuit', 'pierdere']
+   88:   const qty = Math.max(0, Number(cantitateKg) || 0)
+   89:   return outflowTypes.includes(tipMiscare) ? -qty : qty
+   90: }
+   91: 
+   92: function mapLegacyToGlobalTip(tipMiscare?: TipMiscareStoc): TipMiscareStocGlobal {
+   93:   if (tipMiscare === 'recoltare') return 'recoltare'
+   94:   if (tipMiscare === 'vanzare') return 'vanzare'
+   95:   if (tipMiscare === 'ajustare') return 'ajustare'
+   96:   return 'corectie'
+   97: }
+   98: 
+   99: async function getTenantIdFromSession(): Promise<string> {
+  100:   const supabase = getSupabase()
+  101:   const {
+  102:     data: { user },
+  103:     error: authError,
+  104:   } = await supabase.auth.getUser()
+  105: 
+  106:   if (authError || !user) {
+  107:     throw new Error('Neautorizat')
+  108:   }
+  109: 
+  110:   const { data: tenant, error: tenantError } = await supabase
+  111:     .from('tenants')
+  112:     .select('id')
+  113:     .eq('owner_user_id', user.id)
+  114:     .single()
+  115: 
+  116:   if (tenantError || !tenant?.id) {
+  117:     throw new Error('Tenant invalid')
+  118:   }
+  119: 
+  120:   return tenant.id
+  121: }
+  122: 
+  123: export async function insertMiscareStoc(input: InsertMiscareStocInput): Promise<MiscareStoc> {
+  124:   const supabase = getSupabase()
+  125:   const tenantId = input.tenant_id ?? (await getTenantIdFromSession())
+  126: 
+  127:   const qty = round2(Math.max(0, Number(input.cantitate_kg) || 0))
+  128:   const signedQty =
+  129:     input.tip_miscare && qty > 0 ? signedQuantity(input.tip_miscare, qty) : 0
+  130:   const derivedCal1 =
+  131:     input.cantitate_cal1 !== undefined
+  132:       ? round2(Number(input.cantitate_cal1) || 0)
+  133:       : input.calitate === 'cal1'
+  134:         ? round2(signedQty)
+  135:         : 0
+  136:   const derivedCal2 =
+  137:     input.cantitate_cal2 !== undefined
+  138:       ? round2(Number(input.cantitate_cal2) || 0)
+  139:       : input.calitate === 'cal2'
+  140:         ? round2(signedQty)
+  141:         : 0
+  142: 
+  143:   const payload = {
+  144:     tenant_id: tenantId,
+  145:     locatie_id: input.locatie_id ?? null,
+  146:     produs: input.produs ?? null,
+  147:     calitate: input.calitate ?? null,
+  148:     depozit: input.depozit ?? null,
+  149:     tip_miscare: input.tip_miscare ?? null,
+  150:     cantitate_kg: input.cantitate_kg !== undefined ? qty : null,
+  151:     tip: input.tip ?? mapLegacyToGlobalTip(input.tip_miscare),
+  152:     cantitate_cal1: derivedCal1,
+  153:     cantitate_cal2: derivedCal2,
+  154:     referinta_id: input.referinta_id ?? null,
+  155:     data: input.data ?? new Date().toISOString().split('T')[0],
+  156:     observatii: input.observatii ?? null,
+  157:     descriere: input.descriere ?? null,
+  158:   }
+  159: 
+  160:   const { data, error } = await supabase.from('miscari_stoc').insert(payload).select().single()
+  161: 
+  162:   if (error) {
+  163:     if (isMissingInventoryTableError(error)) {
+  164:       throw new Error('Schema stocuri neinitializata')
+  165:     }
+  166:     throw error
+  167:   }
+  168:   return data
+  169: }
+  170: 
+  171: export async function deleteMiscariStocByReference(
+  172:   referintaId: string,
+  173:   tipMiscare?: TipMiscareStoc
+  174: ): Promise<void> {
+  175:   const supabase = getSupabase()
+  176: 
+  177:   let query = supabase
+  178:     .from('miscari_stoc')
+  179:     .delete()
+  180:     .eq('referinta_id', referintaId)
+  181: 
+  182:   if (tipMiscare) {
+  183:     query = query.eq('tip_miscare', tipMiscare)
+  184:   }
+  185: 
+  186:   const { error } = await query
+  187: 
+  188:   if (error && !isMissingInventoryTableError(error)) throw error
+  189: }
+  190: 
+  191: export async function getStocCantitateKg(params: {
+  192:   locatieId: string
+  193:   produs: string
+  194:   calitate: CalitateStoc
+  195:   depozit: DepozitStoc
+  196: }): Promise<number> {
+  197:   const supabase = getSupabase()
+  198: 
+  199:   const { data, error } = await supabase
+  200:     .from('miscari_stoc')
+  201:     .select('tip_miscare,cantitate_kg')
+  202:     .eq('locatie_id', params.locatieId)
+  203:     .eq('produs', params.produs)
+  204:     .eq('calitate', params.calitate)
+  205:     .eq('depozit', params.depozit)
+  206: 
+  207:   if (error) {
+  208:     if (isMissingInventoryTableError(error)) return 0
+  209:     throw error
+  210:   }
+  211: 
+  212:   const total = (data ?? []).reduce((sum, row) => {
+  213:     return sum + signedQuantity(row.tip_miscare as TipMiscareStoc, Number(row.cantitate_kg ?? 0))
+  214:   }, 0)
+  215: 
+  216:   return round2(total)
+  217: }
+  218: 
+  219: export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<StocLocationRow[]> {
+  220:   const supabase = getSupabase()
+  221: 
+  222:   let query = supabase
+  223:     .from('miscari_stoc')
+  224:     .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg,parcele(nume_parcela)')
+  225:     .not('locatie_id', 'is', null)
+  226:     .not('produs', 'is', null)
+  227:     .not('calitate', 'is', null)
+  228:     .not('depozit', 'is', null)
+  229:     .not('tip_miscare', 'is', null)
+  230:     .not('cantitate_kg', 'is', null)
+  231:     .order('data', { ascending: false })
+  232: 
+  233:   if (filters.locatieId) query = query.eq('locatie_id', filters.locatieId)
+  234:   if (filters.produs) query = query.eq('produs', filters.produs)
+  235:   if (filters.depozit && filters.depozit !== 'all') query = query.eq('depozit', filters.depozit)
+  236:   if (filters.calitate && filters.calitate !== 'all') query = query.eq('calitate', filters.calitate)
+  237: 
+  238:   const { data, error } = await query
+  239:   if (error) {
+  240:     if (isMissingInventoryTableError(error)) return []
+  241:     throw error
+  242:   }
+  243: 
+  244:   const rows = (data ?? []) as unknown as MiscareStocWithParcela[]
+  245:   const grouped = new Map<string, StocLocationRow>()
+  246: 
+  247:   rows.forEach((row) => {
+  248:     const key = `${row.locatie_id}:${row.produs}`
+  249:     const existing = grouped.get(key) ?? {
+  250:       locatie_id: row.locatie_id,
+  251:       locatie_nume: row.parcele?.nume_parcela ?? 'Locatie',
+  252:       produs: row.produs,
+  253:       stoc_fresh_cal1: 0,
+  254:       stoc_fresh_cal2: 0,
+  255:       stoc_congelat: 0,
+  256:       stoc_procesat: 0,
+  257:       total_kg: 0,
+  258:     }
+  259: 
+  260:     const qty = signedQuantity(row.tip_miscare, Number(row.cantitate_kg ?? 0))
+  261: 
+  262:     if (row.depozit === 'fresh' && row.calitate === 'cal1') {
+  263:       existing.stoc_fresh_cal1 = round2(existing.stoc_fresh_cal1 + qty)
+  264:     }
+  265:     if (row.depozit === 'fresh' && row.calitate === 'cal2') {
+  266:       existing.stoc_fresh_cal2 = round2(existing.stoc_fresh_cal2 + qty)
+  267:     }
+  268:     if (row.depozit === 'congelat') {
+  269:       existing.stoc_congelat = round2(existing.stoc_congelat + qty)
+  270:     }
+  271:     if (row.depozit === 'procesat') {
+  272:       existing.stoc_procesat = round2(existing.stoc_procesat + qty)
+  273:     }
+  274: 
+  275:     existing.total_kg = round2(
+  276:       existing.stoc_fresh_cal1 + existing.stoc_fresh_cal2 + existing.stoc_congelat + existing.stoc_procesat
+  277:     )
+  278: 
+  279:     grouped.set(key, existing)
+  280:   })
+  281: 
+  282:   return Array.from(grouped.values()).sort((a, b) => a.locatie_nume.localeCompare(b.locatie_nume, 'ro'))
+  283: }

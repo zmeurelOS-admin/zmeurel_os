@@ -1,6 +1,7 @@
 // src/lib/supabase/queries/vanzari.ts
 import { getSupabase } from '../client';
 import { insertMiscareStoc, deleteMiscariStocByReference } from './miscari-stoc';
+import { getTenantId } from '@/lib/tenant/get-tenant';
 
 // Constants
 export const STATUS_PLATA = ['Platit', 'Restanta', 'Avans'] as const;
@@ -134,6 +135,7 @@ export async function getVanzari(): Promise<Vanzare[]> {
 
 export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare> {
   const supabase = getSupabase();
+  const tenantId = input.tenant_id ?? (await getTenantId(supabase));
   const rpcClient = supabase as VanzareRpcClient;
   const { data, error } = await rpcClient.rpc('create_vanzare_with_stock', {
     p_data: input.data,
@@ -145,7 +147,7 @@ export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare>
     p_observatii_ladite: input.observatii_ladite || null,
     p_client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
     p_sync_status: input.sync_status ?? 'synced',
-    ...(input.tenant_id ? { p_tenant_id: input.tenant_id } : {}),
+    p_tenant_id: tenantId,
   });
 
   if (!error && data) {

@@ -1,0 +1,90 @@
+1	'use client'
+2	
+3	import Link from "next/link"
+4	import { usePathname } from "next/navigation"
+5	import { LayoutDashboard, ClipboardList, ShoppingBasket, CircleDollarSign, Wallet } from "lucide-react"
+6	
+7	export function MobileBottomNav() {
+8	  const pathname = usePathname()
+9	
+10	  const navItems = [
+11	    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, color: '#6366F1' },
+12	    { name: 'Operațiuni', href: '/activitati-agricole', icon: ClipboardList, color: '#A855F7' },
+13	    { name: 'Producție', href: '/recoltari', icon: ShoppingBasket, color: '#F16B6B' },
+14	    { name: 'Venituri', href: '/vanzari', icon: CircleDollarSign, color: '#10B981' },
+15	    { name: 'Costuri', href: '/cheltuieli', icon: Wallet, color: '#F43F5E' },
+16	  ] // Aici era eroarea, probabil aveai un ] în plus sub această linie
+17	
+18	  return (
+19	    <div 
+20	      className="lg:hidden"
+21	      style={{ 
+22	        position: 'fixed', 
+23	        bottom: '0px', 
+24	        left: '0px', 
+25	        right: '0px', 
+26	        zIndex: 99999999,
+27	        backgroundColor: '#ffffff',
+28	        borderTop: '1px solid #eee',
+29	        padding: '12px 10px 30px 10px',
+30	        boxShadow: '0 -5px 20px rgba(0,0,0,0.05)'
+31	      }}
+32	    >
+33	      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+34	        
+35	        {navItems.map((item) => {
+36	          const isActive = pathname?.startsWith(item.href) || pathname === item.href
+37	          const Icon = item.icon
+38	
+39	          return (
+40	            <Link
+41	              key={item.href}
+42	              href={item.href}
+43	              style={{ 
+44	                flex: 1, 
+45	                textDecoration: 'none',
+46	                display: 'flex',
+47	                flexDirection: 'column',
+48	                alignItems: 'center',
+49	                gap: '4px'
+50	              }}
+51	            >
+52	              <div 
+53	                style={{ 
+54	                  width: '100%',
+55	                  maxWidth: '60px',
+56	                  height: '54px',
+57	                  borderRadius: '18px',
+58	                  display: 'flex',
+59	                  alignItems: 'center',
+60	                  justifyContent: 'center',
+61	                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+62	                  backgroundColor: isActive ? '#F16B6B' : '#F8F9FB',
+63	                  boxShadow: isActive ? '0 8px 15px rgba(241,107,107,0.3)' : 'none',
+64	                }}
+65	              >
+66	                <Icon 
+67	                  size={24} 
+68	                  strokeWidth={isActive ? 2.5 : 2} 
+69	                  color={isActive ? '#FFFFFF' : item.color} 
+70	                />
+71	              </div>
+72	              
+73	              <span 
+74	                style={{ 
+75	                  fontSize: '9px', 
+76	                  fontWeight: 800, 
+77	                  color: isActive ? '#312E3F' : '#94a3b8',
+78	                  textTransform: 'uppercase',
+79	                  letterSpacing: '0.3px'
+80	                }}
+81	              >
+82	                {item.name}
+83	              </span>
+84	            </Link>
+85	          )
+86	        })}
+87	      </div>
+88	    </div>
+89	  )
+90	}

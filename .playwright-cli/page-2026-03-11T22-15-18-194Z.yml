@@ -1,0 +1,189 @@
+- generic:
+  - generic:
+    - complementary:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - text: Zmeurel
+                - generic: OS
+          - navigation:
+            - generic:
+              - paragraph: OPERAȚIUNI
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /dashboard
+                    - generic:
+                      - img
+                    - text: Dashboard
+                - listitem:
+                  - link:
+                    - /url: /parcele
+                    - generic:
+                      - img
+                    - text: Terenuri
+                - listitem:
+                  - link:
+                    - /url: /recoltari
+                    - generic:
+                      - img
+                    - text: Recoltări
+                - listitem:
+                  - link:
+                    - /url: /stocuri
+                    - generic:
+                      - img
+                    - text: Stocuri
+                - listitem:
+                  - link:
+                    - /url: /activitati-agricole
+                    - generic:
+                      - img
+                    - text: Activități agricole
+            - generic:
+              - paragraph: RELAȚII
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /culegatori
+                    - generic:
+                      - img
+                    - text: Culegători
+                - listitem:
+                  - link:
+                    - /url: /clienti
+                    - generic:
+                      - img
+                    - text: Clienți
+            - generic:
+              - paragraph: FINANCIAR
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /comenzi
+                    - generic:
+                      - img
+                    - text: Comenzi
+                - listitem:
+                  - link:
+                    - /url: /vanzari-butasi
+                    - generic:
+                      - img
+                    - text: Material săditor
+                - listitem:
+                  - link:
+                    - /url: /investitii
+                    - generic:
+                      - img
+                    - text: Investiții
+                - listitem:
+                  - link:
+                    - /url: /cheltuieli
+                    - generic:
+                      - img
+                    - text: Cheltuieli
+    - main:
+      - generic:
+        - generic:
+          - paragraph: Zmeurel OS este în BETA. Trimite feedback
+          - button: Trimite feedback
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Clienți
+                    - paragraph: Administrare clienți
+                  - generic:
+                    - generic:
+                      - button: Adauga client
+                      - button:
+                        - img
+                      - generic:
+                        - generic:
+                          - button:
+                            - generic: BV
+                            - generic: Beta Verify 1773267060
+                            - img
+                      - generic:
+                        - img
+          - main:
+            - generic:
+              - generic:
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: 🤝
+                  - generic: "0"
+                  - generic: clienti
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: 📦
+                  - generic: "0"
+                  - generic: comenzi active
+                - generic:
+                  - generic: 💸
+                  - generic: "0"
+                  - generic: RON de colectat
+              - generic:
+                - heading [level=3]: Top clienti (valoare)
+                - paragraph: Nu există vânzări pentru clasament.
+              - generic:
+                - generic:
+                  - img
+                  - searchbox
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - heading [level=3]: Niciun client încă
+                  - paragraph: Adaugă primul client pentru a începe
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: "Total clienti: 0"
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e246] [cursor=pointer]:
+    - img [ref=e247]
+  - alert: Clienți | Zmeurel OS
+  - dialog "Dialog" [ref=e499]:
+    - heading "Dialog" [level=2] [ref=e500]
+    - generic [ref=e501]:
+      - generic [ref=e502]:
+        - generic [ref=e503]:
+          - heading "Adaugă client nou" [level=2] [ref=e505]
+          - button [active] [ref=e506]:
+            - img
+        - generic [ref=e507]:
+          - generic [ref=e508]:
+            - text: Nume client
+            - textbox "Nume client" [ref=e509]:
+              - /placeholder: Restaurant La Zmeura
+          - generic [ref=e510]:
+            - text: Telefon
+            - textbox "Telefon" [ref=e511]:
+              - /placeholder: "0740123456"
+          - generic [ref=e512]:
+            - text: Email
+            - textbox "Email" [ref=e513]:
+              - /placeholder: contact@client.ro
+          - generic [ref=e514]:
+            - text: Adresa
+            - textbox "Adresa" [ref=e515]
+          - generic [ref=e516]:
+            - text: Pret negociat (lei/kg)
+            - spinbutton "Pret negociat (lei/kg)" [ref=e517]
+          - generic [ref=e518]:
+            - text: Observații
+            - textbox "Observații" [ref=e519]
+      - generic [ref=e521]:
+        - button "Anulează" [ref=e522]
+        - button "Salvează" [ref=e523]

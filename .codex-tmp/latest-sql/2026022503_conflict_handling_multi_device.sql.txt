@@ -1,0 +1,71 @@
+    1: alter table public.recoltari
+    2:   add column if not exists conflict_flag boolean default false;
+    3: 
+    4: alter table public.vanzari
+    5:   add column if not exists conflict_flag boolean default false;
+    6: 
+    7: alter table public.activitati_agricole
+    8:   add column if not exists conflict_flag boolean default false;
+    9: 
+   10: alter table public.cheltuieli_diverse
+   11:   add column if not exists conflict_flag boolean default false;
+   12: 
+   13: create or replace function public.upsert_with_idempotency(table_name text, payload jsonb)
+   14: returns jsonb
+   15: language plpgsql
+   16: security definer
+   17: as $$
+   18: declare
+   19:   result jsonb;
+   20:   assignments text;
+   21:   lww_condition text := '(coalesce(excluded.updated_at, now()) >= coalesce(t.updated_at, ''epoch''::timestamptz))';
+   22:   conflict_condition text := '(t.updated_at is not null and excluded.updated_at is not null and t.updated_at <> excluded.updated_at and abs(extract(epoch from (excluded.updated_at - t.updated_at))) < 5)';
+   23: begin
+   24:   if table_name not in ('recoltari', 'vanzari', 'activitati_agricole', 'cheltuieli_diverse') then
+   25:     raise exception 'Unsupported table: %', table_name;
+   26:   end if;
+   27: 
+   28:   select string_agg(
+   29:     case
+   30:       when c.column_name = 'conflict_flag' then format(
+   31:         '%1$I = case when %2$s then true when %3$s then false else t.%1$I end',
+   32:         c.column_name,
+   33:         conflict_condition,
+   34:         lww_condition
+   35:       )
+   36:       else format(
+   37:         '%1$I = case when %2$s then excluded.%1$I else t.%1$I end',
+   38:         c.column_name,
+   39:         lww_condition
+   40:       )
+   41:     end,
+   42:     ', '
+   43:   )
+   44:   into assignments
+   45:   from information_schema.columns c
+   46:   where c.table_schema = 'public'
+   47:     and c.table_name = table_name
+   48:     and c.column_name not in ('id', 'created_at', 'created_by', 'client_sync_id');
+   49: 
+   50:   execute format(
+   51:     'with incoming as (
+   52:       select * from jsonb_populate_record(null::public.%1$I, $1)
+   53:     ),
+   54:     upserted as (
+   55:       insert into public.%1$I as t
+   56:       select * from incoming
+   57:       on conflict (client_sync_id)
+   58:       do update set %2$s
+   59:       returning t.*
+   60:     )
+   61:     select to_jsonb(upserted) from upserted',
+   62:     table_name,
+   63:     assignments
+   64:   )
+   65:   into result
+   66:   using payload;
+   67: 
+   68:   return result;
+   69: end;
+   70: $$;
+   71: 

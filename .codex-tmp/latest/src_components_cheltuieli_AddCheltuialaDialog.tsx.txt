@@ -1,0 +1,173 @@
+    1: 'use client'
+    2: 
+    3: import { useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useForm } from 'react-hook-form'
+    6: import { toast } from '@/lib/ui/toast'
+    7: import * as z from 'zod'
+    8: 
+    9: import { AppDrawer } from '@/components/app/AppDrawer'
+   10: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   11: import { Input } from '@/components/ui/input'
+   12: import { Label } from '@/components/ui/label'
+   13: import { Textarea } from '@/components/ui/textarea'
+   14: import { generateClientId } from '@/lib/offline/generateClientId'
+   15: import { hapticError } from '@/lib/utils/haptic'
+   16: 
+   17: const CATEGORII_CHELTUIELI = [
+   18:   'Electricitate',
+   19:   'Motorina Transport',
+   20:   'Ambalaje',
+   21:   'Etichete',
+   22:   'Reparatii Utilaje',
+   23:   'Scule',
+   24:   'Fertilizare',
+   25:   'Pesticide',
+   26:   'Intretinere Curenta',
+   27:   'Cules',
+   28:   'Manoperă cules',
+   29:   'Material Saditor',
+   30:   'Sistem Sustinere',
+   31:   'Sistem Irigatie',
+   32:   'Altele',
+   33: ]
+   34: 
+   35: const cheltuialaSchema = z.object({
+   36:   client_sync_id: z.string().optional(),
+   37:   data: z.string().min(1, 'Data este obligatorie'),
+   38:   categorie: z.string().min(1, 'Selecteaza categoria'),
+   39:   suma_lei: z.string().min(1, 'Suma este obligatorie'),
+   40:   furnizor: z.string().optional(),
+   41:   descriere: z.string().optional(),
+   42: })
+   43: 
+   44: export type CheltuialaFormData = z.infer<typeof cheltuialaSchema>
+   45: 
+   46: interface AddCheltuialaDialogProps {
+   47:   open: boolean
+   48:   onOpenChange: (open: boolean) => void
+   49:   onSubmit: (data: CheltuialaFormData) => Promise<void>
+   50: }
+   51: 
+   52: const defaultValues = (): CheltuialaFormData => ({
+   53:   client_sync_id: undefined,
+   54:   data: new Date().toISOString().split('T')[0],
+   55:   categorie: '',
+   56:   suma_lei: '',
+   57:   furnizor: '',
+   58:   descriere: '',
+   59: })
+   60: 
+   61: export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltuialaDialogProps) {
+   62:   const [isSubmitting, setIsSubmitting] = useState(false)
+   63: 
+   64:   const form = useForm<CheltuialaFormData>({
+   65:     resolver: zodResolver(cheltuialaSchema),
+   66:     defaultValues: defaultValues(),
+   67:   })
+   68: 
+   69:   const handleClose = () => {
+   70:     if (isSubmitting) return
+   71:     onOpenChange(false)
+   72:   }
+   73: 
+   74:   const handleSubmit = async (data: CheltuialaFormData) => {
+   75:     if (isSubmitting) return
+   76: 
+   77:     setIsSubmitting(true)
+   78:     try {
+   79:       await onSubmit({
+   80:         ...data,
+   81:         client_sync_id: data.client_sync_id ?? generateClientId(),
+   82:       })
+   83:       form.reset(defaultValues())
+   84:       onOpenChange(false)
+   85:     } catch (error: any) {
+   86:       const conflict = error?.status === 409 || error?.code === '23505'
+   87:       if (conflict) {
+   88:         toast.info('Inregistrarea era deja sincronizata.')
+   89:         onOpenChange(false)
+   90:         return
+   91:       }
+   92: 
+   93:       console.error('Error creating cheltuiala:', error)
+   94:       hapticError()
+   95:       toast.error('Eroare la salvare.')
+   96:     } finally {
+   97:       setIsSubmitting(false)
+   98:     }
+   99:   }
+  100: 
+  101:   return (
+  102:     <AppDrawer
+  103:       open={open}
+  104:       onOpenChange={onOpenChange}
+  105:       title="Adauga cheltuiala"
+  106:       footer={
+  107:         <DialogFormActions
+  108:           onCancel={handleClose}
+  109:           onSave={form.handleSubmit(handleSubmit)}
+  110:           saving={isSubmitting}
+  111:           cancelLabel="Anuleaza"
+  112:           saveLabel="Salveaza"
+  113:         />
+  114:       }
+  115:     >
+  116:       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+  117:         <div className="space-y-2">
+  118:           <Label htmlFor="chelt_data">Data</Label>
+  119:           <Input id="chelt_data" type="date" className="agri-control h-12" {...form.register('data')} />
+  120:           {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
+  121:         </div>
+  122: 
+  123:         <div className="space-y-2">
+  124:           <Label htmlFor="chelt_categorie">Categorie</Label>
+  125:           <select id="chelt_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
+  126:             <option value="">Selecteaza categoria</option>
+  127:             {CATEGORII_CHELTUIELI.map((categorie) => (
+  128:               <option key={categorie} value={categorie}>
+  129:                 {categorie}
+  130:               </option>
+  131:             ))}
+  132:           </select>
+  133:           {form.formState.errors.categorie ? <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p> : null}
+  134:         </div>
+  135: 
+  136:         <div className="space-y-2">
+  137:           <Label htmlFor="chelt_suma">Suma (lei)</Label>
+  138:           <Input
+  139:             id="chelt_suma"
+  140:             type="number"
+  141:             inputMode="decimal"
+  142:             pattern="[0-9]*"
+  143:             step="0.01"
+  144:             min="0"
+  145:             className="agri-control h-12"
+  146:             placeholder="Ex: 150.50"
+  147:             {...form.register('suma_lei')}
+  148:           />
+  149:           {form.formState.errors.suma_lei ? <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p> : null}
+  150:         </div>
+  151: 
+  152:         <div className="space-y-2">
+  153:           <Label htmlFor="chelt_furnizor">Furnizor / Magazin</Label>
+  154:           <Input id="chelt_furnizor" className="agri-control h-12" placeholder="Ex: Lidl, Dedeman, Petrom" {...form.register('furnizor')} />
+  155:         </div>
+  156: 
+  157:         <div className="space-y-2">
+  158:           <Label htmlFor="chelt_descriere">Descriere</Label>
+  159:           <Textarea
+  160:             id="chelt_descriere"
+  161:             rows={4}
+  162:             className="agri-control w-full px-3 py-2 text-base"
+  163:             placeholder="Ex: Electricitate pompa, factura 12345"
+  164:             {...form.register('descriere')}
+  165:           />
+  166:           <p className="text-xs text-[var(--agri-text-muted)]">Detalii suplimentare (factura, observatii etc.)</p>
+  167:         </div>
+  168:       </form>
+  169:     </AppDrawer>
+  170:   )
+  171: }
+  172: 
+  173: 

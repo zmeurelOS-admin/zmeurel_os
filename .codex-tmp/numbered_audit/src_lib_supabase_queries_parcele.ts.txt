@@ -1,0 +1,127 @@
+﻿   1: import { getSupabase } from "@/lib/supabase/client"
+   2: import type { Tables, TablesInsert, TablesUpdate } from "@/types/supabase"
+   3: 
+   4: export type Parcela = Tables<"parcele">
+   5: export type ParcelaInsert = TablesInsert<"parcele">
+   6: export type ParcelaUpdate = TablesUpdate<"parcele">
+   7: 
+   8: // =====================
+   9: // GET
+  10: // =====================
+  11: 
+  12: export async function getParcele(): Promise<Parcela[]> {
+  13:   const supabase = getSupabase()
+  14: 
+  15:   const { data, error } = await supabase
+  16:     .from("parcele")
+  17:     .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,created_at,updated_at,tenant_id")
+  18:     .order("created_at", { ascending: false })
+  19: 
+  20:   if (error) throw error
+  21: 
+  22:   return data ?? []
+  23: }
+  24: 
+  25: // =====================
+  26: // CREATE
+  27: // =====================
+  28: 
+  29: export async function createParcela(
+  30:   input: ParcelaInsert
+  31: ): Promise<Parcela> {
+  32:   const supabase = getSupabase()
+  33: 
+  34:   const {
+  35:     data: { user },
+  36:     error: authError,
+  37:   } = await supabase.auth.getUser()
+  38: 
+  39:   if (authError || !user) {
+  40:     throw new Error("Neautorizat. Trebuie sa fii logat.")
+  41:   }
+  42: 
+  43:   const { data: tenant, error: tenantError } = await supabase
+  44:     .from("tenants")
+  45:     .select("id")
+  46:     .eq("owner_user_id", user.id)
+  47:     .maybeSingle()
+  48: 
+  49:   if (tenantError) throw tenantError
+  50:   if (!tenant?.id) throw new Error("Tenant indisponibil pentru utilizatorul curent.")
+  51: 
+  52:   const { data, error } = await supabase
+  53:     .from("parcele")
+  54:     .insert({
+  55:       ...input,
+  56:       tenant_id: tenant.id,
+  57:     })
+  58:     .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,created_at,updated_at,tenant_id")
+  59:     .single()
+  60: 
+  61:   if (error) throw error
+  62: 
+  63:   return data
+  64: }
+  65: 
+  66: // =====================
+  67: // UPDATE
+  68: // =====================
+  69: 
+  70: export async function updateParcela(
+  71:   id: string,
+  72:   input: ParcelaUpdate
+  73: ): Promise<Parcela> {
+  74:   const supabase = getSupabase()
+  75: 
+  76:   const { data, error } = await supabase
+  77:     .from("parcele")
+  78:     .update(input)
+  79:     .eq("id", id)
+  80:     .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,created_at,updated_at,tenant_id")
+  81:     .single()
+  82: 
+  83:   if (error) throw error
+  84: 
+  85:   return data
+  86: }
+  87: 
+  88: // =====================
+  89: // DELETE
+  90: // =====================
+  91: 
+  92: export async function deleteParcela(id: string): Promise<void> {
+  93:   const supabase = getSupabase()
+  94: 
+  95:   // Check for related recoltari before deleting
+  96:   const { count: recoltariCount, error: recoltariError } = await supabase
+  97:     .from("recoltari")
+  98:     .select("*", { count: "exact", head: true })
+  99:     .eq("parcela_id", id)
+ 100: 
+ 101:   if (recoltariError) throw recoltariError
+ 102: 
+ 103:   // Check for related activitati_agricole before deleting
+ 104:   const { count: activitatiCount, error: activitatiError } = await supabase
+ 105:     .from("activitati_agricole")
+ 106:     .select("*", { count: "exact", head: true })
+ 107:     .eq("parcela_id", id)
+ 108: 
+ 109:   if (activitatiError) throw activitatiError
+ 110: 
+ 111:   // If any related records exist, throw a descriptive error
+ 112:   if ((recoltariCount ?? 0) > 0 || (activitatiCount ?? 0) > 0) {
+ 113:     const parts: string[] = []
+ 114:     if ((recoltariCount ?? 0) > 0) parts.push(`${recoltariCount} recoltÄri`)
+ 115:     if ((activitatiCount ?? 0) > 0) parts.push(`${activitatiCount} activitÄČ›i`)
+ 116:     
+ 117:     throw new Error(`Nu poČ›i Č™terge. Are ${parts.join(" Č™i ")} asociate.`)
+ 118:   }
+ 119: 
+ 120:   // Only proceed with delete if all counts are 0
+ 121:   const { error } = await supabase
+ 122:     .from("parcele")
+ 123:     .delete()
+ 124:     .eq("id", id)
+ 125: 
+ 126:   if (error) throw error
+ 127: }

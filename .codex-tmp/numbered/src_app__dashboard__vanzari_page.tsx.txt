@@ -1,0 +1,6 @@
+﻿1	import { VanzariPageClient } from './VanzariPageClient'
+2	
+3	export default function VanzariPage() {
+4	  return <VanzariPageClient />
+5	}
+6	

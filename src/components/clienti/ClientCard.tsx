@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { colors } from '@/lib/design-tokens'
 import type { Client } from '@/lib/supabase/queries/clienti'
 
 interface ClientCardProps {
@@ -65,75 +65,40 @@ export function ClientCard({
   return (
     <div
       ref={rootRef}
-      style={{
-        borderRadius: radius.lg,
-        border: `1px solid ${colors.grayLight}`,
-        boxShadow: shadows.card,
-        background: colors.white,
-        overflow: 'hidden',
-      }}
+      className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm"
     >
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
-        style={{
-          width: '100%',
-          border: 'none',
-          background: 'transparent',
-          textAlign: 'left',
-          padding: spacing.md,
-          cursor: 'pointer',
-        }}
+        className="w-full p-5 text-left"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+        <div className="flex items-start gap-4">
           <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.md,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: hasRecentSales ? colors.greenLight : colors.grayLight,
-              fontSize: 18,
-              flexShrink: 0,
-            }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
+            style={{ background: hasRecentSales ? colors.greenLight : colors.grayLight }}
           >
             🤝
           </div>
 
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: colors.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {client.nume_client}
-            </div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{client.nume_client}</div>
             <a
               href={phoneHref}
               onClick={(event) => event.stopPropagation()}
-              style={{ fontSize: 12, fontWeight: 600, color: colors.primary, textDecoration: 'none' }}
+              className="text-sm font-semibold text-[var(--agri-primary)]"
             >
               {client.telefon || '-'}
             </a>
-            <div style={{ fontSize: 10, color: colors.gray, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.adresa || '-'}</div>
+            <div className="truncate text-sm text-[var(--agri-text-muted)]">{client.adresa || '-'}</div>
           </div>
 
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: colors.dark }}>{totalRon.toFixed(0)} RON</div>
-            <div style={{ fontSize: 10, color: colors.gray }}>
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-bold text-[var(--agri-text)]">{totalRon.toFixed(0)} RON</div>
+            <div className="text-[10px] text-[var(--agri-text-muted)]">
               {comenziCount} comenzi · {vanzariCount} vânzări
             </div>
             {unpaidRon > 0 ? (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  marginTop: 4,
-                  borderRadius: radius.sm,
-                  background: colors.yellowLight,
-                  color: colors.dark,
-                  padding: '2px 6px',
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
+              <span className="mt-1 inline-flex rounded-md bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800">
                 💸 {unpaidRon.toFixed(0)} RON
               </span>
             ) : null}
@@ -142,56 +107,41 @@ export function ClientCard({
       </button>
 
       {expanded ? (
-        <div
-          style={{
-            borderTop: `1px solid ${colors.grayLight}`,
-            padding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
-            display: 'grid',
-            gap: spacing.sm,
-          }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: spacing.xs }}>
-            <div style={{ borderRadius: radius.md, background: colors.grayLight, padding: `${spacing.xs + 2}px ${spacing.xs}` }}>
-              <div style={{ fontSize: 9, color: colors.gray }}>Total cumparat</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: colors.dark }}>{totalRon.toFixed(0)} RON</div>
+        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Total cumpărat</div>
+              <div className="text-xs font-semibold text-[var(--agri-text)]">{totalRon.toFixed(0)} RON</div>
             </div>
-            <div style={{ borderRadius: radius.md, background: colors.grayLight, padding: `${spacing.xs + 2}px ${spacing.xs}` }}>
-              <div style={{ fontSize: 9, color: colors.gray }}>Nr comenzi</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: colors.dark }}>{comenziCount}</div>
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Nr. comenzi</div>
+              <div className="text-xs font-semibold text-[var(--agri-text)]">{comenziCount}</div>
             </div>
-            <div style={{ borderRadius: radius.md, background: colors.grayLight, padding: `${spacing.xs + 2}px ${spacing.xs}` }}>
-              <div style={{ fontSize: 9, color: colors.gray }}>Nr vânzări</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: colors.dark }}>{vanzariCount}</div>
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Nr. vânzări</div>
+              <div className="text-xs font-semibold text-[var(--agri-text)]">{vanzariCount}</div>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: 4 }}>
-            <div style={{ fontSize: 11, color: colors.gray }}>
-              <strong style={{ color: colors.dark }}>Ultima comanda:</strong>{' '}
+          <div className="space-y-2 text-sm text-[var(--agri-text-muted)]">
+            <div>
+              <strong className="text-[var(--agri-text)]">Ultima comandă:</strong>{' '}
               {lastComanda ? `${formatDate(lastComanda.data)} · ${lastComanda.kg.toFixed(1)} kg · ${lastComanda.status}` : '-'}
             </div>
-            <div style={{ fontSize: 11, color: colors.gray }}>
-              <strong style={{ color: colors.dark }}>Ultima vânzare:</strong>{' '}
+            <div>
+              <strong className="text-[var(--agri-text)]">Ultima vânzare:</strong>{' '}
               {lastVanzare ? `${formatDate(lastVanzare.data)} · ${lastVanzare.kg.toFixed(1)} kg · ${lastVanzare.totalRon.toFixed(0)} RON` : '-'}
+            </div>
+            <div>
+              <strong className="text-[var(--agri-text)]">Cantitate totală:</strong> {totalKg.toFixed(1)} kg
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: spacing.xs }}>
+          <div className="mt-4 grid grid-cols-5 gap-2">
             <a
               href={phoneHref}
               onClick={(event) => event.stopPropagation()}
-              style={{
-                minHeight: 48,
-                borderRadius: radius.md,
-                background: colors.blueLight,
-                color: colors.blue,
-                textDecoration: 'none',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
             >
               📞
             </a>
@@ -200,18 +150,7 @@ export function ClientCard({
               target="_blank"
               rel="noreferrer"
               onClick={(event) => event.stopPropagation()}
-              style={{
-                minHeight: 48,
-                borderRadius: radius.md,
-                background: colors.greenLight,
-                color: colors.green,
-                textDecoration: 'none',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700"
             >
               💬
             </a>
@@ -221,18 +160,9 @@ export function ClientCard({
                 event.stopPropagation()
                 onEdit(client)
               }}
-              style={{
-                minHeight: 48,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.yellowLight,
-                color: colors.dark,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
             >
-              ✏️
+              Editează
             </button>
             <button
               type="button"
@@ -240,18 +170,9 @@ export function ClientCard({
                 event.stopPropagation()
                 onDelete(client.id)
               }}
-              style={{
-                minHeight: 48,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.coralLight,
-                color: colors.coral,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
             >
-              🗑️
+              Șterge
             </button>
             <button
               type="button"
@@ -259,16 +180,7 @@ export function ClientCard({
                 event.stopPropagation()
                 onOpenDetails?.(client)
               }}
-              style={{
-                minHeight: 48,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.grayLight,
-                color: colors.dark,
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
             >
               Detalii
             </button>

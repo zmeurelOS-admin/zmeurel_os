@@ -1,0 +1,185 @@
+- generic:
+  - generic:
+    - complementary:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - text: Zmeurel
+                - generic: OS
+          - navigation:
+            - generic:
+              - paragraph: OPERAȚIUNI
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /dashboard
+                    - generic:
+                      - img
+                    - text: Dashboard
+                - listitem:
+                  - link:
+                    - /url: /parcele
+                    - generic:
+                      - img
+                    - text: Terenuri
+                - listitem:
+                  - link:
+                    - /url: /recoltari
+                    - generic:
+                      - img
+                    - text: Recoltări
+                - listitem:
+                  - link:
+                    - /url: /stocuri
+                    - generic:
+                      - img
+                    - text: Stocuri
+                - listitem:
+                  - link:
+                    - /url: /activitati-agricole
+                    - generic:
+                      - img
+                    - text: Activități agricole
+            - generic:
+              - paragraph: RELAȚII
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /culegatori
+                    - generic:
+                      - img
+                    - text: Culegători
+                - listitem:
+                  - link:
+                    - /url: /clienti
+                    - generic:
+                      - img
+                    - text: Clienți
+            - generic:
+              - paragraph: FINANCIAR
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /comenzi
+                    - generic:
+                      - img
+                    - text: Comenzi
+                - listitem:
+                  - link:
+                    - /url: /vanzari-butasi
+                    - generic:
+                      - img
+                    - text: Material săditor
+                - listitem:
+                  - link:
+                    - /url: /investitii
+                    - generic:
+                      - img
+                    - text: Investiții
+                - listitem:
+                  - link:
+                    - /url: /cheltuieli
+                    - generic:
+                      - img
+                    - text: Cheltuieli
+    - main:
+      - generic:
+        - generic:
+          - paragraph: Zmeurel OS este în BETA. Trimite feedback
+          - button: Trimite feedback
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Terenuri
+                    - paragraph: Administrare terenuri cultivate
+                  - generic:
+                    - generic:
+                      - button: Adauga teren
+                      - button:
+                        - img
+                      - generic:
+                        - generic:
+                          - button:
+                            - generic: BV
+                            - generic: Beta Verify 1773267060
+                            - img
+                      - generic:
+                        - img
+          - main:
+            - generic:
+              - generic:
+                - generic: 🗺️
+                - heading [level=3]: Niciun teren încă
+                - paragraph: Adaugă primul teren ca s? poți înregistra recoltări ți activități.
+                - button: 🗺️ Adaugă primul teren
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: "Total terenuri: 0"
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e246] [cursor=pointer]:
+    - img [ref=e247]
+  - alert
+  - dialog "Dialog" [ref=e294]:
+    - heading "Dialog" [level=2] [ref=e295]
+    - generic [ref=e296]:
+      - generic [ref=e297]:
+        - generic [ref=e298]:
+          - heading "Adaugă teren" [level=2] [ref=e300]
+          - button [active] [ref=e301]:
+            - img
+        - generic [ref=e302]:
+          - generic [ref=e303]:
+            - text: Tip unitate
+            - combobox [ref=e304]:
+              - generic: Camp
+              - img [ref=e305]
+          - generic [ref=e307]:
+            - text: Nume teren
+            - textbox "Nume teren" [ref=e308]:
+              - /placeholder: Teren Nord
+          - generic [ref=e309]:
+            - text: Tip cultură
+            - combobox [ref=e310]:
+              - generic: Alege tip cultură
+              - img [ref=e311]
+          - generic [ref=e313]:
+            - text: Soi plantat
+            - combobox [disabled] [ref=e314]:
+              - generic: Selectează mai întâi tipul culturii
+              - img [ref=e315]
+          - generic [ref=e317]:
+            - text: Suprafață (m2)
+            - textbox "Suprafață (m2)" [ref=e318]:
+              - /placeholder: "1200"
+          - paragraph [ref=e319]: ≈ 0.00 ha
+          - generic [ref=e320]:
+            - text: An plantare
+            - textbox "An plantare" [ref=e321]:
+              - /placeholder: "2026"
+              - text: "2026"
+          - generic [ref=e322]:
+            - text: Numar plante
+            - textbox "Numar plante" [ref=e323]:
+              - /placeholder: "0"
+          - generic [ref=e324]:
+            - text: Status
+            - combobox [ref=e325]:
+              - generic: Activ
+              - img [ref=e326]
+          - generic [ref=e328]:
+            - text: Observatii
+            - textbox "Observatii" [ref=e329]:
+              - /placeholder: Detalii suplimentare
+      - generic [ref=e331]:
+        - button "Anulează" [ref=e332]
+        - button "Salvează" [ref=e333]

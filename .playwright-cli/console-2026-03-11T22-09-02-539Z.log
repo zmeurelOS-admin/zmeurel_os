@@ -1,0 +1,2 @@
+[   14068ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:54321/auth/v1/authorize?provider=google&redirect_to=http%3A%2F%2F127.0.0.1%3A3000%2Fauth%2Fcallback&code_challenge=VFO-avvTZCHCkuSbr72wGS3U-TQBPIbZSyR8sASN-ls&code_challenge_method=s256:0
+[   14168ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:54321/favicon.ico:0

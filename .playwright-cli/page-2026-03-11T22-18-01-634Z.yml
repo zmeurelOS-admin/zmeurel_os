@@ -1,0 +1,204 @@
+- generic:
+  - generic:
+    - complementary:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - text: Zmeurel
+                - generic: OS
+          - navigation:
+            - generic:
+              - paragraph: OPERAȚIUNI
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /dashboard
+                    - generic:
+                      - img
+                    - text: Dashboard
+                - listitem:
+                  - link:
+                    - /url: /parcele
+                    - generic:
+                      - img
+                    - text: Terenuri
+                - listitem:
+                  - link:
+                    - /url: /recoltari
+                    - generic:
+                      - img
+                    - text: Recoltări
+                - listitem:
+                  - link:
+                    - /url: /stocuri
+                    - generic:
+                      - img
+                    - text: Stocuri
+                - listitem:
+                  - link:
+                    - /url: /activitati-agricole
+                    - generic:
+                      - img
+                    - text: Activități agricole
+            - generic:
+              - paragraph: RELAȚII
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /culegatori
+                    - generic:
+                      - img
+                    - text: Culegători
+                - listitem:
+                  - link:
+                    - /url: /clienti
+                    - generic:
+                      - img
+                    - text: Clienți
+            - generic:
+              - paragraph: FINANCIAR
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /comenzi
+                    - generic:
+                      - img
+                    - text: Comenzi
+                - listitem:
+                  - link:
+                    - /url: /vanzari-butasi
+                    - generic:
+                      - img
+                    - text: Material săditor
+                - listitem:
+                  - link:
+                    - /url: /investitii
+                    - generic:
+                      - img
+                    - text: Investiții
+                - listitem:
+                  - link:
+                    - /url: /cheltuieli
+                    - generic:
+                      - img
+                    - text: Cheltuieli
+    - main:
+      - generic:
+        - generic:
+          - paragraph: Zmeurel OS este în BETA. Trimite feedback
+          - button: Trimite feedback
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Culegători
+                    - paragraph: Evidența echipei de lucru
+                  - generic:
+                    - generic:
+                      - button: Adauga culegator
+                      - button:
+                        - img
+                      - generic:
+                        - generic:
+                          - button:
+                            - generic: BV
+                            - generic: Beta Verify 1773267060
+                            - img
+                      - generic:
+                        - img
+          - main:
+            - generic:
+              - generic:
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: 👤
+                      - generic: Activi azi
+                  - generic: "0"
+                  - generic: activi azi
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: 🫐
+                      - generic: Total recoltat azi
+                  - generic: "0"
+                  - generic: kg azi
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: 💸
+                      - generic: Cost manoperă azi
+                  - generic: —
+                  - generic: RON manopera
+              - generic:
+                - generic:
+                  - generic: Ranking azi
+                  - button: Sezon →
+                - generic: Nicio recoltare înregistrat? azi.
+              - generic:
+                - generic: "Medie: 0 kg/culegător"
+              - generic:
+                - img
+                - searchbox
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - heading [level=3]: Niciun culegător încă
+                  - paragraph: Adaugă primul culegător pentru a începe
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: "Total culegători: 0"
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e246] [cursor=pointer]:
+    - img [ref=e247]
+  - alert: Zmeurel
+  - dialog "Dialog" [ref=e769]:
+    - heading "Dialog" [level=2] [ref=e770]
+    - generic [ref=e771]:
+      - generic [ref=e772]:
+        - generic [ref=e773]:
+          - heading "Adaugă culegător nou" [level=2] [ref=e775]
+          - button [ref=e776]:
+            - img
+        - generic [ref=e777]:
+          - generic [ref=e778]:
+            - text: Nume și prenume
+            - textbox "Nume și prenume" [active] [ref=e779]:
+              - /placeholder: Popescu Ion
+              - text: Culegator Test
+          - generic [ref=e780]:
+            - text: Telefon
+            - textbox "Telefon" [ref=e781]:
+              - /placeholder: "0740123456"
+          - generic [ref=e782]:
+            - text: Tip angajare
+            - combobox "Tip angajare" [ref=e783]:
+              - option "Sezonier" [selected]
+              - option "Permanent"
+              - option "Zilier"
+              - option "Colaborator"
+          - generic [ref=e784]:
+            - text: Tarif (lei/kg)
+            - spinbutton "Tarif (lei/kg)" [ref=e785]: "2.5"
+          - generic [ref=e786]:
+            - text: Data angajare
+            - textbox "Data angajare" [ref=e787]
+          - generic [ref=e788]:
+            - checkbox "Culegător activ" [checked] [ref=e789]
+            - generic [ref=e790] [cursor=pointer]: Culegător activ
+          - generic [ref=e791]:
+            - text: Observații
+            - textbox "Observații" [ref=e792]
+      - generic [ref=e794]:
+        - button "Anulează" [ref=e795]
+        - button "Salvează" [ref=e796]

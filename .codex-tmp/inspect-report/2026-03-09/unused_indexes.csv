@@ -1,0 +1,7 @@
+name,index,index_size,index_scans
+public.analytics_events,idx_analytics_events_name,120 kB,0
+public.analytics_events,analytics_events_created_at_idx,72 kB,0
+public.analytics_events,analytics_events_event_type_idx,40 kB,0
+public.analytics_events,analytics_events_event_name_idx,40 kB,0
+public.analytics_events,analytics_events_module_idx,32 kB,0
+public.analytics_events,idx_analytics_events_tenant,104 kB,6

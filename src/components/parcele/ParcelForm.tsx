@@ -16,10 +16,10 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { UnitateTip } from '@/lib/parcele/unitate'
-import { getCropsForUnitType } from '@/lib/supabase/queries/crops'
-import { getCropVarietiesForCrop } from '@/lib/supabase/queries/crop-varieties'
-import { formatM2ToHa } from '@/lib/utils/area'
 import { queryKeys } from '@/lib/query-keys'
+import { getCropVarietiesForCrop } from '@/lib/supabase/queries/crop-varieties'
+import { getCropsForUnitType } from '@/lib/supabase/queries/crops'
+import { formatM2ToHa } from '@/lib/utils/area'
 
 export interface ParcelFormValues {
   nume_parcela: string
@@ -48,35 +48,35 @@ export const parcelFormSchema = z.object({
   suprafata_m2: z
     .string()
     .trim()
-    .min(1, 'Suprafata este obligatorie')
+    .min(1, 'Suprafața este obligatorie')
     .refine((value) => Number.isFinite(toDecimal(value)) && toDecimal(value) > 0, {
-      message: 'Suprafata trebuie sa fie un numar valid',
+      message: 'Suprafața trebuie să fie un număr valid',
     }),
   soi_plantat: z.string(),
   cultura: z.string(),
   soi: z.string(),
   nr_randuri: z.string().trim().refine((value) => !value || Number.isInteger(Number(value)), {
-    message: 'Numarul de randuri trebuie sa fie un numar intreg',
+    message: 'Numărul de rânduri trebuie să fie un număr întreg',
   }),
   an_plantare: z
     .string()
     .trim()
-    .min(1, 'Anul plantarii este obligatoriu')
+    .min(1, 'Anul plantării este obligatoriu')
     .refine((value) => Number.isInteger(Number(value)), {
-      message: 'Anul plantarii trebuie sa fie un numar intreg',
+      message: 'Anul plantării trebuie să fie un număr întreg',
     }),
   nr_plante: z.string().trim().refine((value) => !value || Number.isInteger(Number(value)), {
-    message: 'Numarul de plante trebuie sa fie un numar intreg',
+    message: 'Numărul de plante trebuie să fie un număr întreg',
   }),
   distanta_intre_randuri: z
     .string()
     .trim()
     .refine((value) => !value || (Number.isFinite(toDecimal(value)) && toDecimal(value) > 0), {
-      message: 'Distanta intre randuri trebuie sa fie un numar valid',
+      message: 'Distanța între rânduri trebuie să fie un număr valid',
     }),
   sistem_irigare: z.string(),
   data_plantarii: z.string().trim().refine((value) => !value || !Number.isNaN(Date.parse(value)), {
-    message: 'Data plantarii nu este valida',
+    message: 'Data plantării nu este validă',
   }),
   status: z.string().trim().min(1, 'Statusul este obligatoriu'),
   observatii: z.string(),
@@ -106,7 +106,6 @@ interface ParcelFormProps {
 }
 
 const selectTriggerClass = 'agri-control h-12 w-full px-3 text-base'
-
 const OTHER_CROP_VALUE = '__other_crop__'
 const OTHER_VARIETY_VALUE = '__other_variety__'
 
@@ -169,6 +168,7 @@ function dedupeValues(values: string[]): string[] {
 
 export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: ParcelFormProps) {
   void _soiuriDisponibile
+
   const [customCropMode, setCustomCropMode] = useState(false)
   const [customVarietyMode, setCustomVarietyMode] = useState(false)
 
@@ -189,17 +189,21 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
     () => dedupeCrops((cropsQuery.data ?? []).map((crop) => crop.name)),
     [cropsQuery.data]
   )
+
   const normalizedCrop = useMemo(() => normalizeCropValue(tipFruct), [tipFruct])
+
   const selectedCropOption = useMemo(() => {
     if (!normalizedCrop) return null
     const key = normalizeCropKey(normalizedCrop)
     return cropOptions.find((option) => normalizeCropKey(option) === key) ?? null
   }, [cropOptions, normalizedCrop])
+
   const selectedCropId = useMemo(() => {
     if (!selectedCropOption) return null
     return (
-      (cropsQuery.data ?? []).find((crop) => normalizeCropKey(crop.name) === normalizeCropKey(selectedCropOption))
-        ?.id ?? null
+      (cropsQuery.data ?? []).find(
+        (crop) => normalizeCropKey(crop.name) === normalizeCropKey(selectedCropOption)
+      )?.id ?? null
     )
   }, [cropsQuery.data, selectedCropOption])
 
@@ -217,12 +221,23 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
   )
 
   useEffect(() => {
+    if (cropsQuery.isError && !tipFruct) {
+      setCustomCropMode(true)
+    }
+  }, [cropsQuery.isError, tipFruct])
+
+  useEffect(() => {
+    if (varietiesQuery.isError && !soiPlantat) {
+      setCustomVarietyMode(true)
+    }
+  }, [soiPlantat, varietiesQuery.isError])
+
+  useEffect(() => {
     if (normalizedCrop !== tipFruct) {
       form.setValue('tip_fruct', normalizedCrop, { shouldDirty: false, shouldValidate: true })
     }
 
     if (!normalizedCrop) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomCropMode(false)
       return
     }
@@ -236,7 +251,6 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
   useEffect(() => {
     if (customCropMode) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomVarietyMode(true)
       return
     }
@@ -266,6 +280,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
   useEffect(() => {
     if (tipUnitate === 'solar') return
+
     form.setValue('cultura', '', { shouldDirty: false, shouldValidate: false })
     form.setValue('soi', '', { shouldDirty: false, shouldValidate: false })
     form.setValue('nr_randuri', '', { shouldDirty: false, shouldValidate: false })
@@ -315,12 +330,12 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
           }
         >
           <SelectTrigger className={selectTriggerClass}>
-            <SelectValue placeholder="Alege tip unitate" />
+            <SelectValue placeholder="Alege tipul unității" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="camp">Camp</SelectItem>
+            <SelectItem value="camp">Câmp</SelectItem>
             <SelectItem value="solar">Solar</SelectItem>
-            <SelectItem value="livada">Livada</SelectItem>
+            <SelectItem value="livada">Livadă</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -342,7 +357,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
         <Label>Tip cultură</Label>
         <Select value={cropSelectValue} onValueChange={handleCropChange}>
           <SelectTrigger className={selectTriggerClass}>
-            <SelectValue placeholder="Alege tip cultură" />
+            <SelectValue placeholder="Alege tipul culturii" />
           </SelectTrigger>
           <SelectContent>
             {cropOptions.map((crop) => (
@@ -352,13 +367,20 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
             ))}
             {!cropsQuery.isLoading && cropOptions.length === 0 ? (
               <SelectItem value="__no_crops__" disabled>
-                Nu exist? culturi pentru tipul selectat
+                Nu există culturi pentru tipul selectat
               </SelectItem>
             ) : null}
-            <SelectItem value={OTHER_CROP_VALUE}>Alta cultura</SelectItem>
+            <SelectItem value={OTHER_CROP_VALUE}>Altă cultură</SelectItem>
           </SelectContent>
         </Select>
-        {cropsQuery.isLoading ? <p className="text-xs text-muted-foreground">Se încarcă culturile...</p> : null}
+        {cropsQuery.isLoading ? (
+          <p className="text-xs text-muted-foreground">Se încarcă culturile...</p>
+        ) : null}
+        {cropsQuery.isError ? (
+          <p className="text-xs text-amber-700">
+            Nu am putut încărca lista de culturi. Poți introduce cultura manual.
+          </p>
+        ) : null}
         {form.formState.errors.tip_fruct ? (
           <p className="text-xs text-red-600">{form.formState.errors.tip_fruct.message}</p>
         ) : null}
@@ -366,11 +388,11 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
       {customCropMode ? (
         <div className="space-y-2">
-          <Label htmlFor="custom_tip_fruct">Introduce cultura</Label>
+          <Label htmlFor="custom_tip_fruct">Introdu cultura</Label>
           <input
             id="custom_tip_fruct"
             className="agri-control h-12 w-full px-3 text-base"
-            placeholder="Introduce cultura"
+            placeholder="Ex: Zmeură"
             value={tipFruct}
             onChange={(event) =>
               form.setValue('tip_fruct', event.target.value, { shouldDirty: true, shouldValidate: true })
@@ -385,7 +407,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
           <input
             id="soi_plantat_custom_crop"
             className="agri-control h-12 w-full px-3 text-base"
-            placeholder="Ex: Jonkheer van Tets"
+            placeholder="Ex: Glen Ample"
             value={soiPlantat}
             onChange={(event) =>
               form.setValue('soi_plantat', event.target.value, { shouldDirty: true, shouldValidate: true })
@@ -400,13 +422,15 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
             >
               <SelectTrigger className={selectTriggerClass}>
                 <SelectValue
-                  placeholder={selectedCropOption ? 'Alege soi' : 'Selectează mai întâi tipul culturii'}
+                  placeholder={
+                    selectedCropOption ? 'Alege soiul' : 'Selectează mai întâi tipul culturii'
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
                 {!varietiesQuery.isLoading && availableVarieties.length === 0 ? (
                   <SelectItem value="__no_varieties__" disabled>
-                    Nu exist? soiuri predefinite
+                    Nu există soiuri predefinite
                   </SelectItem>
                 ) : null}
                 {availableVarieties.map((soi) => (
@@ -417,7 +441,14 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                 <SelectItem value={OTHER_VARIETY_VALUE}>Alt soi</SelectItem>
               </SelectContent>
             </Select>
-            {varietiesQuery.isLoading ? <p className="text-xs text-muted-foreground">Se încarcă soiurile...</p> : null}
+            {varietiesQuery.isLoading ? (
+              <p className="text-xs text-muted-foreground">Se încarcă soiurile...</p>
+            ) : null}
+            {varietiesQuery.isError ? (
+              <p className="text-xs text-amber-700">
+                Nu am putut încărca lista de soiuri. Poți introduce soiul manual.
+              </p>
+            ) : null}
 
             {customVarietyMode ? (
               <div className="space-y-2">
@@ -442,7 +473,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
       <NumericField
         id="suprafata_m2"
-        label="Suprafață (m2)"
+        label="Suprafață (m²)"
         placeholder="1200"
         {...form.register('suprafata_m2')}
         error={form.formState.errors.suprafata_m2?.message}
@@ -462,11 +493,11 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date solar</p>
 
           <div className="space-y-2">
-            <Label htmlFor="cultura">Cultura</Label>
+            <Label htmlFor="cultura">Cultură</Label>
             <input
               id="cultura"
               className="agri-control h-12 w-full px-3 text-base"
-              placeholder="Ex: Rosii"
+              placeholder="Ex: Roșii"
               {...form.register('cultura')}
             />
           </div>
@@ -483,7 +514,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
           <NumericField
             id="nr_randuri"
-            label="Numar randuri"
+            label="Număr rânduri"
             placeholder="0"
             {...form.register('nr_randuri')}
             error={form.formState.errors.nr_randuri?.message}
@@ -491,14 +522,14 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
           <NumericField
             id="nr_plante"
-            label="Numar plante"
+            label="Număr plante"
             placeholder="0"
             {...form.register('nr_plante')}
             error={form.formState.errors.nr_plante?.message}
           />
 
           <div className="space-y-2">
-            <Label htmlFor="distanta_intre_randuri">Distanta intre randuri (m)</Label>
+            <Label htmlFor="distanta_intre_randuri">Distanța între rânduri (m)</Label>
             <input
               id="distanta_intre_randuri"
               className="agri-control h-12 w-full px-3 text-base"
@@ -522,7 +553,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="data_plantarii">Data plantarii</Label>
+            <Label htmlFor="data_plantarii">Data plantării</Label>
             <input
               id="data_plantarii"
               type="date"
@@ -537,7 +568,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
       ) : (
         <NumericField
           id="nr_plante"
-          label="Numar plante"
+          label="Număr plante"
           placeholder="0"
           {...form.register('nr_plante')}
           error={form.formState.errors.nr_plante?.message}
@@ -551,18 +582,18 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
           onValueChange={(value) => form.setValue('status', value, { shouldDirty: true })}
         >
           <SelectTrigger className={selectTriggerClass}>
-            <SelectValue placeholder="Alege status" />
+            <SelectValue placeholder="Alege statusul" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="Activ">Activ</SelectItem>
             <SelectItem value="Inactiv">Inactiv</SelectItem>
-            <SelectItem value="In Pregatire">In Pregatire</SelectItem>
+            <SelectItem value="In Pregatire">În pregătire</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="observatii">Observatii</Label>
+        <Label htmlFor="observatii">Observații</Label>
         <Textarea
           id="observatii"
           rows={4}

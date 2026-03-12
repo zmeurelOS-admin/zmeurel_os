@@ -78,15 +78,19 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
 
       const result = (await response.json()) as {
         ok?: boolean
-        error?: string
-        code?: string | null
-        details?: string | null
-        hint?: string | null
+        error?: string | { code?: string | null; message?: string | null }
       }
 
       if (!response.ok || !result.ok) {
-        const errorParts = [result.error, result.code, result.details, result.hint].filter(Boolean)
-        throw new Error(errorParts.join(' | ') || 'Nu am putut actualiza planul.')
+        const message =
+          typeof result.error === 'string'
+            ? result.error
+            : result.error?.message
+        const code =
+          typeof result.error === 'string'
+            ? null
+            : result.error?.code
+        throw new Error([message, code].filter(Boolean).join(' | ') || 'Nu am putut actualiza planul.')
       }
 
       return result

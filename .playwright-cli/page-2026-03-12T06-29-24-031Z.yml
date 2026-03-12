@@ -1,0 +1,97 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: Zmeurel OS este în BETA. Trimite feedback
+      - button "Trimite feedback" [ref=e6]
+    - generic [ref=e7]:
+      - banner [ref=e9]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "Clienți" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Administrare clienți
+          - button "Activeaza high visibility mode" [ref=e18]:
+            - img [ref=e19]
+      - main [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "1 clienti" [ref=e28]:
+              - generic [ref=e31]: 🤝
+              - generic [ref=e32]: "1"
+              - generic [ref=e33]: clienti
+            - button "0 comenzi active" [ref=e34] [cursor=pointer]:
+              - generic [ref=e37]: 📦
+              - generic [ref=e38]: "0"
+              - generic [ref=e39]: comenzi active
+            - generic [ref=e40]:
+              - generic [ref=e41]: 💸
+              - generic [ref=e42]: "0"
+              - generic [ref=e43]: RON de colectat
+          - generic [ref=e44]:
+            - heading "Top clienti (valoare)" [level=3] [ref=e45]
+            - paragraph [ref=e46]: Nu există vânzări pentru clasament.
+          - generic [ref=e48]:
+            - img
+            - searchbox "Caută clienti" [ref=e49]
+          - generic [ref=e51]:
+            - button "🤝 Client Mobil 0712345678 Suceava 0 RON 0 comenzi · 0 vânzări" [active] [ref=e52]:
+              - generic [ref=e53]:
+                - generic [ref=e54]: 🤝
+                - generic [ref=e55]:
+                  - generic [ref=e56]: Client Mobil
+                  - link "0712345678" [ref=e57] [cursor=pointer]:
+                    - /url: tel:0712345678
+                  - generic [ref=e58]: Suceava
+                - generic [ref=e59]:
+                  - generic [ref=e60]: 0 RON
+                  - generic [ref=e61]: 0 comenzi · 0 vânzări
+            - generic [ref=e86]:
+              - generic [ref=e87]:
+                - generic [ref=e88]:
+                  - generic [ref=e89]: Total cumpărat
+                  - generic [ref=e90]: 0 RON
+                - generic [ref=e91]:
+                  - generic [ref=e92]: Nr. comenzi
+                  - generic [ref=e93]: "0"
+                - generic [ref=e94]:
+                  - generic [ref=e95]: Nr. vânzări
+                  - generic [ref=e96]: "0"
+              - generic [ref=e97]:
+                - generic [ref=e98]:
+                  - strong [ref=e99]: "Ultima comandă:"
+                  - text: "-"
+                - generic [ref=e100]:
+                  - strong [ref=e101]: "Ultima vânzare:"
+                  - text: "-"
+                - generic [ref=e102]:
+                  - strong [ref=e103]: "Cantitate totală:"
+                  - text: 0.0 kg
+              - generic [ref=e104]:
+                - link "📞" [ref=e105] [cursor=pointer]:
+                  - /url: tel:0712345678
+                - link "💬" [ref=e106] [cursor=pointer]:
+                  - /url: https://wa.me/4712345678
+                - button "Editează" [ref=e107]
+                - button "Șterge" [ref=e108]
+                - button "Detalii" [ref=e109]
+      - paragraph [ref=e66]: "Total clienti: 1"
+    - navigation "Navigare principală" [ref=e67]:
+      - generic [ref=e68]:
+        - link "📊 Dashboard" [ref=e69] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e70]: 📊
+          - generic [ref=e71]: Dashboard
+        - link "🧺 Recoltări" [ref=e72] [cursor=pointer]:
+          - /url: /recoltari
+          - generic [ref=e73]: 🧺
+          - generic [ref=e74]: Recoltări
+        - button "Adaugă client" [ref=e76]:
+          - generic [ref=e77]: +
+        - link "📦 Comenzi" [ref=e78] [cursor=pointer]:
+          - /url: /comenzi
+          - generic [ref=e79]: 📦
+          - generic [ref=e80]: Comenzi
+        - button "Mai multe module" [ref=e81]:
+          - generic [ref=e82]: •••
+          - generic [ref=e83]: Mai mult
+  - region "Notifications alt+T"
+  - alert [ref=e85]

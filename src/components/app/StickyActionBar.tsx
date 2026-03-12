@@ -15,7 +15,7 @@ export function StickyActionBar({ children, className }: StickyActionBarProps) {
         className
       )}
     >
-      <div className="mx-auto w-full max-w-4xl">{children}</div>
+      <div className="mx-auto w-full max-w-7xl">{children}</div>
     </div>
   )
 }

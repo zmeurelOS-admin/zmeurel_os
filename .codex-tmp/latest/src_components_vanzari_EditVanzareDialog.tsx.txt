@@ -1,0 +1,186 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    6: import { useForm, useWatch } from 'react-hook-form'
+    7: import { toast } from '@/lib/ui/toast'
+    8: import * as z from 'zod'
+    9: 
+   10: import { AppDialog } from '@/components/app/AppDialog'
+   11: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   12: import { Input } from '@/components/ui/input'
+   13: import { Label } from '@/components/ui/label'
+   14: import { Textarea } from '@/components/ui/textarea'
+   15: import { track } from '@/lib/analytics/track'
+   16: import { getClienti } from '@/lib/supabase/queries/clienti'
+   17: import { STATUS_PLATA, updateVanzare, type Vanzare } from '@/lib/supabase/queries/vanzari'
+   18: import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+   19: 
+   20: const schema = z.object({
+   21:   data: z.string().min(1, 'Data este obligatorie'),
+   22:   client_id: z.string().optional(),
+   23:   cantitate_kg: z
+   24:     .string()
+   25:     .trim()
+   26:     .min(1, 'Cantitatea este obligatorie')
+   27:     .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+   28:       message: 'Cantitatea trebuie sa fie mai mare ca 0',
+   29:     }),
+   30:   pret_lei_kg: z
+   31:     .string()
+   32:     .trim()
+   33:     .min(1, 'Pretul este obligatoriu')
+   34:     .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+   35:       message: 'Pretul trebuie sa fie mai mare ca 0',
+   36:     }),
+   37:   status_plata: z.string().min(1, 'Statusul este obligatoriu'),
+   38:   observatii_ladite: z.string().optional(),
+   39: })
+   40: 
+   41: type EditVanzareFormData = z.infer<typeof schema>
+   42: 
+   43: interface EditVanzareDialogProps {
+   44:   vanzare: Vanzare | null
+   45:   open: boolean
+   46:   onOpenChange: (open: boolean) => void
+   47: }
+   48: 
+   49: const defaults = (): EditVanzareFormData => ({
+   50:   data: new Date().toISOString().split('T')[0],
+   51:   client_id: '',
+   52:   cantitate_kg: '',
+   53:   pret_lei_kg: '',
+   54:   status_plata: 'Platit',
+   55:   observatii_ladite: '',
+   56: })
+   57: 
+   58: export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDialogProps) {
+   59:   const queryClient = useQueryClient()
+   60: 
+   61:   const form = useForm<EditVanzareFormData>({
+   62:     resolver: zodResolver(schema),
+   63:     defaultValues: defaults(),
+   64:   })
+   65: 
+   66:   useEffect(() => {
+   67:     if (!open || !vanzare) return
+   68: 
+   69:     form.reset({
+   70:       data: vanzare.data ? new Date(vanzare.data).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+   71:       client_id: vanzare.client_id ?? '',
+   72:       cantitate_kg: String(vanzare.cantitate_kg ?? ''),
+   73:       pret_lei_kg: String(vanzare.pret_lei_kg ?? ''),
+   74:       status_plata: vanzare.status_plata || 'Platit',
+   75:       observatii_ladite: vanzare.observatii_ladite ?? '',
+   76:     })
+   77:   }, [open, vanzare, form])
+   78: 
+   79:   const { data: clienti = [] } = useQuery({
+   80:     queryKey: ['clienti'],
+   81:     queryFn: getClienti,
+   82:   })
+   83: 
+   84:   const selectedClientId = useWatch({ control: form.control, name: 'client_id' }) ?? ''
+   85: 
+   86:   const updateMutation = useMutation({
+   87:     mutationFn: ({ id, data }: { id: string; data: EditVanzareFormData }) =>
+   88:       updateVanzare(id, {
+   89:         data: data.data,
+   90:         client_id: data.client_id || undefined,
+   91:         cantitate_kg: Number(data.cantitate_kg),
+   92:         pret_lei_kg: Number(data.pret_lei_kg),
+   93:         status_plata: data.status_plata,
+   94:         observatii_ladite: data.observatii_ladite?.trim() || undefined,
+   95:       }),
+   96:     onSuccess: (_, variables) => {
+   97:       queryClient.invalidateQueries({ queryKey: ['vanzari'] })
+   98:       queryClient.invalidateQueries({ queryKey: ['stoc-global'] })
+   99:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  100:       track('vanzare_edit', { id: variables.id })
+  101:       hapticSuccess()
+  102:       toast.success('Vanzare actualizata')
+  103:       onOpenChange(false)
+  104:     },
+  105:     onError: (error) => {
+  106:       console.error('Error updating vanzare:', error)
+  107:       hapticError()
+  108:       toast.error('Eroare la actualizarea vanzarii')
+  109:     },
+  110:   })
+  111: 
+  112:   if (!vanzare) return null
+  113: 
+  114:   const onSubmit = (data: EditVanzareFormData) => {
+  115:     if (updateMutation.isPending) return
+  116:     updateMutation.mutate({ id: vanzare.id, data })
+  117:   }
+  118: 
+  119:   return (
+  120:     <AppDialog
+  121:       open={open}
+  122:       onOpenChange={onOpenChange}
+  123:       title="Editeaza vanzare"
+  124:       footer={
+  125:         <DialogFormActions
+  126:           onCancel={() => onOpenChange(false)}
+  127:           onSave={form.handleSubmit(onSubmit)}
+  128:           saving={updateMutation.isPending}
+  129:           cancelLabel="Anuleaza"
+  130:           saveLabel="Salveaza"
+  131:         />
+  132:       }
+  133:     >
+  134:       <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+  135:         <div className="space-y-2">
+  136:           <Label htmlFor="ev_data">Data vanzarii</Label>
+  137:           <Input id="ev_data" type="date" className="agri-control h-12" {...form.register('data')} />
+  138:           {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
+  139:         </div>
+  140: 
+  141:         <div className="space-y-2">
+  142:           <Label htmlFor="ev_client">Client</Label>
+  143:           <select id="ev_client" className="agri-control h-12 w-full px-3 text-base" value={selectedClientId} onChange={(e) => form.setValue('client_id', e.target.value, { shouldDirty: true })}>
+  144:             <option value="">Fara client specificat</option>
+  145:             {clienti.map((client) => (
+  146:               <option key={client.id} value={client.id}>
+  147:                 {client.nume_client}
+  148:               </option>
+  149:             ))}
+  150:           </select>
+  151:         </div>
+  152: 
+  153:         <div className="grid grid-cols-2 gap-3">
+  154:           <div className="space-y-2">
+  155:             <Label htmlFor="ev_qty">Cantitate (kg)</Label>
+  156:             <Input id="ev_qty" type="number" inputMode="decimal" step="0.01" min="0.01" className="agri-control h-12" {...form.register('cantitate_kg')} />
+  157:             {form.formState.errors.cantitate_kg ? <p className="text-xs text-red-600">{form.formState.errors.cantitate_kg.message}</p> : null}
+  158:           </div>
+  159: 
+  160:           <div className="space-y-2">
+  161:             <Label htmlFor="ev_price">Pret lei/kg</Label>
+  162:             <Input id="ev_price" type="number" inputMode="decimal" step="0.01" min="0.01" className="agri-control h-12" {...form.register('pret_lei_kg')} />
+  163:             {form.formState.errors.pret_lei_kg ? <p className="text-xs text-red-600">{form.formState.errors.pret_lei_kg.message}</p> : null}
+  164:           </div>
+  165:         </div>
+  166: 
+  167:         <div className="space-y-2">
+  168:           <Label htmlFor="ev_status">Status plata</Label>
+  169:           <select id="ev_status" className="agri-control h-12 w-full px-3 text-base" {...form.register('status_plata')}>
+  170:             {STATUS_PLATA.map((status) => (
+  171:               <option key={status} value={status}>
+  172:                 {status}
+  173:               </option>
+  174:             ))}
+  175:           </select>
+  176:         </div>
+  177: 
+  178:         <div className="space-y-2">
+  179:           <Label htmlFor="ev_obs">Observatii ladite</Label>
+  180:           <Textarea id="ev_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii_ladite')} />
+  181:         </div>
+  182:       </form>
+  183:     </AppDialog>
+  184:   )
+  185: }
+  186: 

@@ -1,0 +1,46 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Zmeurel OS" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Autentificare ți creare cont fermier
+    - generic [ref=e61]: Verificare email in asteptare. Deschide emailul de confirmare ți revino in aplicatie.
+    - generic [ref=e7]:
+      - tablist [ref=e8]:
+        - tab "Login" [ref=e9]
+        - tab "Creeaza cont" [selected] [ref=e10]
+      - tabpanel "Creeaza cont" [ref=e40]:
+        - generic [ref=e41]:
+          - button "Continuă cu Google" [ref=e42]:
+            - img [ref=e43]
+            - text: Continuă cu Google
+          - generic [ref=e50]: sau
+          - generic [ref=e52]:
+            - text: Email
+            - textbox "Email" [ref=e53]:
+              - /placeholder: email@exemplu.ro
+              - text: beta.verify.1773267060@example.com
+          - generic [ref=e54]:
+            - text: Nume fermă
+            - textbox "Nume fermă" [ref=e55]:
+              - /placeholder: Fermă Mea
+              - text: Ferma Beta
+          - generic [ref=e56]:
+            - text: Parola
+            - textbox "Parola" [ref=e57]:
+              - /placeholder: Minim 8 caractere
+              - text: BetaPass123!
+          - generic [ref=e58]:
+            - text: Confirmă parola
+            - textbox "Confirmă parola" [ref=e59]:
+              - /placeholder: Repeta parola
+              - text: BetaPass123!
+          - button "Creeaza cont" [ref=e60]
+          - paragraph [ref=e62]: Cont creat. Verifica emailul pentru confirmare.
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e63]:
+        - img [ref=e65]
+        - generic [ref=e68]: Cont creat. Verifica emailul pentru confirmare.
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e39]

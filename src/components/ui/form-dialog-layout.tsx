@@ -34,8 +34,8 @@ export function FormDialogLayout({
         <DialogTitle className="sr-only">Dialog</DialogTitle>
       </DialogHeader>
       <div className="flex max-h-[min(88dvh,860px)] flex-col">
-        <div className="flex-1 overflow-y-auto p-6">
-          <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0">
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+          <DialogHeader className="mb-5 flex-row items-start justify-between space-y-0 border-b border-[var(--agri-border)] pb-4">
             <div className="space-y-1.5">
               <DialogTitle className="text-left text-lg font-semibold text-[var(--agri-text)]">{title}</DialogTitle>
               {description ? (
@@ -53,7 +53,7 @@ export function FormDialogLayout({
         </div>
 
         {footer ? (
-          <div className="border-t border-[var(--agri-border)] bg-white p-6 pt-4">
+          <div className="border-t border-[var(--agri-border)] bg-white p-5 pt-4 sm:p-6 sm:pt-4">
             {footer}
           </div>
         ) : null}

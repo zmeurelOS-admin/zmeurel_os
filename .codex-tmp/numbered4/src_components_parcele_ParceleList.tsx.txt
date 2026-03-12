@@ -1,0 +1,109 @@
+1	'use client'
+2	
+3	import { Sprout } from 'lucide-react'
+4	
+5	import { CompactListCard } from '@/components/app/CompactListCard'
+6	import { Badge } from '@/components/ui/badge'
+7	import { getStatusBadgeClass } from '@/lib/ui/status-badges'
+8	import { formatM2ToHa } from '@/lib/utils/area'
+9	import type { Parcela } from '@/lib/supabase/queries/parcele'
+10	
+11	interface ParceleListProps {
+12	  parcele: Parcela[]
+13	  onEdit: (parcela: Parcela) => void
+14	  onDelete: (parcela: Parcela) => void
+15	  onOpen?: (parcela: Parcela) => void
+16	  parcelProfitMap?: Record<string, { profit: number; margin: number }>
+17	  parcelPauseMap?: Record<string, { remainingDays: number; products: string[] }>
+18	}
+19	
+20	export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelProfitMap, parcelPauseMap }: ParceleListProps) {
+21	  return (
+22	    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+23	      {parcele.map((parcela) => {
+24	        const rei = parcelPauseMap?.[parcela.id]
+25	        const hasActiveRei = !!rei && rei.remainingDays > 0
+26	        const sprayProducts = rei?.products ?? []
+27	        const profit = parcelProfitMap?.[parcela.id]
+28	        const remainingDays = rei?.remainingDays ?? 0
+29	
+30	        return (
+31	          <CompactListCard
+32	            key={parcela.id}
+33	            title={parcela.nume_parcela || 'Parcela'}
+34	            borderTone={hasActiveRei ? 'danger' : 'default'}
+35	            cornerBadge={
+36	              remainingDays > 0 ? (
+37	                <Badge className="badge-consistent bg-red-600 text-[11px] text-white">
+38	                  {remainingDays} zile pauza
+39	                </Badge>
+40	              ) : null
+41	            }
+42	            leftRows={[
+43	              { label: 'Parcela', value: parcela.nume_parcela || 'Parcela' },
+44	              {
+45	                label: 'Cultura',
+46	                value: (
+47	                  <div className="inline-flex items-center gap-1.5">
+48	                    <Badge className="badge-consistent bg-emerald-100 px-2 py-0.5 text-[11px] text-emerald-800">
+49	                      {parcela.tip_fruct || 'Tip necunoscut'}
+50	                    </Badge>
+51	                    <Badge className="badge-consistent bg-blue-100 px-2 py-0.5 text-[11px] text-blue-800">
+52	                      {parcela.soi_plantat || 'Soi necunoscut'}
+53	                    </Badge>
+54	                  </div>
+55	                ),
+56	                allowWrap: true,
+57	              },
+58	              {
+59	                label: 'Stropiri active',
+60	                value: sprayProducts.length > 0 ? (
+61	                  <Badge className="badge-consistent bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">
+62	                    <Sprout className="h-3 w-3" />
+63	                    {sprayProducts.length} active
+64	                  </Badge>
+65	                ) : (
+66	                  <Badge variant="outline" className="badge-consistent border-slate-300 px-2 py-0.5 text-[11px] text-slate-700">
+67	                    0 active
+68	                  </Badge>
+69	                ),
+70	                allowWrap: true,
+71	              },
+72	              {
+73	                label: 'Suprafata / plante',
+74	                value: `${formatM2ToHa(parcela.suprafata_m2)} - ${parcela.nr_plante || 0}`,
+75	                emphasis: 'financial',
+76	              },
+77	            ]}
+78	            rightRows={[
+79	              {
+80	                label: 'Timp pauza',
+81	                value: hasActiveRei ? `Activ - ${remainingDays} zile` : 'Inactiv',
+82	              },
+83	              {
+84	                label: 'Status',
+85	                value: hasActiveRei ? (
+86	                  <Badge className={`badge-consistent px-2 py-0.5 text-[11px] ${getStatusBadgeClass('restanta')}`}>
+87	                    Pauza activa
+88	                  </Badge>
+89	                ) : (
+90	                  <Badge variant="outline" className={`badge-consistent px-2 py-0.5 text-[11px] ${getStatusBadgeClass('activ')}`}>OK la recoltare</Badge>
+91	                ),
+92	                allowWrap: true,
+93	              },
+94	              {
+95	                label: 'Profit estimat',
+96	                value: profit ? `${profit.profit.toFixed(0)} lei (${profit.margin.toFixed(1)}%)` : '-',
+97	                emphasis: 'financial',
+98	                valueClassName: profit ? (profit.profit >= 0 ? 'value-money-positive' : 'value-money-negative') : undefined,
+99	              },
+100	            ]}
+101	            onClick={onOpen ? () => onOpen(parcela) : undefined}
+102	            onEdit={() => onEdit(parcela)}
+103	            onDelete={() => onDelete(parcela)}
+104	          />
+105	        )
+106	      })}
+107	    </div>
+108	  )
+109	}

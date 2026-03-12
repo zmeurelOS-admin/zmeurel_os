@@ -1,0 +1,258 @@
+    1: 'use client'
+    2: 
+    3: import { MessageCircle, Phone, X } from 'lucide-react'
+    4: 
+    5: import { Button } from '@/components/ui/button'
+    6: import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+    7: import { type Comanda } from '@/lib/supabase/queries/comenzi'
+    8: 
+    9: interface ViewComandaDialogProps {
+   10:   open: boolean
+   11:   onOpenChange: (open: boolean) => void
+   12:   comanda: Comanda | null
+   13:   clientName: string
+   14:   clientTelefon?: string | null
+   15:   canDeliver: boolean
+   16:   onDeliver: (comanda: Comanda) => void
+   17:   onEdit: (comanda: Comanda) => void
+   18:   onDelete: (comanda: Comanda) => void
+   19: }
+   20: 
+   21: function formatDate(value: string | null | undefined): string {
+   22:   if (!value) return '-'
+   23:   const parsed = new Date(value)
+   24:   if (Number.isNaN(parsed.getTime())) return '-'
+   25:   return parsed.toLocaleDateString('ro-RO')
+   26: }
+   27: 
+   28: function formatNumber(value: number): string {
+   29:   return new Intl.NumberFormat('ro-RO', {
+   30:     minimumFractionDigits: 2,
+   31:     maximumFractionDigits: 2,
+   32:   }).format(Number(value || 0))
+   33: }
+   34: 
+   35: function formatLei(value: number): string {
+   36:   return `${formatNumber(value)} lei`
+   37: }
+   38: 
+   39: export function ViewComandaDialog({
+   40:   open,
+   41:   onOpenChange,
+   42:   comanda,
+   43:   clientName,
+   44:   clientTelefon,
+   45:   canDeliver,
+   46:   onDeliver,
+   47:   onEdit,
+   48:   onDelete,
+   49: }: ViewComandaDialogProps) {
+   50:   const total = Number(comanda?.total || 0)
+   51:   const cantitate = Number(comanda?.cantitate_kg || 0)
+   52:   const pretKg = Number(comanda?.pret_per_kg || 0)
+   53: 
+   54:   const financialRecord = (comanda ?? {}) as Comanda & {
+   55:     avans_suma?: number | null
+   56:     avans?: number | null
+   57:   }
+   58:   const avans = Number(financialRecord.avans_suma ?? financialRecord.avans ?? 0)
+   59:   const hasAvans = Number.isFinite(avans) && avans > 0
+   60:   const restDePlata = Math.max(0, total - avans)
+   61: 
+   62:   const telefon = (clientTelefon || comanda?.telefon || '').trim()
+   63:   const hasTelefon = telefon.length > 0
+   64:   const whatsappPhone = telefon.replace(/[^\d+]/g, '').replace(/^\+/, '')
+   65:   const whatsappCallUrl = hasTelefon && whatsappPhone ? `https://wa.me/${whatsappPhone}` : ''
+   66:   const whatsappMessageUrl =
+   67:     hasTelefon && whatsappPhone
+   68:       ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
+   69:           `Salut! Revin pentru comanda de ${formatNumber(cantitate)} kg (total ${formatLei(total)}).`
+   70:         )}`
+   71:       : ''
+   72:   const phoneUrl = hasTelefon ? `tel:${telefon}` : ''
+   73: 
+   74:   return (
+   75:     <Dialog open={open} onOpenChange={onOpenChange}>
+   76:       <DialogContent
+   77:         aria-describedby={undefined}
+   78:         showCloseButton={false}
+   79:         className="fixed left-1/2 top-1/2 z-[100000101] w-[94vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-4 shadow-xl"
+   80:       >
+   81:         <DialogHeader>
+   82:           <DialogTitle className="sr-only">Dialog</DialogTitle>
+   83:         </DialogHeader>
+   84:         <DialogClose asChild>
+   85:           <Button
+   86:             type="button"
+   87:             variant="ghost"
+   88:             size="icon"
+   89:             aria-label="Inchide dialog"
+   90:             className="absolute top-3 right-3 h-8 w-8 text-gray-500"
+   91:           >
+   92:             <X className="h-4 w-4" />
+   93:           </Button>
+   94:         </DialogClose>
+   95:         <div className="max-h-[82dvh] overflow-y-auto">
+   96:           <div className="flex flex-col gap-2 leading-tight pr-10">
+   97:             <section className="space-y-1">
+   98:               <div className="flex items-start justify-between gap-2">
+   99:                 <p className="text-left text-base font-semibold text-gray-900">{clientName}</p>
+  100:               </div>
+  101:               <p className="text-xs text-gray-500">Telefon</p>
+  102:               <p className="text-sm font-medium text-gray-900">{telefon || '-'}</p>
+  103:             </section>
+  104: 
+  105:             <section className="space-y-2 border-t border-gray-100 pt-2">
+  106:               <h3 className="text-sm font-semibold text-gray-900">Detalii comanda</h3>
+  107:               <div className="flex flex-col items-center text-center">
+  108:                 <p className="text-xs text-gray-500">TOTAL</p>
+  109:                 <p className="text-xl font-semibold text-gray-900">{formatLei(total)}</p>
+  110:               </div>
+  111:               <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-2">
+  112:                 <div className="space-y-1">
+  113:                   <p className="text-xs text-gray-500">Cantitate</p>
+  114:                   <p className="text-sm font-medium text-gray-900">{formatNumber(cantitate)} kg</p>
+  115:                 </div>
+  116:                 <div className="space-y-1 text-right">
+  117:                   <p className="text-xs text-gray-500">Pret per kg</p>
+  118:                   <p className="text-sm font-medium text-gray-900">{formatNumber(pretKg)} lei/kg</p>
+  119:                 </div>
+  120:               </div>
+  121:             </section>
+  122: 
+  123:             {hasAvans ? (
+  124:               <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
+  125:                 <div className="space-y-1">
+  126:                   <p className="text-xs text-gray-500">Avans</p>
+  127:                   <p className="text-sm font-medium text-gray-900">{formatLei(avans)}</p>
+  128:                 </div>
+  129:                 <div className="space-y-1 text-right">
+  130:                   <p className="text-xs text-gray-500">Rest de incasat</p>
+  131:                   <p className="text-sm font-semibold text-red-600">{formatLei(restDePlata)}</p>
+  132:                 </div>
+  133:               </section>
+  134:             ) : null}
+  135: 
+  136:             <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
+  137:               <div className="space-y-1">
+  138:                 <p className="text-xs text-gray-500">Data comanda</p>
+  139:                 <p className="text-sm font-medium text-gray-900">{formatDate(comanda?.data_comanda)}</p>
+  140:               </div>
+  141:               <div className="space-y-1 text-right">
+  142:                 <p className="text-xs text-gray-500">Data scadenta</p>
+  143:                 <p className="text-sm font-medium text-gray-900">{formatDate(comanda?.data_livrare)}</p>
+  144:               </div>
+  145:             </section>
+  146: 
+  147:             <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
+  148:               <Button
+  149:                 type="button"
+  150:                 variant="outline"
+  151:                 className="h-9 justify-center gap-1.5"
+  152:                 disabled={!hasTelefon}
+  153:                 onClick={() => {
+  154:                   if (!whatsappCallUrl) return
+  155:                   window.open(whatsappCallUrl, '_blank', 'noopener,noreferrer')
+  156:                 }}
+  157:               >
+  158:                 <MessageCircle className="h-4 w-4 text-green-600" />
+  159:                 WhatsApp Apel
+  160:               </Button>
+  161:               <Button
+  162:                 type="button"
+  163:                 variant="outline"
+  164:                 className="h-9 justify-center gap-1.5"
+  165:                 disabled={!hasTelefon}
+  166:                 onClick={() => {
+  167:                   if (!whatsappMessageUrl) return
+  168:                   window.open(whatsappMessageUrl, '_blank', 'noopener,noreferrer')
+  169:                 }}
+  170:               >
+  171:                 <MessageCircle className="h-4 w-4 text-green-600" />
+  172:                 WhatsApp Mesaj
+  173:               </Button>
+  174:               <Button
+  175:                 type="button"
+  176:                 variant="outline"
+  177:                 className="col-span-2 h-9 justify-center gap-1.5"
+  178:                 disabled={!hasTelefon}
+  179:                 onClick={() => {
+  180:                   if (!phoneUrl) return
+  181:                   window.open(phoneUrl, '_self')
+  182:                 }}
+  183:               >
+  184:                 <Phone className="h-4 w-4" />
+  185:                 Apel
+  186:               </Button>
+  187:             </section>
+  188: 
+  189:             {(comanda?.locatie_livrare || comanda?.observatii?.trim()) ? (
+  190:               <section className="space-y-1 border-t border-gray-100 pt-2">
+  191:                 {comanda?.locatie_livrare ? (
+  192:                   <>
+  193:                     <p className="text-xs text-gray-500">Locatie livrare</p>
+  194:                     <p className="text-sm font-medium text-gray-900">{comanda.locatie_livrare}</p>
+  195:                   </>
+  196:                 ) : null}
+  197:                 {comanda?.observatii?.trim() ? (
+  198:                   <>
+  199:                     <p className="text-xs text-gray-500">Observatii</p>
+  200:                     <p className="text-sm font-medium text-gray-900">{comanda.observatii}</p>
+  201:                   </>
+  202:                 ) : null}
+  203:               </section>
+  204:             ) : null}
+  205: 
+  206:             {comanda?.status === 'livrata' && comanda?.linked_vanzare_id ? (
+  207:               <section className="border-t border-gray-100 pt-2">
+  208:                 <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700">
+  209:                   Livrata pe {formatDate(comanda?.updated_at)}. Vanzare de {formatLei(total)} creata automat.
+  210:                 </div>
+  211:               </section>
+  212:             ) : null}
+  213:           </div>
+  214:         </div>
+  215: 
+  216:         <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-gray-100 px-3 py-3">
+  217:           {canDeliver ? (
+  218:             <Button
+  219:               type="button"
+  220:               className="h-10 min-w-[92px] bg-green-600 text-white hover:bg-green-700 lg:hover:opacity-95"
+  221:               onClick={() => {
+  222:                 if (!comanda) return
+  223:                 onOpenChange(false)
+  224:                 onDeliver(comanda)
+  225:               }}
+  226:             >
+  227:               LIVRAT!
+  228:             </Button>
+  229:           ) : null}
+  230:           <Button
+  231:             type="button"
+  232:             variant="outline"
+  233:             className="h-10 min-w-[92px] text-gray-700 lg:hover:opacity-95"
+  234:             onClick={() => {
+  235:               if (!comanda) return
+  236:               onOpenChange(false)
+  237:               onEdit(comanda)
+  238:             }}
+  239:           >
+  240:             Editeaza
+  241:           </Button>
+  242:           <Button
+  243:             type="button"
+  244:             variant="destructive"
+  245:             className="h-10 min-w-[92px] lg:hover:opacity-95"
+  246:             onClick={() => {
+  247:               if (!comanda) return
+  248:               onOpenChange(false)
+  249:               onDelete(comanda)
+  250:             }}
+  251:           >
+  252:             Sterge
+  253:           </Button>
+  254:         </div>
+  255:       </DialogContent>
+  256:     </Dialog>
+  257:   )
+  258: }

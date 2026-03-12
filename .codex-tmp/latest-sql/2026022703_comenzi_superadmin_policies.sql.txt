@@ -1,0 +1,30 @@
+    1: -- Align comenzi with global superadmin RLS pattern.
+    2: 
+    3: alter table public.comenzi enable row level security;
+    4: 
+    5: drop policy if exists comenzi_superadmin_select on public.comenzi;
+    6: create policy comenzi_superadmin_select
+    7: on public.comenzi
+    8: for select
+    9: using (public.is_superadmin());
+   10: 
+   11: drop policy if exists comenzi_superadmin_insert on public.comenzi;
+   12: create policy comenzi_superadmin_insert
+   13: on public.comenzi
+   14: for insert
+   15: with check (public.is_superadmin());
+   16: 
+   17: drop policy if exists comenzi_superadmin_update on public.comenzi;
+   18: create policy comenzi_superadmin_update
+   19: on public.comenzi
+   20: for update
+   21: using (public.is_superadmin())
+   22: with check (public.is_superadmin());
+   23: 
+   24: drop policy if exists comenzi_superadmin_delete on public.comenzi;
+   25: create policy comenzi_superadmin_delete
+   26: on public.comenzi
+   27: for delete
+   28: using (public.is_superadmin());
+   29: 
+   30: notify pgrst, 'reload schema';

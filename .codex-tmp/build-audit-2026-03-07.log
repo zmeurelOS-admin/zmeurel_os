@@ -1,0 +1,88 @@
+
+> zmeurel@0.1.0 prebuild
+> node scripts/check-env.js
+
+[dotenv@17.3.1] injecting env (3) from .env.local -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+✅ Env vars ok: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+> zmeurel@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+  Creating an optimized production build ...
+> [PWA] Compile server
+> [PWA] Compile server
+> [PWA] Compile client (static)
+> [PWA] Auto register service worker with: C:\Users\Andrei\Desktop\zmeurel\node_modules\next-pwa\register.js
+> [PWA] Service worker: C:\Users\Andrei\Desktop\zmeurel\public\sw.js
+> [PWA]   url: /sw.js
+> [PWA]   scope: /
+✓ Compiled successfully in 22.5s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+⚠ Using edge runtime on a page currently disables static generation for that page
+  Generating static pages using 11 workers (0/44) ...
+  Generating static pages using 11 workers (11/44) 
+  Generating static pages using 11 workers (22/44) 
+  Generating static pages using 11 workers (33/44) 
+✓ Generating static pages using 11 workers (44/44) in 3.2s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /activitati-agricole
+├ ƒ /admin
+├ ƒ /admin/analytics
+├ ƒ /admin/audit
+├ ƒ /api/admin/tenant-plan
+├ ƒ /api/cron/admin-metrics-daily
+├ ƒ /api/cron/google-contacts-sync
+├ ƒ /api/gdpr/account
+├ ƒ /api/gdpr/farm
+├ ƒ /api/integrations/google/callback
+├ ƒ /api/integrations/google/connect
+├ ƒ /api/integrations/google/import
+├ ○ /apple-icon
+├ ƒ /auth/callback
+├ ƒ /callback
+├ ƒ /cheltuieli
+├ ƒ /clienti
+├ ƒ /comenzi
+├ ○ /confidentialitate
+├ ƒ /culegatori
+├ ƒ /dashboard
+├ ○ /icon
+├ ƒ /icon-192.png
+├ ƒ /icon-512.png
+├ ƒ /investitii
+├ ○ /login
+├ ○ /manifest.webmanifest
+├ ƒ /parcele
+├ ƒ /planuri
+├ ƒ /rapoarte
+├ ƒ /recoltari
+├ ƒ /recoltari/new
+├ ○ /register
+├ ○ /reset-password
+├ ○ /reset-password-request
+├ ƒ /settings
+├ ƒ /stoc
+├ ƒ /stocuri
+├ ○ /termeni
+├ ƒ /ui-template-demo
+├ ○ /update-password
+├ ƒ /vanzari
+└ ƒ /vanzari-butasi
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

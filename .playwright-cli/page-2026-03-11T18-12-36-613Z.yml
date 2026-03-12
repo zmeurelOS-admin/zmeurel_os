@@ -1,0 +1,229 @@
+- generic:
+  - generic:
+    - complementary:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic:
+                - text: Zmeurel
+                - generic: OS
+          - navigation:
+            - generic:
+              - paragraph: OPERAȚIUNI
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /dashboard
+                    - generic:
+                      - img
+                    - text: Dashboard
+                - listitem:
+                  - link:
+                    - /url: /parcele
+                    - generic:
+                      - img
+                    - text: Terenuri
+                - listitem:
+                  - link:
+                    - /url: /recoltari
+                    - generic:
+                      - img
+                    - text: Recoltări
+                - listitem:
+                  - link:
+                    - /url: /stocuri
+                    - generic:
+                      - img
+                    - text: Stocuri
+                - listitem:
+                  - link:
+                    - /url: /activitati-agricole
+                    - generic:
+                      - img
+                    - text: Activități agricole
+            - generic:
+              - paragraph: RELAȚII
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /culegatori
+                    - generic:
+                      - img
+                    - text: Culegători
+                - listitem:
+                  - link:
+                    - /url: /clienti
+                    - generic:
+                      - img
+                    - text: Clienți
+            - generic:
+              - paragraph: FINANCIAR
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /comenzi
+                    - generic:
+                      - img
+                    - text: Comenzi
+                - listitem:
+                  - link:
+                    - /url: /vanzari-butasi
+                    - generic:
+                      - img
+                    - text: Material săditor
+                - listitem:
+                  - link:
+                    - /url: /investitii
+                    - generic:
+                      - img
+                    - text: Investiții
+                - listitem:
+                  - link:
+                    - /url: /cheltuieli
+                    - generic:
+                      - img
+                    - text: Cheltuieli
+    - main:
+      - generic:
+        - generic:
+          - paragraph: Zmeurel OS este în BETA. Trimite feedback
+          - button: Trimite feedback
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=1]: Activități Agricole
+                    - paragraph: Istoric lucrari ți tratamente
+                  - generic:
+                    - generic:
+                      - button: Adauga activitate
+                      - button:
+                        - img
+                      - generic:
+                        - generic:
+                          - button:
+                            - generic: BA
+                            - generic: Beta Audit 1773252100
+                            - img
+                      - generic:
+                        - img
+          - main:
+            - generic:
+              - generic:
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: ✂️
+                  - generic: "0"
+                  - generic: azi
+                - button:
+                  - generic:
+                    - generic:
+                      - generic: 📅
+                  - generic: "0"
+                  - generic: luna asta
+                - generic:
+                  - generic: 🧪
+                  - generic: "0"
+                  - generic: cu pauză activa
+              - generic:
+                - heading [level=3]: Stare terenuri
+                - generic:
+                  - button:
+                    - generic:
+                      - generic: 📋
+                      - generic:
+                        - generic: Teren Beta
+                        - generic: Nicio activitate
+                      - generic: —
+              - generic:
+                - button: Toate
+                - button: 🧪 Tratamente
+                - button: 🌱 Fertilizare
+                - button: ✂️ Taiere
+                - button: Altele
+              - generic:
+                - img
+                - searchbox
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                  - heading [level=3]: Nicio activitate încă
+                  - paragraph: Adaugă prima activitate pentru a începe
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - paragraph: "Total activități: 0"
+  - region "Notifications alt+T":
+    - list:
+      - listitem:
+        - generic:
+          - img
+        - generic:
+          - generic: Nu s-a putut salva. Încearcă din nou.
+  - generic [ref=e108] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e109]:
+      - img [ref=e110]
+    - generic [ref=e323]:
+      - button "Open issues overlay" [ref=e324]:
+        - generic [ref=e325]:
+          - generic [ref=e326]: "0"
+          - generic [ref=e327]: "1"
+        - generic [ref=e328]: Issue
+      - button "Collapse issues badge" [ref=e329]:
+        - img [ref=e330]
+  - alert
+  - dialog "Dialog" [active] [ref=e295]:
+    - heading "Dialog" [level=2] [ref=e296]
+    - generic [ref=e297]:
+      - generic [ref=e298]:
+        - generic [ref=e299]:
+          - heading "Adaugă activitate agricola" [level=2] [ref=e301]
+          - button [ref=e302]:
+            - img
+        - generic [ref=e303]:
+          - generic [ref=e304]:
+            - text: Data aplicare
+            - textbox "Data aplicare" [ref=e305]: 2026-03-11
+          - generic [ref=e306]:
+            - text: Teren
+            - combobox "Teren" [ref=e307]:
+              - option "Selectează teren"
+              - option "Teren Beta (camp)" [selected]
+          - generic [ref=e308]:
+            - text: Tip activitate
+            - combobox "Tip activitate" [ref=e309]:
+              - option "Tip operatiune"
+              - option "Fertilizare foliara"
+              - option "Fertirigare"
+              - option "Fertilizare de baza"
+              - option "Fungicide/Pesticide"
+              - option "Irigatie" [selected]
+              - option "Altele"
+          - generic [ref=e310]:
+            - text: Produs
+            - textbox "Produs" [ref=e311]:
+              - /placeholder: "Ex: produs foliar"
+              - text: Picurare
+          - generic [ref=e312]:
+            - text: Cantitate / doza
+            - textbox "Cantitate / doza" [ref=e313]:
+              - /placeholder: "Ex: 2 l/ha"
+              - text: 2 ore
+          - generic [ref=e314]:
+            - text: Timp pauză (zile)
+            - spinbutton "Timp pauză (zile)" [ref=e315]: "0"
+          - generic [ref=e316]:
+            - text: Observații
+            - textbox "Observații" [ref=e317]
+      - generic [ref=e319]:
+        - button "Anulează" [ref=e320]
+        - button "Salvează" [ref=e321]

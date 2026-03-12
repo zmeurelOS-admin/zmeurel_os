@@ -1,0 +1,376 @@
+﻿1	'use client';
+2	
+3	import { useEffect, useState } from 'react';
+4	import Link from 'next/link';
+5	import {
+6	  MapPin,
+7	  Users,
+8	  UserCheck,
+9	  PackageOpen,
+10	  ShoppingCart,
+11	  TrendingUp,
+12	  Sprout,
+13	  Receipt,
+14	  ShoppingBag,
+15	} from 'lucide-react';
+16	import { ActionCard, EntityCard, InfoCard, ListCard } from '@/components/ui/app-card';
+17	import { getRecoltari } from '@/lib/supabase/queries/recoltari';
+18	import { getVanzari } from '@/lib/supabase/queries/vanzari';
+19	import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole';
+20	
+21	const modules = [
+22	  {
+23	    href: '/parcele',
+24	    label: 'Parcele',
+25	    description: 'GestioneazÄ terenurile',
+26	    icon: MapPin,
+27	    color: '#F16B6B',
+28	  },
+29	  {
+30	    href: '/culegatori',
+31	    label: 'CulegÄtori',
+32	    description: 'Personal recoltare',
+33	    icon: Users,
+34	    color: '#F16B6B',
+35	  },
+36	  {
+37	    href: '/clienti',
+38	    label: 'ClienČ›i',
+39	    description: 'Baza de cumpÄrÄtori',
+40	    icon: UserCheck,
+41	    color: '#F16B6B',
+42	  },
+43	  {
+44	    href: '/recoltari',
+45	    label: 'RecoltÄri',
+46	    description: 'ProducČ›ie zilnicÄ',
+47	    icon: PackageOpen,
+48	    color: '#F16B6B',
+49	  },
+50	  {
+51	    href: '/vanzari',
+52	    label: 'VĂ˘nzÄri Fructe',
+53	    description: 'VĂ˘nzÄri fructe proaspete',
+54	    icon: ShoppingCart,
+55	    color: '#F16B6B',
+56	  },
+57	  {
+58	    href: '/vanzari-butasi',
+59	    label: 'VĂ˘nzÄri ButaČ™i',
+60	    description: 'Material sÄditor',
+61	    icon: ShoppingBag,
+62	    color: '#F16B6B',
+63	  },
+64	  {
+65	    href: '/activitati-agricole',
+66	    label: 'ActivitÄČ›i Agricole',
+67	    description: 'Tratamente & fertilizÄri',
+68	    icon: Sprout,
+69	    color: '#F16B6B',
+70	  },
+71	  {
+72	    href: '/investitii',
+73	    label: 'InvestiČ›ii',
+74	    description: 'Cheltuieli de capital',
+75	    icon: TrendingUp,
+76	    color: '#F16B6B',
+77	  },
+78	  {
+79	    href: '/cheltuieli',
+80	    label: 'Cheltuieli',
+81	    description: 'Costuri operaČ›ionale',
+82	    icon: Receipt,
+83	    color: '#F16B6B',
+84	  },
+85	];
+86	
+87	interface ActivityItem {
+88	  id: string;
+89	  type: 'recoltare' | 'vanzare' | 'activitate';
+90	  title: string;
+91	  subtitle: string;
+92	  value?: string;
+93	  date: string;
+94	}
+95	
+96	interface KPIData {
+97	  totalRecoltatAzi: number;
+98	  totalVanzariAzi: number;
+99	}
+100	
+101	function getTodayDateString(): string {
+102	  const today = new Date();
+103	  const year = today.getFullYear();
+104	  const month = String(today.getMonth() + 1).padStart(2, '0');
+105	  const day = String(today.getDate()).padStart(2, '0');
+106	  return `${year}-${month}-${day}`;
+107	}
+108	
+109	function useKPIs() {
+110	  const [kpis, setKpis] = useState<KPIData>({
+111	    totalRecoltatAzi: 0,
+112	    totalVanzariAzi: 0,
+113	  });
+114	  const [loading, setLoading] = useState(true);
+115	
+116	  useEffect(() => {
+117	    async function fetchKPIs() {
+118	      try {
+119	        const today = getTodayDateString();
+120	        const [recoltari, vanzari] = await Promise.all([
+121	          getRecoltari(),
+122	          getVanzari(),
+123	        ]);
+124	
+125	        const totalRecoltatAzi = recoltari
+126	          .filter((r) => r.data === today)
+127	          .reduce((sum, r) => sum + Number(r.kg_cal1 || 0) + Number(r.kg_cal2 || 0), 0);
+128	
+129	        const totalVanzariAzi = vanzari
+130	          .filter((v) => v.data === today)
+131	          .reduce((sum, v) => sum + v.cantitate_kg * v.pret_lei_kg, 0);
+132	
+133	        setKpis({ totalRecoltatAzi, totalVanzariAzi });
+134	      } catch (error) {
+135	        console.error('Error fetching KPIs:', error);
+136	      } finally {
+137	        setLoading(false);
+138	      }
+139	    }
+140	
+141	    fetchKPIs();
+142	  }, []);
+143	
+144	  return { kpis, loading };
+145	}
+146	
+147	function useActivityFeed() {
+148	  const [activities, setActivities] = useState<ActivityItem[]>([]);
+149	  const [loading, setLoading] = useState(true);
+150	
+151	  useEffect(() => {
+152	    async function fetchActivities() {
+153	      try {
+154	        const [recoltari, vanzari, activitati] = await Promise.all([
+155	          getRecoltari(),
+156	          getVanzari(),
+157	          getActivitatiAgricole(),
+158	        ]);
+159	
+160	        const normalized: ActivityItem[] = [];
+161	
+162	        recoltari.slice(0, 5).forEach((r) => {
+163	          const totalKg = Number(r.kg_cal1 || 0) + Number(r.kg_cal2 || 0);
+164	          normalized.push({
+165	            id: r.id,
+166	            type: 'recoltare',
+167	            title: 'Recoltare',
+168	            subtitle: `${totalKg} kg`,
+169	            value: `${totalKg} kg`,
+170	            date: r.data,
+171	          });
+172	        });
+173	
+174	        vanzari.slice(0, 5).forEach((v) => {
+175	          normalized.push({
+176	            id: v.id,
+177	            type: 'vanzare',
+178	            title: 'VĂ˘nzare',
+179	            subtitle: `${v.cantitate_kg} kg Â· ${v.pret_lei_kg} lei/kg`,
+180	            value: `${(v.cantitate_kg * v.pret_lei_kg).toFixed(2)} lei`,
+181	            date: v.data,
+182	          });
+183	        });
+184	
+185	        activitati.slice(0, 5).forEach((a) => {
+186	          normalized.push({
+187	            id: a.id,
+188	            type: 'activitate',
+189	            title: a.tip_activitate || 'Activitate agricolÄ',
+190	            subtitle: a.produs_utilizat || 'FÄrÄ produs specificat',
+191	            date: a.data_aplicare,
+192	          });
+193	        });
+194	
+195	        normalized.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+196	
+197	        setActivities(normalized);
+198	      } catch (error) {
+199	        console.error('Error fetching activities:', error);
+200	      } finally {
+201	        setLoading(false);
+202	      }
+203	    }
+204	
+205	    fetchActivities();
+206	  }, []);
+207	
+208	  return { activities, loading };
+209	}
+210	
+211	function ActivityCard({ activity }: { activity: ActivityItem }) {
+212	  const iconMap = {
+213	    recoltare: PackageOpen,
+214	    vanzare: ShoppingCart,
+215	    activitate: Sprout,
+216	  };
+217	
+218	  const Icon = iconMap[activity.type];
+219	
+220	  return (
+221	    <ListCard className="bg-white flex items-center gap-3">
+222	      <div className="w-10 h-10 rounded-xl bg-[#F16B6B]/10 flex items-center justify-center flex-shrink-0">
+223	        <Icon className="w-5 h-5 text-[#F16B6B]" />
+224	      </div>
+225	      <div className="flex-1 min-w-0">
+226	        <div className="text-sm font-semibold text-[#312E3F] truncate">
+227	          {activity.title}
+228	        </div>
+229	        <div className="text-xs text-slate-600 truncate">
+230	          {activity.subtitle}
+231	        </div>
+232	      </div>
+233	      {activity.value && (
+234	        <div className="text-sm font-bold text-[#E5484D] flex-shrink-0">
+235	          {activity.value}
+236	        </div>
+237	      )}
+238	    </ListCard>
+239	  );
+240	}
+241	
+242	function KPICard({ label, value, loading }: { label: string; value: string; loading: boolean }) {
+243	  return (
+244	    <InfoCard className="bg-white flex flex-col items-center">
+245	      {loading ? (
+246	        <div className="h-10 w-24 bg-slate-200 rounded animate-pulse"></div>
+247	      ) : (
+248	        <div className="text-4xl font-bold text-[#E5484D]">
+249	          {value}
+250	        </div>
+251	      )}
+252	      <div className="text-xs text-slate-600 mt-2 text-center">
+253	        {label}
+254	      </div>
+255	    </InfoCard>
+256	  );
+257	}
+258	
+259	export function DashboardHome() {
+260	  const { activities, loading: activitiesLoading } = useActivityFeed();
+261	  const { kpis, loading: kpisLoading } = useKPIs();
+262	
+263	  return (
+264	    <>
+265	      {/* Desktop layout */}
+266	      <div className="hidden lg:block min-h-screen bg-gray-50 p-6 lg:p-8">
+267	        {/* Header */}
+268	        <div className="mb-8">
+269	          <h1 className="text-3xl font-bold text-[#312E3F]">
+270	            Bun venit! đź‘‹
+271	          </h1>
+272	          <p className="text-gray-500 mt-1 text-base">
+273	            SelecteazÄ un modul pentru a Ă®ncepe
+274	          </p>
+275	        </div>
+276	
+277	        {/* Grid */}
+278	        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+279	          {modules.map(({ href, label, description, icon: Icon }) => (
+280	            <Link key={href} href={href} className="group block">
+281	              <ActionCard
+282	                className="bg-white border-gray-100 p-6 flex flex-col items-center text-center
+283	                  lg:hover:shadow-md hover:-translate-y-1.5 hover:border-[#F16B6B]/20
+284	                  transition-all duration-250 ease-out cursor-pointer"
+285	              >
+286	                {/* Icon bubble */}
+287	                <div
+288	                  className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4
+289	                    bg-[#F16B6B]/10 group-hover:bg-[#F16B6B]/20 transition-colors duration-200"
+290	                >
+291	                  <Icon
+292	                    className="w-7 h-7 text-[#F16B6B] group-hover:scale-110 transition-transform duration-200"
+293	                  />
+294	                </div>
+295	
+296	                {/* Text */}
+297	                <p className="text-[#312E3F] font-semibold text-sm leading-tight mb-1">
+298	                  {label}
+299	                </p>
+300	                <p className="text-gray-400 text-xs leading-snug">
+301	                  {description}
+302	                </p>
+303	              </ActionCard>
+304	            </Link>
+305	          ))}
+306	        </div>
+307	      </div>
+308	
+309	      {/* Mobile layout */}
+310	      <div className="lg:hidden space-y-4 pb-24">
+311	        <div className="mb-2">
+312	          <h1 className="text-2xl font-bold text-[#312E3F]">
+313	            Bun venit! đź‘‹
+314	          </h1>
+315	          <p className="text-slate-600 text-sm mt-1">
+316	            SelecteazÄ un modul pentru a Ă®ncepe
+317	          </p>
+318	        </div>
+319	
+320	        {/* KPI Section */}
+321	        <div className="grid grid-cols-2 gap-3">
+322	          <KPICard
+323	            label="Total Recoltat Azi"
+324	            value={`${kpis.totalRecoltatAzi} kg`}
+325	            loading={kpisLoading}
+326	          />
+327	          <KPICard
+328	            label="VĂ˘nzÄri Azi"
+329	            value={`${kpis.totalVanzariAzi.toFixed(2)} lei`}
+330	            loading={kpisLoading}
+331	          />
+332	        </div>
+333	
+334	        {/* Activity Feed */}
+335	        <div className="space-y-3">
+336	          <h2 className="text-base font-semibold text-[#312E3F]">
+337	            Activitate RecentÄ
+338	          </h2>
+339	          {activitiesLoading ? (
+340	            <div className="text-sm text-slate-600">Se Ă®ncarcÄ...</div>
+341	          ) : activities.length > 0 ? (
+342	            activities.map((activity) => (
+343	              <ActivityCard key={activity.id} activity={activity} />
+344	            ))
+345	          ) : (
+346	            <div className="text-sm text-slate-600">Nicio activitate</div>
+347	          )}
+348	        </div>
+349	
+350	        {/* Modules */}
+351	        <div className="space-y-3 pt-4">
+352	          <h2 className="text-base font-semibold text-[#312E3F]">
+353	            Module
+354	          </h2>
+355	          {modules.map(({ href, label, description, icon: Icon }) => (
+356	            <Link key={href} href={href} className="block">
+357	              <EntityCard className="bg-white flex items-center gap-4 active:scale-[0.98] transition-transform">
+358	                <div className="w-12 h-12 rounded-xl bg-[#F16B6B]/10 flex items-center justify-center flex-shrink-0">
+359	                  <Icon className="w-6 h-6 text-[#F16B6B]" />
+360	                </div>
+361	                <div className="flex-1">
+362	                  <div className="text-lg font-bold text-[#312E3F]">
+363	                    {label}
+364	                  </div>
+365	                  <div className="text-sm text-slate-600">
+366	                    {description}
+367	                  </div>
+368	                </div>
+369	              </EntityCard>
+370	            </Link>
+371	          ))}
+372	        </div>
+373	      </div>
+374	    </>
+375	  );
+376	}

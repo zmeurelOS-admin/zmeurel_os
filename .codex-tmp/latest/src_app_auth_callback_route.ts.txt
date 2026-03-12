@@ -1,0 +1,401 @@
+    1: import * as Sentry from '@sentry/nextjs'
+    2: import { createServerClient } from '@supabase/ssr'
+    3: import { cookies } from 'next/headers'
+    4: import { NextResponse, type NextRequest } from 'next/server'
+    5: 
+    6: type ServerSupabase = ReturnType<typeof createServerClient>
+    7: type CallbackUser = {
+    8:   id: string
+    9:   email?: string | null
+   10:   user_metadata?: Record<string, unknown> | null
+   11: }
+   12: 
+   13: type TenantEnsureResult = {
+   14:   id: string
+   15:   created: boolean
+   16: }
+   17: 
+   18: function errorCode(error: unknown): string | null {
+   19:   return (error as { code?: string } | null)?.code ?? null
+   20: }
+   21: 
+   22: function errorStatus(error: unknown): number | null {
+   23:   return (error as { status?: number } | null)?.status ?? null
+   24: }
+   25: 
+   26: function errorDetails(error: unknown): string | null {
+   27:   return (error as { details?: string } | null)?.details ?? null
+   28: }
+   29: 
+   30: function errorHint(error: unknown): string | null {
+   31:   return (error as { hint?: string } | null)?.hint ?? null
+   32: }
+   33: 
+   34: function logInfo(step: string, payload: Record<string, unknown>) {
+   35:   console.info('[auth-callback]', step, payload)
+   36: }
+   37: 
+   38: function logError(step: string, payload: Record<string, unknown>) {
+   39:   console.error('[auth-callback]', step, payload)
+   40: }
+   41: 
+   42: function addBreadcrumb(step: string, payload: Record<string, unknown>) {
+   43:   Sentry.addBreadcrumb({
+   44:     category: 'auth.callback',
+   45:     level: 'info',
+   46:     message: step,
+   47:     data: payload,
+   48:   })
+   49: }
+   50: 
+   51: function captureException(error: unknown, payload: Record<string, unknown>) {
+   52:   Sentry.captureException(error, {
+   53:     tags: {
+   54:       module: 'auth-callback',
+   55:     },
+   56:     extra: payload,
+   57:   })
+   58: }
+   59: 
+   60: function normalizeBaseUrl(candidate: string | undefined, fallbackOrigin: string): string {
+   61:   const trimmed = candidate?.trim()
+   62:   if (!trimmed) return fallbackOrigin
+   63: 
+   64:   const noTrailingSlash = trimmed.replace(/\/+$/, '')
+   65:   try {
+   66:     return new URL(noTrailingSlash).origin
+   67:   } catch {
+   68:     try {
+   69:       return new URL(`https://${noTrailingSlash}`).origin
+   70:     } catch {
+   71:       return fallbackOrigin
+   72:     }
+   73:   }
+   74: }
+   75: 
+   76: function resolveBaseUrl(requestOrigin: string) {
+   77:   const configured =
+   78:     process.env.SITE_URL ??
+   79:     process.env.NEXT_PUBLIC_SITE_URL ??
+   80:     ''
+   81: 
+   82:   const baseUrl = normalizeBaseUrl(configured, requestOrigin)
+   83:   const source = configured.trim().length > 0 ? 'env' : 'request_origin'
+   84:   return { baseUrl, source }
+   85: }
+   86: 
+   87: function safeNextPath(nextParam: string | null): string | null {
+   88:   if (!nextParam) return null
+   89:   if (!nextParam.startsWith('/')) return null
+   90:   if (nextParam.startsWith('//')) return null
+   91:   return nextParam
+   92: }
+   93: 
+   94: function buildRedirect(baseUrl: string, path: string, query?: Record<string, string>) {
+   95:   const target = new URL(path, baseUrl)
+   96:   if (query) {
+   97:     for (const [key, value] of Object.entries(query)) {
+   98:       target.searchParams.set(key, value)
+   99:     }
+  100:   }
+  101:   return target.toString()
+  102: }
+  103: 
+  104: function toLoginErrorRedirect(baseUrl: string, errorValue: string) {
+  105:   return buildRedirect(baseUrl, '/login', { error: errorValue })
+  106: }
+  107: 
+  108: async function ensureTenantForUser(
+  109:   supabase: ServerSupabase,
+  110:   user: CallbackUser
+  111: ): Promise<TenantEnsureResult> {
+  112:   const { data: existingTenant, error: existingTenantError } = await supabase
+  113:     .from('tenants')
+  114:     .select('id')
+  115:     .eq('owner_user_id', user.id)
+  116:     .maybeSingle()
+  117: 
+  118:   if (existingTenantError) {
+  119:     throw new Error(`[tenant] read failed: ${existingTenantError.message}`)
+  120:   }
+  121: 
+  122:   if (existingTenant?.id) {
+  123:     return {
+  124:       id: existingTenant.id,
+  125:       created: false,
+  126:     }
+  127:   }
+  128: 
+  129:   const farmNameRaw = user.user_metadata?.farm_name
+  130:   const farmName =
+  131:     typeof farmNameRaw === 'string' && farmNameRaw.trim().length > 0
+  132:       ? farmNameRaw.trim()
+  133:       : 'Ferma mea'
+  134: 
+  135:   const { data: insertedTenant, error: insertTenantError } = await supabase
+  136:     .from('tenants')
+  137:     .insert({
+  138:       nume_ferma: farmName,
+  139:       owner_user_id: user.id,
+  140:     })
+  141:     .select('id')
+  142:     .maybeSingle()
+  143: 
+  144:   if (insertTenantError) {
+  145:     if (errorCode(insertTenantError) === '23505') {
+  146:       const { data: concurrentTenant, error: concurrentReadError } = await supabase
+  147:         .from('tenants')
+  148:         .select('id')
+  149:         .eq('owner_user_id', user.id)
+  150:         .maybeSingle()
+  151: 
+  152:       if (concurrentReadError) {
+  153:         throw new Error(`[tenant] race read failed: ${concurrentReadError.message}`)
+  154:       }
+  155: 
+  156:       if (concurrentTenant?.id) {
+  157:         return {
+  158:           id: concurrentTenant.id,
+  159:           created: false,
+  160:         }
+  161:       }
+  162:     }
+  163: 
+  164:     throw new Error(`[tenant] insert failed: ${insertTenantError.message}`)
+  165:   }
+  166: 
+  167:   if (!insertedTenant?.id) {
+  168:     throw new Error('[tenant] insert returned null tenant id')
+  169:   }
+  170: 
+  171:   return {
+  172:     id: insertedTenant.id,
+  173:     created: true,
+  174:   }
+  175: }
+  176: 
+  177: async function buildSupabaseClient() {
+  178:   const cookieStore = await cookies()
+  179: 
+  180:   return createServerClient(
+  181:     process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  182:     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  183:     {
+  184:       cookies: {
+  185:         getAll() {
+  186:           return cookieStore.getAll()
+  187:         },
+  188:         setAll(cookiesToSet) {
+  189:           cookiesToSet.forEach(({ name, value, options }) =>
+  190:             cookieStore.set(name, value, options)
+  191:           )
+  192:         },
+  193:       },
+  194:     }
+  195:   )
+  196: }
+  197: 
+  198: async function completeOnboardingForUser(
+  199:   supabase: ServerSupabase,
+  200:   user: CallbackUser,
+  201:   baseUrl: string
+  202: ) {
+  203:   let tenant: TenantEnsureResult
+  204: 
+  205:   try {
+  206:     tenant = await ensureTenantForUser(supabase, user)
+  207:     logInfo('tenant.ensure_success', {
+  208:       userId: user.id,
+  209:       tenantId: tenant.id,
+  210:       created: tenant.created,
+  211:     })
+  212:   } catch (error) {
+  213:     logError('tenant.ensure_failed', {
+  214:       userId: user.id,
+  215:       message: (error as Error).message,
+  216:     })
+  217:     captureException(error, {
+  218:       step: 'tenant.ensure',
+  219:       userId: user.id,
+  220:     })
+  221:     return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'tenant_create_failed'))
+  222:   }
+  223: 
+  224:   if (!tenant.id) {
+  225:     logError('tenant.missing_id', {
+  226:       userId: user.id,
+  227:     })
+  228:     return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'tenant_create_failed'))
+  229:   }
+  230: 
+  231:   return null
+  232: }
+  233: 
+  234: export async function GET(request: NextRequest) {
+  235:   const requestUrl = new URL(request.url)
+  236:   const { searchParams } = requestUrl
+  237:   const tokenHash = searchParams.get('token_hash')
+  238:   const code = searchParams.get('code')
+  239:   const type = searchParams.get('type')
+  240:   const nextParam = searchParams.get('next')
+  241:   const oauthError = searchParams.get('error')
+  242:   const oauthErrorCode = searchParams.get('error_code')
+  243:   const oauthErrorDescription = searchParams.get('error_description')
+  244:   const safeNext = safeNextPath(nextParam)
+  245:   const { baseUrl, source: baseUrlSource } = resolveBaseUrl(requestUrl.origin)
+  246: 
+  247:   const requestSummary = {
+  248:     callbackUrl: `${requestUrl.origin}${requestUrl.pathname}`,
+  249:     queryKeys: Array.from(searchParams.keys()),
+  250:     hasCode: Boolean(code),
+  251:     hasTokenHash: Boolean(tokenHash),
+  252:     hasOAuthErrorParams: Boolean(oauthError || oauthErrorCode || oauthErrorDescription),
+  253:     type: type ?? null,
+  254:     next: safeNext ?? null,
+  255:     redirectBaseUrl: baseUrl,
+  256:     redirectBaseSource: baseUrlSource,
+  257:   }
+  258: 
+  259:   logInfo('start', requestSummary)
+  260:   addBreadcrumb('start', requestSummary)
+  261: 
+  262:   // Historically, thrown onboarding errors bubbled from this route and produced HTTP 500.
+  263:   // This handler now converts all expected onboarding failures to explicit redirects.
+  264:   try {
+  265:     if (oauthError || oauthErrorCode) {
+  266:       logError('provider_error', {
+  267:         oauthError: oauthError ?? null,
+  268:         oauthErrorCode: oauthErrorCode ?? null,
+  269:         hasErrorDescription: Boolean(oauthErrorDescription),
+  270:       })
+  271:       return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'oauth_provider_error'))
+  272:     }
+  273: 
+  274:     const supabase = await buildSupabaseClient()
+  275: 
+  276:     if (tokenHash && type) {
+  277:       logInfo('verify_otp.start', {
+  278:         type,
+  279:         hasTokenHash: true,
+  280:       })
+  281: 
+  282:       const { error } = await supabase.auth.verifyOtp({
+  283:         token_hash: tokenHash,
+  284:         type: type as 'recovery' | 'email' | 'signup',
+  285:       })
+  286: 
+  287:       if (error) {
+  288:         logError('verify_otp.failed', {
+  289:           type,
+  290:           message: error.message,
+  291:           code: errorCode(error),
+  292:           status: errorStatus(error),
+  293:         })
+  294:         return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'verify_otp_failed'))
+  295:       }
+  296: 
+  297:       logInfo('verify_otp.success', { type })
+  298: 
+  299:       const {
+  300:         data: { user },
+  301:       } = await supabase.auth.getUser()
+  302: 
+  303:       logInfo('user.loaded_after_verify_otp', {
+  304:         hasUser: Boolean(user),
+  305:         userId: user?.id ?? null,
+  306:         email: user?.email ?? null,
+  307:       })
+  308: 
+  309:       if (user && (type === 'email' || type === 'signup')) {
+  310:         const onboardingRedirect = await completeOnboardingForUser(supabase, user, baseUrl)
+  311:         if (onboardingRedirect) return onboardingRedirect
+  312:       }
+  313: 
+  314:       if (type === 'recovery') {
+  315:         const recoveryRedirect = buildRedirect(baseUrl, '/update-password')
+  316:         logInfo('redirect.final', {
+  317:           target: recoveryRedirect,
+  318:           reason: 'recovery',
+  319:         })
+  320:         return NextResponse.redirect(recoveryRedirect)
+  321:       }
+  322: 
+  323:       const otpTarget = buildRedirect(baseUrl, safeNext ?? '/dashboard')
+  324:       logInfo('redirect.final', {
+  325:         target: otpTarget,
+  326:         reason: 'verify_otp',
+  327:       })
+  328:       return NextResponse.redirect(otpTarget)
+  329:     }
+  330: 
+  331:     if (code) {
+  332:       logInfo('exchange.start', {
+  333:         hasCode: true,
+  334:       })
+  335: 
+  336:       const { error } = await supabase.auth.exchangeCodeForSession(code)
+  337: 
+  338:       if (error) {
+  339:         logError('exchange.failed', {
+  340:           message: error.message,
+  341:           code: errorCode(error),
+  342:           status: errorStatus(error),
+  343:         })
+  344:         return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'oauth_callback_failed'))
+  345:       }
+  346: 
+  347:       logInfo('exchange.success', {
+  348:         hasCode: true,
+  349:       })
+  350: 
+  351:       const {
+  352:         data: { user },
+  353:       } = await supabase.auth.getUser()
+  354: 
+  355:       logInfo('user.loaded_after_exchange', {
+  356:         hasUser: Boolean(user),
+  357:         userId: user?.id ?? null,
+  358:         email: user?.email ?? null,
+  359:       })
+  360: 
+  361:       if (!user) {
+  362:         logError('exchange.user_missing', {
+  363:           hasUser: false,
+  364:         })
+  365:         return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'oauth_callback_failed'))
+  366:       }
+  367: 
+  368:       const onboardingRedirect = await completeOnboardingForUser(supabase, user, baseUrl)
+  369:       if (onboardingRedirect) return onboardingRedirect
+  370: 
+  371:       const oauthTarget = buildRedirect(baseUrl, safeNext ?? '/dashboard')
+  372:       logInfo('redirect.final', {
+  373:         target: oauthTarget,
+  374:         reason: 'oauth_code_flow',
+  375:       })
+  376:       return NextResponse.redirect(oauthTarget)
+  377:     }
+  378: 
+  379:     logError('missing_callback_params', {
+  380:       hasCode: Boolean(code),
+  381:       hasTokenHash: Boolean(tokenHash),
+  382:       type: type ?? null,
+  383:     })
+  384:     return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'missing_callback_params'))
+  385:   } catch (error) {
+  386:     logError('unhandled', {
+  387:       message: (error as Error).message,
+  388:       code: errorCode(error),
+  389:       status: errorStatus(error),
+  390:     })
+  391:     captureException(error, {
+  392:       step: 'unhandled',
+  393:       callbackUrl: `${requestUrl.origin}${requestUrl.pathname}`,
+  394:     })
+  395:     return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'oauth_callback_failed'))
+  396:   }
+  397: }
+  398: 
+  399: export async function POST(request: NextRequest) {
+  400:   return GET(request)
+  401: }

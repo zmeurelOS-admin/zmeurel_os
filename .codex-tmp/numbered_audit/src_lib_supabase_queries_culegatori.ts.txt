@@ -1,0 +1,193 @@
+﻿   1: import { getSupabase } from '../client'
+   2: 
+   3: // ========================================
+   4: // TYPES
+   5: // ========================================
+   6: 
+   7: export interface Culegator {
+   8:   id: string
+   9:   id_culegator: string
+  10:   nume_prenume: string
+  11:   tarif_lei_kg: number
+  12:   data_angajare: string | null
+  13:   status_activ: boolean
+  14:   telefon: string | null
+  15:   tip_angajare: string | null
+  16:   observatii: string | null
+  17:   created_at: string
+  18:   updated_at: string
+  19: }
+  20: 
+  21: export interface CreateCulegatorInput {
+  22:   nume_prenume: string
+  23:   tarif_lei_kg: number
+  24:   data_angajare?: string | null
+  25:   status_activ?: boolean
+  26:   telefon?: string | null
+  27:   tip_angajare?: string | null
+  28:   observatii?: string | null
+  29: }
+  30: 
+  31: export interface UpdateCulegatorInput {
+  32:   nume_prenume?: string
+  33:   tarif_lei_kg?: number
+  34:   data_angajare?: string | null
+  35:   status_activ?: boolean
+  36:   telefon?: string | null
+  37:   tip_angajare?: string | null
+  38:   observatii?: string | null
+  39: }
+  40: 
+  41: // ========================================
+  42: // GENERATE NEXT ID
+  43: // ========================================
+  44: 
+  45: async function generateNextId(
+  46:   supabase: ReturnType<typeof getSupabase>
+  47: ): Promise<string> {
+  48:   const { data, error } = await supabase
+  49:     .from('culegatori')
+  50:     .select('id_culegator')
+  51:     .order('created_at', { ascending: true })
+  52: 
+  53:   if (error) throw error
+  54: 
+  55:   const ids = (data ?? [])
+  56:     .map((r) => r.id_culegator)
+  57:     .filter((id) => id && /^CUL\d+$/.test(id))
+  58:     .map((id) => parseInt(id!.substring(3)))
+  59: 
+  60:   const maxId = ids.length > 0 ? Math.max(...ids) : 0
+  61: 
+  62:   return `CUL${String(maxId + 1).padStart(3, '0')}`
+  63: }
+  64: 
+  65: // ========================================
+  66: // GET
+  67: // ========================================
+  68: 
+  69: export async function getCulegatori(): Promise<Culegator[]> {
+  70:   const supabase = getSupabase()
+  71: 
+  72:   const { data, error } = await supabase
+  73:     .from('culegatori')
+  74:     .select('id,id_culegator,nume_prenume,tarif_lei_kg,data_angajare,status_activ,telefon,tip_angajare,observatii,created_at,updated_at,tenant_id')
+  75:     .order('created_at', { ascending: false })
+  76: 
+  77:   if (error) throw error
+  78: 
+  79:   return (data ?? []) as unknown as Culegator[]
+  80: }
+  81: 
+  82: // ========================================
+  83: // CREATE (FIXED VERSION)
+  84: // ========================================
+  85: 
+  86: export async function createCulegator(
+  87:   input: CreateCulegatorInput
+  88: ): Promise<Culegator> {
+  89:   const supabase = getSupabase()
+  90:   const id_culegator = await generateNextId(supabase)
+  91: 
+  92:   const payload = {
+  93:     id_culegator,
+  94:     nume_prenume: input.nume_prenume,
+  95:     tarif_lei_kg: input.tarif_lei_kg,
+  96:     data_angajare:
+  97:       input.data_angajare && input.data_angajare !== ''
+  98:         ? input.data_angajare
+  99:         : null,
+ 100:     status_activ: input.status_activ ?? true,
+ 101:     telefon:
+ 102:       input.telefon && input.telefon !== '' ? input.telefon : null,
+ 103:     tip_angajare:
+ 104:       input.tip_angajare && input.tip_angajare !== ''
+ 105:         ? input.tip_angajare
+ 106:         : null,
+ 107:     observatii:
+ 108:       input.observatii && input.observatii !== ''
+ 109:         ? input.observatii
+ 110:         : null,
+ 111:   }
+ 112: 
+ 113:   const { data, error } = await supabase
+ 114:     .from('culegatori')
+ 115:     .insert(payload)
+ 116:     .select()
+ 117:     .single()
+ 118: 
+ 119:   if (error) throw error
+ 120: 
+ 121:   return data as unknown as Culegator
+ 122: }
+ 123: 
+ 124: // ========================================
+ 125: // UPDATE
+ 126: // ========================================
+ 127: 
+ 128: export async function updateCulegator(
+ 129:   id: string,
+ 130:   input: UpdateCulegatorInput
+ 131: ): Promise<Culegator> {
+ 132:   const supabase = getSupabase()
+ 133: 
+ 134:   const payload = {
+ 135:     ...input,
+ 136:     data_angajare:
+ 137:       input.data_angajare && input.data_angajare !== ''
+ 138:         ? input.data_angajare
+ 139:         : null,
+ 140:     telefon:
+ 141:       input.telefon && input.telefon !== '' ? input.telefon : null,
+ 142:     tip_angajare:
+ 143:       input.tip_angajare && input.tip_angajare !== ''
+ 144:         ? input.tip_angajare
+ 145:         : null,
+ 146:     observatii:
+ 147:       input.observatii && input.observatii !== ''
+ 148:         ? input.observatii
+ 149:         : null,
+ 150:     updated_at: new Date().toISOString(),
+ 151:   }
+ 152: 
+ 153:   const { data, error } = await supabase
+ 154:     .from('culegatori')
+ 155:     .update(payload)
+ 156:     .eq('id', id)
+ 157:     .select()
+ 158:     .single()
+ 159: 
+ 160:   if (error) throw error
+ 161: 
+ 162:   return data as unknown as Culegator
+ 163: }
+ 164: 
+ 165: // ========================================
+ 166: // DELETE
+ 167: // ========================================
+ 168: 
+ 169: export async function deleteCulegator(id: string): Promise<void> {
+ 170:   const supabase = getSupabase()
+ 171: 
+ 172:   // Check for related recoltari before deleting
+ 173:   const { count: recoltariCount, error: recoltariError } = await supabase
+ 174:     .from('recoltari')
+ 175:     .select('*', { count: 'exact', head: true })
+ 176:     .eq('culegator_id', id)
+ 177: 
+ 178:   if (recoltariError) throw recoltariError
+ 179: 
+ 180:   // If any related records exist, throw a descriptive error
+ 181:   if ((recoltariCount ?? 0) > 0) {
+ 182:     throw new Error(`Nu poČ›i Č™terge. Are ${recoltariCount} recoltÄri asociate.`)
+ 183:   }
+ 184: 
+ 185:   // Only proceed with delete if count is 0
+ 186:   const { error } = await supabase
+ 187:     .from('culegatori')
+ 188:     .delete()
+ 189:     .eq('id', id)
+ 190: 
+ 191:   if (error) throw error
+ 192: }
+ 193: 

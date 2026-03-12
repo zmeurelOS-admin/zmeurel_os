@@ -1,0 +1,63 @@
+    1: import * as React from 'react'
+    2: 
+    3: import { cn } from '@/lib/utils'
+    4: 
+    5: const appCardBaseClass = 'w-full rounded-xl border bg-card p-4 shadow-sm transition hover:shadow-md'
+    6: 
+    7: function AppCard({ className, ...props }: React.ComponentProps<'div'>) {
+    8:   return (
+    9:     <div
+   10:       data-slot="app-card"
+   11:       className={cn(appCardBaseClass, className)}
+   12:       {...props}
+   13:     />
+   14:   )
+   15: }
+   16: 
+   17: function InfoCard({ className, ...props }: React.ComponentProps<'div'>) {
+   18:   return <AppCard data-slot="info-card" className={cn('text-left', className)} {...props} />
+   19: }
+   20: 
+   21: function EntityCard({ className, ...props }: React.ComponentProps<'div'>) {
+   22:   return <AppCard data-slot="entity-card" className={cn('text-left', className)} {...props} />
+   23: }
+   24: 
+   25: function ActionCard({ className, ...props }: React.ComponentProps<'div'>) {
+   26:   return <AppCard data-slot="action-card" className={cn('text-left', className)} {...props} />
+   27: }
+   28: 
+   29: function ListCard({ className, ...props }: React.ComponentProps<'div'>) {
+   30:   return <AppCard data-slot="list-card" className={cn('text-left', className)} {...props} />
+   31: }
+   32: 
+   33: function AppCardHeader({ className, ...props }: React.ComponentProps<'div'>) {
+   34:   return (
+   35:     <div
+   36:       data-slot="app-card-header"
+   37:       className={cn(
+   38:         'mb-3 flex items-center justify-between gap-2 [&_[data-slot=app-card-title]]:text-sm [&_[data-slot=app-card-title]]:font-semibold [&_h1]:text-sm [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold',
+   39:         className
+   40:       )}
+   41:       {...props}
+   42:     />
+   43:   )
+   44: }
+   45: 
+   46: function AppCardContent({ className, ...props }: React.ComponentProps<'div'>) {
+   47:   return <div data-slot="app-card-content" className={cn('space-y-3 text-sm', className)} {...props} />
+   48: }
+   49: 
+   50: function AppCardFooter({ className, ...props }: React.ComponentProps<'div'>) {
+   51:   return <div data-slot="app-card-footer" className={cn('mt-4 flex gap-2', className)} {...props} />
+   52: }
+   53: 
+   54: export {
+   55:   AppCard,
+   56:   InfoCard,
+   57:   EntityCard,
+   58:   ActionCard,
+   59:   ListCard,
+   60:   AppCardHeader,
+   61:   AppCardContent,
+   62:   AppCardFooter,
+   63: }

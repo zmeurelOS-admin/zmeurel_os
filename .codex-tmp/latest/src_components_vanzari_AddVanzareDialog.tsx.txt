@@ -1,0 +1,243 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    6: import { useForm, useWatch } from 'react-hook-form'
+    7: import { toast } from '@/lib/ui/toast'
+    8: import * as z from 'zod'
+    9: 
+   10: import { AppDrawer } from '@/components/app/AppDrawer'
+   11: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   12: import { Input } from '@/components/ui/input'
+   13: import { Label } from '@/components/ui/label'
+   14: import { Textarea } from '@/components/ui/textarea'
+   15: import { track } from '@/lib/analytics/track'
+   16: import { trackEvent } from '@/lib/analytics/trackEvent'
+   17: import { generateClientId } from '@/lib/offline/generateClientId'
+   18: import { getClienti } from '@/lib/supabase/queries/clienti'
+   19: import { createVanzare, STATUS_PLATA } from '@/lib/supabase/queries/vanzari'
+   20: import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+   21: 
+   22: const schema = z.object({
+   23:   data: z.string().min(1, 'Data este obligatorie'),
+   24:   client_id: z.string().optional(),
+   25:   cantitate_kg: z
+   26:     .string()
+   27:     .trim()
+   28:     .min(1, 'Cantitatea este obligatorie')
+   29:     .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+   30:       message: 'Cantitatea trebuie sa fie mai mare ca 0',
+   31:     }),
+   32:   pret_lei_kg: z
+   33:     .string()
+   34:     .trim()
+   35:     .min(1, 'Pretul este obligatoriu')
+   36:     .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+   37:       message: 'Pretul trebuie sa fie mai mare ca 0',
+   38:     }),
+   39:   status_plata: z.string().min(1, 'Statusul este obligatoriu'),
+   40:   observatii_ladite: z.string().optional(),
+   41: })
+   42: 
+   43: type VanzareFormData = z.infer<typeof schema>
+   44: 
+   45: interface AddVanzareDialogProps {
+   46:   open?: boolean
+   47:   onOpenChange?: (open: boolean) => void
+   48:   hideTrigger?: boolean
+   49: }
+   50: 
+   51: const defaults = (): VanzareFormData => ({
+   52:   data: new Date().toISOString().split('T')[0],
+   53:   client_id: '',
+   54:   cantitate_kg: '',
+   55:   pret_lei_kg: '',
+   56:   status_plata: 'Platit',
+   57:   observatii_ladite: '',
+   58: })
+   59: 
+   60: export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: AddVanzareDialogProps) {
+   61:   const queryClient = useQueryClient()
+   62:   const [internalOpen, setInternalOpen] = useState(false)
+   63: 
+   64:   const isControlled = typeof open === 'boolean'
+   65:   const dialogOpen = isControlled ? open : internalOpen
+   66:   const setDialogOpen = (nextOpen: boolean) => {
+   67:     if (!isControlled) setInternalOpen(nextOpen)
+   68:     onOpenChange?.(nextOpen)
+   69:   }
+   70: 
+   71:   const form = useForm<VanzareFormData>({
+   72:     resolver: zodResolver(schema),
+   73:     defaultValues: defaults(),
+   74:   })
+   75: 
+   76:   useEffect(() => {
+   77:     if (!dialogOpen) form.reset(defaults())
+   78:   }, [dialogOpen, form])
+   79: 
+   80:   const { data: clienti = [] } = useQuery({
+   81:     queryKey: ['clienti'],
+   82:     queryFn: getClienti,
+   83:   })
+   84: 
+   85:   const selectedClientId = useWatch({ control: form.control, name: 'client_id' }) ?? ''
+   86: 
+   87:   const handleClientChange = (clientId: string) => {
+   88:     form.setValue('client_id', clientId, { shouldDirty: true })
+   89: 
+   90:     if (clientId) {
+   91:       const client = clienti.find((c) => c.id === clientId)
+   92:       if (client?.pret_negociat_lei_kg) {
+   93:         form.setValue('pret_lei_kg', String(client.pret_negociat_lei_kg), { shouldDirty: true })
+   94:       }
+   95:     }
+   96:   }
+   97: 
+   98:   const createMutation = useMutation({
+   99:     mutationFn: createVanzare,
+  100:     onSuccess: (_, variables) => {
+  101:       queryClient.invalidateQueries({ queryKey: ['vanzari'] })
+  102:       queryClient.invalidateQueries({ queryKey: ['stoc-global'] })
+  103:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  104:       trackEvent('create_vanzare', 'vanzari', { source: 'AddVanzareDialog' })
+  105:       track('vanzare_add', {
+  106:         amount: Number(variables.cantitate_kg || 0) * Number(variables.pret_lei_kg || 0),
+  107:         client_id: variables.client_id ?? null,
+  108:       })
+  109:       hapticSuccess()
+  110:       toast.success('Vanzare adaugata')
+  111:       setDialogOpen(false)
+  112:     },
+  113:     onError: (error) => {
+  114:       const maybeError = error as { status?: number; code?: string; message?: string; details?: string; hint?: string }
+  115:       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
+  116:       if (conflict) {
+  117:         toast.info('Inregistrarea era deja sincronizata.')
+  118:         setDialogOpen(false)
+  119:         return
+  120:       }
+  121: 
+  122:       const message =
+  123:         maybeError?.message ||
+  124:         maybeError?.details ||
+  125:         maybeError?.hint ||
+  126:         'Eroare la adaugarea vanzarii'
+  127: 
+  128:       console.error('Error creating vanzare:', {
+  129:         message: maybeError?.message,
+  130:         code: maybeError?.code,
+  131:         details: maybeError?.details,
+  132:         hint: maybeError?.hint,
+  133:       })
+  134:       hapticError()
+  135:       toast.error(message)
+  136:     },
+  137:   })
+  138: 
+  139:   const onSubmit = (data: VanzareFormData) => {
+  140:     if (createMutation.isPending) return
+  141: 
+  142:     createMutation.mutate({
+  143:       client_sync_id: generateClientId(),
+  144:       data: data.data,
+  145:       client_id: data.client_id || undefined,
+  146:       cantitate_kg: Number(data.cantitate_kg),
+  147:       pret_lei_kg: Number(data.pret_lei_kg),
+  148:       status_plata: data.status_plata,
+  149:       observatii_ladite: data.observatii_ladite?.trim() || undefined,
+  150:     })
+  151:   }
+  152: 
+  153:   return (
+  154:     <>
+  155:       <AppDrawer
+  156:         open={dialogOpen}
+  157:         onOpenChange={setDialogOpen}
+  158:         title="Adauga vanzare"
+  159:         footer={
+  160:           <DialogFormActions
+  161:             onCancel={() => setDialogOpen(false)}
+  162:             onSave={form.handleSubmit(onSubmit)}
+  163:             saving={createMutation.isPending}
+  164:             cancelLabel="Anuleaza"
+  165:             saveLabel="Salveaza"
+  166:           />
+  167:         }
+  168:       >
+  169:         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+  170:           <div className="space-y-2">
+  171:             <Label htmlFor="v_data">Data vanzarii</Label>
+  172:             <Input id="v_data" type="date" className="agri-control h-12" {...form.register('data')} />
+  173:             {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
+  174:           </div>
+  175: 
+  176:           <div className="space-y-2">
+  177:             <Label htmlFor="v_client">Client</Label>
+  178:             <select
+  179:               id="v_client"
+  180:               value={selectedClientId}
+  181:               onChange={(e) => handleClientChange(e.target.value)}
+  182:               className="agri-control h-12 w-full px-3 text-base"
+  183:             >
+  184:               <option value="">Fara client specificat</option>
+  185:               {clienti.map((client) => (
+  186:                 <option key={client.id} value={client.id}>
+  187:                   {client.nume_client}
+  188:                 </option>
+  189:               ))}
+  190:             </select>
+  191:           </div>
+  192: 
+  193:           <div className="grid grid-cols-2 gap-3">
+  194:             <div className="space-y-2">
+  195:               <Label htmlFor="v_qty">Cantitate (kg)</Label>
+  196:               <Input
+  197:                 id="v_qty"
+  198:                 type="number"
+  199:                 inputMode="decimal"
+  200:                 step="0.01"
+  201:                 min="0.01"
+  202:                 className="agri-control h-12"
+  203:                 {...form.register('cantitate_kg')}
+  204:               />
+  205:               {form.formState.errors.cantitate_kg ? <p className="text-xs text-red-600">{form.formState.errors.cantitate_kg.message}</p> : null}
+  206:             </div>
+  207: 
+  208:             <div className="space-y-2">
+  209:               <Label htmlFor="v_price">Pret lei/kg</Label>
+  210:               <Input
+  211:                 id="v_price"
+  212:                 type="number"
+  213:                 inputMode="decimal"
+  214:                 step="0.01"
+  215:                 min="0.01"
+  216:                 className="agri-control h-12"
+  217:                 {...form.register('pret_lei_kg')}
+  218:               />
+  219:               {form.formState.errors.pret_lei_kg ? <p className="text-xs text-red-600">{form.formState.errors.pret_lei_kg.message}</p> : null}
+  220:             </div>
+  221:           </div>
+  222: 
+  223:           <div className="space-y-2">
+  224:             <Label htmlFor="v_status">Status plata</Label>
+  225:             <select id="v_status" className="agri-control h-12 w-full px-3 text-base" {...form.register('status_plata')}>
+  226:               {STATUS_PLATA.map((status) => (
+  227:                 <option key={status} value={status}>
+  228:                   {status}
+  229:                 </option>
+  230:               ))}
+  231:             </select>
+  232:           </div>
+  233: 
+  234:           <div className="space-y-2">
+  235:             <Label htmlFor="v_obs">Observatii ladite</Label>
+  236:             <Textarea id="v_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii_ladite')} />
+  237:           </div>
+  238:         </form>
+  239:       </AppDrawer>
+  240:     </>
+  241:   )
+  242: }
+  243: 

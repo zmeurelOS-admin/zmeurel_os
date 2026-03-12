@@ -1,0 +1,357 @@
+    1: import { getSupabase } from '../client'
+    2: import type { TablesInsert, TablesUpdate } from '@/types/supabase'
+    3: import { deleteMiscariStocByReference, insertMiscareStoc } from './miscari-stoc'
+    4: import { upsertManoperaCheltuiala } from './manopera-auto'
+    5: 
+    6: const RECOLTARI_SELECT =
+    7:   'id,id_recoltare,data,parcela_id,culegator_id,kg_cal1,kg_cal2,pret_lei_pe_kg_snapshot,valoare_munca_lei,observatii,created_at,updated_at,tenant_id'
+    8: 
+    9: export interface Recoltare {
+   10:   id: string
+   11:   id_recoltare: string
+   12:   data: string
+   13:   parcela_id: string | null
+   14:   culegator_id: string | null
+   15:   kg_cal1: number
+   16:   kg_cal2: number
+   17:   pret_lei_pe_kg_snapshot: number
+   18:   valoare_munca_lei: number
+   19:   observatii: string | null
+   20:   created_at: string
+   21:   updated_at: string
+   22:   tenant_id: string | null
+   23: }
+   24: 
+   25: export interface CreateRecoltareInput {
+   26:   data: string
+   27:   parcela_id: string
+   28:   culegator_id: string
+   29:   kg_cal1: number
+   30:   kg_cal2: number
+   31:   observatii?: string
+   32: }
+   33: 
+   34: export interface UpdateRecoltareInput {
+   35:   data?: string
+   36:   parcela_id?: string
+   37:   culegator_id?: string
+   38:   kg_cal1?: number
+   39:   kg_cal2?: number
+   40:   observatii?: string
+   41: }
+   42: 
+   43: type RecoltareInsert = TablesInsert<'recoltari'>
+   44: type RecoltareUpdate = TablesUpdate<'recoltari'>
+   45: 
+   46: type CulegatorTarifRow = {
+   47:   tarif_lei_kg: number | null
+   48: }
+   49: 
+   50: function round2(value: number): number {
+   51:   return Math.round(value * 100) / 100
+   52: }
+   53: 
+   54: function normalizeKg(value: number | null | undefined): number {
+   55:   if (value === null || value === undefined || Number.isNaN(value)) return 0
+   56:   return Math.max(0, Number(value))
+   57: }
+   58: 
+   59: function computeKg(input: { kg_cal1?: number; kg_cal2?: number }) {
+   60:   const kgCal1 = normalizeKg(input.kg_cal1)
+   61:   const kgCal2 = normalizeKg(input.kg_cal2)
+   62: 
+   63:   return {
+   64:     kgCal1: round2(kgCal1),
+   65:     kgCal2: round2(kgCal2),
+   66:     totalKg: round2(kgCal1 + kgCal2),
+   67:   }
+   68: }
+   69: 
+   70: async function getCulegatorTarif(culegatorId: string): Promise<number> {
+   71:   const supabase = getSupabase()
+   72: 
+   73:   const { data, error } = await supabase
+   74:     .from('culegatori')
+   75:     .select('tarif_lei_kg')
+   76:     .eq('id', culegatorId)
+   77:     .single()
+   78: 
+   79:   if (error) throw error
+   80: 
+   81:   const tarif = Number((data as CulegatorTarifRow).tarif_lei_kg ?? 0)
+   82:   if (!Number.isFinite(tarif) || tarif <= 0) {
+   83:     throw new Error('Culegatorul nu are tarif setat in profil')
+   84:   }
+   85: 
+   86:   return round2(tarif)
+   87: }
+   88: 
+   89: async function generateNextId(): Promise<string> {
+   90:   const supabase = getSupabase()
+   91: 
+   92:   const { data, error } = await supabase
+   93:     .from('recoltari')
+   94:     .select('id_recoltare')
+   95:     .order('created_at', { ascending: false })
+   96:     .limit(1)
+   97: 
+   98:   if (error) throw error
+   99: 
+  100:   if (!data || data.length === 0) return 'REC001'
+  101: 
+  102:   const lastId = data[0].id_recoltare
+  103:   const numericPart = parseInt(lastId.replace('REC', ''), 10)
+  104: 
+  105:   if (Number.isNaN(numericPart)) throw new Error('Invalid id_recoltare format')
+  106: 
+  107:   const nextNumber = numericPart + 1
+  108:   return `REC${nextNumber.toString().padStart(3, '0')}`
+  109: }
+  110: 
+  111: function mapRecoltare(row: {
+  112:   id: string
+  113:   id_recoltare: string
+  114:   data: string
+  115:   parcela_id: string | null
+  116:   culegator_id: string | null
+  117:   kg_cal1: number | null
+  118:   kg_cal2: number | null
+  119:   pret_lei_pe_kg_snapshot: number | null
+  120:   valoare_munca_lei: number | null
+  121:   observatii: string | null
+  122:   created_at: string
+  123:   updated_at: string
+  124:   tenant_id: string | null
+  125: }): Recoltare {
+  126:   return {
+  127:     id: row.id,
+  128:     id_recoltare: row.id_recoltare,
+  129:     data: row.data,
+  130:     parcela_id: row.parcela_id,
+  131:     culegator_id: row.culegator_id,
+  132:     kg_cal1: Number(row.kg_cal1 ?? 0),
+  133:     kg_cal2: Number(row.kg_cal2 ?? 0),
+  134:     pret_lei_pe_kg_snapshot: Number(row.pret_lei_pe_kg_snapshot ?? 0),
+  135:     valoare_munca_lei: Number(row.valoare_munca_lei ?? 0),
+  136:     observatii: row.observatii,
+  137:     created_at: row.created_at,
+  138:     updated_at: row.updated_at,
+  139:     tenant_id: row.tenant_id,
+  140:   }
+  141: }
+  142: 
+  143: export async function getRecoltari(): Promise<Recoltare[]> {
+  144:   const supabase = getSupabase()
+  145: 
+  146:   const { data, error } = await supabase
+  147:     .from('recoltari')
+  148:     .select(RECOLTARI_SELECT)
+  149:     .order('data', { ascending: false })
+  150: 
+  151:   if (error) {
+  152:     const message = (error.message || '').toLowerCase()
+  153:     if (message.includes('kg_cal1') || message.includes('schema cache') || message.includes('could not find')) {
+  154:       throw new Error('Coloana kg_cal1 lipseste din baza de date. Va rugam actualizati schema.')
+  155:     }
+  156:     throw error
+  157:   }
+  158: 
+  159:   return (data ?? []).map((row) => mapRecoltare(row as Parameters<typeof mapRecoltare>[0]))
+  160: }
+  161: 
+  162: async function replaceRecoltareMovements(params: {
+  163:   recoltareId: string
+  164:   tenantId?: string | null
+  165:   parcelaId?: string | null
+  166:   data: string
+  167:   kgCal1: number
+  168:   kgCal2: number
+  169: }) {
+  170:   const tenantId = params.tenantId ?? undefined
+  171:   const parcelaId = params.parcelaId
+  172: 
+  173:   if (!parcelaId) return
+  174: 
+  175:   await deleteMiscariStocByReference(params.recoltareId, 'recoltare')
+  176: 
+  177:   if (params.kgCal1 > 0) {
+  178:     await insertMiscareStoc({
+  179:       tenant_id: tenantId,
+  180:       locatie_id: parcelaId,
+  181:       produs: 'zmeura',
+  182:       calitate: 'cal1',
+  183:       depozit: 'fresh',
+  184:       tip_miscare: 'recoltare',
+  185:       cantitate_kg: params.kgCal1,
+  186:       referinta_id: params.recoltareId,
+  187:       data: params.data,
+  188:     })
+  189:   }
+  190: 
+  191:   if (params.kgCal2 > 0) {
+  192:     await insertMiscareStoc({
+  193:       tenant_id: tenantId,
+  194:       locatie_id: parcelaId,
+  195:       produs: 'zmeura',
+  196:       calitate: 'cal2',
+  197:       depozit: 'fresh',
+  198:       tip_miscare: 'recoltare',
+  199:       cantitate_kg: params.kgCal2,
+  200:       referinta_id: params.recoltareId,
+  201:       data: params.data,
+  202:     })
+  203:   }
+  204: }
+  205: 
+  206: function scheduleAutoManoperaSync(params: {
+  207:   supabase: ReturnType<typeof getSupabase>
+  208:   tenantId?: string | null
+  209:   dates: Array<string | null | undefined>
+  210: }) {
+  211:   const tenantId = params.tenantId ?? null
+  212:   if (!tenantId) return
+  213: 
+  214:   const uniqueDates = Array.from(new Set(params.dates.map((d) => String(d || '').slice(0, 10)).filter(Boolean)))
+  215:   if (!uniqueDates.length) return
+  216: 
+  217:   void Promise.all(uniqueDates.map((date) => upsertManoperaCheltuiala(params.supabase, tenantId, date))).catch((error) => {
+  218:     console.error('Auto manopera sync failed:', error)
+  219:   })
+  220: }
+  221: 
+  222: export async function createRecoltare(input: CreateRecoltareInput): Promise<Recoltare> {
+  223:   const supabase = getSupabase()
+  224:   const nextId = await generateNextId()
+  225:   const tarifSnapshot = await getCulegatorTarif(input.culegator_id)
+  226:   const kg = computeKg(input)
+  227:   const valoareMunca = round2(kg.totalKg * tarifSnapshot)
+  228: 
+  229:   const payload: RecoltareInsert = {
+  230:     id_recoltare: nextId,
+  231:     data: input.data,
+  232:     parcela_id: input.parcela_id,
+  233:     culegator_id: input.culegator_id,
+  234:     kg_cal1: kg.kgCal1,
+  235:     kg_cal2: kg.kgCal2,
+  236:     pret_lei_pe_kg_snapshot: tarifSnapshot,
+  237:     valoare_munca_lei: valoareMunca,
+  238:     observatii: input.observatii ?? null,
+  239:   }
+  240: 
+  241:   const { data, error } = await supabase
+  242:     .from('recoltari')
+  243:     .insert(payload)
+  244:     .select(RECOLTARI_SELECT)
+  245:     .single()
+  246: 
+  247:   if (error) {
+  248:     const message = (error.message || '').toLowerCase()
+  249:     if (message.includes('kg_cal1') || message.includes('schema cache') || message.includes('could not find')) {
+  250:       throw new Error('Coloana kg_cal1 lipseste din baza de date. Va rugam actualizati schema.')
+  251:     }
+  252:     throw error
+  253:   }
+  254: 
+  255:   const recoltare = mapRecoltare(data as Parameters<typeof mapRecoltare>[0])
+  256: 
+  257:   await replaceRecoltareMovements({
+  258:     recoltareId: recoltare.id,
+  259:     tenantId: recoltare.tenant_id,
+  260:     parcelaId: recoltare.parcela_id,
+  261:     data: recoltare.data,
+  262:     kgCal1: recoltare.kg_cal1,
+  263:     kgCal2: recoltare.kg_cal2,
+  264:   })
+  265: 
+  266:   scheduleAutoManoperaSync({
+  267:     supabase,
+  268:     tenantId: recoltare.tenant_id,
+  269:     dates: [recoltare.data],
+  270:   })
+  271: 
+  272:   return recoltare
+  273: }
+  274: 
+  275: export async function updateRecoltare(id: string, input: UpdateRecoltareInput): Promise<Recoltare> {
+  276:   const supabase = getSupabase()
+  277: 
+  278:   const { data: existing, error: existingError } = await supabase
+  279:     .from('recoltari')
+  280:     .select('id,culegator_id,kg_cal1,kg_cal2,data,tenant_id')
+  281:     .eq('id', id)
+  282:     .single()
+  283: 
+  284:   if (existingError) throw existingError
+  285: 
+  286:   const nextCulegatorId = input.culegator_id ?? existing.culegator_id
+  287:   if (!nextCulegatorId) {
+  288:     throw new Error('Culegatorul este obligatoriu')
+  289:   }
+  290: 
+  291:   const kg = computeKg({
+  292:     kg_cal1: input.kg_cal1 ?? existing.kg_cal1 ?? 0,
+  293:     kg_cal2: input.kg_cal2 ?? existing.kg_cal2 ?? 0,
+  294:   })
+  295: 
+  296:   const tarifSnapshot = await getCulegatorTarif(nextCulegatorId)
+  297:   const valoareMunca = round2(kg.totalKg * tarifSnapshot)
+  298: 
+  299:   const payload: RecoltareUpdate = {
+  300:     ...input,
+  301:     culegator_id: nextCulegatorId,
+  302:     kg_cal1: kg.kgCal1,
+  303:     kg_cal2: kg.kgCal2,
+  304:     pret_lei_pe_kg_snapshot: tarifSnapshot,
+  305:     valoare_munca_lei: valoareMunca,
+  306:     updated_at: new Date().toISOString(),
+  307:   }
+  308: 
+  309:   const { data, error } = await supabase
+  310:     .from('recoltari')
+  311:     .update(payload)
+  312:     .eq('id', id)
+  313:     .select(RECOLTARI_SELECT)
+  314:     .single()
+  315: 
+  316:   if (error) throw error
+  317: 
+  318:   const recoltare = mapRecoltare(data as Parameters<typeof mapRecoltare>[0])
+  319: 
+  320:   await replaceRecoltareMovements({
+  321:     recoltareId: recoltare.id,
+  322:     tenantId: recoltare.tenant_id,
+  323:     parcelaId: recoltare.parcela_id,
+  324:     data: recoltare.data,
+  325:     kgCal1: recoltare.kg_cal1,
+  326:     kgCal2: recoltare.kg_cal2,
+  327:   })
+  328: 
+  329:   scheduleAutoManoperaSync({
+  330:     supabase,
+  331:     tenantId: recoltare.tenant_id ?? existing.tenant_id,
+  332:     dates: [existing.data, recoltare.data],
+  333:   })
+  334: 
+  335:   return recoltare
+  336: }
+  337: 
+  338: export async function deleteRecoltare(id: string): Promise<void> {
+  339:   const supabase = getSupabase()
+  340:   const { data: existing } = await supabase
+  341:     .from('recoltari')
+  342:     .select('tenant_id,data')
+  343:     .eq('id', id)
+  344:     .maybeSingle()
+  345: 
+  346:   await deleteMiscariStocByReference(id, 'recoltare')
+  347: 
+  348:   const { error } = await supabase.from('recoltari').delete().eq('id', id)
+  349: 
+  350:   if (error) throw error
+  351: 
+  352:   scheduleAutoManoperaSync({
+  353:     supabase,
+  354:     tenantId: existing?.tenant_id ?? null,
+  355:     dates: [existing?.data ?? null],
+  356:   })
+  357: }

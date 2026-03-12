@@ -1,0 +1,156 @@
+﻿[
+    {
+        "table":  "alert_dismissals",
+        "file":  "2026022602_alert_dismissals.sql",
+        "line":  16,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  18,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  19,
+                        "text":  "user_id uuid not null references auth.users(id) on delete cascade,"
+                    }
+                ]
+    },
+    {
+        "table":  "analytics_events",
+        "file":  "2026022506_usage_analytics_events.sql",
+        "line":  3,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  5,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  6,
+                        "text":  "user_id uuid not null references auth.users(id) on delete cascade,"
+                    }
+                ]
+    },
+    {
+        "table":  "audit_logs",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  5,
+        "has_tenant":  false,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  8,
+                        "text":  "actor_user_id uuid references auth.users(id) on delete set null,"
+                    },
+                    {
+                        "line":  10,
+                        "text":  "target_tenant_id uuid references public.tenants(id) on delete set null,"
+                    }
+                ]
+    },
+    {
+        "table":  "comenzi",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  18,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  20,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  21,
+                        "text":  "client_id uuid references public.clienti(id) on delete set null,"
+                    },
+                    {
+                        "line":  32,
+                        "text":  "linked_vanzare_id uuid references public.vanzari(id) on delete set null,"
+                    },
+                    {
+                        "line":  33,
+                        "text":  "parent_comanda_id uuid references public.comenzi(id) on delete set null,"
+                    }
+                ]
+    },
+    {
+        "table":  "feedback",
+        "file":  "2026022812_feedback_table_rls.sql",
+        "line":  1,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  3,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  4,
+                        "text":  "user_id uuid not null references auth.users(id) on delete cascade,"
+                    }
+                ]
+    },
+    {
+        "table":  "integrations_google_contacts",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  11,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  13,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  14,
+                        "text":  "user_id uuid not null references auth.users(id) on delete cascade,"
+                    }
+                ]
+    },
+    {
+        "table":  "miscari_stoc",
+        "file":  "2026022609_miscari_stoc_inventory.sql",
+        "line":  7,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  9,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  10,
+                        "text":  "locatie_id uuid not null references public.parcele(id) on delete cascade,"
+                    }
+                ]
+    },
+    {
+        "table":  "tenant_metrics_daily",
+        "file":  "2026022606_fix_admin_audit_and_metrics_compat.sql",
+        "line":  10,
+        "has_tenant":  false,
+        "has_marker":  false,
+        "fks":  [
+
+                ]
+    },
+    {
+        "table":  "vanzari_butasi_items",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  20,
+        "has_tenant":  true,
+        "has_marker":  false,
+        "fks":  [
+                    {
+                        "line":  22,
+                        "text":  "tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                    },
+                    {
+                        "line":  23,
+                        "text":  "comanda_id uuid not null references public.vanzari_butasi(id) on delete cascade,"
+                    }
+                ]
+    }
+]

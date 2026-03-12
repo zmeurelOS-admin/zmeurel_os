@@ -1,0 +1,159 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e12]:
+            - text: Zmeurel
+            - generic [ref=e13]: OS
+        - navigation [ref=e14]:
+          - generic [ref=e15]:
+            - paragraph [ref=e16]: OPERAȚIUNI
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - link "Dashboard" [ref=e19] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e21]
+                  - text: Dashboard
+              - listitem [ref=e27]:
+                - link "Terenuri" [ref=e28] [cursor=pointer]:
+                  - /url: /parcele
+                  - img [ref=e30]
+                  - text: Terenuri
+              - listitem [ref=e33]:
+                - link "Recoltări" [ref=e34] [cursor=pointer]:
+                  - /url: /recoltari
+                  - img [ref=e36]
+                  - text: Recoltări
+              - listitem [ref=e40]:
+                - link "Stocuri" [ref=e41] [cursor=pointer]:
+                  - /url: /stocuri
+                  - img [ref=e43]
+                  - text: Stocuri
+              - listitem [ref=e46]:
+                - link "Activități agricole" [ref=e47] [cursor=pointer]:
+                  - /url: /activitati-agricole
+                  - img [ref=e49]
+                  - text: Activități agricole
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: RELAȚII
+            - list [ref=e54]:
+              - listitem [ref=e55]:
+                - link "Culegători" [ref=e56] [cursor=pointer]:
+                  - /url: /culegatori
+                  - img [ref=e58]
+                  - text: Culegători
+              - listitem [ref=e63]:
+                - link "Clienți" [ref=e64] [cursor=pointer]:
+                  - /url: /clienti
+                  - img [ref=e66]
+                  - text: Clienți
+          - generic [ref=e70]:
+            - paragraph [ref=e71]: FINANCIAR
+            - list [ref=e72]:
+              - listitem [ref=e73]:
+                - link "Comenzi" [ref=e74] [cursor=pointer]:
+                  - /url: /comenzi
+                  - img [ref=e76]
+                  - text: Comenzi
+              - listitem [ref=e79]:
+                - link "Material săditor" [ref=e80] [cursor=pointer]:
+                  - /url: /vanzari-butasi
+                  - img [ref=e82]
+                  - text: Material săditor
+              - listitem [ref=e85]:
+                - link "Investiții" [ref=e86] [cursor=pointer]:
+                  - /url: /investitii
+                  - img [ref=e88]
+                  - text: Investiții
+              - listitem [ref=e91]:
+                - link "Cheltuieli" [ref=e92] [cursor=pointer]:
+                  - /url: /cheltuieli
+                  - img [ref=e94]
+                  - text: Cheltuieli
+    - main [ref=e104]:
+      - generic [ref=e106]:
+        - paragraph [ref=e107]: Zmeurel OS este în BETA. Trimite feedback
+        - button "Trimite feedback" [ref=e108]
+      - generic [ref=e251]:
+        - generic [ref=e256]:
+          - generic [ref=e257]:
+            - heading "Terenuri" [level=1] [ref=e258]
+            - paragraph [ref=e259]: Administrare terenuri cultivate
+          - generic [ref=e261]:
+            - button "Adauga teren" [ref=e262]
+            - button "Activeaza high visibility mode" [ref=e263]:
+              - img [ref=e264]
+            - button "BV Beta Verify 1773267060" [ref=e272] [cursor=pointer]:
+              - generic [ref=e273]: BV
+              - generic [ref=e274]: Beta Verify 1773267060
+              - img [ref=e275]
+            - img [ref=e278]
+        - main [ref=e280]:
+          - generic [ref=e281]:
+            - generic [ref=e356]:
+              - button "Active 1 terenuri" [ref=e357]:
+                - generic [ref=e359]:
+                  - generic [ref=e360]: 🗺️
+                  - generic [ref=e361]: Active
+                - generic [ref=e362]: "1"
+                - generic [ref=e363]: terenuri
+              - button "Suprafață 1200 mp" [ref=e364]:
+                - generic [ref=e366]:
+                  - generic [ref=e367]: 📐
+                  - generic [ref=e368]: Suprafață
+                - generic [ref=e369]: "1200"
+                - generic [ref=e370]: mp
+              - button "Total 450 plante" [ref=e371]:
+                - generic [ref=e373]:
+                  - generic [ref=e374]: 🌿
+                  - generic [ref=e375]: Total
+                - generic [ref=e376]: "450"
+                - generic [ref=e377]: plante
+            - generic [ref=e378]:
+              - button "Toate (1)" [ref=e379] [cursor=pointer]
+              - button "Camp (1)" [ref=e380] [cursor=pointer]
+              - button "Solarii (0)" [ref=e381] [cursor=pointer]
+              - button "Livada (0)" [ref=e382] [cursor=pointer]
+            - generic [ref=e383]:
+              - heading "Producție sezon per teren" [level=3] [ref=e384]
+              - button "Parcela Test Soi necunoscut Nicio recoltare încă 0.0 kg" [ref=e386] [cursor=pointer]:
+                - generic [ref=e387]:
+                  - generic [ref=e388]:
+                    - generic [ref=e389]: Parcela Test
+                    - generic [ref=e390]: Soi necunoscut
+                    - generic [ref=e392]: Nicio recoltare încă
+                  - generic [ref=e393]:
+                    - generic [ref=e394]: "0.0"
+                    - generic [ref=e395]: kg
+            - generic [ref=e396]:
+              - heading "Ultima activitate" [level=3] [ref=e397]
+              - button "📋 Parcela Test Fără activitate -" [ref=e399] [cursor=pointer]:
+                - generic [ref=e400]:
+                  - generic [ref=e401]: 📋
+                  - generic [ref=e402]:
+                    - generic [ref=e403]: Parcela Test
+                    - generic [ref=e404]: Fără activitate
+                  - generic [ref=e405]: "-"
+            - button "PAR PAR-268462 - Parcela Test Câmp Soi necunoscut · 1200 mp · 450 plante 0.0 kg 0.38 plante/mp" [ref=e408]:
+              - generic [ref=e409]:
+                - generic [ref=e410]: PAR
+                - generic [ref=e411]:
+                  - generic [ref=e412]:
+                    - generic [ref=e413]: PAR-268462 - Parcela Test
+                    - generic [ref=e414]: Câmp
+                  - generic [ref=e415]: Soi necunoscut · 1200 mp · 450 plante
+                - generic [ref=e416]:
+                  - generic [ref=e417]: "0.0"
+                  - generic [ref=e418]: kg
+                  - generic [ref=e419]: 0.38 plante/mp
+        - paragraph [ref=e291]: "Total terenuri: 1"
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e420]:
+        - img [ref=e422]
+        - generic [ref=e425]: Teren adăugat
+  - button "Open Next.js Dev Tools" [ref=e246] [cursor=pointer]:
+    - img [ref=e247]
+  - alert [ref=e292]

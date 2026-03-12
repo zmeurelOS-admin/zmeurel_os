@@ -3,13 +3,20 @@ import { BetaBanner } from '@/components/layout/BetaBanner'
 import { BottomTabBar } from '@/components/app/BottomTabBar'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 import { Providers } from '../providers'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
+  const headerStore = await headers()
+  const userIdFromProxy = headerStore.get('x-zmeurel-user-id')
+  const emailFromProxy = headerStore.get('x-zmeurel-user-email')
+
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = userIdFromProxy
+    ? { data: { user: { id: userIdFromProxy, email: emailFromProxy } } }
+    : await supabase.auth.getUser()
 
   if (!user) {
     throw new Error('DashboardLayout requires an authenticated user. Access should be guarded by src/proxy.ts.')

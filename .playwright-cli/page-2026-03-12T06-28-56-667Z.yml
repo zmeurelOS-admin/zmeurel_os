@@ -1,0 +1,118 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: Zmeurel OS este în BETA. Trimite feedback
+      - button "Trimite feedback" [ref=e6]
+    - generic [ref=e7]:
+      - banner [ref=e9]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "Terenuri" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Administrare terenuri cultivate
+          - button "Activeaza high visibility mode" [ref=e18]:
+            - img [ref=e19]
+      - main [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "Active 1 terenuri" [ref=e28]:
+              - generic [ref=e30]:
+                - generic [ref=e31]: 🗺️
+                - generic [ref=e32]: Active
+              - generic [ref=e33]: "1"
+              - generic [ref=e34]: terenuri
+            - button "Suprafață 140 mp" [ref=e35]:
+              - generic [ref=e37]:
+                - generic [ref=e38]: 📐
+                - generic [ref=e39]: Suprafață
+              - generic [ref=e40]: "140"
+              - generic [ref=e41]: mp
+            - button "Total 2240 plante" [ref=e42]:
+              - generic [ref=e44]:
+                - generic [ref=e45]: 🌿
+                - generic [ref=e46]: Total
+              - generic [ref=e47]: "2240"
+              - generic [ref=e48]: plante
+          - generic [ref=e49]:
+            - button "Toate (1)" [ref=e50] [cursor=pointer]
+            - button "Camp (1)" [ref=e51] [cursor=pointer]
+            - button "Solarii (0)" [ref=e52] [cursor=pointer]
+            - button "Livada (0)" [ref=e53] [cursor=pointer]
+          - generic [ref=e54]:
+            - heading "Producție sezon per teren" [level=3] [ref=e55]
+            - button "Parcela Mobil Soi necunoscut 7.0 kg" [ref=e57] [cursor=pointer]:
+              - generic [ref=e58]:
+                - generic [ref=e59]:
+                  - generic [ref=e60]: Parcela Mobil
+                  - generic [ref=e61]: Soi necunoscut
+                - generic [ref=e64]:
+                  - generic [ref=e65]: "7.0"
+                  - generic [ref=e66]: kg
+          - generic [ref=e67]:
+            - heading "Ultima activitate" [level=3] [ref=e68]
+            - button "📋 Parcela Mobil Fără activitate -" [ref=e70] [cursor=pointer]:
+              - generic [ref=e71]:
+                - generic [ref=e72]: 📋
+                - generic [ref=e73]:
+                  - generic [ref=e74]: Parcela Mobil
+                  - generic [ref=e75]: Fără activitate
+                - generic [ref=e76]: "-"
+          - generic [ref=e78]:
+            - button "PAR MV-mmn2uds3 - Parcela Mobil Câmp Polka · 140 mp · 2240 plante 7.0 kg 16.00 plante/mp" [active] [ref=e79]:
+              - generic [ref=e80]:
+                - generic [ref=e81]: PAR
+                - generic [ref=e82]:
+                  - generic [ref=e83]:
+                    - generic [ref=e84]: MV-mmn2uds3 - Parcela Mobil
+                    - generic [ref=e85]: Câmp
+                  - generic [ref=e86]: Polka · 140 mp · 2240 plante
+                - generic [ref=e87]:
+                  - generic [ref=e88]: "7.0"
+                  - generic [ref=e89]: kg
+                  - generic [ref=e90]: 16.00 plante/mp
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - generic [ref=e117]:
+                  - generic [ref=e118]: Suprafață
+                  - generic [ref=e119]: 140 mp
+                - generic [ref=e120]:
+                  - generic [ref=e121]: Nr. plante
+                  - generic [ref=e122]: "2240"
+                - generic [ref=e123]:
+                  - generic [ref=e124]: Densitate
+                  - generic [ref=e125]: 16.00/mp
+                - generic [ref=e126]:
+                  - generic [ref=e127]: Vârstă
+                  - generic [ref=e128]: 3 ani
+              - generic [ref=e129]:
+                - generic [ref=e130]:
+                  - strong [ref=e131]: "Ultima recoltare:"
+                  - text: 12.03.2026 · 7.0 kg
+                - generic [ref=e132]:
+                  - strong [ref=e133]: "Ultima activitate:"
+                  - text: Nicio activitate
+              - generic [ref=e134]:
+                - button "Detalii" [ref=e135]
+                - button "Editează" [ref=e136]
+                - button "Șterge" [ref=e137]
+      - paragraph [ref=e95]: "Total terenuri: 1"
+    - navigation "Navigare principală" [ref=e96]:
+      - generic [ref=e97]:
+        - link "📊 Dashboard" [ref=e98] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e99]: 📊
+          - generic [ref=e100]: Dashboard
+        - link "🧺 Recoltări" [ref=e101] [cursor=pointer]:
+          - /url: /recoltari
+          - generic [ref=e102]: 🧺
+          - generic [ref=e103]: Recoltări
+        - button "Adaugă teren" [ref=e105]:
+          - generic [ref=e106]: +
+        - link "📦 Comenzi" [ref=e107] [cursor=pointer]:
+          - /url: /comenzi
+          - generic [ref=e108]: 📦
+          - generic [ref=e109]: Comenzi
+        - button "Mai multe module" [ref=e110]:
+          - generic [ref=e111]: •••
+          - generic [ref=e112]: Mai mult
+  - region "Notifications alt+T"
+  - alert [ref=e114]

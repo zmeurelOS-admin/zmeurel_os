@@ -1,0 +1,31 @@
+schemaname,table_name,blocks_read,write_tuples,blocks_write,activity_ratio
+auth,users,20,1182,1182,59.1:1 (Write-Heavy)
+auth,sessions,9,847,423.5,47.1:1 (Write-Heavy)
+auth,refresh_tokens,12,1090,363.333333333333,30.3:1 (Write-Heavy)
+public,recoltari,9,227,227,25.2:1 (Write-Heavy)
+public,activitati_agricole,8,180,180,22.5:1 (Write-Heavy)
+auth,mfa_amr_claims,2,539,179.666666666667,89.8:1 (Write-Heavy)
+public,parcele,5,294,147,29.4:1 (Write-Heavy)
+public,tenants,1,236,118,118.0:1 (Write-Heavy)
+public,vanzari,10,187,93.5,9.4:1 (Write-Heavy)
+public,analytics_events,11,2092,87.5632393084622,8.0:1 (Write-Heavy)
+auth,identities,7,237,79,11.3:1 (Write-Heavy)
+public,profiles,2,141,70.5,35.3:1 (Write-Heavy)
+public,cheltuieli_diverse,7,198,49.5,7.1:1 (Write-Heavy)
+auth,flow_state,8,374,28.7692307692308,3.6:1 (Write-Heavy)
+public,culegatori,5,87,29,5.8:1 (Write-Heavy)
+public,comenzi,11,78,19.5,1.8:1 (Write-Heavy)
+public,clienti,5,147,24.5,4.9:1 (Write-Heavy)
+public,vanzari_butasi,6,76,12.6666666666667,2.1:1 (Write-Heavy)
+public,vanzari_butasi_items,5,84,10.5,2.1:1 (Write-Heavy)
+public,miscari_stoc,6,92,4.84210526315789,0.8:1 (Write-Heavy)
+public,alert_dismissals,7,29,3.22222222222222,0.5:1 (Write-Heavy)
+auth,one_time_tokens,8,38,-0,Read-Only
+auth,schema_migrations,6,68,0.918918918918919,1:6.5 (Read-Heavy)
+public,nomenclatoare,3,120,2.28571428571429,0.8:1 (Write-Heavy)
+public,investitii,5,42,-0,Read-Only
+storage,migrations,2,79,2.7719298245614,1.4:1 (Write-Heavy)
+public,tenant_metrics_daily,3,19,-0,Read-Only
+public,audit_logs,3,4,-0,Read-Only
+realtime,schema_migrations,1,68,1.01492537313433,1.0:1 (Write-Heavy)
+supabase_migrations,schema_migrations,1,47,-0,Read-Only

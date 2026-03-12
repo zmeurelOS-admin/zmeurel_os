@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
-import { LoadingState } from '@/components/app/LoadingState'
+import { LoadingState as BaseLoadingState } from '@/components/app/LoadingState'
+import { DashboardSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
 import { DemoFirstRunTutorial } from '@/components/dashboard/DemoFirstRunTutorial'
 import AlertCard from '@/components/ui/AlertCard'
@@ -126,6 +127,14 @@ type OnboardingStep = {
   done: boolean
 }
 
+function LoadingState({ label }: { label?: string }) {
+  if (label?.toLowerCase().includes('dashboard')) {
+    return <DashboardSkeleton />
+  }
+
+  return <BaseLoadingState label={label} />
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [showTutorial, setShowTutorial] = useState(false)
@@ -134,46 +143,46 @@ export default function DashboardPage() {
     trackEvent('open_dashboard', 'dashboard')
   }, [])
 
+  useEffect(() => {
+    ;['/parcele', '/activitati-agricole', '/recoltari', '/vanzari', '/comenzi'].forEach((href) => {
+      router.prefetch(href)
+    })
+  }, [router])
+
   const recoltariQuery = useQuery({
     queryKey: queryKeys.recoltari,
     queryFn: getRecoltari,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const parceleQuery = useQuery({
     queryKey: queryKeys.parcele,
     queryFn: getParcele,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const activitatiQuery = useQuery({
     queryKey: queryKeys.activitati,
     queryFn: getActivitatiAgricole,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const vanzariQuery = useQuery({
     queryKey: queryKeys.vanzari,
     queryFn: getVanzari,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const cheltuieliQuery = useQuery({
     queryKey: queryKeys.cheltuieli,
     queryFn: getCheltuieli,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const comenziQuery = useQuery({
     queryKey: queryKeys.comenzi,
     queryFn: getComenzi,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const clientiQuery = useQuery({
@@ -192,19 +201,17 @@ export default function DashboardPage() {
     queryKey: queryKeys.solarClimate(solarParcelaIdsForQuery.join(',')),
     queryFn: () => getSolarClimateLogsForUnitati(solarParcelaIdsForQuery, 240),
     enabled: solarParcelaIdsForQuery.length > 0,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
   const solarStagesQuery = useQuery({
     queryKey: queryKeys.solarStages(solarParcelaIdsForQuery.join(',')),
     queryFn: () => getCultureStageLogsForUnitati(solarParcelaIdsForQuery, 240),
     enabled: solarParcelaIdsForQuery.length > 0,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   })
 
-  const isLoading = [
+  const coreQueries = [
     recoltariQuery,
     parceleQuery,
     activitatiQuery,
@@ -212,17 +219,13 @@ export default function DashboardPage() {
     cheltuieliQuery,
     comenziQuery,
     clientiQuery,
-  ].some((query) => query.isLoading)
+  ]
 
-  const hasError = [
-    recoltariQuery,
-    parceleQuery,
-    activitatiQuery,
-    vanzariQuery,
-    cheltuieliQuery,
-    comenziQuery,
-    clientiQuery,
-  ].some((query) => query.isError)
+  const hasResolvedCoreData = coreQueries.some((query) => query.data !== undefined)
+  const isLoading = !hasResolvedCoreData && coreQueries.some((query) => query.isLoading)
+  const hasError = coreQueries.some((query) => query.isError)
+  const coreSettled = coreQueries.every((query) => !query.isLoading)
+  const showDashboardSkeleton = isLoading && !hasError
 
   const errorMessage =
     (recoltariQuery.error as Error | null)?.message ||
@@ -583,7 +586,7 @@ export default function DashboardPage() {
             key: `temp-high-${parcela.id}`,
             label: 'Temperatura ridicata',
             value: `${parcelaName}: ${formatNumber(latestTemp, 1)}°C`,
-            sub: 'Regula: peste 32°C se recomanda aerisire ți verificare irigare.',
+            sub: 'Regula: peste 32?C se recomand? aerisire ?i verificare irigare.',
             variant: 'danger',
             href: `/parcele/${parcela.id}`,
           })
@@ -605,7 +608,7 @@ export default function DashboardPage() {
       if (!latestActivity) {
         items.push({
           key: `activity-missing-${parcela.id}`,
-          label: 'Activități lipsă',
+          label: 'Activit??i lips?',
           value: `${parcelaName}: fără activități înregistrate`,
           sub: 'Regula: pentru solarii păstrăm cel puțin o activitate recentă în jurnal.',
           variant: 'warning',
@@ -630,8 +633,8 @@ export default function DashboardPage() {
       items.push({
         key: 'solar-ok',
         label: 'Plan in grafic',
-        value: 'Nu exist? prioritati urgente in solarii',
-        sub: 'Regulile simple de climat, etape ți activitati sunt acoperite azi.',
+        value: 'Nu există priorități urgente în solarii',
+        sub: 'Regulile simple de climat, etape ?i activit??i sunt acoperite azi.',
         variant: 'success',
         href: '/parcele',
       })
@@ -697,7 +700,7 @@ export default function DashboardPage() {
         iconBg: colors.coralLight,
         text: `Livrat ${formatNumber(asNumber(row.cantitate_kg))} kg → ${orderName(row)}`,
         timestamp: row.updated_at || row.created_at || `${toDateOnly(row.data_livrare || row.data_comanda)}T00:00:00`,
-        href: '/comenzi',
+        href: '/comenzi?add=1',
       })
     }
 
@@ -706,40 +709,40 @@ export default function DashboardPage() {
       .slice(0, 5)
   }, [activitati, comenzi, linkedOrderBySaleId, parcelaById, recoltari, vanzari])
 
-  const emptyState = activeParcele.length === 0
+  const emptyState = coreSettled && activeParcele.length === 0
   const hasAlerts = Boolean(visibleUnrecoltata) || comenziRestante.length > 0 || Boolean(pauseAlert)
   const onboardingSteps = useMemo<OnboardingStep[]>(
     () => [
       {
         key: 'terrain',
-        title: 'Creeaza primul teren',
-        description: 'Adauga o unitate de productie (camp, solar sau livada).',
+        title: 'Creează primul teren',
+        description: 'Adaugă o unitate de producție (câmp, solar sau livadă).',
         href: '/parcele',
-        cta: 'Adauga teren',
+        cta: 'Adaugă teren',
         done: parcele.length > 0,
       },
       {
         key: 'harvest',
-        title: 'Adauga prima recoltare',
-        description: 'Inregistreaza cantitatea recoltata pentru un teren.',
+        title: 'Adaugă prima recoltare',
+        description: 'Înregistrează cantitatea recoltată pentru un teren.',
         href: '/recoltari',
-        cta: 'Adauga recoltare',
+        cta: 'Adaugă recoltare',
         done: recoltari.length > 0,
       },
       {
         key: 'client',
-        title: 'Adauga primul client',
-        description: 'Creeaza contactul clientului pentru comenzi ți vanzari.',
+        title: 'Adaugă primul client',
+        description: 'Creează contactul clientului pentru comenzi și vânzări.',
         href: '/clienti',
-        cta: 'Adauga client',
+        cta: 'Adaugă client',
         done: clienti.length > 0,
       },
       {
         key: 'order',
-        title: 'Creeaza prima comanda',
-        description: 'Introdu o comanda noua ți urmareste livrarea.',
-        href: '/comenzișadd=1',
-        cta: 'Adauga comanda',
+        title: 'Creează prima comandă',
+        description: 'Introdu o comandă nouă și urmărește livrarea.',
+        href: '/comenzi?add=1',
+        cta: 'Adaugă comandă',
         done: comenzi.length > 0,
       },
     ],
@@ -747,7 +750,7 @@ export default function DashboardPage() {
   )
   const onboardingCompletedCount = onboardingSteps.filter((step) => step.done).length
   const onboardingProgress = Math.round((onboardingCompletedCount / onboardingSteps.length) * 100)
-  const shouldShowOnboardingGuide = !isDemoModeEnabled() && onboardingCompletedCount < onboardingSteps.length
+  const shouldShowOnboardingGuide = coreSettled && !isDemoModeEnabled() && onboardingCompletedCount < onboardingSteps.length
   const nextOnboardingStep = onboardingSteps.find((step) => !step.done) ?? onboardingSteps[0]
 
   return (
@@ -756,11 +759,11 @@ export default function DashboardPage() {
         {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
         {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
 
-        {!isLoading && !hasError && shouldRedirectToStart ? (
+        {!showDashboardSkeleton && shouldRedirectToStart ? (
           <LoadingState label="Se pregătește onboarding..." />
         ) : null}
 
-        {!isLoading && !hasError ? (
+        {!showDashboardSkeleton && !shouldRedirectToStart ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
             {shouldShowOnboardingGuide ? (
               <section
@@ -939,7 +942,7 @@ export default function DashboardPage() {
                       />
                       <MiniCard
                         icon="🌡️"
-                        label="Temp. medie recentă"
+                        label="Temp. medie recent?"
                         value={solarAvgTemp === null ? '-' : `${formatNumber(solarAvgTemp, 1)}°C`}
                         sub={
                           solarClimateQuery.isLoading
@@ -971,7 +974,7 @@ export default function DashboardPage() {
                   <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Planul zilei in solarii</h3>
-                      <StatusBadge text={hasSolarWarnings ? 'prioritati' : 'ok'} variant={hasSolarWarnings ? 'warning' : 'success'} />
+                      <StatusBadge text={hasSolarWarnings ? 'priorit??i' : 'ok'} variant={hasSolarWarnings ? 'warning' : 'success'} />
                     </div>
 
                     {solarStagesQuery.isError || solarClimateQuery.isError ? (
@@ -1050,7 +1053,7 @@ export default function DashboardPage() {
                         icon="⚠️"
                         label="Comenzi restante"
                         value={`${comenziRestante.length} comenzi restante`}
-                        sub="Au depășit data de livrare"
+                        sub="Au dep??it data de livrare"
                         variant="warning"
                         onClick={() => router.push('/comenzi')}
                       />

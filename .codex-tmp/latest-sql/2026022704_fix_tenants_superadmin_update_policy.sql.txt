@@ -1,0 +1,31 @@
+    1: -- Ensure superadmin can update tenant plan through RLS on public.tenants.
+    2: -- Idempotent and safe for existing deployments.
+    3: 
+    4: alter table public.tenants enable row level security;
+    5: 
+    6: create or replace function public.is_superadmin(check_user_id uuid default auth.uid())
+    7: returns boolean
+    8: language sql
+    9: stable
+   10: security definer
+   11: set search_path = public
+   12: as $$
+   13:   select exists (
+   14:     select 1
+   15:     from public.profiles p
+   16:     where p.id = check_user_id
+   17:       and coalesce(p.is_superadmin, false) = true
+   18:   );
+   19: $$;
+   20: 
+   21: grant execute on function public.is_superadmin(uuid) to authenticated;
+   22: grant execute on function public.is_superadmin(uuid) to service_role;
+   23: 
+   24: drop policy if exists tenants_superadmin_update on public.tenants;
+   25: create policy tenants_superadmin_update
+   26: on public.tenants
+   27: for update
+   28: using (public.is_superadmin(auth.uid()))
+   29: with check (public.is_superadmin(auth.uid()));
+   30: 
+   31: notify pgrst, 'reload schema';

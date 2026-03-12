@@ -1,0 +1,126 @@
+1	-- Fix compatibility issues for Admin Audit + Admin Analytics
+2	-- Non-destructive: only additive changes and function replacement
+3	
+4	create extension if not exists pgcrypto;
+5	
+6	-- -----------------------------------------------------------------------------
+7	-- 1) Ensure tenant_metrics_daily works with current app + refresh RPC
+8	-- -----------------------------------------------------------------------------
+9	
+10	create table if not exists public.tenant_metrics_daily (
+11	  date date primary key,
+12	  total_tenants integer not null default 0,
+13	  total_parcele integer not null default 0,
+14	  total_recoltari integer not null default 0,
+15	  total_vanzari integer not null default 0,
+16	  total_kg_cal1 numeric not null default 0,
+17	  total_kg_cal2 numeric not null default 0,
+18	  total_revenue_lei numeric not null default 0,
+19	  created_at timestamptz not null default now(),
+20	  updated_at timestamptz not null default now()
+21	);
+22	
+23	alter table public.tenant_metrics_daily
+24	  add column if not exists total_revenue_lei numeric not null default 0,
+25	  add column if not exists updated_at timestamptz not null default now();
+26	
+27	-- Backfill only when a legacy total_revenue column exists
+28	do $$
+29	begin
+30	  if exists (
+31	    select 1
+32	    from information_schema.columns
+33	    where table_schema = 'public'
+34	      and table_name = 'tenant_metrics_daily'
+35	      and column_name = 'total_revenue'
+36	  ) then
+37	    execute '
+38	      update public.tenant_metrics_daily
+39	      set total_revenue_lei = coalesce(total_revenue, 0)
+40	      where coalesce(total_revenue_lei, 0) = 0
+41	        and coalesce(total_revenue, 0) <> 0
+42	    ';
+43	  end if;
+44	end
+45	$$;
+46	
+47	-- Required for ON CONFLICT (date) used by refresh_tenant_metrics_daily
+48	create unique index if not exists tenant_metrics_daily_date_key_idx
+49	  on public.tenant_metrics_daily (date);
+50	
+51	create index if not exists tenant_metrics_daily_date_desc_idx
+52	  on public.tenant_metrics_daily (date desc);
+53	
+54	alter table public.tenant_metrics_daily enable row level security;
+55	
+56	do $$
+57	begin
+58	  if not exists (
+59	    select 1
+60	    from pg_policies
+61	    where schemaname = 'public'
+62	      and tablename = 'tenant_metrics_daily'
+63	      and policyname = 'tenant_metrics_daily_superadmin_select'
+64	  ) then
+65	    create policy tenant_metrics_daily_superadmin_select
+66	      on public.tenant_metrics_daily
+67	      for select
+68	      using (public.is_superadmin());
+69	  end if;
+70	end
+71	$$;
+72	
+73	-- -----------------------------------------------------------------------------
+74	-- 2) Fix admin_list_audit_logs return shape to match app expectations
+75	-- -----------------------------------------------------------------------------
+76	
+77	drop function if exists public.admin_list_audit_logs(integer, integer);
+78	
+79	create function public.admin_list_audit_logs(
+80	  p_limit integer default 50,
+81	  p_offset integer default 0
+82	)
+83	returns table (
+84	  id uuid,
+85	  created_at timestamptz,
+86	  actor_email text,
+87	  tenant_name text,
+88	  old_plan text,
+89	  new_plan text,
+90	  action text
+91	)
+92	language plpgsql
+93	stable
+94	security definer
+95	set search_path = public
+96	as $$
+97	begin
+98	  if not public.is_superadmin(auth.uid()) then
+99	    raise exception 'FORBIDDEN';
+100	  end if;
+101	
+102	  return query
+103	  select
+104	    a.id,
+105	    a.created_at,
+106	    u.email::text as actor_email,
+107	    t.nume_ferma as tenant_name,
+108	    a.old_plan,
+109	    a.new_plan,
+110	    a.action
+111	  from public.audit_logs a
+112	  left join public.tenants t on t.id = a.target_tenant_id
+113	  left join auth.users u on u.id = a.actor_user_id
+114	  order by a.created_at desc
+115	  limit greatest(coalesce(p_limit, 50), 1)
+116	  offset greatest(coalesce(p_offset, 0), 0);
+117	end;
+118	$$;
+119	
+120	grant execute on function public.admin_list_audit_logs(integer, integer) to authenticated;
+121	grant execute on function public.admin_list_audit_logs(integer, integer) to service_role;
+122	
+123	-- -----------------------------------------------------------------------------
+124	-- 3) Reload PostgREST schema cache
+125	-- -----------------------------------------------------------------------------
+126	select pg_notify('pgrst', 'reload schema');

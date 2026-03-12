@@ -153,7 +153,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
+      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3">
           <MiniCard icon="🏗️" value={`${stats.totalInvestit.toFixed(0)} RON`} sub={`${stats.count} investitii`} label="Total" />
           <MiniCard icon="📅" value={`${stats.totalAnulAsta.toFixed(0)} RON`} sub={`RON ${yearNow}`} label="" />

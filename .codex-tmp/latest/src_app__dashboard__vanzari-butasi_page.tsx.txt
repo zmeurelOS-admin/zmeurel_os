@@ -1,0 +1,68 @@
+    1: // src/app/(dashboard)/vanzari-butasi/page.tsx
+    2: 
+    3: import { createClient } from '@/lib/supabase/server'
+    4: import { VanzariButasiPageClient } from './VanzariButasiPageClient'
+    5: import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
+    6: 
+    7: export default async function VanzariButasiPage() {
+    8:   const supabase = await createClient()
+    9: 
+   10:   // RLS handles tenant isolation automatically - no manual auth check needed (middleware handles it)
+   11:   const { data: vanzariButasi } = await supabase
+   12:     .from('vanzari_butasi')
+   13:     .select(`
+   14:       id,
+   15:       id_vanzare_butasi,
+   16:       data,
+   17:       data_comanda,
+   18:       data_livrare_estimata,
+   19:       status,
+   20:       client_id,
+   21:       client_nume_manual,
+   22:       parcela_sursa_id,
+   23:       adresa_livrare,
+   24:       avans_suma,
+   25:       avans_data,
+   26:       total_lei,
+   27:       soi_butasi,
+   28:       cantitate_butasi,
+   29:       pret_unitar_lei,
+   30:       observatii,
+   31:       created_at,
+   32:       updated_at,
+   33:       tenant_id,
+   34:       vanzari_butasi_items (
+   35:         id,
+   36:         tenant_id,
+   37:         comanda_id,
+   38:         soi,
+   39:         cantitate,
+   40:         pret_unitar,
+   41:         subtotal,
+   42:         created_at
+   43:       )
+   44:     `)
+   45:     .order('data_comanda', { ascending: false })
+   46: 
+   47:   const { data: clienti } = await supabase
+   48:     .from('clienti')
+   49:     .select('id, id_client, nume_client, telefon')
+   50: 
+   51:   const { data: parcele } = await supabase
+   52:     .from('parcele')
+   53:     .select('id, id_parcela, nume_parcela')
+   54: 
+   55:   // Type-safe fallback pentru null
+   56:   const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []) as unknown as VanzareButasi[]
+   57:   const safeClienti = clienti ?? []
+   58:   const safeParcele = parcele ?? []
+   59: 
+   60:   return (
+   61:     <VanzariButasiPageClient
+   62:       initialVanzari={safeVanzari}
+   63:       clienti={safeClienti}
+   64:       parcele={safeParcele}
+   65:     />
+   66:   )
+   67: }
+   68: 

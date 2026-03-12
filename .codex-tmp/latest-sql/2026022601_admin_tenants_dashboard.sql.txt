@@ -1,0 +1,160 @@
+    1: -- Admin tenants plan management (superadmin only)
+    2: 
+    3: alter table public.profiles
+    4:   add column if not exists is_superadmin boolean not null default false;
+    5: 
+    6: create or replace function public.is_superadmin(check_user_id uuid default auth.uid())
+    7: returns boolean
+    8: language sql
+    9: stable
+   10: security definer
+   11: set search_path = public
+   12: as $$
+   13:   select exists (
+   14:     select 1
+   15:     from public.profiles p
+   16:     where p.id = check_user_id
+   17:       and coalesce(p.is_superadmin, false) = true
+   18:   );
+   19: $$;
+   20: 
+   21: grant execute on function public.is_superadmin(uuid) to authenticated;
+   22: grant execute on function public.is_superadmin(uuid) to service_role;
+   23: 
+   24: alter table public.tenants
+   25:   add column if not exists plan text not null default 'freemium';
+   26: 
+   27: update public.tenants
+   28: set plan = coalesce(nullif(plan, ''), 'freemium')
+   29: where true;
+   30: 
+   31: do $$
+   32: begin
+   33:   if not exists (
+   34:     select 1
+   35:     from pg_constraint
+   36:     where conname = 'tenants_plan_check'
+   37:       and conrelid = 'public.tenants'::regclass
+   38:   ) then
+   39:     alter table public.tenants
+   40:       add constraint tenants_plan_check
+   41:       check (plan in ('freemium', 'pro', 'enterprise'));
+   42:   end if;
+   43: end $$;
+   44: 
+   45: alter table public.tenants enable row level security;
+   46: 
+   47: drop policy if exists tenants_owner_or_superadmin_select on public.tenants;
+   48: create policy tenants_owner_or_superadmin_select
+   49: on public.tenants
+   50: for select
+   51: using (
+   52:   owner_user_id = auth.uid()
+   53:   or public.is_superadmin()
+   54: );
+   55: 
+   56: drop policy if exists tenants_owner_or_superadmin_insert on public.tenants;
+   57: create policy tenants_owner_or_superadmin_insert
+   58: on public.tenants
+   59: for insert
+   60: with check (
+   61:   owner_user_id = auth.uid()
+   62:   or public.is_superadmin()
+   63: );
+   64: 
+   65: drop policy if exists tenants_superadmin_update on public.tenants;
+   66: create policy tenants_superadmin_update
+   67: on public.tenants
+   68: for update
+   69: using (public.is_superadmin())
+   70: with check (public.is_superadmin());
+   71: 
+   72: drop policy if exists tenants_superadmin_delete on public.tenants;
+   73: create policy tenants_superadmin_delete
+   74: on public.tenants
+   75: for delete
+   76: using (public.is_superadmin());
+   77: 
+   78: create or replace function public.admin_list_tenants()
+   79: returns table (
+   80:   tenant_id uuid,
+   81:   tenant_name text,
+   82:   owner_email text,
+   83:   plan text,
+   84:   created_at timestamptz,
+   85:   parcels_count bigint,
+   86:   users_count bigint
+   87: )
+   88: language plpgsql
+   89: stable
+   90: security definer
+   91: set search_path = public
+   92: as $$
+   93: begin
+   94:   if not public.is_superadmin(auth.uid()) then
+   95:     raise exception 'FORBIDDEN';
+   96:   end if;
+   97: 
+   98:   return query
+   99:   select
+  100:     t.id as tenant_id,
+  101:     t.nume_ferma as tenant_name,
+  102:     u.email::text as owner_email,
+  103:     t.plan,
+  104:     t.created_at,
+  105:     (
+  106:       select count(*)
+  107:       from public.parcele p
+  108:       where p.tenant_id = t.id
+  109:     ) as parcels_count,
+  110:     (
+  111:       select count(*)
+  112:       from auth.users ux
+  113:       where ux.id = t.owner_user_id
+  114:     ) as users_count
+  115:   from public.tenants t
+  116:   left join auth.users u on u.id = t.owner_user_id
+  117:   order by t.created_at desc nulls last;
+  118: end;
+  119: $$;
+  120: 
+  121: grant execute on function public.admin_list_tenants() to authenticated;
+  122: grant execute on function public.admin_list_tenants() to service_role;
+  123: 
+  124: create or replace function public.admin_set_tenant_plan(p_tenant_id uuid, p_plan text)
+  125: returns table (
+  126:   id uuid,
+  127:   plan text,
+  128:   updated_at timestamptz
+  129: )
+  130: language plpgsql
+  131: security definer
+  132: set search_path = public
+  133: as $$
+  134: declare
+  135:   normalized_plan text;
+  136: begin
+  137:   if not public.is_superadmin(auth.uid()) then
+  138:     raise exception 'FORBIDDEN';
+  139:   end if;
+  140: 
+  141:   normalized_plan := lower(trim(p_plan));
+  142: 
+  143:   if normalized_plan not in ('freemium', 'pro', 'enterprise') then
+  144:     raise exception 'INVALID_PLAN';
+  145:   end if;
+  146: 
+  147:   return query
+  148:   update public.tenants t
+  149:   set
+  150:     plan = normalized_plan,
+  151:     updated_at = now()
+  152:   where t.id = p_tenant_id
+  153:   returning t.id, t.plan, t.updated_at;
+  154: end;
+  155: $$;
+  156: 
+  157: grant execute on function public.admin_set_tenant_plan(uuid, text) to authenticated;
+  158: grant execute on function public.admin_set_tenant_plan(uuid, text) to service_role;
+  159: 
+  160: notify pgrst, 'reload schema';

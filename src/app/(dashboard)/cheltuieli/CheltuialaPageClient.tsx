@@ -421,7 +421,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3">
           <div
             onClick={() => setTemporalFilter('luna')}
@@ -469,7 +469,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
           </div>
 
           {topCategories.length === 0 ? (
-            <p style={{ fontSize: 11, color: colors.gray }}>Nu exist? cheltuieli luna curenta.</p>
+            <p style={{ fontSize: 11, color: colors.gray }}>Nu există cheltuieli în luna curentă.</p>
           ) : (
             <div style={{ display: 'grid', gap: spacing.xs }}>
               {topCategories.map((item) => {
@@ -586,7 +586,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
           </>
         ) : null}
         {!isLoading && !isError && filtered.length === 0 ? (
-          <EmptyState icon={<Receipt className="h-16 w-16" />} title="Nicio cheltuială inca" description="Adaugă prima cheltuială pentru a incepe" />
+          <EmptyState icon={<Receipt className="h-16 w-16" />} title="Nicio cheltuială încă" description="Adaugă prima cheltuială pentru a începe" />
         ) : null}
 
         {!isLoading && !isError && filtered.length > 0 ? (

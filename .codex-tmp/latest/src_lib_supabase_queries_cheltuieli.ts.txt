@@ -1,0 +1,314 @@
+    1: // src/lib/supabase/queries/cheltuieli.ts
+    2: import { getSupabase } from '../client';
+    3: 
+    4: export interface Cheltuiala {
+    5:   id: string;
+    6:   id_cheltuiala: string;
+    7:   client_sync_id: string;
+    8:   data: string;
+    9:   categorie: string | null;
+   10:   descriere: string | null;
+   11:   suma_lei: number;
+   12:   furnizor: string | null;
+   13:   document_url: string | null;
+   14:   sync_status: string | null;
+   15:   conflict_flag: boolean | null;
+   16:   created_by: string | null;
+   17:   updated_by: string | null;
+   18:   created_at: string;
+   19:   updated_at: string;
+   20:   tenant_id: string | null;
+   21: }
+   22: 
+   23: export interface CreateCheltuialaInput {
+   24:   client_sync_id?: string;
+   25:   sync_status?: string;
+   26:   data: string;
+   27:   categorie?: string;
+   28:   descriere?: string;
+   29:   suma_lei: number;
+   30:   furnizor?: string;
+   31:   document_url?: string;
+   32: }
+   33: 
+   34: export interface UpdateCheltuialaInput {
+   35:   data?: string;
+   36:   categorie?: string;
+   37:   descriere?: string;
+   38:   suma_lei?: number;
+   39:   furnizor?: string;
+   40:   document_url?: string;
+   41: }
+   42: 
+   43: type SupabaseLikeError = {
+   44:   message?: string;
+   45:   code?: string;
+   46:   details?: string;
+   47:   hint?: string;
+   48: };
+   49: 
+   50: const isMissingColumnError = (error: SupabaseLikeError, column: string) =>
+   51:   error?.code === 'PGRST204' || error?.message?.includes(`'${column}'`);
+   52: 
+   53: const isSchemaCacheMismatch = (error: unknown) => {
+   54:   const e = (error ?? {}) as SupabaseLikeError;
+   55:   const message = (e.message ?? '').toLowerCase();
+   56:   return (
+   57:     e?.code === 'PGRST204' ||
+   58:     e?.code === '42703' ||
+   59:     isMissingColumnError(e, 'client_sync_id') ||
+   60:     message.includes('schema cache') ||
+   61:     message.includes('could not find the') ||
+   62:     message.includes('client_sync_id')
+   63:   );
+   64: };
+   65: 
+   66: const shouldFallbackToLegacyInsert = (error: unknown) => {
+   67:   const e = (error ?? {}) as SupabaseLikeError;
+   68:   const message = (e.message ?? '').toLowerCase();
+   69:   const code = e.code ?? '';
+   70: 
+   71:   return (
+   72:     code === 'PGRST204' ||
+   73:     code === '42703' ||
+   74:     code === '42P10' ||
+   75:     isMissingColumnError(e, 'client_sync_id') ||
+   76:     isMissingColumnError(e, 'sync_status') ||
+   77:     isMissingColumnError(e, 'created_by') ||
+   78:     isMissingColumnError(e, 'updated_by') ||
+   79:     message.includes('schema cache') ||
+   80:     message.includes('on conflict')
+   81:   );
+   82: };
+   83: 
+   84: const shouldFallbackToLegacySelect = (error: unknown) => {
+   85:   const e = (error ?? {}) as SupabaseLikeError;
+   86:   const message = (e.message ?? '').toLowerCase();
+   87:   const code = e.code ?? '';
+   88: 
+   89:   return (
+   90:     code === 'PGRST204' ||
+   91:     code === '42703' ||
+   92:     isMissingColumnError(e, 'client_sync_id') ||
+   93:     isMissingColumnError(e, 'sync_status') ||
+   94:     isMissingColumnError(e, 'created_by') ||
+   95:     isMissingColumnError(e, 'updated_by') ||
+   96:     message.includes('schema cache') ||
+   97:     message.includes('could not find the')
+   98:   );
+   99: };
+  100: 
+  101: const toReadableError = (error: unknown, fallbackMessage: string) => {
+  102:   const e = (error ?? {}) as SupabaseLikeError;
+  103:   const message = e?.message || e?.details || e?.hint || fallbackMessage;
+  104:   return Object.assign(new Error(message), {
+  105:     code: e?.code,
+  106:     details: e?.details,
+  107:     hint: e?.hint,
+  108:     isSchemaCacheError: isSchemaCacheMismatch(error),
+  109:   });
+  110: };
+  111: 
+  112: function normalizeCheltuialaRow(row: Record<string, unknown>): Cheltuiala {
+  113:   return {
+  114:     id: String(row.id ?? ''),
+  115:     id_cheltuiala: String(row.id_cheltuiala ?? ''),
+  116:     client_sync_id: String(row.client_sync_id ?? row.id ?? crypto.randomUUID()),
+  117:     data: String(row.data ?? ''),
+  118:     categorie: (row.categorie as string | null) ?? null,
+  119:     descriere: (row.descriere as string | null) ?? null,
+  120:     suma_lei: Number(row.suma_lei ?? 0),
+  121:     furnizor: (row.furnizor as string | null) ?? null,
+  122:     document_url: (row.document_url as string | null) ?? null,
+  123:     sync_status: (row.sync_status as string | null) ?? null,
+  124:     conflict_flag: (row.conflict_flag as boolean | null) ?? null,
+  125:     created_by: (row.created_by as string | null) ?? null,
+  126:     updated_by: (row.updated_by as string | null) ?? null,
+  127:     created_at: String(row.created_at ?? ''),
+  128:     updated_at: String(row.updated_at ?? ''),
+  129:     tenant_id: (row.tenant_id as string | null) ?? null,
+  130:   };
+  131: }
+  132: 
+  133: async function generateNextId(): Promise<string> {
+  134:   const supabase = getSupabase();
+  135: 
+  136:   const { data, error } = await supabase
+  137:     .from('cheltuieli_diverse')
+  138:     .select('id_cheltuiala')
+  139:     .order('created_at', { ascending: false })
+  140:     .limit(1);
+  141: 
+  142:   if (error) {
+  143:     console.error('Error fetching last cheltuiala ID:', error);
+  144:     return 'CH001';
+  145:   }
+  146: 
+  147:   if (!data || data.length === 0) {
+  148:     return 'CH001';
+  149:   }
+  150: 
+  151:   const lastId = data[0].id_cheltuiala;
+  152:   const numericPart = parseInt(lastId.replace('CH', ''), 10);
+  153: 
+  154:   if (isNaN(numericPart)) {
+  155:     console.error('Invalid ID format:', lastId);
+  156:     return 'CH001';
+  157:   }
+  158: 
+  159:   const nextNumber = numericPart + 1;
+  160:   return `CH${nextNumber.toString().padStart(3, '0')}`;
+  161: }
+  162: 
+  163: export async function getCheltuieli(): Promise<Cheltuiala[]> {
+  164:   const supabase = getSupabase();
+  165: 
+  166:   const { data, error } = await supabase
+  167:     .from('cheltuieli_diverse')
+  168:     .select('id,id_cheltuiala,client_sync_id,data,categorie,descriere,suma_lei,furnizor,document_url,sync_status,conflict_flag,created_by,updated_by,created_at,updated_at,tenant_id')
+  169:     .order('data', { ascending: false });
+  170: 
+  171:   if (!error) {
+  172:     return ((data ?? []) as unknown as Record<string, unknown>[]).map(normalizeCheltuialaRow);
+  173:   }
+  174: 
+  175:   if (shouldFallbackToLegacySelect(error)) {
+  176:     const { data: legacyData, error: legacyError } = await supabase
+  177:       .from('cheltuieli_diverse')
+  178:       .select('id,id_cheltuiala,data,categorie,descriere,suma_lei,furnizor,document_url,created_at,updated_at,tenant_id')
+  179:       .order('data', { ascending: false });
+  180: 
+  181:     if (legacyError) {
+  182:       console.error('Error fetching cheltuieli (legacy fallback):', {
+  183:         message: legacyError.message,
+  184:         code: legacyError.code,
+  185:         details: legacyError.details,
+  186:         hint: legacyError.hint,
+  187:       });
+  188:       throw toReadableError(legacyError, 'Nu am putut incarca cheltuielile.');
+  189:     }
+  190: 
+  191:     return ((legacyData ?? []) as unknown as Record<string, unknown>[]).map(normalizeCheltuialaRow);
+  192:   }
+  193: 
+  194:   console.error('Error fetching cheltuieli:', {
+  195:     message: error.message,
+  196:     code: error.code,
+  197:     details: error.details,
+  198:     hint: error.hint,
+  199:   });
+  200:   throw toReadableError(error, 'Nu am putut incarca cheltuielile.');
+  201: }
+  202: 
+  203: export async function createCheltuiala(
+  204:   input: CreateCheltuialaInput
+  205: ): Promise<Cheltuiala> {
+  206:   const supabase = getSupabase();
+  207:   const nextId = await generateNextId();
+  208:   const {
+  209:     data: { user },
+  210:   } = await supabase.auth.getUser();
+  211: 
+  212:   const { data, error } = await supabase
+  213:     .from('cheltuieli_diverse')
+  214:     .upsert(
+  215:       {
+  216:         client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
+  217:         id_cheltuiala: nextId,
+  218:         data: input.data,
+  219:         categorie: input.categorie || null,
+  220:         descriere: input.descriere || null,
+  221:         suma_lei: input.suma_lei,
+  222:         furnizor: input.furnizor || null,
+  223:         document_url: input.document_url || null,
+  224:         sync_status: input.sync_status ?? 'synced',
+  225:         created_by: user?.id ?? null,
+  226:         updated_by: user?.id ?? null,
+  227:       },
+  228:       { onConflict: 'client_sync_id' }
+  229:     )
+  230:     .select()
+  231:     .single();
+  232: 
+  233:   if (!error) {
+  234:     return data as unknown as Cheltuiala;
+  235:   }
+  236: 
+  237:   if (shouldFallbackToLegacyInsert(error)) {
+  238:     const payloadLegacy = {
+  239:       id_cheltuiala: nextId,
+  240:       data: input.data,
+  241:       categorie: input.categorie || null,
+  242:       descriere: input.descriere || null,
+  243:       suma_lei: input.suma_lei,
+  244:       furnizor: input.furnizor || null,
+  245:       document_url: input.document_url || null,
+  246:     };
+  247: 
+  248:     const { data: fallbackData, error: fallbackError } = await supabase
+  249:       .from('cheltuieli_diverse')
+  250:       .insert(payloadLegacy)
+  251:       .select()
+  252:       .single();
+  253: 
+  254:     if (fallbackError) {
+  255:       console.error('Error creating cheltuiala (fallback):', {
+  256:         message: fallbackError.message,
+  257:         code: fallbackError.code,
+  258:         details: fallbackError.details,
+  259:         hint: fallbackError.hint,
+  260:       });
+  261:       throw toReadableError(fallbackError, 'Nu am putut salva cheltuiala.');
+  262:     }
+  263: 
+  264:     return fallbackData as unknown as Cheltuiala;
+  265:   }
+  266: 
+  267:   console.error('Error creating cheltuiala:', {
+  268:     message: error.message,
+  269:     code: error.code,
+  270:     details: error.details,
+  271:     hint: error.hint,
+  272:   });
+  273:   throw toReadableError(error, 'Nu am putut salva cheltuiala.');
+  274: }
+  275: 
+  276: export async function updateCheltuiala(
+  277:   id: string,
+  278:   input: UpdateCheltuialaInput
+  279: ): Promise<Cheltuiala> {
+  280:   const supabase = getSupabase();
+  281: 
+  282:   const { data, error } = await supabase
+  283:     .from('cheltuieli_diverse')
+  284:     .update({
+  285:       ...input,
+  286:       updated_at: new Date().toISOString(),
+  287:     })
+  288:     .eq('id', id)
+  289:     .select()
+  290:     .single();
+  291: 
+  292:   if (error) {
+  293:     console.error('Error updating cheltuiala:', error);
+  294:     throw error;
+  295:   }
+  296: 
+  297:   return data as unknown as Cheltuiala;
+  298: }
+  299: 
+  300: export async function deleteCheltuiala(id: string): Promise<void> {
+  301:   const supabase = getSupabase();
+  302: 
+  303:   const { error } = await supabase
+  304:     .from('cheltuieli_diverse')
+  305:     .delete()
+  306:     .eq('id', id);
+  307: 
+  308:   if (error) {
+  309:     console.error('Error deleting cheltuiala:', error);
+  310:     throw error;
+  311:   }
+  312: }
+  313: 
+  314: 

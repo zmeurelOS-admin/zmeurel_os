@@ -1,0 +1,200 @@
+1	create extension if not exists pgcrypto;
+2	
+3	-- ===============================
+4	-- Schema updates
+5	-- ===============================
+6	
+7	alter table public.recoltari
+8	  add column if not exists client_sync_id uuid,
+9	  add column if not exists sync_status text default 'synced',
+10	  add column if not exists created_by uuid,
+11	  add column if not exists updated_by uuid,
+12	  add column if not exists updated_at timestamptz default now();
+13	
+14	alter table public.vanzari
+15	  add column if not exists client_sync_id uuid,
+16	  add column if not exists sync_status text default 'synced',
+17	  add column if not exists created_by uuid,
+18	  add column if not exists updated_by uuid,
+19	  add column if not exists updated_at timestamptz default now();
+20	
+21	alter table public.activitati_agricole
+22	  add column if not exists client_sync_id uuid,
+23	  add column if not exists sync_status text default 'synced',
+24	  add column if not exists created_by uuid,
+25	  add column if not exists updated_by uuid,
+26	  add column if not exists updated_at timestamptz default now();
+27	
+28	alter table public.cheltuieli_diverse
+29	  add column if not exists client_sync_id uuid,
+30	  add column if not exists sync_status text default 'synced',
+31	  add column if not exists created_by uuid,
+32	  add column if not exists updated_by uuid,
+33	  add column if not exists updated_at timestamptz default now();
+34	
+35	update public.recoltari set client_sync_id = gen_random_uuid() where client_sync_id is null;
+36	update public.vanzari set client_sync_id = gen_random_uuid() where client_sync_id is null;
+37	update public.activitati_agricole set client_sync_id = gen_random_uuid() where client_sync_id is null;
+38	update public.cheltuieli_diverse set client_sync_id = gen_random_uuid() where client_sync_id is null;
+39	
+40	alter table public.recoltari alter column client_sync_id set not null;
+41	alter table public.vanzari alter column client_sync_id set not null;
+42	alter table public.activitati_agricole alter column client_sync_id set not null;
+43	alter table public.cheltuieli_diverse alter column client_sync_id set not null;
+44	
+45	create unique index if not exists recoltari_client_sync_id_uq on public.recoltari (client_sync_id);
+46	create unique index if not exists vanzari_client_sync_id_uq on public.vanzari (client_sync_id);
+47	create unique index if not exists activitati_agricole_client_sync_id_uq on public.activitati_agricole (client_sync_id);
+48	create unique index if not exists cheltuieli_diverse_client_sync_id_uq on public.cheltuieli_diverse (client_sync_id);
+49	
+50	-- ===============================
+51	-- Audit + sync safety trigger
+52	-- ===============================
+53	
+54	create or replace function public.set_sync_audit_fields()
+55	returns trigger
+56	language plpgsql
+57	security definer
+58	as $$
+59	begin
+60	  if new.client_sync_id is null then
+61	    new.client_sync_id := gen_random_uuid();
+62	  end if;
+63	
+64	  if new.sync_status is null then
+65	    new.sync_status := 'synced';
+66	  end if;
+67	
+68	  if tg_op = 'INSERT' then
+69	    if new.created_by is null then
+70	      new.created_by := auth.uid();
+71	    end if;
+72	    if new.updated_by is null then
+73	      new.updated_by := coalesce(auth.uid(), new.created_by);
+74	    end if;
+75	  else
+76	    new.updated_by := coalesce(auth.uid(), new.updated_by);
+77	  end if;
+78	
+79	  new.updated_at := now();
+80	  return new;
+81	end;
+82	$$;
+83	
+84	drop trigger if exists recoltari_set_sync_audit_fields on public.recoltari;
+85	create trigger recoltari_set_sync_audit_fields
+86	before insert or update on public.recoltari
+87	for each row execute function public.set_sync_audit_fields();
+88	
+89	drop trigger if exists vanzari_set_sync_audit_fields on public.vanzari;
+90	create trigger vanzari_set_sync_audit_fields
+91	before insert or update on public.vanzari
+92	for each row execute function public.set_sync_audit_fields();
+93	
+94	drop trigger if exists activitati_agricole_set_sync_audit_fields on public.activitati_agricole;
+95	create trigger activitati_agricole_set_sync_audit_fields
+96	before insert or update on public.activitati_agricole
+97	for each row execute function public.set_sync_audit_fields();
+98	
+99	drop trigger if exists cheltuieli_diverse_set_sync_audit_fields on public.cheltuieli_diverse;
+100	create trigger cheltuieli_diverse_set_sync_audit_fields
+101	before insert or update on public.cheltuieli_diverse
+102	for each row execute function public.set_sync_audit_fields();
+103	
+104	-- ===============================
+105	-- RLS policies
+106	-- ===============================
+107	
+108	alter table public.recoltari enable row level security;
+109	alter table public.vanzari enable row level security;
+110	alter table public.activitati_agricole enable row level security;
+111	alter table public.cheltuieli_diverse enable row level security;
+112	
+113	drop policy if exists recoltari_owner_update on public.recoltari;
+114	create policy recoltari_owner_update
+115	on public.recoltari
+116	for update
+117	using (
+118	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+119	  and coalesce(created_by, auth.uid()) = auth.uid()
+120	)
+121	with check (
+122	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+123	  and coalesce(created_by, auth.uid()) = auth.uid()
+124	);
+125	
+126	drop policy if exists vanzari_owner_update on public.vanzari;
+127	create policy vanzari_owner_update
+128	on public.vanzari
+129	for update
+130	using (
+131	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+132	  and coalesce(created_by, auth.uid()) = auth.uid()
+133	)
+134	with check (
+135	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+136	  and coalesce(created_by, auth.uid()) = auth.uid()
+137	);
+138	
+139	drop policy if exists activitati_agricole_owner_update on public.activitati_agricole;
+140	create policy activitati_agricole_owner_update
+141	on public.activitati_agricole
+142	for update
+143	using (
+144	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+145	  and coalesce(created_by, auth.uid()) = auth.uid()
+146	)
+147	with check (
+148	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+149	  and coalesce(created_by, auth.uid()) = auth.uid()
+150	);
+151	
+152	drop policy if exists cheltuieli_diverse_owner_update on public.cheltuieli_diverse;
+153	create policy cheltuieli_diverse_owner_update
+154	on public.cheltuieli_diverse
+155	for update
+156	using (
+157	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+158	  and coalesce(created_by, auth.uid()) = auth.uid()
+159	)
+160	with check (
+161	  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())
+162	  and coalesce(created_by, auth.uid()) = auth.uid()
+163	);
+164	
+165	-- ===============================
+166	-- Generic idempotent upsert helper
+167	-- ===============================
+168	
+169	create or replace function public.upsert_with_idempotency(table_name text, payload jsonb)
+170	returns jsonb
+171	language plpgsql
+172	security definer
+173	as $$
+174	declare
+175	  result jsonb;
+176	begin
+177	  if table_name not in ('recoltari', 'vanzari', 'activitati_agricole', 'cheltuieli_diverse') then
+178	    raise exception 'Unsupported table: %', table_name;
+179	  end if;
+180	
+181	  execute format(
+182	    'with upserted as (
+183	      insert into public.%1$I as t
+184	      select * from jsonb_populate_record(null::public.%1$I, $1)
+185	      on conflict (client_sync_id)
+186	      do update
+187	      set sync_status = coalesce(excluded.sync_status, t.sync_status),
+188	          updated_by = coalesce(excluded.updated_by, auth.uid(), t.updated_by),
+189	          updated_at = now()
+190	      returning t.*
+191	    )
+192	    select to_jsonb(upserted) from upserted',
+193	    table_name
+194	  )
+195	  into result
+196	  using payload;
+197	
+198	  return result;
+199	end;
+200	$$;

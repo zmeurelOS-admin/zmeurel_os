@@ -1,0 +1,267 @@
+﻿   1: // src/lib/supabase/queries/activitati-agricole.ts
+   2: import { getSupabase } from '../client'
+   3: 
+   4: export const TIPURI_ACTIVITATI = [
+   5:   'Tratament Fungicid',
+   6:   'Tratament Insecticid',
+   7:   'Tratament Erbicid',
+   8:   'Fertilizare Organica',
+   9:   'Fertilizare Chimica',
+  10:   'Fertilizare Foliara',
+  11:   'Irigare',
+  12:   'Tundere/Curatare',
+  13:   'Altele',
+  14: ] as const
+  15: 
+  16: export interface ActivitateAgricola {
+  17:   id: string
+  18:   id_activitate: string
+  19:   client_sync_id: string
+  20:   data_aplicare: string
+  21:   parcela_id: string | null
+  22:   tip_activitate: string | null
+  23:   produs_utilizat: string | null
+  24:   doza: string | null
+  25:   timp_pauza_zile: number
+  26:   operator: string | null
+  27:   observatii: string | null
+  28:   sync_status: string | null
+  29:   conflict_flag: boolean | null
+  30:   created_by: string | null
+  31:   updated_by: string | null
+  32:   created_at: string
+  33:   updated_at: string
+  34:   tenant_id: string | null
+  35: }
+  36: 
+  37: export interface CreateActivitateAgricolaInput {
+  38:   client_sync_id?: string
+  39:   sync_status?: string
+  40:   data_aplicare: string
+  41:   parcela_id?: string
+  42:   tip_activitate?: string
+  43:   produs_utilizat?: string
+  44:   doza?: string
+  45:   timp_pauza_zile?: number
+  46:   operator?: string
+  47:   observatii?: string
+  48: }
+  49: 
+  50: export interface UpdateActivitateAgricolaInput {
+  51:   data_aplicare?: string
+  52:   parcela_id?: string
+  53:   tip_activitate?: string
+  54:   produs_utilizat?: string
+  55:   doza?: string
+  56:   timp_pauza_zile?: number
+  57:   operator?: string
+  58:   observatii?: string
+  59: }
+  60: 
+  61: type SupabaseLikeError = {
+  62:   message?: string
+  63:   code?: string
+  64:   details?: string
+  65:   hint?: string
+  66:   status?: number
+  67: }
+  68: 
+  69: const isMissingColumnError = (error: SupabaseLikeError, column: string) =>
+  70:   error?.code === 'PGRST204' || error?.message?.includes(`'${column}'`)
+  71: 
+  72: const toError = (error: SupabaseLikeError): Error & SupabaseLikeError => {
+  73:   const message = error?.message || error?.details || 'Eroare necunoscuta la salvare activitate'
+  74:   return Object.assign(new Error(message), {
+  75:     code: error?.code,
+  76:     details: error?.details,
+  77:     hint: error?.hint,
+  78:     status: error?.status,
+  79:   })
+  80: }
+  81: 
+  82: async function generateNextId(): Promise<string> {
+  83:   const supabase = getSupabase()
+  84: 
+  85:   const { data, error } = await supabase
+  86:     .from('activitati_agricole')
+  87:     .select('id_activitate')
+  88:     .like('id_activitate', 'AA%')
+  89:     .order('id_activitate', { ascending: false })
+  90:     .limit(1)
+  91: 
+  92:   if (error) throw error
+  93: 
+  94:   if (!data || data.length === 0 || !data[0]?.id_activitate) {
+  95:     return 'AA001'
+  96:   }
+  97: 
+  98:   const lastId = data[0].id_activitate
+  99:   const numericPart = parseInt(lastId.replace('AA', ''), 10)
+ 100: 
+ 101:   if (Number.isNaN(numericPart)) {
+ 102:     return 'AA001'
+ 103:   }
+ 104: 
+ 105:   const nextNumber = numericPart + 1
+ 106:   return `AA${nextNumber.toString().padStart(3, '0')}`
+ 107: }
+ 108: 
+ 109: export async function getActivitatiAgricole(): Promise<ActivitateAgricola[]> {
+ 110:   const supabase = getSupabase()
+ 111: 
+ 112:   const { data, error } = await supabase
+ 113:     .from('activitati_agricole')
+ 114:     .select('id,id_activitate,data_aplicare,parcela_id,tip_activitate,produs_utilizat,doza,timp_pauza_zile,operator,observatii,created_at,updated_at,tenant_id')
+ 115:     .order('data_aplicare', { ascending: false })
+ 116:     .order('created_at', { ascending: false })
+ 117: 
+ 118:   if (error) {
+ 119:     console.error('Error fetching activitati:', error)
+ 120:     throw error
+ 121:   }
+ 122: 
+ 123:   return (data ?? []) as unknown as ActivitateAgricola[]
+ 124: }
+ 125: 
+ 126: export async function createActivitateAgricola(
+ 127:   input: CreateActivitateAgricolaInput
+ 128: ): Promise<ActivitateAgricola> {
+ 129:   const supabase = getSupabase()
+ 130:   const nextId = await generateNextId()
+ 131:   const {
+ 132:     data: { user },
+ 133:   } = await supabase.auth.getUser()
+ 134: 
+ 135:   const fullPayload = {
+ 136:     client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
+ 137:     id_activitate: nextId,
+ 138:     data_aplicare: input.data_aplicare,
+ 139:     parcela_id: input.parcela_id ?? null,
+ 140:     tip_activitate: input.tip_activitate ?? null,
+ 141:     produs_utilizat: input.produs_utilizat ?? null,
+ 142:     doza: input.doza ?? null,
+ 143:     timp_pauza_zile: input.timp_pauza_zile ?? 0,
+ 144:     operator: input.operator ?? null,
+ 145:     observatii: input.observatii ?? null,
+ 146:     sync_status: input.sync_status ?? 'synced',
+ 147:     created_by: user?.id ?? null,
+ 148:     updated_by: user?.id ?? null,
+ 149:   }
+ 150: 
+ 151:   const { data, error } = await supabase
+ 152:     .from('activitati_agricole')
+ 153:     .upsert(fullPayload, { onConflict: 'client_sync_id' })
+ 154:     .select()
+ 155:     .single()
+ 156: 
+ 157:   if (error) {
+ 158:     const maybeError = error as SupabaseLikeError
+ 159:     const missingSyncColumns =
+ 160:       isMissingColumnError(maybeError, 'client_sync_id') ||
+ 161:       isMissingColumnError(maybeError, 'sync_status') ||
+ 162:       isMissingColumnError(maybeError, 'created_by') ||
+ 163:       isMissingColumnError(maybeError, 'updated_by')
+ 164: 
+ 165:     if (missingSyncColumns) {
+ 166:       // Fallback for environments where idempotency/audit migrations are not applied yet.
+ 167:       const { data: fallbackData, error: fallbackError } = await supabase
+ 168:         .from('activitati_agricole')
+ 169:         .insert({
+ 170:           id_activitate: nextId,
+ 171:           data_aplicare: input.data_aplicare,
+ 172:           parcela_id: input.parcela_id ?? null,
+ 173:           tip_activitate: input.tip_activitate ?? null,
+ 174:           produs_utilizat: input.produs_utilizat ?? null,
+ 175:           doza: input.doza ?? null,
+ 176:           timp_pauza_zile: input.timp_pauza_zile ?? 0,
+ 177:           operator: input.operator ?? null,
+ 178:           observatii: input.observatii ?? null,
+ 179:         })
+ 180:         .select()
+ 181:         .single()
+ 182: 
+ 183:       if (fallbackError) {
+ 184:         console.error('Error creating activitate (fallback):', {
+ 185:           message: fallbackError.message,
+ 186:           code: fallbackError.code,
+ 187:           details: fallbackError.details,
+ 188:           hint: fallbackError.hint,
+ 189:         })
+ 190:         throw toError(fallbackError)
+ 191:       }
+ 192: 
+ 193:       return fallbackData as unknown as ActivitateAgricola
+ 194:     }
+ 195: 
+ 196:     console.error('Error creating activitate:', {
+ 197:       message: maybeError?.message,
+ 198:       code: maybeError?.code,
+ 199:       details: maybeError?.details,
+ 200:       hint: maybeError?.hint,
+ 201:       status: maybeError?.status,
+ 202:     })
+ 203:     throw toError(maybeError)
+ 204:   }
+ 205: 
+ 206:   return data as unknown as ActivitateAgricola
+ 207: }
+ 208: 
+ 209: export async function updateActivitateAgricola(
+ 210:   id: string,
+ 211:   input: UpdateActivitateAgricolaInput
+ 212: ): Promise<ActivitateAgricola> {
+ 213:   const supabase = getSupabase()
+ 214: 
+ 215:   const { data, error } = await supabase
+ 216:     .from('activitati_agricole')
+ 217:     .update({
+ 218:       ...input,
+ 219:       updated_at: new Date().toISOString(),
+ 220:     })
+ 221:     .eq('id', id)
+ 222:     .select()
+ 223:     .single()
+ 224: 
+ 225:   if (error) {
+ 226:     console.error('Error updating activitate:', error)
+ 227:     throw error
+ 228:   }
+ 229: 
+ 230:   return data as unknown as ActivitateAgricola
+ 231: }
+ 232: 
+ 233: export async function deleteActivitateAgricola(id: string): Promise<void> {
+ 234:   const supabase = getSupabase()
+ 235: 
+ 236:   const { error } = await supabase
+ 237:     .from('activitati_agricole')
+ 238:     .delete()
+ 239:     .eq('id', id)
+ 240: 
+ 241:   if (error) {
+ 242:     console.error('Error deleting activitate:', error)
+ 243:     throw error
+ 244:   }
+ 245: }
+ 246: 
+ 247: export function calculatePauseStatus(
+ 248:   dataAplicare: string,
+ 249:   timpPauzaZile: number
+ 250: ): {
+ 251:   dataRecoltarePermisa: string
+ 252:   status: 'OK' | 'Pauza'
+ 253: } {
+ 254:   const aplicareDate = new Date(dataAplicare)
+ 255:   const recoltareDate = new Date(aplicareDate)
+ 256:   recoltareDate.setDate(recoltareDate.getDate() + timpPauzaZile)
+ 257: 
+ 258:   const today = new Date()
+ 259:   today.setHours(0, 0, 0, 0)
+ 260: 
+ 261:   return {
+ 262:     dataRecoltarePermisa: recoltareDate.toISOString().split('T')[0],
+ 263:     status: today >= recoltareDate ? 'OK' : 'Pauza',
+ 264:   }
+ 265: }
+ 266: 
+ 267: 

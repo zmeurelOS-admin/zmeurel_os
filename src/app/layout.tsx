@@ -14,7 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Zmeurel',
-  description: 'Aplicatie agricola pentru management de teren, producție ți vânzări.',
+  description: 'Aplicație agricolă pentru management de teren, producție și vânzări.',
   manifest: '/manifest.webmanifest',
   applicationName: 'Zmeurel',
   formatDetection: {
@@ -37,7 +37,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro">
+    <html lang="ro" data-scroll-behavior="smooth">
       <head>
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#166534" />
@@ -56,4 +56,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   )
 }
-

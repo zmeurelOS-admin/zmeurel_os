@@ -1,0 +1,496 @@
+﻿   1: 'use client'
+   2: 
+   3: import { useEffect, useMemo, useRef, useState } from 'react'
+   4: import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   5: import { Leaf } from 'lucide-react'
+   6: import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+   7: import { toast } from '@/lib/ui/toast'
+   8: 
+   9: import { AppShell } from '@/components/app/AppShell'
+  10: import { EmptyState } from '@/components/ui/EmptyState'
+  11: import { ErrorState } from '@/components/app/ErrorState'
+  12: import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton'
+  13: import { PageHeader } from '@/components/app/PageHeader'
+  14: import { StickyActionBar } from '@/components/app/StickyActionBar'
+  15: import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+  16: import { AddRecoltareDialog } from '@/components/recoltari/AddRecoltareDialog'
+  17: import { EditRecoltareDialog } from '@/components/recoltari/EditRecoltareDialog'
+  18: import { RecoltareCard } from '@/components/recoltari/RecoltareCard'
+  19: import { ViewRecoltareDialog } from '@/components/recoltari/ViewRecoltareDialog'
+  20: import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
+  21: import { Input } from '@/components/ui/input'
+  22: import { DashboardCard, DashboardGrid, Sparkline, StatRow } from '@/components/dashboard'
+  23: import { track } from '@/lib/analytics/track'
+  24: import { trackEvent } from '@/lib/analytics/trackEvent'
+  25: import { getCulegatori } from '@/lib/supabase/queries/culegatori'
+  26: import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
+  27: import {
+  28:   deleteRecoltare,
+  29:   getRecoltari,
+  30:   type Recoltare,
+  31: } from '@/lib/supabase/queries/recoltari'
+  32: import { buildRecoltareDeleteLabel } from '@/lib/ui/delete-labels'
+  33: import { useAddAction } from '@/contexts/AddActionContext'
+  34: 
+  35: interface RecoltariPageClientProps {
+  36:   initialRecoltari?: Recoltare[]
+  37:   parcele?: Parcela[]
+  38:   initialError?: string | null
+  39: }
+  40: 
+  41: function formatKg(value: number): string {
+  42:   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(value)} kg`
+  43: }
+  44: 
+  45: function toDateOnly(value: string | null | undefined): string {
+  46:   return (value ?? '').slice(0, 10)
+  47: }
+  48: 
+  49: function toIsoDate(value: Date): string {
+  50:   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+  51: }
+  52: 
+  53: function getStartOfWeek(value: Date): Date {
+  54:   const date = new Date(value)
+  55:   date.setHours(0, 0, 0, 0)
+  56:   const weekday = date.getDay()
+  57:   const shift = weekday === 0 ? 6 : weekday - 1
+  58:   date.setDate(date.getDate() - shift)
+  59:   return date
+  60: }
+  61: 
+  62: export function RecoltariPageClient({
+  63:   initialRecoltari = [],
+  64:   parcele: initialParcele = [],
+  65:   initialError = null,
+  66: }: RecoltariPageClientProps) {
+  67:   const queryClient = useQueryClient()
+  68:   const { registerAddAction } = useAddAction()
+  69:   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  70:   const pendingDeletedItems = useRef<Record<string, { item: Recoltare; index: number }>>({})
+  71: 
+  72:   const [searchTerm, setSearchTerm] = useState('')
+  73:   const [addOpen, setAddOpen] = useState(false)
+  74:   const [viewingRecoltare, setViewingRecoltare] = useState<Recoltare | null>(null)
+  75:   const [editingRecoltare, setEditingRecoltare] = useState<Recoltare | null>(null)
+  76:   const [deletingRecoltare, setDeletingRecoltare] = useState<Recoltare | null>(null)
+  77:   const pathname = usePathname()
+  78:   const router = useRouter()
+  79:   const searchParams = useSearchParams()
+  80: 
+  81:   const {
+  82:     data: recoltari = [],
+  83:     isLoading,
+  84:     isError,
+  85:     error,
+  86:   } = useQuery({
+  87:     queryKey: ['recoltari'],
+  88:     queryFn: getRecoltari,
+  89:     enabled: !initialError,
+  90:     staleTime: 30000,
+  91:     refetchOnWindowFocus: false,
+  92:   })
+  93: 
+  94:   const { data: parcele = initialParcele } = useQuery({
+  95:     queryKey: ['parcele'],
+  96:     queryFn: getParcele,
+  97:     initialData: initialParcele,
+  98:     staleTime: 30000,
+  99:     refetchOnWindowFocus: false,
+ 100:   })
+ 101:   const { data: culegatori = [] } = useQuery({
+ 102:     queryKey: ['culegatori'],
+ 103:     queryFn: getCulegatori,
+ 104:     staleTime: 30000,
+ 105:     refetchOnWindowFocus: false,
+ 106:   })
+ 107: 
+ 108:   useMobileScrollRestore({
+ 109:     storageKey: 'scroll:recoltari',
+ 110:     ready: !isLoading,
+ 111:   })
+ 112: 
+ 113:   const deleteMutation = useMutation({
+ 114:     mutationFn: deleteRecoltare,
+ 115:     onSuccess: (_, deletedId) => {
+ 116:       queryClient.invalidateQueries({ queryKey: ['recoltari'], exact: true })
+ 117:       queryClient.invalidateQueries({ queryKey: ['stoc-global'], exact: true })
+ 118:       queryClient.invalidateQueries({ queryKey: ['dashboard'], exact: true })
+ 119:       trackEvent('delete_item', 'recoltari')
+ 120:       track('recoltare_delete', { id: deletedId })
+ 121:       toast.success('Recoltare Č™tearsÄ')
+ 122:       setDeletingRecoltare(null)
+ 123:     },
+ 124:     onError: (err: Error) => {
+ 125:       toast.error(err.message)
+ 126:     },
+ 127:   })
+ 128: 
+ 129:   useEffect(() => {
+ 130:     return () => {
+ 131:       Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+ 132:     }
+ 133:   }, [])
+ 134: 
+ 135:   useEffect(() => {
+ 136:     if (searchParams.get('add') !== '1') return
+ 137: 
+ 138:     setAddOpen(true)
+ 139:     const nextParams = new URLSearchParams(searchParams.toString())
+ 140:     nextParams.delete('add')
+ 141:     const query = nextParams.toString()
+ 142:     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+ 143:   }, [pathname, router, searchParams])
+ 144: 
+ 145:   useEffect(() => {
+ 146:     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga recoltare')
+ 147:     return unregister
+ 148:   }, [registerAddAction])
+ 149: 
+ 150:   useEffect(() => {
+ 151:     const query = searchTerm.trim()
+ 152:     if (!query) return
+ 153: 
+ 154:     const timer = setTimeout(() => {
+ 155:       track('search', { module: 'recoltari', query })
+ 156:     }, 500)
+ 157: 
+ 158:     return () => clearTimeout(timer)
+ 159:   }, [searchTerm])
+ 160: 
+ 161:   const scheduleDelete = (recoltare: Recoltare) => {
+ 162:     const recoltareId = recoltare.id
+ 163:     const currentItems = queryClient.getQueryData<Recoltare[]>(['recoltari']) ?? []
+ 164:     const deleteIndex = currentItems.findIndex((item) => item.id === recoltareId)
+ 165: 
+ 166:     pendingDeletedItems.current[recoltareId] = { item: recoltare, index: deleteIndex }
+ 167:     queryClient.setQueryData<Recoltare[]>(['recoltari'], (current = []) =>
+ 168:       current.filter((item) => item.id !== recoltareId)
+ 169:     )
+ 170: 
+ 171:     const timer = setTimeout(() => {
+ 172:       delete pendingDeleteTimers.current[recoltareId]
+ 173:       delete pendingDeletedItems.current[recoltareId]
+ 174:       deleteMutation.mutate(recoltareId)
+ 175:     }, 5000)
+ 176: 
+ 177:     pendingDeleteTimers.current[recoltareId] = timer
+ 178: 
+ 179:     toast('Element Č™ters', {
+ 180:       duration: 5000,
+ 181:       action: {
+ 182:         label: 'Undo',
+ 183:         onClick: () => {
+ 184:           const pendingTimer = pendingDeleteTimers.current[recoltareId]
+ 185:           if (!pendingTimer) return
+ 186: 
+ 187:           clearTimeout(pendingTimer)
+ 188:           delete pendingDeleteTimers.current[recoltareId]
+ 189: 
+ 190:           const pendingItem = pendingDeletedItems.current[recoltareId]
+ 191:           delete pendingDeletedItems.current[recoltareId]
+ 192:           if (!pendingItem) return
+ 193: 
+ 194:           queryClient.setQueryData<Recoltare[]>(['recoltari'], (current = []) => {
+ 195:             if (current.some((item) => item.id === recoltareId)) return current
+ 196: 
+ 197:             const next = [...current]
+ 198:             const insertAt =
+ 199:               pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+ 200:             next.splice(insertAt, 0, pendingItem.item)
+ 201:             return next
+ 202:           })
+ 203:         },
+ 204:       },
+ 205:     })
+ 206:   }
+ 207: 
+ 208:   const parcelaMap = useMemo(() => {
+ 209:     const map: Record<string, string> = {}
+ 210:     parcele.forEach((p) => {
+ 211:       map[p.id] = p.nume_parcela || 'Parcela'
+ 212:     })
+ 213:     return map
+ 214:   }, [parcele])
+ 215:   const culegatorMap = useMemo(() => {
+ 216:     const map: Record<string, { nume: string; tarif: number }> = {}
+ 217:     culegatori.forEach((c) => {
+ 218:       map[c.id] = {
+ 219:         nume: c.nume_prenume,
+ 220:         tarif: Number(c.tarif_lei_kg || 0),
+ 221:       }
+ 222:     })
+ 223:     return map
+ 224:   }, [culegatori])
+ 225: 
+ 226:   const filteredRecoltari = useMemo(() => {
+ 227:     if (!searchTerm) return recoltari
+ 228:     const term = searchTerm.toLowerCase()
+ 229:     return recoltari.filter(
+ 230:       (r) =>
+ 231:         (r.parcela_id && parcelaMap[r.parcela_id]?.toLowerCase().includes(term)) ||
+ 232:         (r.observatii?.toLowerCase().includes(term) ?? false)
+ 233:     )
+ 234:   }, [recoltari, searchTerm, parcelaMap])
+ 235: 
+ 236:   const getRecoltareKg = (recoltare: Recoltare) => {
+ 237:     const kgCal1 = Number(recoltare.kg_cal1 ?? 0)
+ 238:     const kgCal2 = Number(recoltare.kg_cal2 ?? 0)
+ 239:     return kgCal1 + kgCal2
+ 240:   }
+ 241: 
+ 242:   const totalCantitateKg = useMemo(
+ 243:     () => filteredRecoltari.reduce((sum, r) => sum + getRecoltareKg(r), 0),
+ 244:     [filteredRecoltari]
+ 245:   )
+ 246: 
+ 247:   const moduleSummary = useMemo(() => {
+ 248:     const today = new Date()
+ 249:     today.setHours(0, 0, 0, 0)
+ 250:     const todayIso = toIsoDate(today)
+ 251: 
+ 252:     const todayRows = recoltari.filter((item) => toDateOnly(item.data) === todayIso)
+ 253:     const cal1Azi = todayRows.reduce((sum, item) => sum + Number(item.kg_cal1 ?? 0), 0)
+ 254:     const cal2Azi = todayRows.reduce((sum, item) => sum + Number(item.kg_cal2 ?? 0), 0)
+ 255:     const totalAzi = cal1Azi + cal2Azi
+ 256: 
+ 257:     const culegatoriAziMap = new Map<string, { name: string; kg: number }>()
+ 258:     todayRows.forEach((item) => {
+ 259:       if (!item.culegator_id) return
+ 260:       const workerId = item.culegator_id
+ 261:       const name = culegatorMap[workerId]?.nume || 'Culegator'
+ 262:       const kg = Number(item.kg_cal1 ?? 0) + Number(item.kg_cal2 ?? 0)
+ 263:       const existing = culegatoriAziMap.get(workerId)
+ 264:       if (existing) {
+ 265:         existing.kg += kg
+ 266:       } else {
+ 267:         culegatoriAziMap.set(workerId, { name, kg })
+ 268:       }
+ 269:     })
+ 270: 
+ 271:     const topCulegatoriAzi = Array.from(culegatoriAziMap.values())
+ 272:       .sort((a, b) => b.kg - a.kg)
+ 273:       .slice(0, 3)
+ 274: 
+ 275:     const currentWeekStart = getStartOfWeek(today)
+ 276:     const previousWeekStart = new Date(currentWeekStart)
+ 277:     previousWeekStart.setDate(previousWeekStart.getDate() - 7)
+ 278:     const previousWeekEnd = new Date(currentWeekStart)
+ 279:     previousWeekEnd.setDate(previousWeekEnd.getDate() - 1)
+ 280: 
+ 281:     const currentWeekStartIso = toIsoDate(currentWeekStart)
+ 282:     const previousWeekStartIso = toIsoDate(previousWeekStart)
+ 283:     const previousWeekEndIso = toIsoDate(previousWeekEnd)
+ 284: 
+ 285:     const previousWeekTotal = recoltari.reduce((sum, item) => {
+ 286:       const date = toDateOnly(item.data)
+ 287:       if (date < previousWeekStartIso || date > previousWeekEndIso) return sum
+ 288:       return sum + Number(item.kg_cal1 ?? 0) + Number(item.kg_cal2 ?? 0)
+ 289:     }, 0)
+ 290: 
+ 291:     const previousWeekAverageDaily = previousWeekTotal / 7
+ 292:     const estimareSaptamana = previousWeekAverageDaily * 7
+ 293: 
+ 294:     const realizatSaptamanaCurenta = recoltari.reduce((sum, item) => {
+ 295:       const date = toDateOnly(item.data)
+ 296:       if (date < currentWeekStartIso || date > todayIso) return sum
+ 297:       return sum + Number(item.kg_cal1 ?? 0) + Number(item.kg_cal2 ?? 0)
+ 298:     }, 0)
+ 299: 
+ 300:     const progressPct =
+ 301:       estimareSaptamana > 0
+ 302:         ? Math.max(0, Math.min(100, (realizatSaptamanaCurenta / estimareSaptamana) * 100))
+ 303:         : realizatSaptamanaCurenta > 0
+ 304:           ? 100
+ 305:           : 0
+ 306: 
+ 307:     const saptamanaCurentaSeries = Array.from({ length: 7 }, (_, index) => {
+ 308:       const day = new Date(currentWeekStart)
+ 309:       day.setDate(currentWeekStart.getDate() + index)
+ 310:       const iso = toIsoDate(day)
+ 311:       return recoltari.reduce((sum, item) => {
+ 312:         if (toDateOnly(item.data) !== iso) return sum
+ 313:         return sum + Number(item.kg_cal1 ?? 0) + Number(item.kg_cal2 ?? 0)
+ 314:       }, 0)
+ 315:     })
+ 316: 
+ 317:     return {
+ 318:       cal1Azi,
+ 319:       cal2Azi,
+ 320:       totalAzi,
+ 321:       culegatoriActiviAzi: culegatoriAziMap.size,
+ 322:       topCulegatoriAzi,
+ 323:       estimareSaptamana,
+ 324:       realizatSaptamanaCurenta,
+ 325:       progressPct,
+ 326:       saptamanaCurentaSeries,
+ 327:     }
+ 328:   }, [culegatorMap, recoltari])
+ 329: 
+ 330:   return (
+ 331:     <AppShell
+ 332:       header={<PageHeader title="RecoltÄri" subtitle="EvidenČ›a producČ›iei recoltate" />}
+ 333:       bottomBar={
+ 334:         <StickyActionBar>
+ 335:           <div className="flex items-center justify-between gap-3">
+ 336:             <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total: {totalCantitateKg.toFixed(2)} kg</p>
+ 337:           </div>
+ 338:         </StickyActionBar>
+ 339:       }
+ 340:     >
+ 341:       <div className="mx-auto w-full max-w-4xl space-y-3 py-3 sm:space-y-4 sm:py-4 lg:space-y-6 xl:space-y-8">
+ 342: 
+ 343:         <DashboardGrid className="mb-1">
+ 344:           <DashboardCard
+ 345:             title="Recoltare azi"
+ 346:             onClick={() => router.push('/recoltari')}
+ 347:             contentClassName="grid grid-cols-2 gap-2"
+ 348:           >
+ 349:             <StatRow label="Total kg" value={formatKg(moduleSummary.totalAzi)} />
+ 350:             <StatRow label="Cal1" value={formatKg(moduleSummary.cal1Azi)} />
+ 351:             <StatRow label="Cal2" value={formatKg(moduleSummary.cal2Azi)} />
+ 352:           </DashboardCard>
+ 353: 
+ 354:           <DashboardCard
+ 355:             title="Culegatori activi azi"
+ 356:             onClick={() => router.push('/culegatori')}
+ 357:             contentClassName="grid grid-cols-2 gap-2"
+ 358:           >
+ 359:             <StatRow label="Activi" value={moduleSummary.culegatoriActiviAzi} />
+ 360:             <StatRow
+ 361:               label={moduleSummary.topCulegatoriAzi[0]?.name ?? 'Top 1'}
+ 362:               value={moduleSummary.topCulegatoriAzi[0] ? formatKg(moduleSummary.topCulegatoriAzi[0].kg) : '-'}
+ 363:             />
+ 364:             <StatRow
+ 365:               label={moduleSummary.topCulegatoriAzi[1]?.name ?? 'Top 2'}
+ 366:               value={moduleSummary.topCulegatoriAzi[1] ? formatKg(moduleSummary.topCulegatoriAzi[1].kg) : '-'}
+ 367:             />
+ 368:           </DashboardCard>
+ 369: 
+ 370:           <DashboardCard
+ 371:             title="Estimare saptamana"
+ 372:             rightSlot={<Sparkline values={moduleSummary.saptamanaCurentaSeries} />}
+ 373:             className="md:col-span-2"
+ 374:             onClick={() => router.push('/recoltari')}
+ 375:             contentClassName="grid grid-cols-2 gap-2"
+ 376:           >
+ 377:             <StatRow label="Estimare total" value={formatKg(moduleSummary.estimareSaptamana)} />
+ 378:             <StatRow label="Realizat" value={formatKg(moduleSummary.realizatSaptamanaCurenta)} />
+ 379:             <StatRow
+ 380:               label="Progres"
+ 381:               value={`${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(moduleSummary.progressPct)}%`}
+ 382:             />
+ 383:           </DashboardCard>
+ 384:         </DashboardGrid>
+ 385:         <Input
+ 386:           className="agri-control h-12"
+ 387:           placeholder="Cauta dupa parcela sau observatii..."
+ 388:           value={searchTerm}
+ 389:           onChange={(e) => setSearchTerm(e.target.value)}
+ 390:         />
+ 391: 
+ 392:         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
+ 393:         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+ 394:         {isLoading ? (
+ 395:           <>
+ 396:             <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
+ 397:               {Array.from({ length: 4 }).map((_, index) => (
+ 398:                 <div key={index} className="border-b border-[var(--agri-border)] last:border-b-0">
+ 399:                   <ListSkeletonRow />
+ 400:                 </div>
+ 401:               ))}
+ 402:             </div>
+ 403:             <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5">
+ 404:               {Array.from({ length: 6 }).map((_, index) => (
+ 405:                 <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
+ 406:               ))}
+ 407:             </div>
+ 408:           </>
+ 409:         ) : null}
+ 410:         {!isLoading && !isError && !initialError && filteredRecoltari.length === 0 ? (
+ 411:           <EmptyState
+ 412:             icon={<Leaf className="h-16 w-16" />}
+ 413:             title="Nicio recoltare Ă®ncÄ"
+ 414:             description="AdaugÄ prima recoltare pentru a Ă®ncepe"
+ 415:           />
+ 416:         ) : null}
+ 417: 
+ 418:         {!isLoading && !isError && !initialError && filteredRecoltari.length > 0 ? (
+ 419:           <>
+ 420:             <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
+ 421:               {filteredRecoltari.map((recoltare) => (
+ 422:                 <div key={recoltare.id} className="border-b border-[var(--agri-border)] last:border-b-0">
+ 423:                   <RecoltareCard
+ 424:                     recoltare={recoltare}
+ 425:                     culegatorNume={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined}
+ 426:                     culegatorTarif={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.tarif : undefined}
+ 427:                     parcelaNume={recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined}
+ 428:                     onView={setViewingRecoltare}
+ 429:                     onDelete={setDeletingRecoltare}
+ 430:                     onEdit={setEditingRecoltare}
+ 431:                   />
+ 432:                 </div>
+ 433:               ))}
+ 434:             </div>
+ 435:             <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5">
+ 436:               {filteredRecoltari.map((recoltare) => (
+ 437:                 <RecoltareCard
+ 438:                   key={recoltare.id}
+ 439:                   recoltare={recoltare}
+ 440:                   culegatorNume={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined}
+ 441:                   culegatorTarif={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.tarif : undefined}
+ 442:                   parcelaNume={recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined}
+ 443:                   onView={setViewingRecoltare}
+ 444:                   onDelete={setDeletingRecoltare}
+ 445:                   onEdit={setEditingRecoltare}
+ 446:                 />
+ 447:               ))}
+ 448:             </div>
+ 449:           </>
+ 450:         ) : null}
+ 451:       </div>
+ 452: 
+ 453:       <AddRecoltareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+ 454: 
+ 455:       <ViewRecoltareDialog
+ 456:         open={!!viewingRecoltare}
+ 457:         onOpenChange={(open) => {
+ 458:           if (!open) setViewingRecoltare(null)
+ 459:         }}
+ 460:         recoltare={viewingRecoltare}
+ 461:         parcelaNume={viewingRecoltare?.parcela_id ? parcelaMap[viewingRecoltare.parcela_id] : undefined}
+ 462:         culegatorNume={viewingRecoltare?.culegator_id ? culegatorMap[viewingRecoltare.culegator_id]?.nume : undefined}
+ 463:         onEdit={setEditingRecoltare}
+ 464:         onDelete={setDeletingRecoltare}
+ 465:       />
+ 466: 
+ 467:       <EditRecoltareDialog
+ 468:         recoltare={editingRecoltare}
+ 469:         open={!!editingRecoltare}
+ 470:         onOpenChange={(open) => {
+ 471:           if (!open) setEditingRecoltare(null)
+ 472:         }}
+ 473:       />
+ 474: 
+ 475:       <DeleteConfirmDialog
+ 476:         open={!!deletingRecoltare}
+ 477:         onOpenChange={(open) => {
+ 478:           if (!open) setDeletingRecoltare(null)
+ 479:         }}
+ 480:         onConfirm={() => {
+ 481:           if (!deletingRecoltare) return
+ 482:           scheduleDelete(deletingRecoltare)
+ 483:           setDeletingRecoltare(null)
+ 484:         }}
+ 485:         itemName={buildRecoltareDeleteLabel(
+ 486:           deletingRecoltare,
+ 487:           deletingRecoltare?.parcela_id ? parcelaMap[deletingRecoltare.parcela_id] : ''
+ 488:         )}
+ 489:         itemType="recoltare"
+ 490:         description={`Čtergi recoltarea din ${deletingRecoltare?.data ? new Date(deletingRecoltare.data).toLocaleDateString('ro-RO') : 'data necunoscutÄ'} - parcela ${deletingRecoltare?.parcela_id ? parcelaMap[deletingRecoltare.parcela_id] || 'necunoscutÄ' : 'necunoscutÄ'}?`}
+ 491:       />
+ 492:     </AppShell>
+ 493:   )
+ 494: }
+ 495: 
+ 496: 

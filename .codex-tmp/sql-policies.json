@@ -1,0 +1,450 @@
+﻿[
+    {
+        "policy":  "activitati_agricole_owner_update",
+        "table":  "activitati_agricole",
+        "type":  "UPDATE",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  140,
+        "body":  "create policy activitati_agricole_owner_update on public.activitati_agricole for update using (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() ) with check (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() );"
+    },
+    {
+        "policy":  "alert_dismissals_delete",
+        "table":  "alert_dismissals",
+        "type":  "DELETE",
+        "file":  "20260226155238_20260226_fix_alert_dismissals_schema_cache.sql",
+        "line":  61,
+        "body":  "create policy alert_dismissals_delete     on public.alert_dismissals     for delete     using (user_id = auth.uid());"
+    },
+    {
+        "policy":  "alert_dismissals_delete_own",
+        "table":  "alert_dismissals",
+        "type":  "DELETE",
+        "file":  "2026022602_alert_dismissals.sql",
+        "line":  66,
+        "body":  "create policy alert_dismissals_delete_own on public.alert_dismissals for delete using (   user_id = auth.uid()   and tenant_id = (     select t.id     from public.tenants t     where t.owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "alert_dismissals_insert",
+        "table":  "alert_dismissals",
+        "type":  "INSERT",
+        "file":  "20260226155238_20260226_fix_alert_dismissals_schema_cache.sql",
+        "line":  44,
+        "body":  "create policy alert_dismissals_insert     on public.alert_dismissals     for insert     with check (user_id = auth.uid());"
+    },
+    {
+        "policy":  "alert_dismissals_insert_own",
+        "table":  "alert_dismissals",
+        "type":  "INSERT",
+        "file":  "2026022602_alert_dismissals.sql",
+        "line":  52,
+        "body":  "create policy alert_dismissals_insert_own on public.alert_dismissals for insert with check (   user_id = auth.uid()   and tenant_id = (     select t.id     from public.tenants t     where t.owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "alert_dismissals_select",
+        "table":  "alert_dismissals",
+        "type":  "SELECT",
+        "file":  "20260226155238_20260226_fix_alert_dismissals_schema_cache.sql",
+        "line":  27,
+        "body":  "create policy alert_dismissals_select     on public.alert_dismissals     for select     using (user_id = auth.uid());"
+    },
+    {
+        "policy":  "alert_dismissals_select_own",
+        "table":  "alert_dismissals",
+        "type":  "SELECT",
+        "file":  "2026022602_alert_dismissals.sql",
+        "line":  35,
+        "body":  "create policy alert_dismissals_select_own on public.alert_dismissals for select using (   (     user_id = auth.uid()     and tenant_id = (       select t.id       from public.tenants t       where t.owner_user_id = auth.uid()       limit 1     )   )   or public.is_superadmin(auth.uid()) );"
+    },
+    {
+        "policy":  "analytics_events_insert_own_tenant",
+        "table":  "analytics_events",
+        "type":  "INSERT",
+        "file":  "2026022506_usage_analytics_events.sql",
+        "line":  58,
+        "body":  "create policy analytics_events_insert_own_tenant on public.analytics_events for insert with check (   user_id = auth.uid()   and tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "Users can insert own events",
+        "table":  "analytics_events",
+        "type":  "INSERT",
+        "file":  "2026030101_analytics_events.sql",
+        "line":  23,
+        "body":  "create policy \"Users can insert own events\" on public.analytics_events for insert to authenticated with check (   user_id = auth.uid()   and exists (     select 1     from public.tenants t     where t.id = analytics_events.tenant_id       and t.owner_user_id = auth.uid()   ) );"
+    },
+    {
+        "policy":  "analytics_events_no_read_for_tenant_users",
+        "table":  "analytics_events",
+        "type":  "SELECT",
+        "file":  "2026022506_usage_analytics_events.sql",
+        "line":  72,
+        "body":  "create policy analytics_events_no_read_for_tenant_users on public.analytics_events for select using (auth.role() = \u0027service_role\u0027);"
+    },
+    {
+        "policy":  "Superadmin can read all",
+        "table":  "analytics_events",
+        "type":  "SELECT",
+        "file":  "2026030101_analytics_events.sql",
+        "line":  39,
+        "body":  "create policy \"Superadmin can read all\" on public.analytics_events for select to authenticated using (   exists (     select 1     from public.profiles p     where p.id = auth.uid()       and p.is_superadmin = true   ) );"
+    },
+    {
+        "policy":  "audit_logs_superadmin_delete",
+        "table":  "audit_logs",
+        "type":  "DELETE",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  43,
+        "body":  "create policy audit_logs_superadmin_delete on public.audit_logs for delete using (public.is_superadmin());"
+    },
+    {
+        "policy":  "audit_logs_superadmin_insert",
+        "table":  "audit_logs",
+        "type":  "INSERT",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  30,
+        "body":  "create policy audit_logs_superadmin_insert on public.audit_logs for insert with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "audit_logs_superadmin_select",
+        "table":  "audit_logs",
+        "type":  "SELECT",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  24,
+        "body":  "create policy audit_logs_superadmin_select on public.audit_logs for select using (public.is_superadmin());"
+    },
+    {
+        "policy":  "audit_logs_superadmin_update",
+        "table":  "audit_logs",
+        "type":  "UPDATE",
+        "file":  "2026022604_audit_logs_plan_changes.sql",
+        "line":  36,
+        "body":  "create policy audit_logs_superadmin_update on public.audit_logs for update using (public.is_superadmin()) with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "cheltuieli_diverse_owner_update",
+        "table":  "cheltuieli_diverse",
+        "type":  "UPDATE",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  153,
+        "body":  "create policy cheltuieli_diverse_owner_update on public.cheltuieli_diverse for update using (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() ) with check (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() );"
+    },
+    {
+        "policy":  "comenzi_superadmin_delete",
+        "table":  "comenzi",
+        "type":  "DELETE",
+        "file":  "2026022703_comenzi_superadmin_policies.sql",
+        "line":  25,
+        "body":  "create policy comenzi_superadmin_delete on public.comenzi for delete using (public.is_superadmin());"
+    },
+    {
+        "policy":  "comenzi_tenant_delete",
+        "table":  "comenzi",
+        "type":  "DELETE",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  126,
+        "body":  "create policy comenzi_tenant_delete on public.comenzi for delete using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_tenant_delete",
+        "table":  "comenzi",
+        "type":  "DELETE",
+        "file":  "2026022702_comenzi_schema_cache_repair.sql",
+        "line":  169,
+        "body":  "create policy comenzi_tenant_delete on public.comenzi for delete using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_superadmin_insert",
+        "table":  "comenzi",
+        "type":  "INSERT",
+        "file":  "2026022703_comenzi_superadmin_policies.sql",
+        "line":  12,
+        "body":  "create policy comenzi_superadmin_insert on public.comenzi for insert with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "comenzi_tenant_insert",
+        "table":  "comenzi",
+        "type":  "INSERT",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  92,
+        "body":  "create policy comenzi_tenant_insert on public.comenzi for insert with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_tenant_insert",
+        "table":  "comenzi",
+        "type":  "INSERT",
+        "file":  "2026022702_comenzi_schema_cache_repair.sql",
+        "line":  135,
+        "body":  "create policy comenzi_tenant_insert on public.comenzi for insert with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_superadmin_select",
+        "table":  "comenzi",
+        "type":  "SELECT",
+        "file":  "2026022703_comenzi_superadmin_policies.sql",
+        "line":  6,
+        "body":  "create policy comenzi_superadmin_select on public.comenzi for select using (public.is_superadmin());"
+    },
+    {
+        "policy":  "comenzi_tenant_select",
+        "table":  "comenzi",
+        "type":  "SELECT",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  79,
+        "body":  "create policy comenzi_tenant_select on public.comenzi for select using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_tenant_select",
+        "table":  "comenzi",
+        "type":  "SELECT",
+        "file":  "2026022702_comenzi_schema_cache_repair.sql",
+        "line":  122,
+        "body":  "create policy comenzi_tenant_select on public.comenzi for select using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_superadmin_update",
+        "table":  "comenzi",
+        "type":  "UPDATE",
+        "file":  "2026022703_comenzi_superadmin_policies.sql",
+        "line":  18,
+        "body":  "create policy comenzi_superadmin_update on public.comenzi for update using (public.is_superadmin()) with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "comenzi_tenant_update",
+        "table":  "comenzi",
+        "type":  "UPDATE",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  105,
+        "body":  "create policy comenzi_tenant_update on public.comenzi for update using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) ) with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "comenzi_tenant_update",
+        "table":  "comenzi",
+        "type":  "UPDATE",
+        "file":  "2026022702_comenzi_schema_cache_repair.sql",
+        "line":  148,
+        "body":  "create policy comenzi_tenant_update on public.comenzi for update using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) ) with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "feedback_insert_own",
+        "table":  "feedback",
+        "type":  "INSERT",
+        "file":  "2026022812_feedback_table_rls.sql",
+        "line":  18,
+        "body":  "create policy feedback_insert_own on public.feedback for insert to authenticated with check (   auth.uid() = user_id   and (     exists (       select 1       from public.tenants t       where t.id = feedback.tenant_id         and t.owner_user_id = auth.uid()     )     or exists (       select 1       from public.profiles p       where p.id = auth.uid()         and p.is_superadmin = true     )   ) );"
+    },
+    {
+        "policy":  "feedback_select_superadmin",
+        "table":  "feedback",
+        "type":  "SELECT",
+        "file":  "2026022812_feedback_table_rls.sql",
+        "line":  41,
+        "body":  "create policy feedback_select_superadmin on public.feedback for select to authenticated using (   exists (     select 1     from public.profiles p     where p.id = auth.uid()       and p.is_superadmin = true   ) );"
+    },
+    {
+        "policy":  "integrations_google_contacts_admin_delete",
+        "table":  "integrations_google_contacts",
+        "type":  "DELETE",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  92,
+        "body":  "create policy integrations_google_contacts_admin_delete on public.integrations_google_contacts for delete using (   user_email = \u0027popa.andrei.sv@gmail.com\u0027   and auth.uid() = user_id );"
+    },
+    {
+        "policy":  "integrations_google_contacts_admin_insert",
+        "table":  "integrations_google_contacts",
+        "type":  "INSERT",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  58,
+        "body":  "create policy integrations_google_contacts_admin_insert on public.integrations_google_contacts for insert with check (   user_email = \u0027popa.andrei.sv@gmail.com\u0027   and auth.uid() = user_id   and tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "integrations_google_contacts_admin_select",
+        "table":  "integrations_google_contacts",
+        "type":  "SELECT",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  49,
+        "body":  "create policy integrations_google_contacts_admin_select on public.integrations_google_contacts for select using (   user_email = \u0027popa.andrei.sv@gmail.com\u0027   and auth.uid() = user_id );"
+    },
+    {
+        "policy":  "integrations_google_contacts_admin_update",
+        "table":  "integrations_google_contacts",
+        "type":  "UPDATE",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  73,
+        "body":  "create policy integrations_google_contacts_admin_update on public.integrations_google_contacts for update using (   user_email = \u0027popa.andrei.sv@gmail.com\u0027   and auth.uid() = user_id ) with check (   user_email = \u0027popa.andrei.sv@gmail.com\u0027   and auth.uid() = user_id   and tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "miscari_stoc_delete_policy",
+        "table":  "miscari_stoc",
+        "type":  "DELETE",
+        "file":  "2026022609_miscari_stoc_inventory.sql",
+        "line":  93,
+        "body":  "create policy miscari_stoc_delete_policy on public.miscari_stoc for delete using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "miscari_stoc_insert_policy",
+        "table":  "miscari_stoc",
+        "type":  "INSERT",
+        "file":  "2026022609_miscari_stoc_inventory.sql",
+        "line":  59,
+        "body":  "create policy miscari_stoc_insert_policy on public.miscari_stoc for insert with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "miscari_stoc_select_policy",
+        "table":  "miscari_stoc",
+        "type":  "SELECT",
+        "file":  "2026022609_miscari_stoc_inventory.sql",
+        "line":  46,
+        "body":  "create policy miscari_stoc_select_policy on public.miscari_stoc for select using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "miscari_stoc_update_policy",
+        "table":  "miscari_stoc",
+        "type":  "UPDATE",
+        "file":  "2026022609_miscari_stoc_inventory.sql",
+        "line":  72,
+        "body":  "create policy miscari_stoc_update_policy on public.miscari_stoc for update using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) ) with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "recoltari_owner_update",
+        "table":  "recoltari",
+        "type":  "UPDATE",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  114,
+        "body":  "create policy recoltari_owner_update on public.recoltari for update using (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() ) with check (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() );"
+    },
+    {
+        "policy":  "tenant_metrics_daily_superadmin_delete",
+        "table":  "tenant_metrics_daily",
+        "type":  "DELETE",
+        "file":  "2026022612_tenant_metrics_daily.sql",
+        "line":  41,
+        "body":  "create policy tenant_metrics_daily_superadmin_delete on public.tenant_metrics_daily for delete using (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenant_metrics_daily_superadmin_insert",
+        "table":  "tenant_metrics_daily",
+        "type":  "INSERT",
+        "file":  "2026022612_tenant_metrics_daily.sql",
+        "line":  28,
+        "body":  "create policy tenant_metrics_daily_superadmin_insert on public.tenant_metrics_daily for insert with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenant_metrics_daily_superadmin_select",
+        "table":  "tenant_metrics_daily",
+        "type":  "SELECT",
+        "file":  "2026022606_fix_admin_audit_and_metrics_compat.sql",
+        "line":  65,
+        "body":  "create policy tenant_metrics_daily_superadmin_select       on public.tenant_metrics_daily       for select       using (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenant_metrics_daily_superadmin_select",
+        "table":  "tenant_metrics_daily",
+        "type":  "SELECT",
+        "file":  "2026022612_tenant_metrics_daily.sql",
+        "line":  22,
+        "body":  "create policy tenant_metrics_daily_superadmin_select on public.tenant_metrics_daily for select using (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenant_metrics_daily_superadmin_update",
+        "table":  "tenant_metrics_daily",
+        "type":  "UPDATE",
+        "file":  "2026022612_tenant_metrics_daily.sql",
+        "line":  34,
+        "body":  "create policy tenant_metrics_daily_superadmin_update on public.tenant_metrics_daily for update using (public.is_superadmin()) with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenants_superadmin_delete",
+        "table":  "tenants",
+        "type":  "DELETE",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  73,
+        "body":  "create policy tenants_superadmin_delete on public.tenants for delete using (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenant_owner_insert",
+        "table":  "tenants",
+        "type":  "INSERT",
+        "file":  "2026022613_tenants_owner_insert_policy.sql",
+        "line":  13,
+        "body":  "create policy tenant_owner_insert     on public.tenants     for insert     with check (owner_user_id = auth.uid());"
+    },
+    {
+        "policy":  "tenants_owner_or_superadmin_insert",
+        "table":  "tenants",
+        "type":  "INSERT",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  57,
+        "body":  "create policy tenants_owner_or_superadmin_insert on public.tenants for insert with check (   owner_user_id = auth.uid()   or public.is_superadmin() );"
+    },
+    {
+        "policy":  "tenants_owner_or_superadmin_select",
+        "table":  "tenants",
+        "type":  "SELECT",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  48,
+        "body":  "create policy tenants_owner_or_superadmin_select on public.tenants for select using (   owner_user_id = auth.uid()   or public.is_superadmin() );"
+    },
+    {
+        "policy":  "tenants_owner_update",
+        "table":  "tenants",
+        "type":  "UPDATE",
+        "file":  "2026030401_tenants_owner_update_policy.sql",
+        "line":  7,
+        "body":  "create policy tenants_owner_update on public.tenants for update using (owner_user_id = auth.uid()) with check (owner_user_id = auth.uid());"
+    },
+    {
+        "policy":  "tenants_superadmin_update",
+        "table":  "tenants",
+        "type":  "UPDATE",
+        "file":  "2026022601_admin_tenants_dashboard.sql",
+        "line":  66,
+        "body":  "create policy tenants_superadmin_update on public.tenants for update using (public.is_superadmin()) with check (public.is_superadmin());"
+    },
+    {
+        "policy":  "tenants_superadmin_update",
+        "table":  "tenants",
+        "type":  "UPDATE",
+        "file":  "2026022704_fix_tenants_superadmin_update_policy.sql",
+        "line":  25,
+        "body":  "create policy tenants_superadmin_update on public.tenants for update using (public.is_superadmin(auth.uid())) with check (public.is_superadmin(auth.uid()));"
+    },
+    {
+        "policy":  "vanzari_owner_update",
+        "table":  "vanzari",
+        "type":  "UPDATE",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  127,
+        "body":  "create policy vanzari_owner_update on public.vanzari for update using (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() ) with check (   tenant_id = (select id from public.tenants where owner_user_id = auth.uid())   and coalesce(created_by, auth.uid()) = auth.uid() );"
+    },
+    {
+        "policy":  "vanzari_butasi_items_tenant_delete",
+        "table":  "vanzari_butasi_items",
+        "type":  "DELETE",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  157,
+        "body":  "create policy vanzari_butasi_items_tenant_delete on public.vanzari_butasi_items for delete using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "vanzari_butasi_items_tenant_insert",
+        "table":  "vanzari_butasi_items",
+        "type":  "INSERT",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  111,
+        "body":  "create policy vanzari_butasi_items_tenant_insert on public.vanzari_butasi_items for insert with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   )   and exists (     select 1     from public.vanzari_butasi vb     where vb.id = comanda_id       and vb.tenant_id = vanzari_butasi_items.tenant_id   ) );"
+    },
+    {
+        "policy":  "vanzari_butasi_items_tenant_select",
+        "table":  "vanzari_butasi_items",
+        "type":  "SELECT",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  98,
+        "body":  "create policy vanzari_butasi_items_tenant_select on public.vanzari_butasi_items for select using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) );"
+    },
+    {
+        "policy":  "vanzari_butasi_items_tenant_update",
+        "table":  "vanzari_butasi_items",
+        "type":  "UPDATE",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  130,
+        "body":  "create policy vanzari_butasi_items_tenant_update on public.vanzari_butasi_items for update using (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   ) ) with check (   tenant_id = (     select id     from public.tenants     where owner_user_id = auth.uid()     limit 1   )   and exists (     select 1     from public.vanzari_butasi vb     where vb.id = comanda_id       and vb.tenant_id = vanzari_butasi_items.tenant_id   ) );"
+    }
+]

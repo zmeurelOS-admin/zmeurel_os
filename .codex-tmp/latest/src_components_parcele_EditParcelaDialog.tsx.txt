@@ -1,0 +1,178 @@
+    1: 'use client';
+    2: 
+    3: import { useEffect, useState } from 'react';
+    4: import { toast } from '@/lib/ui/toast';
+    5: 
+    6: import { AppDialog } from '@/components/app/AppDialog';
+    7: import { DialogFormActions } from '@/components/ui/dialog-form-actions';
+    8: import { Input } from '@/components/ui/input';
+    9: import { Label } from '@/components/ui/label';
+   10: import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+   11: import { updateParcela } from '@/lib/supabase/queries/parcele';
+   12: import type { Parcela } from '@/lib/supabase/queries/parcele';
+   13: import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
+   14: import { formatM2ToHa } from '@/lib/utils/area';
+   15: 
+   16: type ParcelaUpdate = Partial<Omit<Parcela, 'id' | 'tenant_id' | 'id_parcela' | 'created_at' | 'updated_at'>>;
+   17: 
+   18: interface EditParcelaDialogProps {
+   19:   parcela: Parcela | null;
+   20:   open: boolean;
+   21:   onOpenChange: (open: boolean) => void;
+   22:   soiuriDisponibile: string[];
+   23:   onSuccess?: () => void;
+   24: }
+   25: 
+   26: export function EditParcelaDialog({
+   27:   parcela,
+   28:   open,
+   29:   onOpenChange,
+   30:   soiuriDisponibile,
+   31:   onSuccess,
+   32: }: EditParcelaDialogProps) {
+   33:   const [loading, setLoading] = useState(false);
+   34:   const [formData, setFormData] = useState({
+   35:     nume_parcela: '',
+   36:     suprafata_m2: '',
+   37:     soi_plantat: '',
+   38:     an_plantare: '',
+   39:     nr_plante: '',
+   40:     status: 'Activ',
+   41:     observatii: '',
+   42:   });
+   43: 
+   44:   useEffect(() => {
+   45:     if (!parcela) return;
+   46:     setFormData({
+   47:       nume_parcela: parcela.nume_parcela,
+   48:       suprafata_m2: parcela.suprafata_m2.toString(),
+   49:       soi_plantat: parcela.soi_plantat || '',
+   50:       an_plantare: parcela.an_plantare.toString(),
+   51:       nr_plante: parcela.nr_plante?.toString() || '',
+   52:       status: parcela.status ?? 'Activ',
+   53:       observatii: parcela.observatii || '',
+   54:     });
+   55:   }, [parcela]);
+   56: 
+   57:   const handleInputChange = (field: string, value: string) => {
+   58:     setFormData((prev) => ({ ...prev, [field]: value }));
+   59:   };
+   60: 
+   61:   const handleSubmit = async (e: React.FormEvent) => {
+   62:     e.preventDefault();
+   63:     if (!parcela || loading) return;
+   64: 
+   65:     setLoading(true);
+   66:     try {
+   67:       if (!formData.nume_parcela || !formData.suprafata_m2 || !formData.an_plantare) {
+   68:         hapticError();
+   69:         toast.error('Completeaza campurile obligatorii');
+   70:         return;
+   71:       }
+   72: 
+   73:       const updateData: ParcelaUpdate = {
+   74:         nume_parcela: formData.nume_parcela,
+   75:         suprafata_m2: parseFloat(formData.suprafata_m2),
+   76:         soi_plantat: formData.soi_plantat || null,
+   77:         an_plantare: parseInt(formData.an_plantare, 10),
+   78:         nr_plante: formData.nr_plante ? parseInt(formData.nr_plante, 10) : null,
+   79:         status: formData.status,
+   80:         observatii: formData.observatii || null,
+   81:       };
+   82: 
+   83:       await updateParcela(parcela.id, updateData);
+   84:       hapticSuccess();
+   85:       toast.success(`Parcela ${parcela.nume_parcela} actualizata`);
+   86:       onOpenChange(false);
+   87:       onSuccess?.();
+   88:     } catch (error) {
+   89:       console.error('Error updating parcela:', error);
+   90:       hapticError();
+   91:       toast.error('Eroare la actualizare');
+   92:     } finally {
+   93:       setLoading(false);
+   94:     }
+   95:   };
+   96: 
+   97:   if (!parcela) return null;
+   98: 
+   99:   return (
+  100:     <AppDialog
+  101:       open={open}
+  102:       onOpenChange={onOpenChange}
+  103:       title={`Editeaza Parcela ${parcela.nume_parcela}`}
+  104:       description={`Modifica detaliile pentru ${parcela.nume_parcela}.`}
+  105:       footer={
+  106:         <DialogFormActions
+  107:           onCancel={() => onOpenChange(false)}
+  108:           onSave={() => {
+  109:             const formElement = document.getElementById('edit-parcela-form') as HTMLFormElement | null;
+  110:             formElement?.requestSubmit();
+  111:           }}
+  112:           saving={loading}
+  113:           cancelLabel="Anuleaza"
+  114:           saveLabel="Salveaza"
+  115:         />
+  116:       }
+  117:     >
+  118:       <form id="edit-parcela-form" onSubmit={handleSubmit} className="space-y-4">
+  119:         <div className="space-y-2">
+  120:           <Label htmlFor="nume_parcela">Nume Parcela</Label>
+  121:           <Input id="nume_parcela" value={formData.nume_parcela} onChange={(e) => handleInputChange('nume_parcela', e.target.value)} required />
+  122:         </div>
+  123: 
+  124:         <div className="space-y-2">
+  125:           <Label htmlFor="suprafata_m2">Suprafata (m2)</Label>
+  126:           <Input id="suprafata_m2" type="number" step="0.01" value={formData.suprafata_m2} onChange={(e) => handleInputChange('suprafata_m2', e.target.value)} required />
+  127:           <p className="text-xs text-muted-foreground">? {formatM2ToHa(formData.suprafata_m2)}</p>
+  128:         </div>
+  129: 
+  130:         <div className="space-y-2">
+  131:           <Label htmlFor="soi_plantat">Soi Plantat</Label>
+  132:           <Select value={formData.soi_plantat} onValueChange={(value) => handleInputChange('soi_plantat', value)}>
+  133:             <SelectTrigger>
+  134:               <SelectValue placeholder="Selecteaza soi" />
+  135:             </SelectTrigger>
+  136:             <SelectContent>
+  137:               {soiuriDisponibile.map((soi) => (
+  138:                 <SelectItem key={soi} value={soi}>
+  139:                   {soi}
+  140:                 </SelectItem>
+  141:               ))}
+  142:             </SelectContent>
+  143:           </Select>
+  144:         </div>
+  145: 
+  146:         <div className="space-y-2">
+  147:           <Label htmlFor="an_plantare">An Plantare</Label>
+  148:           <Input id="an_plantare" type="number" min="2000" max={new Date().getFullYear()} value={formData.an_plantare} onChange={(e) => handleInputChange('an_plantare', e.target.value)} required />
+  149:         </div>
+  150: 
+  151:         <div className="space-y-2">
+  152:           <Label htmlFor="nr_plante">Numar Plante</Label>
+  153:           <Input id="nr_plante" type="number" value={formData.nr_plante} onChange={(e) => handleInputChange('nr_plante', e.target.value)} />
+  154:         </div>
+  155: 
+  156:         <div className="space-y-2">
+  157:           <Label htmlFor="status">Status</Label>
+  158:           <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+  159:             <SelectTrigger>
+  160:               <SelectValue />
+  161:             </SelectTrigger>
+  162:             <SelectContent>
+  163:               <SelectItem value="Activ">Activ</SelectItem>
+  164:               <SelectItem value="Inactiv">Inactiv</SelectItem>
+  165:               <SelectItem value="In Pregatire">In Pregatire</SelectItem>
+  166:             </SelectContent>
+  167:           </Select>
+  168:         </div>
+  169: 
+  170:         <div className="space-y-2">
+  171:           <Label htmlFor="observatii">Observatii</Label>
+  172:           <Input id="observatii" value={formData.observatii} onChange={(e) => handleInputChange('observatii', e.target.value)} />
+  173:         </div>
+  174:       </form>
+  175:     </AppDialog>
+  176:   );
+  177: }
+  178: 

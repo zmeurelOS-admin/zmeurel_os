@@ -1,0 +1,1 @@
+-- no-op: profiles.tenant_id already added by 2026031200_profiles_add_tenant_id.sql

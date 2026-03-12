@@ -1,0 +1,21 @@
+    1: // src/app/(dashboard)/clienti/page.tsx
+    2: import { createClient } from '@/lib/supabase/server';
+    3: import { ClientPageClient } from './ClientPageClient';
+    4: 
+    5: export const metadata = {
+    6:   title: 'Clienți | Zmeurel OS',
+    7:   description: 'Gestionează baza de clienți',
+    8: };
+    9: 
+   10: export default async function ClientPage() {
+   11:   const supabase = await createClient();
+   12: 
+   13:   // RLS handles tenant isolation automatically - no manual auth check needed (middleware handles it)
+   14:   const { data: clienti } = await supabase
+   15:     .from('clienti')
+   16:     .select('id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id')
+   17:     .order('created_at', { ascending: false });
+   18: 
+   19:   return <ClientPageClient initialClienti={clienti || []} />;
+   20: }
+   21: 

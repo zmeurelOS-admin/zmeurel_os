@@ -1,0 +1,380 @@
+1	'use client'
+2	
+3	import { useEffect, useRef, useState } from 'react'
+4	import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+5	import { useRouter } from 'next/navigation'
+6	import { Map as MapIcon } from 'lucide-react'
+7	import { toast } from '@/lib/ui/toast'
+8	
+9	import { ProfitSummaryCard } from '@/components/app/ProfitSummaryCard'
+10	import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
+11	import { AppShell } from '@/components/app/AppShell'
+12	import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+13	import { EmptyState } from '@/components/ui/EmptyState'
+14	import { ErrorState } from '@/components/app/ErrorState'
+15	import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+16	import { PageHeader } from '@/components/app/PageHeader'
+17	import { StickyActionBar } from '@/components/app/StickyActionBar'
+18	import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+19	import { AddParcelDrawer } from '@/components/parcele/AddParcelDrawer'
+20	import { EditParcelDialog } from '@/components/parcele/EditParcelDialog'
+21	import { ParceleList } from '@/components/parcele/ParceleList'
+22	import { DashboardCard, DashboardGrid, Sparkline, StatRow } from '@/components/dashboard'
+23	import { track } from '@/lib/analytics/track'
+24	import { calculateProfit } from '@/lib/calculations/profit'
+25	import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+26	import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
+27	import { getRecoltari } from '@/lib/supabase/queries/recoltari'
+28	import { getVanzari } from '@/lib/supabase/queries/vanzari'
+29	import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
+30	import { computeParcelPauseStatus } from '@/lib/parcele/pauza'
+31	import { useAddAction } from '@/contexts/AddActionContext'
+32	
+33	interface ParcelePageClientProps {
+34	  initialParcele?: Parcela[]
+35	  initialError?: string | null
+36	}
+37	
+38	const SOIURI_DISPONIBILE = ['Delniwa', 'Maravilla', 'Enrosadira', 'Husaria']
+39	
+40	function toDateOnly(value: string | null | undefined): string {
+41	  return (value ?? '').slice(0, 10)
+42	}
+43	
+44	export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
+45	  const router = useRouter()
+46	  const queryClient = useQueryClient()
+47	  const { registerAddAction } = useAddAction()
+48	  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+49	  const pendingDeletedItems = useRef<Record<string, { item: Parcela; index: number }>>({})
+50	
+51	  const [addOpen, setAddOpen] = useState(false)
+52	  const [editOpen, setEditOpen] = useState(false)
+53	  const [deleteOpen, setDeleteOpen] = useState(false)
+54	  const [selectedParcela, setSelectedParcela] = useState<Parcela | null>(null)
+55	
+56	  const {
+57	    data: parcele = [],
+58	    isLoading,
+59	    isError,
+60	    error,
+61	  } = useQuery({
+62	    queryKey: ['parcele'],
+63	    queryFn: getParcele,
+64	    staleTime: 30000,
+65	    refetchOnWindowFocus: false,
+66	  })
+67	
+68	  useMobileScrollRestore({
+69	    storageKey: 'scroll:parcele',
+70	    ready: !isLoading,
+71	  })
+72	
+73	  const { data: recoltari = [] } = useQuery({
+74	    queryKey: ['parcele', 'recoltari'],
+75	    queryFn: getRecoltari,
+76	    staleTime: 30000,
+77	    refetchOnWindowFocus: false,
+78	  })
+79	
+80	  const { data: vanzari = [] } = useQuery({
+81	    queryKey: ['parcele', 'vanzari'],
+82	    queryFn: getVanzari,
+83	    staleTime: 30000,
+84	    refetchOnWindowFocus: false,
+85	  })
+86	
+87	  const { data: cheltuieli = [] } = useQuery({
+88	    queryKey: ['parcele', 'cheltuieli'],
+89	    queryFn: getCheltuieli,
+90	    staleTime: 30000,
+91	    refetchOnWindowFocus: false,
+92	  })
+93	
+94	  const { data: activitati = [] } = useQuery({
+95	    queryKey: ['parcele', 'activitati'],
+96	    queryFn: getActivitatiAgricole,
+97	    staleTime: 30000,
+98	    refetchOnWindowFocus: false,
+99	  })
+100	
+101	  const deleteMutation = useMutation({
+102	    mutationFn: deleteParcela,
+103	    onSuccess: (_, deletedId) => {
+104	      track('parcela_delete', { id: deletedId })
+105	      toast.success('Parcela stearsa')
+106	      queryClient.invalidateQueries({ queryKey: ['parcele'], exact: true })
+107	    },
+108	    onError: (err: Error) => {
+109	      toast.error(err.message)
+110	      queryClient.invalidateQueries({ queryKey: ['parcele'], exact: true })
+111	    },
+112	  })
+113	
+114	  const resolvedError = initialError || (isError ? (error as Error).message : null)
+115	
+116	  const refresh = () => {
+117	    queryClient.invalidateQueries({ queryKey: ['parcele'], exact: true })
+118	  }
+119	
+120	  useEffect(() => {
+121	    return () => {
+122	      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+123	    }
+124	  }, [])
+125	
+126	  useEffect(() => {
+127	    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga parcela')
+128	    return unregister
+129	  }, [registerAddAction])
+130	
+131	  const scheduleDelete = (parcela: Parcela) => {
+132	    const parcelaId = parcela.id
+133	    const currentItems = queryClient.getQueryData<Parcela[]>(['parcele']) ?? []
+134	    const deleteIndex = currentItems.findIndex((item) => item.id === parcelaId)
+135	
+136	    pendingDeletedItems.current[parcelaId] = { item: parcela, index: deleteIndex }
+137	    queryClient.setQueryData<Parcela[]>(['parcele'], (current = []) =>
+138	      current.filter((item) => item.id !== parcelaId)
+139	    )
+140	
+141	    const timer = setTimeout(() => {
+142	      delete pendingDeleteTimers.current[parcelaId]
+143	      delete pendingDeletedItems.current[parcelaId]
+144	      deleteMutation.mutate(parcelaId)
+145	    }, 5000)
+146	
+147	    pendingDeleteTimers.current[parcelaId] = timer
+148	
+149	    toast('Element șters', {
+150	      duration: 5000,
+151	      action: {
+152	        label: 'Undo',
+153	        onClick: () => {
+154	          const pendingTimer = pendingDeleteTimers.current[parcelaId]
+155	          if (!pendingTimer) return
+156	          clearTimeout(pendingTimer)
+157	          delete pendingDeleteTimers.current[parcelaId]
+158	          const pendingItem = pendingDeletedItems.current[parcelaId]
+159	          delete pendingDeletedItems.current[parcelaId]
+160	          if (!pendingItem) return
+161	
+162	          queryClient.setQueryData<Parcela[]>(['parcele'], (current = []) => {
+163	            if (current.some((item) => item.id === parcelaId)) return current
+164	
+165	            const next = [...current]
+166	            const insertAt =
+167	              pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+168	            next.splice(insertAt, 0, pendingItem.item)
+169	            return next
+170	          })
+171	        },
+172	      },
+173	    })
+174	  }
+175	
+176	  const parcelProfitMap = (() => {
+177	    const parcelKg = new Map<string, number>()
+178	    recoltari.forEach((row) => {
+179	      if (!row.parcela_id) return
+180	      const totalKg = Number(row.kg_cal1 || 0) + Number(row.kg_cal2 || 0)
+181	      parcelKg.set(row.parcela_id, (parcelKg.get(row.parcela_id) ?? 0) + totalKg)
+182	    })
+183	
+184	    const totalKg = Array.from(parcelKg.values()).reduce((sum, value) => sum + value, 0)
+185	    const venitTotal = vanzari.reduce((sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0), 0)
+186	    const costTotal = cheltuieli.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+187	
+188	    const map: Record<string, { profit: number; margin: number }> = {}
+189	
+190	    parcele.forEach((parcela) => {
+191	      const kg = parcelKg.get(parcela.id) ?? 0
+192	      if (kg <= 0 || totalKg <= 0) {
+193	        map[parcela.id] = { profit: 0, margin: 0 }
+194	        return
+195	      }
+196	      const share = kg / totalKg
+197	      const revenue = venitTotal * share
+198	      const cost = costTotal * share
+199	      const metrics = calculateProfit(revenue, cost)
+200	      map[parcela.id] = { profit: metrics.profit, margin: metrics.margin }
+201	    })
+202	
+203	    return map
+204	  })()
+205	
+206	  const totalRevenue = vanzari.reduce(
+207	    (sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0),
+208	    0
+209	  )
+210	  const totalCost = cheltuieli.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+211	  const parcelaPauseMap = (() => {
+212	    const map: Record<string, { remainingDays: number; products: string[] }> = {}
+213	    const activitiesByParcela = new Map<string, typeof activitati>()
+214	
+215	    activitati.forEach((activitate) => {
+216	      if (!activitate.parcela_id) return
+217	      const list = activitiesByParcela.get(activitate.parcela_id) ?? []
+218	      list.push(activitate)
+219	      activitiesByParcela.set(activitate.parcela_id, list)
+220	    })
+221	
+222	    activitiesByParcela.forEach((activities, parcelaId) => {
+223	      const status = computeParcelPauseStatus(activities)
+224	      if (status.remainingDays > 0) {
+225	        map[parcelaId] = status
+226	      }
+227	    })
+228	
+229	    return map
+230	  })()
+231	
+232	  const today = new Date()
+233	  today.setHours(0, 0, 0, 0)
+234	  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+235	  const recoltariAzi = recoltari.filter((row) => toDateOnly(row.data) === todayIso)
+236	  const totalCal1Azi = recoltariAzi.reduce((sum, row) => sum + Number(row.kg_cal1 || 0), 0)
+237	  const totalCal2Azi = recoltariAzi.reduce((sum, row) => sum + Number(row.kg_cal2 || 0), 0)
+238	
+239	  const dailyTotalByDate = recoltari.reduce<Record<string, number>>((acc, row) => {
+240	    const date = toDateOnly(row.data)
+241	    if (!date) return acc
+242	    acc[date] = (acc[date] ?? 0) + Number(row.kg_cal1 || 0) + Number(row.kg_cal2 || 0)
+243	    return acc
+244	  }, {})
+245	
+246	  const last7Days = Array.from({ length: 7 }, (_, index) => {
+247	    const date = new Date(today)
+248	    date.setDate(today.getDate() - (6 - index))
+249	    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+250	    return dailyTotalByDate[iso] ?? 0
+251	  })
+252	
+253	  return (
+254	    <AppShell
+255	      header={
+256	        <PageHeader
+257	          title="Parcele"
+258	          subtitle="Administrare terenuri cultivate"
+259	          rightSlot={<MapIcon className="h-5 w-5" />}
+260	        />
+261	      }
+262	      bottomBar={
+263	        <StickyActionBar>
+264	          <div className="flex items-center justify-between gap-3">
+265	            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total parcele: {parcele.length}</p>
+266	          </div>
+267	        </StickyActionBar>
+268	      }
+269	    >
+270	      <div className="mx-auto w-full max-w-4xl space-y-4 py-4 lg:space-y-6 xl:space-y-8">
+271	        {resolvedError ? (
+272	          <ErrorState title="Eroare la incarcare" message={resolvedError} onRetry={refresh} />
+273	        ) : null}
+274	
+275	        {isLoading ? (
+276	          <div className="space-y-4">
+277	            {Array.from({ length: 4 }).map((_, index) => (
+278	              <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
+279	            ))}
+280	          </div>
+281	        ) : null}
+282	
+283	        {!isLoading && !resolvedError && parcele.length === 0 ? (
+284	          <EmptyState
+285	            icon={<MapIcon className="h-16 w-16" />}
+286	            title="Nicio parcelă încă"
+287	            description="Adaugă prima parcelă pentru a începe"
+288	          />
+289	        ) : null}
+290	
+291	        {!isLoading && !resolvedError ? (
+292	          <DashboardGrid>
+293	            <DashboardCard
+294	              title="Snapshot recoltare azi"
+295	              onClick={() => router.push('/recoltari')}
+296	              contentClassName="grid grid-cols-2 gap-2"
+297	            >
+298	              <StatRow label="Total Cal1 azi" value={`${totalCal1Azi.toFixed(1)} kg`} />
+299	              <StatRow label="Total Cal2 azi" value={`${totalCal2Azi.toFixed(1)} kg`} />
+300	            </DashboardCard>
+301	            <DashboardCard
+302	              title="Trend recoltare 7 zile"
+303	              onClick={() => router.push('/recoltari')}
+304	              rightSlot={<Sparkline values={last7Days} />}
+305	              contentClassName="grid grid-cols-2 gap-2"
+306	            >
+307	              <StatRow label="7 zile" value={`${last7Days.reduce((sum, value) => sum + value, 0).toFixed(1)} kg`} />
+308	            </DashboardCard>
+309	          </DashboardGrid>
+310	        ) : null}
+311	
+312	        {!isLoading && !resolvedError && parcele.length > 0 ? (
+313	          <>
+314	            <ProfitSummaryCard
+315	              title="Profit per parcele"
+316	              subtitle="Distribuire proportionala dupa kg recoltate"
+317	              revenue={totalRevenue}
+318	              cost={totalCost}
+319	            />
+320	            <ParceleList
+321	              parcele={parcele}
+322	              parcelProfitMap={parcelProfitMap}
+323	              parcelPauseMap={parcelaPauseMap}
+324	              onEdit={(parcela) => {
+325	                setSelectedParcela(parcela)
+326	                setEditOpen(true)
+327	              }}
+328	              onDelete={(parcela) => {
+329	                setSelectedParcela(parcela)
+330	                setDeleteOpen(true)
+331	              }}
+332	              onOpen={(parcela) => {
+333	                router.push(`/parcele?parcela=${parcela.id}`)
+334	              }}
+335	            />
+336	          </>
+337	        ) : null}
+338	      </div>
+339	
+340	      <AddParcelDrawer
+341	        open={addOpen}
+342	        onOpenChange={setAddOpen}
+343	        soiuriDisponibile={SOIURI_DISPONIBILE}
+344	        onCreated={refresh}
+345	      />
+346	
+347	      <EditParcelDialog
+348	        open={editOpen}
+349	        onOpenChange={(nextOpen) => {
+350	          setEditOpen(nextOpen)
+351	          if (!nextOpen) setSelectedParcela(null)
+352	        }}
+353	        parcela={selectedParcela}
+354	        soiuriDisponibile={SOIURI_DISPONIBILE}
+355	        onSaved={refresh}
+356	      />
+357	
+358	      <ConfirmDeleteDialog
+359	        open={deleteOpen}
+360	        onOpenChange={(nextOpen) => {
+361	          setDeleteOpen(nextOpen)
+362	          if (!nextOpen) setSelectedParcela(null)
+363	        }}
+364	        itemType="Parcela"
+365	        itemName={buildParcelaDeleteLabel(selectedParcela)}
+366	        description={`Ștergi parcela ${buildParcelaDeleteLabel(selectedParcela)}?`}
+367	        loading={deleteMutation.isPending}
+368	        onConfirm={() => {
+369	          if (!selectedParcela) return
+370	          setDeleteOpen(false)
+371	          scheduleDelete(selectedParcela)
+372	          setSelectedParcela(null)
+373	        }}
+374	      />
+375	    </AppShell>
+376	  )
+377	}
+378	
+379	
+380	

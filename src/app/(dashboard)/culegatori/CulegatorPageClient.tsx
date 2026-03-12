@@ -135,7 +135,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.culegatori })
-      toast.success('Culegator adaugat')
+      toast.success('Culegător adăugat')
       setShowAdd(false)
     },
     onError: (err: Error) => {
@@ -157,7 +157,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.culegatori })
-      toast.success('Culegator actualizat')
+      toast.success('Culegător actualizat')
       setEditCulegator(null)
     },
     onError: (err: Error) => {
@@ -169,7 +169,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     mutationFn: deleteCulegator,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.culegatori })
-      toast.success('Culegator sters')
+      toast.success('Culegător șters')
       setDeleting(null)
     },
     onError: (err: Error) => {
@@ -184,7 +184,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
   }, [])
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setShowAdd(true), 'Adauga culegator')
+    const unregister = registerAddAction(() => setShowAdd(true), 'Adaugă culegător')
     return unregister
   }, [registerAddAction])
 
@@ -206,7 +206,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
 
     pendingDeleteTimers.current[culegatorId] = timer
 
-    toast('Element sters', {
+    toast('Element șters', {
       duration: 5000,
       action: {
         label: 'Undo',
@@ -381,11 +381,11 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <MiniCard icon={'\u{1F464}'} value={String(activeTodayCount)} sub="activi azi" label="Activi azi" />
           <MiniCard icon={'\u{1FAD0}'} value={formatKg(totalKgToday, 1)} sub="kg azi" label="Total recoltat azi" />
-          <MiniCard icon={'\u{1F4B8}'} value={manoperaAzi === null ? '—' : formatCurrency(manoperaAzi)} sub="RON manopera" label="Cost manoperă azi" />
+          <MiniCard icon={'\u{1F4B8}'} value={manoperaAzi === null ? '—' : formatCurrency(manoperaAzi)} sub="RON manoper?" label="Cost manoperă azi" />
         </div>
 
         <div
@@ -416,7 +416,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
           </div>
 
           {rankingItems.length === 0 ? (
-            <div style={{ fontSize: 12, color: colors.gray }}>Nicio recoltare înregistrat? azi.</div>
+            <div style={{ fontSize: 12, color: colors.gray }}>Nicio recoltare ?nregistrat? azi.</div>
           ) : (
             <div style={{ display: 'grid', gap: spacing.xs }}>
               {rankingItems.map((worker, index) => {
@@ -470,7 +470,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
           }}
         >
           <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>
-            Medie: {formatKg(averageKgPerWorker, 1)} kg/culegator
+            Medie: {formatKg(averageKgPerWorker, 1)} kg/culegător
           </div>
           {belowAverageWorker ? (
             <div style={{ marginTop: spacing.xs, fontSize: 12, color: colors.coral }}>
@@ -480,10 +480,10 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         </div>
 
         <SearchField
-          placeholder="Caută culegator..."
+          placeholder="Caut? culeg?tor..."
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          aria-label="Caută culegatori"
+          aria-label="Caut? culeg?tori"
         />
 
         {selectedCulegatorId ? (
@@ -501,17 +501,16 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
               cursor: 'pointer',
             }}
           >
-            {'\u2715'} Arata toti culegatorii
+            {'\u2715'} Arat? to?i culeg?torii
           </button>
         ) : null}
-
         {culegatoriError ? <ErrorState title="Eroare" message={(culegatoriErrorValue as Error).message} /> : null}
-        {isLoading ? <LoadingState label="Se încarcă culegatorii..." /> : null}
+        {isLoading ? <LoadingState label="Se ?ncarc? culeg?torii..." /> : null}
         {!isLoading && !culegatoriError && filteredCulegatori.length === 0 ? (
           <EmptyState
             icon={<UserPlus className="h-16 w-16" />}
-            title="Niciun culegator inca"
-            description="Adaugă primul culegator pentru a incepe"
+            title="Niciun culeg?tor ?nc?"
+            description="Adaug? primul culeg?tor pentru a ?ncepe"
           />
         ) : null}
 
@@ -575,9 +574,9 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         onOpenChange={(open) => {
           if (!open) setDeleting(null)
         }}
-        itemType="Culegator"
-        itemName={deleting?.nume_prenume || 'Culegator selectat'}
-        description={`Stergi culegatorul ${deleting?.nume_prenume || 'selectat'}?`}
+        itemType="Culeg?tor"
+        itemName={deleting?.nume_prenume || 'Culeg?tor selectat'}
+        description={`Ștergi culegătorul ${deleting?.nume_prenume || 'selectat'}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (!deleting) return

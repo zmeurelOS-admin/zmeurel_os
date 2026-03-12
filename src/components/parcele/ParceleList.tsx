@@ -1,8 +1,8 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { colors } from '@/lib/design-tokens'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 
 type ParcelInsight = {
@@ -28,7 +28,7 @@ function formatDate(value: string | undefined): string {
 }
 
 function getUnitateMeta(tipUnitate: string | null | undefined): {
-  label: 'Camp' | 'Solar' | 'Livada'
+  label: 'Câmp' | 'Solar' | 'Livadă'
   background: string
   color: string
 } {
@@ -37,9 +37,9 @@ function getUnitateMeta(tipUnitate: string | null | undefined): {
     return { label: 'Solar', background: colors.yellowLight, color: '#8a4b00' }
   }
   if (value === 'livada') {
-    return { label: 'Livada', background: colors.blueLight, color: '#1d4ed8' }
+    return { label: 'Livadă', background: colors.blueLight, color: '#1d4ed8' }
   }
-  return { label: 'Camp', background: colors.greenLight, color: colors.primaryDark }
+  return { label: 'Câmp', background: colors.greenLight, color: colors.primaryDark }
 }
 
 export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights = {}, focusParcelId }: ParceleListProps) {
@@ -56,7 +56,7 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
   const currentYear = new Date().getFullYear()
 
   return (
-    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {parcele.map((parcela) => {
         const insight = parcelInsights[parcela.id]
         const productionKg = Number(insight?.productionKg || 0)
@@ -83,135 +83,78 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
             ref={(node) => {
               cardRefs.current[parcela.id] = node
             }}
-            style={{
-              borderRadius: radius.lg,
-              border: `1px solid ${colors.grayLight}`,
-              boxShadow: shadows.card,
-              background: hasRecentHarvest ? colors.greenLight : colors.white,
-              overflow: 'hidden',
-            }}
+            className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-colors ${
+              hasRecentHarvest ? 'border-emerald-200 bg-emerald-50/60' : 'border-[var(--agri-border)]'
+            }`}
           >
             <button
               type="button"
               onClick={() => {
                 setExpanded((current) => ({ ...current, [parcela.id]: !current[parcela.id] }))
               }}
-              style={{
-                width: '100%',
-                border: 'none',
-                background: 'transparent',
-                textAlign: 'left',
-                padding: spacing.md,
-                cursor: 'pointer',
-              }}
+              className="w-full p-5 text-left"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: radius.md,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: colors.white,
-                    border: `1px solid ${colors.grayLight}`,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--agri-border)] bg-white text-xs font-bold text-[var(--agri-text)]">
                   PAR
                 </div>
 
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div
-                      style={{
-                        minWidth: 0,
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: colors.dark,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
                       {titleId} - {titleName}
                     </div>
                     <span
-                      style={{
-                        borderRadius: radius.full,
-                        background: unitate.background,
-                        color: unitate.color,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        padding: '4px 8px',
-                        flexShrink: 0,
-                      }}
+                      className="shrink-0 rounded-full px-2 py-1 text-[10px] font-bold leading-none"
+                      style={{ background: unitate.background, color: unitate.color }}
                     >
                       {unitate.label}
                     </span>
                   </div>
-                  <div style={{ fontSize: 11, color: colors.gray }}>
+                  <div className="truncate text-sm text-[var(--agri-text-muted)]">
                     {soi} · {area.toFixed(0)} mp · {plants.toFixed(0)} plante
                   </div>
                 </div>
 
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: colors.green }}>{productionKg.toFixed(1)}</div>
-                  <div style={{ fontSize: 10, color: colors.gray }}>kg</div>
-                  <div style={{ fontSize: 10, color: colors.gray }}>{density.toFixed(2)} plante/mp</div>
+                <div className="shrink-0 text-right">
+                  <div className="text-lg font-bold text-emerald-700">{productionKg.toFixed(1)}</div>
+                  <div className="text-[10px] text-[var(--agri-text-muted)]">kg</div>
+                  <div className="text-[10px] text-[var(--agri-text-muted)]">{density.toFixed(2)} plante/mp</div>
                 </div>
               </div>
             </button>
 
             {isExpanded ? (
-              <div
-                style={{
-                  borderTop: `1px solid ${colors.grayLight}`,
-                  padding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
-                  display: 'grid',
-                  gap: spacing.sm,
-                  background: colors.white,
-                }}
-              >
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: spacing.xs }}>
+              <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
-                    ['Suprafata', `${area.toFixed(0)} mp`],
-                    ['Nr plante', `${plants.toFixed(0)}`],
+                    ['Suprafață', `${area.toFixed(0)} mp`],
+                    ['Nr. plante', `${plants.toFixed(0)}`],
                     ['Densitate', `${density.toFixed(2)}/mp`],
-                    ['Varsta', `${plantationAge} ani`],
+                    ['Vârstă', `${plantationAge} ani`],
                   ].map(([label, value]) => (
                     <div
                       key={label}
-                      style={{ borderRadius: radius.md, background: colors.grayLight, padding: `${spacing.xs + 2}px ${spacing.xs}` }}
+                      className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2"
                     >
-                      <div style={{ fontSize: 9, color: colors.gray }}>{label}</div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: colors.dark }}>{value}</div>
+                      <div className="text-[10px] text-[var(--agri-text-muted)]">{label}</div>
+                      <div className="text-xs font-semibold text-[var(--agri-text)]">{value}</div>
                     </div>
                   ))}
                 </div>
 
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <div style={{ fontSize: 11, color: colors.gray }}>
-                    <strong style={{ color: colors.dark }}>Ultima recoltare:</strong>{' '}
+                <div className="space-y-2 text-sm text-[var(--agri-text-muted)]">
+                  <div>
+                    <strong className="text-[var(--agri-text)]">Ultima recoltare:</strong>{' '}
                     {latestHarvest ? `${formatDate(latestHarvest.date)} · ${latestHarvest.kg.toFixed(1)} kg` : 'Nicio recoltare'}
                   </div>
-                  <div style={{ fontSize: 11, color: colors.gray }}>
-                    <strong style={{ color: colors.dark }}>Ultima activitate:</strong>{' '}
+                  <div>
+                    <strong className="text-[var(--agri-text)]">Ultima activitate:</strong>{' '}
                     {latestActivity ? `${formatDate(latestActivity.date)} · ${latestActivity.type}` : 'Nicio activitate'}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: onOpen ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
-                    gap: spacing.sm,
-                  }}
-                >
+                <div className={`mt-4 grid gap-2 ${onOpen ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   {onOpen ? (
                     <button
                       type="button"
@@ -219,16 +162,7 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
                         event.stopPropagation()
                         onOpen(parcela)
                       }}
-                      style={{
-                        minHeight: 46,
-                        border: 'none',
-                        borderRadius: radius.md,
-                        background: colors.blueLight,
-                        color: '#1d4ed8',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
+                      className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
                     >
                       Detalii
                     </button>
@@ -239,18 +173,9 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
                       event.stopPropagation()
                       onEdit(parcela)
                     }}
-                    style={{
-                      minHeight: 46,
-                      border: 'none',
-                      borderRadius: radius.md,
-                      background: colors.yellowLight,
-                      color: colors.dark,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
+                    className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
                   >
-                    Edit
+                    Editează
                   </button>
                   <button
                     type="button"
@@ -258,18 +183,9 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
                       event.stopPropagation()
                       onDelete(parcela)
                     }}
-                    style={{
-                      minHeight: 46,
-                      border: 'none',
-                      borderRadius: radius.md,
-                      background: colors.coralLight,
-                      color: colors.coral,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
+                    className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
                   >
-                    Delete
+                    Șterge
                   </button>
                 </div>
               </div>

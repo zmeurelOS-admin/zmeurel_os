@@ -79,7 +79,7 @@ export function EditCulegatorDialog({ culegator, open, onOpenChange, onSubmit }:
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editează culegator"
+      title="Editează culegător"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}
@@ -92,7 +92,7 @@ export function EditCulegatorDialog({ culegator, open, onOpenChange, onSubmit }:
     >
       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
         <div className="space-y-2">
-          <Label htmlFor="edit_culegator_nume">Nume ți prenume</Label>
+          <Label htmlFor="edit_culegator_nume">Nume și prenume</Label>
           <Input id="edit_culegator_nume" className="agri-control h-12" {...form.register('nume_prenume')} />
           {form.formState.errors.nume_prenume ? <p className="text-xs text-red-600">{form.formState.errors.nume_prenume.message}</p> : null}
         </div>
@@ -139,7 +139,7 @@ export function EditCulegatorDialog({ culegator, open, onOpenChange, onSubmit }:
             onChange={(event) => form.setValue('status_activ', event.target.checked, { shouldDirty: true })}
           />
           <Label htmlFor="edit_culegator_activ" className="cursor-pointer text-sm font-normal">
-            Culegator activ
+            Culegător activ
           </Label>
         </div>
 

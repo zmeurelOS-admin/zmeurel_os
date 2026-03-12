@@ -1,0 +1,48 @@
+1	'use client'
+2	
+3	import type { MouseEvent } from 'react'
+4	
+5	import { CompactListCard } from '@/components/app/CompactListCard'
+6	import type { Client } from '@/lib/supabase/queries/clienti'
+7	
+8	interface ClientCardProps {
+9	  client: Client
+10	  onEdit: (client: Client) => void
+11	  onDelete: (id: string) => void
+12	  onOpenDetails?: (client: Client) => void
+13	}
+14	
+15	export function ClientCard({ client, onEdit, onDelete, onOpenDetails }: ClientCardProps) {
+16	  const handleCardClick = (event: MouseEvent<HTMLDivElement>) => {
+17	    if (!onOpenDetails) return
+18	    if ((event.target as HTMLElement).closest('button')) return
+19	    onOpenDetails(client)
+20	  }
+21	
+22	  return (
+23	    <div
+24	      role={onOpenDetails ? 'button' : undefined}
+25	      tabIndex={onOpenDetails ? 0 : undefined}
+26	      onClick={handleCardClick}
+27	      onKeyDown={(event) => {
+28	        if (!onOpenDetails) return
+29	        if (event.key !== 'Enter' && event.key !== ' ') return
+30	        event.preventDefault()
+31	        onOpenDetails(client)
+32	      }}
+33	      className={onOpenDetails ? 'cursor-pointer transition-opacity active:opacity-95 focus-visible:outline-none' : undefined}
+34	    >
+35	      <CompactListCard
+36	        leftRows={[
+37	          { label: 'Nume', value: client.nume_client, valueClassName: 'font-semibold' },
+38	          { label: 'Telefon', value: client.telefon || '-' },
+39	          { label: 'Locatie livrare', value: client.adresa || '-' },
+40	        ]}
+41	        rightRows={[]}
+42	        title={client.nume_client}
+43	        onEdit={() => onEdit(client)}
+44	        onDelete={() => onDelete(client.id)}
+45	      />
+46	    </div>
+47	  )
+48	}

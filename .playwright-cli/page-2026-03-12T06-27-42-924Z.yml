@@ -1,0 +1,139 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: Zmeurel OS este în BETA. Trimite feedback
+      - button "Trimite feedback" [ref=e6]
+    - generic [ref=e7]:
+      - banner [ref=e9]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "Dashboard" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Planul de azi
+          - button "Activeaza high visibility mode" [ref=e18]:
+            - img [ref=e19]
+      - main [ref=e25]:
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]:
+              - heading "Ghid de pornire" [level=3] [ref=e30]
+              - generic [ref=e31]: 3/4
+            - generic [ref=e34]:
+              - button "✅ Creează primul teren Adaugă o unitate de producție (câmp, solar sau livadă). Adaugă teren" [ref=e35] [cursor=pointer]:
+                - generic [ref=e36]: ✅
+                - generic [ref=e37]:
+                  - generic [ref=e38]: Creează primul teren
+                  - generic [ref=e39]: Adaugă o unitate de producție (câmp, solar sau livadă).
+                - generic [ref=e40]: Adaugă teren
+              - button "✅ Adaugă prima recoltare Înregistrează cantitatea recoltată pentru un teren. Adaugă recoltare" [ref=e41] [cursor=pointer]:
+                - generic [ref=e42]: ✅
+                - generic [ref=e43]:
+                  - generic [ref=e44]: Adaugă prima recoltare
+                  - generic [ref=e45]: Înregistrează cantitatea recoltată pentru un teren.
+                - generic [ref=e46]: Adaugă recoltare
+              - button "✅ Adaugă primul client Creează contactul clientului pentru comenzi și vânzări. Adaugă client" [ref=e47] [cursor=pointer]:
+                - generic [ref=e48]: ✅
+                - generic [ref=e49]:
+                  - generic [ref=e50]: Adaugă primul client
+                  - generic [ref=e51]: Creează contactul clientului pentru comenzi și vânzări.
+                - generic [ref=e52]: Adaugă client
+              - button "4. Creează prima comandă Introdu o comandă nouă și urmărește livrarea. Adaugă comandă" [ref=e53] [cursor=pointer]:
+                - generic [ref=e54]: "4."
+                - generic [ref=e55]:
+                  - generic [ref=e56]: Creează prima comandă
+                  - generic [ref=e57]: Introdu o comandă nouă și urmărește livrarea.
+                - generic [ref=e58]: Adaugă comandă
+            - 'button "Continua: Adaugă comandă" [ref=e59] [cursor=pointer]'
+          - generic [ref=e61]:
+            - button "Recoltat azi 7 kg 1 recoltări" [ref=e62] [cursor=pointer]:
+              - generic [ref=e64]:
+                - generic [ref=e65]: 🫐
+                - generic [ref=e66]: Recoltat azi
+              - generic [ref=e67]: 7 kg
+              - generic [ref=e68]: 1 recoltări
+            - button "De livrat 0 0 kg" [ref=e69] [cursor=pointer]:
+              - generic [ref=e71]:
+                - generic [ref=e72]: 📦
+                - generic [ref=e73]: De livrat
+              - generic [ref=e74]: "0"
+              - generic [ref=e75]: 0 kg
+            - button "Activități 0 azi" [ref=e76] [cursor=pointer]:
+              - generic [ref=e78]:
+                - generic [ref=e79]: ✂️
+                - generic [ref=e80]: Activități
+              - generic [ref=e81]: "0"
+              - generic [ref=e82]: azi
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e85]:
+                - heading "Recoltare azi pe terenuri" [level=3] [ref=e86]
+                - button "Vezi tot →" [ref=e87]
+              - button "Parcela Mobil (Camp) - 7 kg" [ref=e89] [cursor=pointer]:
+                - generic [ref=e90]: Parcela Mobil (Camp)
+                - generic [ref=e91]: "-"
+                - generic [ref=e92]:
+                  - generic [ref=e93]: "7"
+                  - generic [ref=e94]: kg
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - heading "Financiar sezon" [level=3] [ref=e97]
+                - button "Rapoarte →" [ref=e98]
+              - generic [ref=e99]:
+                - button "Venit 0 RON" [ref=e100] [cursor=pointer]:
+                  - generic [ref=e102]: Venit
+                  - generic [ref=e103]:
+                    - generic [ref=e104]: "0"
+                    - generic [ref=e105]: RON
+                - button "Cheltuieli 120 RON" [ref=e106] [cursor=pointer]:
+                  - generic [ref=e108]: Cheltuieli
+                  - generic [ref=e109]:
+                    - generic [ref=e110]: "120"
+                    - generic [ref=e111]: RON
+                  - img [ref=e113]
+                - button "Profit -120 RON" [ref=e115] [cursor=pointer]:
+                  - generic [ref=e117]: Profit
+                  - generic [ref=e118]:
+                    - generic [ref=e119]: "-120"
+                    - generic [ref=e120]: RON
+                  - img [ref=e122]
+            - generic [ref=e124]:
+              - generic [ref=e125]:
+                - heading "Comenzi de livrat" [level=3] [ref=e126]
+                - button "Toate →" [ref=e127]
+              - generic [ref=e128]:
+                - button "AZI 0 0 kg" [ref=e129] [cursor=pointer]:
+                  - generic [ref=e130]: AZI
+                  - generic [ref=e131]: "0"
+                  - generic [ref=e132]: 0 kg
+                - button "VIITOARE 0 0 kg" [ref=e133] [cursor=pointer]:
+                  - generic [ref=e134]: VIITOARE
+                  - generic [ref=e135]: "0"
+                  - generic [ref=e136]: 0 kg
+            - generic [ref=e137]:
+              - heading "Activitate recentă" [level=3] [ref=e138]
+              - button "🫐 Recoltat 7 kg — Parcela Mobil (Camp) 12 mar., 08:18 ›" [ref=e140] [cursor=pointer]:
+                - generic [ref=e141]: 🫐
+                - generic [ref=e142]:
+                  - generic [ref=e143]: Recoltat 7 kg — Parcela Mobil (Camp)
+                  - generic [ref=e144]: 12 mar., 08:18
+                - generic [ref=e145]: ›
+    - navigation "Navigare principală" [ref=e146]:
+      - generic [ref=e147]:
+        - link "📊 Dashboard" [ref=e148] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e149]: 📊
+          - generic [ref=e150]: Dashboard
+        - link "🧺 Recoltări" [ref=e152] [cursor=pointer]:
+          - /url: /recoltari
+          - generic [ref=e153]: 🧺
+          - generic [ref=e154]: Recoltări
+        - button "Adaugă recoltare" [ref=e156]:
+          - generic [ref=e157]: +
+        - link "📦 Comenzi" [ref=e158] [cursor=pointer]:
+          - /url: /comenzi
+          - generic [ref=e159]: 📦
+          - generic [ref=e160]: Comenzi
+        - button "Mai multe module" [ref=e161]:
+          - generic [ref=e162]: •••
+          - generic [ref=e163]: Mai mult
+  - region "Notifications alt+T"
+  - alert [ref=e164]

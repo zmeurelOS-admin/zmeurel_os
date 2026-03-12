@@ -1,0 +1,46 @@
+﻿C:\Users\Andrei\Desktop\zmeurel\src\lib
+├── alerts
+│   ├── engine.ts
+│   └── generateFarmAlerts.ts
+├── analytics
+│   ├── track.ts
+│   └── trackEvent.ts
+├── auth
+│   └── isSuperAdmin.ts
+├── calculations
+│   └── profit.ts
+├── config
+│   └── beta.ts
+├── debug
+│   └── rls-check.ts
+├── demo
+│   └── 
+├── integrations
+│   ├── googleContacts.ts
+│   └── googleContactsAuth.ts
+├── monitoring
+│   └── useSentryUser.ts
+├── offline
+│   ├── db.ts
+│   ├── generateClientId.ts
+│   └── syncEngine.ts
+├── parcele
+│   └── pauza.ts
+├── subscription
+│   ├── plans.ts
+│   └── useMockPlan.ts
+├── supabase
+│   ├── queries
+│   ├── admin.ts
+│   ├── client.ts
+│   ├── seed-demo-data.ts
+│   └── server.ts
+├── ui
+│   ├── delete-labels.ts
+│   ├── status-badges.ts
+│   └── toast.ts
+├── utils
+│   ├── area.ts
+│   ├── downloadVCard.ts
+│   └── haptic.ts
+└── utils.ts

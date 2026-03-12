@@ -1,0 +1,63 @@
+    1: create or replace function public.set_vanzari_butasi_tenant_and_public_id()
+    2: returns trigger
+    3: language plpgsql
+    4: security definer
+    5: set search_path = public
+    6: as $$
+    7: declare
+    8:   resolved_tenant uuid;
+    9:   next_number bigint;
+   10: begin
+   11:   if tg_op <> 'INSERT' then
+   12:     return new;
+   13:   end if;
+   14: 
+   15:   if new.tenant_id is null then
+   16:     select t.id
+   17:     into resolved_tenant
+   18:     from public.tenants t
+   19:     where t.owner_user_id = auth.uid()
+   20:     limit 1;
+   21: 
+   22:     new.tenant_id := resolved_tenant;
+   23:   end if;
+   24: 
+   25:   if new.tenant_id is null then
+   26:     raise exception 'Tenant invalid pentru utilizatorul curent.';
+   27:   end if;
+   28: 
+   29:   if new.id_vanzare_butasi is null or btrim(new.id_vanzare_butasi) = '' then
+   30:     -- Serialize per-tenant ID generation to avoid race conditions.
+   31:     perform 1
+   32:     from public.tenants t
+   33:     where t.id = new.tenant_id
+   34:     for update;
+   35: 
+   36:     select
+   37:       coalesce(
+   38:         max(
+   39:           case
+   40:             when vb.id_vanzare_butasi ~ '^VB[0-9]+$'
+   41:               then substring(vb.id_vanzare_butasi from 3)::bigint
+   42:             else null
+   43:           end
+   44:         ),
+   45:         0
+   46:       ) + 1
+   47:     into next_number
+   48:     from public.vanzari_butasi vb
+   49:     where vb.tenant_id = new.tenant_id;
+   50: 
+   51:     new.id_vanzare_butasi := 'VB' || lpad(next_number::text, 3, '0');
+   52:   end if;
+   53: 
+   54:   return new;
+   55: end;
+   56: $$;
+   57: 
+   58: drop trigger if exists vanzari_butasi_set_tenant_and_public_id on public.vanzari_butasi;
+   59: create trigger vanzari_butasi_set_tenant_and_public_id
+   60: before insert on public.vanzari_butasi
+   61: for each row execute function public.set_vanzari_butasi_tenant_and_public_id();
+   62: 
+   63: notify pgrst, 'reload schema';

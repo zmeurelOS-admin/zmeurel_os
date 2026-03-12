@@ -1,0 +1,28 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect } from 'react'
+    4: import { getSupabase } from '@/lib/supabase/client'
+    5: 
+    6: export function useSentryUser() {
+    7:   useEffect(() => {
+    8:     const supabase = getSupabase()
+    9: 
+   10:     void (async () => {
+   11:       try {
+   12:         const [{ data }, Sentry] = await Promise.all([
+   13:           supabase.auth.getUser(),
+   14:           import('@sentry/nextjs'),
+   15:         ])
+   16: 
+   17:         if (!data?.user) return
+   18: 
+   19:         Sentry.setUser({
+   20:           id: data.user.id,
+   21:           email: data.user.email ?? undefined,
+   22:         })
+   23:       } catch {
+   24:         // monitoring must never affect app runtime
+   25:       }
+   26:     })()
+   27:   }, [])
+   28: }

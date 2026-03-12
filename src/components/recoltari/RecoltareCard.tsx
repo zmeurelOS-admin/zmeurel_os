@@ -1,8 +1,8 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { colors } from '@/lib/design-tokens'
 import { Recoltare } from '@/lib/supabase/queries/recoltari'
 
 interface RecoltareCardProps {
@@ -43,7 +43,6 @@ export function RecoltareCard({
   const formattedDate = new Date(recoltare.data).toLocaleDateString('ro-RO')
 
   const pretSnapshot = Number(recoltare.pret_lei_pe_kg_snapshot || 0)
-  // TODO: when cal2 has dedicated price in DB, replace this fallback.
   const pretCal2 = pretSnapshot
   const valoareCal1 = kgCal1 * pretSnapshot
   const valoareCal2 = kgCal2 * pretCal2
@@ -54,191 +53,83 @@ export function RecoltareCard({
   const workerTitle = culegatorNume || 'Nespecificat'
 
   return (
-    <div
-      style={{
-        borderRadius: radius.lg,
-        background: colors.white,
-        boxShadow: shadows.card,
-        border: `1px solid ${colors.grayLight}`,
-        overflow: 'hidden',
-      }}
-    >
+    <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded((previous) => !previous)}
-        style={{
-          width: '100%',
-          textAlign: 'left',
-          border: 'none',
-          background: 'transparent',
-          padding: `${spacing.md}px`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.sm,
-          cursor: 'pointer',
-        }}
+        className="w-full p-5 text-left"
       >
-        <div
-          aria-hidden="true"
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: radius.md,
-            background: iconBackground || colors.greenLight,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 18,
-            flexShrink: 0,
-          }}
-        >
-          {'\u{1FAD0}'}
-        </div>
-
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: colors.dark,
-                lineHeight: 1.25,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {parcelaTitle} - {soiTitle}
-            </div>
-            {parcelaTip ? (
-              <span
-                style={{
-                  borderRadius: radius.full,
-                  background: colors.grayLight,
-                  color: colors.gray,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  padding: '4px 7px',
-                  flexShrink: 0,
-                }}
-              >
-                {parcelaTip}
-              </span>
-            ) : null}
-          </div>
+        <div className="flex items-start gap-4">
           <div
-            style={{
-              fontSize: 11,
-              color: colors.gray,
-              marginTop: 3,
-              lineHeight: 1.2,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
+            aria-hidden="true"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
+            style={{ background: iconBackground || colors.greenLight }}
           >
-            {'\u{1F464}'} {workerTitle} {'\u{1F550}'} {formattedTime}
+            🫐
           </div>
-        </div>
 
-        <div style={{ flexShrink: 0, textAlign: 'right' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: colors.dark }}>{totalKg.toFixed(2)} kg</div>
-          <div style={{ display: 'flex', gap: spacing.xs, marginTop: spacing.xs, justifyContent: 'flex-end' }}>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: colors.green,
-                background: colors.greenLight,
-                padding: '2px 6px',
-                borderRadius: radius.sm,
-              }}
-            >
-              C1:{kgCal1.toFixed(2)}
-            </span>
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: colors.coral,
-                background: colors.coralLight,
-                padding: '2px 6px',
-                borderRadius: radius.sm,
-              }}
-            >
-              C2:{kgCal2.toFixed(2)}
-            </span>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
+                {parcelaTitle} - {soiTitle}
+              </div>
+              {parcelaTip ? (
+                <span className="shrink-0 rounded-full bg-[var(--agri-surface-muted)] px-2 py-1 text-[10px] font-bold text-[var(--agri-text-muted)]">
+                  {parcelaTip}
+                </span>
+              ) : null}
+            </div>
+            <div className="truncate text-sm text-[var(--agri-text-muted)]">
+              👤 {workerTitle} · 🕐 {formattedTime}
+            </div>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-bold text-[var(--agri-text)]">{totalKg.toFixed(2)} kg</div>
+            <div className="mt-1.5 flex justify-end gap-1">
+              <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+                C1: {kgCal1.toFixed(2)}
+              </span>
+              <span className="rounded-md bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">
+                C2: {kgCal2.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       </button>
 
       {expanded ? (
-        <div
-          style={{
-            borderTop: `1px solid ${colors.grayLight}`,
-            padding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
-            display: 'grid',
-            gap: spacing.sm,
-          }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: spacing.sm }}>
-            <div
-              style={{
-                borderRadius: radius.md,
-                padding: spacing.sm,
-                background: colors.greenLight,
-              }}
-            >
-              <div style={{ fontSize: 10, color: colors.gray }}>Valoare Cal I</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.green }}>{valoareCal1.toFixed(2)} lei</div>
+        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl bg-emerald-50 p-3">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Valoare Cal. I</div>
+              <div className="text-sm font-semibold text-emerald-700">{valoareCal1.toFixed(2)} lei</div>
             </div>
-            <div
-              style={{
-                borderRadius: radius.md,
-                padding: spacing.sm,
-                background: colors.coralLight,
-              }}
-            >
-              <div style={{ fontSize: 10, color: colors.gray }}>Valoare Cal II</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.coral }}>{valoareCal2.toFixed(2)} lei</div>
+            <div className="rounded-xl bg-red-50 p-3">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Valoare Cal. II</div>
+              <div className="text-sm font-semibold text-red-700">{valoareCal2.toFixed(2)} lei</div>
             </div>
-            <div
-              style={{
-                borderRadius: radius.md,
-                padding: spacing.sm,
-                background: colors.grayLight,
-              }}
-            >
-              <div style={{ fontSize: 10, color: colors.gray }}>Total</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{valoareTotala.toFixed(2)} lei</div>
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] p-3">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Total</div>
+              <div className="text-sm font-semibold text-[var(--agri-text)]">{valoareTotala.toFixed(2)} lei</div>
             </div>
           </div>
 
-          <div style={{ fontSize: 11, color: colors.gray }}>
-            Data: {formattedDate} {costMunca > 0 ? `- Munca: ${costMunca.toFixed(2)} lei` : ''}
+          <div className="text-sm text-[var(--agri-text-muted)]">
+            Data: {formattedDate}
+            {costMunca > 0 ? ` · Manoperă: ${costMunca.toFixed(2)} lei` : ''}
           </div>
 
-          <div style={{ display: 'flex', gap: spacing.sm }}>
+          <div className="mt-4 grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 onView(recoltare)
               }}
-              style={{
-                flex: 1,
-                border: 'none',
-                background: colors.blueLight,
-                color: colors.blue,
-                borderRadius: radius.md,
-                padding: '8px 10px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
             >
-              {'\u{1F441}\uFE0F'} Vezi
+              Vezi
             </button>
             <button
               type="button"
@@ -246,19 +137,9 @@ export function RecoltareCard({
                 event.stopPropagation()
                 onEdit(recoltare)
               }}
-              style={{
-                flex: 1,
-                border: 'none',
-                background: colors.yellowLight,
-                color: colors.dark,
-                borderRadius: radius.md,
-                padding: '8px 10px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
             >
-              {'\u270F\uFE0F'} Editează
+              Editează
             </button>
             <button
               type="button"
@@ -266,19 +147,9 @@ export function RecoltareCard({
                 event.stopPropagation()
                 onDelete(recoltare)
               }}
-              style={{
-                flex: 1,
-                border: 'none',
-                background: colors.coralLight,
-                color: colors.coral,
-                borderRadius: radius.md,
-                padding: '8px 10px',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
             >
-              {'\u{1F5D1}\uFE0F'} Șterge
+              Șterge
             </button>
           </div>
         </div>

@@ -1,0 +1,36 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: 🌱
+        - heading "Testează Zmeurel OS în modul demo" [level=1] [ref=e6]
+        - paragraph [ref=e7]: Alege tipul fermei pentru a vedea cum funcționează aplicația
+      - generic [ref=e8]:
+        - article [ref=e9]:
+          - heading "🍓 Fructe de pădure / câmp" [level=2] [ref=e10]
+          - paragraph [ref=e11]: "Ideal pentru:"
+          - paragraph [ref=e12]: zmeură, afine, mure, căpșuni
+          - paragraph [ref=e13]: "Demo include:"
+          - list [ref=e14]:
+            - listitem [ref=e15]: "- terenuri"
+            - listitem [ref=e16]: "- recoltări"
+            - listitem [ref=e17]: "- activități agricole"
+            - listitem [ref=e18]: "- vânzări"
+          - button "Pornește demo" [ref=e19]:
+            - generic [ref=e20]: Pornește demo
+        - article [ref=e21]:
+          - heading "🍅 Legume în solarii" [level=2] [ref=e22]
+          - paragraph [ref=e23]: "Ideal pentru:"
+          - paragraph [ref=e24]: roșii, castraveți, ardei
+          - paragraph [ref=e25]: "Demo include:"
+          - list [ref=e26]:
+            - listitem [ref=e27]: "- solarii"
+            - listitem [ref=e28]: "- climat solar"
+            - listitem [ref=e29]: "- etape cultură"
+            - listitem [ref=e30]: "- activități solarii"
+          - button "Pornește demo" [ref=e31]:
+            - generic [ref=e32]: Pornește demo
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e38] [cursor=pointer]:
+    - img [ref=e39]
+  - alert [ref=e42]

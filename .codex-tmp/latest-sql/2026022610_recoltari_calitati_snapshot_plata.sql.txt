@@ -1,0 +1,38 @@
+    1: alter table public.recoltari
+    2:   add column if not exists kg_cal1 numeric not null default 0,
+    3:   add column if not exists kg_cal2 numeric not null default 0,
+    4:   add column if not exists pret_lei_pe_kg_snapshot numeric not null default 0,
+    5:   add column if not exists valoare_munca_lei numeric not null default 0;
+    6: 
+    7: update public.recoltari r
+    8: set
+    9:   kg_cal1 = case
+   10:     when coalesce(r.kg_cal1, 0) = 0 and coalesce(r.kg_cal2, 0) = 0 then coalesce(r.cantitate_kg, 0)
+   11:     else coalesce(r.kg_cal1, 0)
+   12:   end,
+   13:   kg_cal2 = coalesce(r.kg_cal2, 0),
+   14:   pret_lei_pe_kg_snapshot = coalesce(
+   15:     nullif(r.pret_lei_pe_kg_snapshot, 0),
+   16:     c.tarif_lei_kg,
+   17:     0
+   18:   ),
+   19:   valoare_munca_lei = (coalesce(r.kg_cal1, 0) + coalesce(r.kg_cal2, 0)) * coalesce(
+   20:     nullif(r.pret_lei_pe_kg_snapshot, 0),
+   21:     c.tarif_lei_kg,
+   22:     0
+   23:   )
+   24: from public.culegatori c
+   25: where c.id = r.culegator_id;
+   26: 
+   27: update public.recoltari
+   28: set
+   29:   kg_cal1 = case
+   30:     when coalesce(kg_cal1, 0) = 0 and coalesce(kg_cal2, 0) = 0 then coalesce(cantitate_kg, 0)
+   31:     else coalesce(kg_cal1, 0)
+   32:   end,
+   33:   kg_cal2 = coalesce(kg_cal2, 0),
+   34:   pret_lei_pe_kg_snapshot = coalesce(pret_lei_pe_kg_snapshot, 0),
+   35:   valoare_munca_lei = (coalesce(kg_cal1, 0) + coalesce(kg_cal2, 0)) * coalesce(pret_lei_pe_kg_snapshot, 0)
+   36: where culegator_id is null;
+   37: 
+   38: notify pgrst, 'reload schema';

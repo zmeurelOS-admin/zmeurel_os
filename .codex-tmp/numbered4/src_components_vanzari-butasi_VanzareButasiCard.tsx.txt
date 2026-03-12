@@ -1,0 +1,81 @@
+1	'use client'
+2	
+3	import { Badge } from '@/components/ui/badge'
+4	import { CompactListCard } from '@/components/app/CompactListCard'
+5	import { getStatusBadgeClass, STATUS_BADGE_LAYOUT_CLASS } from '@/lib/ui/status-badges'
+6	import { type VanzareButasi, type VanzareButasiStatus } from '@/lib/supabase/queries/vanzari-butasi'
+7	
+8	interface VanzareButasiCardProps {
+9	  vanzare: VanzareButasi
+10	  clientNume?: string
+11	  parcelaNume?: string
+12	  onView: (vanzare: VanzareButasi) => void
+13	  onEdit: (vanzare: VanzareButasi) => void
+14	  onDelete: (vanzare: VanzareButasi) => void
+15	}
+16	
+17	const statusClasses: Record<VanzareButasiStatus, string> = {
+18	  noua: getStatusBadgeClass('noua'),
+19	  confirmata: getStatusBadgeClass('confirmata'),
+20	  pregatita: getStatusBadgeClass('pregatita'),
+21	  livrata: getStatusBadgeClass('livrata'),
+22	  anulata: getStatusBadgeClass('anulata'),
+23	}
+24	
+25	const statusLabels: Record<VanzareButasiStatus, string> = {
+26	  noua: 'Noua',
+27	  confirmata: 'Confirmata',
+28	  pregatita: 'Pregatita',
+29	  livrata: 'Livrata',
+30	  anulata: 'Anulata',
+31	}
+32	
+33	function formatLei(value: number): string {
+34	  return `${value.toFixed(2)} lei`
+35	}
+36	
+37	export function VanzareButasiCard({
+38	  vanzare,
+39	  clientNume,
+40	  parcelaNume,
+41	  onView,
+42	  onEdit,
+43	  onDelete,
+44	}: VanzareButasiCardProps) {
+45	  const restDeIncasat = Number(vanzare.total_lei) - Number(vanzare.avans_suma)
+46	  const deliveryDate = vanzare.data_livrare_estimata
+47	    ? new Date(vanzare.data_livrare_estimata).toLocaleDateString('ro-RO')
+48	    : 'Nespecificata'
+49	
+50	  return (
+51	    <CompactListCard
+52	      title={clientNume || 'Client necunoscut'}
+53	      leftRows={[
+54	        { label: 'Client', value: clientNume || 'Necunoscut' },
+55	        { label: 'Parcela', value: parcelaNume || 'Nespecificata' },
+56	        { label: 'Livrare', value: deliveryDate },
+57	        { label: 'Cantitate', value: `${Number(vanzare.cantitate_butasi).toLocaleString('ro-RO')} buc` },
+58	      ]}
+59	      rightRows={[
+60	        {
+61	          label: 'Status',
+62	          value: (
+63	            <div className="flex items-center gap-2">
+64	              <Badge className={`badge-consistent ${STATUS_BADGE_LAYOUT_CLASS} ${statusClasses[vanzare.status]}`}>{statusLabels[vanzare.status]}</Badge>
+65	              {restDeIncasat > 0 ? (
+66	                <Badge className={`badge-consistent ${STATUS_BADGE_LAYOUT_CLASS} ${getStatusBadgeClass('restanta')}`}>Rest</Badge>
+67	              ) : null}
+68	            </div>
+69	          ),
+70	          allowWrap: true,
+71	        },
+72	        { label: 'Total', value: formatLei(Number(vanzare.total_lei)), emphasis: 'financial', valueClassName: 'value-money-positive' },
+73	        { label: 'Avans', value: formatLei(Number(vanzare.avans_suma)), emphasis: 'financial', valueClassName: 'value-money-positive' },
+74	        { label: 'Rest', value: formatLei(restDeIncasat), emphasis: 'financial', valueClassName: restDeIncasat > 0 ? 'value-money-negative' : 'value-money-positive' },
+75	      ]}
+76	      onEdit={() => onEdit(vanzare)}
+77	      onDelete={() => onDelete(vanzare)}
+78	      onClick={() => onView(vanzare)}
+79	    />
+80	  )
+81	}

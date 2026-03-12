@@ -1,0 +1,423 @@
+[
+    {
+        "table":  "activitati_agricole",
+        "first_seen":  "supabase/migrations/2026022501_audit_trail_mvp.sql:33",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  "supabase/migrations/2026022504_idempotency_sync_safety.sql:110:alter table public.activitati_agricole enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "alert_dismissals",
+        "first_seen":  "supabase/migrations/2026022602_alert_dismissals.sql:16",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  2,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022602_alert_dismissals.sql:18:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022602_alert_dismissals.sql:23:  constraint alert_dismissals_unique_per_day unique (tenant_id, user_id, alert_key, dismissed_on)",
+                            "supabase/migrations/2026022602_alert_dismissals.sql:27:  on public.alert_dismissals (tenant_id, user_id, dismissed_on);",
+                            "supabase/migrations/2026022602_alert_dismissals.sql:30:  on public.alert_dismissals (tenant_id, user_id, alert_key);",
+                            "supabase/migrations/2026022602_alert_dismissals.sql:41:    and tenant_id = (",
+                            "supabase/migrations/2026022602_alert_dismissals.sql:57:  and tenant_id = (",
+                            "supabase/migrations/2026022602_alert_dismissals.sql:71:  and tenant_id = (",
+                            "supabase/migrations/20260226155238_20260226_fix_alert_dismissals_schema_cache.sql:5:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/20260226155238_20260226_fix_alert_dismissals_schema_cache.sql:10:  unique (tenant_id, user_id, alert_key, dismissed_on)",
+                            "supabase/migrations/20260226155238_20260226_fix_alert_dismissals_schema_cache.sql:13:create index if not exists alert_dismissals_user_tenant_idx",
+                            "supabase/migrations/20260226155238_20260226_fix_alert_dismissals_schema_cache.sql:14:  on public.alert_dismissals (tenant_id, user_id, dismissed_on);"
+                        ],
+        "rls_lines":  [
+                          "supabase/migrations/2026022602_alert_dismissals.sql:32:alter table public.alert_dismissals enable row level security;",
+                          "supabase/migrations/20260226155238_20260226_fix_alert_dismissals_schema_cache.sql:16:alter table public.alert_dismissals enable row level security;"
+                      ],
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  [
+                         "supabase/migrations/2026022602_alert_dismissals.sql:18:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                         "supabase/migrations/20260226155238_20260226_fix_alert_dismissals_schema_cache.sql:5:  tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                     ]
+    },
+    {
+        "table":  "analytics_events",
+        "first_seen":  "supabase/migrations/2026022506_usage_analytics_events.sql:3",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  2,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022506_usage_analytics_events.sql:5:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022506_usage_analytics_events.sql:12:create index if not exists analytics_events_tenant_id_idx",
+                            "supabase/migrations/2026022506_usage_analytics_events.sql:13:  on public.analytics_events (tenant_id);",
+                            "supabase/migrations/2026022506_usage_analytics_events.sql:31:  if new.tenant_id is null then",
+                            "supabase/migrations/2026022506_usage_analytics_events.sql:32:    select t.id into new.tenant_id",
+                            "supabase/migrations/2026022506_usage_analytics_events.sql:63:  and tenant_id = (",
+                            "supabase/migrations/2026030101_analytics_events.sql:5:  tenant_id uuid references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026030101_analytics_events.sql:32:    where t.id = analytics_events.tenant_id",
+                            "supabase/migrations/2026030101_analytics_events.sql:53:  on public.analytics_events(tenant_id, created_at desc);"
+                        ],
+        "rls_lines":  [
+                          "supabase/migrations/2026022506_usage_analytics_events.sql:55:alter table public.analytics_events enable row level security;",
+                          "supabase/migrations/2026030101_analytics_events.sql:19:alter table public.analytics_events enable row level security;"
+                      ],
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  [
+                         "supabase/migrations/2026022506_usage_analytics_events.sql:5:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                         "supabase/migrations/2026030101_analytics_events.sql:5:  tenant_id uuid references public.tenants(id) on delete cascade,"
+                     ]
+    },
+    {
+        "table":  "audit_logs",
+        "first_seen":  "supabase/migrations/2026022604_audit_logs_plan_changes.sql:5",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  1,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022604_audit_logs_plan_changes.sql:10:  target_tenant_id uuid references public.tenants(id) on delete set null,",
+                            "supabase/migrations/2026022604_audit_logs_plan_changes.sql:18:create index if not exists audit_logs_target_tenant_idx",
+                            "supabase/migrations/2026022604_audit_logs_plan_changes.sql:19:  on public.audit_logs (target_tenant_id);",
+                            "supabase/migrations/2026022604_audit_logs_plan_changes.sql:48:create or replace function public.admin_set_tenant_plan(p_tenant_id uuid, p_plan text)"
+                        ],
+        "rls_lines":  "supabase/migrations/2026022604_audit_logs_plan_changes.sql:21:alter table public.audit_logs enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  "supabase/migrations/2026022604_audit_logs_plan_changes.sql:10:  target_tenant_id uuid references public.tenants(id) on delete set null,"
+    },
+    {
+        "table":  "cheltuieli_diverse",
+        "first_seen":  "supabase/migrations/2026022502_client_sync_id_schema_guard.sql:19",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022504_idempotency_sync_safety.sql:118:  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())",
+                            "supabase/migrations/2026022504_idempotency_sync_safety.sql:122:  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())",
+                            "supabase/migrations/2026022504_idempotency_sync_safety.sql:131:  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())",
+                            "supabase/migrations/2026022504_idempotency_sync_safety.sql:135:  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())",
+                            "supabase/migrations/2026022504_idempotency_sync_safety.sql:144:  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())",
+                            "supabase/migrations/2026022504_idempotency_sync_safety.sql:148:  tenant_id = (select id from public.tenants where owner_user_id = auth.uid())",
+                            "supabase/migrations/2026022605_cheltuieli_diverse_client_sync_id_fix.sql:19:  on public.cheltuieli_diverse (tenant_id, client_sync_id)"
+                        ],
+        "rls_lines":  "supabase/migrations/2026022504_idempotency_sync_safety.sql:111:alter table public.cheltuieli_diverse enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "clienti",
+        "first_seen":  "supabase/migrations/2026022501_audit_trail_mvp.sql:39",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Nu",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  "supabase/migrations/2026022608_google_contacts_integrations.sql:8:  on public.clienti (tenant_id, google_resource_name)",
+        "rls_lines":  {
+
+                      },
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "comenzi",
+        "first_seen":  "supabase/migrations/2026022701_comenzi_module.sql:18",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  6,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022701_comenzi_module.sql:20:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022701_comenzi_module.sql:38:create index if not exists comenzi_tenant_idx on public.comenzi (tenant_id);",
+                            "supabase/migrations/2026022701_comenzi_module.sql:39:create index if not exists comenzi_status_idx on public.comenzi (tenant_id, status);",
+                            "supabase/migrations/2026022701_comenzi_module.sql:40:create index if not exists comenzi_data_livrare_idx on public.comenzi (tenant_id, data_livrare);",
+                            "supabase/migrations/2026022701_comenzi_module.sql:41:create index if not exists comenzi_client_idx on public.comenzi (tenant_id, client_id);",
+                            "supabase/migrations/2026022701_comenzi_module.sql:52:    if new.tenant_id is null then",
+                            "supabase/migrations/2026022701_comenzi_module.sql:83:  tenant_id = (",
+                            "supabase/migrations/2026022701_comenzi_module.sql:96:  tenant_id = (",
+                            "supabase/migrations/2026022701_comenzi_module.sql:109:  tenant_id = (",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:6:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:82:create index if not exists comenzi_tenant_idx on public.comenzi (tenant_id);",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:83:create index if not exists comenzi_data_livrare_idx on public.comenzi (tenant_id, data_livrare);",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:84:create index if not exists comenzi_status_idx on public.comenzi (tenant_id, status);",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:95:    if new.tenant_id is null then",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:102:      new.tenant_id := resolved_tenant;",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:126:  tenant_id = (",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:139:  tenant_id = (",
+                            "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:152:  tenant_id = ("
+                        ],
+        "rls_lines":  [
+                          "supabase/migrations/2026022701_comenzi_module.sql:76:alter table public.comenzi enable row level security;",
+                          "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:119:alter table public.comenzi enable row level security;",
+                          "supabase/migrations/2026022703_comenzi_superadmin_policies.sql:3:alter table public.comenzi enable row level security;"
+                      ],
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  [
+                         "supabase/migrations/2026022701_comenzi_module.sql:20:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                         "supabase/migrations/2026022701_comenzi_module.sql:21:  client_id uuid references public.clienti(id) on delete set null,",
+                         "supabase/migrations/2026022701_comenzi_module.sql:32:  linked_vanzare_id uuid references public.vanzari(id) on delete set null,",
+                         "supabase/migrations/2026022701_comenzi_module.sql:33:  parent_comanda_id uuid references public.comenzi(id) on delete set null,",
+                         "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:6:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                         "supabase/migrations/2026022702_comenzi_schema_cache_repair.sql:7:  client_id uuid null references public.clienti(id) on delete set null,"
+                     ]
+    },
+    {
+        "table":  "feedback",
+        "first_seen":  "supabase/migrations/2026022812_feedback_table_rls.sql:1",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  1,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022812_feedback_table_rls.sql:3:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022812_feedback_table_rls.sql:11:create index if not exists idx_feedback_tenant_id on public.feedback(tenant_id);",
+                            "supabase/migrations/2026022812_feedback_table_rls.sql:28:      where t.id = feedback.tenant_id"
+                        ],
+        "rls_lines":  "supabase/migrations/2026022812_feedback_table_rls.sql:15:alter table public.feedback enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  "supabase/migrations/2026022812_feedback_table_rls.sql:3:  tenant_id uuid not null references public.tenants(id) on delete cascade,"
+    },
+    {
+        "table":  "integrations_google_contacts",
+        "first_seen":  "supabase/migrations/2026022608_google_contacts_integrations.sql:11",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  1,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022608_google_contacts_integrations.sql:13:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022608_google_contacts_integrations.sql:64:  and tenant_id = (",
+                            "supabase/migrations/2026022608_google_contacts_integrations.sql:83:  and tenant_id = ("
+                        ],
+        "rls_lines":  "supabase/migrations/2026022608_google_contacts_integrations.sql:46:alter table public.integrations_google_contacts enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  "supabase/migrations/2026022608_google_contacts_integrations.sql:13:  tenant_id uuid not null references public.tenants(id) on delete cascade,"
+    },
+    {
+        "table":  "miscari_stoc",
+        "first_seen":  "supabase/migrations/2026022609_miscari_stoc_inventory.sql:7",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  3,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022609_miscari_stoc_inventory.sql:9:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022609_miscari_stoc_inventory.sql:41:  on public.miscari_stoc (tenant_id, locatie_id);",
+                            "supabase/migrations/2026022609_miscari_stoc_inventory.sql:50:  tenant_id = (",
+                            "supabase/migrations/2026022609_miscari_stoc_inventory.sql:63:  tenant_id = (",
+                            "supabase/migrations/2026022609_miscari_stoc_inventory.sql:76:  tenant_id = (",
+                            "supabase/migrations/2026022705_miscari_stoc_global_cumulative.sql:24:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022705_miscari_stoc_global_cumulative.sql:50:  on public.miscari_stoc (tenant_id, tip, data);"
+                        ],
+        "rls_lines":  [
+                          "supabase/migrations/2026022609_miscari_stoc_inventory.sql:43:alter table public.miscari_stoc enable row level security;",
+                          "supabase/migrations/2026022705_miscari_stoc_global_cumulative.sql:52:alter table public.miscari_stoc enable row level security;"
+                      ],
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  [
+                         "supabase/migrations/2026022609_miscari_stoc_inventory.sql:9:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                         "supabase/migrations/2026022609_miscari_stoc_inventory.sql:10:  locatie_id uuid not null references public.parcele(id) on delete cascade,",
+                         "supabase/migrations/2026022705_miscari_stoc_global_cumulative.sql:24:  tenant_id uuid not null references public.tenants(id) on delete cascade,"
+                     ]
+    },
+    {
+        "table":  "parcele",
+        "first_seen":  "supabase/migrations/2026022501_audit_trail_mvp.sql:45",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Nu",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  {
+
+                      },
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "profiles",
+        "first_seen":  "supabase/migrations/2026022601_admin_tenants_dashboard.sql:3",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Nu",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  {
+
+                      },
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "recoltari",
+        "first_seen":  "supabase/migrations/2026022501_audit_trail_mvp.sql:21",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  "supabase/migrations/2026022504_idempotency_sync_safety.sql:108:alter table public.recoltari enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "tenant_metrics_daily",
+        "first_seen":  "supabase/migrations/2026022606_fix_admin_audit_and_metrics_compat.sql:10",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  [
+                          "supabase/migrations/2026022606_fix_admin_audit_and_metrics_compat.sql:54:alter table public.tenant_metrics_daily enable row level security;",
+                          "supabase/migrations/2026022612_tenant_metrics_daily.sql:19:alter table public.tenant_metrics_daily enable row level security;"
+                      ],
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "tenants",
+        "first_seen":  "supabase/migrations/2026022601_admin_tenants_dashboard.sql:24",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Da",
+        "fk_count":  0,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022601_admin_tenants_dashboard.sql:80:  tenant_id uuid,",
+                            "supabase/migrations/2026022706_demo_seed_first_signup.sql:39:        \u0027create index if not exists %I on public.%I (tenant_id, demo_seed_id)\u0027,"
+                        ],
+        "rls_lines":  [
+                          "supabase/migrations/2026022601_admin_tenants_dashboard.sql:45:alter table public.tenants enable row level security;",
+                          "supabase/migrations/2026022613_tenants_owner_insert_policy.sql:2:alter table public.tenants enable row level security;",
+                          "supabase/migrations/2026022704_fix_tenants_superadmin_update_policy.sql:4:alter table public.tenants enable row level security;",
+                          "supabase/migrations/2026030401_tenants_owner_update_policy.sql:4:alter table public.tenants enable row level security;"
+                      ],
+        "marker_lines":  [
+                             "supabase/migrations/2026022706_demo_seed_first_signup.sql:8:  add column if not exists demo_seed_id uuid null,",
+                             "supabase/migrations/2026022706_demo_seed_first_signup.sql:31:        \u0027alter table public.%I add column if not exists data_origin text\u0027,",
+                             "supabase/migrations/2026022706_demo_seed_first_signup.sql:35:        \u0027alter table public.%I add column if not exists demo_seed_id uuid\u0027,",
+                             "supabase/migrations/2026022706_demo_seed_first_signup.sql:39:        \u0027create index if not exists %I on public.%I (tenant_id, demo_seed_id)\u0027,",
+                             "supabase/migrations/2026022706_demo_seed_first_signup.sql:40:        tbl || \u0027_tenant_demo_seed_idx\u0027,"
+                         ],
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "vanzari",
+        "first_seen":  "supabase/migrations/2026022501_audit_trail_mvp.sql:27",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  1,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  "supabase/migrations/2026022504_idempotency_sync_safety.sql:109:alter table public.vanzari enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  "supabase/migrations/2026030102_vanzari_comanda_id.sql:14:      references public.comenzi(id)"
+    },
+    {
+        "table":  "vanzari_butasi",
+        "first_seen":  "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:3",
+        "tenant_id_from_migrations":  "Nu",
+        "rls_enabled_in_migrations":  "Nu",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  0,
+        "tenant_hits":  {
+
+                        },
+        "rls_lines":  {
+
+                      },
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  {
+
+                     }
+    },
+    {
+        "table":  "vanzari_butasi_items",
+        "first_seen":  "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:20",
+        "tenant_id_from_migrations":  "Da",
+        "rls_enabled_in_migrations":  "Da",
+        "has_data_origin_or_demo_seed_id":  "Nu",
+        "fk_count":  2,
+        "tenant_hits":  [
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:22:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:34:create index if not exists vanzari_butasi_items_tenant_id_idx",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:35:  on public.vanzari_butasi_items (tenant_id);",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:38:  tenant_id,",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:46:  vb.tenant_id,",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:53:where vb.tenant_id is not null",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:102:  tenant_id = (",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:115:  tenant_id = (",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:125:      and vb.tenant_id = vanzari_butasi_items.tenant_id",
+                            "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:134:  tenant_id = ("
+                        ],
+        "rls_lines":  "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:95:alter table public.vanzari_butasi_items enable row level security;",
+        "marker_lines":  {
+
+                         },
+        "fk_lines":  [
+                         "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:22:  tenant_id uuid not null references public.tenants(id) on delete cascade,",
+                         "supabase/migrations/2026022614_vanzari_butasi_orders_v2.sql:23:  comanda_id uuid not null references public.vanzari_butasi(id) on delete cascade,"
+                     ]
+    }
+]

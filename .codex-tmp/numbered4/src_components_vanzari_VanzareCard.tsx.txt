@@ -1,0 +1,127 @@
+1	'use client'
+2	
+3	import { AlertTriangle, Pencil, Trash2 } from 'lucide-react'
+4	
+5	import { CompactListCard } from '@/components/app/CompactListCard'
+6	import { SyncBadge } from '@/components/app/SyncBadge'
+7	import { getStatusBadgeClass } from '@/lib/ui/status-badges'
+8	import { Vanzare } from '@/lib/supabase/queries/vanzari'
+9	
+10	interface VanzareCardProps {
+11	  vanzare: Vanzare
+12	  clientNume?: string
+13	  onView: (vanzare: Vanzare) => void
+14	  onEdit: (vanzare: Vanzare) => void
+15	  onDelete: (vanzare: Vanzare) => void
+16	}
+17	
+18	const getBadgeColor = (status: string) => {
+19	  switch (status) {
+20	    case 'Platit':
+21	    case 'Plătit':
+22	      return getStatusBadgeClass('achitat')
+23	    case 'Restanta':
+24	    case 'Restanță':
+25	      return getStatusBadgeClass('restanta')
+26	    case 'Avans':
+27	      return getStatusBadgeClass('confirmata')
+28	    default:
+29	      return 'bg-slate-100 text-slate-800'
+30	  }
+31	}
+32	
+33	const normalizeStatus = (status: string): 'Avans' | 'Restanta' | 'Achitat' => {
+34	  if (status === 'Avans') return 'Avans'
+35	  if (status === 'Restanta' || status === 'Restanță') return 'Restanta'
+36	  return 'Achitat'
+37	}
+38	
+39	export function VanzareCard({ vanzare, clientNume, onView, onEdit, onDelete }: VanzareCardProps) {
+40	  const valoareTotala = vanzare.cantitate_kg * vanzare.pret_lei_kg
+41	  const dataVanzare = new Date(vanzare.data).toLocaleDateString('ro-RO')
+42	  const status = normalizeStatus(vanzare.status_plata)
+43	  const amountPaidText =
+44	    status === 'Achitat'
+45	      ? `${valoareTotala.toFixed(2)} lei`
+46	      : status === 'Restanta'
+47	        ? '0.00 lei'
+48	        : 'Avans (partial)'
+49	
+50	  return (
+51	    <>
+52	      <div className="cursor-pointer px-4 py-2.5 sm:hidden" onClick={() => onView(vanzare)}>
+53	        <p className="truncate text-base font-semibold text-[var(--agri-text)]">
+54	          {dataVanzare} · {clientNume || 'Nespecificat'} · <span className="value-kg">{vanzare.cantitate_kg.toFixed(2)} kg</span>
+55	        </p>
+56	        <div className="mt-1 flex items-center justify-between gap-2">
+57	          <div className="flex items-center gap-1.5 text-sm text-[var(--agri-text-muted)]">
+58	            <span className="value-money-positive">{valoareTotala.toFixed(2)} lei</span>
+59	            <span className={`badge-consistent inline-flex items-center gap-1 ${getBadgeColor(vanzare.status_plata)}`}>
+60	              {status}
+61	            </span>
+62	          </div>
+63	          <div className="flex items-center gap-1">
+64	            <button
+65	              type="button"
+66	              aria-label="Editeaza vanzare"
+67	              className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-blue-600"
+68	              onClick={(event) => {
+69	                event.stopPropagation()
+70	                onEdit(vanzare)
+71	              }}
+72	            >
+73	              <Pencil className="h-4 w-4" />
+74	            </button>
+75	            <button
+76	              type="button"
+77	              aria-label="Sterge vanzare"
+78	              className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-red-600"
+79	              onClick={(event) => {
+80	                event.stopPropagation()
+81	                onDelete(vanzare)
+82	              }}
+83	            >
+84	              <Trash2 className="h-4 w-4" />
+85	            </button>
+86	          </div>
+87	        </div>
+88	      </div>
+89	
+90	      <div className="hidden sm:block">
+91	        <CompactListCard
+92	          title="Vanzare"
+93	          leftRows={[
+94	            { label: 'Data', value: dataVanzare },
+95	            { label: 'Cantitate', value: `${vanzare.cantitate_kg.toFixed(2)} kg`, valueClassName: 'value-kg' },
+96	            { label: 'Pret total', value: `${valoareTotala.toFixed(2)} lei`, emphasis: 'financial', valueClassName: 'value-money-positive' },
+97	          ]}
+98	          rightRows={[
+99	            { label: 'Client', value: clientNume || 'Nespecificat' },
+100	            { label: 'Amount paid', value: amountPaidText, emphasis: 'financial', valueClassName: 'value-money-positive' },
+101	            {
+102	              label: 'Status',
+103	              value: (
+104	                <div className="flex items-center gap-1.5">
+105	                  <span className={`badge-consistent inline-flex items-center gap-1 ${getBadgeColor(vanzare.status_plata)}`}>
+106	                    {status}
+107	                  </span>
+108	                  <SyncBadge status={vanzare.sync_status} />
+109	                  {vanzare.conflict_flag ? (
+110	                    <span className="badge-consistent inline-flex items-center gap-1 bg-red-100 text-red-800">
+111	                      <AlertTriangle className="h-3 w-3" />
+112	                      Conflict
+113	                    </span>
+114	                  ) : null}
+115	                </div>
+116	              ),
+117	              allowWrap: true,
+118	            },
+119	          ]}
+120	          onClick={() => onView(vanzare)}
+121	          onEdit={() => onEdit(vanzare)}
+122	          onDelete={() => onDelete(vanzare)}
+123	        />
+124	      </div>
+125	    </>
+126	  )
+127	}

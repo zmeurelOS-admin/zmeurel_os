@@ -1,0 +1,315 @@
+﻿1	'use client'
+2	
+3	import { useEffect, useMemo, useRef, useState } from 'react'
+4	import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+5	import { Search, UserCheck, Users } from 'lucide-react'
+6	import { toast } from '@/lib/ui/toast'
+7	
+8	import { AppShell } from '@/components/app/AppShell'
+9	import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+10	import { EmptyState } from '@/components/ui/EmptyState'
+11	import { ErrorState } from '@/components/app/ErrorState'
+12	import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+13	import { PageHeader } from '@/components/app/PageHeader'
+14	import { StickyActionBar } from '@/components/app/StickyActionBar'
+15	import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+16	import { AddClientDialog } from '@/components/clienti/AddClientDialog'
+17	import { ClientCard } from '@/components/clienti/ClientCard'
+18	import { ClientDetailsDrawer } from '@/components/clienti/ClientDetailsDrawer'
+19	import { EditClientDialog } from '@/components/clienti/EditClientDialog'
+20	import { Button } from '@/components/ui/button'
+21	import { Input } from '@/components/ui/input'
+22	import {
+23	  createClienti,
+24	  deleteClienti,
+25	  getClienti,
+26	  updateClienti,
+27	  type Client,
+28	} from '@/lib/supabase/queries/clienti'
+29	import { getComenzi } from '@/lib/supabase/queries/comenzi'
+30	import { useAddAction } from '@/contexts/AddActionContext'
+31	
+32	interface ClientPageClientProps {
+33	  initialClienti: Client[]
+34	}
+35	
+36	export function ClientPageClient({ initialClienti }: ClientPageClientProps) {
+37	  const queryClient = useQueryClient()
+38	  const { registerAddAction } = useAddAction()
+39	  const [searchTerm, setSearchTerm] = useState('')
+40	  const [dialogOpen, setDialogOpen] = useState(false)
+41	  const [editOpen, setEditOpen] = useState(false)
+42	  const [drawerOpen, setDrawerOpen] = useState(false)
+43	  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+44	  const [editingClient, setEditingClient] = useState<Client | null>(null)
+45	  const [deletingClient, setDeletingClient] = useState<Client | null>(null)
+46	  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+47	  const pendingDeletedItems = useRef<Record<string, Client>>({})
+48	
+49	  const {
+50	    data: clienti = initialClienti,
+51	    isLoading,
+52	    isError,
+53	    error,
+54	  } = useQuery({
+55	    queryKey: ['clienti'],
+56	    queryFn: getClienti,
+57	    initialData: initialClienti,
+58	  })
+59	
+60	  useMobileScrollRestore({
+61	    storageKey: 'scroll:clienti',
+62	    ready: !isLoading,
+63	  })
+64	
+65	  const { data: comenzi = [], isLoading: isLoadingComenzi } = useQuery({
+66	    queryKey: ['comenzi'],
+67	    queryFn: getComenzi,
+68	  })
+69	
+70	  const createMutation = useMutation({
+71	    mutationFn: createClienti,
+72	    onSuccess: () => {
+73	      queryClient.invalidateQueries({ queryKey: ['clienti'] })
+74	      toast.success('Client adaugat cu succes')
+75	      setDialogOpen(false)
+76	    },
+77	    onError: (err: Error) => {
+78	      toast.error(err.message)
+79	    },
+80	  })
+81	
+82	  const updateMutation = useMutation({
+83	    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateClienti>[1] }) =>
+84	      updateClienti(id, payload),
+85	    onSuccess: () => {
+86	      queryClient.invalidateQueries({ queryKey: ['clienti'] })
+87	      toast.success('Client actualizat')
+88	      setEditOpen(false)
+89	      setEditingClient(null)
+90	    },
+91	    onError: (err: Error) => {
+92	      toast.error(err.message)
+93	    },
+94	  })
+95	
+96	  const deleteMutation = useMutation({
+97	    mutationFn: deleteClienti,
+98	    onSuccess: () => {
+99	      queryClient.invalidateQueries({ queryKey: ['clienti'] })
+100	      toast.success('Client sters')
+101	    },
+102	    onError: (err: Error) => {
+103	      toast.error(err.message)
+104	      queryClient.invalidateQueries({ queryKey: ['clienti'] })
+105	    },
+106	  })
+107	
+108	  useEffect(() => {
+109	    return () => {
+110	      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+111	    }
+112	  }, [])
+113	
+114	  useEffect(() => {
+115	    const unregister = registerAddAction(() => setDialogOpen(true), 'Adauga client')
+116	    return unregister
+117	  }, [registerAddAction])
+118	
+119	  const scheduleDelete = (client: Client) => {
+120	    const clientId = client.id
+121	
+122	    pendingDeletedItems.current[clientId] = client
+123	    queryClient.setQueryData<Client[]>(['clienti'], (current = []) =>
+124	      current.filter((item) => item.id !== clientId)
+125	    )
+126	
+127	    const timer = setTimeout(() => {
+128	      delete pendingDeleteTimers.current[clientId]
+129	      delete pendingDeletedItems.current[clientId]
+130	      deleteMutation.mutate(clientId)
+131	    }, 5000)
+132	
+133	    pendingDeleteTimers.current[clientId] = timer
+134	
+135	    toast.warning('Client programat pentru stergere.', {
+136	      duration: 5000,
+137	      action: {
+138	        label: 'Undo',
+139	        onClick: () => {
+140	          const pendingTimer = pendingDeleteTimers.current[clientId]
+141	          if (!pendingTimer) return
+142	          clearTimeout(pendingTimer)
+143	          delete pendingDeleteTimers.current[clientId]
+144	          delete pendingDeletedItems.current[clientId]
+145	          queryClient.invalidateQueries({ queryKey: ['clienti'] })
+146	          toast.success('Stergerea a fost anulata.')
+147	        },
+148	      },
+149	    })
+150	  }
+151	
+152	  const refresh = () => {
+153	    queryClient.invalidateQueries({ queryKey: ['clienti'] })
+154	  }
+155	
+156	  const filteredClienti = useMemo(() => {
+157	    if (!searchTerm.trim()) return clienti
+158	
+159	    const term = searchTerm.toLowerCase().trim()
+160	    return clienti.filter((client) =>
+161	      [client.nume_client, client.telefon, client.email, client.adresa, client.observatii]
+162	        .filter(Boolean)
+163	        .some((value) => value?.toLowerCase().includes(term))
+164	    )
+165	  }, [clienti, searchTerm])
+166	
+167	  const selectedClientComenzi = useMemo(() => {
+168	    if (!selectedClient) return []
+169	    return comenzi.filter((comanda) => comanda.client_id === selectedClient.id)
+170	  }, [comenzi, selectedClient])
+171	
+172	  return (
+173	    <AppShell
+174	      header={<PageHeader title="Clienti" subtitle="Administrare clienti" rightSlot={<UserCheck className="h-5 w-5" />} />}
+175	      bottomBar={
+176	        <StickyActionBar>
+177	          <div className="flex items-center justify-between gap-3">
+178	            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total clienti: {clienti.length}</p>
+179	          </div>
+180	        </StickyActionBar>
+181	      }
+182	    >
+183	      <div className="mx-auto w-full max-w-4xl space-y-4 py-4">
+184	        <div className="flex items-center gap-2">
+185	          <Input
+186	            className="agri-control h-12"
+187	            placeholder="Cauta client dupa nume, telefon sau email..."
+188	            value={searchTerm}
+189	            onChange={(e) => setSearchTerm(e.target.value)}
+190	          />
+191	          <Button type="button" variant="outline" className="h-12 w-12 shrink-0 p-0" aria-label="Cauta clienti">
+192	            <Search className="h-4 w-4" />
+193	          </Button>
+194	        </div>
+195	
+196	        {isError ? <ErrorState title="Eroare la incarcare" message={(error as Error).message} onRetry={refresh} /> : null}
+197	        {isLoading ? (
+198	          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+199	            {Array.from({ length: 4 }).map((_, index) => (
+200	              <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
+201	            ))}
+202	          </div>
+203	        ) : null}
+204	
+205	        {!isLoading && !isError && filteredClienti.length === 0 ? (
+206	          <EmptyState
+207	            icon={<Users className="h-16 w-16" />}
+208	            title="Niciun client Ă®ncÄ"
+209	            description="AdaugÄ primul client pentru a Ă®ncepe"
+210	          />
+211	        ) : null}
+212	
+213	        {!isLoading && !isError && filteredClienti.length > 0 ? (
+214	          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+215	            {filteredClienti.map((client) => (
+216	              <ClientCard
+217	                key={client.id}
+218	                client={client}
+219	                onEdit={(item) => {
+220	                  setEditingClient(item)
+221	                  setEditOpen(true)
+222	                }}
+223	                onDelete={(id) => {
+224	                  const target = clienti.find((item) => item.id === id) ?? null
+225	                  setDeletingClient(target)
+226	                }}
+227	                onOpenDetails={(item) => {
+228	                  setSelectedClient(item)
+229	                  setDrawerOpen(true)
+230	                }}
+231	              />
+232	            ))}
+233	          </div>
+234	        ) : null}
+235	      </div>
+236	
+237	      <AddClientDialog
+238	        open={dialogOpen}
+239	        onOpenChange={setDialogOpen}
+240	        onSubmit={async (data) => {
+241	          await createMutation.mutateAsync({
+242	            nume_client: data.nume_client,
+243	            telefon: data.telefon || null,
+244	            email: data.email || null,
+245	            adresa: data.adresa || null,
+246	            pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
+247	            observatii: data.observatii || null,
+248	          })
+249	        }}
+250	      />
+251	
+252	      <EditClientDialog
+253	        client={editingClient}
+254	        open={editOpen}
+255	        onOpenChange={(open) => {
+256	          setEditOpen(open)
+257	          if (!open) setEditingClient(null)
+258	        }}
+259	        onSubmit={async (id, data) => {
+260	          await updateMutation.mutateAsync({
+261	            id,
+262	            payload: {
+263	              nume_client: data.nume_client,
+264	              telefon: data.telefon || null,
+265	              email: data.email || null,
+266	              adresa: data.adresa || null,
+267	              pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
+268	              observatii: data.observatii || null,
+269	            },
+270	          })
+271	        }}
+272	      />
+273	
+274	      <ClientDetailsDrawer
+275	        open={drawerOpen}
+276	        onOpenChange={(open) => {
+277	          setDrawerOpen(open)
+278	          if (!open) setSelectedClient(null)
+279	        }}
+280	        client={selectedClient}
+281	        comenzi={selectedClientComenzi}
+282	        isLoadingComenzi={isLoadingComenzi}
+283	        onEdit={(client) => {
+284	          setSelectedClient(client)
+285	          setDrawerOpen(false)
+286	          setEditingClient(client)
+287	          setEditOpen(true)
+288	        }}
+289	        onDelete={(client) => {
+290	          setDrawerOpen(false)
+291	          setDeletingClient(client)
+292	        }}
+293	      />
+294	
+295	      <ConfirmDeleteDialog
+296	        open={!!deletingClient}
+297	        onOpenChange={(open) => {
+298	          if (!open) setDeletingClient(null)
+299	        }}
+300	        itemType="Client"
+301	        itemName={deletingClient?.nume_client}
+302	        description={`Čtergi clientul ${deletingClient?.nume_client || 'selectat'}?`}
+303	        loading={deleteMutation.isPending}
+304	        onConfirm={() => {
+305	          if (!deletingClient) return
+306	          scheduleDelete(deletingClient)
+307	          setDeletingClient(null)
+308	        }}
+309	      />
+310	    </AppShell>
+311	  )
+312	}
+313	
+314	
+315	

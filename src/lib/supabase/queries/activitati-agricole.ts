@@ -1,6 +1,7 @@
 // src/lib/supabase/queries/activitati-agricole.ts
 import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 export const TIPURI_ACTIVITATI = [
   'Tratament Fungicid',
@@ -102,6 +103,7 @@ export async function createActivitateAgricola(
 ): Promise<ActivitateAgricola> {
   const supabase = getSupabase()
   const nextId = await generateBusinessId(supabase, 'AA')
+  const tenantId = await getTenantId(supabase)
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -120,6 +122,7 @@ export async function createActivitateAgricola(
     sync_status: input.sync_status ?? 'synced',
     created_by: user?.id ?? null,
     updated_by: user?.id ?? null,
+    tenant_id: tenantId,
   }
 
   const { data, error } = await supabase
@@ -150,6 +153,7 @@ export async function createActivitateAgricola(
           timp_pauza_zile: input.timp_pauza_zile ?? 0,
           operator: input.operator ?? null,
           observatii: input.observatii ?? null,
+          tenant_id: tenantId,
         })
         .select()
         .single()
@@ -237,5 +241,4 @@ export function calculatePauseStatus(
     status: today >= recoltareDate ? 'OK' : 'Pauza',
   }
 }
-
 

@@ -1,0 +1,21 @@
+    1: alter table if exists public.vanzari
+    2:   add column if not exists comanda_id uuid;
+    3: 
+    4: do $$
+    5: begin
+    6:   if not exists (
+    7:     select 1
+    8:     from pg_constraint
+    9:     where conname = 'vanzari_comanda_id_fkey'
+   10:   ) then
+   11:     alter table public.vanzari
+   12:       add constraint vanzari_comanda_id_fkey
+   13:       foreign key (comanda_id)
+   14:       references public.comenzi(id)
+   15:       on delete set null;
+   16:   end if;
+   17: end
+   18: $$;
+   19: 
+   20: create index if not exists vanzari_comanda_id_idx
+   21:   on public.vanzari(comanda_id);

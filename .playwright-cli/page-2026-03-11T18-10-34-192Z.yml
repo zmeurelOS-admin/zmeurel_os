@@ -1,0 +1,155 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e12]:
+            - text: Zmeurel
+            - generic [ref=e13]: OS
+        - navigation [ref=e14]:
+          - generic [ref=e15]:
+            - paragraph [ref=e16]: OPERAȚIUNI
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - link "Dashboard" [ref=e19] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e21]
+                  - text: Dashboard
+              - listitem [ref=e26]:
+                - link "Terenuri" [ref=e27] [cursor=pointer]:
+                  - /url: /parcele
+                  - img [ref=e29]
+                  - text: Terenuri
+              - listitem [ref=e33]:
+                - link "Recoltări" [ref=e34] [cursor=pointer]:
+                  - /url: /recoltari
+                  - img [ref=e36]
+                  - text: Recoltări
+              - listitem [ref=e40]:
+                - link "Stocuri" [ref=e41] [cursor=pointer]:
+                  - /url: /stocuri
+                  - img [ref=e43]
+                  - text: Stocuri
+              - listitem [ref=e46]:
+                - link "Activități agricole" [ref=e47] [cursor=pointer]:
+                  - /url: /activitati-agricole
+                  - img [ref=e49]
+                  - text: Activități agricole
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: RELAȚII
+            - list [ref=e54]:
+              - listitem [ref=e55]:
+                - link "Culegători" [ref=e56] [cursor=pointer]:
+                  - /url: /culegatori
+                  - img [ref=e58]
+                  - text: Culegători
+              - listitem [ref=e63]:
+                - link "Clienți" [ref=e64] [cursor=pointer]:
+                  - /url: /clienti
+                  - img [ref=e66]
+                  - text: Clienți
+          - generic [ref=e70]:
+            - paragraph [ref=e71]: FINANCIAR
+            - list [ref=e72]:
+              - listitem [ref=e73]:
+                - link "Comenzi" [ref=e74] [cursor=pointer]:
+                  - /url: /comenzi
+                  - img [ref=e76]
+                  - text: Comenzi
+              - listitem [ref=e79]:
+                - link "Material săditor" [ref=e80] [cursor=pointer]:
+                  - /url: /vanzari-butasi
+                  - img [ref=e82]
+                  - text: Material săditor
+              - listitem [ref=e85]:
+                - link "Investiții" [ref=e86] [cursor=pointer]:
+                  - /url: /investitii
+                  - img [ref=e88]
+                  - text: Investiții
+              - listitem [ref=e91]:
+                - link "Cheltuieli" [ref=e92] [cursor=pointer]:
+                  - /url: /cheltuieli
+                  - img [ref=e94]
+                  - text: Cheltuieli
+    - main [ref=e97]:
+      - generic [ref=e99]:
+        - paragraph [ref=e100]: Zmeurel OS este în BETA. Trimite feedback
+        - button "Trimite feedback" [ref=e101]
+      - generic [ref=e113]:
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - heading "Terenuri" [level=1] [ref=e120]
+            - paragraph [ref=e121]: Administrare terenuri cultivate
+          - generic [ref=e123]:
+            - button "Adauga teren" [ref=e124]
+            - button "Activeaza high visibility mode" [ref=e125]:
+              - img [ref=e126]
+            - button "BA Beta Audit 1773252100" [ref=e134] [cursor=pointer]:
+              - generic [ref=e135]: BA
+              - generic [ref=e136]: Beta Audit 1773252100
+              - img [ref=e137]
+            - img [ref=e140]
+        - main [ref=e142]:
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - button "Active 1 terenuri" [ref=e145]:
+                - generic [ref=e147]:
+                  - generic [ref=e148]: 🗺️
+                  - generic [ref=e149]: Active
+                - generic [ref=e150]: "1"
+                - generic [ref=e151]: terenuri
+              - button "Suprafață 1200 mp" [ref=e152]:
+                - generic [ref=e154]:
+                  - generic [ref=e155]: 📐
+                  - generic [ref=e156]: Suprafață
+                - generic [ref=e157]: "1200"
+                - generic [ref=e158]: mp
+              - button "Total 0 plante" [ref=e159]:
+                - generic [ref=e161]:
+                  - generic [ref=e162]: 🌿
+                  - generic [ref=e163]: Total
+                - generic [ref=e164]: "0"
+                - generic [ref=e165]: plante
+            - generic [ref=e166]:
+              - button "Toate (1)" [ref=e167] [cursor=pointer]
+              - button "Camp (1)" [ref=e168] [cursor=pointer]
+              - button "Solarii (0)" [ref=e169] [cursor=pointer]
+              - button "Livada (0)" [ref=e170] [cursor=pointer]
+            - generic [ref=e171]:
+              - heading "Producție sezon per teren" [level=3] [ref=e172]
+              - button "Teren Beta Polka Nicio recoltare încă 0.0 kg" [ref=e174] [cursor=pointer]:
+                - generic [ref=e175]:
+                  - generic [ref=e176]:
+                    - generic [ref=e177]: Teren Beta
+                    - generic [ref=e178]: Polka
+                    - generic [ref=e180]: Nicio recoltare încă
+                  - generic [ref=e181]:
+                    - generic [ref=e182]: "0.0"
+                    - generic [ref=e183]: kg
+            - generic [ref=e184]:
+              - heading "Ultima activitate" [level=3] [ref=e185]
+              - button "📋 Teren Beta Fără activitate -" [ref=e187] [cursor=pointer]:
+                - generic [ref=e188]:
+                  - generic [ref=e189]: 📋
+                  - generic [ref=e190]:
+                    - generic [ref=e191]: Teren Beta
+                    - generic [ref=e192]: Fără activitate
+                  - generic [ref=e193]: "-"
+            - button "PAR PAR-BETA-001 - Teren Beta Câmp Polka · 1200 mp · 0 plante 0.0 kg 0.00 plante/mp" [ref=e196]:
+              - generic [ref=e197]:
+                - generic [ref=e198]: PAR
+                - generic [ref=e199]:
+                  - generic [ref=e200]:
+                    - generic [ref=e201]: PAR-BETA-001 - Teren Beta
+                    - generic [ref=e202]: Câmp
+                  - generic [ref=e203]: Polka · 1200 mp · 0 plante
+                - generic [ref=e204]:
+                  - generic [ref=e205]: "0.0"
+                  - generic [ref=e206]: kg
+                  - generic [ref=e207]: 0.00 plante/mp
+        - paragraph [ref=e212]: "Total terenuri: 1"
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e109] [cursor=pointer]:
+    - img [ref=e110]
+  - alert [ref=e213]

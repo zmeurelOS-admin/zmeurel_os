@@ -1,0 +1,627 @@
+1	'use client'
+2	
+3	import Link from 'next/link'
+4	import { useEffect, useMemo, useRef, useState } from 'react'
+5	import type { CSSProperties } from 'react'
+6	import { useRouter } from 'next/navigation'
+7	import {
+8	  Check,
+9	  Facebook,
+10	  Instagram,
+11	  Menu,
+12	  Minus,
+13	  Plus,
+14	  X,
+15	} from 'lucide-react'
+16	
+17	import { Button } from '@/components/ui/button'
+18	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+19	import { getSupabase } from '@/lib/supabase/client'
+20	
+21	const navLinks = [
+22	  { href: '#functionalitati', label: 'Funcționalități' },
+23	  { href: '#planuri', label: 'Planuri' },
+24	  { href: '#despre', label: 'Despre' },
+25	]
+26	
+27	const probleme = [
+28	  {
+29	    emoji: '📓',
+30	    titlu: 'Caietul cu totul',
+31	    text:
+32	      'Notezi recolta, cheltuielile, vânzările — în caiet. Dar când vrei să calculezi cât te-a costat un kilogram de zmeură, trebuie să răsfoiești 40 de pagini.',
+33	  },
+34	  {
+35	    emoji: '📊',
+36	    titlu: 'Excel-ul de pe laptop',
+37	    text:
+38	      'Poate ai un fișier Excel. Dar când ești în câmp, laptopul e acasă. Și fișierul de anul trecut... unde era?',
+39	  },
+40	  {
+41	    emoji: '🤷',
+42	    titlu: 'Presupunerile',
+43	    text:
+44	      'Simți că merge bine, dar nu știi sigur. Care parcelă produce mai bine? Câte kilograme a cules fiecare culegător azi? Câți bani ai pierdut pe un client?',
+45	  },
+46	]
+47	
+48	const functionalitati = [
+49	  {
+50	    emoji: '🗺️',
+51	    titlu: 'Parcele',
+52	    text: 'Creează-ți harta fermei: fiecare parcelă cu soiul, suprafața și numărul de plante.',
+53	  },
+54	  {
+55	    emoji: '✂️',
+56	    titlu: 'Activități',
+57	    text: 'Notează tratamente, tăieri, fertilizări — direct din câmp, în câteva secunde.',
+58	  },
+59	  {
+60	    emoji: '🫐',
+61	    titlu: 'Recoltări',
+62	    text: 'Înregistrează recolta zilnic, pe parcelă și pe culegător. Vezi exact cât culegi pe zi.',
+63	  },
+64	  {
+65	    emoji: '💰',
+66	    titlu: 'Vânzări & Comenzi',
+67	    text: 'Urmărește fiecare vânzare, fiecare client, fiecare comandă — cu statusuri și notificări.',
+68	  },
+69	  {
+70	    emoji: '📉',
+71	    titlu: 'Cheltuieli',
+72	    text: 'Vezi clar unde se duc banii: tratamente, forță de muncă, materiale, transport.',
+73	  },
+74	  {
+75	    emoji: '📊',
+76	    titlu: 'Dashboard',
+77	    text: 'Totul rezumat pe un singur ecran: producție, venituri, cheltuieli, profit estimat.',
+78	  },
+79	]
+80	
+81	const pasi = [
+82	  {
+83	    nr: '①',
+84	    titlu: 'Creează-ți parcelele',
+85	    text: 'Adaugă parcelele tale: soi, suprafață, număr de plante. Durează un minut.',
+86	    placeholder: '[Placeholder: screenshot parcele]',
+87	  },
+88	  {
+89	    nr: '②',
+90	    titlu: 'Notează zilnic',
+91	    text: 'Ce ai făcut, cât ai cules, cui ai vândut. Direct de pe telefon, în câteva secunde.',
+92	    placeholder: '[Placeholder: screenshot recoltări]',
+93	  },
+94	  {
+95	    nr: '③',
+96	    titlu: 'Vezi unde stai',
+97	    text: 'Deschide dashboard-ul și ai imaginea completă: producție, cheltuieli, profit.',
+98	    placeholder: '[Placeholder: screenshot dashboard]',
+99	  },
+100	]
+101	
+102	const planuri = [
+103	  {
+104	    emoji: '🌱',
+105	    nume: 'Sămânță',
+106	    pret: 'Gratuit — pentru totdeauna',
+107	    cta: 'Creează cont gratuit',
+108	    nota: 'Perfect dacă vrei să testezi sau ai o parcelă mică.',
+109	    recomandat: false,
+110	    features: [
+111	      '1 parcelă',
+112	      'Activități agricole nelimitate',
+113	      'Recoltări de bază',
+114	      'Cheltuieli de bază',
+115	      'Dashboard sumar',
+116	      'Export tratamente PDF',
+117	      '1 utilizator',
+118	    ],
+119	  },
+120	  {
+121	    emoji: '🫐',
+122	    nume: 'Recoltă',
+123	    pret: '49 lei/lună sau 399 lei/an (2 luni gratuite)',
+124	    cta: 'Încearcă gratuit în beta',
+125	    nota: 'Pentru fermierul activ care vrea evidență completă.',
+126	    recomandat: true,
+127	    features: [
+128	      'Tot din Sămânță plus',
+129	      'Parcele nelimitate',
+130	      'Culegători + raport per culegător',
+131	      'Vânzări fructe și butași',
+132	      'Comenzi cu statusuri',
+133	      'Dashboard complet cu grafice',
+134	      'Export date CSV și PDF',
+135	      'Până la 3 utilizatori',
+136	    ],
+137	  },
+138	  {
+139	    emoji: '🏔️',
+140	    nume: 'Livadă',
+141	    pret: '99 lei/lună sau 799 lei/an (2 luni gratuite)',
+142	    cta: 'Încearcă gratuit în beta',
+143	    nota: 'Pentru ferme mai mari sau cu mai mulți clienți și culegători.',
+144	    recomandat: false,
+145	    features: [
+146	      'Tot din Recoltă plus',
+147	      'Utilizatori nelimitați',
+148	      'Rapoarte avansate (profit per parcelă, per soi, per client)',
+149	      'Liste de prețuri sezoniere',
+150	      'Suport prioritar (WhatsApp)',
+151	      'Acces prioritar la funcționalități noi',
+152	    ],
+153	  },
+154	]
+155	
+156	const faq = [
+157	  {
+158	    q: 'Trebuie să fiu expert în calculatoare?',
+159	    a: 'Nu. Dacă poți folosi Facebook pe telefon, poți folosi Zmeurel OS. E gândit să fie simplu, cu pași clari.',
+160	  },
+161	  {
+162	    q: 'Funcționează pe telefonul meu?',
+163	    a: 'Da. Zmeurel OS funcționează pe orice telefon cu browser — iPhone sau Android. Îl poți instala pe ecranul principal ca o aplicație normală, fără App Store.',
+164	  },
+165	  {
+166	    q: 'Ce se întâmplă cu datele mele?',
+167	    a: 'Datele tale sunt ale tale. Le poți exporta oricând. Le poți șterge complet dacă vrei. Respectăm GDPR integral.',
+168	  },
+169	  {
+170	    q: 'Funcționează fără internet?',
+171	    a: 'Ai nevoie de internet pentru a salva datele, dar funcționează și cu semnal slab. Modul offline complet e planificat pentru viitor.',
+172	  },
+173	  {
+174	    q: 'Este doar pentru zmeură?',
+175	    a: 'Am început cu fructe de pădure (zmeură, mur), dar poți folosi Zmeurel OS pentru orice fermă mică — căpșuni, afine, coacăze, sau alte culturi.',
+176	  },
+177	  {
+178	    q: 'Cât costă?',
+179	    a: 'În perioada beta, totul e gratuit. După beta, planul de bază rămâne gratuit permanent. Planurile complete pornesc de la 49 lei/lună.',
+180	  },
+181	  {
+182	    q: 'Pot exporta tratamentele pentru APIA?',
+183	    a: 'Da. Poți exporta lista completă de tratamente aplicate pe fiecare parcelă, în format PDF.',
+184	  },
+185	  {
+186	    q: 'Cine a făcut aplicația?',
+187	    a: 'Andrei, fermier de zmeură din Suceava. Zmeurel este și marca fermei mele — nu e un proiect de laborator, e un instrument născut din nevoie reală.',
+188	  },
+189	]
+190	
+191	function Placeholder({ text, className = '' }: { text: string; className?: string }) {
+192	  return (
+193	    <div
+194	      className={`flex items-center justify-center rounded-2xl border border-dashed border-[var(--agri-border)] bg-white px-6 text-center text-sm font-medium italic text-[var(--agri-text-muted)]/80 shadow-sm ${className}`}
+195	    >
+196	      {text}
+197	    </div>
+198	  )
+199	}
+200	
+201	export default function HomePage() {
+202	  const router = useRouter()
+203	  const supabase = useMemo(() => getSupabase(), [])
+204	  const heroRef = useRef<HTMLElement | null>(null)
+205	  const [menuOpen, setMenuOpen] = useState(false)
+206	  const [openFaq, setOpenFaq] = useState<number | null>(0)
+207	  const [checkingAuth, setCheckingAuth] = useState(true)
+208	  const [isHeroVisible, setIsHeroVisible] = useState(true)
+209	
+210	  useEffect(() => {
+211	    let mounted = true
+212	
+213	    const checkSession = async () => {
+214	      const { data } = await supabase.auth.getSession()
+215	      if (!mounted) return
+216	
+217	      if (data.session) {
+218	        router.replace('/dashboard')
+219	        return
+220	      }
+221	
+222	      setCheckingAuth(false)
+223	    }
+224	
+225	    void checkSession()
+226	
+227	    return () => {
+228	      mounted = false
+229	    }
+230	  }, [router, supabase])
+231	
+232	  useEffect(() => {
+233	    const heroElement = heroRef.current
+234	    if (!heroElement) return
+235	
+236	    const observer = new IntersectionObserver(
+237	      ([entry]) => {
+238	        setIsHeroVisible(entry.isIntersecting)
+239	      },
+240	      {
+241	        root: null,
+242	        threshold: 0.15,
+243	        rootMargin: '-64px 0px 0px 0px',
+244	      },
+245	    )
+246	
+247	    observer.observe(heroElement)
+248	    return () => observer.disconnect()
+249	  }, [])
+250	
+251	  if (checkingAuth) {
+252	    return <div className="min-h-screen bg-white" aria-hidden />
+253	  }
+254	
+255	  return (
+256	    <div
+257	      style={
+258	        {
+259	          '--landing-accent': '#F16B6B',
+260	          '--landing-dark': '#312E3F',
+261	          '--landing-soft': '#F9F9FB',
+262	          '--landing-about': '#FFF5F3',
+263	          '--landing-hero-start': 'var(--agri-primary)',
+264	          '--landing-hero-end': '#2fa65e',
+265	        } as CSSProperties
+266	      }
+267	      className="bg-white text-[var(--agri-text)]"
+268	    >
+269	      <header
+270	        className={`sticky top-0 z-50 transition-all duration-300 ${
+271	          isHeroVisible
+272	            ? 'border-transparent bg-transparent text-white'
+273	            : 'border-b border-[var(--agri-border)] bg-white/90 shadow-sm backdrop-blur-md'
+274	        }`}
+275	      >
+276	        <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">
+277	          <Link
+278	            href="/"
+279	            className={`text-lg font-extrabold tracking-tight transition-colors ${
+280	              isHeroVisible ? 'text-white' : 'text-[color:var(--landing-dark)]'
+281	            }`}
+282	          >
+283	            Zmeurel OS
+284	          </Link>
+285	
+286	          <nav className="hidden items-center gap-6 md:flex">
+287	            {navLinks.map((link) => (
+288	              <a
+289	                key={link.href}
+290	                href={link.href}
+291	                className={`text-sm font-semibold transition-colors ${
+292	                  isHeroVisible
+293	                    ? 'text-white/80 hover:text-white'
+294	                    : 'text-[var(--agri-text-muted)] hover:text-[color:var(--landing-dark)]'
+295	                }`}
+296	              >
+297	                {link.label}
+298	              </a>
+299	            ))}
+300	          </nav>
+301	
+302	          <div className="hidden md:block">
+303	            <Button
+304	              asChild
+305	              className={`agri-control text-white ${
+306	                isHeroVisible ? 'bg-white/15 hover:bg-white/25' : 'bg-[color:var(--landing-accent)] hover:opacity-95'
+307	              }`}
+308	            >
+309	              <Link href="/login">Intră în cont</Link>
+310	            </Button>
+311	          </div>
+312	
+313	          <Button
+314	            type="button"
+315	            variant="ghost"
+316	            size="icon"
+317	            className={`md:hidden ${isHeroVisible ? 'text-white hover:bg-white/15' : ''}`}
+318	            onClick={() => setMenuOpen((value) => !value)}
+319	            aria-label="Deschide meniul"
+320	          >
+321	            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+322	          </Button>
+323	        </div>
+324	
+325	        {menuOpen ? (
+326	          <div className="border-t border-[var(--agri-border)] bg-white md:hidden">
+327	            <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-1 px-4 py-3 sm:px-6">
+328	              {navLinks.map((link) => (
+329	                <a
+330	                  key={link.href}
+331	                  href={link.href}
+332	                  onClick={() => setMenuOpen(false)}
+333	                  className="rounded-lg px-2 py-2 text-sm font-semibold text-[var(--agri-text-muted)] hover:bg-[var(--landing-soft)]"
+334	                >
+335	                  {link.label}
+336	                </a>
+337	              ))}
+338	              <Button asChild className="mt-2 bg-[color:var(--landing-accent)] text-white hover:opacity-95">
+339	                <Link href="/login">Intră în cont</Link>
+340	              </Button>
+341	            </div>
+342	          </div>
+343	        ) : null}
+344	      </header>
+345	
+346	      <main className="-mt-16">
+347	        <section
+348	          ref={heroRef}
+349	          className="flex min-h-[85vh] items-center bg-gradient-to-br from-[var(--landing-hero-start)] to-[var(--landing-hero-end)] pb-16 pt-24 md:pb-24 md:pt-28"
+350	        >
+351	          <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 sm:px-6 lg:grid-cols-5 lg:items-center">
+352	            <div className="space-y-6 lg:col-span-3">
+353	              <h1 className="text-4xl font-bold leading-tight text-white md:text-6xl">
+354	                Ferma ta. Cifrele tale. Pe telefon.
+355	              </h1>
+356	              <p className="max-w-2xl text-lg leading-relaxed text-white/80">
+357	                Zmeurel OS este aplicația de evidență agricolă construită de un fermier din Suceava, pentru fermieri.
+358	                Parcele, recoltări, cheltuieli, vânzări — totul într-un singur loc, direct de pe telefonul tău.
+359	              </p>
+360	              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+361	                <Button asChild className="agri-cta rounded-xl bg-amber-500 px-8 py-3 text-lg text-white hover:bg-amber-600">
+362	                  <Link href="/register">Încearcă gratuit</Link>
+363	                </Button>
+364	                <Link href="/login" className="text-sm font-semibold text-white/70 underline underline-offset-4 hover:text-white">
+365	                  Ai deja cont? Intră aici
+366	                </Link>
+367	              </div>
+368	              <p className="inline-flex w-fit rounded-full bg-white/20 px-3 py-1 text-sm font-semibold text-white">
+369	                ✓ Gratuit în perioada beta · Fără card bancar
+370	              </p>
+371	            </div>
+372	            <div className="lg:col-span-2">
+373	              <Placeholder
+374	                text="[Screenshot: Dashboard pe telefon]"
+375	                className="h-64 rounded-3xl border-4 border-white/30 bg-white/20 text-white/50 shadow-2xl sm:h-72 md:h-80"
+376	              />
+377	            </div>
+378	          </div>
+379	        </section>
+380	
+381	        <section className="bg-white py-16 md:py-24">
+382	          <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+383	            <h2 className="text-center text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">Cunoști situația asta?</h2>
+384	            <div className="mt-8 grid gap-4 md:grid-cols-3">
+385	              {probleme.map((item) => (
+386	                <Card key={item.titlu} className="border-[var(--agri-border)] shadow-sm">
+387	                  <CardHeader>
+388	                    <CardTitle className="text-xl">{item.emoji}</CardTitle>
+389	                    <CardTitle className="text-lg text-[color:var(--landing-dark)]">{item.titlu}</CardTitle>
+390	                  </CardHeader>
+391	                  <CardContent>
+392	                    <CardDescription className="text-sm leading-relaxed text-[var(--agri-text-muted)]">{item.text}</CardDescription>
+393	                  </CardContent>
+394	                </Card>
+395	              ))}
+396	            </div>
+397	            <p className="mt-8 text-center text-base font-semibold text-[var(--agri-text-muted)]">
+398	              Dacă te regăsești, Zmeurel OS e construit exact pentru tine.
+399	            </p>
+400	          </div>
+401	        </section>
+402	
+403	        <section className="py-16 md:py-24" style={{ backgroundColor: '#F8FAF8' }}>
+404	          <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 sm:px-6 md:grid-cols-2 md:items-center">
+405	            <div className="space-y-4">
+406	              <h2 className="text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">
+407	                Totul într-un singur loc. Pe telefon.
+408	              </h2>
+409	              <p className="text-[var(--agri-text-muted)]">
+410	                Zmeurel OS îți ține evidența completă a fermei. Introduci câteva date simple — ce ai făcut, cât ai
+411	                cules, cui ai vândut — și vezi imediat unde stai: ce produce fiecare parcelă, cât cheltuiești, cât
+412	                câștigi.
+413	              </p>
+414	              <p className="text-[var(--agri-text-muted)]">
+415	                Nu trebuie să fii expert în calculatoare. Dacă poți folosi Facebook pe telefon, poți folosi Zmeurel OS.
+416	              </p>
+417	            </div>
+418	            <Placeholder text="[Screenshot: Dashboard complet cu date demo]" className="h-64 sm:h-72" />
+419	          </div>
+420	        </section>
+421	
+422	        <section id="functionalitati" className="bg-white py-16 md:py-24">
+423	          <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+424	            <h2 className="text-center text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">
+425	              Ce poți face cu Zmeurel OS
+426	            </h2>
+427	            <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+428	              {functionalitati.map((item, index) => {
+429	                const accents = [
+430	                  'border-l-green-500',
+431	                  'border-l-amber-500',
+432	                  'border-l-purple-500',
+433	                  'border-l-blue-500',
+434	                  'border-l-red-500',
+435	                  'border-l-cyan-500',
+436	                ] as const
+437	
+438	                return (
+439	                <Card key={item.titlu} className={`border-[var(--agri-border)] border-l-4 shadow-sm ${accents[index] ?? 'border-l-green-500'}`}>
+440	                  <CardHeader className="space-y-1">
+441	                    <CardTitle className="text-xl">{item.emoji}</CardTitle>
+442	                    <CardTitle className="text-lg text-[color:var(--landing-dark)]">{item.titlu}</CardTitle>
+443	                  </CardHeader>
+444	                  <CardContent>
+445	                    <CardDescription className="leading-relaxed text-[var(--agri-text-muted)]">{item.text}</CardDescription>
+446	                  </CardContent>
+447	                </Card>
+448	              )})}
+449	            </div>
+450	          </div>
+451	        </section>
+452	
+453	        <section className="py-16 md:py-24" style={{ backgroundColor: '#F8FAF8' }}>
+454	          <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+455	            <h2 className="text-center text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">3 pași simpli</h2>
+456	            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+457	              {pasi.map((pas, index) => (
+458	                <Card key={pas.titlu} className="relative border-[var(--agri-border)] shadow-sm">
+459	                  <CardHeader>
+460	                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--landing-accent)] text-xl font-bold text-white">
+461	                      {pas.nr}
+462	                    </div>
+463	                    {index < pasi.length - 1 ? (
+464	                      <div className="absolute left-10 top-20 h-12 w-px bg-[color:var(--landing-accent)]/35 lg:hidden" />
+465	                    ) : null}
+466	                    <CardTitle className="text-lg text-[color:var(--landing-dark)]">{pas.titlu}</CardTitle>
+467	                  </CardHeader>
+468	                  <CardContent className="space-y-4">
+469	                    <CardDescription className="text-[var(--agri-text-muted)]">{pas.text}</CardDescription>
+470	                    <Placeholder text={pas.placeholder} className="h-44" />
+471	                  </CardContent>
+472	                </Card>
+473	              ))}
+474	            </div>
+475	          </div>
+476	        </section>
+477	
+478	        <section id="despre" className="py-16 md:py-24" style={{ backgroundColor: 'var(--landing-about)' }}>
+479	          <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 sm:px-6 md:grid-cols-2 md:items-center">
+480	            <div className="space-y-4">
+481	              <h2 className="text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">
+482	                Făcut de un fermier. Pentru fermieri.
+483	              </h2>
+484	              <p className="text-[var(--agri-text-muted)]">Zmeurel OS nu a apărut într-un birou de IT.</p>
+485	              <p className="text-[var(--agri-text-muted)]">
+486	                Sunt Andrei din Suceava. Am o plantație mică de zmeură — Zmeurel. Aceleași ambalaje pe care poate
+487	                le-ai văzut la piață, aceeași marcă.
+488	              </p>
+489	              <p className="text-[var(--agri-text-muted)]">
+490	                Am început cu un caiet, am trecut pe Excel, și pentru că niciuna nu-mi răspundea la întrebarea „cât mă
+491	                costă de fapt un kilogram de zmeură?”, am construit aplicația asta.
+492	              </p>
+493	              <p className="text-[var(--agri-text-muted)]">
+494	                Zmeurel OS este instrumentul pe care mi l-am făcut pentru ferma mea. Acum îl ofer și ție.
+495	              </p>
+496	              <a
+497	                href="https://www.facebook.com/ZMEUREL.ZMEURASUCEAVA"
+498	                target="_blank"
+499	                rel="noopener noreferrer"
+500	                className="inline-block text-sm font-semibold text-[color:var(--landing-dark)] underline-offset-4 hover:underline"
+501	              >
+502	                Vezi plantația Zmeurel pe Facebook →
+503	              </a>
+504	            </div>
+505	            <Placeholder text="[Poză autentică din plantația Zmeurel]" className="h-64 sm:h-72" />
+506	          </div>
+507	        </section>
+508	
+509	        <section id="planuri" className="bg-white py-16 md:py-24">
+510	          <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6">
+511	            <h2 className="text-center text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">
+512	              Planuri simple, prețuri corecte
+513	            </h2>
+514	            <Card className="mx-auto mt-8 w-full max-w-2xl border-[var(--agri-border)] shadow-md">
+515	              <CardHeader className="space-y-3">
+516	                <span className="inline-flex w-fit rounded-full bg-[color:var(--landing-accent)]/10 px-3 py-1 text-xs font-bold text-[color:var(--landing-accent)]">
+517	                  🎁 Beta 2026
+518	                </span>
+519	                <CardTitle className="text-2xl text-[color:var(--landing-dark)]">Acces complet gratuit</CardTitle>
+520	                <CardDescription className="text-sm leading-relaxed text-[var(--agri-text-muted)]">
+521	                  În perioada beta, toate funcționalitățile sunt disponibile gratuit pentru toți utilizatorii.
+522	                </CardDescription>
+523	              </CardHeader>
+524	              <CardContent className="space-y-5">
+525	                <ul className="space-y-2">
+526	                  {[
+527	                    'Parcele nelimitate',
+528	                    'Recoltări, vânzări, comenzi',
+529	                    'Dashboard complet cu grafice',
+530	                    'Export CSV și PDF',
+531	                    'Fără card bancar',
+532	                    'Fără obligații',
+533	                  ].map((feature) => (
+534	                    <li key={feature} className="flex items-start gap-2 text-sm text-[var(--agri-text-muted)]">
+535	                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--landing-accent)]" />
+536	                      <span>{feature}</span>
+537	                    </li>
+538	                  ))}
+539	                </ul>
+540	                <Button asChild className="agri-control w-full bg-[color:var(--landing-accent)] text-white hover:opacity-95">
+541	                  <Link href="/register">Creează cont gratuit</Link>
+542	                </Button>
+543	                <p className="text-xs text-[var(--agri-text-muted)]">
+544	                  După beta, planul de bază rămâne gratuit permanent. Planurile premium vor porni de la 49 lei/lună.
+545	                </p>
+546	              </CardContent>
+547	            </Card>
+548	          </div>
+549	        </section>
+550	
+551	        <section className="py-16 md:py-24" style={{ backgroundColor: '#F8FAF8' }}>
+552	          <div className="mx-auto w-full max-w-[900px] px-4 sm:px-6">
+553	            <h2 className="text-center text-2xl font-black text-[color:var(--landing-dark)] sm:text-3xl">Întrebări frecvente</h2>
+554	            <div className="mt-8 space-y-4">
+555	              {faq.map((item, index) => {
+556	                const expanded = openFaq === index
+557	                return (
+558	                  <Card key={item.q} className="border-[var(--agri-border)] shadow-sm transition-colors hover:bg-gray-50">
+559	                    <button
+560	                      type="button"
+561	                      className="flex w-full items-center justify-between gap-3 px-6 py-6 text-left"
+562	                      onClick={() => setOpenFaq(expanded ? null : index)}
+563	                      aria-expanded={expanded}
+564	                    >
+565	                      <span className="text-sm font-semibold text-[color:var(--landing-dark)] sm:text-base">{item.q}</span>
+566	                      {expanded ? (
+567	                        <Minus className="h-4 w-4 shrink-0 text-[color:var(--landing-accent)]" />
+568	                      ) : (
+569	                        <Plus className="h-4 w-4 shrink-0 text-[color:var(--landing-accent)]" />
+570	                      )}
+571	                    </button>
+572	                    {expanded ? (
+573	                      <CardContent className="pb-5 pt-0 text-sm leading-relaxed text-[var(--agri-text-muted)]">
+574	                        {item.a}
+575	                      </CardContent>
+576	                    ) : null}
+577	                  </Card>
+578	                )
+579	              })}
+580	            </div>
+581	          </div>
+582	        </section>
+583	
+584	        <section className="bg-gradient-to-br from-[var(--landing-hero-start)] to-[var(--landing-hero-end)] py-16 md:py-24">
+585	          <div className="mx-auto w-full max-w-[900px] px-4 text-center text-white sm:px-6">
+586	            <h2 className="text-2xl font-black sm:text-3xl">Gata să-ți ții evidența fermei din telefon?</h2>
+587	            <p className="mt-3 text-sm sm:text-base">Creează cont gratuit. Fără obligații, fără card bancar.</p>
+588	            <Button asChild className="agri-cta mt-6 bg-amber-500 px-8 text-white hover:bg-amber-600">
+589	              <Link href="/register">Creează cont gratuit</Link>
+590	            </Button>
+591	            <p className="mt-4 text-xs font-semibold sm:text-sm">Ai întrebări? Scrie-ne la zmeurel@gmail.com</p>
+592	          </div>
+593	        </section>
+594	      </main>
+595	
+596	      <footer className="bg-[#312E3F] py-8 text-white">
+597	        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 text-center sm:px-6 md:flex-row md:items-center md:justify-between md:text-left">
+598	          <p className="text-sm">© 2026 Zmeurel · Suceava, România</p>
+599	          <div className="flex items-center justify-center gap-4 text-sm md:justify-start">
+600	            <Link href="/termeni" className="text-white/70 hover:text-white hover:underline">Termeni și condiții</Link>
+601	            <Link href="/confidentialitate" className="text-white/70 hover:text-white hover:underline">Politica de confidențialitate</Link>
+602	          </div>
+603	          <div className="flex items-center justify-center gap-3 md:justify-end">
+604	            <a
+605	              href="https://www.facebook.com/ZmeuraSuceava/"
+606	              target="_blank"
+607	              rel="noopener noreferrer"
+608	              aria-label="Facebook Zmeurel"
+609	              className="rounded-md border border-white/30 p-2 text-white hover:text-white/80"
+610	            >
+611	              <Facebook className="h-4 w-4" />
+612	            </a>
+613	            <a
+614	              href="https://www.instagram.com/zmeurel_sv/"
+615	              target="_blank"
+616	              rel="noopener noreferrer"
+617	              aria-label="Instagram Zmeurel"
+618	              className="rounded-md border border-white/30 p-2 text-white hover:text-white/80"
+619	            >
+620	              <Instagram className="h-4 w-4" />
+621	            </a>
+622	          </div>
+623	        </div>
+624	      </footer>
+625	    </div>
+626	  )
+627	}

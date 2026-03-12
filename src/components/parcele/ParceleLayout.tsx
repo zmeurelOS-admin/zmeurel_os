@@ -68,7 +68,7 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
 
           {!isLoading && parcele.length === 0 && (
             <p className="rounded-2xl bg-white p-5 text-center text-sm text-slate-600 shadow-sm">
-              Nu exist? terenuri.
+              Nu există terenuri.
             </p>
           )}
 
@@ -120,5 +120,4 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
     </div>
   )
 }
-
 

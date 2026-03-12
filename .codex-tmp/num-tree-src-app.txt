@@ -1,0 +1,109 @@
+   1: C:\Users\Andrei\Desktop\zmeurel\src\app
+   2: +¦¦ (auth)
+   3: -   +¦¦ login
+   4: -   -   L¦¦ page.tsx
+   5: -   +¦¦ reset-password
+   6: -   -   L¦¦ page.tsx
+   7: -   +¦¦ reset-password-request
+   8: -   -   L¦¦ page.tsx
+   9: -   L¦¦ update-password
+  10: -       L¦¦ page.tsx
+  11: +¦¦ (dashboard)
+  12: -   +¦¦ activitati-agricole
+  13: -   -   +¦¦ ActivitatiAgricolePageClient.tsx
+  14: -   -   L¦¦ page.tsx
+  15: -   +¦¦ admin
+  16: -   -   +¦¦ analytics
+  17: -   -   +¦¦ audit
+  18: -   -   +¦¦ layout.tsx
+  19: -   -   L¦¦ page.tsx
+  20: -   +¦¦ cheltuieli
+  21: -   -   +¦¦ CheltuialaPageClient.tsx
+  22: -   -   L¦¦ page.tsx
+  23: -   +¦¦ clienti
+  24: -   -   +¦¦ ClientPageClient.tsx
+  25: -   -   L¦¦ page.tsx
+  26: -   +¦¦ comenzi
+  27: -   -   +¦¦ ComenziPageClient.tsx
+  28: -   -   +¦¦ loading.tsx
+  29: -   -   L¦¦ page.tsx
+  30: -   +¦¦ culegatori
+  31: -   -   +¦¦ CulegatorPageClient.tsx
+  32: -   -   L¦¦ page.tsx
+  33: -   +¦¦ dashboard
+  34: -   -   L¦¦ page.tsx
+  35: -   +¦¦ investitii
+  36: -   -   +¦¦ InvestitiiPageClient.tsx
+  37: -   -   L¦¦ page.tsx
+  38: -   +¦¦ parcele
+  39: -   -   +¦¦ loading.tsx
+  40: -   -   +¦¦ page.tsx
+  41: -   -   L¦¦ ParcelaPageClient.tsx
+  42: -   +¦¦ planuri
+  43: -   -   L¦¦ page.tsx
+  44: -   +¦¦ rapoarte
+  45: -   -   +¦¦ page.tsx
+  46: -   -   L¦¦ RapoartePageClient.tsx
+  47: -   +¦¦ recoltari
+  48: -   -   +¦¦ new
+  49: -   -   +¦¦ loading.tsx
+  50: -   -   +¦¦ page.tsx
+  51: -   -   L¦¦ RecoltariPageClient.tsx
+  52: -   +¦¦ settings
+  53: -   -   L¦¦ page.tsx
+  54: -   +¦¦ stoc
+  55: -   -   +¦¦ loading.tsx
+  56: -   -   +¦¦ page.tsx
+  57: -   -   L¦¦ StocPageClient.tsx
+  58: -   +¦¦ stocuri
+  59: -   -   +¦¦ page.tsx
+  60: -   -   L¦¦ StocuriPageClient.tsx
+  61: -   +¦¦ ui-template-demo
+  62: -   -   L¦¦ page.tsx
+  63: -   +¦¦ vanzari
+  64: -   -   +¦¦ loading.tsx
+  65: -   -   +¦¦ page.tsx
+  66: -   -   L¦¦ VanzariPageClient.tsx
+  67: -   +¦¦ vanzari-butasi
+  68: -   -   +¦¦ page.tsx
+  69: -   -   L¦¦ VanzariButasiPageClient.tsx
+  70: -   L¦¦ layout.tsx
+  71: +¦¦ api
+  72: -   +¦¦ admin
+  73: -   -   L¦¦ tenant-plan
+  74: -   +¦¦ cron
+  75: -   -   +¦¦ admin-metrics-daily
+  76: -   -   L¦¦ google-contacts-sync
+  77: -   +¦¦ demo
+  78: -   -   +¦¦ reset
+  79: -   -   L¦¦ seed
+  80: -   +¦¦ gdpr
+  81: -   -   +¦¦ account
+  82: -   -   L¦¦ farm
+  83: -   L¦¦ integrations
+  84: -       L¦¦ google
+  85: +¦¦ auth
+  86: -   L¦¦ callback
+  87: -       L¦¦ route.ts
+  88: +¦¦ callback
+  89: -   L¦¦ page.tsx
+  90: +¦¦ confidentialitate
+  91: -   L¦¦ page.tsx
+  92: +¦¦ icon-192.png
+  93: -   L¦¦ route.tsx
+  94: +¦¦ icon-512.png
+  95: -   L¦¦ route.tsx
+  96: +¦¦ login
+  97: -   L¦¦ 
+  98: +¦¦ register
+  99: -   L¦¦ page.tsx
+ 100: +¦¦ termeni
+ 101: -   L¦¦ page.tsx
+ 102: +¦¦ apple-icon.tsx
+ 103: +¦¦ global-error.tsx
+ 104: +¦¦ globals.css
+ 105: +¦¦ icon.tsx
+ 106: +¦¦ layout.tsx
+ 107: +¦¦ manifest.ts
+ 108: +¦¦ page.tsx
+ 109: L¦¦ providers.tsx

@@ -1,0 +1,203 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "Zmeurel OS" [ref=e5] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e6]:
+          - link "Funcționalități" [ref=e7] [cursor=pointer]:
+            - /url: "#functionalitati"
+          - link "Planuri" [ref=e8] [cursor=pointer]:
+            - /url: "#planuri"
+          - link "Despre" [ref=e9] [cursor=pointer]:
+            - /url: "#despre"
+        - link "Intră în cont" [ref=e11] [cursor=pointer]:
+          - /url: /login
+    - main [ref=e12]:
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - heading "Fermă ta. Cifrele tale. Pe telefon." [level=1] [ref=e16]
+          - paragraph [ref=e17]: Zmeurel OS este aplicația de evidență agricolă construită de un fermier din Suceava, pentru fermieri. Terenuri, recoltări, cheltuieli, vânzări — totul într-un singur loc, direct de pe telefonul tău.
+          - generic [ref=e18]:
+            - link "Încearcă gratuit" [ref=e19] [cursor=pointer]:
+              - /url: /register
+            - link "Ai deja cont? Intră aici" [ref=e20] [cursor=pointer]:
+              - /url: /login
+          - paragraph [ref=e21]: ✓ Gratuit în perioada beta · Fără card bancar
+        - generic [ref=e23]: "[Screenshot: Dashboard pe telefon]"
+      - generic [ref=e25]:
+        - heading "Cunoști situația asta?" [level=2] [ref=e26]
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]:
+              - generic [ref=e30]: 📓
+              - generic [ref=e31]: Caietul cu totul
+            - generic [ref=e33]: Notezi recolta, cheltuielile, vânzările — în caiet. Dar când vrei să calculezi cât te-a costat un kilogram de zmeură, trebuie să răsfoiești 40 de pagini.
+          - generic [ref=e34]:
+            - generic [ref=e35]:
+              - generic [ref=e36]: 📊
+              - generic [ref=e37]: Excel-ul de pe laptop
+            - generic [ref=e39]: Poate ai un fișier Excel. Dar când ești în câmp, laptopul e acasă. Și fișierul de anul trecut... unde era?
+          - generic [ref=e40]:
+            - generic [ref=e41]:
+              - generic [ref=e42]: 🤷
+              - generic [ref=e43]: Presupunerile
+            - generic [ref=e45]: Simți că merge bine, dar nu știi sigur. Care teren produce mai bine? Câte kilograme a cules fiecare culegător azi? Câți bani ai pierdut pe un client?
+        - paragraph [ref=e46]: Dacă te regăsești, Zmeurel OS e construit exact pentru tine.
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - heading "Totul într-un singur loc. Pe telefon." [level=2] [ref=e50]
+          - paragraph [ref=e51]: "Zmeurel OS îți ține evidența completă a fermei. Introduci câteva date simple — ce ai făcut, cât ai cules, cui ai vândut — și vezi imediat unde stai: ce produce fiecare teren, cât cheltuiești, cât câștigi."
+          - paragraph [ref=e52]: Nu trebuie să fii expert în calculatoare. Dacă poți folosi Facebook pe telefon, poți folosi Zmeurel OS.
+        - generic [ref=e53]: "[Screenshot: Dashboard complet cu date demo]"
+      - generic [ref=e55]:
+        - heading "Ce poți face cu Zmeurel OS" [level=2] [ref=e56]
+        - generic [ref=e57]:
+          - generic [ref=e58]:
+            - generic [ref=e59]:
+              - generic [ref=e60]: 🗺️
+              - generic [ref=e61]: Terenuri
+            - generic [ref=e63]: "Creează-ți harta fermei: fiecare teren cu soiul, suprafața și numărul de plante."
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - generic [ref=e66]: ✂️
+              - generic [ref=e67]: Activități
+            - generic [ref=e69]: Notează tratamente, tăieri, fertilizări — direct din câmp, în câteva secunde.
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e72]: 🫐
+              - generic [ref=e73]: Recoltări
+            - generic [ref=e75]: Înregistrează recolta zilnic, pe teren și pe culegător. Vezi exact cât culegi pe zi.
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - generic [ref=e78]: 💰
+              - generic [ref=e79]: Vânzări & Comenzi
+            - generic [ref=e81]: Urmărește fiecare vânzare, fiecare client, fiecare comandă — cu statusuri și notificări.
+          - generic [ref=e82]:
+            - generic [ref=e83]:
+              - generic [ref=e84]: 📉
+              - generic [ref=e85]: Cheltuieli
+            - generic [ref=e87]: "Vezi clar unde se duc banii: tratamente, forță de muncă, materiale, transport."
+          - generic [ref=e88]:
+            - generic [ref=e89]:
+              - generic [ref=e90]: 📊
+              - generic [ref=e91]: Dashboard
+            - generic [ref=e93]: "Totul rezumat pe un singur ecran: producție, venituri, cheltuieli, profit estimat."
+      - generic [ref=e95]:
+        - heading "3 pași simpli" [level=2] [ref=e96]
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - generic [ref=e99]:
+              - generic [ref=e100]: ①
+              - generic [ref=e101]: Creează-ți terenurile
+            - generic [ref=e102]:
+              - generic [ref=e103]: "Adaugă terenurile tale: soi, suprafață, număr de plante. Durează un minut."
+              - generic [ref=e104]: "[Placeholder: screenshot terenuri]"
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e107]: ②
+              - generic [ref=e108]: Notează zilnic
+            - generic [ref=e109]:
+              - generic [ref=e110]: Ce ai făcut, cât ai cules, cui ai vândut. Direct de pe telefon, în câteva secunde.
+              - generic [ref=e111]: "[Placeholder: screenshot recoltări]"
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - generic [ref=e114]: ③
+              - generic [ref=e115]: Vezi unde stai
+            - generic [ref=e116]:
+              - generic [ref=e117]: "Deschide dashboard-ul și ai imaginea completă: producție, cheltuieli, profit."
+              - generic [ref=e118]: "[Placeholder: screenshot dashboard]"
+      - generic [ref=e120]:
+        - generic [ref=e121]:
+          - heading "Făcut de un fermier. Pentru fermieri." [level=2] [ref=e122]
+          - paragraph [ref=e123]: Zmeurel OS nu a apărut într-un birou de IT.
+          - paragraph [ref=e124]: Sunt Andrei din Suceava. Am o plantație mică de zmeură — Zmeurel. Aceleași ambalaje pe care poate le-ai văzut la piață, aceeași marcă.
+          - paragraph [ref=e125]: Am început cu un caiet, am trecut pe Excel, și pentru că niciuna nu-mi răspundea la întrebarea „cât mă costă de fapt un kilogram de zmeură?”, am construit aplicația asta.
+          - paragraph [ref=e126]: Zmeurel OS este instrumentul pe care mi l-am făcut pentru fermă mea. Acum îl ofer și ție.
+          - link "Vezi plantația Zmeurel pe Facebook →" [ref=e127] [cursor=pointer]:
+            - /url: https://www.facebook.com/ZMEUREL.ZMEURASUCEAVA
+        - generic [ref=e128]: "[Poză autentică din plantația Zmeurel]"
+      - generic [ref=e130]:
+        - heading "Planuri simple, prețuri corecte" [level=2] [ref=e131]
+        - generic [ref=e132]:
+          - generic [ref=e133]:
+            - generic [ref=e134]: 🎁 Beta 2026
+            - generic [ref=e135]: Acces complet gratuit
+            - generic [ref=e136]: În perioada beta, toate funcționalitățile sunt disponibile gratuit pentru toți utilizatorii.
+          - generic [ref=e137]:
+            - list [ref=e138]:
+              - listitem [ref=e139]:
+                - img [ref=e140]
+                - generic [ref=e142]: Terenuri nelimitate
+              - listitem [ref=e143]:
+                - img [ref=e144]
+                - generic [ref=e146]: Recoltări, vânzări, comenzi
+              - listitem [ref=e147]:
+                - img [ref=e148]
+                - generic [ref=e150]: Dashboard complet cu grafice
+              - listitem [ref=e151]:
+                - img [ref=e152]
+                - generic [ref=e154]: Export CSV și PDF
+              - listitem [ref=e155]:
+                - img [ref=e156]
+                - generic [ref=e158]: Fără card bancar
+              - listitem [ref=e159]:
+                - img [ref=e160]
+                - generic [ref=e162]: Fără obligații
+            - link "Creează cont gratuit" [ref=e163] [cursor=pointer]:
+              - /url: /register
+            - paragraph [ref=e164]: După beta, planul de bază rămâne gratuit permanent. Planurile premium vor porni de la 49 lei/lună.
+      - generic [ref=e166]:
+        - heading "Întrebări frecvente" [level=2] [ref=e167]
+        - generic [ref=e168]:
+          - generic [ref=e169]:
+            - button "Trebuie să fiu expert în calculatoare?" [expanded] [ref=e170]:
+              - generic [ref=e171]: Trebuie să fiu expert în calculatoare?
+              - img [ref=e172]
+            - generic [ref=e173]: Nu. Dacă poți folosi Facebook pe telefon, poți folosi Zmeurel OS. E gândit să fie simplu, cu pași clari.
+          - button "Funcționează pe telefonul meu?" [ref=e175]:
+            - generic [ref=e176]: Funcționează pe telefonul meu?
+            - img [ref=e177]
+          - button "Ce se întâmplă cu datele mele?" [ref=e179]:
+            - generic [ref=e180]: Ce se întâmplă cu datele mele?
+            - img [ref=e181]
+          - button "Funcționează fără internet?" [ref=e183]:
+            - generic [ref=e184]: Funcționează fără internet?
+            - img [ref=e185]
+          - button "Este doar pentru zmeură?" [ref=e187]:
+            - generic [ref=e188]: Este doar pentru zmeură?
+            - img [ref=e189]
+          - button "Cât costă?" [ref=e191]:
+            - generic [ref=e192]: Cât costă?
+            - img [ref=e193]
+          - button "Pot exporta tratamentele pentru APIA?" [ref=e195]:
+            - generic [ref=e196]: Pot exporta tratamentele pentru APIA?
+            - img [ref=e197]
+          - button "Cine a făcut aplicația?" [ref=e199]:
+            - generic [ref=e200]: Cine a făcut aplicația?
+            - img [ref=e201]
+      - generic [ref=e203]:
+        - heading "Gata să-ți ții evidența fermei din telefon?" [level=2] [ref=e204]
+        - paragraph [ref=e205]: Creează cont gratuit. Fără obligații, fără card bancar.
+        - link "Creează cont gratuit" [ref=e206] [cursor=pointer]:
+          - /url: /register
+        - paragraph [ref=e207]: Ai întrebări? Scrie-ne la zmeurel@gmail.com
+    - contentinfo [ref=e208]:
+      - generic [ref=e209]:
+        - paragraph [ref=e210]: © 2026 Zmeurel · Suceava, România
+        - generic [ref=e211]:
+          - link "Termeni și condiții" [ref=e212] [cursor=pointer]:
+            - /url: /termeni
+          - link "Politica de confidențialitate" [ref=e213] [cursor=pointer]:
+            - /url: /confidentialitate
+        - generic [ref=e214]:
+          - link "Facebook Zmeurel" [ref=e215] [cursor=pointer]:
+            - /url: https://www.facebook.com/ZmeuraSuceava/
+            - img [ref=e216]
+          - link "Instagram Zmeurel" [ref=e218] [cursor=pointer]:
+            - /url: https://www.instagram.com/zmeurel_sv/
+            - img [ref=e219]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e227] [cursor=pointer]:
+    - img [ref=e228]
+  - alert [ref=e231]

@@ -102,6 +102,21 @@ function downloadFile(content: string, fileName: string, mimeType: string) {
   URL.revokeObjectURL(url)
 }
 
+function getApiErrorMessage(
+  payload: { error?: string | { message?: string } | null | undefined },
+  fallbackMessage: string
+) {
+  if (typeof payload.error === 'string') {
+    return payload.error
+  }
+
+  if (payload.error && typeof payload.error === 'object' && payload.error.message) {
+    return payload.error.message
+  }
+
+  return fallbackMessage
+}
+
 export default function SettingsPage() {
   const router = useRouter()
   const { density, setDensity } = useUiDensity()
@@ -380,8 +395,7 @@ export default function SettingsPage() {
         error?: string | { message?: string }
       }
       if (!response.ok || payload.success !== true) {
-        const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
-        throw new Error(message || 'Nu am putut reseta datele fermei.')
+        throw new Error(getApiErrorMessage(payload, 'Nu am putut reseta datele fermei.'))
       }
 
       disableDemoMode()
@@ -412,8 +426,7 @@ export default function SettingsPage() {
       const response = await fetch('/api/demo/reset', { method: 'POST' })
       const payload = (await response.json()) as { ok?: boolean; error?: { message?: string } | string }
       if (!response.ok || payload.ok === false) {
-        const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
-        throw new Error(message || 'Nu am putut sterge datele demo.')
+        throw new Error(getApiErrorMessage(payload, 'Nu am putut sterge datele demo.'))
       }
 
       disableDemoMode()
@@ -493,8 +506,8 @@ export default function SettingsPage() {
     setIsDeletingAccount(true)
     try {
       const response = await fetch('/api/gdpr/account', { method: 'DELETE' })
-      const payload = (await response.json()) as { error?: string }
-      if (!response.ok) throw new Error(payload.error || 'Nu am putut sterge contul.')
+      const payload = (await response.json()) as { error?: string | { message?: string } }
+      if (!response.ok) throw new Error(getApiErrorMessage(payload, 'Nu am putut sterge contul.'))
 
       const supabase = getSupabase()
       await supabase.auth.signOut()

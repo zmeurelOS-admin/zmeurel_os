@@ -1,0 +1,91 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - paragraph [ref=e5]: Zmeurel OS este în BETA. Trimite feedback
+      - button "Trimite feedback" [ref=e6]
+    - generic [ref=e7]:
+      - banner [ref=e9]:
+        - generic [ref=e12]:
+          - generic [ref=e13]:
+            - heading "Recoltări" [level=1] [ref=e14]
+            - paragraph [ref=e15]: Evidența producției zilnice
+          - button "Activeaza high visibility mode" [ref=e18]:
+            - img [ref=e19]
+      - main [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - button "🫐 Azi 7 kg 1 recoltări" [ref=e28] [cursor=pointer]:
+              - generic [ref=e30]: 🫐 Azi
+              - generic [ref=e31]: 7 kg
+              - generic [ref=e32]: 1 recoltări
+            - button "📅 Săptămâna 7 kg 1 recoltări" [ref=e33] [cursor=pointer]:
+              - generic [ref=e35]: 📅 Săptămâna
+              - generic [ref=e36]: 7 kg
+              - generic [ref=e37]: 1 recoltări
+          - generic [ref=e39]:
+            - generic [ref=e40]: Calitate recoltă
+            - generic [ref=e41]:
+              - generic [ref=e42]: 86% Cal I
+              - text: "|"
+              - generic [ref=e43]: 14% Cal II
+          - generic [ref=e47]:
+            - heading "Culegători azi" [level=3] [ref=e49]
+            - generic [ref=e50]: Nu există recoltări azi.
+          - generic [ref=e51]:
+            - img
+            - searchbox "Caută recoltări" [ref=e52]
+          - generic [ref=e53]:
+            - button "Azi" [ref=e54] [cursor=pointer]
+            - button "Sapt." [ref=e55] [cursor=pointer]
+            - button "Luna" [ref=e56] [cursor=pointer]
+            - button "Sezon" [ref=e57] [cursor=pointer]
+          - generic [ref=e59]:
+            - 'button "Parcelă - Soi nedefinit 👤 Nespecificat · 🕐 08:18 7.00 kg C1: 6.00 C2: 1.00" [active] [ref=e60]':
+              - generic [ref=e61]:
+                - generic [ref=e62]: 🫐
+                - generic [ref=e63]:
+                  - generic [ref=e65]: Parcelă - Soi nedefinit
+                  - generic [ref=e66]: 👤 Nespecificat · 🕐 08:18
+                - generic [ref=e67]:
+                  - generic [ref=e68]: 7.00 kg
+                  - generic [ref=e69]:
+                    - generic [ref=e70]: "C1: 6.00"
+                    - generic [ref=e71]: "C2: 1.00"
+            - generic [ref=e96]:
+              - generic [ref=e97]:
+                - generic [ref=e98]:
+                  - generic [ref=e99]: Valoare Cal. I
+                  - generic [ref=e100]: 108.00 lei
+                - generic [ref=e101]:
+                  - generic [ref=e102]: Valoare Cal. II
+                  - generic [ref=e103]: 18.00 lei
+                - generic [ref=e104]:
+                  - generic [ref=e105]: Total
+                  - generic [ref=e106]: 126.00 lei
+              - generic [ref=e107]: "Data: 12.03.2026 · Manoperă: 17.50 lei"
+              - generic [ref=e108]:
+                - button "Vezi" [ref=e109]
+                - button "Editează" [ref=e110]
+                - button "Șterge" [ref=e111]
+      - paragraph [ref=e76]: "Total: 7 kg"
+    - navigation "Navigare principală" [ref=e77]:
+      - generic [ref=e78]:
+        - link "📊 Dashboard" [ref=e79] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e80]: 📊
+          - generic [ref=e81]: Dashboard
+        - link "🧺 Recoltări" [ref=e82] [cursor=pointer]:
+          - /url: /recoltari
+          - generic [ref=e83]: 🧺
+          - generic [ref=e84]: Recoltări
+        - button "Adaugă recoltare" [ref=e87]:
+          - generic [ref=e88]: +
+        - link "📦 Comenzi" [ref=e89] [cursor=pointer]:
+          - /url: /comenzi
+          - generic [ref=e90]: 📦
+          - generic [ref=e91]: Comenzi
+        - button "Mai multe module" [ref=e92]:
+          - generic [ref=e93]: •••
+          - generic [ref=e94]: Mai mult
+  - region "Notifications alt+T"
+  - alert [ref=e95]

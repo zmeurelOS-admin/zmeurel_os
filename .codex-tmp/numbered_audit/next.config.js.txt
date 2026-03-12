@@ -1,0 +1,142 @@
+﻿   1: const runtimeCaching = [
+   2:   {
+   3:     urlPattern: ({ url }) => self.origin === url.origin && url.pathname.startsWith('/api/'),
+   4:     handler: 'NetworkOnly',
+   5:     method: 'GET',
+   6:   },
+   7:   {
+   8:     urlPattern: ({ request, url }) => request.mode === 'navigate' && self.origin === url.origin,
+   9:     handler: 'NetworkOnly',
+  10:     method: 'GET',
+  11:   },
+  12:   {
+  13:     urlPattern: ({ url }) => self.origin === url.origin && url.pathname.startsWith('/_next/static/'),
+  14:     handler: 'StaleWhileRevalidate',
+  15:     method: 'GET',
+  16:     options: {
+  17:       cacheName: 'next-static-assets',
+  18:       expiration: {
+  19:         maxEntries: 128,
+  20:         maxAgeSeconds: 24 * 60 * 60,
+  21:       },
+  22:     },
+  23:   },
+  24:   {
+  25:     urlPattern: /\/_next\/image\?url=.+$/i,
+  26:     handler: 'CacheFirst',
+  27:     method: 'GET',
+  28:     options: {
+  29:       cacheName: 'next-image-assets',
+  30:       expiration: {
+  31:         maxEntries: 128,
+  32:         maxAgeSeconds: 24 * 60 * 60,
+  33:       },
+  34:     },
+  35:   },
+  36:   {
+  37:     urlPattern: /\.(?:png|jpg|jpeg|gif|webp|svg|ico)$/i,
+  38:     handler: 'CacheFirst',
+  39:     method: 'GET',
+  40:     options: {
+  41:       cacheName: 'static-image-assets',
+  42:       expiration: {
+  43:         maxEntries: 128,
+  44:         maxAgeSeconds: 24 * 60 * 60,
+  45:       },
+  46:     },
+  47:   },
+  48: ]
+  49: 
+  50: const withPWA = require('next-pwa')({
+  51:   dest: 'public',
+  52:   register: true,
+  53:   skipWaiting: true,
+  54:   disable: process.env.NODE_ENV === 'development',
+  55:   cacheStartUrl: false,
+  56:   dynamicStartUrl: false,
+  57:   runtimeCaching,
+  58:   buildExcludes: [
+  59:     ({ asset }) => {
+  60:       const name = asset?.name ?? ''
+  61:       return (
+  62:         name.endsWith('.map') ||
+  63:         name.startsWith('server/') ||
+  64:         name === 'build-manifest.json' ||
+  65:         name === 'react-loadable-manifest.json' ||
+  66:         name === 'middleware-build-manifest.js' ||
+  67:         name === 'middleware-react-loadable-manifest.js' ||
+  68:         name === 'next-font-manifest.js' ||
+  69:         name === 'next-font-manifest.json'
+  70:       )
+  71:     },
+  72:   ],
+  73:   publicExcludes: [
+  74:     '!**/*',
+  75:     'icons/**/*',
+  76:     'icon-*.png',
+  77:     'apple-icon.png',
+  78:   ],
+  79:   additionalManifestEntries: [
+  80:     { url: '/apple-icon', revision: null },
+  81:     { url: '/icon-192.png', revision: null },
+  82:     { url: '/icon-512.png', revision: null },
+  83:     { url: '/manifest.webmanifest', revision: null },
+  84:   ],
+  85:   manifestTransforms: [
+  86:     async (entries) => {
+  87:       const allowedNonStatic = new Set([
+  88:         '/apple-icon',
+  89:         '/icon-192.png',
+  90:         '/icon-512.png',
+  91:         '/manifest.webmanifest',
+  92:       ])
+  93: 
+  94:       const manifest = entries.filter((entry) => {
+  95:         return entry.url.startsWith('/_next/static/') || allowedNonStatic.has(entry.url)
+  96:       })
+  97: 
+  98:       return { manifest, warnings: [] }
+  99:     },
+ 100:   ],
+ 101: })
+ 102: const { withSentryConfig } = require('@sentry/nextjs')
+ 103: 
+ 104: /** @type {import('next').NextConfig} */
+ 105: const nextConfig = {
+ 106:   reactStrictMode: true,
+ 107:   turbopack: {},
+ 108:   async headers() {
+ 109:     return [
+ 110:       {
+ 111:         source: '/sw.js',
+ 112:         headers: [
+ 113:           {
+ 114:             key: 'Content-Type',
+ 115:             value: 'application/javascript; charset=utf-8',
+ 116:           },
+ 117:           {
+ 118:             key: 'Cache-Control',
+ 119:             value: 'no-cache, no-store, must-revalidate',
+ 120:           },
+ 121:         ],
+ 122:       },
+ 123:       {
+ 124:         source: '/manifest.webmanifest',
+ 125:         headers: [
+ 126:           {
+ 127:             key: 'Content-Type',
+ 128:             value: 'application/manifest+json; charset=utf-8',
+ 129:           },
+ 130:           {
+ 131:             key: 'Cache-Control',
+ 132:             value: 'no-cache, no-store, must-revalidate',
+ 133:           },
+ 134:         ],
+ 135:       },
+ 136:     ]
+ 137:   },
+ 138: }
+ 139: 
+ 140: module.exports = withSentryConfig(withPWA(nextConfig), {
+ 141:   silent: true,
+ 142: })

@@ -1,5 +1,6 @@
 import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 // ========================================
 // TYPES
@@ -69,8 +70,10 @@ export async function createCulegator(
 ): Promise<Culegator> {
   const supabase = getSupabase()
   const id_culegator = await generateBusinessId(supabase, 'CUL')
+  const tenantId = await getTenantId(supabase)
 
   const payload = {
+    tenant_id: tenantId,
     id_culegator,
     nume_prenume: input.nume_prenume,
     tarif_lei_kg: input.tarif_lei_kg,

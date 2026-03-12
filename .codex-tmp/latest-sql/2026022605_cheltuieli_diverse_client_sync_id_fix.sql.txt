@@ -1,0 +1,23 @@
+    1: -- Harden cheltuieli_diverse schema for offline/idempotent writes.
+    2: create extension if not exists pgcrypto;
+    3: 
+    4: alter table public.cheltuieli_diverse
+    5:   add column if not exists client_sync_id uuid,
+    6:   add column if not exists sync_status text default 'synced',
+    7:   add column if not exists conflict_flag boolean default false,
+    8:   add column if not exists created_by uuid,
+    9:   add column if not exists updated_by uuid;
+   10: 
+   11: update public.cheltuieli_diverse
+   12: set client_sync_id = gen_random_uuid()
+   13: where client_sync_id is null;
+   14: 
+   15: alter table public.cheltuieli_diverse
+   16:   alter column client_sync_id set default gen_random_uuid();
+   17: 
+   18: create unique index if not exists cheltuieli_diverse_client_sync_id_uq
+   19:   on public.cheltuieli_diverse (tenant_id, client_sync_id)
+   20:   where client_sync_id is not null;
+   21: 
+   22: -- Force PostgREST schema cache reload.
+   23: notify pgrst, 'reload schema';

@@ -1,0 +1,59 @@
+    1: import type { Metadata, Viewport } from 'next'
+    2: import { Inter } from 'next/font/google'
+    3: 
+    4: import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
+    5: import { MonitoringInit } from '@/components/app/MonitoringInit'
+    6: import { Toaster } from '@/components/Toaster'
+    7: import './globals.css'
+    8: 
+    9: const inter = Inter({
+   10:   subsets: ['latin', 'latin-ext'],
+   11:   display: 'swap',
+   12:   variable: '--font-inter',
+   13: })
+   14: 
+   15: export const metadata: Metadata = {
+   16:   title: 'Zmeurel',
+   17:   description: 'Aplicatie agricola pentru management de teren, productie si vanzari.',
+   18:   manifest: '/manifest.webmanifest',
+   19:   applicationName: 'Zmeurel',
+   20:   formatDetection: {
+   21:     telephone: false,
+   22:   },
+   23:   icons: {
+   24:     icon: [
+   25:       { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+   26:       { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+   27:     ],
+   28:   },
+   29: }
+   30: 
+   31: export const viewport: Viewport = {
+   32:   width: 'device-width',
+   33:   initialScale: 1,
+   34:   viewportFit: 'cover',
+   35:   themeColor: '#166534',
+   36: }
+   37: 
+   38: export default function RootLayout({ children }: { children: React.ReactNode }) {
+   39:   return (
+   40:     <html lang="ro">
+   41:       <head>
+   42:         <meta charSet="utf-8" />
+   43:         <meta name="theme-color" content="#166534" />
+   44:         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+   45:         <meta name="apple-mobile-web-app-capable" content="yes" />
+   46:         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+   47:         <meta name="apple-mobile-web-app-title" content="Zmeurel" />
+   48:         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+   49:       </head>
+   50:       <body className={inter.variable}>
+   51:         <HighVisibilityInit />
+   52:         <MonitoringInit />
+   53:         {children}
+   54:         <Toaster />
+   55:       </body>
+   56:     </html>
+   57:   )
+   58: }
+   59: 

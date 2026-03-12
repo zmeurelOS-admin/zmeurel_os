@@ -1,0 +1,179 @@
+    1: -- Audit logs for admin plan changes
+    2: 
+    3: create extension if not exists pgcrypto;
+    4: 
+    5: create table if not exists public.audit_logs (
+    6:   id uuid primary key default gen_random_uuid(),
+    7:   created_at timestamptz not null default now(),
+    8:   actor_user_id uuid references auth.users(id) on delete set null,
+    9:   action text not null,
+   10:   target_tenant_id uuid references public.tenants(id) on delete set null,
+   11:   old_plan text,
+   12:   new_plan text
+   13: );
+   14: 
+   15: create index if not exists audit_logs_created_at_desc_idx
+   16:   on public.audit_logs (created_at desc);
+   17: 
+   18: create index if not exists audit_logs_target_tenant_idx
+   19:   on public.audit_logs (target_tenant_id);
+   20: 
+   21: alter table public.audit_logs enable row level security;
+   22: 
+   23: drop policy if exists audit_logs_superadmin_select on public.audit_logs;
+   24: create policy audit_logs_superadmin_select
+   25: on public.audit_logs
+   26: for select
+   27: using (public.is_superadmin());
+   28: 
+   29: drop policy if exists audit_logs_superadmin_insert on public.audit_logs;
+   30: create policy audit_logs_superadmin_insert
+   31: on public.audit_logs
+   32: for insert
+   33: with check (public.is_superadmin());
+   34: 
+   35: drop policy if exists audit_logs_superadmin_update on public.audit_logs;
+   36: create policy audit_logs_superadmin_update
+   37: on public.audit_logs
+   38: for update
+   39: using (public.is_superadmin())
+   40: with check (public.is_superadmin());
+   41: 
+   42: drop policy if exists audit_logs_superadmin_delete on public.audit_logs;
+   43: create policy audit_logs_superadmin_delete
+   44: on public.audit_logs
+   45: for delete
+   46: using (public.is_superadmin());
+   47: 
+   48: create or replace function public.admin_set_tenant_plan(p_tenant_id uuid, p_plan text)
+   49: returns table (
+   50:   id uuid,
+   51:   plan text,
+   52:   updated_at timestamptz
+   53: )
+   54: language plpgsql
+   55: security definer
+   56: set search_path = public
+   57: as $$
+   58: declare
+   59:   normalized_plan text;
+   60:   previous_plan text;
+   61:   updated_row public.tenants%rowtype;
+   62: begin
+   63:   if not public.is_superadmin(auth.uid()) then
+   64:     raise exception 'FORBIDDEN';
+   65:   end if;
+   66: 
+   67:   normalized_plan := lower(trim(p_plan));
+   68: 
+   69:   if normalized_plan not in ('freemium', 'pro', 'enterprise') then
+   70:     raise exception 'INVALID_PLAN';
+   71:   end if;
+   72: 
+   73:   select t.plan
+   74:   into previous_plan
+   75:   from public.tenants t
+   76:   where t.id = p_tenant_id
+   77:   for update;
+   78: 
+   79:   if not found then
+   80:     raise exception 'TENANT_NOT_FOUND';
+   81:   end if;
+   82: 
+   83:   update public.tenants t
+   84:   set
+   85:     plan = normalized_plan,
+   86:     updated_at = now()
+   87:   where t.id = p_tenant_id
+   88:   returning * into updated_row;
+   89: 
+   90:   if previous_plan is distinct from normalized_plan then
+   91:     insert into public.audit_logs (
+   92:       actor_user_id,
+   93:       action,
+   94:       target_tenant_id,
+   95:       old_plan,
+   96:       new_plan
+   97:     ) values (
+   98:       auth.uid(),
+   99:       'plan_changed',
+  100:       p_tenant_id,
+  101:       previous_plan,
+  102:       normalized_plan
+  103:     );
+  104:   end if;
+  105: 
+  106:   return query
+  107:   select updated_row.id, updated_row.plan, updated_row.updated_at;
+  108: end;
+  109: $$;
+  110: 
+  111: grant execute on function public.admin_set_tenant_plan(uuid, text) to authenticated;
+  112: grant execute on function public.admin_set_tenant_plan(uuid, text) to service_role;
+  113: 
+  114: create or replace function public.admin_list_audit_logs(p_limit integer default 20, p_offset integer default 0)
+  115: returns table (
+  116:   id uuid,
+  117:   created_at timestamptz,
+  118:   actor_email text,
+  119:   tenant_name text,
+  120:   old_plan text,
+  121:   new_plan text,
+  122:   action text
+  123: )
+  124: language plpgsql
+  125: stable
+  126: security definer
+  127: set search_path = public
+  128: as $$
+  129: begin
+  130:   if not public.is_superadmin(auth.uid()) then
+  131:     raise exception 'FORBIDDEN';
+  132:   end if;
+  133: 
+  134:   return query
+  135:   select
+  136:     a.id,
+  137:     a.created_at,
+  138:     u.email::text as actor_email,
+  139:     t.nume_ferma as tenant_name,
+  140:     a.old_plan,
+  141:     a.new_plan,
+  142:     a.action
+  143:   from public.audit_logs a
+  144:   left join auth.users u on u.id = a.actor_user_id
+  145:   left join public.tenants t on t.id = a.target_tenant_id
+  146:   order by a.created_at desc
+  147:   limit greatest(coalesce(p_limit, 20), 1)
+  148:   offset greatest(coalesce(p_offset, 0), 0);
+  149: end;
+  150: $$;
+  151: 
+  152: grant execute on function public.admin_list_audit_logs(integer, integer) to authenticated;
+  153: grant execute on function public.admin_list_audit_logs(integer, integer) to service_role;
+  154: 
+  155: create or replace function public.admin_count_audit_logs()
+  156: returns bigint
+  157: language plpgsql
+  158: stable
+  159: security definer
+  160: set search_path = public
+  161: as $$
+  162: declare
+  163:   total_count bigint;
+  164: begin
+  165:   if not public.is_superadmin(auth.uid()) then
+  166:     raise exception 'FORBIDDEN';
+  167:   end if;
+  168: 
+  169:   select count(*) into total_count
+  170:   from public.audit_logs;
+  171: 
+  172:   return total_count;
+  173: end;
+  174: $$;
+  175: 
+  176: grant execute on function public.admin_count_audit_logs() to authenticated;
+  177: grant execute on function public.admin_count_audit_logs() to service_role;
+  178: 
+  179: notify pgrst, 'reload schema';

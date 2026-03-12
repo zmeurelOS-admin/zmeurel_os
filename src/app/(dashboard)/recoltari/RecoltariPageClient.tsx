@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Leaf } from 'lucide-react'
@@ -13,11 +14,7 @@ import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { AddRecoltareDialog } from '@/components/recoltari/AddRecoltareDialog'
-import { EditRecoltareDialog } from '@/components/recoltari/EditRecoltareDialog'
 import { RecoltareCard } from '@/components/recoltari/RecoltareCard'
-import { ViewRecoltareDialog } from '@/components/recoltari/ViewRecoltareDialog'
-import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import MiniCard from '@/components/ui/MiniCard'
 import { SearchField } from '@/components/ui/SearchField'
 import Sparkline from '@/components/ui/Sparkline'
@@ -32,6 +29,23 @@ import { deleteRecoltare, getRecoltari, type Recoltare } from '@/lib/supabase/qu
 import { buildRecoltareDeleteLabel } from '@/lib/ui/delete-labels'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
+
+const AddRecoltareDialog = dynamic(
+  () => import('@/components/recoltari/AddRecoltareDialog').then((mod) => mod.AddRecoltareDialog),
+  { ssr: false }
+)
+const EditRecoltareDialog = dynamic(
+  () => import('@/components/recoltari/EditRecoltareDialog').then((mod) => mod.EditRecoltareDialog),
+  { ssr: false }
+)
+const ViewRecoltareDialog = dynamic(
+  () => import('@/components/recoltari/ViewRecoltareDialog').then((mod) => mod.ViewRecoltareDialog),
+  { ssr: false }
+)
+const DeleteConfirmDialog = dynamic(
+  () => import('@/components/parcele/DeleteConfirmDialog').then((mod) => mod.DeleteConfirmDialog),
+  { ssr: false }
+)
 
 type TimeFilter = 'azi' | 'saptamana' | 'luna' | 'sezon'
 
@@ -498,7 +512,7 @@ export function RecoltariPageClient({
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
@@ -733,7 +747,7 @@ export function RecoltariPageClient({
               </div>
 
               {rankingCulegatoriAzi.length === 0 ? (
-                <div style={{ fontSize: 12, color: colors.gray }}>Nu exist? recoltări azi.</div>
+                <div style={{ fontSize: 12, color: colors.gray }}>Nu există recoltări azi.</div>
               ) : (
                 <div style={{ display: 'grid', gap: spacing.xs }}>
                   {rankingCulegatoriAzi.map((worker, index) => {
@@ -784,7 +798,7 @@ export function RecoltariPageClient({
             </div>
 
             <SearchField
-              placeholder="Caută dupa parcelă, soi, culegator sau observații..."
+              placeholder="Caută după parcelă, soi, culegător sau observații..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               aria-label="Caută recoltări"
@@ -869,7 +883,7 @@ export function RecoltariPageClient({
         ) : null}
 
         {!isLoading && !isError && !initialError && recoltari.length === 0 ? (
-          <EmptyState icon={<Leaf className="h-16 w-16" />} title="Nicio recoltare inca" description="Adaugă prima recoltare pentru a incepe" />
+          <EmptyState icon={<Leaf className="h-16 w-16" />} title="Nicio recoltare încă" description="Adaugă prima recoltare pentru a începe" />
         ) : null}
 
         {!isLoading && !isError && !initialError && recoltari.length > 0 && filteredRecoltari.length === 0 ? (
@@ -884,7 +898,7 @@ export function RecoltariPageClient({
               fontSize: 13,
             }}
           >
-            Nu exist? recoltări pentru filtrele selectate.
+            Nu există recoltări pentru filtrele selectate.
           </div>
         ) : null}
 

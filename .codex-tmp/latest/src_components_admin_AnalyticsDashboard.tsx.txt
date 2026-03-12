@@ -1,0 +1,137 @@
+    1: import { AppShell } from '@/components/app/AppShell'
+    2: import { EmptyState } from '@/components/app/EmptyState'
+    3: import { KpiCard } from '@/components/app/KpiCard'
+    4: import { PageHeader } from '@/components/app/PageHeader'
+    5: import {
+    6:   Card,
+    7:   CardContent,
+    8:   CardDescription,
+    9:   CardHeader,
+   10:   CardTitle,
+   11: } from '@/components/ui/card'
+   12: import {
+   13:   Table,
+   14:   TableBody,
+   15:   TableCell,
+   16:   TableHead,
+   17:   TableHeader,
+   18:   TableRow,
+   19: } from '@/components/ui/table'
+   20: import { createClient } from '@/lib/supabase/server'
+   21: 
+   22: type MetricsRow = {
+   23:   date: string
+   24:   total_tenants: number
+   25:   total_parcele: number
+   26:   total_recoltari: number
+   27:   total_vanzari: number
+   28:   total_kg_cal1: number
+   29:   total_kg_cal2: number
+   30:   total_revenue_lei: number
+   31: }
+   32: 
+   33: function formatNumber(value: number): string {
+   34:   return new Intl.NumberFormat('ro-RO').format(value)
+   35: }
+   36: 
+   37: function formatLei(value: number): string {
+   38:   return new Intl.NumberFormat('ro-RO', {
+   39:     style: 'currency',
+   40:     currency: 'RON',
+   41:     maximumFractionDigits: 0,
+   42:   }).format(value)
+   43: }
+   44: 
+   45: export async function AnalyticsDashboard() {
+   46:   const supabase = await createClient()
+   47: 
+   48:   const today = new Date().toISOString().slice(0, 10)
+   49:   const { error: refreshError } = await supabase.rpc('refresh_tenant_metrics_daily', { p_date: today })
+   50: 
+   51:   const { data, error } = await supabase
+   52:     .from('tenant_metrics_daily')
+   53:     .select('date,total_tenants,total_parcele,total_recoltari,total_vanzari,total_kg_cal1,total_kg_cal2,total_revenue_lei')
+   54:     .order('date', { ascending: false })
+   55:     .limit(30)
+   56: 
+   57:   const rows = (data ?? []) as MetricsRow[]
+   58:   const latest = rows[0]
+   59: 
+   60:   if (refreshError || error) {
+   61:     return (
+   62:       <AppShell header={<PageHeader title="Admin Analytics" subtitle="Statistici agregate globale" />}>
+   63:         <div className="mx-auto w-full max-w-6xl py-4">
+   64:           <Card className="rounded-2xl border-red-200 bg-red-50">
+   65:             <CardContent className="p-4 text-sm text-red-800">
+   66:               Eroare la încărcare metrici: {refreshError?.message ?? error?.message}
+   67:             </CardContent>
+   68:           </Card>
+   69:         </div>
+   70:       </AppShell>
+   71:     )
+   72:   }
+   73: 
+   74:   if (!latest) {
+   75:     return (
+   76:       <AppShell header={<PageHeader title="Admin Analytics" subtitle="Statistici agregate globale" />}>
+   77:         <div className="mx-auto w-full max-w-6xl py-4">
+   78:           <EmptyState
+   79:             title="Nu există date agregate"
+   80:             description="Rulează jobul refresh_tenant_metrics_daily pentru a genera primul snapshot zilnic."
+   81:           />
+   82:         </div>
+   83:       </AppShell>
+   84:     )
+   85:   }
+   86: 
+   87:   const totalKgHarvested = Number(latest.total_kg_cal1 || 0) + Number(latest.total_kg_cal2 || 0)
+   88: 
+   89:   return (
+   90:     <AppShell header={<PageHeader title="Admin Analytics" subtitle="Statistici agregate anonimizate pe toate fermele" />}>
+   91:       <div className="mx-auto w-full max-w-6xl space-y-4 py-4">
+   92:         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+   93:           <KpiCard title="Tenanți activi (zi curentă)" value={formatNumber(latest.total_tenants)} />
+   94:           <KpiCard title="Total parcele" value={formatNumber(latest.total_parcele)} />
+   95:           <KpiCard title="Înregistrări recoltări" value={formatNumber(latest.total_recoltari)} />
+   96:           <KpiCard title="Kg recoltate" value={formatNumber(totalKgHarvested)} />
+   97:           <KpiCard title="Venit agregat" value={formatLei(Number(latest.total_revenue_lei || 0))} />
+   98:         </section>
+   99: 
+  100:         <Card className="rounded-2xl border-[var(--agri-border)] shadow-sm">
+  101:           <CardHeader>
+  102:             <CardTitle>Evoluție 30 zile</CardTitle>
+  103:             <CardDescription>Doar date agregate. Nu sunt expuse date identificabile pe tenant.</CardDescription>
+  104:           </CardHeader>
+  105:           <CardContent>
+  106:             <Table>
+  107:               <TableHeader>
+  108:                 <TableRow>
+  109:                   <TableHead>Data</TableHead>
+  110:                   <TableHead className="text-right">Tenanți activi</TableHead>
+  111:                   <TableHead className="text-right">Recoltări</TableHead>
+  112:                   <TableHead className="text-right">Vânzări</TableHead>
+  113:                   <TableHead className="text-right">Kg Cal1</TableHead>
+  114:                   <TableHead className="text-right">Kg Cal2</TableHead>
+  115:                   <TableHead className="text-right">Venit</TableHead>
+  116:                 </TableRow>
+  117:               </TableHeader>
+  118:               <TableBody>
+  119:                 {rows.map((row) => (
+  120:                   <TableRow key={row.date}>
+  121:                     <TableCell>{row.date}</TableCell>
+  122:                     <TableCell className="text-right">{formatNumber(row.total_tenants)}</TableCell>
+  123:                     <TableCell className="text-right">{formatNumber(row.total_recoltari)}</TableCell>
+  124:                     <TableCell className="text-right">{formatNumber(row.total_vanzari)}</TableCell>
+  125:                     <TableCell className="text-right">{formatNumber(Number(row.total_kg_cal1 || 0))}</TableCell>
+  126:                     <TableCell className="text-right">{formatNumber(Number(row.total_kg_cal2 || 0))}</TableCell>
+  127:                     <TableCell className="text-right">{formatLei(Number(row.total_revenue_lei || 0))}</TableCell>
+  128:                   </TableRow>
+  129:                 ))}
+  130:               </TableBody>
+  131:             </Table>
+  132:           </CardContent>
+  133:         </Card>
+  134:       </div>
+  135:     </AppShell>
+  136:   )
+  137: }

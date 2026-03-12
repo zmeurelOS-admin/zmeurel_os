@@ -1,0 +1,26 @@
+    1: alter table public.recoltari
+    2:   add column if not exists kg_cal1 numeric not null default 0,
+    3:   add column if not exists kg_cal2 numeric not null default 0;
+    4: 
+    5: alter table public.recoltari
+    6:   alter column cantitate_kg set default 0;
+    7: 
+    8: create or replace function public.recoltari_sync_cantitate_kg()
+    9: returns trigger
+   10: language plpgsql
+   11: as $$
+   12: begin
+   13:   new.kg_cal1 := coalesce(new.kg_cal1, 0);
+   14:   new.kg_cal2 := coalesce(new.kg_cal2, 0);
+   15:   new.cantitate_kg := coalesce(new.kg_cal1, 0) + coalesce(new.kg_cal2, 0);
+   16:   return new;
+   17: end;
+   18: $$;
+   19: 
+   20: drop trigger if exists trg_recoltari_sync_cantitate_kg on public.recoltari;
+   21: create trigger trg_recoltari_sync_cantitate_kg
+   22: before insert or update on public.recoltari
+   23: for each row
+   24: execute function public.recoltari_sync_cantitate_kg();
+   25: 
+   26: select pg_notify('pgrst', 'reload schema');

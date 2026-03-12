@@ -1,0 +1,608 @@
+    1: import { getSupabase } from '../client'
+    2: import { createVanzare, deleteVanzare, type Vanzare } from './vanzari'
+    3: 
+    4: export const COMENZI_STATUSES = [
+    5:   'noua',
+    6:   'confirmata',
+    7:   'programata',
+    8:   'in_livrare',
+    9:   'livrata',
+   10:   'anulata',
+   11: ] as const
+   12: 
+   13: export type ComandaStatus = (typeof COMENZI_STATUSES)[number]
+   14: export type ComandaPlata = 'integral' | 'avans' | 'restanta'
+   15: 
+   16: export interface Comanda {
+   17:   id: string
+   18:   tenant_id: string
+   19:   client_id: string | null
+   20:   client_nume_manual: string | null
+   21:   telefon: string | null
+   22:   locatie_livrare: string | null
+   23:   data_comanda: string
+   24:   data_livrare: string | null
+   25:   cantitate_kg: number
+   26:   pret_per_kg: number
+   27:   total: number
+   28:   status: ComandaStatus
+   29:   observatii: string | null
+   30:   linked_vanzare_id: string | null
+   31:   parent_comanda_id: string | null
+   32:   created_at: string
+   33:   updated_at: string
+   34:   client_nume?: string | null
+   35: }
+   36: 
+   37: export interface CreateComandaInput {
+   38:   client_id?: string | null
+   39:   client_nume_manual?: string | null
+   40:   telefon?: string | null
+   41:   locatie_livrare?: string | null
+   42:   data_comanda?: string
+   43:   data_livrare?: string | null
+   44:   cantitate_kg: number
+   45:   pret_per_kg: number
+   46:   status?: ComandaStatus
+   47:   observatii?: string | null
+   48: }
+   49: 
+   50: export interface UpdateComandaInput {
+   51:   client_id?: string | null
+   52:   client_nume_manual?: string | null
+   53:   telefon?: string | null
+   54:   locatie_livrare?: string | null
+   55:   data_comanda?: string
+   56:   data_livrare?: string | null
+   57:   cantitate_kg?: number
+   58:   pret_per_kg?: number
+   59:   status?: ComandaStatus
+   60:   observatii?: string | null
+   61: }
+   62: 
+   63: export interface DeliverComandaInput {
+   64:   comandaId: string
+   65:   cantitateLivrataKg: number
+   66:   plata: ComandaPlata
+   67:   dataLivrareRamasa?: string | null
+   68: }
+   69: 
+   70: interface StockBucket {
+   71:   locatie_id: string
+   72:   produs: string
+   73:   calitate: 'cal1' | 'cal2'
+   74:   depozit: 'fresh' | 'congelat' | 'procesat'
+   75:   availableKg: number
+   76: }
+   77: 
+   78: type SupabaseLikeError = {
+   79:   message?: string
+   80:   code?: string
+   81:   details?: string
+   82:   hint?: string
+   83: }
+   84: 
+   85: function toReadableError(error: unknown, fallbackMessage: string) {
+   86:   const e = (error ?? {}) as SupabaseLikeError
+   87:   const message = e.message || e.details || e.hint || fallbackMessage
+   88:   return Object.assign(new Error(message), {
+   89:     code: e.code,
+   90:     details: e.details,
+   91:     hint: e.hint,
+   92:   })
+   93: }
+   94: 
+   95: function round2(value: number): number {
+   96:   return Math.round((Number(value) || 0) * 100) / 100
+   97: }
+   98: 
+   99: function ensureStatus(status: string): ComandaStatus {
+  100:   const normalized = String(status || '').trim().toLowerCase()
+  101:   if (normalized === 'pregatita') {
+  102:     return 'programata'
+  103:   }
+  104:   if (!COMENZI_STATUSES.includes(normalized as ComandaStatus)) {
+  105:     return 'noua'
+  106:   }
+  107:   return normalized as ComandaStatus
+  108: }
+  109: 
+  110: function mapComanda(row: any): Comanda {
+  111:   return {
+  112:     id: row.id,
+  113:     tenant_id: row.tenant_id,
+  114:     client_id: row.client_id ?? null,
+  115:     client_nume_manual: row.client_nume_manual ?? null,
+  116:     telefon: row.telefon ?? null,
+  117:     locatie_livrare: row.locatie_livrare ?? null,
+  118:     data_comanda: row.data_comanda,
+  119:     data_livrare: row.data_livrare ?? null,
+  120:     cantitate_kg: Number(row.cantitate_kg ?? 0),
+  121:     pret_per_kg: Number(row.pret_per_kg ?? 0),
+  122:     total: Number(row.total ?? 0),
+  123:     status: ensureStatus(row.status),
+  124:     observatii: row.observatii ?? null,
+  125:     linked_vanzare_id: row.linked_vanzare_id ?? null,
+  126:     parent_comanda_id: row.parent_comanda_id ?? null,
+  127:     created_at: row.created_at,
+  128:     updated_at: row.updated_at,
+  129:     client_nume: row.clienti?.nume_client ?? null,
+  130:   }
+  131: }
+  132: 
+  133: function signedQuantity(tipMiscare: string, cantitateKg: number): number {
+  134:   const outflowTypes = new Set(['vanzare', 'consum', 'oferit_gratuit', 'pierdere'])
+  135:   return outflowTypes.has(tipMiscare) ? -cantitateKg : cantitateKg
+  136: }
+  137: 
+  138: async function getStockBuckets(): Promise<StockBucket[]> {
+  139:   const supabase = getSupabase()
+  140:   const { data, error } = await (supabase as any)
+  141:     .from('miscari_stoc')
+  142:     .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg')
+  143: 
+  144:   if (error) throw toReadableError(error, 'Nu am putut incarca stocul disponibil.')
+  145: 
+  146:   const grouped = new Map<string, StockBucket>()
+  147:   for (const row of data ?? []) {
+  148:     const key = `${row.locatie_id}|${row.produs}|${row.calitate}|${row.depozit}`
+  149:     const existing = grouped.get(key) ?? {
+  150:       locatie_id: row.locatie_id,
+  151:       produs: row.produs,
+  152:       calitate: row.calitate,
+  153:       depozit: row.depozit,
+  154:       availableKg: 0,
+  155:     }
+  156:     const qty = signedQuantity(String(row.tip_miscare), Number(row.cantitate_kg ?? 0))
+  157:     existing.availableKg = round2(existing.availableKg + qty)
+  158:     grouped.set(key, existing)
+  159:   }
+  160: 
+  161:   return Array.from(grouped.values())
+  162:     .filter((bucket) => bucket.availableKg > 0)
+  163:     .sort((a, b) => b.availableKg - a.availableKg)
+  164: }
+  165: 
+  166: async function applyStockOutflowForVanzare(vanzareId: string, cantitateKg: number, tenantId: string): Promise<number> {
+  167:   const supabase = getSupabase()
+  168:   let remaining = round2(cantitateKg)
+  169:   if (remaining <= 0) return 0
+  170: 
+  171:   const buckets = await getStockBuckets()
+  172:   let deducted = 0
+  173: 
+  174:   for (const bucket of buckets) {
+  175:     if (remaining <= 0) break
+  176:     const take = round2(Math.min(bucket.availableKg, remaining))
+  177:     if (take <= 0) continue
+  178: 
+  179:     const payload = {
+  180:       tenant_id: tenantId,
+  181:       locatie_id: bucket.locatie_id,
+  182:       produs: bucket.produs,
+  183:       calitate: bucket.calitate,
+  184:       depozit: bucket.depozit,
+  185:       tip_miscare: 'vanzare',
+  186:       cantitate_kg: take,
+  187:       referinta_id: vanzareId,
+  188:       data: new Date().toISOString().split('T')[0],
+  189:       observatii: 'Consum stoc prin livrare comanda',
+  190:     }
+  191: 
+  192:     const { error } = await (supabase as any).from('miscari_stoc').insert(payload)
+  193:     if (error) {
+  194:       throw toReadableError(error, 'Nu am putut actualiza stocul pentru livrare.')
+  195:     }
+  196: 
+  197:     deducted = round2(deducted + take)
+  198:     remaining = round2(remaining - take)
+  199:   }
+  200: 
+  201:   return deducted
+  202: }
+  203: 
+  204: function mapPlataToStatus(plata: ComandaPlata): string {
+  205:   if (plata === 'integral') return 'Platit'
+  206:   if (plata === 'avans') return 'Avans'
+  207:   return 'Restanta'
+  208: }
+  209: 
+  210: async function getTenantIdFromSession(): Promise<string> {
+  211:   const supabase = getSupabase()
+  212:   const {
+  213:     data: { user },
+  214:     error: authError,
+  215:   } = await supabase.auth.getUser()
+  216: 
+  217:   if (authError || !user) {
+  218:     throw new Error('Neautorizat')
+  219:   }
+  220: 
+  221:   const { data: tenant, error: tenantError } = await supabase
+  222:     .from('tenants')
+  223:     .select('id')
+  224:     .eq('owner_user_id', user.id)
+  225:     .single()
+  226: 
+  227:   if (tenantError || !tenant?.id) {
+  228:     throw new Error('Tenant invalid pentru utilizatorul curent.')
+  229:   }
+  230: 
+  231:   return tenant.id
+  232: }
+  233: 
+  234: export async function getComenzi(): Promise<Comanda[]> {
+  235:   const supabase = getSupabase()
+  236:   const { data, error } = await (supabase as any)
+  237:     .from('comenzi')
+  238:     .select(`
+  239:       id,
+  240:       tenant_id,
+  241:       client_id,
+  242:       client_nume_manual,
+  243:       telefon,
+  244:       locatie_livrare,
+  245:       data_comanda,
+  246:       data_livrare,
+  247:       cantitate_kg,
+  248:       pret_per_kg,
+  249:       total,
+  250:       status,
+  251:       observatii,
+  252:       linked_vanzare_id,
+  253:       parent_comanda_id,
+  254:       created_at,
+  255:       updated_at,
+  256:       clienti (
+  257:         nume_client
+  258:       )
+  259:     `)
+  260:     .order('data_livrare', { ascending: true, nullsFirst: false })
+  261:     .order('created_at', { ascending: false })
+  262: 
+  263:   if (error) throw toReadableError(error, 'Nu am putut incarca comenzile.')
+  264:   return (data ?? []).map(mapComanda)
+  265: }
+  266: 
+  267: export async function createComanda(input: CreateComandaInput): Promise<Comanda> {
+  268:   const supabase = getSupabase()
+  269:   const tenantId = await getTenantIdFromSession()
+  270:   const payload = {
+  271:     tenant_id: tenantId,
+  272:     client_id: input.client_id ?? null,
+  273:     client_nume_manual: input.client_nume_manual?.trim() || null,
+  274:     telefon: input.telefon?.trim() || null,
+  275:     locatie_livrare: input.locatie_livrare?.trim() || null,
+  276:     data_comanda: input.data_comanda ?? new Date().toISOString().split('T')[0],
+  277:     data_livrare: input.data_livrare ?? null,
+  278:     cantitate_kg: round2(input.cantitate_kg),
+  279:     pret_per_kg: round2(input.pret_per_kg),
+  280:     total: round2(input.cantitate_kg * input.pret_per_kg),
+  281:     status: input.status ?? 'noua',
+  282:     observatii: input.observatii?.trim() || null,
+  283:   }
+  284: 
+  285:   const { data, error } = await (supabase as any)
+  286:     .from('comenzi')
+  287:     .insert(payload)
+  288:     .select(`
+  289:       id,
+  290:       tenant_id,
+  291:       client_id,
+  292:       client_nume_manual,
+  293:       telefon,
+  294:       locatie_livrare,
+  295:       data_comanda,
+  296:       data_livrare,
+  297:       cantitate_kg,
+  298:       pret_per_kg,
+  299:       total,
+  300:       status,
+  301:       observatii,
+  302:       linked_vanzare_id,
+  303:       parent_comanda_id,
+  304:       created_at,
+  305:       updated_at,
+  306:       clienti (
+  307:         nume_client
+  308:       )
+  309:     `)
+  310:     .single()
+  311: 
+  312:   if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
+  313:   return mapComanda(data)
+  314: }
+  315: 
+  316: export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
+  317:   const supabase = getSupabase()
+  318:   const payload = {
+  319:     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
+  320:     ...(input.client_nume_manual !== undefined ? { client_nume_manual: input.client_nume_manual?.trim() || null } : {}),
+  321:     ...(input.telefon !== undefined ? { telefon: input.telefon?.trim() || null } : {}),
+  322:     ...(input.locatie_livrare !== undefined ? { locatie_livrare: input.locatie_livrare?.trim() || null } : {}),
+  323:     ...(input.data_comanda !== undefined ? { data_comanda: input.data_comanda } : {}),
+  324:     ...(input.data_livrare !== undefined ? { data_livrare: input.data_livrare ?? null } : {}),
+  325:     ...(input.cantitate_kg !== undefined ? { cantitate_kg: round2(input.cantitate_kg) } : {}),
+  326:     ...(input.pret_per_kg !== undefined ? { pret_per_kg: round2(input.pret_per_kg) } : {}),
+  327:     ...(input.status !== undefined ? { status: input.status } : {}),
+  328:     ...(input.observatii !== undefined ? { observatii: input.observatii?.trim() || null } : {}),
+  329:     updated_at: new Date().toISOString(),
+  330:   }
+  331: 
+  332:   if (payload.cantitate_kg !== undefined || payload.pret_per_kg !== undefined) {
+  333:     const { data: current, error: currentError } = await (supabase as any)
+  334:       .from('comenzi')
+  335:       .select('cantitate_kg,pret_per_kg')
+  336:       .eq('id', id)
+  337:       .single()
+  338:     if (currentError) throw toReadableError(currentError, 'Nu am putut incarca comanda pentru editare.')
+  339: 
+  340:     const cantitate = round2(payload.cantitate_kg ?? Number(current.cantitate_kg ?? 0))
+  341:     const pret = round2(payload.pret_per_kg ?? Number(current.pret_per_kg ?? 0))
+  342:     ;(payload as any).total = round2(cantitate * pret)
+  343:   }
+  344: 
+  345:   const { data, error } = await (supabase as any)
+  346:     .from('comenzi')
+  347:     .update(payload)
+  348:     .eq('id', id)
+  349:     .select(`
+  350:       id,
+  351:       tenant_id,
+  352:       client_id,
+  353:       client_nume_manual,
+  354:       telefon,
+  355:       locatie_livrare,
+  356:       data_comanda,
+  357:       data_livrare,
+  358:       cantitate_kg,
+  359:       pret_per_kg,
+  360:       total,
+  361:       status,
+  362:       observatii,
+  363:       linked_vanzare_id,
+  364:       parent_comanda_id,
+  365:       created_at,
+  366:       updated_at,
+  367:       clienti (
+  368:         nume_client
+  369:       )
+  370:     `)
+  371:     .single()
+  372: 
+  373:   if (error) throw toReadableError(error, 'Nu am putut actualiza comanda.')
+  374:   return mapComanda(data)
+  375: }
+  376: 
+  377: export async function deleteComanda(id: string): Promise<void> {
+  378:   const supabase = getSupabase()
+  379:   
+  380:   // First, fetch the comanda to check if it has a linked vanzare
+  381:   const { data: comanda, error: fetchError } = await (supabase as any)
+  382:     .from('comenzi')
+  383:     .select('linked_vanzare_id, status')
+  384:     .eq('id', id)
+  385:     .single()
+  386:   
+  387:   if (fetchError) throw toReadableError(fetchError, 'Nu am putut incarca comanda pentru stergere.')
+  388:   
+  389:   // If comanda has linked_vanzare_id or status='livrata', delete the linked vanzare first
+  390:   // This creates a cascade: comanda delete → vanzare delete → stock movements delete
+  391:   if (comanda.linked_vanzare_id || comanda.status === 'livrata') {
+  392:     if (comanda.linked_vanzare_id) {
+  393:       // deleteVanzare already handles deleting stock movements (miscari_stoc)
+  394:       await deleteVanzare(comanda.linked_vanzare_id)
+  395:     }
+  396:   }
+  397:   
+  398:   // Finally, delete the comanda
+  399:   const { error } = await (supabase as any).from('comenzi').delete().eq('id', id)
+  400:   if (error) throw toReadableError(error, 'Nu am putut sterge comanda.')
+  401: }
+  402: 
+  403: export async function deliverComanda(input: DeliverComandaInput): Promise<{
+  404:   deliveredOrder: Comanda
+  405:   vanzare: Vanzare
+  406:   remainingOrder: Comanda | null
+  407:   deductedStockKg: number
+  408: }> {
+  409:   const supabase = getSupabase()
+  410:   const { data: current, error: currentError } = await (supabase as any)
+  411:     .from('comenzi')
+  412:     .select('*')
+  413:     .eq('id', input.comandaId)
+  414:     .single()
+  415: 
+  416:   if (currentError) throw toReadableError(currentError, 'Nu am putut incarca comanda.')
+  417:   const currentQty = round2(Number(current.cantitate_kg ?? 0))
+  418:   const deliveredQty = round2(input.cantitateLivrataKg)
+  419: 
+  420:   if (!Number.isFinite(deliveredQty) || deliveredQty <= 0) {
+  421:     throw new Error('Cantitatea livrata trebuie sa fie mai mare decat 0.')
+  422:   }
+  423:   if (deliveredQty > currentQty) {
+  424:     throw new Error('Cantitatea livrata nu poate depasi cantitatea comandata.')
+  425:   }
+  426:   if (current.status === 'anulata') {
+  427:     throw new Error('Comanda anulata nu poate fi livrata.')
+  428:   }
+  429:   if (!current.tenant_id) {
+  430:     throw new Error('Comanda nu are tenant asociat. Nu putem finaliza livrarea.')
+  431:   }
+  432: 
+  433:   const today = new Date().toISOString().split('T')[0]
+  434:   const saleObservatii = [current.observatii, `Livrare comanda ${current.id}`].filter(Boolean).join(' | ')
+  435:   const vanzare = await createVanzare({
+  436:     tenant_id: current.tenant_id,
+  437:     data: today,
+  438:     client_id: current.client_id ?? undefined,
+  439:     comanda_id: current.id,
+  440:     cantitate_kg: deliveredQty,
+  441:     pret_lei_kg: Number(current.pret_per_kg ?? 0),
+  442:     status_plata: mapPlataToStatus(input.plata),
+  443:     observatii_ladite: saleObservatii,
+  444:   })
+  445: 
+  446:   const deductedStockKg = await applyStockOutflowForVanzare(vanzare.id, deliveredQty, current.tenant_id)
+  447: 
+  448:   const { data: deliveredData, error: deliveredError } = await (supabase as any)
+  449:     .from('comenzi')
+  450:     .update({
+  451:       status: 'livrata',
+  452:       linked_vanzare_id: vanzare.id,
+  453:       updated_at: new Date().toISOString(),
+  454:       observatii: [current.observatii, `Livrata: ${deliveredQty.toFixed(2)} kg`].filter(Boolean).join(' | '),
+  455:     })
+  456:     .eq('id', input.comandaId)
+  457:     .select(`
+  458:       id,
+  459:       tenant_id,
+  460:       client_id,
+  461:       client_nume_manual,
+  462:       telefon,
+  463:       locatie_livrare,
+  464:       data_comanda,
+  465:       data_livrare,
+  466:       cantitate_kg,
+  467:       pret_per_kg,
+  468:       total,
+  469:       status,
+  470:       observatii,
+  471:       linked_vanzare_id,
+  472:       parent_comanda_id,
+  473:       created_at,
+  474:       updated_at,
+  475:       clienti (
+  476:         nume_client
+  477:       )
+  478:     `)
+  479:     .single()
+  480: 
+  481:   if (deliveredError) throw toReadableError(deliveredError, 'Nu am putut actualiza comanda ca livrata.')
+  482: 
+  483:   let remainingOrder: Comanda | null = null
+  484:   const remainingQty = round2(currentQty - deliveredQty)
+  485:   if (remainingQty > 0) {
+  486:     const fallbackDate = new Date()
+  487:     fallbackDate.setDate(fallbackDate.getDate() + 1)
+  488:     const remainingDate = input.dataLivrareRamasa || fallbackDate.toISOString().split('T')[0]
+  489:     const today = new Date().toISOString().split('T')[0]
+  490: 
+  491:     const { data: remainingData, error: remainingError } = await (supabase as any)
+  492:       .from('comenzi')
+  493:       .insert({
+  494:         tenant_id: current.tenant_id,
+  495:         client_id: current.client_id,
+  496:         client_nume_manual: current.client_nume_manual,
+  497:         telefon: current.telefon,
+  498:         locatie_livrare: current.locatie_livrare,
+  499:         data_comanda: today,
+  500:         data_livrare: remainingDate,
+  501:         cantitate_kg: remainingQty,
+  502:         pret_per_kg: Number(current.pret_per_kg ?? 0),
+  503:         total: round2(remainingQty * Number(current.pret_per_kg ?? 0)),
+  504:         status: remainingDate > today ? 'programata' : 'confirmata',
+  505:         observatii: [current.observatii, `Rest din comanda ${current.id}`].filter(Boolean).join(' | '),
+  506:         parent_comanda_id: current.id,
+  507:       })
+  508:       .select(`
+  509:         id,
+  510:         tenant_id,
+  511:         client_id,
+  512:         client_nume_manual,
+  513:         telefon,
+  514:         locatie_livrare,
+  515:         data_comanda,
+  516:         data_livrare,
+  517:         cantitate_kg,
+  518:         pret_per_kg,
+  519:         total,
+  520:         status,
+  521:         observatii,
+  522:         linked_vanzare_id,
+  523:         parent_comanda_id,
+  524:         created_at,
+  525:         updated_at,
+  526:         clienti (
+  527:           nume_client
+  528:         )
+  529:       `)
+  530:       .single()
+  531: 
+  532:     if (remainingError) throw toReadableError(remainingError, 'Nu am putut crea comanda restanta.')
+  533:     remainingOrder = mapComanda(remainingData)
+  534:   }
+  535: 
+  536:   return {
+  537:     deliveredOrder: mapComanda(deliveredData),
+  538:     vanzare,
+  539:     remainingOrder,
+  540:     deductedStockKg,
+  541:   }
+  542: }
+  543: 
+  544: export async function reopenComanda(id: string): Promise<Comanda> {
+  545:   const supabase = getSupabase()
+  546:   const { data: current, error: currentError } = await (supabase as any)
+  547:     .from('comenzi')
+  548:     .select('*')
+  549:     .eq('id', id)
+  550:     .single()
+  551: 
+  552:   if (currentError) throw toReadableError(currentError, 'Nu am putut incarca comanda pentru redeschidere.')
+  553:   if (current.status !== 'livrata') throw new Error('Doar comenzile livrate pot fi redeschise.')
+  554: 
+  555:   if (current.linked_vanzare_id) {
+  556:     await deleteVanzare(current.linked_vanzare_id)
+  557:     await (supabase as any)
+  558:       .from('miscari_stoc')
+  559:       .delete()
+  560:       .eq('referinta_id', current.linked_vanzare_id)
+  561:       .eq('tip_miscare', 'vanzare')
+  562:   }
+  563: 
+  564:   const { data, error } = await (supabase as any)
+  565:     .from('comenzi')
+  566:     .update({
+  567:       status: 'confirmata',
+  568:       linked_vanzare_id: null,
+  569:       updated_at: new Date().toISOString(),
+  570:       observatii: [current.observatii, 'Comanda redeschisa'].filter(Boolean).join(' | '),
+  571:     })
+  572:     .eq('id', id)
+  573:     .select(`
+  574:       id,
+  575:       tenant_id,
+  576:       client_id,
+  577:       client_nume_manual,
+  578:       telefon,
+  579:       locatie_livrare,
+  580:       data_comanda,
+  581:       data_livrare,
+  582:       cantitate_kg,
+  583:       pret_per_kg,
+  584:       total,
+  585:       status,
+  586:       observatii,
+  587:       linked_vanzare_id,
+  588:       parent_comanda_id,
+  589:       created_at,
+  590:       updated_at,
+  591:       clienti (
+  592:         nume_client
+  593:       )
+  594:     `)
+  595:     .single()
+  596: 
+  597:   if (error) throw toReadableError(error, 'Nu am putut redeschide comanda.')
+  598:   return mapComanda(data)
+  599: }
+  600: 
+  601: export async function getComenziStockSummaryAzi(): Promise<{
+  602:   totalStocDisponibilKg: number
+  603: }> {
+  604:   const buckets = await getStockBuckets()
+  605:   return {
+  606:     totalStocDisponibilKg: round2(buckets.reduce((sum, bucket) => sum + bucket.availableKg, 0)),
+  607:   }
+  608: }

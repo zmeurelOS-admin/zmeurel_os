@@ -1,0 +1,14 @@
+﻿1	import { createClient } from '@/lib/supabase/server'
+2	import { CulegatorPageClient } from './CulegatorPageClient'
+3	
+4	export default async function Page() {
+5	  const supabase = await createClient()
+6	
+7	  const { data } = await supabase
+8	    .from('culegatori')
+9	    .select('id,id_culegator,nume_prenume,tarif_lei_kg,data_angajare,status_activ,telefon,tip_angajare,observatii,created_at,updated_at,tenant_id')
+10	    .order('created_at', { ascending: false })
+11	
+12	  return <CulegatorPageClient initialCulegatori={data ?? []} />
+13	}
+14	

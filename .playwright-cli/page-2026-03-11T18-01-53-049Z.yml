@@ -1,0 +1,36 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Zmeurel OS" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Autentificare ți creare cont fermier
+    - generic [ref=e7]:
+      - tablist [ref=e8]:
+        - tab "Login" [ref=e9]
+        - tab "Creeaza cont" [active] [selected] [ref=e10]
+      - tabpanel "Creeaza cont" [ref=e39]:
+        - generic [ref=e40]:
+          - button "Continuă cu Google" [ref=e41]:
+            - img [ref=e42]
+            - text: Continuă cu Google
+          - generic [ref=e49]: sau
+          - generic [ref=e51]:
+            - text: Email
+            - textbox "Email" [ref=e52]:
+              - /placeholder: email@exemplu.ro
+          - generic [ref=e53]:
+            - text: Nume fermă
+            - textbox "Nume fermă" [ref=e54]:
+              - /placeholder: Fermă Mea
+          - generic [ref=e55]:
+            - text: Parola
+            - textbox "Parola" [ref=e56]:
+              - /placeholder: Minim 8 caractere
+          - generic [ref=e57]:
+            - text: Confirmă parola
+            - textbox "Confirmă parola" [ref=e58]:
+              - /placeholder: Repeta parola
+          - button "Creeaza cont" [ref=e59]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e35] [cursor=pointer]:
+    - img [ref=e36]
+  - alert [ref=e60]

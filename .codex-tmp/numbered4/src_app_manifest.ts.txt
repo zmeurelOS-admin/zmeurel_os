@@ -1,0 +1,33 @@
+1	import type { MetadataRoute } from 'next'
+2	
+3	export default function manifest(): MetadataRoute.Manifest {
+4	  return {
+5	    name: 'Zmeurel Agricultura',
+6	    short_name: 'Zmeurel',
+7	    description: 'Management agricol pentru parcele, recoltari si vanzari.',
+8	    start_url: '/',
+9	    scope: '/',
+10	    display: 'standalone',
+11	    orientation: 'portrait',
+12	    background_color: '#f5f7f5',
+13	    theme_color: '#1f8f4a',
+14	    icons: [
+15	      {
+16	        src: '/icon-192.png',
+17	        sizes: '192x192',
+18	        type: 'image/png',
+19	      },
+20	      {
+21	        src: '/icon-512.png',
+22	        sizes: '512x512',
+23	        type: 'image/png',
+24	      },
+25	      {
+26	        src: '/icon-512.png',
+27	        sizes: '512x512',
+28	        type: 'image/png',
+29	        purpose: 'maskable',
+30	      },
+31	    ],
+32	  }
+33	}

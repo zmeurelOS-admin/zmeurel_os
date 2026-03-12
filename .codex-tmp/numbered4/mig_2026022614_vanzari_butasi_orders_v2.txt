@@ -1,0 +1,169 @@
+1	create extension if not exists pgcrypto;
+2	
+3	alter table public.vanzari_butasi
+4	  add column if not exists data_comanda date not null default current_date,
+5	  add column if not exists data_livrare_estimata date,
+6	  add column if not exists status text not null default 'noua',
+7	  add column if not exists adresa_livrare text,
+8	  add column if not exists avans_suma numeric not null default 0,
+9	  add column if not exists avans_data date,
+10	  add column if not exists total_lei numeric not null default 0;
+11	
+12	update public.vanzari_butasi
+13	set
+14	  data_comanda = coalesce(data_comanda, data, current_date),
+15	  total_lei = coalesce(total_lei, (coalesce(cantitate_butasi, 0)::numeric * coalesce(pret_unitar_lei, 0)::numeric), 0),
+16	  status = coalesce(nullif(status, ''), 'noua'),
+17	  avans_suma = coalesce(avans_suma, 0)
+18	where true;
+19	
+20	create table if not exists public.vanzari_butasi_items (
+21	  id uuid primary key default gen_random_uuid(),
+22	  tenant_id uuid not null references public.tenants(id) on delete cascade,
+23	  comanda_id uuid not null references public.vanzari_butasi(id) on delete cascade,
+24	  soi text not null,
+25	  cantitate integer not null check (cantitate > 0),
+26	  pret_unitar numeric not null check (pret_unitar > 0),
+27	  subtotal numeric not null check (subtotal > 0),
+28	  created_at timestamptz not null default now()
+29	);
+30	
+31	create index if not exists vanzari_butasi_items_comanda_id_idx
+32	  on public.vanzari_butasi_items (comanda_id);
+33	
+34	create index if not exists vanzari_butasi_items_tenant_id_idx
+35	  on public.vanzari_butasi_items (tenant_id);
+36	
+37	insert into public.vanzari_butasi_items (
+38	  tenant_id,
+39	  comanda_id,
+40	  soi,
+41	  cantitate,
+42	  pret_unitar,
+43	  subtotal
+44	)
+45	select
+46	  vb.tenant_id,
+47	  vb.id,
+48	  coalesce(nullif(vb.soi_butasi, ''), 'Necunoscut'),
+49	  greatest(vb.cantitate_butasi, 1),
+50	  greatest(vb.pret_unitar_lei::numeric, 0.01),
+51	  greatest(vb.cantitate_butasi, 1)::numeric * greatest(vb.pret_unitar_lei::numeric, 0.01)
+52	from public.vanzari_butasi vb
+53	where vb.tenant_id is not null
+54	  and not exists (
+55	    select 1
+56	    from public.vanzari_butasi_items it
+57	    where it.comanda_id = vb.id
+58	  );
+59	
+60	create or replace function public.enforce_vanzari_butasi_items_tenant()
+61	returns trigger
+62	language plpgsql
+63	security definer
+64	as $$
+65	declare
+66	  order_tenant uuid;
+67	begin
+68	  select tenant_id
+69	  into order_tenant
+70	  from public.vanzari_butasi
+71	  where id = new.comanda_id;
+72	
+73	  if order_tenant is null then
+74	    raise exception 'Comanda invalida sau fara tenant';
+75	  end if;
+76	
+77	  if new.tenant_id is null then
+78	    new.tenant_id := order_tenant;
+79	  end if;
+80	
+81	  if new.tenant_id <> order_tenant then
+82	    raise exception 'tenant_id din item trebuie sa corespunda comenzii';
+83	  end if;
+84	
+85	  return new;
+86	end;
+87	$$;
+88	
+89	drop trigger if exists vanzari_butasi_items_enforce_tenant on public.vanzari_butasi_items;
+90	create trigger vanzari_butasi_items_enforce_tenant
+91	before insert or update on public.vanzari_butasi_items
+92	for each row
+93	execute function public.enforce_vanzari_butasi_items_tenant();
+94	
+95	alter table public.vanzari_butasi_items enable row level security;
+96	
+97	drop policy if exists vanzari_butasi_items_tenant_select on public.vanzari_butasi_items;
+98	create policy vanzari_butasi_items_tenant_select
+99	on public.vanzari_butasi_items
+100	for select
+101	using (
+102	  tenant_id = (
+103	    select id
+104	    from public.tenants
+105	    where owner_user_id = auth.uid()
+106	    limit 1
+107	  )
+108	);
+109	
+110	drop policy if exists vanzari_butasi_items_tenant_insert on public.vanzari_butasi_items;
+111	create policy vanzari_butasi_items_tenant_insert
+112	on public.vanzari_butasi_items
+113	for insert
+114	with check (
+115	  tenant_id = (
+116	    select id
+117	    from public.tenants
+118	    where owner_user_id = auth.uid()
+119	    limit 1
+120	  )
+121	  and exists (
+122	    select 1
+123	    from public.vanzari_butasi vb
+124	    where vb.id = comanda_id
+125	      and vb.tenant_id = vanzari_butasi_items.tenant_id
+126	  )
+127	);
+128	
+129	drop policy if exists vanzari_butasi_items_tenant_update on public.vanzari_butasi_items;
+130	create policy vanzari_butasi_items_tenant_update
+131	on public.vanzari_butasi_items
+132	for update
+133	using (
+134	  tenant_id = (
+135	    select id
+136	    from public.tenants
+137	    where owner_user_id = auth.uid()
+138	    limit 1
+139	  )
+140	)
+141	with check (
+142	  tenant_id = (
+143	    select id
+144	    from public.tenants
+145	    where owner_user_id = auth.uid()
+146	    limit 1
+147	  )
+148	  and exists (
+149	    select 1
+150	    from public.vanzari_butasi vb
+151	    where vb.id = comanda_id
+152	      and vb.tenant_id = vanzari_butasi_items.tenant_id
+153	  )
+154	);
+155	
+156	drop policy if exists vanzari_butasi_items_tenant_delete on public.vanzari_butasi_items;
+157	create policy vanzari_butasi_items_tenant_delete
+158	on public.vanzari_butasi_items
+159	for delete
+160	using (
+161	  tenant_id = (
+162	    select id
+163	    from public.tenants
+164	    where owner_user_id = auth.uid()
+165	    limit 1
+166	  )
+167	);
+168	
+169	notify pgrst, 'reload schema';

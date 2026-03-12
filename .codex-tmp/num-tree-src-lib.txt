@@ -1,0 +1,46 @@
+   1: C:\Users\Andrei\Desktop\zmeurel\src\lib
+   2: +¦¦ alerts
+   3: -   +¦¦ engine.ts
+   4: -   L¦¦ generateFarmAlerts.ts
+   5: +¦¦ analytics
+   6: -   +¦¦ track.ts
+   7: -   L¦¦ trackEvent.ts
+   8: +¦¦ auth
+   9: -   L¦¦ isSuperAdmin.ts
+  10: +¦¦ calculations
+  11: -   L¦¦ profit.ts
+  12: +¦¦ config
+  13: -   L¦¦ beta.ts
+  14: +¦¦ debug
+  15: -   L¦¦ rls-check.ts
+  16: +¦¦ demo
+  17: -   L¦¦ 
+  18: +¦¦ integrations
+  19: -   +¦¦ googleContacts.ts
+  20: -   L¦¦ googleContactsAuth.ts
+  21: +¦¦ monitoring
+  22: -   L¦¦ useSentryUser.ts
+  23: +¦¦ offline
+  24: -   +¦¦ db.ts
+  25: -   +¦¦ generateClientId.ts
+  26: -   L¦¦ syncEngine.ts
+  27: +¦¦ parcele
+  28: -   L¦¦ pauza.ts
+  29: +¦¦ subscription
+  30: -   +¦¦ plans.ts
+  31: -   L¦¦ useMockPlan.ts
+  32: +¦¦ supabase
+  33: -   +¦¦ queries
+  34: -   +¦¦ admin.ts
+  35: -   +¦¦ client.ts
+  36: -   +¦¦ seed-demo-data.ts
+  37: -   L¦¦ server.ts
+  38: +¦¦ ui
+  39: -   +¦¦ delete-labels.ts
+  40: -   +¦¦ status-badges.ts
+  41: -   L¦¦ toast.ts
+  42: +¦¦ utils
+  43: -   +¦¦ area.ts
+  44: -   +¦¦ downloadVCard.ts
+  45: -   L¦¦ haptic.ts
+  46: L¦¦ utils.ts

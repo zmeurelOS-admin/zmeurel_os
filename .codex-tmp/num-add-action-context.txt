@@ -1,0 +1,62 @@
+    1: 'use client'
+    2: 
+    3: import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+    4: 
+    5: type AddCallback = () => void
+    6: 
+    7: type AddActionContextValue = {
+    8:   registerAddAction: (callback: AddCallback, label?: string) => () => void
+    9:   triggerAddAction: () => boolean
+   10:   currentLabel: string
+   11:   hasAction: boolean
+   12: }
+   13: 
+   14: const DEFAULT_LABEL = 'Adauga recoltare'
+   15: 
+   16: const AddActionContext = createContext<AddActionContextValue | null>(null)
+   17: 
+   18: export function AddActionProvider({ children }: { children: ReactNode }) {
+   19:   const callbackRef = useRef<AddCallback | null>(null)
+   20:   const [currentLabel, setCurrentLabel] = useState(DEFAULT_LABEL)
+   21:   const [hasAction, setHasAction] = useState(false)
+   22: 
+   23:   const registerAddAction = useCallback((callback: AddCallback, label?: string) => {
+   24:     callbackRef.current = callback
+   25:     setCurrentLabel(label ?? DEFAULT_LABEL)
+   26:     setHasAction(true)
+   27: 
+   28:     return () => {
+   29:       if (callbackRef.current === callback) {
+   30:         callbackRef.current = null
+   31:         setCurrentLabel(DEFAULT_LABEL)
+   32:         setHasAction(false)
+   33:       }
+   34:     }
+   35:   }, [])
+   36: 
+   37:   const triggerAddAction = useCallback(() => {
+   38:     if (!callbackRef.current) return false
+   39:     callbackRef.current()
+   40:     return true
+   41:   }, [])
+   42: 
+   43:   const value = useMemo<AddActionContextValue>(
+   44:     () => ({
+   45:       registerAddAction,
+   46:       triggerAddAction,
+   47:       currentLabel,
+   48:       hasAction,
+   49:     }),
+   50:     [currentLabel, hasAction, registerAddAction, triggerAddAction]
+   51:   )
+   52: 
+   53:   return <AddActionContext.Provider value={value}>{children}</AddActionContext.Provider>
+   54: }
+   55: 
+   56: export function useAddAction() {
+   57:   const context = useContext(AddActionContext)
+   58:   if (!context) {
+   59:     throw new Error('useAddAction must be used inside AddActionProvider')
+   60:   }
+   61:   return context
+   62: }

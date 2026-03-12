@@ -4,7 +4,6 @@ import { FormEvent, useMemo, useState, type CSSProperties } from 'react'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { toast } from '@/lib/ui/toast'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,17 +12,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { getSupabase } from '@/lib/supabase/client'
+import { toast } from '@/lib/ui/toast'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function getSignupRedirectUrl() {
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')).trim()
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
+  ).trim()
   const normalizedSiteUrl = siteUrl.replace(/\/+$/, '')
   return `${normalizedSiteUrl}/auth/callback`
 }
 
 function getOAuthRedirectUrl() {
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')).trim()
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '')
+  ).trim()
   const normalizedSiteUrl = siteUrl.replace(/\/+$/, '')
   return `${normalizedSiteUrl}/auth/callback`
 }
@@ -70,7 +76,7 @@ export default function LoginPage() {
     setLoginLoading(false)
 
     if (error) {
-      toast.error('Email sau parola incorecta.')
+      toast.error('Email sau parolă incorectă.')
       return
     }
 
@@ -104,7 +110,7 @@ export default function LoginPage() {
     }
 
     if (registerPassword.length < 8) {
-      const message = 'Parola trebuie sa aiba minim 8 caractere.'
+      const message = 'Parola trebuie să aibă minimum 8 caractere.'
       toast.error(message)
       setRegisterFeedback(message)
       return
@@ -145,11 +151,12 @@ export default function LoginPage() {
       trackEvent('register_success', 'auth', { source: 'login_page' })
       track('user_signup')
       setVerificationPending(true)
-      setRegisterFeedback('Cont creat. Verifica emailul pentru confirmare.')
-      toast.success('Cont creat. Verifica emailul pentru confirmare.')
+      setRegisterFeedback('Cont creat. Verifică emailul pentru confirmare.')
+      toast.success('Cont creat. Verifică emailul pentru confirmare.')
     } catch (error: unknown) {
       setRegisterLoading(false)
-      const message = (error as { message?: string })?.message || 'Eroare la creare cont.'
+      const message =
+        (error as { message?: string })?.message || 'Eroare la crearea contului.'
       setRegisterFeedback(message)
       toast.error(message)
     }
@@ -184,23 +191,30 @@ export default function LoginPage() {
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div
           className="absolute -top-28 left-1/2 h-[440px] w-[440px] -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 72%)' }}
+          style={{
+            background:
+              'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 72%)',
+          }}
         />
         <div
           className="absolute right-[-120px] top-10 h-[320px] w-[320px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(241,107,107,0.12) 0%, rgba(241,107,107,0) 72%)' }}
+          style={{
+            background:
+              'radial-gradient(circle, rgba(241,107,107,0.12) 0%, rgba(241,107,107,0) 72%)',
+          }}
         />
       </div>
 
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/70 bg-white p-6 shadow-lg sm:p-8">
         <div className="mb-6 text-center">
           <h1 className="text-3xl font-bold text-[#312E3F]">Zmeurel OS</h1>
-          <p className="mt-2 text-sm text-gray-500">Autentificare ți creare cont fermier</p>
+          <p className="mt-2 text-sm text-gray-500">Autentificare și creare cont fermier</p>
         </div>
 
         {verificationPending ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-            Verificare email in asteptare. Deschide emailul de confirmare ți revino in aplicatie.
+            Verificarea emailului este în așteptare. Deschide emailul de confirmare și revino în
+            aplicație.
           </div>
         ) : null}
 
@@ -211,7 +225,7 @@ export default function LoginPage() {
         >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Creeaza cont</TabsTrigger>
+            <TabsTrigger value="register">Creează cont</TabsTrigger>
           </TabsList>
 
           <TabsContent value="login" className="mt-4">
@@ -227,14 +241,23 @@ export default function LoginPage() {
                     fill="#EA4335"
                     d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 6.8 2 2.5 6.5 2.5 12S6.8 22 12 22c6.9 0 9.1-4.9 9.1-7.4 0-.5 0-.9-.1-1.3H12z"
                   />
-                  <path fill="#34A853" d="M3.6 7.3l3.2 2.4c.9-2.6 3.3-4.4 6.2-4.4 1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 8.4 2 5.2 4 3.6 7.3z" />
-                  <path fill="#FBBC05" d="M12 22c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.8 1-3.4 1-3.9 0-5.3-2.5-5.6-3.8l-3.2 2.5C4.8 20 8.1 22 12 22z" />
-                  <path fill="#4285F4" d="M21.1 12.8c0-.6 0-1-.2-1.5H12v3.9h5.5c-.2 1.1-1 2.7-2.6 3.7l2.9 2.4c1.7-1.5 3.3-4.4 3.3-8.5z" />
+                  <path
+                    fill="#34A853"
+                    d="M3.6 7.3l3.2 2.4c.9-2.6 3.3-4.4 6.2-4.4 1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 8.4 2 5.2 4 3.6 7.3z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M12 22c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.8 1-3.4 1-3.9 0-5.3-2.5-5.6-3.8l-3.2 2.5C4.8 20 8.1 22 12 22z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M21.1 12.8c0-.6 0-1-.2-1.5H12v3.9h5.5c-.2 1.1-1 2.7-2.6 3.7l2.9 2.4c1.7-1.5 3.3-4.4 3.3-8.5z"
+                  />
                 </svg>
                 {googleLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Se redirectioneaza...
+                    Se redirecționează...
                   </>
                 ) : (
                   'Continuă cu Google'
@@ -261,7 +284,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="login-password">Parola</Label>
+                <Label htmlFor="login-password">Parolă</Label>
                 <Input
                   id="login-password"
                   type="password"
@@ -278,7 +301,7 @@ export default function LoginPage() {
                   href="/reset-password-request"
                   className="text-sm font-medium text-emerald-700 hover:underline"
                 >
-                  Ai uitat parola??
+                  Ai uitat parola?
                 </Link>
               </div>
 
@@ -290,10 +313,10 @@ export default function LoginPage() {
                 {loginLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Se autentifica...
+                    Se autentifică...
                   </>
                 ) : (
-                  'Intra in cont'
+                  'Intră în cont'
                 )}
               </Button>
             </form>
@@ -312,14 +335,23 @@ export default function LoginPage() {
                     fill="#EA4335"
                     d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 6.8 2 2.5 6.5 2.5 12S6.8 22 12 22c6.9 0 9.1-4.9 9.1-7.4 0-.5 0-.9-.1-1.3H12z"
                   />
-                  <path fill="#34A853" d="M3.6 7.3l3.2 2.4c.9-2.6 3.3-4.4 6.2-4.4 1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 8.4 2 5.2 4 3.6 7.3z" />
-                  <path fill="#FBBC05" d="M12 22c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.8 1-3.4 1-3.9 0-5.3-2.5-5.6-3.8l-3.2 2.5C4.8 20 8.1 22 12 22z" />
-                  <path fill="#4285F4" d="M21.1 12.8c0-.6 0-1-.2-1.5H12v3.9h5.5c-.2 1.1-1 2.7-2.6 3.7l2.9 2.4c1.7-1.5 3.3-4.4 3.3-8.5z" />
+                  <path
+                    fill="#34A853"
+                    d="M3.6 7.3l3.2 2.4c.9-2.6 3.3-4.4 6.2-4.4 1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 8.4 2 5.2 4 3.6 7.3z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M12 22c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.8 1-3.4 1-3.9 0-5.3-2.5-5.6-3.8l-3.2 2.5C4.8 20 8.1 22 12 22z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M21.1 12.8c0-.6 0-1-.2-1.5H12v3.9h5.5c-.2 1.1-1 2.7-2.6 3.7l2.9 2.4c1.7-1.5 3.3-4.4 3.3-8.5z"
+                  />
                 </svg>
                 {googleLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Se redirectioneaza...
+                    Se redirecționează...
                   </>
                 ) : (
                   'Continuă cu Google'
@@ -350,7 +382,7 @@ export default function LoginPage() {
                 <Input
                   id="register-farm"
                   type="text"
-                  placeholder="Fermă Mea"
+                  placeholder="Ferma Mea"
                   value={farmName}
                   onChange={(event) => setFarmName(event.target.value)}
                   required
@@ -358,12 +390,12 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="register-password">Parola</Label>
+                <Label htmlFor="register-password">Parolă</Label>
                 <Input
                   id="register-password"
                   type="password"
                   autoComplete="new-password"
-                  placeholder="Minim 8 caractere"
+                  placeholder="Minimum 8 caractere"
                   value={registerPassword}
                   onChange={(event) => setRegisterPassword(event.target.value)}
                   required
@@ -376,7 +408,7 @@ export default function LoginPage() {
                   id="register-password-confirm"
                   type="password"
                   autoComplete="new-password"
-                  placeholder="Repeta parola"
+                  placeholder="Repetă parola"
                   value={registerConfirmPassword}
                   onChange={(event) => setRegisterConfirmPassword(event.target.value)}
                   required
@@ -391,10 +423,10 @@ export default function LoginPage() {
                 {registerLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Se creeaza contul...
+                    Se creează contul...
                   </>
                 ) : (
-                  'Creeaza cont'
+                  'Creează cont'
                 )}
               </Button>
 
@@ -410,4 +442,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

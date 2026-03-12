@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/supabase/client"
 import { generateBusinessId } from "@/lib/supabase/business-ids"
+import { getTenantId } from "@/lib/tenant/get-tenant"
 export interface Client {
   id: string
   id_client: string
@@ -48,10 +49,12 @@ export async function createClienți(input: CreateClientInput): Promise<Client> 
   const supabase = getSupabase()
 
   const id_client = await generateBusinessId(supabase, 'C')
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from("clienti")
     .insert({
+      tenant_id: tenantId,
       id_client,
       nume_client: input.nume_client,
       telefon: input.telefon ?? null,

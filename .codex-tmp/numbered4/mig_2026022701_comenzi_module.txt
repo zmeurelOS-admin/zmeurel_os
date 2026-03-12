@@ -1,0 +1,138 @@
+1	do $$
+2	begin
+3	  if not exists (
+4	    select 1 from pg_type where typname = 'comanda_status'
+5	  ) then
+6	    create type public.comanda_status as enum (
+7	      'noua',
+8	      'confirmata',
+9	      'programata',
+10	      'in_livrare',
+11	      'livrata',
+12	      'anulata'
+13	    );
+14	  end if;
+15	end
+16	$$;
+17	
+18	create table if not exists public.comenzi (
+19	  id uuid primary key default gen_random_uuid(),
+20	  tenant_id uuid not null references public.tenants(id) on delete cascade,
+21	  client_id uuid references public.clienti(id) on delete set null,
+22	  client_nume_manual text,
+23	  telefon text,
+24	  locatie_livrare text,
+25	  data_comanda date not null default current_date,
+26	  data_livrare date,
+27	  cantitate_kg numeric not null check (cantitate_kg > 0),
+28	  pret_per_kg numeric not null check (pret_per_kg > 0),
+29	  total numeric not null default 0 check (total >= 0),
+30	  status public.comanda_status not null default 'noua',
+31	  observatii text,
+32	  linked_vanzare_id uuid references public.vanzari(id) on delete set null,
+33	  parent_comanda_id uuid references public.comenzi(id) on delete set null,
+34	  created_at timestamptz not null default now(),
+35	  updated_at timestamptz not null default now()
+36	);
+37	
+38	create index if not exists comenzi_tenant_idx on public.comenzi (tenant_id);
+39	create index if not exists comenzi_status_idx on public.comenzi (tenant_id, status);
+40	create index if not exists comenzi_data_livrare_idx on public.comenzi (tenant_id, data_livrare);
+41	create index if not exists comenzi_client_idx on public.comenzi (tenant_id, client_id);
+42	
+43	create or replace function public.set_comenzi_tenant_and_audit()
+44	returns trigger
+45	language plpgsql
+46	security definer
+47	as $$
+48	declare
+49	  resolved_tenant uuid;
+50	begin
+51	  if tg_op = 'INSERT' then
+52	    if new.tenant_id is null then
+53	      select t.id
+54	      into resolved_tenant
+55	      from public.tenants t
+56	      where t.owner_user_id = auth.uid()
+57	      limit 1;
+58	
+59	      new.tenant_id := resolved_tenant;
+60	    end if;
+61	
+62	    new.created_at := coalesce(new.created_at, now());
+63	  end if;
+64	
+65	  new.updated_at := now();
+66	  new.total := round((coalesce(new.cantitate_kg, 0) * coalesce(new.pret_per_kg, 0))::numeric, 2);
+67	  return new;
+68	end;
+69	$$;
+70	
+71	drop trigger if exists comenzi_set_tenant_and_audit on public.comenzi;
+72	create trigger comenzi_set_tenant_and_audit
+73	before insert or update on public.comenzi
+74	for each row execute function public.set_comenzi_tenant_and_audit();
+75	
+76	alter table public.comenzi enable row level security;
+77	
+78	drop policy if exists comenzi_tenant_select on public.comenzi;
+79	create policy comenzi_tenant_select
+80	on public.comenzi
+81	for select
+82	using (
+83	  tenant_id = (
+84	    select id
+85	    from public.tenants
+86	    where owner_user_id = auth.uid()
+87	    limit 1
+88	  )
+89	);
+90	
+91	drop policy if exists comenzi_tenant_insert on public.comenzi;
+92	create policy comenzi_tenant_insert
+93	on public.comenzi
+94	for insert
+95	with check (
+96	  tenant_id = (
+97	    select id
+98	    from public.tenants
+99	    where owner_user_id = auth.uid()
+100	    limit 1
+101	  )
+102	);
+103	
+104	drop policy if exists comenzi_tenant_update on public.comenzi;
+105	create policy comenzi_tenant_update
+106	on public.comenzi
+107	for update
+108	using (
+109	  tenant_id = (
+110	    select id
+111	    from public.tenants
+112	    where owner_user_id = auth.uid()
+113	    limit 1
+114	  )
+115	)
+116	with check (
+117	  tenant_id = (
+118	    select id
+119	    from public.tenants
+120	    where owner_user_id = auth.uid()
+121	    limit 1
+122	  )
+123	);
+124	
+125	drop policy if exists comenzi_tenant_delete on public.comenzi;
+126	create policy comenzi_tenant_delete
+127	on public.comenzi
+128	for delete
+129	using (
+130	  tenant_id = (
+131	    select id
+132	    from public.tenants
+133	    where owner_user_id = auth.uid()
+134	    limit 1
+135	  )
+136	);
+137	
+138	notify pgrst, 'reload schema';

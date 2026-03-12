@@ -2,6 +2,7 @@
 
 import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 // ===============================
 // CONSTANTS
@@ -124,10 +125,12 @@ export async function createInvestitie(
 ): Promise<Investitie> {
   const supabase = getSupabase()
   const nextId = await generateBusinessId(supabase, 'INV')
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('investitii')
     .insert({
+      tenant_id: tenantId,
       id_investitie: nextId,
       data: input.data,
       parcela_id: input.parcela_id ?? null,
@@ -135,7 +138,6 @@ export async function createInvestitie(
       furnizor: input.furnizor ?? null,
       descriere: input.descriere ?? null,
       suma_lei: input.suma_lei,
-      // tenant_id is NOT included - must be set by trigger or RLS policy
     })
     .select()
     .single()
@@ -176,5 +178,4 @@ export async function deleteInvestitie(id: string): Promise<void> {
 
   if (error) throw error
 }
-
 

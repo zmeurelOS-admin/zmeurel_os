@@ -1,0 +1,246 @@
+﻿   1: 'use client'
+   2: 
+   3: import { useEffect, useRef, useState } from 'react'
+   4: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+   5: import { UserPlus, Users } from 'lucide-react'
+   6: import { toast } from '@/lib/ui/toast'
+   7: 
+   8: import { AppShell } from '@/components/app/AppShell'
+   9: import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+  10: import { EmptyState } from '@/components/ui/EmptyState'
+  11: import { ErrorState } from '@/components/app/ErrorState'
+  12: import { LoadingState } from '@/components/app/LoadingState'
+  13: import { PageHeader } from '@/components/app/PageHeader'
+  14: import { StickyActionBar } from '@/components/app/StickyActionBar'
+  15: import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
+  16: import { CulegatorCard } from '@/components/culegatori/CulegatorCard'
+  17: import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
+  18: import {
+  19:   createCulegator,
+  20:   deleteCulegator,
+  21:   getCulegatori,
+  22:   updateCulegator,
+  23:   type CreateCulegatorInput,
+  24:   type Culegator,
+  25:   type UpdateCulegatorInput,
+  26: } from '@/lib/supabase/queries/culegatori'
+  27: import { useAddAction } from '@/contexts/AddActionContext'
+  28: 
+  29: interface Props {
+  30:   initialCulegatori: Culegator[]
+  31: }
+  32: 
+  33: export function CulegatorPageClient({ initialCulegatori }: Props) {
+  34:   const queryClient = useQueryClient()
+  35:   const { registerAddAction } = useAddAction()
+  36:   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  37:   const pendingDeletedItems = useRef<Record<string, { item: Culegator; index: number }>>({})
+  38:   const [showAdd, setShowAdd] = useState(false)
+  39:   const [editCulegator, setEditCulegator] = useState<Culegator | null>(null)
+  40:   const [deleting, setDeleting] = useState<Culegator | null>(null)
+  41: 
+  42:   const {
+  43:     data: culegatori = initialCulegatori,
+  44:     isLoading,
+  45:     isError,
+  46:     error,
+  47:   } = useQuery({
+  48:     queryKey: ['culegatori'],
+  49:     queryFn: getCulegatori,
+  50:     initialData: initialCulegatori,
+  51:   })
+  52: 
+  53:   const createMutation = useMutation({
+  54:     mutationFn: async (formData: Record<string, unknown>) => {
+  55:       const input: CreateCulegatorInput = {
+  56:         nume_prenume: String(formData.nume_prenume ?? ''),
+  57:         telefon: formData.telefon ? String(formData.telefon) : undefined,
+  58:         tip_angajare: String(formData.tip_angajare ?? 'Sezonier'),
+  59:         tarif_lei_kg: parseFloat(String(formData.tarif_lei_kg ?? 0)),
+  60:         data_angajare: formData.data_angajare ? String(formData.data_angajare) : undefined,
+  61:         status_activ: Boolean(formData.status_activ),
+  62:       }
+  63:       return createCulegator(input)
+  64:     },
+  65:     onSuccess: () => {
+  66:       queryClient.invalidateQueries({ queryKey: ['culegatori'] })
+  67:       toast.success('Culegator adaugat')
+  68:       setShowAdd(false)
+  69:     },
+  70:     onError: (err: Error) => {
+  71:       toast.error(err.message)
+  72:     },
+  73:   })
+  74: 
+  75:   const updateMutation = useMutation({
+  76:     mutationFn: async ({ id, formData }: { id: string; formData: Record<string, unknown> }) => {
+  77:       const input: UpdateCulegatorInput = {
+  78:         nume_prenume: String(formData.nume_prenume ?? ''),
+  79:         telefon: formData.telefon ? String(formData.telefon) : undefined,
+  80:         tip_angajare: String(formData.tip_angajare ?? 'Sezonier'),
+  81:         tarif_lei_kg: parseFloat(String(formData.tarif_lei_kg ?? 0)),
+  82:         data_angajare: formData.data_angajare ? String(formData.data_angajare) : undefined,
+  83:         status_activ: Boolean(formData.status_activ),
+  84:       }
+  85:       return updateCulegator(id, input)
+  86:     },
+  87:     onSuccess: () => {
+  88:       queryClient.invalidateQueries({ queryKey: ['culegatori'] })
+  89:       toast.success('Culegator actualizat')
+  90:       setEditCulegator(null)
+  91:     },
+  92:     onError: (err: Error) => {
+  93:       toast.error(err.message)
+  94:     },
+  95:   })
+  96: 
+  97:   const deleteMutation = useMutation({
+  98:     mutationFn: deleteCulegator,
+  99:     onSuccess: () => {
+ 100:       queryClient.invalidateQueries({ queryKey: ['culegatori'] })
+ 101:       toast.success('Culegator sters')
+ 102:       setDeleting(null)
+ 103:     },
+ 104:     onError: (err: Error) => {
+ 105:       toast.error(err.message)
+ 106:     },
+ 107:   })
+ 108: 
+ 109:   useEffect(() => {
+ 110:     return () => {
+ 111:       Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+ 112:     }
+ 113:   }, [])
+ 114: 
+ 115:   useEffect(() => {
+ 116:     const unregister = registerAddAction(() => setShowAdd(true), 'Adauga culegator')
+ 117:     return unregister
+ 118:   }, [registerAddAction])
+ 119: 
+ 120:   const scheduleDelete = (culegator: Culegator) => {
+ 121:     const culegatorId = culegator.id
+ 122:     const currentItems = queryClient.getQueryData<Culegator[]>(['culegatori']) ?? []
+ 123:     const deleteIndex = currentItems.findIndex((item) => item.id === culegatorId)
+ 124: 
+ 125:     pendingDeletedItems.current[culegatorId] = { item: culegator, index: deleteIndex }
+ 126:     queryClient.setQueryData<Culegator[]>(['culegatori'], (current = []) =>
+ 127:       current.filter((item) => item.id !== culegatorId)
+ 128:     )
+ 129: 
+ 130:     const timer = setTimeout(() => {
+ 131:       delete pendingDeleteTimers.current[culegatorId]
+ 132:       delete pendingDeletedItems.current[culegatorId]
+ 133:       deleteMutation.mutate(culegatorId)
+ 134:     }, 5000)
+ 135: 
+ 136:     pendingDeleteTimers.current[culegatorId] = timer
+ 137: 
+ 138:     toast('Element Č™ters', {
+ 139:       duration: 5000,
+ 140:       action: {
+ 141:         label: 'Undo',
+ 142:         onClick: () => {
+ 143:           const pendingTimer = pendingDeleteTimers.current[culegatorId]
+ 144:           if (!pendingTimer) return
+ 145: 
+ 146:           clearTimeout(pendingTimer)
+ 147:           delete pendingDeleteTimers.current[culegatorId]
+ 148: 
+ 149:           const pendingItem = pendingDeletedItems.current[culegatorId]
+ 150:           delete pendingDeletedItems.current[culegatorId]
+ 151:           if (!pendingItem) return
+ 152: 
+ 153:           queryClient.setQueryData<Culegator[]>(['culegatori'], (current = []) => {
+ 154:             if (current.some((item) => item.id === culegatorId)) return current
+ 155: 
+ 156:             const next = [...current]
+ 157:             const insertAt =
+ 158:               pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+ 159:             next.splice(insertAt, 0, pendingItem.item)
+ 160:             return next
+ 161:           })
+ 162:         },
+ 163:       },
+ 164:     })
+ 165:   }
+ 166: 
+ 167:   return (
+ 168:     <AppShell
+ 169:       header={<PageHeader title="Culegatori" subtitle="Evidenta echipei de lucru" rightSlot={<Users className="h-5 w-5" />} />}
+ 170:       bottomBar={
+ 171:         <StickyActionBar>
+ 172:           <div className="flex items-center justify-between gap-3">
+ 173:             <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total culegatori: {culegatori.length}</p>
+ 174:           </div>
+ 175:         </StickyActionBar>
+ 176:       }
+ 177:     >
+ 178:       <div className="mx-auto w-full max-w-4xl space-y-4 py-4">
+ 179:         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+ 180:         {isLoading ? <LoadingState label="Se incarca culegatorii..." /> : null}
+ 181:         {!isLoading && !isError && culegatori.length === 0 ? (
+ 182:           <EmptyState
+ 183:             icon={<UserPlus className="h-16 w-16" />}
+ 184:             title="Niciun culegÄtor Ă®ncÄ"
+ 185:             description="AdaugÄ primul culegÄtor pentru a Ă®ncepe"
+ 186:           />
+ 187:         ) : null}
+ 188: 
+ 189:         {!isLoading && !isError && culegatori.length > 0 ? (
+ 190:           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+ 191:             {culegatori.map((c) => (
+ 192:               <CulegatorCard
+ 193:                 key={c.id}
+ 194:                 culegator={c}
+ 195:                 onEdit={setEditCulegator}
+ 196:                 onDelete={(id) => {
+ 197:                   const target = culegatori.find((item) => item.id === id) ?? null
+ 198:                   setDeleting(target)
+ 199:                 }}
+ 200:               />
+ 201:             ))}
+ 202:           </div>
+ 203:         ) : null}
+ 204:       </div>
+ 205: 
+ 206:       <AddCulegatorDialog
+ 207:         open={showAdd}
+ 208:         onOpenChange={setShowAdd}
+ 209:         onSubmit={async (formData) => {
+ 210:           await createMutation.mutateAsync(formData as unknown as Record<string, unknown>)
+ 211:         }}
+ 212:       />
+ 213: 
+ 214:       {editCulegator ? (
+ 215:         <EditCulegatorDialog
+ 216:           open={!!editCulegator}
+ 217:           onOpenChange={(open) => {
+ 218:             if (!open) setEditCulegator(null)
+ 219:           }}
+ 220:           culegator={editCulegator}
+ 221:           onSubmit={async (id, formData) => {
+ 222:             await updateMutation.mutateAsync({ id, formData: formData as unknown as Record<string, unknown> })
+ 223:           }}
+ 224:         />
+ 225:       ) : null}
+ 226: 
+ 227:       <ConfirmDeleteDialog
+ 228:         open={!!deleting}
+ 229:         onOpenChange={(open) => {
+ 230:           if (!open) setDeleting(null)
+ 231:         }}
+ 232:         itemType="Culegator"
+ 233:         itemName={deleting?.nume_prenume || 'Culegator selectat'}
+ 234:         description={`Čtergi culegÄtorul ${deleting?.nume_prenume || 'selectat'}?`}
+ 235:         loading={deleteMutation.isPending}
+ 236:         onConfirm={() => {
+ 237:           if (!deleting) return
+ 238:           scheduleDelete(deleting)
+ 239:           setDeleting(null)
+ 240:         }}
+ 241:       />
+ 242:     </AppShell>
+ 243:   )
+ 244: }
+ 245: 
+ 246: 

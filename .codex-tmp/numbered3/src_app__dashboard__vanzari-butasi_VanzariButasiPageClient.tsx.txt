@@ -1,0 +1,434 @@
+1	'use client'
+2	
+3	import { useEffect, useMemo, useRef, useState } from 'react'
+4	import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+5	import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+6	import { toast } from '@/lib/ui/toast'
+7	
+8	import { AppShell } from '@/components/app/AppShell'
+9	import { EmptyState } from '@/components/app/EmptyState'
+10	import { ErrorState } from '@/components/app/ErrorState'
+11	import { LoadingState } from '@/components/app/LoadingState'
+12	import { PageHeader } from '@/components/app/PageHeader'
+13	import { StickyActionBar } from '@/components/app/StickyActionBar'
+14	import { DashboardCard, DashboardGrid, StatRow } from '@/components/dashboard'
+15	import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
+16	import { AddVanzareButasiDialog } from '@/components/vanzari-butasi/AddVanzareButasiDialog'
+17	import { EditVanzareButasiDialog } from '@/components/vanzari-butasi/EditVanzareButasiDialog'
+18	import { VanzareButasiCard } from '@/components/vanzari-butasi/VanzareButasiCard'
+19	import { ViewVanzareButasiDialog } from '@/components/vanzari-butasi/ViewVanzareButasiDialog'
+20	import { Input } from '@/components/ui/input'
+21	import {
+22	  deleteVanzareButasi,
+23	  getVanzariButasi,
+24	  type VanzareButasi,
+25	} from '@/lib/supabase/queries/vanzari-butasi'
+26	import { buildButasiOrderDeleteLabel } from '@/lib/ui/delete-labels'
+27	import { useAddAction } from '@/contexts/AddActionContext'
+28	
+29	interface Client {
+30	  id: string
+31	  nume_client: string
+32	  telefon: string | null
+33	}
+34	
+35	interface Parcela {
+36	  id: string
+37	  nume_parcela: string
+38	}
+39	
+40	interface VanzariButasiPageClientProps {
+41	  initialVanzari: VanzareButasi[]
+42	  clienti: Client[]
+43	  parcele: Parcela[]
+44	}
+45	
+46	type SummaryFilter = 'toate' | 'active' | 'with-avans' | 'rest'
+47	
+48	function formatLei(value: number): string {
+49	  return `${value.toFixed(2)} lei`
+50	}
+51	
+52	function formatBuc(value: number): string {
+53	  return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)} buc`
+54	}
+55	
+56	function formatComenziCount(value: number): string {
+57	  return `${value} ${value === 1 ? 'comanda' : 'comenzi'}`
+58	}
+59	
+60	function isSummaryFilter(value: string | null): value is SummaryFilter {
+61	  return value === 'toate' || value === 'active' || value === 'with-avans' || value === 'rest'
+62	}
+63	
+64	function orderRest(order: VanzareButasi): number {
+65	  return Number(order.total_lei || 0) - Number(order.avans_suma || 0)
+66	}
+67	
+68	export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: VanzariButasiPageClientProps) {
+69	  const pathname = usePathname()
+70	  const router = useRouter()
+71	  const searchParams = useSearchParams()
+72	  const queryClient = useQueryClient()
+73	  const { registerAddAction } = useAddAction()
+74	
+75	  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+76	  const pendingDeletedItems = useRef<Record<string, { item: VanzareButasi; index: number }>>({})
+77	
+78	  const [searchTerm, setSearchTerm] = useState('')
+79	  const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('toate')
+80	  const [addOpen, setAddOpen] = useState(false)
+81	  const [viewingVanzare, setViewingVanzare] = useState<VanzareButasi | null>(null)
+82	  const [editingVanzare, setEditingVanzare] = useState<VanzareButasi | null>(null)
+83	  const [deletingVanzare, setDeletingVanzare] = useState<VanzareButasi | null>(null)
+84	
+85	  const {
+86	    data: vanzari = initialVanzari,
+87	    isLoading,
+88	    isError,
+89	    error,
+90	  } = useQuery({
+91	    queryKey: ['vanzari-butasi'],
+92	    queryFn: getVanzariButasi,
+93	    initialData: initialVanzari,
+94	  })
+95	
+96	  const deleteMutation = useMutation({
+97	    mutationFn: deleteVanzareButasi,
+98	    onSuccess: () => {
+99	      queryClient.invalidateQueries({ queryKey: ['vanzari-butasi'] })
+100	      toast.success('Comanda stearsa')
+101	      setDeletingVanzare(null)
+102	    },
+103	    onError: (err: Error) => {
+104	      toast.error(err.message)
+105	    },
+106	  })
+107	
+108	  useEffect(() => {
+109	    return () => {
+110	      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+111	    }
+112	  }, [])
+113	
+114	  useEffect(() => {
+115	    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga comanda butasi')
+116	    return unregister
+117	  }, [registerAddAction])
+118	
+119	  useEffect(() => {
+120	    const nextSoi = searchParams.get('soi') ?? ''
+121	    const nextView = searchParams.get('view')
+122	
+123	    setSearchTerm(nextSoi)
+124	    setSummaryFilter(isSummaryFilter(nextView) ? nextView : 'toate')
+125	  }, [searchParams])
+126	
+127	  const applyDashboardFilter = (view: SummaryFilter, soi?: string) => {
+128	    const nextParams = new URLSearchParams(searchParams.toString())
+129	    nextParams.set('view', view)
+130	    if (soi) {
+131	      nextParams.set('soi', soi)
+132	    } else {
+133	      nextParams.delete('soi')
+134	    }
+135	
+136	    const query = nextParams.toString()
+137	    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
+138	  }
+139	
+140	  const scheduleDelete = (order: VanzareButasi) => {
+141	    const orderId = order.id
+142	    const currentItems = queryClient.getQueryData<VanzareButasi[]>(['vanzari-butasi']) ?? []
+143	    const deleteIndex = currentItems.findIndex((item) => item.id === orderId)
+144	
+145	    pendingDeletedItems.current[orderId] = { item: order, index: deleteIndex }
+146	    queryClient.setQueryData<VanzareButasi[]>(['vanzari-butasi'], (current = []) =>
+147	      current.filter((item) => item.id !== orderId)
+148	    )
+149	
+150	    const timer = setTimeout(() => {
+151	      delete pendingDeleteTimers.current[orderId]
+152	      delete pendingDeletedItems.current[orderId]
+153	      deleteMutation.mutate(orderId)
+154	    }, 5000)
+155	
+156	    pendingDeleteTimers.current[orderId] = timer
+157	
+158	    toast('Element sters', {
+159	      duration: 5000,
+160	      action: {
+161	        label: 'Undo',
+162	        onClick: () => {
+163	          const pendingTimer = pendingDeleteTimers.current[orderId]
+164	          if (!pendingTimer) return
+165	
+166	          clearTimeout(pendingTimer)
+167	          delete pendingDeleteTimers.current[orderId]
+168	
+169	          const pendingItem = pendingDeletedItems.current[orderId]
+170	          delete pendingDeletedItems.current[orderId]
+171	          if (!pendingItem) return
+172	
+173	          queryClient.setQueryData<VanzareButasi[]>(['vanzari-butasi'], (current = []) => {
+174	            if (current.some((item) => item.id === orderId)) return current
+175	
+176	            const next = [...current]
+177	            const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+178	            next.splice(insertAt, 0, pendingItem.item)
+179	            return next
+180	          })
+181	        },
+182	      },
+183	    })
+184	  }
+185	
+186	  const clientMap = useMemo(() => {
+187	    const map: Record<string, string> = {}
+188	    clienti.forEach((client) => {
+189	      map[client.id] = client.nume_client || 'Client'
+190	    })
+191	    return map
+192	  }, [clienti])
+193	
+194	  const clientPhoneMap = useMemo(() => {
+195	    const map: Record<string, string | null> = {}
+196	    clienti.forEach((client) => {
+197	      map[client.id] = client.telefon
+198	    })
+199	    return map
+200	  }, [clienti])
+201	
+202	  const parcelaMap = useMemo(() => {
+203	    const map: Record<string, string> = {}
+204	    parcele.forEach((parcela) => {
+205	      map[parcela.id] = parcela.nume_parcela || 'Parcela'
+206	    })
+207	    return map
+208	  }, [parcele])
+209	
+210	  const filteredVanzari = useMemo(() => {
+211	    let rows = vanzari
+212	
+213	    if (summaryFilter === 'active') {
+214	      rows = rows.filter((order) => order.status !== 'anulata')
+215	    } else if (summaryFilter === 'with-avans') {
+216	      rows = rows.filter((order) => Number(order.avans_suma || 0) > 0)
+217	    } else if (summaryFilter === 'rest') {
+218	      rows = rows.filter((order) => order.status !== 'anulata' && orderRest(order) > 0)
+219	    }
+220	
+221	    if (!searchTerm.trim()) return rows
+222	
+223	    const term = searchTerm.toLowerCase().trim()
+224	    return rows.filter((order) => {
+225	      const clientName = order.client_id
+226	        ? clientMap[order.client_id]?.toLowerCase()
+227	        : (order.client_nume_manual?.toLowerCase() || '')
+228	      const itemNames = order.items.map((item) => item.soi.toLowerCase()).join(' ')
+229	
+230	      return (
+231	        order.status.toLowerCase().includes(term) ||
+232	        clientName?.includes(term) ||
+233	        order.observatii?.toLowerCase().includes(term) ||
+234	        order.adresa_livrare?.toLowerCase().includes(term) ||
+235	        itemNames.includes(term)
+236	      )
+237	    })
+238	  }, [vanzari, summaryFilter, searchTerm, clientMap])
+239	
+240	  const totalComenzi = useMemo(
+241	    () => filteredVanzari.reduce((sum, order) => sum + Number(order.total_lei || 0), 0),
+242	    [filteredVanzari]
+243	  )
+244	
+245	  const restTotal = useMemo(
+246	    () => filteredVanzari.reduce((sum, order) => sum + orderRest(order), 0),
+247	    [filteredVanzari]
+248	  )
+249	
+250	  const summary = useMemo(() => {
+251	    const activeOrders = vanzari.filter((order) => order.status !== 'anulata')
+252	    const totalComenziCount = activeOrders.length
+253	    const totalButasi = activeOrders.reduce(
+254	      (sum, order) => sum + order.items.reduce((itemsSum, item) => itemsSum + Number(item.cantitate || 0), 0),
+255	      0
+256	    )
+257	    const avansuriPrimite = activeOrders.reduce((sum, order) => sum + Number(order.avans_suma || 0), 0)
+258	    const restDeIncasat = activeOrders.reduce((sum, order) => sum + orderRest(order), 0)
+259	
+260	    const trackedSoi = ['Delniwa', 'Maravilla', 'Enrosadira']
+261	    const perSoiTracked = trackedSoi.map((soiName) => {
+262	      let cantitate = 0
+263	      const comandaIds = new Set<string>()
+264	
+265	      activeOrders.forEach((order) => {
+266	        order.items.forEach((item) => {
+267	          if (item.soi?.trim().toLowerCase() !== soiName.toLowerCase()) return
+268	          cantitate += Number(item.cantitate || 0)
+269	          comandaIds.add(order.id)
+270	        })
+271	      })
+272	
+273	      return {
+274	        soi: soiName,
+275	        cantitate,
+276	        comenziCount: comandaIds.size,
+277	      }
+278	    })
+279	
+280	    return {
+281	      totalComenziCount,
+282	      totalButasi,
+283	      avansuriPrimite,
+284	      restDeIncasat,
+285	      perSoiTracked,
+286	    }
+287	  }, [vanzari])
+288	
+289	  return (
+290	    <AppShell
+291	      header={<PageHeader title="Vanzari Butasi" subtitle="Gestionare comenzi material saditor" />}
+292	      bottomBar={
+293	        <StickyActionBar>
+294	          <div className="flex items-center justify-between gap-3">
+295	            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total comenzi: {formatLei(totalComenzi)}</p>
+296	            <p className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Rest total: {formatLei(restTotal)}</p>
+297	          </div>
+298	        </StickyActionBar>
+299	      }
+300	    >
+301	      <div className="mx-auto w-full max-w-4xl space-y-4 py-4 lg:space-y-6 xl:space-y-8">
+302	        <DashboardGrid className="grid-cols-2 md:grid-cols-2">
+303	          <DashboardCard
+304	            title="Total comenzi"
+305	            onClick={() => applyDashboardFilter('active')}
+306	            contentClassName="grid grid-cols-2 gap-2"
+307	            className={summaryFilter === 'active' ? 'border-emerald-300 bg-emerald-50' : ''}
+308	          >
+309	            <StatRow label="Comenzi" value={summary.totalComenziCount} />
+310	          </DashboardCard>
+311	
+312	          <DashboardCard
+313	            title="Total butasi"
+314	            onClick={() => applyDashboardFilter('toate')}
+315	            contentClassName="grid grid-cols-2 gap-2"
+316	          >
+317	            <StatRow label="Cantitate" value={formatBuc(summary.totalButasi)} />
+318	          </DashboardCard>
+319	
+320	          <DashboardCard
+321	            title="Avansuri primite"
+322	            onClick={() => applyDashboardFilter('with-avans')}
+323	            contentClassName="grid grid-cols-2 gap-2"
+324	            className={summaryFilter === 'with-avans' ? 'border-emerald-300 bg-emerald-50' : ''}
+325	          >
+326	            <StatRow label="Total" value={formatLei(summary.avansuriPrimite)} />
+327	          </DashboardCard>
+328	
+329	          <DashboardCard
+330	            title="Rest de incasat"
+331	            onClick={() => applyDashboardFilter('rest')}
+332	            contentClassName="grid grid-cols-2 gap-2"
+333	            className={summaryFilter === 'rest' ? 'border-amber-300 bg-amber-50' : ''}
+334	          >
+335	            <StatRow label="Total" value={formatLei(summary.restDeIncasat)} />
+336	          </DashboardCard>
+337	
+338	          <DashboardCard
+339	            title="Comenzi pe soi"
+340	            className="col-span-2 md:col-span-2"
+341	            onClick={() => applyDashboardFilter('toate')}
+342	            contentClassName="grid grid-cols-2 gap-2"
+343	          >
+344	            {summary.perSoiTracked.map((row) => (
+345	              <button
+346	                key={row.soi}
+347	                type="button"
+348	                className="text-left"
+349	                onClick={(event) => {
+350	                  event.stopPropagation()
+351	                  applyDashboardFilter('toate', row.soi)
+352	                }}
+353	              >
+354	                <StatRow label={row.soi} value={`${formatComenziCount(row.comenziCount)} / ${formatBuc(row.cantitate)}`} />
+355	              </button>
+356	            ))}
+357	          </DashboardCard>
+358	        </DashboardGrid>
+359	
+360	        <Input
+361	          className="agri-control h-12"
+362	          placeholder="Cauta dupa client, status, soi sau observatii..."
+363	          value={searchTerm}
+364	          onChange={(event) => setSearchTerm(event.target.value)}
+365	        />
+366	
+367	        {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+368	        {isLoading ? <LoadingState label="Se incarca comenzile..." /> : null}
+369	        {!isLoading && !isError && filteredVanzari.length === 0 ? <EmptyState title="Nu exista comenzi" /> : null}
+370	
+371	        {!isLoading && !isError && filteredVanzari.length > 0 ? (
+372	          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5">
+373	            {filteredVanzari.map((vanzare) => (
+374	              <VanzareButasiCard
+375	                key={vanzare.id}
+376	                vanzare={vanzare}
+377	                clientNume={vanzare.client_id ? clientMap[vanzare.client_id] : (vanzare.client_nume_manual || undefined)}
+378	                parcelaNume={vanzare.parcela_sursa_id ? parcelaMap[vanzare.parcela_sursa_id] : undefined}
+379	                onView={setViewingVanzare}
+380	                onEdit={setEditingVanzare}
+381	                onDelete={setDeletingVanzare}
+382	              />
+383	            ))}
+384	          </div>
+385	        ) : null}
+386	      </div>
+387	
+388	      <AddVanzareButasiDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+389	
+390	      <ViewVanzareButasiDialog
+391	        open={!!viewingVanzare}
+392	        onOpenChange={(nextOpen) => {
+393	          if (!nextOpen) setViewingVanzare(null)
+394	        }}
+395	        vanzare={viewingVanzare}
+396	        clientNume={
+397	          viewingVanzare?.client_id
+398	            ? clientMap[viewingVanzare.client_id]
+399	            : (viewingVanzare?.client_nume_manual || undefined)
+400	        }
+401	        clientTelefon={viewingVanzare?.client_id ? clientPhoneMap[viewingVanzare.client_id] : null}
+402	        parcelaNume={viewingVanzare?.parcela_sursa_id ? parcelaMap[viewingVanzare.parcela_sursa_id] : undefined}
+403	        onEdit={setEditingVanzare}
+404	        onDelete={setDeletingVanzare}
+405	      />
+406	
+407	      <EditVanzareButasiDialog
+408	        vanzare={editingVanzare}
+409	        open={!!editingVanzare}
+410	        onOpenChange={(nextOpen) => {
+411	          if (!nextOpen) setEditingVanzare(null)
+412	        }}
+413	      />
+414	
+415	      <DeleteConfirmDialog
+416	        open={!!deletingVanzare}
+417	        onOpenChange={(nextOpen) => {
+418	          if (!nextOpen) setDeletingVanzare(null)
+419	        }}
+420	        onConfirm={() => {
+421	          if (!deletingVanzare) return
+422	          scheduleDelete(deletingVanzare)
+423	          setDeletingVanzare(null)
+424	        }}
+425	        itemName={buildButasiOrderDeleteLabel(
+426	          deletingVanzare,
+427	          deletingVanzare?.client_id ? clientMap[deletingVanzare.client_id] : (deletingVanzare?.client_nume_manual || '')
+428	        )}
+429	        itemType="comanda"
+430	        description={`Stergi comanda din ${deletingVanzare?.data_comanda ? new Date(deletingVanzare.data_comanda).toLocaleDateString('ro-RO') : 'data necunoscuta'} catre ${deletingVanzare?.client_id ? clientMap[deletingVanzare.client_id] : (deletingVanzare?.client_nume_manual || 'client necunoscut')}?`}
+431	      />
+432	    </AppShell>
+433	  )
+434	}

@@ -1,5 +1,30 @@
 const runtimeCaching = [
   {
+    urlPattern: ({ request, url }) =>
+      request.mode === 'navigate' &&
+      self.origin === url.origin &&
+      [
+        '/',
+        '/login',
+        '/register',
+        '/termeni',
+        '/confidentialitate',
+        '/reset-password',
+        '/reset-password-request',
+        '/update-password',
+      ].some((pathname) => url.pathname === pathname || url.pathname.startsWith(`${pathname}/`)),
+    handler: 'NetworkFirst',
+    method: 'GET',
+    options: {
+      cacheName: 'public-navigation-pages',
+      networkTimeoutSeconds: 3,
+      expiration: {
+        maxEntries: 24,
+        maxAgeSeconds: 24 * 60 * 60,
+      },
+    },
+  },
+  {
     urlPattern: ({ url }) => self.origin === url.origin && url.pathname.startsWith('/api/'),
     handler: 'NetworkOnly',
     method: 'GET',

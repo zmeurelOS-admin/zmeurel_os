@@ -1,0 +1,353 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useMemo, useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    6: import { useForm } from 'react-hook-form'
+    7: import { toast } from '@/lib/ui/toast'
+    8: import * as z from 'zod'
+    9: 
+   10: import { AppDrawer } from '@/components/app/AppDrawer'
+   11: import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+   12: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   13: import { Input } from '@/components/ui/input'
+   14: import { Label } from '@/components/ui/label'
+   15: import {
+   16:   Select,
+   17:   SelectContent,
+   18:   SelectItem,
+   19:   SelectTrigger,
+   20:   SelectValue,
+   21: } from '@/components/ui/select'
+   22: import { Textarea } from '@/components/ui/textarea'
+   23: import { track } from '@/lib/analytics/track'
+   24: import { trackEvent } from '@/lib/analytics/trackEvent'
+   25: import { getCulegatori } from '@/lib/supabase/queries/culegatori'
+   26: import { getParcele } from '@/lib/supabase/queries/parcele'
+   27: import { createRecoltare } from '@/lib/supabase/queries/recoltari'
+   28: import { getActivitatiAgricole, calculatePauseStatus, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
+   29: import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+   30: 
+   31: const schema = z.object({
+   32:   data: z.string().min(1, 'Data este obligatorie'),
+   33:   parcela_id: z.string().min(1, 'Parcela este obligatorie'),
+   34:   culegator_id: z.string().min(1, 'Culegatorul este obligatoriu'),
+   35:   kg_cal1: z
+   36:     .string()
+   37:     .trim()
+   38:     .optional()
+   39:     .refine((value) => value === undefined || value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0), {
+   40:       message: 'Kg Cal 1 trebuie sa fie >= 0',
+   41:     }),
+   42:   kg_cal2: z
+   43:     .string()
+   44:     .trim()
+   45:     .optional()
+   46:     .refine((value) => value === undefined || value === '' || (Number.isFinite(Number(value)) && Number(value) >= 0), {
+   47:       message: 'Kg Cal 2 trebuie sa fie >= 0',
+   48:     }),
+   49:   observatii: z.string().optional(),
+   50: })
+   51: 
+   52: type FormData = z.infer<typeof schema>
+   53: 
+   54: interface AddRecoltareDialogProps {
+   55:   open?: boolean
+   56:   onOpenChange?: (open: boolean) => void
+   57:   hideTrigger?: boolean
+   58: }
+   59: 
+   60: const defaultValues = (): FormData => ({
+   61:   data: new Date().toISOString().split('T')[0],
+   62:   parcela_id: '',
+   63:   culegator_id: '',
+   64:   kg_cal1: '',
+   65:   kg_cal2: '',
+   66:   observatii: '',
+   67: })
+   68: 
+   69: function toNumber(value: string | undefined): number {
+   70:   if (!value || value.trim() === '') return 0
+   71:   const parsed = Number(value)
+   72:   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+   73: }
+   74: 
+   75: export function AddRecoltareDialog({ open, onOpenChange, hideTrigger = false }: AddRecoltareDialogProps) {
+   76:   const queryClient = useQueryClient()
+   77:   const [internalOpen, setInternalOpen] = useState(false)
+   78: 
+   79:   const isControlled = typeof open === 'boolean'
+   80:   const dialogOpen = isControlled ? open : internalOpen
+   81:   const setDialogOpen = (nextOpen: boolean) => {
+   82:     if (!isControlled) setInternalOpen(nextOpen)
+   83:     onOpenChange?.(nextOpen)
+   84:   }
+   85: 
+   86:   const form = useForm<FormData>({
+   87:     resolver: zodResolver(schema),
+   88:     defaultValues: defaultValues(),
+   89:   })
+   90: 
+   91:   useEffect(() => {
+   92:     if (!dialogOpen) {
+   93:       form.reset(defaultValues())
+   94:     }
+   95:   }, [dialogOpen, form])
+   96: 
+   97:   const { data: parcele = [] } = useQuery({
+   98:     queryKey: ['parcele'],
+   99:     queryFn: getParcele,
+  100:   })
+  101: 
+  102:   const { data: culegatori = [] } = useQuery({
+  103:     queryKey: ['culegatori'],
+  104:     queryFn: getCulegatori,
+  105:   })
+  106: 
+  107:   const { data: activitati = [] } = useQuery({
+  108:     queryKey: ['activitati-agricole'],
+  109:     queryFn: getActivitatiAgricole,
+  110:   })
+  111: 
+  112:   const mutation = useMutation({
+  113:     mutationFn: createRecoltare,
+  114:     onSuccess: (_, variables) => {
+  115:       queryClient.invalidateQueries({ queryKey: ['recoltari'] })
+  116:       queryClient.invalidateQueries({ queryKey: ['stoc-global'] })
+  117:       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+  118:       trackEvent('create_recoltare', 'recoltari', { source: 'AddRecoltareDialog' })
+  119:       track('recoltare_add', {
+  120:         kg: Number(variables.kg_cal1 || 0) + Number(variables.kg_cal2 || 0),
+  121:         parcela_id: variables.parcela_id ?? null,
+  122:       })
+  123:       hapticSuccess()
+  124:       toast.success('Recoltare adaugata')
+  125:       setDialogOpen(false)
+  126:     },
+  127:     onError: (error: unknown) => {
+  128:       const maybeError = error as { status?: number; code?: string; message?: string }
+  129:       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
+  130:       if (conflict) {
+  131:         toast.info('Inregistrarea era deja sincronizata.')
+  132:         setDialogOpen(false)
+  133:         return
+  134:       }
+  135:       hapticError()
+  136:       toast.error(maybeError?.message || 'Eroare la salvare')
+  137:     },
+  138:   })
+  139: 
+  140:   const selectedParcelaId = form.watch('parcela_id')
+  141:   const selectedCulegatorId = form.watch('culegator_id')
+  142:   const kgCal1 = toNumber(form.watch('kg_cal1'))
+  143:   const kgCal2 = toNumber(form.watch('kg_cal2'))
+  144:   const totalKg = kgCal1 + kgCal2
+  145:   const selectedCulegator = culegatori.find((culegator) => culegator.id === selectedCulegatorId)
+  146:   const tarifLeiKg = Number(selectedCulegator?.tarif_lei_kg ?? 0)
+  147:   const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
+  148:   const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
+  149: 
+  150:   // Check for active treatment pause
+  151:   const activePauseWarning = useMemo(() => {
+  152:     if (!selectedParcelaId) return null
+  153: 
+  154:     const parcelaActivitati = activitati.filter((act) => act.parcela_id === selectedParcelaId)
+  155:     if (parcelaActivitati.length === 0) return null
+  156: 
+  157:     for (const activitate of parcelaActivitati) {
+  158:       const { dataRecoltarePermisa, status } = calculatePauseStatus(
+  159:         activitate.data_aplicare,
+  160:         activitate.timp_pauza_zile
+  161:       )
+  162:       
+  163:       if (status === 'Pauza') {
+  164:         const selectedParcela = parcele.find((p) => p.id === selectedParcelaId)
+  165:         const parcelaName = selectedParcela?.nume_parcela || 'Parcela selectată'
+  166:         const dataAplicare = new Date(activitate.data_aplicare).toLocaleDateString('ro-RO')
+  167:         const dataPermisa = new Date(dataRecoltarePermisa).toLocaleDateString('ro-RO')
+  168:         
+  169:         return {
+  170:           message: `⚠️ Parcela ${parcelaName} are tratament activ (${activitate.produs_utilizat || 'produs necunoscut'}, aplicat ${dataAplicare}). Recoltare permisă de la ${dataPermisa}.`
+  171:         }
+  172:       }
+  173:     }
+  174:     
+  175:     return null
+  176:   }, [selectedParcelaId, activitati, parcele])
+  177: 
+  178:   const onSubmit = (data: FormData) => {
+  179:     if (mutation.isPending) return
+  180:     if (!hasValidTarif) {
+  181:       hapticError()
+  182:       toast.error('Culegatorul nu are tarif setat in profil')
+  183:       return
+  184:     }
+  185: 
+  186:     mutation.mutate({
+  187:       data: data.data,
+  188:       parcela_id: data.parcela_id,
+  189:       culegator_id: data.culegator_id,
+  190:       kg_cal1: toNumber(data.kg_cal1),
+  191:       kg_cal2: toNumber(data.kg_cal2),
+  192:       observatii: data.observatii?.trim() || undefined,
+  193:     })
+  194:   }
+  195: 
+  196:   return (
+  197:     <>
+  198:       <AppDrawer
+  199:         open={dialogOpen}
+  200:         onOpenChange={setDialogOpen}
+  201:         title="Adauga recoltare"
+  202:         footer={
+  203:           <DialogFormActions
+  204:             onCancel={() => setDialogOpen(false)}
+  205:             onSave={form.handleSubmit(onSubmit)}
+  206:             saving={mutation.isPending}
+  207:             cancelLabel="Anuleaza"
+  208:             saveLabel="Salveaza"
+  209:           />
+  210:         }
+  211:       >
+  212:         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+  213:           <div className="space-y-2">
+  214:             <Label htmlFor="recoltare_data">Data</Label>
+  215:             <Input id="recoltare_data" type="date" className="agri-control h-12" {...form.register('data')} />
+  216:             {form.formState.errors.data ? (
+  217:               <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
+  218:             ) : null}
+  219:           </div>
+  220: 
+  221:           <div className="space-y-2">
+  222:             <Label htmlFor="recoltare_parcela">Parcela</Label>
+  223:             <Select
+  224:               value={form.watch('parcela_id') || '__none'}
+  225:               onValueChange={(value) => form.setValue('parcela_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })}
+  226:             >
+  227:               <SelectTrigger id="recoltare_parcela" className="agri-control h-12">
+  228:                 <SelectValue placeholder="Selecteaza parcela" />
+  229:               </SelectTrigger>
+  230:               <SelectContent>
+  231:                 <SelectItem value="__none">Selecteaza parcela</SelectItem>
+  232:                 {parcele.map((parcela) => (
+  233:                   <SelectItem key={parcela.id} value={parcela.id}>
+  234:                     {parcela.nume_parcela || 'Parcela'}
+  235:                   </SelectItem>
+  236:                 ))}
+  237:               </SelectContent>
+  238:             </Select>
+  239:             {form.formState.errors.parcela_id ? (
+  240:               <p className="text-xs text-red-600">{form.formState.errors.parcela_id.message}</p>
+  241:             ) : null}
+  242:             {activePauseWarning ? (
+  243:               <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+  244:                 {activePauseWarning.message}
+  245:               </div>
+  246:             ) : null}
+  247:           </div>
+  248: 
+  249:           <div className="space-y-2">
+  250:             <Label htmlFor="recoltare_culegator">Culegator</Label>
+  251:             <Select
+  252:               value={form.watch('culegator_id') || '__none'}
+  253:               onValueChange={(value) => form.setValue('culegator_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })}
+  254:             >
+  255:               <SelectTrigger id="recoltare_culegator" className="agri-control h-12">
+  256:                 <SelectValue placeholder="Selecteaza culegator" />
+  257:               </SelectTrigger>
+  258:               <SelectContent>
+  259:                 <SelectItem value="__none">Selecteaza culegator</SelectItem>
+  260:                 {culegatori.map((culegator) => (
+  261:                   <SelectItem key={culegator.id} value={culegator.id}>
+  262:                     {culegator.nume_prenume || 'Culegator'}
+  263:                   </SelectItem>
+  264:                 ))}
+  265:               </SelectContent>
+  266:             </Select>
+  267:             {form.formState.errors.culegator_id ? (
+  268:               <p className="text-xs text-red-600">{form.formState.errors.culegator_id.message}</p>
+  269:             ) : null}
+  270:           </div>
+  271: 
+  272:           <div className="grid grid-cols-2 gap-3">
+  273:             <div className="space-y-2">
+  274:               <Label htmlFor="recoltare_kg_cal1">Kg Calitatea 1</Label>
+  275:               <Input
+  276:                 id="recoltare_kg_cal1"
+  277:                 type="number"
+  278:                 inputMode="decimal"
+  279:                 step="0.01"
+  280:                 min="0"
+  281:                 placeholder="0.00"
+  282:                 className="agri-control h-12"
+  283:                 {...form.register('kg_cal1')}
+  284:               />
+  285:               {form.formState.errors.kg_cal1 ? (
+  286:                 <p className="text-xs text-red-600">{form.formState.errors.kg_cal1.message}</p>
+  287:               ) : null}
+  288:             </div>
+  289:             <div className="space-y-2">
+  290:               <Label htmlFor="recoltare_kg_cal2">Kg Calitatea 2</Label>
+  291:               <Input
+  292:                 id="recoltare_kg_cal2"
+  293:                 type="number"
+  294:                 inputMode="decimal"
+  295:                 step="0.01"
+  296:                 min="0"
+  297:                 placeholder="0.00"
+  298:                 className="agri-control h-12"
+  299:                 {...form.register('kg_cal2')}
+  300:               />
+  301:               {form.formState.errors.kg_cal2 ? (
+  302:                 <p className="text-xs text-red-600">{form.formState.errors.kg_cal2.message}</p>
+  303:               ) : null}
+  304:             </div>
+  305:           </div>
+  306: 
+  307:           <Card className="rounded-2xl border border-emerald-100 shadow-sm">
+  308:             <CardHeader className="pb-2">
+  309:               <CardTitle className="text-sm">Rezumat plata</CardTitle>
+  310:             </CardHeader>
+  311:             <CardContent className="space-y-1 text-sm">
+  312:               <p>Total kg: <span className="font-semibold">{totalKg.toFixed(2)} kg</span></p>
+  313:               {selectedCulegator ? (
+  314:                 <>
+  315:                   <p>
+  316:                     Tarif:{' '}
+  317:                     <span className="font-semibold">
+  318:                       {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '—'}
+  319:                     </span>{' '}
+  320:                     <span className="text-xs text-[var(--agri-text-muted)]">(din profil culegator)</span>
+  321:                   </p>
+  322:                   <p>
+  323:                     De plata:{' '}
+  324:                     <span className="font-semibold">
+  325:                       {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '—'}
+  326:                     </span>
+  327:                   </p>
+  328:                 </>
+  329:               ) : (
+  330:                 <>
+  331:                   <p className="text-[var(--agri-text-muted)]">Selecteaza culegatorul ca sa calculez plata</p>
+  332:                   <p>De plata: <span className="font-semibold">—</span></p>
+  333:                 </>
+  334:               )}
+  335:             </CardContent>
+  336:           </Card>
+  337: 
+  338:           <div className="space-y-2">
+  339:             <Label htmlFor="recoltare_observatii">Observatii</Label>
+  340:             <Textarea
+  341:               id="recoltare_observatii"
+  342:               rows={4}
+  343:               placeholder="Detalii suplimentare"
+  344:               className="agri-control w-full px-3 py-2 text-base"
+  345:               {...form.register('observatii')}
+  346:             />
+  347:           </div>
+  348:         </form>
+  349:       </AppDrawer>
+  350:     </>
+  351:   )
+  352: }
+  353: 

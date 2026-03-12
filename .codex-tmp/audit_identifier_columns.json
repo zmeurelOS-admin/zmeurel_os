@@ -1,0 +1,404 @@
+[
+  {
+    "table_name": "activitati_agricole",
+    "column_name": "client_sync_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "activitati_agricole",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "activitati_agricole",
+    "column_name": "id_activitate",
+    "data_type": "character varying",
+    "character_maximum_length": 100
+  },
+  {
+    "table_name": "activitati_agricole",
+    "column_name": "parcela_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "activitati_agricole",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "activitati_extra_season",
+    "column_name": "id_activitate",
+    "data_type": "character varying",
+    "character_maximum_length": 10
+  },
+  {
+    "table_name": "activitati_extra_season",
+    "column_name": "parcela_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "activitati_extra_season",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "alert_dismissals",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "alert_dismissals",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "analytics_events",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "analytics_events",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "actor_user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "audit_logs",
+    "column_name": "target_tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "cheltuieli_diverse",
+    "column_name": "client_sync_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "cheltuieli_diverse",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "cheltuieli_diverse",
+    "column_name": "id_cheltuiala",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "cheltuieli_diverse",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "clienti",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "clienti",
+    "column_name": "id_client",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "clienti",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "comenzi",
+    "column_name": "client_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "comenzi",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "comenzi",
+    "column_name": "linked_vanzare_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "comenzi",
+    "column_name": "parent_comanda_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "comenzi",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "culegatori",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "culegatori",
+    "column_name": "id_culegator",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "culegatori",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "feedback",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "feedback",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "integrations_google_contacts",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "integrations_google_contacts",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "investitii",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "investitii",
+    "column_name": "id_investitie",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "investitii",
+    "column_name": "parcela_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "investitii",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "miscari_stoc",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "miscari_stoc",
+    "column_name": "locatie_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "miscari_stoc",
+    "column_name": "referinta_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "miscari_stoc",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "nomenclatoare",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "parcele",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "parcele",
+    "column_name": "id_parcela",
+    "data_type": "character varying",
+    "character_maximum_length": 30
+  },
+  {
+    "table_name": "parcele",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "recoltari",
+    "column_name": "client_sync_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "recoltari",
+    "column_name": "culegator_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "recoltari",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "recoltari",
+    "column_name": "id_recoltare",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "recoltari",
+    "column_name": "parcela_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "recoltari",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "owner_user_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari",
+    "column_name": "client_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari",
+    "column_name": "client_sync_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari",
+    "column_name": "comanda_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari",
+    "column_name": "id_vanzare",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "vanzari",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi",
+    "column_name": "client_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi",
+    "column_name": "id_vanzare_butasi",
+    "data_type": "character varying",
+    "character_maximum_length": 50
+  },
+  {
+    "table_name": "vanzari_butasi",
+    "column_name": "parcela_sursa_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi_items",
+    "column_name": "comanda_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi_items",
+    "column_name": "demo_seed_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  },
+  {
+    "table_name": "vanzari_butasi_items",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "character_maximum_length": null
+  }
+]

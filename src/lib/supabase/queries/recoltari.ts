@@ -2,6 +2,7 @@ import { getSupabase } from '../client'
 import type { TablesUpdate } from '@/types/supabase'
 import { deleteMiscariStocByReference, insertMiscareStoc } from './miscari-stoc'
 import { upsertManoperaCheltuiala } from './manopera-auto'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 const RECOLTARI_SELECT =
   'id,id_recoltare,data,parcela_id,culegator_id,kg_cal1,kg_cal2,pret_lei_pe_kg_snapshot,valoare_munca_lei,observatii,created_at,updated_at,tenant_id'
@@ -56,6 +57,7 @@ type RecoltareRpcClient = ReturnType<typeof getSupabase> & {
       p_kg_cal1: number
       p_kg_cal2: number
       p_observatii?: string | null
+      p_tenant_id?: string | null
     }
   ) => Promise<{
     data: Parameters<typeof mapRecoltare>[0] | null
@@ -215,6 +217,7 @@ function scheduleAutoManoperaSync(params: {
 
 export async function createRecoltare(input: CreateRecoltareInput): Promise<Recoltare> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
   const kg = computeKg(input)
   const rpcClient = supabase as RecoltareRpcClient
   const { data, error } = await rpcClient.rpc('create_recoltare_with_stock', {
@@ -224,6 +227,7 @@ export async function createRecoltare(input: CreateRecoltareInput): Promise<Reco
     p_kg_cal1: kg.kgCal1,
     p_kg_cal2: kg.kgCal2,
     p_observatii: input.observatii ?? null,
+    p_tenant_id: tenantId,
   })
 
   if (error) {

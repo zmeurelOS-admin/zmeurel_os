@@ -1,0 +1,43 @@
+    1: 'use client'
+    2: 
+    3: import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+    4: 
+    5: interface DeleteConfirmDialogProps {
+    6:   open: boolean
+    7:   onOpenChange: (open: boolean) => void
+    8:   onConfirm: () => void
+    9:   parcelaNume?: string
+   10:   itemName?: string
+   11:   itemType?: string
+   12:   description?: string
+   13:   loading?: boolean
+   14: }
+   15: 
+   16: export function DeleteConfirmDialog({
+   17:   open,
+   18:   onOpenChange,
+   19:   onConfirm,
+   20:   parcelaNume,
+   21:   itemName,
+   22:   itemType,
+   23:   description,
+   24:   loading = false,
+   25: }: DeleteConfirmDialogProps) {
+   26:   const targetName = parcelaNume || itemName || 'elementul selectat'
+   27:   const targetType = itemType || 'Element'
+   28: 
+   29:   return (
+   30:     <ConfirmDeleteDialog
+   31:       open={open}
+   32:       onOpenChange={onOpenChange}
+   33:       onConfirm={onConfirm}
+   34:       itemName={targetName}
+   35:       itemType={targetType}
+   36:       description={description}
+   37:       loading={loading}
+   38:       title="Confirmi ștergerea?"
+   39:       cancelText="Anulează"
+   40:       confirmText="Șterge"
+   41:     />
+   42:   )
+   43: }

@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon } from 'lucide-react'
@@ -7,14 +8,11 @@ import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { AddParcelDrawer } from '@/components/parcele/AddParcelDrawer'
-import { EditParcelDialog } from '@/components/parcele/EditParcelDialog'
 import { ParceleList } from '@/components/parcele/ParceleList'
 import MiniCard from '@/components/ui/MiniCard'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -26,6 +24,19 @@ import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
+
+const AddParcelDrawer = dynamic(
+  () => import('@/components/parcele/AddParcelDrawer').then((mod) => mod.AddParcelDrawer),
+  { ssr: false }
+)
+const EditParcelDialog = dynamic(
+  () => import('@/components/parcele/EditParcelDialog').then((mod) => mod.EditParcelDialog),
+  { ssr: false }
+)
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
 
 interface ParcelePageClientProps {
   initialParcele?: Parcela[]
@@ -307,8 +318,8 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
-        {resolvedError ? <ErrorState title="Eroare la înc?rcare" message={resolvedError} onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })} /> : null}
+      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+        {resolvedError ? <ErrorState title="Eroare la încărcare" message={resolvedError} onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })} /> : null}
 
         {isLoading ? (
           <div className="space-y-3">
@@ -321,7 +332,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         {!isLoading && !resolvedError && parcele.length === 0 ? (
           <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.xxl, textAlign: 'center' }}>
             <div style={{ fontSize: 40 }}>🗺️</div>
-            <h3 style={{ marginTop: spacing.sm, fontSize: 20, fontWeight: 700, color: colors.dark }}>Niciun teren inca</h3>
+            <h3 style={{ marginTop: spacing.sm, fontSize: 20, fontWeight: 700, color: colors.dark }}>Niciun teren încă</h3>
             <p style={{ marginTop: spacing.sm, fontSize: 12, color: colors.gray }}>
               Adaugă primul teren ca s? poți înregistra recoltări ți activități.
             </p>
@@ -384,7 +395,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
               <div style={{ display: 'grid', gap: spacing.xs }}>
                 {productionRows.length === 0 ? (
                   <div style={{ fontSize: 11, color: colors.gray }}>
-                    Nu exist? unitati pentru filtrul selectat.
+                    Nu există unități pentru filtrul selectat.
                   </div>
                 ) : (
                   productionRows.map((row) => {
@@ -418,7 +429,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 }}
                               />
                             </div>
-                            {row.kg <= 0 ? <div style={{ fontSize: 10, color: colors.gray, marginTop: 2 }}>Nicio recoltare inca</div> : null}
+                            {row.kg <= 0 ? <div style={{ fontSize: 10, color: colors.gray, marginTop: 2 }}>Nicio recoltare încă</div> : null}
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{row.kg.toFixed(1)}</div>

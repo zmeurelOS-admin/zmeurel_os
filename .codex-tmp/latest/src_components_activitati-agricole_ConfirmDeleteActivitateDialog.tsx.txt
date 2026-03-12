@@ -1,0 +1,138 @@
+    1: 'use client'
+    2: 
+    3: import { Trash2, X } from 'lucide-react'
+    4: 
+    5: export function ConfirmDeleteActivitateDialog({
+    6:   open,
+    7:   title = 'Ștergere activitate',
+    8:   message,
+    9:   confirmText = 'Șterge definitiv',
+   10:   cancelText = 'Renunță',
+   11:   loading = false,
+   12:   onConfirm,
+   13:   onCancel,
+   14: }: {
+   15:   open: boolean
+   16:   title?: string
+   17:   message: string
+   18:   confirmText?: string
+   19:   cancelText?: string
+   20:   loading?: boolean
+   21:   onConfirm: () => void
+   22:   onCancel: () => void
+   23: }) {
+   24:   if (!open) return null
+   25: 
+   26:   return (
+   27:     <div
+   28:       style={{
+   29:         position: 'fixed',
+   30:         inset: 0,
+   31:         background: 'rgba(0,0,0,0.45)',
+   32:         zIndex: 1100,
+   33:         display: 'flex',
+   34:         alignItems: 'center',
+   35:         justifyContent: 'center',
+   36:         padding: 20,
+   37:       }}
+   38:     >
+   39:       <div
+   40:         style={{
+   41:           background: 'white',
+   42:           width: '100%',
+   43:           maxWidth: 420,
+   44:           borderRadius: 24,
+   45:           padding: 20,
+   46:           boxShadow: '0 12px 30px rgba(0,0,0,0.18)',
+   47:         }}
+   48:       >
+   49:         <div
+   50:           style={{
+   51:             display: 'flex',
+   52:             justifyContent: 'space-between',
+   53:             alignItems: 'flex-start',
+   54:             gap: 12,
+   55:           }}
+   56:         >
+   57:           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+   58:             <div
+   59:               style={{
+   60:                 width: 40,
+   61:                 height: 40,
+   62:                 borderRadius: 14,
+   63:                 background: '#fee2e2',
+   64:                 display: 'flex',
+   65:                 alignItems: 'center',
+   66:                 justifyContent: 'center',
+   67:               }}
+   68:             >
+   69:               <Trash2 size={18} />
+   70:             </div>
+   71: 
+   72:             <div>
+   73:               <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
+   74:               <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+   75:                 Acțiune definitivă
+   76:               </div>
+   77:             </div>
+   78:           </div>
+   79: 
+   80:           <button
+   81:             onClick={onCancel}
+   82:             style={{
+   83:               width: 34,
+   84:               height: 34,
+   85:               borderRadius: 12,
+   86:               border: '1px solid #e5e7eb',
+   87:               background: 'white',
+   88:               display: 'flex',
+   89:               alignItems: 'center',
+   90:               justifyContent: 'center',
+   91:             }}
+   92:           >
+   93:             <X size={16} />
+   94:           </button>
+   95:         </div>
+   96: 
+   97:         <div style={{ marginTop: 14, fontSize: 14, color: '#334155' }}>
+   98:           {message}
+   99:         </div>
+  100: 
+  101:         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+  102:           <button
+  103:             onClick={onCancel}
+  104:             disabled={loading}
+  105:             style={{
+  106:               flex: 1,
+  107:               height: 44,
+  108:               borderRadius: 16,
+  109:               border: '1px solid #e5e7eb',
+  110:               background: 'white',
+  111:               fontWeight: 900,
+  112:               opacity: loading ? 0.7 : 1,
+  113:             }}
+  114:           >
+  115:             {cancelText}
+  116:           </button>
+  117: 
+  118:           <button
+  119:             onClick={onConfirm}
+  120:             disabled={loading}
+  121:             style={{
+  122:               flex: 1,
+  123:               height: 44,
+  124:               borderRadius: 16,
+  125:               border: 'none',
+  126:               background: '#ef4444',
+  127:               color: 'white',
+  128:               fontWeight: 900,
+  129:               opacity: loading ? 0.7 : 1,
+  130:             }}
+  131:           >
+  132:             {loading ? 'Se șterge...' : confirmText}
+  133:           </button>
+  134:         </div>
+  135:       </div>
+  136:     </div>
+  137:   )
+  138: }

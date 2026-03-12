@@ -1,0 +1,426 @@
+﻿1	'use client'
+2	
+3	import Link from 'next/link'
+4	import { useEffect, useMemo } from 'react'
+5	import { useQuery } from '@tanstack/react-query'
+6	import { ArrowRight } from 'lucide-react'
+7	import { useRouter } from 'next/navigation'
+8	
+9	import { AppShell } from '@/components/app/AppShell'
+10	import { ErrorState } from '@/components/app/ErrorState'
+11	import { LoadingState } from '@/components/app/LoadingState'
+12	import { PageHeader } from '@/components/app/PageHeader'
+13	import { DashboardCard, DashboardGrid, Sparkline, StatRow } from '@/components/dashboard'
+14	import { trackEvent } from '@/lib/analytics/trackEvent'
+15	import { generateFarmAlerts } from '@/lib/alerts/generateFarmAlerts'
+16	import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+17	import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
+18	import { getComenzi } from '@/lib/supabase/queries/comenzi'
+19	import { getParcele } from '@/lib/supabase/queries/parcele'
+20	import { getRecoltari } from '@/lib/supabase/queries/recoltari'
+21	import { getVanzari } from '@/lib/supabase/queries/vanzari'
+22	
+23	function formatCurrency(value: number) {
+24	  return new Intl.NumberFormat('ro-RO', {
+25	    style: 'currency',
+26	    currency: 'RON',
+27	    maximumFractionDigits: 0,
+28	  }).format(value)
+29	}
+30	
+31	function toDateOnly(value: string | null | undefined): string {
+32	  return (value ?? '').slice(0, 10)
+33	}
+34	
+35	function getTrendDirection(current: number, previous: number): 'up' | 'down' | 'neutral' {
+36	  const delta = current - previous
+37	  if (Math.abs(delta) <= 0.5) return 'neutral'
+38	  if (delta > 0) return 'up'
+39	  if (delta < 0) return 'down'
+40	  return 'neutral'
+41	}
+42	
+43	export default function DashboardPage() {
+44	  const router = useRouter()
+45	
+46	  useEffect(() => {
+47	    trackEvent('open_dashboard', 'dashboard')
+48	  }, [])
+49	
+50	  const recoltariQuery = useQuery({
+51	    queryKey: ['dashboard', 'recoltari'],
+52	    queryFn: getRecoltari,
+53	    staleTime: 30000,
+54	    refetchOnWindowFocus: false,
+55	  })
+56	
+57	  const parceleQuery = useQuery({
+58	    queryKey: ['dashboard', 'parcele'],
+59	    queryFn: getParcele,
+60	    staleTime: 30000,
+61	    refetchOnWindowFocus: false,
+62	  })
+63	
+64	  const activitatiQuery = useQuery({
+65	    queryKey: ['dashboard', 'activitati'],
+66	    queryFn: getActivitatiAgricole,
+67	    staleTime: 30000,
+68	    refetchOnWindowFocus: false,
+69	  })
+70	
+71	  const vanzariQuery = useQuery({
+72	    queryKey: ['dashboard', 'vanzari'],
+73	    queryFn: getVanzari,
+74	    staleTime: 30000,
+75	    refetchOnWindowFocus: false,
+76	  })
+77	
+78	  const cheltuieliQuery = useQuery({
+79	    queryKey: ['dashboard', 'cheltuieli'],
+80	    queryFn: getCheltuieli,
+81	    staleTime: 30000,
+82	    refetchOnWindowFocus: false,
+83	  })
+84	
+85	  const comenziQuery = useQuery({
+86	    queryKey: ['dashboard', 'comenzi'],
+87	    queryFn: getComenzi,
+88	    staleTime: 30000,
+89	    refetchOnWindowFocus: false,
+90	  })
+91	
+92	  const isLoading = [
+93	    recoltariQuery,
+94	    parceleQuery,
+95	    activitatiQuery,
+96	    vanzariQuery,
+97	    cheltuieliQuery,
+98	    comenziQuery,
+99	  ].some((query) => query.isLoading)
+100	
+101	  const hasError = [
+102	    recoltariQuery,
+103	    parceleQuery,
+104	    activitatiQuery,
+105	    vanzariQuery,
+106	    cheltuieliQuery,
+107	    comenziQuery,
+108	  ].some((query) => query.isError)
+109	
+110	  const errorMessage =
+111	    (recoltariQuery.error as Error | null)?.message ||
+112	    (parceleQuery.error as Error | null)?.message ||
+113	    (activitatiQuery.error as Error | null)?.message ||
+114	    (vanzariQuery.error as Error | null)?.message ||
+115	    (cheltuieliQuery.error as Error | null)?.message ||
+116	    (comenziQuery.error as Error | null)?.message
+117	
+118	  const recoltari = recoltariQuery.data ?? []
+119	  const parcele = parceleQuery.data ?? []
+120	  const activitati = activitatiQuery.data ?? []
+121	  const vanzari = vanzariQuery.data ?? []
+122	  const cheltuieli = cheltuieliQuery.data ?? []
+123	  const comenzi = comenziQuery.data ?? []
+124	
+125	  const today = new Date()
+126	  today.setHours(0, 0, 0, 0)
+127	  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+128	
+129	  const recoltariAzi = recoltari.filter((row) => toDateOnly(row.data) === todayIso)
+130	  const cal1Azi = recoltariAzi.reduce((sum, row) => sum + Number(row.kg_cal1 || 0), 0)
+131	  const cal2Azi = recoltariAzi.reduce((sum, row) => sum + Number(row.kg_cal2 || 0), 0)
+132	  const kgAzi = cal1Azi + cal2Azi
+133	
+134	  const comenziAzi = comenzi.filter((row) => row.data_livrare === todayIso && row.status !== 'livrata' && row.status !== 'anulata')
+135	  const comenziAziCount = comenziAzi.length
+136	  const kgDeLivratAzi = comenziAzi.reduce((sum, row) => sum + Number(row.cantitate_kg || 0), 0)
+137	  const dashboardSubtitle =
+138	    recoltariAzi.length > 0 && comenziAziCount > 0
+139	      ? 'đźŤ“ Recoltare + LivrÄri azi'
+140	      : recoltariAzi.length > 0
+141	        ? 'đźŤ“ Zi de recoltare'
+142	        : comenziAziCount > 0
+143	          ? 'đź“¦ LivrÄri azi'
+144	          : 'Nicio activitate azi'
+145	
+146	  const comenziViitoare = comenzi.filter((row) => {
+147	    if (!row.data_livrare) return false
+148	    if (row.data_livrare <= todayIso) return false
+149	    return row.status !== 'livrata' && row.status !== 'anulata'
+150	  })
+151	  const comenziViitoareCount = comenziViitoare.length
+152	  const kgComenziViitoare = comenziViitoare.reduce((sum, row) => sum + Number(row.cantitate_kg || 0), 0)
+153	
+154	  const seasonStartIso = `${today.getFullYear()}-03-01`
+155	  const seasonEndIso = todayIso
+156	  const venitSezon = vanzari
+157	    .filter((row) => {
+158	      const date = toDateOnly(row.data)
+159	      return date >= seasonStartIso && date <= seasonEndIso
+160	    })
+161	    .reduce((sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0), 0)
+162	  const costSezon = cheltuieli
+163	    .filter((row) => {
+164	      const date = toDateOnly(row.data)
+165	      return date >= seasonStartIso && date <= seasonEndIso
+166	    })
+167	    .reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+168	  const profitSezon = venitSezon - costSezon
+169	
+170	  const dailyNetMap: Record<string, number> = {}
+171	  for (const row of vanzari) {
+172	    const date = toDateOnly(row.data)
+173	    if (date < seasonStartIso || date > seasonEndIso) continue
+174	    dailyNetMap[date] = (dailyNetMap[date] ?? 0) + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0)
+175	  }
+176	  for (const row of cheltuieli) {
+177	    const date = toDateOnly(row.data)
+178	    if (date < seasonStartIso || date > seasonEndIso) continue
+179	    dailyNetMap[date] = (dailyNetMap[date] ?? 0) - Number(row.suma_lei || 0)
+180	  }
+181	  const sparklineValues = Object.entries(dailyNetMap)
+182	    .sort(([a], [b]) => a.localeCompare(b))
+183	    .slice(-12)
+184	    .map(([, value]) => value)
+185	  const chartSeries = sparklineValues.length > 0 ? sparklineValues : [0]
+186	
+187	  const parcelaPerformance = parcele
+188	    .filter((parcela) => parcela.status !== 'anulat')
+189	    .map((parcela) => {
+190	      const parcelaRecoltari = recoltari
+191	        .filter((row) => row.parcela_id === parcela.id)
+192	        .sort((a, b) => {
+193	          const byDate = toDateOnly(b.data).localeCompare(toDateOnly(a.data))
+194	          if (byDate !== 0) return byDate
+195	          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+196	        })
+197	
+198	      const recoltariAziParcela = parcelaRecoltari.filter((row) => toDateOnly(row.data) === todayIso)
+199	      const cal1AziParcela = recoltariAziParcela.reduce((sum, row) => sum + Number(row.kg_cal1 || 0), 0)
+200	      const cal2AziParcela = recoltariAziParcela.reduce((sum, row) => sum + Number(row.kg_cal2 || 0), 0)
+201	
+202	      const previousHarvestDate = parcelaRecoltari.find((row) => toDateOnly(row.data) < todayIso)?.data ?? null
+203	      const recoltariAnterioare = previousHarvestDate
+204	        ? parcelaRecoltari.filter((row) => toDateOnly(row.data) === toDateOnly(previousHarvestDate))
+205	        : []
+206	      const cal1Anterior = recoltariAnterioare.reduce((sum, row) => sum + Number(row.kg_cal1 || 0), 0)
+207	      const cal2Anterior = recoltariAnterioare.reduce((sum, row) => sum + Number(row.kg_cal2 || 0), 0)
+208	
+209	      return {
+210	        id: parcela.id,
+211	        name: parcela.nume_parcela || 'Parcela',
+212	        totalAzi: cal1AziParcela + cal2AziParcela,
+213	        cal1Azi: cal1AziParcela,
+214	        cal2Azi: cal2AziParcela,
+215	        cal1Trend: getTrendDirection(cal1AziParcela, cal1Anterior),
+216	        cal2Trend: getTrendDirection(cal2AziParcela, cal2Anterior),
+217	      }
+218	    })
+219	    .sort((a, b) => b.totalAzi - a.totalAzi || a.name.localeCompare(b.name))
+220	
+221	  const activitatiAziCount = activitati.filter((row) => toDateOnly(row.data_aplicare) === todayIso).length
+222	  const comenziActivitateAziCount = comenzi.filter((row) => toDateOnly(row.created_at || row.data_comanda) === todayIso).length
+223	  const cheltuieliAziCount = cheltuieli.filter((row) => toDateOnly(row.data) === todayIso).length
+224	
+225	  const groupedActivity = [
+226	    { key: 'recoltari', label: 'Recoltari', count: recoltariAzi.length, href: '/recoltari' },
+227	    { key: 'comenzi', label: 'Comenzi', count: comenziActivitateAziCount, href: '/comenzi' },
+228	    { key: 'cheltuieli', label: 'Cheltuieli', count: cheltuieliAziCount, href: '/cheltuieli' },
+229	    { key: 'activitati', label: 'Activitati', count: activitatiAziCount, href: '/activitati-agricole' },
+230	  ]
+231	    .filter((item) => item.count > 0)
+232	    .slice(0, 5)
+233	
+234	  const farmAlerts = useMemo(
+235	    () =>
+236	      generateFarmAlerts({
+237	        kgHarvestToday: kgAzi,
+238	        kgOrdersToday: kgDeLivratAzi,
+239	        ordersTodayCount: comenziAziCount,
+240	        ordersFutureKg: kgComenziViitoare,
+241	        activitiesDueTodayCount: activitatiAziCount,
+242	        harvestEntriesTodayCount: recoltariAzi.length,
+243	      }),
+244	    [kgAzi, kgDeLivratAzi, comenziAziCount, kgComenziViitoare, activitatiAziCount, recoltariAzi.length]
+245	  )
+246	
+247	  const planStatus = useMemo(() => {
+248	    if (kgDeLivratAzi > 0 && kgAzi > kgDeLivratAzi * 1.3) {
+249	      return {
+250	        label: 'Exces',
+251	        toneClass: 'bg-amber-100 text-amber-800',
+252	        textClass: 'text-amber-700',
+253	        message: `Exces ${Math.max(kgAzi - kgDeLivratAzi, 0).toFixed(1)} kg fata de livrarile de azi`,
+254	      }
+255	    }
+256	    if (kgAzi >= kgDeLivratAzi) {
+257	      return {
+258	        label: 'OK',
+259	        toneClass: 'bg-emerald-100 text-emerald-800',
+260	        textClass: 'text-emerald-700',
+261	        message: 'Planul zilei este acoperit',
+262	      }
+263	    }
+264	    return {
+265	      label: 'Lipsa',
+266	      toneClass: 'bg-red-100 text-red-800',
+267	      textClass: 'text-red-700',
+268	      message: `Lipsesc ${(kgDeLivratAzi - kgAzi).toFixed(1)} kg pentru livrarile de azi`,
+269	    }
+270	  }, [kgAzi, kgDeLivratAzi])
+271	
+272	  return (
+273	    <AppShell header={<PageHeader title="Dashboard" subtitle={dashboardSubtitle} />}>
+274	      <div className="mx-auto w-full max-w-5xl space-y-4 py-4 lg:max-w-7xl xl:max-w-screen-xl">
+275	        {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut incarca datele.'} /> : null}
+276	        {isLoading ? <LoadingState label="Se incarca dashboard..." /> : null}
+277	
+278	        {!isLoading && !hasError ? (
+279	          <DashboardGrid>
+280	            <DashboardCard
+281	              className="md:col-span-2"
+282	              title="Planul zilei"
+283	              onClick={() => router.push('/recoltari')}
+284	              contentClassName="grid grid-cols-2 gap-2"
+285	              rightSlot={<span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${planStatus.toneClass}`}>{planStatus.label}</span>}
+286	            >
+287	              <StatRow label="Recoltat azi" value={`${kgAzi.toFixed(1)} kg`} />
+288	              <StatRow label="De livrat azi" value={`${kgDeLivratAzi.toFixed(1)} kg`} />
+289	              <StatRow label="Status" value={planStatus.message} valueClassName={planStatus.textClass} />
+290	            </DashboardCard>
+291	
+292	            <DashboardCard
+293	              className="md:col-span-2"
+294	              title="Alerte"
+295	              onClick={() => router.push(farmAlerts[0]?.actionHref ?? '/dashboard')}
+296	              contentClassName="space-y-1.5"
+297	            >
+298	              {farmAlerts.length === 0 ? (
+299	                <p className="text-sm text-[var(--agri-text-muted)]">Nu exista alerte active.</p>
+300	              ) : (
+301	                <div className="space-y-2">
+302	                  {farmAlerts.slice(0, 3).map((item) => (
+303	                    <Link
+304	                      key={item.id}
+305	                      href={item.actionHref}
+306	                      onClick={(event) => event.stopPropagation()}
+307	                      className={`block rounded-xl border px-3 py-2 text-sm transition-opacity active:opacity-95 ${
+308	                        item.type === 'danger'
+309	                          ? 'border-red-200 bg-red-50 text-red-700'
+310	                          : item.type === 'warning'
+311	                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+312	                            : 'border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
+313	                      }`}
+314	                    >
+315	                      <p className="font-semibold">{item.title}</p>
+316	                      <p className="text-xs opacity-90">{item.message}</p>
+317	                    </Link>
+318	                  ))}
+319	                </div>
+320	              )}
+321	            </DashboardCard>
+322	
+323	            <DashboardCard
+324	              title="Recoltare azi pe parcele"
+325	              className="md:col-span-2"
+326	              onClick={() => router.push('/parcele')}
+327	              contentClassName="space-y-1.5"
+328	            >
+329	              {parcelaPerformance.length === 0 ? (
+330	                <p className="text-sm text-[var(--agri-text-muted)]">Nu exista parcele active.</p>
+331	              ) : (
+332	                <div className="space-y-1.5">
+333	                  {parcelaPerformance.map((item) => (
+334	                    <Link
+335	                      key={item.id}
+336	                      href={`/parcele?parcela=${item.id}`}
+337	                      onClick={(event) => event.stopPropagation()}
+338	                      className="block rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 py-2 transition-opacity active:opacity-95"
+339	                    >
+340	                      <div className="mb-1.5 flex items-center justify-between gap-2">
+341	                        <p className="truncate text-sm font-semibold text-[var(--agri-text)]">{item.name}</p>
+342	                        <ArrowRight className="h-4 w-4 text-[var(--agri-text-muted)]" />
+343	                      </div>
+344	                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+345	                        <StatRow label="Cal1" value={`${item.cal1Azi.toFixed(1)} kg`} trend={item.cal1Trend} />
+346	                        <StatRow label="Cal2" value={`${item.cal2Azi.toFixed(1)} kg`} trend={item.cal2Trend} />
+347	                      </div>
+348	                    </Link>
+349	                  ))}
+350	                </div>
+351	              )}
+352	            </DashboardCard>
+353	
+354	            <DashboardCard title="Comenzi de livrat" onClick={() => router.push('/comenzi?filter=azi')} contentClassName="space-y-1.5">
+355	              <div className="space-y-2">
+356	                <button
+357	                  type="button"
+358	                  onClick={(event) => {
+359	                    event.stopPropagation()
+360	                    router.push('/comenzi?filter=azi')
+361	                  }}
+362	                  className="block w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left transition-opacity active:opacity-95"
+363	                >
+364	                  <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Livrari azi</p>
+365	                  <p className="text-sm font-medium text-red-700">{comenziAziCount} comenzi</p>
+366	                  <p className="text-sm font-semibold text-red-700">{kgDeLivratAzi.toFixed(1)} kg</p>
+367	                </button>
+368	
+369	                <button
+370	                  type="button"
+371	                  onClick={(event) => {
+372	                    event.stopPropagation()
+373	                    router.push('/comenzi?filter=viitoare')
+374	                  }}
+375	                  className="block w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left transition-opacity active:opacity-95"
+376	                >
+377	                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Livrari viitoare</p>
+378	                  <p className="text-sm font-medium text-amber-700">{comenziViitoareCount} comenzi</p>
+379	                  <p className="text-sm font-semibold text-amber-700">{kgComenziViitoare.toFixed(1)} kg</p>
+380	                </button>
+381	              </div>
+382	            </DashboardCard>
+383	
+384	            <DashboardCard title="Activitate azi" onClick={() => router.push('/activitati-agricole')} contentClassName="space-y-1.5">
+385	              {groupedActivity.length === 0 ? (
+386	                <p className="text-sm text-[var(--agri-text-muted)]">Nu exista activitate inregistrata azi</p>
+387	              ) : (
+388	                <div className="space-y-1.5">
+389	                  {groupedActivity.map((item) => (
+390	                    <button
+391	                      key={item.key}
+392	                      type="button"
+393	                      onClick={(event) => {
+394	                        event.stopPropagation()
+395	                        router.push(item.href)
+396	                      }}
+397	                      className="flex items-center justify-between rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 py-2 transition-opacity active:opacity-95"
+398	                    >
+399	                      <span className="text-sm font-medium text-[var(--agri-text)]">{item.label}</span>
+400	                      <span className="text-sm font-semibold text-[var(--agri-text)]">{item.count}</span>
+401	                    </button>
+402	                  ))}
+403	                </div>
+404	              )}
+405	            </DashboardCard>
+406	
+407	            <DashboardCard
+408	              title="Financiar sezon"
+409	              onClick={() => router.push('/rapoarte')}
+410	              contentClassName="grid grid-cols-2 gap-2"
+411	              rightSlot={<Sparkline values={chartSeries} strokeClassName={profitSezon >= 0 ? 'stroke-emerald-600' : 'stroke-red-600'} />}
+412	            >
+413	              <StatRow label="Venit" value={formatCurrency(venitSezon)} valueClassName="value-money-positive" />
+414	              <StatRow label="Cheltuieli" value={formatCurrency(costSezon)} valueClassName="value-money-negative" />
+415	              <StatRow
+416	                label="Profit"
+417	                value={formatCurrency(profitSezon)}
+418	                valueClassName={profitSezon >= 0 ? 'value-money-positive' : 'value-money-negative'}
+419	              />
+420	            </DashboardCard>
+421	          </DashboardGrid>
+422	        ) : null}
+423	      </div>
+424	    </AppShell>
+425	  )
+426	}

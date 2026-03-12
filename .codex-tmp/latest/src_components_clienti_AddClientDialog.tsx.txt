@@ -1,0 +1,135 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { Loader2 } from 'lucide-react'
+    6: import { useForm } from 'react-hook-form'
+    7: import * as z from 'zod'
+    8: 
+    9: import { AppDrawer } from '@/components/app/AppDrawer'
+   10: import { Button } from '@/components/ui/button'
+   11: import { Input } from '@/components/ui/input'
+   12: import { Label } from '@/components/ui/label'
+   13: import { Textarea } from '@/components/ui/textarea'
+   14: 
+   15: const schema = z.object({
+   16:   nume_client: z.string().trim().min(2, 'Numele trebuie sa aiba minim 2 caractere'),
+   17:   telefon: z.string().optional(),
+   18:   email: z.string().email('Email invalid').or(z.literal('')).optional(),
+   19:   adresa: z.string().optional(),
+   20:   pret_negociat_lei_kg: z.string().optional(),
+   21:   observatii: z.string().optional(),
+   22: })
+   23: 
+   24: type ClientFormData = z.infer<typeof schema>
+   25: 
+   26: interface AddClientDialogProps {
+   27:   open: boolean
+   28:   onOpenChange: (open: boolean) => void
+   29:   onSubmit: (data: ClientFormData) => Promise<void>
+   30: }
+   31: 
+   32: const defaults = (): ClientFormData => ({
+   33:   nume_client: '',
+   34:   telefon: '',
+   35:   email: '',
+   36:   adresa: '',
+   37:   pret_negociat_lei_kg: '',
+   38:   observatii: '',
+   39: })
+   40: 
+   41: export function AddClientDialog({ open, onOpenChange, onSubmit }: AddClientDialogProps) {
+   42:   const [isSubmitting, setIsSubmitting] = useState(false)
+   43: 
+   44:   const form = useForm<ClientFormData>({
+   45:     resolver: zodResolver(schema),
+   46:     defaultValues: defaults(),
+   47:   })
+   48: 
+   49:   useEffect(() => {
+   50:     if (!open) form.reset(defaults())
+   51:   }, [open, form])
+   52: 
+   53:   const handleSubmit = async (data: ClientFormData) => {
+   54:     setIsSubmitting(true)
+   55:     try {
+   56:       await onSubmit(data)
+   57:       onOpenChange(false)
+   58:     } finally {
+   59:       setIsSubmitting(false)
+   60:     }
+   61:   }
+   62: 
+   63:   return (
+   64:     <AppDrawer
+   65:       open={open}
+   66:       onOpenChange={onOpenChange}
+   67:       title="Adauga client nou"
+   68:       footer={
+   69:         <div className="grid grid-cols-2 gap-3">
+   70:           <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+   71:             Anuleaza
+   72:           </Button>
+   73:           <Button
+   74:             type="button"
+   75:             className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+   76:             onClick={form.handleSubmit(handleSubmit)}
+   77:             disabled={isSubmitting}
+   78:           >
+   79:             {isSubmitting ? (
+   80:               <>
+   81:                 <Loader2 className="h-4 w-4 animate-spin" />
+   82:                 Se salveaza...
+   83:               </>
+   84:             ) : (
+   85:               'Salveaza'
+   86:             )}
+   87:           </Button>
+   88:         </div>
+   89:       }
+   90:     >
+   91:       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+   92:         <div className="space-y-2">
+   93:           <Label htmlFor="client_nume">Nume client</Label>
+   94:           <Input id="client_nume" className="agri-control h-12" placeholder="Restaurant La Zmeura" {...form.register('nume_client')} />
+   95:           {form.formState.errors.nume_client ? <p className="text-xs text-red-600">{form.formState.errors.nume_client.message}</p> : null}
+   96:         </div>
+   97: 
+   98:         <div className="space-y-2">
+   99:           <Label htmlFor="client_telefon">Telefon</Label>
+  100:           <Input id="client_telefon" type="tel" className="agri-control h-12" placeholder="0740123456" {...form.register('telefon')} />
+  101:         </div>
+  102: 
+  103:         <div className="space-y-2">
+  104:           <Label htmlFor="client_email">Email</Label>
+  105:           <Input id="client_email" type="email" className="agri-control h-12" placeholder="contact@client.ro" {...form.register('email')} />
+  106:           {form.formState.errors.email ? <p className="text-xs text-red-600">{form.formState.errors.email.message}</p> : null}
+  107:         </div>
+  108: 
+  109:         <div className="space-y-2">
+  110:           <Label htmlFor="client_adresa">Adresa</Label>
+  111:           <Textarea id="client_adresa" rows={3} className="agri-control w-full px-3 py-2 text-base" {...form.register('adresa')} />
+  112:         </div>
+  113: 
+  114:         <div className="space-y-2">
+  115:           <Label htmlFor="client_pret">Pret negociat (lei/kg)</Label>
+  116:           <Input
+  117:             id="client_pret"
+  118:             type="number"
+  119:             inputMode="decimal"
+  120:             step="0.01"
+  121:             min="0"
+  122:             className="agri-control h-12"
+  123:             placeholder="12.50"
+  124:             {...form.register('pret_negociat_lei_kg')}
+  125:           />
+  126:         </div>
+  127: 
+  128:         <div className="space-y-2">
+  129:           <Label htmlFor="client_obs">Observatii</Label>
+  130:           <Textarea id="client_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
+  131:         </div>
+  132:       </form>
+  133:     </AppDrawer>
+  134:   )
+  135: }

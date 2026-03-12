@@ -1,0 +1,487 @@
+﻿1	'use client'
+2	
+3	import { useEffect, useMemo, useRef, useState } from 'react'
+4	import * as Sentry from '@sentry/nextjs'
+5	import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+6	import { Receipt } from 'lucide-react'
+7	import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+8	import { toast } from '@/lib/ui/toast'
+9	
+10	import { AppShell } from '@/components/app/AppShell'
+11	import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+12	import { EmptyState } from '@/components/ui/EmptyState'
+13	import { ErrorState } from '@/components/app/ErrorState'
+14	import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton'
+15	import { PageHeader } from '@/components/app/PageHeader'
+16	import { StickyActionBar } from '@/components/app/StickyActionBar'
+17	import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+18	import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
+19	import { CheltuialaCard } from '@/components/cheltuieli/CheltuialaCard'
+20	import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
+21	import { ViewCheltuialaDialog } from '@/components/cheltuieli/ViewCheltuialaDialog'
+22	import { DashboardCard, DashboardGrid, StatRow } from '@/components/dashboard'
+23	import { Input } from '@/components/ui/input'
+24	import { track } from '@/lib/analytics/track'
+25	import { trackEvent } from '@/lib/analytics/trackEvent'
+26	import { buildCheltuialaDeleteLabel } from '@/lib/ui/delete-labels'
+27	import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+28	import { useAddAction } from '@/contexts/AddActionContext'
+29	import {
+30	  createCheltuiala,
+31	  deleteCheltuiala,
+32	  getCheltuieli,
+33	  updateCheltuiala,
+34	  type Cheltuiala,
+35	} from '@/lib/supabase/queries/cheltuieli'
+36	import { isAutoManoperaCheltuiala } from '@/lib/supabase/queries/manopera-auto'
+37	
+38	interface CheltuialaFormData {
+39	  client_sync_id?: string
+40	  data: string
+41	  categorie: string
+42	  suma_lei: number | string
+43	  furnizor?: string
+44	  descriere?: string
+45	}
+46	
+47	interface CheltuialaPageClientProps {
+48	  initialCheltuieli: Cheltuiala[]
+49	}
+50	
+51	function isSchemaCacheError(error: unknown): boolean {
+52	  const message = String((error as { message?: string })?.message ?? '').toLowerCase()
+53	  return message.includes('schema cache') || message.includes('could not find the')
+54	}
+55	
+56	function handleCheltuialaError(error: unknown, fallbackMessage: string) {
+57	  const message = String((error as { message?: string })?.message ?? fallbackMessage)
+58	  const schemaIssue = isSchemaCacheError(error)
+59	
+60	  Sentry.captureException(error, {
+61	    tags: {
+62	      module: 'cheltuieli',
+63	      table: 'cheltuieli_diverse',
+64	    },
+65	    extra: {
+66	      originalMessage: message,
+67	      schemaIssue,
+68	    },
+69	  })
+70	
+71	  if (schemaIssue) {
+72	    hapticError()
+73	    toast.error('Schema DB nu e sincronizata. Reincarca aplicatia sau ruleaza reload schema in Supabase.')
+74	    return
+75	  }
+76	
+77	  hapticError()
+78	  toast.error(message || fallbackMessage)
+79	}
+80	
+81	export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClientProps) {
+82	  const queryClient = useQueryClient()
+83	  const { registerAddAction } = useAddAction()
+84	  const pathname = usePathname()
+85	  const router = useRouter()
+86	  const searchParams = useSearchParams()
+87	  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+88	  const pendingDeletedItems = useRef<Record<string, { item: Cheltuiala; index: number }>>({})
+89	
+90	  const [search, setSearch] = useState('')
+91	  const [addOpen, setAddOpen] = useState(false)
+92	  const [viewing, setViewing] = useState<Cheltuiala | null>(null)
+93	  const [editOpen, setEditOpen] = useState(false)
+94	  const [editing, setEditing] = useState<Cheltuiala | null>(null)
+95	  const [deleting, setDeleting] = useState<Cheltuiala | null>(null)
+96	
+97	  const {
+98	    data: cheltuieli = initialCheltuieli,
+99	    isLoading,
+100	    isError,
+101	    error,
+102	  } = useQuery({
+103	    queryKey: ['cheltuieli'],
+104	    queryFn: getCheltuieli,
+105	    initialData: initialCheltuieli,
+106	    staleTime: 30000,
+107	    refetchOnWindowFocus: false,
+108	    refetchOnReconnect: true,
+109	  })
+110	
+111	  useMobileScrollRestore({
+112	    storageKey: 'scroll:cheltuieli',
+113	    ready: !isLoading,
+114	  })
+115	
+116	  const createMutation = useMutation({
+117	    mutationFn: (data: CheltuialaFormData) =>
+118	      createCheltuiala({
+119	        client_sync_id: data.client_sync_id,
+120	        data: data.data,
+121	        categorie: data.categorie,
+122	        suma_lei: Number(data.suma_lei),
+123	        furnizor: data.furnizor || undefined,
+124	        descriere: data.descriere || undefined,
+125	        document_url: undefined,
+126	      }),
+127	    onSuccess: (_, variables) => {
+128	      queryClient.invalidateQueries({ queryKey: ['cheltuieli'], exact: true })
+129	      track('cheltuiala_add', {
+130	        suma: Number(variables.suma_lei || 0),
+131	        categorie: variables.categorie,
+132	      })
+133	      hapticSuccess()
+134	      toast.success('Cheltuiala adaugata')
+135	    },
+136	    onError: (err: Error & { status?: number; code?: string }) => {
+137	      const conflict = err?.status === 409 || err?.code === '23505'
+138	      if (conflict) {
+139	        toast.info('Inregistrarea era deja sincronizata.')
+140	        return
+141	      }
+142	      handleCheltuialaError(err, 'Nu am putut salva cheltuiala.')
+143	    },
+144	  })
+145	
+146	  const updateMutation = useMutation({
+147	    mutationFn: ({ id, payload }: { id: string; payload: CheltuialaFormData }) =>
+148	      updateCheltuiala(id, {
+149	        data: payload.data,
+150	        categorie: payload.categorie,
+151	        suma_lei: Number(payload.suma_lei),
+152	        furnizor: payload.furnizor || undefined,
+153	        descriere: payload.descriere || undefined,
+154	      }),
+155	    onSuccess: (_, variables) => {
+156	      queryClient.invalidateQueries({ queryKey: ['cheltuieli'], exact: true })
+157	      track('cheltuiala_edit', { id: variables.id })
+158	      hapticSuccess()
+159	      toast.success('Cheltuiala actualizata')
+160	    },
+161	    onError: (err: Error) => {
+162	      handleCheltuialaError(err, 'Nu am putut actualiza cheltuiala.')
+163	    },
+164	  })
+165	
+166	  const deleteMutation = useMutation({
+167	    mutationFn: deleteCheltuiala,
+168	    onSuccess: (_, deletedId) => {
+169	      queryClient.invalidateQueries({ queryKey: ['cheltuieli'], exact: true })
+170	      trackEvent('delete_item', 'cheltuieli')
+171	      track('cheltuiala_delete', { id: deletedId })
+172	      hapticSuccess()
+173	      toast.success('Cheltuiala stearsa')
+174	      setDeleting(null)
+175	    },
+176	    onError: (err: Error) => {
+177	      handleCheltuialaError(err, 'Nu am putut sterge cheltuiala.')
+178	    },
+179	  })
+180	
+181	  useEffect(() => {
+182	    return () => {
+183	      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+184	    }
+185	  }, [])
+186	
+187	  useEffect(() => {
+188	    if (searchParams.get('add') !== '1') return
+189	
+190	    setAddOpen(true)
+191	    const nextParams = new URLSearchParams(searchParams.toString())
+192	    nextParams.delete('add')
+193	    const query = nextParams.toString()
+194	    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+195	  }, [pathname, router, searchParams])
+196	
+197	  useEffect(() => {
+198	    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga cheltuiala')
+199	    return unregister
+200	  }, [registerAddAction])
+201	
+202	  useEffect(() => {
+203	    const query = search.trim()
+204	    if (!query) return
+205	
+206	    const timer = setTimeout(() => {
+207	      track('search', { module: 'cheltuieli', query })
+208	    }, 500)
+209	
+210	    return () => clearTimeout(timer)
+211	  }, [search])
+212	
+213	  const scheduleDelete = (cheltuiala: Cheltuiala) => {
+214	    const cheltuialaId = cheltuiala.id
+215	    const currentItems = queryClient.getQueryData<Cheltuiala[]>(['cheltuieli']) ?? []
+216	    const deleteIndex = currentItems.findIndex((item) => item.id === cheltuialaId)
+217	
+218	    pendingDeletedItems.current[cheltuialaId] = { item: cheltuiala, index: deleteIndex }
+219	    queryClient.setQueryData<Cheltuiala[]>(['cheltuieli'], (current = []) =>
+220	      current.filter((item) => item.id !== cheltuialaId)
+221	    )
+222	
+223	    const timer = setTimeout(() => {
+224	      delete pendingDeleteTimers.current[cheltuialaId]
+225	      delete pendingDeletedItems.current[cheltuialaId]
+226	      deleteMutation.mutate(cheltuialaId)
+227	    }, 5000)
+228	
+229	    pendingDeleteTimers.current[cheltuialaId] = timer
+230	
+231	    toast('Element Č™ters', {
+232	      duration: 5000,
+233	      action: {
+234	        label: 'Undo',
+235	        onClick: () => {
+236	          const pendingTimer = pendingDeleteTimers.current[cheltuialaId]
+237	          if (!pendingTimer) return
+238	
+239	          clearTimeout(pendingTimer)
+240	          delete pendingDeleteTimers.current[cheltuialaId]
+241	
+242	          const pendingItem = pendingDeletedItems.current[cheltuialaId]
+243	          delete pendingDeletedItems.current[cheltuialaId]
+244	          if (!pendingItem) return
+245	
+246	          queryClient.setQueryData<Cheltuiala[]>(['cheltuieli'], (current = []) => {
+247	            if (current.some((item) => item.id === cheltuialaId)) return current
+248	
+249	            const next = [...current]
+250	            const insertAt =
+251	              pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+252	            next.splice(insertAt, 0, pendingItem.item)
+253	            return next
+254	          })
+255	        },
+256	      },
+257	    })
+258	  }
+259	
+260	  const filtered = useMemo(() => {
+261	    const s = search.toLowerCase()
+262	    return cheltuieli.filter((c) => (c.categorie ?? '').toLowerCase().includes(s))
+263	  }, [cheltuieli, search])
+264	
+265	  const total = useMemo(() => filtered.reduce((sum, c) => sum + Number(c.suma_lei || 0), 0), [filtered])
+266	  const today = new Date()
+267	  const todayIso = today.toISOString().split('T')[0]
+268	  const monthStartIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`
+269	  const seasonStartIso = `${today.getFullYear()}-03-01`
+270	
+271	  const dashboardSummary = useMemo(() => {
+272	    const totalSezon = cheltuieli
+273	      .filter((row) => row.data >= seasonStartIso && row.data <= todayIso)
+274	      .reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+275	
+276	    const totalLunaCurenta = cheltuieli
+277	      .filter((row) => row.data >= monthStartIso && row.data <= todayIso)
+278	      .reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+279	
+280	    const ultimaCheltuiala = [...cheltuieli].sort((a, b) => {
+281	      const byDate = (b.data ?? '').localeCompare(a.data ?? '')
+282	      if (byDate !== 0) return byDate
+283	      return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+284	    })[0]
+285	
+286	    return {
+287	      totalSezon,
+288	      totalLunaCurenta,
+289	      ultimaCheltuiala,
+290	    }
+291	  }, [cheltuieli, monthStartIso, seasonStartIso, todayIso])
+292	
+293	  return (
+294	    <AppShell
+295	      header={<PageHeader title="Cheltuieli" subtitle="Monitorizare costuri operationale" />}
+296	      bottomBar={
+297	        <StickyActionBar>
+298	          <div className="flex items-center justify-between gap-3">
+299	            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total: {total.toFixed(2)} lei</p>
+300	          </div>
+301	        </StickyActionBar>
+302	      }
+303	    >
+304	      <div className="mx-auto w-full max-w-4xl space-y-3 py-3 sm:space-y-4 sm:py-4">
+305	        <DashboardGrid>
+306	          <DashboardCard
+307	            title="Total sezon"
+308	            onClick={() => router.push('/cheltuieli')}
+309	            contentClassName="grid grid-cols-2 gap-2"
+310	          >
+311	            <StatRow label="Total" value={`${dashboardSummary.totalSezon.toFixed(2)} lei`} />
+312	          </DashboardCard>
+313	
+314	          <DashboardCard
+315	            title="Luna curenta"
+316	            onClick={() => router.push('/cheltuieli')}
+317	            contentClassName="grid grid-cols-2 gap-2"
+318	          >
+319	            <StatRow label="Total" value={`${dashboardSummary.totalLunaCurenta.toFixed(2)} lei`} />
+320	          </DashboardCard>
+321	
+322	          <DashboardCard
+323	            title="Ultima cheltuiala"
+324	            className="md:col-span-2"
+325	            onClick={() => router.push('/cheltuieli')}
+326	            contentClassName="grid grid-cols-2 gap-2"
+327	          >
+328	            <StatRow
+329	              label="Categorie"
+330	              value={dashboardSummary.ultimaCheltuiala?.categorie || '-'}
+331	            />
+332	            <StatRow
+333	              label="Valoare"
+334	              value={dashboardSummary.ultimaCheltuiala ? `${Number(dashboardSummary.ultimaCheltuiala.suma_lei || 0).toFixed(2)} lei` : '-'}
+335	            />
+336	            <StatRow
+337	              label="Data"
+338	              value={dashboardSummary.ultimaCheltuiala?.data ? new Date(dashboardSummary.ultimaCheltuiala.data).toLocaleDateString('ro-RO') : '-'}
+339	            />
+340	          </DashboardCard>
+341	        </DashboardGrid>
+342	
+343	        <Input className="agri-control h-12" placeholder="Cauta categorie..." value={search} onChange={(e) => setSearch(e.target.value)} />
+344	
+345	        {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+346	        {isLoading ? (
+347	          <>
+348	            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
+349	              {Array.from({ length: 4 }).map((_, index) => (
+350	                <div key={index} className="border-b border-[var(--agri-border)] last:border-b-0">
+351	                  <ListSkeletonRow />
+352	                </div>
+353	              ))}
+354	            </div>
+355	            <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
+356	              {Array.from({ length: 6 }).map((_, index) => (
+357	                <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
+358	              ))}
+359	            </div>
+360	          </>
+361	        ) : null}
+362	        {!isLoading && !isError && filtered.length === 0 ? (
+363	          <EmptyState
+364	            icon={<Receipt className="h-16 w-16" />}
+365	            title="Nicio cheltuialÄ Ă®ncÄ"
+366	            description="AdaugÄ prima cheltuialÄ pentru a Ă®ncepe"
+367	          />
+368	        ) : null}
+369	
+370	        {!isLoading && !isError && filtered.length > 0 ? (
+371	          <>
+372	            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
+373	              {filtered.map((c) => (
+374	                <div key={c.id} className="border-b border-[var(--agri-border)] last:border-b-0">
+375	                  <CheltuialaCard
+376	                    cheltuiala={c}
+377	                    onView={setViewing}
+378	                    onEdit={(ch) => {
+379	                      setEditing(ch)
+380	                      setEditOpen(true)
+381	                    }}
+382	                    onDelete={(id) => {
+383	                      const target = filtered.find((item) => item.id === id) ?? null
+384	                      setDeleting(target)
+385	                    }}
+386	                  />
+387	                </div>
+388	              ))}
+389	            </div>
+390	            <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
+391	              {filtered.map((c) => (
+392	                <CheltuialaCard
+393	                  key={c.id}
+394	                  cheltuiala={c}
+395	                  onView={setViewing}
+396	                  onEdit={(ch) => {
+397	                    setEditing(ch)
+398	                    setEditOpen(true)
+399	                  }}
+400	                  onDelete={(id) => {
+401	                    const target = filtered.find((item) => item.id === id) ?? null
+402	                    setDeleting(target)
+403	                  }}
+404	                />
+405	              ))}
+406	            </div>
+407	          </>
+408	        ) : null}
+409	      </div>
+410	
+411	      <AddCheltuialaDialog
+412	        open={addOpen}
+413	        onOpenChange={setAddOpen}
+414	        onSubmit={async (data) => {
+415	          await createMutation.mutateAsync({
+416	            client_sync_id: data.client_sync_id,
+417	            data: data.data,
+418	            categorie: data.categorie,
+419	            suma_lei: data.suma_lei,
+420	            furnizor: data.furnizor || undefined,
+421	            descriere: data.descriere || undefined,
+422	          })
+423	        }}
+424	      />
+425	
+426	      <ViewCheltuialaDialog
+427	        open={!!viewing}
+428	        onOpenChange={(open) => {
+429	          if (!open) setViewing(null)
+430	        }}
+431	        cheltuiala={viewing}
+432	        onEdit={(ch) => {
+433	          setViewing(null)
+434	          setEditing(ch)
+435	          setEditOpen(true)
+436	        }}
+437	        onDelete={(ch) => {
+438	          setViewing(null)
+439	          setDeleting(ch)
+440	        }}
+441	      />
+442	
+443	      <EditCheltuialaDialog
+444	        cheltuiala={editing}
+445	        open={editOpen}
+446	        onOpenChange={(open) => {
+447	          setEditOpen(open)
+448	          if (!open) setEditing(null)
+449	        }}
+450	        onSubmit={async (id, data) => {
+451	          await updateMutation.mutateAsync({
+452	            id,
+453	            payload: {
+454	              data: data.data,
+455	              categorie: data.categorie,
+456	              suma_lei: data.suma_lei,
+457	              furnizor: data.furnizor || undefined,
+458	              descriere: data.descriere || undefined,
+459	            },
+460	          })
+461	        }}
+462	      />
+463	
+464	      <ConfirmDeleteDialog
+465	        open={!!deleting}
+466	        onOpenChange={(open) => {
+467	          if (!open) setDeleting(null)
+468	        }}
+469	        itemType="Cheltuiala"
+470	        itemName={buildCheltuialaDeleteLabel(deleting)}
+471	        description={
+472	          deleting && isAutoManoperaCheltuiala(deleting)
+473	            ? `AtenČ›ie: aceastÄ cheltuialÄ este generatÄ automat din recoltÄri. DacÄ o Č™tergi, va fi recreatÄ la urmÄtoarea recoltare. EČ™ti sigur?\n\nČtergi cheltuiala ${deleting?.categorie || deleting?.furnizor || deleting?.descriere || 'necunoscutÄ'} din ${deleting?.data ? new Date(deleting.data).toLocaleDateString('ro-RO') : 'data necunoscutÄ'} - ${Number(deleting?.suma_lei ?? 0).toFixed(2)} lei?`
+474	            : `Čtergi cheltuiala ${deleting?.categorie || deleting?.furnizor || deleting?.descriere || 'necunoscutÄ'} din ${deleting?.data ? new Date(deleting.data).toLocaleDateString('ro-RO') : 'data necunoscutÄ'} - ${Number(deleting?.suma_lei ?? 0).toFixed(2)} lei?`
+475	        }
+476	        loading={deleteMutation.isPending}
+477	        onConfirm={() => {
+478	          if (!deleting) return
+479	          scheduleDelete(deleting)
+480	          setDeleting(null)
+481	        }}
+482	      />
+483	    </AppShell>
+484	  )
+485	}
+486	
+487	

@@ -1,0 +1,141 @@
+﻿C:\Users\Andrei\Desktop\zmeurel\src\components
+├── activitati-agricole
+│   ├── ActivitateAgricolaCard.tsx
+│   ├── AddActivitateAgricolaDialog.tsx
+│   ├── ConfirmDeleteActivitateDialog.tsx
+│   └── EditActivitateAgricolaDialog.tsx
+├── admin
+│   ├── AdminTenantsPlanTable.tsx
+│   └── AnalyticsDashboard.tsx
+├── app
+│   ├── ActionIcons.tsx
+│   ├── AlertCard.tsx
+│   ├── AppDialog.tsx
+│   ├── AppDrawer.tsx
+│   ├── AppShell.tsx
+│   ├── BaseCard.tsx
+│   ├── BetaBanner.tsx
+│   ├── BottomTabBar.tsx
+│   ├── CompactListCard.tsx
+│   ├── ConfirmDeleteDialog.tsx
+│   ├── ConnectionStatus.tsx
+│   ├── DashboardAuthContext.tsx
+│   ├── DensityProvider.tsx
+│   ├── EmptyState.tsx
+│   ├── EmptyStateBase.tsx
+│   ├── ErrorState.tsx
+│   ├── FarmSwitcher.tsx
+│   ├── FeatureGate.tsx
+│   ├── HighVisibilityInit.tsx
+│   ├── HighVisibilityToggle.tsx
+│   ├── KpiCard.tsx
+│   ├── ListSkeleton.tsx
+│   ├── LoadingState.tsx
+│   ├── MonitoringInit.tsx
+│   ├── MoreMenuDrawer.tsx
+│   ├── NavigationPerfLogger.tsx
+│   ├── NumericField.tsx
+│   ├── PageHeader.tsx
+│   ├── PageViewTracker.tsx
+│   ├── PerformanceTable.tsx
+│   ├── ProfitSummaryCard.tsx
+│   ├── QuickActionsPanel.tsx
+│   ├── ServiceWorkerRegister.tsx
+│   ├── StatusChip.tsx
+│   ├── status-config.ts
+│   ├── StickyActionBar.tsx
+│   ├── SyncBadge.tsx
+│   ├── SyncStatusIndicator.tsx
+│   ├── TopBar.tsx
+│   ├── useMobileScrollRestore.ts
+│   └── UserProfileMenu.tsx
+├── cheltuieli
+│   ├── AddCheltuialaDialog.tsx
+│   ├── CheltuialaCard.tsx
+│   ├── EditCheltuialaDialog.tsx
+│   └── ViewCheltuialaDialog.tsx
+├── clienti
+│   ├── AddClientDialog.tsx
+│   ├── ClientCard.tsx
+│   ├── ClientDetailsDrawer.tsx
+│   └── EditClientDialog.tsx
+├── comenzi
+│   └── ViewComandaDialog.tsx
+├── culegatori
+│   ├── AddCulegatorDialog.tsx
+│   ├── CulegatorCard.tsx
+│   └── EditCulegatorDialog.tsx
+├── dashboard
+│   ├── DashboardCard.tsx
+│   ├── DashboardGrid.tsx
+│   ├── DashboardHome.tsx
+│   ├── FinanciarAziCard.tsx
+│   ├── index.ts
+│   ├── ProductieAziCard.tsx
+│   ├── RecentActivityCard.tsx
+│   ├── SectionTitle.tsx
+│   ├── Sparkline.tsx
+│   └── StatRow.tsx
+├── investitii
+│   ├── AddInvestitieDialog.tsx
+│   ├── EditInvestitieDialog.tsx
+│   └── InvestitieCard.tsx
+├── layout
+│   ├── BetaBanner.tsx
+│   ├── CompactPageHeader.tsx
+│   └── Sidebar.tsx
+├── mobile
+│   ├── MobileBottomNav.tsx
+│   ├── MobileShell.tsx
+│   └── StickyActionButton.tsx
+├── onboarding
+│   └── 
+├── parcele
+│   ├── AddParcelaDialog.tsx
+│   ├── AddParcelDrawer.tsx
+│   ├── DeleteConfirmDialog.tsx
+│   ├── EditParcelaDialog.tsx
+│   ├── EditParcelDialog.tsx
+│   ├── ParcelaCard.tsx
+│   ├── ParcelaForm.tsx
+│   ├── ParceleLayout.tsx
+│   ├── ParceleList.tsx
+│   ├── ParcelePageClient.tsx
+│   ├── ParcelForm.tsx
+│   └── StickyActionBar.tsx
+├── recoltari
+│   ├── AddRecoltareDialog.tsx
+│   ├── EditRecoltareDialog.tsx
+│   ├── RecoltareCard.tsx
+│   └── ViewRecoltareDialog.tsx
+├── ui
+│   ├── alert-dialog.tsx
+│   ├── app-card.tsx
+│   ├── badge.tsx
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── dialog.tsx
+│   ├── dialog-form-actions.tsx
+│   ├── EmptyState.tsx
+│   ├── form.tsx
+│   ├── form-dialog-layout.tsx
+│   ├── input.tsx
+│   ├── label.tsx
+│   ├── select.tsx
+│   ├── sonner.tsx
+│   ├── table.tsx
+│   ├── tabs.tsx
+│   └── textarea.tsx
+├── vanzari
+│   ├── AddVanzareDialog.tsx
+│   ├── EditVanzareDialog.tsx
+│   ├── VanzareCard.tsx
+│   └── ViewVanzareDialog.tsx
+├── vanzari-butasi
+│   ├── AddVanzareButasiDialog.tsx
+│   ├── EditVanzareButasiDialog.tsx
+│   ├── VanzareButasiCard.tsx
+│   └── ViewVanzareButasiDialog.tsx
+├── LogoutButton.tsx
+├── Navbar.tsx
+└── Toaster.tsx

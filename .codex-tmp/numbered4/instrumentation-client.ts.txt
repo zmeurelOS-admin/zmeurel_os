@@ -1,0 +1,8 @@
+1	import * as Sentry from '@sentry/nextjs'
+2	
+3	Sentry.init({
+4	  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+5	  tracesSampleRate: 0.2,
+6	})
+7	
+8	export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

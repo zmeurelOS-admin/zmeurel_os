@@ -1,0 +1,13 @@
+    1: -- Allow tenant owners to update their own tenant (farm name, etc).
+    2: -- Keeps existing superadmin update policy intact.
+    3: 
+    4: alter table public.tenants enable row level security;
+    5: 
+    6: drop policy if exists tenants_owner_update on public.tenants;
+    7: create policy tenants_owner_update
+    8: on public.tenants
+    9: for update
+   10: using (owner_user_id = auth.uid())
+   11: with check (owner_user_id = auth.uid());
+   12: 
+   13: notify pgrst, 'reload schema';

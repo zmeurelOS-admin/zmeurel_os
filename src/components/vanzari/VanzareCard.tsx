@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { colors } from '@/lib/design-tokens'
 import { Vanzare } from '@/lib/supabase/queries/vanzari'
 
 interface VanzareCardProps {
@@ -44,152 +44,79 @@ export function VanzareCard({
 
   return (
     <div
-      style={{
-        borderRadius: radius.lg,
-        border: `1px solid ${colors.grayLight}`,
-        borderLeft: `4px solid ${incasata ? colors.green : colors.yellow}`,
-        boxShadow: shadows.card,
-        background: colors.white,
-        overflow: 'hidden',
-      }}
+      className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+      style={{ borderColor: 'var(--agri-border)', borderLeft: `4px solid ${incasata ? colors.green : colors.yellow}` }}
     >
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        style={{
-          width: '100%',
-          border: 'none',
-          background: 'transparent',
-          textAlign: 'left',
-          padding: spacing.md,
-          cursor: 'pointer',
-        }}
+        className="w-full p-5 text-left"
       >
         {isNewFromComandaToday ? (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: spacing.xs,
-              borderRadius: radius.sm,
-              padding: '3px 8px',
-              fontSize: 10,
-              fontWeight: 700,
-              color: colors.green,
-              background: colors.greenLight,
-              marginBottom: spacing.xs,
-            }}
-          >
-            {'\u{1F195}'} Din comanda livrată azi
+          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+            🆕 Din comandă livrată azi
           </div>
         ) : null}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+        <div className="flex items-start gap-4">
           <div
             aria-hidden="true"
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.md,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: incasata ? colors.greenLight : colors.yellowLight,
-              fontSize: 16,
-              flexShrink: 0,
-            }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
+            style={{ background: incasata ? colors.greenLight : colors.yellowLight }}
           >
-            {incasata ? '\u2705' : '\u23F3'}
+            {incasata ? '✅' : '⏳'}
           </div>
 
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 700,
-                color: colors.dark,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {clientNume}
-            </div>
-            <div style={{ fontSize: 11, color: colors.gray }}>{dataVanzare}</div>
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{clientNume}</div>
+            <div className="text-sm text-[var(--agri-text-muted)]">{dataVanzare}</div>
           </div>
 
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: colors.dark }}>{formatCurrency(totalRon)}</div>
-            <div style={{ fontSize: 10, color: colors.gray }}>
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-bold text-[var(--agri-text)]">{formatCurrency(totalRon)}</div>
+            <div className="text-[10px] text-[var(--agri-text-muted)]">
               {formatKg(vanzare.cantitate_kg)} kg × {formatKg(vanzare.pret_lei_kg)} lei
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            marginTop: spacing.sm,
-            paddingTop: spacing.sm,
-            borderTop: `1px solid ${colors.grayLight}`,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: spacing.sm, flex: 1 }}>
-            <div>
-              <div style={{ fontSize: 10, color: colors.gray }}>CANTITATE</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatKg(vanzare.cantitate_kg)} kg</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: colors.gray }}>PRET</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatKg(vanzare.pret_lei_kg)} lei/kg</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: colors.gray }}>TOTAL</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.green }}>{formatCurrency(totalRon)}</div>
-            </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 border-t border-[var(--agri-border)] pt-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-[var(--agri-text-muted)]">Cantitate</div>
+            <div className="text-sm font-semibold text-[var(--agri-text)]">{formatKg(vanzare.cantitate_kg)} kg</div>
           </div>
-
-          <div
-            style={{
-              fontSize: 16,
-              color: colors.gray,
-              marginLeft: spacing.sm,
-              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 180ms ease',
-            }}
-          >
-            ▾
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-[var(--agri-text-muted)]">Preț</div>
+            <div className="text-sm font-semibold text-[var(--agri-text)]">{formatKg(vanzare.pret_lei_kg)} lei/kg</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wide text-[var(--agri-text-muted)]">Total</div>
+            <div className="text-sm font-semibold text-emerald-700">{formatCurrency(totalRon)}</div>
           </div>
         </div>
       </button>
 
       {expanded ? (
-        <div
-          style={{
-            borderTop: `1px solid ${colors.grayLight}`,
-            padding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
-            display: 'grid',
-            gap: spacing.sm,
-          }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: spacing.sm }}>
-            <div style={{ borderRadius: radius.md, background: colors.grayLight, padding: spacing.sm }}>
-              <div style={{ fontSize: 10, color: colors.gray }}>Cantitate</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatKg(vanzare.cantitate_kg)} kg</div>
+        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] p-3">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Cantitate</div>
+              <div className="text-sm font-semibold text-[var(--agri-text)]">{formatKg(vanzare.cantitate_kg)} kg</div>
             </div>
-            <div style={{ borderRadius: radius.md, background: colors.grayLight, padding: spacing.sm }}>
-              <div style={{ fontSize: 10, color: colors.gray }}>Pret</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatKg(vanzare.pret_lei_kg)} lei/kg</div>
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] p-3">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Preț</div>
+              <div className="text-sm font-semibold text-[var(--agri-text)]">{formatKg(vanzare.pret_lei_kg)} lei/kg</div>
             </div>
-            <div style={{ borderRadius: radius.md, background: incasata ? colors.greenLight : colors.yellowLight, padding: spacing.sm }}>
-              <div style={{ fontSize: 10, color: colors.gray }}>Status</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: incasata ? colors.green : colors.dark }}>{incasata ? 'Incasata' : 'Neincasata'}</div>
+            <div
+              className="rounded-xl p-3"
+              style={{ background: incasata ? colors.greenLight : colors.yellowLight }}
+            >
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Status</div>
+              <div className="text-sm font-semibold text-[var(--agri-text)]">{incasata ? 'Încasată' : 'Neîncasată'}</div>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: spacing.sm }}>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
             {!incasata ? (
               <button
                 type="button"
@@ -197,39 +124,18 @@ export function VanzareCard({
                   event.stopPropagation()
                   onMarkPaid?.(vanzare)
                 }}
-                style={{
-                  gridColumn: 'span 2',
-                  minHeight: 48,
-                  border: 'none',
-                  borderRadius: radius.md,
-                  background: colors.green,
-                  color: colors.white,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                className="col-span-2 min-h-11 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white"
               >
-                {'\u2705'} Marcheaza incasata
+                Marchează încasată
               </button>
             ) : null}
 
             <a
               href={telefon ? `tel:${telefon}` : undefined}
               onClick={(event) => event.stopPropagation()}
-              style={{
-                minHeight: 48,
-                borderRadius: radius.md,
-                background: colors.blueLight,
-                color: colors.blue,
-                textDecoration: 'none',
-                fontSize: 12,
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
             >
-              {'\u{1F4DE}'}
+              📞
             </a>
 
             {vanzare.comanda_id ? (
@@ -239,18 +145,9 @@ export function VanzareCard({
                   event.stopPropagation()
                   onOpenComanda?.()
                 }}
-                style={{
-                  minHeight: 48,
-                  border: 'none',
-                  borderRadius: radius.md,
-                  background: colors.grayLight,
-                  color: colors.dark,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
               >
-                {'\u{1F4CB}'} Comanda
+                Comandă
               </button>
             ) : null}
 
@@ -260,18 +157,9 @@ export function VanzareCard({
                 event.stopPropagation()
                 onEdit(vanzare)
               }}
-              style={{
-                minHeight: 48,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.yellowLight,
-                color: colors.dark,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
             >
-              {'\u270F\uFE0F'} Edit
+              Editează
             </button>
 
             <button
@@ -280,18 +168,9 @@ export function VanzareCard({
                 event.stopPropagation()
                 onDelete(vanzare)
               }}
-              style={{
-                minHeight: 48,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.coralLight,
-                color: colors.coral,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
             >
-              {'\u{1F5D1}\uFE0F'}
+              Șterge
             </button>
           </div>
 
@@ -301,16 +180,7 @@ export function VanzareCard({
               event.stopPropagation()
               onView(vanzare)
             }}
-            style={{
-              border: 'none',
-              background: colors.white,
-              color: colors.primary,
-              fontSize: 12,
-              fontWeight: 700,
-              textAlign: 'left',
-              padding: 0,
-              cursor: 'pointer',
-            }}
+            className="mt-1 text-left text-sm font-semibold text-[var(--agri-primary)]"
           >
             Vezi detalii complete
           </button>

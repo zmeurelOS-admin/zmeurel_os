@@ -4,20 +4,21 @@ import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
-import { toast } from '@/lib/ui/toast'
 
-import { track } from '@/lib/analytics/track'
-import { ensureCropVarietyForCrop } from '@/lib/supabase/queries/crop-varieties'
-import { ensureCropForUnitType } from '@/lib/supabase/queries/crops'
-import { createParcela } from '@/lib/supabase/queries/parcele'
 import { AppDrawer } from '@/components/app/AppDrawer'
-import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
   getParcelFormDefaults,
   parcelFormSchema,
   ParcelForm,
   type ParcelFormValues,
 } from '@/components/parcele/ParcelForm'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { track } from '@/lib/analytics/track'
+import { ensureCropVarietyForCrop } from '@/lib/supabase/queries/crop-varieties'
+import { ensureCropForUnitType } from '@/lib/supabase/queries/crops'
+import { createParcela } from '@/lib/supabase/queries/parcele'
+import { isCatalogFallbackEligible } from '@/lib/ui/error-messages'
+import { toast } from '@/lib/ui/toast'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
 interface AddParcelDrawerProps {
@@ -51,13 +52,28 @@ export function AddParcelDrawer({
     mutationFn: async (values: ParcelFormValues) => {
       const isSolar = values.tip_unitate === 'solar'
       const cropName = values.tip_fruct.trim()
-      const crop = await ensureCropForUnitType(cropName, values.tip_unitate)
-      const varietyName = values.soi_plantat.trim()
-      if (varietyName) {
-        await ensureCropVarietyForCrop(crop.id, varietyName)
+      let catalogFallbackUsed = false
+      let cropId: string | null = null
+
+      try {
+        const crop = await ensureCropForUnitType(cropName, values.tip_unitate)
+        cropId = crop.id
+      } catch (error) {
+        if (!isCatalogFallbackEligible(error)) throw error
+        catalogFallbackUsed = true
       }
 
-      return createParcela({
+      const varietyName = values.soi_plantat.trim()
+      if (varietyName && cropId) {
+        try {
+          await ensureCropVarietyForCrop(cropId, varietyName)
+        } catch (error) {
+          if (!isCatalogFallbackEligible(error)) throw error
+          catalogFallbackUsed = true
+        }
+      }
+
+      const parcela = await createParcela({
         id_parcela: generateParcelCode(),
         nume_parcela: values.nume_parcela.trim(),
         tip_unitate: values.tip_unitate,
@@ -76,15 +92,21 @@ export function AddParcelDrawer({
         status: values.status,
         observatii: values.observatii || undefined,
       })
+
+      return { parcela, catalogFallbackUsed }
     },
-    onSuccess: (_, values) => {
+    onSuccess: ({ catalogFallbackUsed }, values) => {
       track('parcela_add', {
         suprafata: Number(values.suprafata_m2.replace(',', '.')) || 0,
         soi: values.soi_plantat || null,
         tip_unitate: values.tip_unitate,
       })
       hapticSuccess()
-      toast.success('Teren adaugat')
+      toast.success(
+        catalogFallbackUsed
+          ? 'Teren adăugat. Cultura a fost salvată manual.'
+          : 'Teren adăugat'
+      )
       onOpenChange(false)
       onCreated()
     },
@@ -113,4 +135,3 @@ export function AddParcelDrawer({
     </AppDrawer>
   )
 }
-

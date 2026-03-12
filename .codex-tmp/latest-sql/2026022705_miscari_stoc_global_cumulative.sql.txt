@@ -1,0 +1,54 @@
+    1: -- Global cumulative stock on top of existing miscari_stoc table.
+    2: -- Backward-compatible with existing location-based inventory usage.
+    3: 
+    4: do $$
+    5: begin
+    6:   if not exists (
+    7:     select 1
+    8:     from pg_type
+    9:     where typname = 'miscare_stoc_tip_global'
+   10:   ) then
+   11:     create type public.miscare_stoc_tip_global as enum (
+   12:       'recoltare',
+   13:       'ajustare',
+   14:       'vanzare',
+   15:       'transformare',
+   16:       'corectie'
+   17:     );
+   18:   end if;
+   19: end
+   20: $$;
+   21: 
+   22: create table if not exists public.miscari_stoc (
+   23:   id uuid primary key default gen_random_uuid(),
+   24:   tenant_id uuid not null references public.tenants(id) on delete cascade,
+   25:   tip public.miscare_stoc_tip_global,
+   26:   data date not null default current_date,
+   27:   cantitate_cal1 numeric not null default 0,
+   28:   cantitate_cal2 numeric not null default 0,
+   29:   referinta_id uuid null,
+   30:   descriere text null,
+   31:   created_at timestamptz not null default now()
+   32: );
+   33: 
+   34: alter table public.miscari_stoc
+   35:   add column if not exists tip public.miscare_stoc_tip_global,
+   36:   add column if not exists cantitate_cal1 numeric not null default 0,
+   37:   add column if not exists cantitate_cal2 numeric not null default 0,
+   38:   add column if not exists descriere text null;
+   39: 
+   40: -- Allow global (non-location) movements while keeping old schema usable.
+   41: alter table public.miscari_stoc
+   42:   alter column locatie_id drop not null,
+   43:   alter column produs drop not null,
+   44:   alter column calitate drop not null,
+   45:   alter column depozit drop not null,
+   46:   alter column tip_miscare drop not null,
+   47:   alter column cantitate_kg drop not null;
+   48: 
+   49: create index if not exists miscari_stoc_tenant_tip_data_idx
+   50:   on public.miscari_stoc (tenant_id, tip, data);
+   51: 
+   52: alter table public.miscari_stoc enable row level security;
+   53: 
+   54: notify pgrst, 'reload schema';

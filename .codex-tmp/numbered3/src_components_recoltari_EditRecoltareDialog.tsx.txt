@@ -1,0 +1,297 @@
+1	'use client'
+2	
+3	import { useEffect, useMemo } from 'react'
+4	import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+5	import { useForm } from 'react-hook-form'
+6	import { toast } from '@/lib/ui/toast'
+7	
+8	import { AppDialog } from '@/components/app/AppDialog'
+9	import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+10	import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+11	import { Input } from '@/components/ui/input'
+12	import { Label } from '@/components/ui/label'
+13	import {
+14	  Select,
+15	  SelectContent,
+16	  SelectItem,
+17	  SelectTrigger,
+18	  SelectValue,
+19	} from '@/components/ui/select'
+20	import { Textarea } from '@/components/ui/textarea'
+21	import { track } from '@/lib/analytics/track'
+22	import { getCulegatori } from '@/lib/supabase/queries/culegatori'
+23	import { getParcele } from '@/lib/supabase/queries/parcele'
+24	import { Recoltare, updateRecoltare, type UpdateRecoltareInput } from '@/lib/supabase/queries/recoltari'
+25	import { getActivitatiAgricole, calculatePauseStatus, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
+26	import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+27	
+28	interface Props {
+29	  recoltare: Recoltare | null
+30	  open: boolean
+31	  onOpenChange: (open: boolean) => void
+32	}
+33	
+34	interface EditFormData {
+35	  data: string
+36	  parcela_id: string
+37	  culegator_id: string
+38	  kg_cal1: string
+39	  kg_cal2: string
+40	  observatii: string
+41	}
+42	
+43	function toNumber(value: string | undefined): number {
+44	  if (!value || value.trim() === '') return 0
+45	  const parsed = Number(value)
+46	  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+47	}
+48	
+49	export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
+50	  const queryClient = useQueryClient()
+51	
+52	  const form = useForm<EditFormData>()
+53	
+54	  useEffect(() => {
+55	    if (recoltare && open) {
+56	      form.reset({
+57	        data: recoltare.data,
+58	        parcela_id: recoltare.parcela_id ?? '',
+59	        culegator_id: recoltare.culegator_id ?? '',
+60	        kg_cal1: String(recoltare.kg_cal1 ?? 0),
+61	        kg_cal2: String(recoltare.kg_cal2 ?? 0),
+62	        observatii: recoltare.observatii ?? '',
+63	      })
+64	    }
+65	  }, [recoltare, open, form])
+66	
+67	  const { data: parcele = [] } = useQuery({
+68	    queryKey: ['parcele'],
+69	    queryFn: getParcele,
+70	  })
+71	
+72	  const { data: culegatori = [] } = useQuery({
+73	    queryKey: ['culegatori'],
+74	    queryFn: getCulegatori,
+75	  })
+76	
+77	  const { data: activitati = [] } = useQuery({
+78	    queryKey: ['activitati-agricole'],
+79	    queryFn: getActivitatiAgricole,
+80	  })
+81	
+82	  const mutation = useMutation({
+83	    mutationFn: ({ id, data }: { id: string; data: UpdateRecoltareInput }) =>
+84	      updateRecoltare(id, data),
+85	    onSuccess: (_, variables) => {
+86	      queryClient.invalidateQueries({ queryKey: ['recoltari'] })
+87	      queryClient.invalidateQueries({ queryKey: ['stoc-global'] })
+88	      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+89	      track('recoltare_edit', { id: variables.id })
+90	      hapticSuccess()
+91	      toast.success('Recoltare actualizata')
+92	      onOpenChange(false)
+93	    },
+94	    onError: (error: Error) => {
+95	      hapticError()
+96	      toast.error(error.message || 'Eroare la actualizare')
+97	    },
+98	  })
+99	
+100	  const selectedParcelaId = form.watch('parcela_id')
+101	  const selectedCulegatorId = form.watch('culegator_id')
+102	  const kgCal1 = toNumber(form.watch('kg_cal1'))
+103	  const kgCal2 = toNumber(form.watch('kg_cal2'))
+104	  const totalKg = kgCal1 + kgCal2
+105	  const selectedCulegator = culegatori.find((culegator) => culegator.id === selectedCulegatorId)
+106	  const tarifLeiKg = Number(selectedCulegator?.tarif_lei_kg ?? 0)
+107	  const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
+108	  const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
+109	
+110	  // Check for active treatment pause
+111	  const activePauseWarning = useMemo(() => {
+112	    if (!selectedParcelaId) return null
+113	
+114	    const parcelaActivitati = activitati.filter((act) => act.parcela_id === selectedParcelaId)
+115	    if (parcelaActivitati.length === 0) return null
+116	
+117	    for (const activitate of parcelaActivitati) {
+118	      const { dataRecoltarePermisa, status } = calculatePauseStatus(
+119	        activitate.data_aplicare,
+120	        activitate.timp_pauza_zile
+121	      )
+122	      
+123	      if (status === 'Pauza') {
+124	        const selectedParcela = parcele.find((p) => p.id === selectedParcelaId)
+125	        const parcelaName = selectedParcela?.nume_parcela || 'Parcela selectată'
+126	        const dataAplicare = new Date(activitate.data_aplicare).toLocaleDateString('ro-RO')
+127	        const dataPermisa = new Date(dataRecoltarePermisa).toLocaleDateString('ro-RO')
+128	        
+129	        return {
+130	          message: `Atenție: parcela ${parcelaName} are tratament activ (${activitate.produs_utilizat || 'produs necunoscut'}, aplicat ${dataAplicare}). Recoltare permisă de la ${dataPermisa}.`
+131	        }
+132	      }
+133	    }
+134	    
+135	    return null
+136	  }, [selectedParcelaId, activitati, parcele])
+137	
+138	  const onSubmit = (data: EditFormData) => {
+139	    if (!recoltare || mutation.isPending) return
+140	    if (!hasValidTarif) {
+141	      hapticError()
+142	      toast.error('Culegatorul nu are tarif setat in profil')
+143	      return
+144	    }
+145	    mutation.mutate({
+146	      id: recoltare.id,
+147	      data: {
+148	        data: data.data,
+149	        parcela_id: data.parcela_id || undefined,
+150	        culegator_id: data.culegator_id || undefined,
+151	        kg_cal1: toNumber(data.kg_cal1),
+152	        kg_cal2: toNumber(data.kg_cal2),
+153	        observatii: data.observatii?.trim() || undefined,
+154	      },
+155	    })
+156	  }
+157	
+158	  if (!recoltare) return null
+159	
+160	  return (
+161	    <AppDialog
+162	      open={open}
+163	      onOpenChange={onOpenChange}
+164	      title="Editeaza recoltare"
+165	      footer={
+166	        <DialogFormActions
+167	          onCancel={() => onOpenChange(false)}
+168	          onSave={form.handleSubmit(onSubmit)}
+169	          saving={mutation.isPending}
+170	          cancelLabel="Anuleaza"
+171	          saveLabel="Salveaza"
+172	        />
+173	      }
+174	    >
+175	      <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+176	        <div className="space-y-2">
+177	          <Label htmlFor="edit_recoltare_data">Data</Label>
+178	          <Input id="edit_recoltare_data" type="date" className="agri-control h-12" {...form.register('data')} />
+179	        </div>
+180	
+181	        <div className="space-y-2">
+182	          <Label htmlFor="edit_recoltare_parcela">Parcela</Label>
+183	          <Select
+184	            value={form.watch('parcela_id') || '__none'}
+185	            onValueChange={(value) => form.setValue('parcela_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })}
+186	          >
+187	            <SelectTrigger id="edit_recoltare_parcela" className="agri-control h-12">
+188	              <SelectValue placeholder="Selecteaza parcela" />
+189	            </SelectTrigger>
+190	            <SelectContent>
+191	              <SelectItem value="__none">Selecteaza parcela</SelectItem>
+192	              {parcele.map((parcela) => (
+193	                <SelectItem key={parcela.id} value={parcela.id}>
+194	                  {parcela.nume_parcela || 'Parcela'}
+195	                </SelectItem>
+196	              ))}
+197	            </SelectContent>
+198	          </Select>
+199	          {activePauseWarning ? (
+200	            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+201	              {activePauseWarning.message}
+202	            </div>
+203	          ) : null}
+204	        </div>
+205	
+206	        <div className="space-y-2">
+207	          <Label htmlFor="edit_recoltare_culegator">Culegator</Label>
+208	          <Select
+209	            value={form.watch('culegator_id') || '__none'}
+210	            onValueChange={(value) => form.setValue('culegator_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })}
+211	          >
+212	            <SelectTrigger id="edit_recoltare_culegator" className="agri-control h-12">
+213	              <SelectValue placeholder="Selecteaza culegator" />
+214	            </SelectTrigger>
+215	            <SelectContent>
+216	              <SelectItem value="__none">Selecteaza culegator</SelectItem>
+217	              {culegatori.map((culegator) => (
+218	                <SelectItem key={culegator.id} value={culegator.id}>
+219	                  {culegator.nume_prenume || 'Culegator'}
+220	                </SelectItem>
+221	              ))}
+222	            </SelectContent>
+223	          </Select>
+224	        </div>
+225	
+226	        <div className="grid grid-cols-2 gap-3">
+227	          <div className="space-y-2">
+228	            <Label htmlFor="edit_recoltare_kg_cal1">Kg Calitatea 1</Label>
+229	            <Input
+230	              id="edit_recoltare_kg_cal1"
+231	              type="number"
+232	              inputMode="decimal"
+233	              step="0.01"
+234	              min="0"
+235	              className="agri-control h-12"
+236	              {...form.register('kg_cal1')}
+237	            />
+238	          </div>
+239	          <div className="space-y-2">
+240	            <Label htmlFor="edit_recoltare_kg_cal2">Kg Calitatea 2</Label>
+241	            <Input
+242	              id="edit_recoltare_kg_cal2"
+243	              type="number"
+244	              inputMode="decimal"
+245	              step="0.01"
+246	              min="0"
+247	              className="agri-control h-12"
+248	              {...form.register('kg_cal2')}
+249	            />
+250	          </div>
+251	        </div>
+252	
+253	        <Card className="rounded-2xl border border-emerald-100 shadow-sm">
+254	          <CardHeader className="pb-2">
+255	            <CardTitle className="text-sm">Rezumat plata</CardTitle>
+256	          </CardHeader>
+257	          <CardContent className="space-y-1 text-sm">
+258	            <p>Total kg: <span className="font-semibold">{totalKg.toFixed(2)} kg</span></p>
+259	            {selectedCulegator ? (
+260	              <>
+261	                <p>
+262	                  Tarif:{' '}
+263	                  <span className="font-semibold">
+264	                    {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '--'}
+265	                  </span>{' '}
+266	                  <span className="text-xs text-[var(--agri-text-muted)]">(din profil culegator)</span>
+267	                </p>
+268	                <p>
+269	                  De plata:{' '}
+270	                  <span className="font-semibold">
+271	                    {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '--'}
+272	                  </span>
+273	                </p>
+274	              </>
+275	            ) : (
+276	              <>
+277	                <p className="text-[var(--agri-text-muted)]">Selecteaza culegatorul ca sa calculez plata</p>
+278	                <p>De plata: <span className="font-semibold">--</span></p>
+279	              </>
+280	            )}
+281	          </CardContent>
+282	        </Card>
+283	
+284	        <div className="space-y-2">
+285	          <Label htmlFor="edit_recoltare_observatii">Observatii</Label>
+286	          <Textarea
+287	            id="edit_recoltare_observatii"
+288	            rows={4}
+289	            className="agri-control w-full px-3 py-2 text-base"
+290	            {...form.register('observatii')}
+291	          />
+292	        </div>
+293	      </form>
+294	    </AppDialog>
+295	  )
+296	}
+297	

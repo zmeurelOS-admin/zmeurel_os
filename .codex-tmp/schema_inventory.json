@@ -1,0 +1,302 @@
+[
+  {
+    "name": "activitati_agricole",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_activitate"
+    ]
+  },
+  {
+    "name": "activitati_extended",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_activitate"
+    ]
+  },
+  {
+    "name": "activitati_extra_extended",
+    "methods": "get",
+    "kind": "view_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_activitate"
+    ]
+  },
+  {
+    "name": "activitati_extra_season",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_activitate"
+    ]
+  },
+  {
+    "name": "alert_dismissals",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "analytics_events",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "audit_logs",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "none",
+    "id_cols": []
+  },
+  {
+    "name": "cheltuieli_diverse",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_cheltuiala"
+    ]
+  },
+  {
+    "name": "clienti",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_client"
+    ]
+  },
+  {
+    "name": "comenzi",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "culegatori",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_culegator"
+    ]
+  },
+  {
+    "name": "feedback",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "integrations_google_contacts",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "investitii",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_investitie"
+    ]
+  },
+  {
+    "name": "miscari_stoc",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "nomenclatoare",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": []
+  },
+  {
+    "name": "parcele",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_parcela"
+    ]
+  },
+  {
+    "name": "parcele_extended",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_parcela"
+    ]
+  },
+  {
+    "name": "profiles",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "none",
+    "id_cols": []
+  },
+  {
+    "name": "recoltari",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_recoltare"
+    ]
+  },
+  {
+    "name": "tenant_metrics_daily",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "none",
+    "id_cols": []
+  },
+  {
+    "name": "tenants",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "none",
+    "id_cols": []
+  },
+  {
+    "name": "vanzari",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": [
+      "id_vanzare"
+    ]
+  },
+  {
+    "name": "vanzari_butasi",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_vanzare_butasi"
+    ]
+  },
+  {
+    "name": "vanzari_butasi_extended",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_vanzare_butasi"
+    ]
+  },
+  {
+    "name": "vanzari_butasi_items",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "required",
+    "id_cols": []
+  },
+  {
+    "name": "vanzari_extended",
+    "methods": "delete,get,patch,post",
+    "kind": "table_like",
+    "pk": [
+      "id"
+    ],
+    "tenant": "optional",
+    "id_cols": [
+      "id_vanzare"
+    ]
+  }
+]

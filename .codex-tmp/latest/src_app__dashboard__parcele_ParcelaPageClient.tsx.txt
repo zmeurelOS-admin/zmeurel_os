@@ -1,0 +1,132 @@
+    1: 'use client'
+    2: 
+    3: import { useState } from 'react'
+    4: import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    5: import { toast } from '@/lib/ui/toast'
+    6: import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
+    7: 
+    8: import {
+    9:   getParcele,
+   10:   deleteParcela,
+   11:   type Parcela,
+   12: } from '@/lib/supabase/queries/parcele'
+   13: 
+   14: import { AddParcelaDialog } from '@/components/parcele/AddParcelaDialog'
+   15: import { EditParcelaDialog } from '@/components/parcele/EditParcelaDialog'
+   16: import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
+   17: import { ParcelaCard } from '@/components/parcele/ParcelaCard'
+   18: import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
+   19: 
+   20: interface ParcelaPageClientProps {
+   21:   initialParcele: Parcela[]
+   22: }
+   23: 
+   24: export function ParcelaPageClient({
+   25:   initialParcele,
+   26: }: ParcelaPageClientProps) {
+   27:   const queryClient = useQueryClient()
+   28:   const [selectedParcela, setSelectedParcela] = useState<Parcela | null>(null)
+   29:   const [editOpen, setEditOpen] = useState(false)
+   30:   const [deleteOpen, setDeleteOpen] = useState(false)
+   31: 
+   32:   const { data: parcele = initialParcele, isLoading } = useQuery({
+   33:     queryKey: ['parcele'],
+   34:     queryFn: () => getParcele(),
+   35:     initialData: initialParcele,
+   36:     staleTime: 30000,
+   37:     refetchOnWindowFocus: false,
+   38:   })
+   39: 
+   40:   const deleteMutation = useMutation({
+   41:     mutationFn: (id: string) => deleteParcela(id),
+   42:     onSuccess: () => {
+   43:       queryClient.invalidateQueries({ queryKey: ['parcele'], exact: true })
+   44:       toast.success('Parcela stearsa')
+   45:       setDeleteOpen(false)
+   46:       setSelectedParcela(null)
+   47:     },
+   48:   })
+   49: 
+   50:   return (
+   51:     <div className="relative min-h-[100dvh] overflow-x-hidden bg-gray-50">
+   52:       <CompactPageHeader
+   53:         title="Parcele"
+   54:         subtitle="Administreaza terenurile cultivate."
+   55:       />
+   56: 
+   57:       {/* List */}
+   58:       <div className="relative z-10 space-y-4 px-4 py-4">
+   59:         {isLoading && (
+   60:           <p className="text-center text-sm text-gray-600">
+   61:             Se incarca...
+   62:           </p>
+   63:         )}
+   64: 
+   65:         {!isLoading && parcele.length === 0 && (
+   66:           <p className="text-center text-sm text-gray-600">
+   67:             Nu exista parcele.
+   68:           </p>
+   69:         )}
+   70: 
+   71:         {!isLoading &&
+   72:           parcele.map((p) => (
+   73:             <ParcelaCard
+   74:               key={p.id}
+   75:               parcela={p}
+   76:               onEdit={() => {
+   77:                 setSelectedParcela(p)
+   78:                 setEditOpen(true)
+   79:               }}
+   80:               onDelete={() => {
+   81:                 setSelectedParcela(p)
+   82:                 setDeleteOpen(true)
+   83:               }}
+   84:             />
+   85:           ))}
+   86:       </div>
+   87: 
+   88:       {/* Floating Action Button */}
+   89:       <AddParcelaDialog
+   90:         soiuriDisponibile={[
+   91:           'Delniwa',
+   92:           'Maravilla',
+   93:           'Enrosadira',
+   94:           'Husaria',
+   95:         ]}
+   96:         onSuccess={() =>
+   97:           queryClient.invalidateQueries({ queryKey: ['parcele'], exact: true })
+   98:         }
+   99:       />
+  100: 
+  101:       <EditParcelaDialog
+  102:         parcela={selectedParcela}
+  103:         open={editOpen}
+  104:         onOpenChange={setEditOpen}
+  105:         soiuriDisponibile={[
+  106:           'Delniwa',
+  107:           'Maravilla',
+  108:           'Enrosadira',
+  109:           'Husaria',
+  110:         ]}
+  111:         onSuccess={() =>
+  112:           queryClient.invalidateQueries({ queryKey: ['parcele'], exact: true })
+  113:         }
+  114:       />
+  115: 
+  116:       <DeleteConfirmDialog
+  117:         open={deleteOpen}
+  118:         onOpenChange={setDeleteOpen}
+  119:         itemName={buildParcelaDeleteLabel(selectedParcela)}
+  120:         itemType="Parcela"
+  121:         description={`Ștergi parcela ${buildParcelaDeleteLabel(selectedParcela)}?`}
+  122:         loading={deleteMutation.isPending}
+  123:         onConfirm={() => {
+  124:           if (selectedParcela) {
+  125:             deleteMutation.mutate(selectedParcela.id)
+  126:           }
+  127:         }}
+  128:       />
+  129:     </div>
+  130:   )
+  131: }
+  132: 

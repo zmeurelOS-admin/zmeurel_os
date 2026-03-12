@@ -1,0 +1,111 @@
+1	'use client'
+2	
+3	import { useEffect } from 'react'
+4	import { zodResolver } from '@hookform/resolvers/zod'
+5	import { useMutation } from '@tanstack/react-query'
+6	import { useForm } from 'react-hook-form'
+7	import { toast } from '@/lib/ui/toast'
+8	
+9	import { track } from '@/lib/analytics/track'
+10	import { updateParcela, type Parcela } from '@/lib/supabase/queries/parcele'
+11	import { AppDialog } from '@/components/app/AppDialog'
+12	import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+13	import {
+14	  getParcelFormDefaults,
+15	  parcelFormSchema,
+16	  ParcelForm,
+17	  type ParcelFormValues,
+18	} from '@/components/parcele/ParcelForm'
+19	import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+20	
+21	interface EditParcelDialogProps {
+22	  open: boolean
+23	  onOpenChange: (open: boolean) => void
+24	  parcela: Parcela | null
+25	  soiuriDisponibile: string[]
+26	  onSaved: () => void
+27	}
+28	
+29	const toFormValues = (parcela: Parcela): ParcelFormValues => ({
+30	  nume_parcela: parcela.nume_parcela ?? '',
+31	  tip_fruct: parcela.tip_fruct ?? '',
+32	  suprafata_m2: String(parcela.suprafata_m2 ?? ''),
+33	  soi_plantat: parcela.soi_plantat ?? '',
+34	  an_plantare: String(parcela.an_plantare ?? ''),
+35	  nr_plante: parcela.nr_plante ? String(parcela.nr_plante) : '',
+36	  status: parcela.status ?? 'Activ',
+37	  observatii: parcela.observatii ?? '',
+38	})
+39	
+40	const toDecimal = (value: string) => Number(value.replace(',', '.').trim())
+41	
+42	export function EditParcelDialog({
+43	  open,
+44	  onOpenChange,
+45	  parcela,
+46	  soiuriDisponibile,
+47	  onSaved,
+48	}: EditParcelDialogProps) {
+49	  const form = useForm<ParcelFormValues>({
+50	    resolver: zodResolver(parcelFormSchema),
+51	    defaultValues: getParcelFormDefaults(),
+52	  })
+53	
+54	  useEffect(() => {
+55	    if (open && parcela) {
+56	      form.reset(toFormValues(parcela))
+57	    }
+58	  }, [open, parcela, form])
+59	
+60	  const updateMutation = useMutation({
+61	    mutationFn: async (values: ParcelFormValues) => {
+62	      if (!parcela) throw new Error('Parcela lipsa')
+63	
+64	      return updateParcela(parcela.id, {
+65	        nume_parcela: values.nume_parcela.trim(),
+66	        tip_fruct: values.tip_fruct || null,
+67	        suprafata_m2: toDecimal(values.suprafata_m2),
+68	        soi_plantat: values.soi_plantat || null,
+69	        an_plantare: Number(values.an_plantare),
+70	        nr_plante: values.nr_plante ? Number(values.nr_plante) : null,
+71	        status: values.status,
+72	        observatii: values.observatii || null,
+73	      })
+74	    },
+75	    onSuccess: () => {
+76	      if (parcela?.id) {
+77	        track('parcela_edit', { id: parcela.id })
+78	      }
+79	      hapticSuccess()
+80	      toast.success('Parcela actualizata')
+81	      onOpenChange(false)
+82	      onSaved()
+83	    },
+84	    onError: (error: Error) => {
+85	      hapticError()
+86	      toast.error(error.message)
+87	    },
+88	  })
+89	
+90	  if (!parcela) return null
+91	
+92	  return (
+93	    <AppDialog
+94	      open={open}
+95	      onOpenChange={onOpenChange}
+96	      title="Editeaza parcela"
+97	      footer={
+98	        <DialogFormActions
+99	          onCancel={() => onOpenChange(false)}
+100	          onSave={form.handleSubmit((values) => updateMutation.mutate(values))}
+101	          saving={updateMutation.isPending}
+102	          cancelLabel="Anuleaza"
+103	          saveLabel="Salveaza"
+104	        />
+105	      }
+106	    >
+107	      <ParcelForm form={form} soiuriDisponibile={soiuriDisponibile} />
+108	    </AppDialog>
+109	  )
+110	}
+111	

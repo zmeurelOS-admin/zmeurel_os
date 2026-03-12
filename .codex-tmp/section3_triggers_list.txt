@@ -1,0 +1,16 @@
+TRIGGER=activitati_agricole_set_audit_fields_minimal | TABLE=activitati_agricole | FUNCTION=set_audit_fields_minimal | FILE=2026022501_audit_trail_mvp.sql:201
+TRIGGER=activitati_agricole_set_sync_audit_fields | TABLE=activitati_agricole | FUNCTION=set_sync_audit_fields | FILE=2026022504_idempotency_sync_safety.sql:95
+TRIGGER=analytics_events_set_context | TABLE=analytics_events | FUNCTION=set_analytics_event_context | FILE=2026022506_usage_analytics_events.sql:51
+TRIGGER=cheltuieli_diverse_set_sync_audit_fields | TABLE=cheltuieli_diverse | FUNCTION=set_sync_audit_fields | FILE=2026022504_idempotency_sync_safety.sql:100
+TRIGGER=clienti_set_audit_fields_minimal | TABLE=clienti | FUNCTION=set_audit_fields_minimal | FILE=2026022501_audit_trail_mvp.sql:206
+TRIGGER=comenzi_set_tenant_and_audit | TABLE=comenzi | FUNCTION=set_comenzi_tenant_and_audit | FILE=2026022701_comenzi_module.sql:72
+TRIGGER=comenzi_set_tenant_and_audit | TABLE=comenzi | FUNCTION=set_comenzi_tenant_and_audit | FILE=2026022702_comenzi_schema_cache_repair.sql:115
+TRIGGER=parcele_set_audit_fields_minimal | TABLE=parcele | FUNCTION=set_audit_fields_minimal | FILE=2026022501_audit_trail_mvp.sql:211
+TRIGGER=recoltari_set_audit_fields_minimal | TABLE=recoltari | FUNCTION=set_audit_fields_minimal | FILE=2026022501_audit_trail_mvp.sql:191
+TRIGGER=recoltari_set_sync_audit_fields | TABLE=recoltari | FUNCTION=set_sync_audit_fields | FILE=2026022504_idempotency_sync_safety.sql:85
+TRIGGER=trg_integrations_google_contacts_updated_at | TABLE=integrations_google_contacts | FUNCTION=integrations_google_contacts_set_updated_at | FILE=2026022608_google_contacts_integrations.sql:41
+TRIGGER=trg_recoltari_sync_cantitate_kg | TABLE=recoltari | FUNCTION=recoltari_sync_cantitate_kg | FILE=2026022505_recoltari_kg_cal_columns.sql:21
+TRIGGER=vanzari_butasi_items_enforce_tenant | TABLE=vanzari_butasi_items | FUNCTION=enforce_vanzari_butasi_items_tenant | FILE=2026022614_vanzari_butasi_orders_v2.sql:90
+TRIGGER=vanzari_butasi_set_tenant_and_public_id | TABLE=vanzari_butasi | FUNCTION=set_vanzari_butasi_tenant_and_public_id | FILE=2026030301_vanzari_butasi_server_generated_id.sql:59
+TRIGGER=vanzari_set_audit_fields_minimal | TABLE=vanzari | FUNCTION=set_audit_fields_minimal | FILE=2026022501_audit_trail_mvp.sql:196
+TRIGGER=vanzari_set_sync_audit_fields | TABLE=vanzari | FUNCTION=set_sync_audit_fields | FILE=2026022504_idempotency_sync_safety.sql:90

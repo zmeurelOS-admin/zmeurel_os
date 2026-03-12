@@ -1,0 +1,154 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e12]:
+            - text: Zmeurel
+            - generic [ref=e13]: OS
+        - navigation [ref=e14]:
+          - generic [ref=e15]:
+            - paragraph [ref=e16]: OPERAȚIUNI
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - link "Dashboard" [ref=e19] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e21]
+                  - text: Dashboard
+              - listitem [ref=e26]:
+                - link "Terenuri" [ref=e27] [cursor=pointer]:
+                  - /url: /parcele
+                  - img [ref=e29]
+                  - text: Terenuri
+              - listitem [ref=e32]:
+                - link "Recoltări" [ref=e33] [cursor=pointer]:
+                  - /url: /recoltari
+                  - img [ref=e35]
+                  - text: Recoltări
+              - listitem [ref=e39]:
+                - link "Stocuri" [ref=e40] [cursor=pointer]:
+                  - /url: /stocuri
+                  - img [ref=e42]
+                  - text: Stocuri
+              - listitem [ref=e45]:
+                - link "Activități agricole" [ref=e46] [cursor=pointer]:
+                  - /url: /activitati-agricole
+                  - img [ref=e48]
+                  - text: Activități agricole
+          - generic [ref=e51]:
+            - paragraph [ref=e52]: RELAȚII
+            - list [ref=e53]:
+              - listitem [ref=e54]:
+                - link "Culegători" [ref=e55] [cursor=pointer]:
+                  - /url: /culegatori
+                  - img [ref=e57]
+                  - text: Culegători
+              - listitem [ref=e62]:
+                - link "Clienți" [ref=e63] [cursor=pointer]:
+                  - /url: /clienti
+                  - img [ref=e65]
+                  - text: Clienți
+          - generic [ref=e69]:
+            - paragraph [ref=e70]: FINANCIAR
+            - list [ref=e71]:
+              - listitem [ref=e72]:
+                - link "Comenzi" [ref=e73] [cursor=pointer]:
+                  - /url: /comenzi
+                  - img [ref=e75]
+                  - text: Comenzi
+              - listitem [ref=e78]:
+                - link "Material săditor" [ref=e79] [cursor=pointer]:
+                  - /url: /vanzari-butasi
+                  - img [ref=e81]
+                  - text: Material săditor
+              - listitem [ref=e84]:
+                - link "Investiții" [ref=e85] [cursor=pointer]:
+                  - /url: /investitii
+                  - img [ref=e87]
+                  - text: Investiții
+              - listitem [ref=e90]:
+                - link "Cheltuieli" [ref=e91] [cursor=pointer]:
+                  - /url: /cheltuieli
+                  - img [ref=e93]
+                  - text: Cheltuieli
+    - main [ref=e97]:
+      - generic [ref=e99]:
+        - paragraph [ref=e100]: Zmeurel OS este în BETA. Trimite feedback
+        - button "Trimite feedback" [ref=e101]
+      - generic [ref=e103]:
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - heading "Cheltuieli" [level=1] [ref=e110]
+            - paragraph [ref=e111]: Monitorizare costuri operaționale
+          - generic [ref=e113]:
+            - button "Activeaza high visibility mode" [ref=e114]:
+              - img [ref=e115]
+            - button "BV Beta Verify 1773267060" [ref=e123] [cursor=pointer]:
+              - generic [ref=e124]: BV
+              - generic [ref=e125]: Beta Verify 1773267060
+              - img [ref=e126]
+        - main [ref=e128]:
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131] [cursor=pointer]:
+                - generic [ref=e132]:
+                  - generic [ref=e133]: 📉
+                  - generic [ref=e134]: ↓100%
+                - generic [ref=e135]: Luna asta
+                - generic [ref=e136]: 33 RON
+                - generic [ref=e137]: 1 înregistrări
+                - img [ref=e138]
+              - generic [ref=e140]:
+                - generic [ref=e142]: 📅
+                - generic [ref=e143]: Sezon
+                - generic [ref=e144]: 33 RON
+                - generic [ref=e145]: RON total sezon
+                - img [ref=e146]
+            - generic [ref=e148]:
+              - heading "Cheltuieli pe categorii" [level=3] [ref=e150]
+              - button "👷 Manoperă cules 33 RON 100%" [ref=e152] [cursor=pointer]:
+                - generic [ref=e153]:
+                  - generic [ref=e154]: 👷
+                  - generic [ref=e156]: Manoperă cules
+                  - generic [ref=e159]:
+                    - generic [ref=e160]: 33 RON
+                    - generic [ref=e161]: 100%
+            - generic [ref=e162]:
+              - generic [ref=e163]:
+                - generic [ref=e164]:
+                  - generic [ref=e165]: 👷
+                  - generic [ref=e166]: Manoperă auto
+                - generic [ref=e167]: "33"
+                - generic [ref=e168]: RON (din recoltări)
+              - generic [ref=e169]:
+                - generic [ref=e170]:
+                  - generic [ref=e171]: 📊
+                  - generic [ref=e172]: Medie/zi
+                - generic [ref=e173]: "33"
+                - generic [ref=e174]: RON/zi
+            - generic [ref=e175]:
+              - button "Azi" [ref=e176] [cursor=pointer]
+              - button "Sapt." [ref=e177] [cursor=pointer]
+              - button "Luna" [ref=e178] [cursor=pointer]
+              - button "Sezon" [ref=e179] [cursor=pointer]
+              - button "Toate" [ref=e180] [cursor=pointer]
+            - generic [ref=e181]:
+              - img
+              - searchbox "Caută cheltuieli" [ref=e182]
+            - button "👷 [AUTO_MANOPERA] Manoperă cules 11.03.2026 - 1 culegători, 13.00 kg total Manoperă cules 32.50 RON 11.03.2026 Auto ▾" [ref=e185]:
+              - generic [ref=e186]:
+                - generic [ref=e187]: 👷
+                - generic [ref=e188]:
+                  - generic [ref=e189]: "[AUTO_MANOPERA] Manoperă cules 11.03.2026 - 1 culegători, 13.00 kg total"
+                  - generic [ref=e190]: Manoperă cules
+                - generic [ref=e191]:
+                  - generic [ref=e192]: 32.50 RON
+                  - generic [ref=e193]: 11.03.2026
+              - generic [ref=e194]:
+                - generic [ref=e196]: Auto
+                - generic [ref=e197]: ▾
+        - paragraph [ref=e202]: "Total: 32.50 lei"
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e208] [cursor=pointer]:
+    - img [ref=e209]

@@ -1,0 +1,149 @@
+1	import { getSupabase } from "@/lib/supabase/client"
+2	export interface Client {
+3	  id: string
+4	  id_client: string
+5	  nume_client: string
+6	  telefon: string | null
+7	  email: string | null
+8	  adresa: string | null
+9	  pret_negociat_lei_kg: number | null
+10	  observatii: string | null
+11	  created_at: string | null
+12	  updated_at: string | null
+13	  tenant_id: string
+14	}
+15	
+16	export interface CreateClientInput {
+17	  nume_client: string
+18	  telefon?: string | null
+19	  email?: string | null
+20	  adresa?: string | null
+21	  pret_negociat_lei_kg?: number | null
+22	  observatii?: string | null
+23	}
+24	
+25	export interface UpdateClientInput {
+26	  nume_client?: string
+27	  telefon?: string | null
+28	  email?: string | null
+29	  adresa?: string | null
+30	  pret_negociat_lei_kg?: number | null
+31	  observatii?: string | null
+32	}
+33	
+34	async function generateNextId(supabase: ReturnType<typeof getSupabase>): Promise<string> {
+35	  const { data, error } = await supabase
+36	    .from("clienti")
+37	    .select("id_client")
+38	    .order("created_at", { ascending: true })
+39	
+40	  if (error) throw error
+41	
+42	  const ids = (data ?? [])
+43	    .map((r) => r.id_client)
+44	    .filter((id) => id && /^C\d+$/.test(id))
+45	    .map((id) => parseInt(id!.substring(1)))
+46	
+47	  const maxId = ids.length > 0 ? Math.max(...ids) : 0
+48	  return `C${String(maxId + 1).padStart(3, "0")}`
+49	}
+50	
+51	export async function getClienti(): Promise<Client[]> {
+52	  const supabase = getSupabase()
+53	
+54	  const { data, error } = await supabase
+55	    .from("clienti")
+56	    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id")
+57	    .order("created_at", { ascending: false })
+58	
+59	  if (error) throw error
+60	  return (data ?? []) as Client[]
+61	}
+62	
+63	export async function createClienti(input: CreateClientInput): Promise<Client> {
+64	  const supabase = getSupabase()
+65	
+66	  const id_client = await generateNextId(supabase)
+67	
+68	  const { data, error } = await supabase
+69	    .from("clienti")
+70	    .insert({
+71	      id_client,
+72	      nume_client: input.nume_client,
+73	      telefon: input.telefon ?? null,
+74	      email: input.email ?? null,
+75	      adresa: input.adresa ?? null,
+76	      pret_negociat_lei_kg: input.pret_negociat_lei_kg ?? null,
+77	      observatii: input.observatii ?? null,
+78	    })
+79	    .select()
+80	    .single()
+81	
+82	  if (error) throw error
+83	  return data
+84	}
+85	
+86	export async function updateClienti(
+87	  id: string,
+88	  input: UpdateClientInput
+89	): Promise<Client> {
+90	  const supabase = getSupabase()
+91	
+92	  const { data, error } = await supabase
+93	    .from("clienti")
+94	    .update({
+95	      ...input,
+96	      updated_at: new Date().toISOString(),
+97	    })
+98	    .eq("id", id)
+99	    .select()
+100	    .single()
+101	
+102	  if (error) throw error
+103	  return data
+104	}
+105	
+106	export async function deleteClienti(id: string): Promise<void> {
+107	  const supabase = getSupabase()
+108	
+109	  // Check for related records before deleting
+110	  const { count: vanzariCount, error: vanzariError } = await supabase
+111	    .from("vanzari")
+112	    .select("*", { count: "exact", head: true })
+113	    .eq("client_id", id)
+114	
+115	  if (vanzariError) throw vanzariError
+116	
+117	  const { count: comenziCount, error: comenziError } = await supabase
+118	    .from("comenzi")
+119	    .select("*", { count: "exact", head: true })
+120	    .eq("client_id", id)
+121	
+122	  if (comenziError) throw comenziError
+123	
+124	  const { count: vanzariButasiCount, error: vanzariButasiError } = await supabase
+125	    .from("vanzari_butasi")
+126	    .select("*", { count: "exact", head: true })
+127	    .eq("client_id", id)
+128	
+129	  if (vanzariButasiError) throw vanzariButasiError
+130	
+131	  // If any related records exist, throw a descriptive error
+132	  if ((vanzariCount ?? 0) > 0 || (comenziCount ?? 0) > 0 || (vanzariButasiCount ?? 0) > 0) {
+133	    const parts: string[] = []
+134	    if ((vanzariCount ?? 0) > 0) parts.push(`${vanzariCount} vânzări`)
+135	    if ((comenziCount ?? 0) > 0) parts.push(`${comenziCount} comenzi`)
+136	    if ((vanzariButasiCount ?? 0) > 0) parts.push(`${vanzariButasiCount} vânzări butași`)
+137	    
+138	    throw new Error(`Nu poți șterge acest client. Are ${parts.join(" și ")} asociate.`)
+139	  }
+140	
+141	  // Only proceed with delete if all counts are 0
+142	  const { error } = await supabase
+143	    .from("clienti")
+144	    .delete()
+145	    .eq("id", id)
+146	
+147	  if (error) throw error
+148	}
+149	

@@ -102,11 +102,11 @@ export function UserProfileMenu() {
           </Link>
           <Link href="/settings#password" onClick={() => setOpen(false)} className={itemClassName}>
             <Settings className="h-4 w-4" />
-            Setari cont
+            Setări cont
           </Link>
           <Link href="/settings#ferma" onClick={() => setOpen(false)} className={itemClassName}>
             <House className="h-4 w-4" />
-            Setari fermă
+            Setări fermă
           </Link>
           <Link href="/settings#gdpr" onClick={() => setOpen(false)} className={itemClassName}>
             <Download className="h-4 w-4" />

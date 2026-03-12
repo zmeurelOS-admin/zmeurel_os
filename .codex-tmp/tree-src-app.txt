@@ -1,0 +1,109 @@
+﻿C:\Users\Andrei\Desktop\zmeurel\src\app
+├── (auth)
+│   ├── login
+│   │   └── page.tsx
+│   ├── reset-password
+│   │   └── page.tsx
+│   ├── reset-password-request
+│   │   └── page.tsx
+│   └── update-password
+│       └── page.tsx
+├── (dashboard)
+│   ├── activitati-agricole
+│   │   ├── ActivitatiAgricolePageClient.tsx
+│   │   └── page.tsx
+│   ├── admin
+│   │   ├── analytics
+│   │   ├── audit
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── cheltuieli
+│   │   ├── CheltuialaPageClient.tsx
+│   │   └── page.tsx
+│   ├── clienti
+│   │   ├── ClientPageClient.tsx
+│   │   └── page.tsx
+│   ├── comenzi
+│   │   ├── ComenziPageClient.tsx
+│   │   ├── loading.tsx
+│   │   └── page.tsx
+│   ├── culegatori
+│   │   ├── CulegatorPageClient.tsx
+│   │   └── page.tsx
+│   ├── dashboard
+│   │   └── page.tsx
+│   ├── investitii
+│   │   ├── InvestitiiPageClient.tsx
+│   │   └── page.tsx
+│   ├── parcele
+│   │   ├── loading.tsx
+│   │   ├── page.tsx
+│   │   └── ParcelaPageClient.tsx
+│   ├── planuri
+│   │   └── page.tsx
+│   ├── rapoarte
+│   │   ├── page.tsx
+│   │   └── RapoartePageClient.tsx
+│   ├── recoltari
+│   │   ├── new
+│   │   ├── loading.tsx
+│   │   ├── page.tsx
+│   │   └── RecoltariPageClient.tsx
+│   ├── settings
+│   │   └── page.tsx
+│   ├── stoc
+│   │   ├── loading.tsx
+│   │   ├── page.tsx
+│   │   └── StocPageClient.tsx
+│   ├── stocuri
+│   │   ├── page.tsx
+│   │   └── StocuriPageClient.tsx
+│   ├── ui-template-demo
+│   │   └── page.tsx
+│   ├── vanzari
+│   │   ├── loading.tsx
+│   │   ├── page.tsx
+│   │   └── VanzariPageClient.tsx
+│   ├── vanzari-butasi
+│   │   ├── page.tsx
+│   │   └── VanzariButasiPageClient.tsx
+│   └── layout.tsx
+├── api
+│   ├── admin
+│   │   └── tenant-plan
+│   ├── cron
+│   │   ├── admin-metrics-daily
+│   │   └── google-contacts-sync
+│   ├── demo
+│   │   ├── reset
+│   │   └── seed
+│   ├── gdpr
+│   │   ├── account
+│   │   └── farm
+│   └── integrations
+│       └── google
+├── auth
+│   └── callback
+│       └── route.ts
+├── callback
+│   └── page.tsx
+├── confidentialitate
+│   └── page.tsx
+├── icon-192.png
+│   └── route.tsx
+├── icon-512.png
+│   └── route.tsx
+├── login
+│   └── 
+├── register
+│   └── page.tsx
+├── termeni
+│   └── page.tsx
+├── apple-icon.tsx
+├── global-error.tsx
+├── globals.css
+├── icon.tsx
+├── layout.tsx
+├── manifest.ts
+├── page.tsx
+└── providers.tsx

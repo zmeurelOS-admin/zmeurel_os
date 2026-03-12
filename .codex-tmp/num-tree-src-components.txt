@@ -1,0 +1,141 @@
+   1: C:\Users\Andrei\Desktop\zmeurel\src\components
+   2: +¦¦ activitati-agricole
+   3: -   +¦¦ ActivitateAgricolaCard.tsx
+   4: -   +¦¦ AddActivitateAgricolaDialog.tsx
+   5: -   +¦¦ ConfirmDeleteActivitateDialog.tsx
+   6: -   L¦¦ EditActivitateAgricolaDialog.tsx
+   7: +¦¦ admin
+   8: -   +¦¦ AdminTenantsPlanTable.tsx
+   9: -   L¦¦ AnalyticsDashboard.tsx
+  10: +¦¦ app
+  11: -   +¦¦ ActionIcons.tsx
+  12: -   +¦¦ AlertCard.tsx
+  13: -   +¦¦ AppDialog.tsx
+  14: -   +¦¦ AppDrawer.tsx
+  15: -   +¦¦ AppShell.tsx
+  16: -   +¦¦ BaseCard.tsx
+  17: -   +¦¦ BetaBanner.tsx
+  18: -   +¦¦ BottomTabBar.tsx
+  19: -   +¦¦ CompactListCard.tsx
+  20: -   +¦¦ ConfirmDeleteDialog.tsx
+  21: -   +¦¦ ConnectionStatus.tsx
+  22: -   +¦¦ DashboardAuthContext.tsx
+  23: -   +¦¦ DensityProvider.tsx
+  24: -   +¦¦ EmptyState.tsx
+  25: -   +¦¦ EmptyStateBase.tsx
+  26: -   +¦¦ ErrorState.tsx
+  27: -   +¦¦ FarmSwitcher.tsx
+  28: -   +¦¦ FeatureGate.tsx
+  29: -   +¦¦ HighVisibilityInit.tsx
+  30: -   +¦¦ HighVisibilityToggle.tsx
+  31: -   +¦¦ KpiCard.tsx
+  32: -   +¦¦ ListSkeleton.tsx
+  33: -   +¦¦ LoadingState.tsx
+  34: -   +¦¦ MonitoringInit.tsx
+  35: -   +¦¦ MoreMenuDrawer.tsx
+  36: -   +¦¦ NavigationPerfLogger.tsx
+  37: -   +¦¦ NumericField.tsx
+  38: -   +¦¦ PageHeader.tsx
+  39: -   +¦¦ PageViewTracker.tsx
+  40: -   +¦¦ PerformanceTable.tsx
+  41: -   +¦¦ ProfitSummaryCard.tsx
+  42: -   +¦¦ QuickActionsPanel.tsx
+  43: -   +¦¦ ServiceWorkerRegister.tsx
+  44: -   +¦¦ StatusChip.tsx
+  45: -   +¦¦ status-config.ts
+  46: -   +¦¦ StickyActionBar.tsx
+  47: -   +¦¦ SyncBadge.tsx
+  48: -   +¦¦ SyncStatusIndicator.tsx
+  49: -   +¦¦ TopBar.tsx
+  50: -   +¦¦ useMobileScrollRestore.ts
+  51: -   L¦¦ UserProfileMenu.tsx
+  52: +¦¦ cheltuieli
+  53: -   +¦¦ AddCheltuialaDialog.tsx
+  54: -   +¦¦ CheltuialaCard.tsx
+  55: -   +¦¦ EditCheltuialaDialog.tsx
+  56: -   L¦¦ ViewCheltuialaDialog.tsx
+  57: +¦¦ clienti
+  58: -   +¦¦ AddClientDialog.tsx
+  59: -   +¦¦ ClientCard.tsx
+  60: -   +¦¦ ClientDetailsDrawer.tsx
+  61: -   L¦¦ EditClientDialog.tsx
+  62: +¦¦ comenzi
+  63: -   L¦¦ ViewComandaDialog.tsx
+  64: +¦¦ culegatori
+  65: -   +¦¦ AddCulegatorDialog.tsx
+  66: -   +¦¦ CulegatorCard.tsx
+  67: -   L¦¦ EditCulegatorDialog.tsx
+  68: +¦¦ dashboard
+  69: -   +¦¦ DashboardCard.tsx
+  70: -   +¦¦ DashboardGrid.tsx
+  71: -   +¦¦ DashboardHome.tsx
+  72: -   +¦¦ FinanciarAziCard.tsx
+  73: -   +¦¦ index.ts
+  74: -   +¦¦ ProductieAziCard.tsx
+  75: -   +¦¦ RecentActivityCard.tsx
+  76: -   +¦¦ SectionTitle.tsx
+  77: -   +¦¦ Sparkline.tsx
+  78: -   L¦¦ StatRow.tsx
+  79: +¦¦ investitii
+  80: -   +¦¦ AddInvestitieDialog.tsx
+  81: -   +¦¦ EditInvestitieDialog.tsx
+  82: -   L¦¦ InvestitieCard.tsx
+  83: +¦¦ layout
+  84: -   +¦¦ BetaBanner.tsx
+  85: -   +¦¦ CompactPageHeader.tsx
+  86: -   L¦¦ Sidebar.tsx
+  87: +¦¦ mobile
+  88: -   +¦¦ MobileBottomNav.tsx
+  89: -   +¦¦ MobileShell.tsx
+  90: -   L¦¦ StickyActionButton.tsx
+  91: +¦¦ onboarding
+  92: -   L¦¦ 
+  93: +¦¦ parcele
+  94: -   +¦¦ AddParcelaDialog.tsx
+  95: -   +¦¦ AddParcelDrawer.tsx
+  96: -   +¦¦ DeleteConfirmDialog.tsx
+  97: -   +¦¦ EditParcelaDialog.tsx
+  98: -   +¦¦ EditParcelDialog.tsx
+  99: -   +¦¦ ParcelaCard.tsx
+ 100: -   +¦¦ ParcelaForm.tsx
+ 101: -   +¦¦ ParceleLayout.tsx
+ 102: -   +¦¦ ParceleList.tsx
+ 103: -   +¦¦ ParcelePageClient.tsx
+ 104: -   +¦¦ ParcelForm.tsx
+ 105: -   L¦¦ StickyActionBar.tsx
+ 106: +¦¦ recoltari
+ 107: -   +¦¦ AddRecoltareDialog.tsx
+ 108: -   +¦¦ EditRecoltareDialog.tsx
+ 109: -   +¦¦ RecoltareCard.tsx
+ 110: -   L¦¦ ViewRecoltareDialog.tsx
+ 111: +¦¦ ui
+ 112: -   +¦¦ alert-dialog.tsx
+ 113: -   +¦¦ app-card.tsx
+ 114: -   +¦¦ badge.tsx
+ 115: -   +¦¦ button.tsx
+ 116: -   +¦¦ card.tsx
+ 117: -   +¦¦ dialog.tsx
+ 118: -   +¦¦ dialog-form-actions.tsx
+ 119: -   +¦¦ EmptyState.tsx
+ 120: -   +¦¦ form.tsx
+ 121: -   +¦¦ form-dialog-layout.tsx
+ 122: -   +¦¦ input.tsx
+ 123: -   +¦¦ label.tsx
+ 124: -   +¦¦ select.tsx
+ 125: -   +¦¦ sonner.tsx
+ 126: -   +¦¦ table.tsx
+ 127: -   +¦¦ tabs.tsx
+ 128: -   L¦¦ textarea.tsx
+ 129: +¦¦ vanzari
+ 130: -   +¦¦ AddVanzareDialog.tsx
+ 131: -   +¦¦ EditVanzareDialog.tsx
+ 132: -   +¦¦ VanzareCard.tsx
+ 133: -   L¦¦ ViewVanzareDialog.tsx
+ 134: +¦¦ vanzari-butasi
+ 135: -   +¦¦ AddVanzareButasiDialog.tsx
+ 136: -   +¦¦ EditVanzareButasiDialog.tsx
+ 137: -   +¦¦ VanzareButasiCard.tsx
+ 138: -   L¦¦ ViewVanzareButasiDialog.tsx
+ 139: +¦¦ LogoutButton.tsx
+ 140: +¦¦ Navbar.tsx
+ 141: L¦¦ Toaster.tsx

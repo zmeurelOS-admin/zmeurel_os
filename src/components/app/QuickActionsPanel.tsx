@@ -22,7 +22,7 @@ const quickActions = [
   },
   {
     href: '/vanzari',
-    label: 'Inregistreaza vânzare',
+    label: 'Înregistrează vânzare',
     icon: WalletCards,
     className:
       'bg-amber-500 text-slate-950 border-amber-600 hover:bg-amber-400 focus-visible:ring-amber-300',
@@ -33,18 +33,18 @@ export function QuickActionsPanel() {
   return (
     <ActionCard className="bg-white">
       <div className="mb-3">
-        <h2 className="text-base font-bold text-[var(--agri-text)]">Actiuni rapide</h2>
-        <p className="text-sm text-[var(--agri-text-muted)]">Acces rapid pentru operatiuni din teren</p>
+        <h2 className="text-base font-bold text-[var(--agri-text)]">Acțiuni rapide</h2>
+        <p className="text-sm text-[var(--agri-text-muted)]">Acces rapid pentru operațiuni din teren</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
         {quickActions.map((action) => (
           <Link
             key={action.href}
             href={action.href}
-            className={`inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 ${action.className}`}
+            className={`inline-flex min-h-14 w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 sm:justify-center ${action.className}`}
           >
-            <action.icon className="h-5 w-5" />
+            <action.icon className="h-5 w-5 shrink-0" />
             <span>{action.label}</span>
           </Link>
         ))}

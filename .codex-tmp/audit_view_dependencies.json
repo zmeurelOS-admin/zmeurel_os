@@ -1,0 +1,58 @@
+[
+  {
+    "view_name": "activitati_extended",
+    "base_tables": [
+      "parcele",
+      "tenants"
+    ],
+    "view_dependencies": [
+      "parcele_extended"
+    ],
+    "dependency_depth": 2,
+    "migration_hotspot": true
+  },
+  {
+    "view_name": "activitati_extra_extended",
+    "base_tables": [
+      "parcele",
+      "tenants"
+    ],
+    "view_dependencies": [
+      "parcele_extended"
+    ],
+    "dependency_depth": 2,
+    "migration_hotspot": true
+  },
+  {
+    "view_name": "parcele_extended",
+    "base_tables": [
+      "tenants"
+    ],
+    "view_dependencies": [],
+    "dependency_depth": 1,
+    "migration_hotspot": false
+  },
+  {
+    "view_name": "vanzari_butasi_extended",
+    "base_tables": [
+      "clienti",
+      "parcele",
+      "tenants"
+    ],
+    "view_dependencies": [
+      "parcele_extended"
+    ],
+    "dependency_depth": 2,
+    "migration_hotspot": true
+  },
+  {
+    "view_name": "vanzari_extended",
+    "base_tables": [
+      "clienti",
+      "tenants"
+    ],
+    "view_dependencies": [],
+    "dependency_depth": 1,
+    "migration_hotspot": true
+  }
+]

@@ -15,15 +15,15 @@ type Tab = {
 }
 
 const DASHBOARD_TAB: Tab = { label: 'Dashboard', href: '/dashboard', icon: '📊' }
-const RECOLTARI_TAB: Tab = { label: 'Recoltări', href: '/recoltari', icon: '🫐' }
+const RECOLTARI_TAB: Tab = { label: 'Recoltări', href: '/recoltari', icon: '🧺' }
 const COMENZI_TAB: Tab = { label: 'Comenzi', href: '/comenzi', icon: '📦' }
 
 const PRIMARY_HREFS = [DASHBOARD_TAB.href, RECOLTARI_TAB.href, COMENZI_TAB.href]
 
 const quickActions: Array<{ label: string; href: string; icon: ComponentType<{ className?: string }> }> = [
-  { label: 'Adaugă recoltare', href: '/recoltarișadd=1', icon: Leaf },
-  { label: 'Adaugă comanda', href: '/comenzișadd=1', icon: ClipboardList },
-  { label: 'Adaugă cheltuială', href: '/cheltuielișadd=1', icon: Receipt },
+  { label: 'Adaugă recoltare', href: '/recoltari?add=1', icon: Leaf },
+  { label: 'Adaugă comandă', href: '/comenzi?add=1', icon: ClipboardList },
+  { label: 'Adaugă cheltuială', href: '/cheltuieli?add=1', icon: Receipt },
 ]
 
 type RouteAddConfig = {
@@ -32,23 +32,23 @@ type RouteAddConfig = {
 }
 
 function getRouteAddConfig(pathname: string): RouteAddConfig {
-  if (pathname === '/dashboard') return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
-  if (pathname === '/recoltari' || pathname.startsWith('/recoltari/')) return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
-  if (pathname === '/comenzi' || pathname.startsWith('/comenzi/')) return { label: 'Adaugă comanda', href: '/comenzișadd=1' }
+  if (pathname === '/dashboard') return { label: 'Adaugă recoltare', href: '/recoltari?add=1' }
+  if (pathname === '/recoltari' || pathname.startsWith('/recoltari/')) return { label: 'Adaugă recoltare', href: '/recoltari?add=1' }
+  if (pathname === '/comenzi' || pathname.startsWith('/comenzi/')) return { label: 'Adaugă comandă', href: '/comenzi?add=1' }
   if (pathname === '/parcele' || pathname.startsWith('/parcele/')) return { label: 'Adaugă teren', href: '/parcele' }
-  if (pathname === '/cheltuieli' || pathname.startsWith('/cheltuieli/')) return { label: 'Adaugă cheltuială', href: '/cheltuielișadd=1' }
+  if (pathname === '/cheltuieli' || pathname.startsWith('/cheltuieli/')) return { label: 'Adaugă cheltuială', href: '/cheltuieli?add=1' }
   if (pathname === '/activitati-agricole' || pathname.startsWith('/activitati-agricole/')) return { label: 'Adaugă activitate', href: '/activitati-agricole' }
   if (pathname === '/vanzari' || pathname.startsWith('/vanzari/')) return { label: 'Adaugă vânzare', href: '/vanzari' }
   if (pathname === '/clienti' || pathname.startsWith('/clienti/')) return { label: 'Adaugă client', href: '/clienti' }
-  if (pathname === '/culegatori' || pathname.startsWith('/culegatori/')) return { label: 'Adaugă culegator', href: '/culegatori' }
+  if (pathname === '/culegatori' || pathname.startsWith('/culegatori/')) return { label: 'Adaugă culegător', href: '/culegatori' }
   if (pathname === '/stocuri' || pathname.startsWith('/stocuri/')) {
-    return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
+    return { label: 'Adaugă recoltare', href: '/recoltari?add=1' }
   }
   if (pathname === '/vanzari-butasi' || pathname.startsWith('/vanzari-butasi/')) {
-    return { label: 'Adaugă vanzare material saditor', href: '/vanzari-butasi' }
+    return { label: 'Adaugă vânzare material săditor', href: '/vanzari-butasi' }
   }
 
-  return { label: 'Adaugă recoltare', href: '/recoltarișadd=1' }
+  return { label: 'Adaugă recoltare', href: '/recoltari?add=1' }
 }
 
 function TabLink({ tab, active, router }: { tab: Tab; active: boolean; router: ReturnType<typeof useRouter> }) {
@@ -100,7 +100,6 @@ export function BottomTabBar() {
   }, [router])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuickAddOpen(false)
   }, [pathname])
 
@@ -150,7 +149,7 @@ export function BottomTabBar() {
         <>
           <button
             type="button"
-            aria-label="Inchide meniul de adaugare rapida"
+            aria-label="Închide meniul de adăugare rapidă"
             onClick={() => setQuickAddOpen(false)}
             className="fixed inset-0 z-[100000060] bg-transparent"
           />
@@ -183,10 +182,10 @@ export function BottomTabBar() {
           paddingTop: '8px',
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 26px)',
         }}
-        aria-label="Navigare principala"
+        aria-label="Navigare principală"
       >
         <div
-          className="mx-auto w-full max-w-4xl px-2"
+          className="mx-auto w-full max-w-7xl px-2"
           style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}
         >
           <TabLink tab={DASHBOARD_TAB} active={isTabActive(DASHBOARD_TAB.href)} router={router} />
@@ -240,7 +239,7 @@ export function BottomTabBar() {
                 lineHeight: 1.2,
               }}
             >
-              More
+              Mai mult
             </span>
             {moreActive ? <div style={{ width: '16px', height: '2px', background: '#2D6A4F', borderRadius: '1px', marginTop: '2px' }} /> : null}
           </button>

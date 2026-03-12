@@ -1,0 +1,464 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useMemo, useRef, useState } from 'react'
+    4: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    5: import { ShoppingCart } from 'lucide-react'
+    6: import { useRouter } from 'next/navigation'
+    7: import { toast } from '@/lib/ui/toast'
+    8: 
+    9: import { AppShell } from '@/components/app/AppShell'
+   10: import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+   11: import { EmptyState } from '@/components/ui/EmptyState'
+   12: import { ErrorState } from '@/components/app/ErrorState'
+   13: import { LoadingState } from '@/components/app/LoadingState'
+   14: import { PageHeader } from '@/components/app/PageHeader'
+   15: import { StickyActionBar } from '@/components/app/StickyActionBar'
+   16: import { AddVanzareDialog } from '@/components/vanzari/AddVanzareDialog'
+   17: import { EditVanzareDialog } from '@/components/vanzari/EditVanzareDialog'
+   18: import { VanzareCard } from '@/components/vanzari/VanzareCard'
+   19: import { ViewVanzareDialog } from '@/components/vanzari/ViewVanzareDialog'
+   20: import { DashboardCard, DashboardGrid, Sparkline, StatRow } from '@/components/dashboard'
+   21: import { Input } from '@/components/ui/input'
+   22: import { track } from '@/lib/analytics/track'
+   23: import { trackEvent } from '@/lib/analytics/trackEvent'
+   24: import { getClienti } from '@/lib/supabase/queries/clienti'
+   25: import {
+   26:   deleteVanzare,
+   27:   getVanzari,
+   28:   type Vanzare,
+   29: } from '@/lib/supabase/queries/vanzari'
+   30: import { buildVanzareDeleteLabel } from '@/lib/ui/delete-labels'
+   31: import { useAddAction } from '@/contexts/AddActionContext'
+   32: 
+   33: interface Client {
+   34:   id: string
+   35:   nume: string
+   36:   telefon: string | null
+   37: }
+   38: 
+   39: interface VanzariPageClientProps {
+   40:   initialVanzari?: Vanzare[]
+   41:   clienti?: Client[]
+   42: }
+   43: 
+   44: function toDateOnly(value: string | null | undefined): string {
+   45:   return (value ?? '').slice(0, 10)
+   46: }
+   47: 
+   48: function toIsoDate(value: Date): string {
+   49:   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+   50: }
+   51: 
+   52: function getStartOfWeek(value: Date): Date {
+   53:   const date = new Date(value)
+   54:   date.setHours(0, 0, 0, 0)
+   55:   const weekday = date.getDay()
+   56:   const shift = weekday === 0 ? 6 : weekday - 1
+   57:   date.setDate(date.getDate() - shift)
+   58:   return date
+   59: }
+   60: 
+   61: function normalizeText(value: string | null | undefined): string {
+   62:   return (value ?? '')
+   63:     .toLowerCase()
+   64:     .normalize('NFD')
+   65:     .replace(/[\u0300-\u036f]/g, '')
+   66:     .replace(/ț/g, 't')
+   67:     .replace(/ţ/g, 't')
+   68:     .replace(/ș/g, 's')
+   69:     .replace(/ş/g, 's')
+   70:     .replace(/ă/g, 'a')
+   71:     .replace(/â/g, 'a')
+   72:     .replace(/î/g, 'i')
+   73: }
+   74: 
+   75: export function VanzariPageClient({
+   76:   initialVanzari = [],
+   77:   clienti: initialClienti = [],
+   78: }: VanzariPageClientProps) {
+   79:   const router = useRouter()
+   80:   const queryClient = useQueryClient()
+   81:   const { registerAddAction } = useAddAction()
+   82:   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+   83:   const pendingDeletedItems = useRef<Record<string, { item: Vanzare; index: number }>>({})
+   84: 
+   85:   const [searchTerm, setSearchTerm] = useState('')
+   86:   const [addOpen, setAddOpen] = useState(false)
+   87:   const [viewingVanzare, setViewingVanzare] = useState<Vanzare | null>(null)
+   88:   const [editingVanzare, setEditingVanzare] = useState<Vanzare | null>(null)
+   89:   const [deletingVanzare, setDeletingVanzare] = useState<Vanzare | null>(null)
+   90: 
+   91:   const {
+   92:     data: vanzari = [],
+   93:     isLoading,
+   94:     isError,
+   95:     error,
+   96:   } = useQuery({
+   97:     queryKey: ['vanzari'],
+   98:     queryFn: getVanzari,
+   99:     staleTime: 30000,
+  100:     refetchOnWindowFocus: false,
+  101:   })
+  102: 
+  103:   const { data: clienti = initialClienti } = useQuery({
+  104:     queryKey: ['clienti'],
+  105:     queryFn: async () => {
+  106:       const rows = await getClienti()
+  107:       return rows.map((client) => ({
+  108:         id: client.id,
+  109:         nume: client.nume_client,
+  110:         telefon: client.telefon,
+  111:       }))
+  112:     },
+  113:     initialData: initialClienti,
+  114:     staleTime: 30000,
+  115:     refetchOnWindowFocus: false,
+  116:   })
+  117: 
+  118:   const deleteMutation = useMutation({
+  119:     mutationFn: deleteVanzare,
+  120:     onSuccess: (_, deletedId) => {
+  121:       queryClient.invalidateQueries({ queryKey: ['vanzari'], exact: true })
+  122:       queryClient.invalidateQueries({ queryKey: ['stoc-global'], exact: true })
+  123:       queryClient.invalidateQueries({ queryKey: ['dashboard'], exact: true })
+  124:       trackEvent('delete_item', 'vanzari')
+  125:       track('vanzare_delete', { id: deletedId })
+  126:       toast.success('Vânzare ștearsă')
+  127:       setDeletingVanzare(null)
+  128:     },
+  129:     onError: (err: Error) => {
+  130:       toast.error(err.message)
+  131:       queryClient.invalidateQueries({ queryKey: ['vanzari'], exact: true })
+  132:     },
+  133:   })
+  134: 
+  135:   useEffect(() => {
+  136:     return () => {
+  137:       Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+  138:     }
+  139:   }, [])
+  140: 
+  141:   useEffect(() => {
+  142:     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga vanzare')
+  143:     return unregister
+  144:   }, [registerAddAction])
+  145: 
+  146:   useEffect(() => {
+  147:     const query = searchTerm.trim()
+  148:     if (!query) return
+  149: 
+  150:     const timer = setTimeout(() => {
+  151:       track('search', { module: 'vanzari', query })
+  152:     }, 500)
+  153: 
+  154:     return () => clearTimeout(timer)
+  155:   }, [searchTerm])
+  156: 
+  157:   const scheduleDelete = (vanzare: Vanzare) => {
+  158:     const vanzareId = vanzare.id
+  159:     const currentItems = queryClient.getQueryData<Vanzare[]>(['vanzari']) ?? []
+  160:     const deleteIndex = currentItems.findIndex((item) => item.id === vanzareId)
+  161: 
+  162:     pendingDeletedItems.current[vanzareId] = { item: vanzare, index: deleteIndex }
+  163:     queryClient.setQueryData<Vanzare[]>(['vanzari'], (current = []) =>
+  164:       current.filter((item) => item.id !== vanzareId)
+  165:     )
+  166: 
+  167:     const timer = setTimeout(() => {
+  168:       delete pendingDeleteTimers.current[vanzareId]
+  169:       delete pendingDeletedItems.current[vanzareId]
+  170:       deleteMutation.mutate(vanzareId)
+  171:     }, 5000)
+  172: 
+  173:     pendingDeleteTimers.current[vanzareId] = timer
+  174: 
+  175:     toast('Element șters', {
+  176:       duration: 5000,
+  177:       action: {
+  178:         label: 'Undo',
+  179:         onClick: () => {
+  180:           const pendingTimer = pendingDeleteTimers.current[vanzareId]
+  181:           if (!pendingTimer) return
+  182:           clearTimeout(pendingTimer)
+  183:           delete pendingDeleteTimers.current[vanzareId]
+  184:           const pendingItem = pendingDeletedItems.current[vanzareId]
+  185:           delete pendingDeletedItems.current[vanzareId]
+  186:           if (!pendingItem) return
+  187: 
+  188:           queryClient.setQueryData<Vanzare[]>(['vanzari'], (current = []) => {
+  189:             if (current.some((item) => item.id === vanzareId)) return current
+  190: 
+  191:             const next = [...current]
+  192:             const insertAt =
+  193:               pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+  194:             next.splice(insertAt, 0, pendingItem.item)
+  195:             return next
+  196:           })
+  197:         },
+  198:       },
+  199:     })
+  200:   }
+  201: 
+  202:   const clientMap = useMemo(() => {
+  203:     const map: Record<string, string> = {}
+  204:     clienti.forEach((c) => {
+  205:       map[c.id] = c.nume
+  206:     })
+  207:     return map
+  208:   }, [clienti])
+  209: 
+  210:   const clientPhoneMap = useMemo(() => {
+  211:     const map: Record<string, string | null> = {}
+  212:     clienti.forEach((c) => {
+  213:       map[c.id] = c.telefon
+  214:     })
+  215:     return map
+  216:   }, [clienti])
+  217: 
+  218:   const filteredVanzari = useMemo(() => {
+  219:     if (!searchTerm) return vanzari
+  220:     const term = searchTerm.toLowerCase()
+  221: 
+  222:     return vanzari.filter(
+  223:       (v) =>
+  224:         (v.client_id && clientMap[v.client_id]?.toLowerCase().includes(term)) ||
+  225:         v.status_plata.toLowerCase().includes(term) ||
+  226:         v.observatii_ladite?.toLowerCase().includes(term)
+  227:     )
+  228:   }, [vanzari, searchTerm, clientMap])
+  229: 
+  230:   const total = useMemo(
+  231:     () => filteredVanzari.reduce((sum, v) => sum + v.cantitate_kg * v.pret_lei_kg, 0),
+  232:     [filteredVanzari]
+  233:   )
+  234: 
+  235:   const dashboardSummary = useMemo(() => {
+  236:     const getRevenue = (row: Vanzare) => Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0)
+  237: 
+  238:     const today = new Date()
+  239:     today.setHours(0, 0, 0, 0)
+  240:     const todayIso = toIsoDate(today)
+  241:     const weekStart = getStartOfWeek(today)
+  242:     const weekStartIso = toIsoDate(weekStart)
+  243: 
+  244:     const prevWeekStart = new Date(weekStart)
+  245:     prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+  246:     const prevWeekEnd = new Date(weekStart)
+  247:     prevWeekEnd.setDate(prevWeekEnd.getDate() - 1)
+  248:     const prevWeekStartIso = toIsoDate(prevWeekStart)
+  249:     const prevWeekEndIso = toIsoDate(prevWeekEnd)
+  250: 
+  251:     const venitAzi = vanzari.reduce((sum, row) => {
+  252:       if (toDateOnly(row.data) !== todayIso) return sum
+  253:       return sum + getRevenue(row)
+  254:     }, 0)
+  255:     const vanzariAziCount = vanzari.filter((row) => toDateOnly(row.data) === todayIso).length
+  256: 
+  257:     const venitSaptamana = vanzari.reduce((sum, row) => {
+  258:       const rowDate = toDateOnly(row.data)
+  259:       if (rowDate < weekStartIso || rowDate > todayIso) return sum
+  260:       return sum + getRevenue(row)
+  261:     }, 0)
+  262: 
+  263:     const venitSaptamanaTrecuta = vanzari.reduce((sum, row) => {
+  264:       const rowDate = toDateOnly(row.data)
+  265:       if (rowDate < prevWeekStartIso || rowDate > prevWeekEndIso) return sum
+  266:       return sum + getRevenue(row)
+  267:     }, 0)
+  268: 
+  269:     const vanzariFinalizateSaptamana = vanzari.filter((row) => {
+  270:       const rowDate = toDateOnly(row.data)
+  271:       if (rowDate < weekStartIso || rowDate > todayIso) return false
+  272:       const status = normalizeText(row.status_plata)
+  273:       return status.includes('platit') || status.includes('achitat')
+  274:     }).length
+  275: 
+  276:     const trendDirection: 'up' | 'down' | 'neutral' =
+  277:       venitSaptamana > venitSaptamanaTrecuta + 0.01
+  278:         ? 'up'
+  279:         : venitSaptamana < venitSaptamanaTrecuta - 0.01
+  280:           ? 'down'
+  281:           : 'neutral'
+  282: 
+  283:     const trendPercent =
+  284:       venitSaptamanaTrecuta > 0
+  285:         ? ((venitSaptamana - venitSaptamanaTrecuta) / venitSaptamanaTrecuta) * 100
+  286:         : venitSaptamana > 0
+  287:           ? 100
+  288:           : 0
+  289: 
+  290:     const venitUltimele7Zile = Array.from({ length: 7 }, (_, index) => {
+  291:       const day = new Date(today)
+  292:       day.setDate(today.getDate() - 6 + index)
+  293:       const dayIso = toIsoDate(day)
+  294:       return vanzari.reduce((sum, row) => {
+  295:         if (toDateOnly(row.data) !== dayIso) return sum
+  296:         return sum + getRevenue(row)
+  297:       }, 0)
+  298:     })
+  299: 
+  300:     return {
+  301:       venitAzi,
+  302:       vanzariAziCount,
+  303:       venitSaptamana,
+  304:       venitSaptamanaTrecuta,
+  305:       vanzariFinalizateSaptamana,
+  306:       trendDirection,
+  307:       trendPercent,
+  308:       venitUltimele7Zile,
+  309:     }
+  310:   }, [vanzari])
+  311: 
+  312:   const refresh = () => {
+  313:     queryClient.invalidateQueries({ queryKey: ['vanzari'], exact: true })
+  314:   }
+  315: 
+  316:   return (
+  317:     <AppShell
+  318:       header={<PageHeader title="Vânzări Fructe" subtitle="Gestionare venituri din producșie" />}
+  319:       bottomBar={
+  320:         <StickyActionBar>
+  321:           <div className="flex items-center justify-between gap-3">
+  322:             <p className="text-sm font-medium text-[var(--agri-text-muted)]">Venit total: {total.toFixed(2)} lei</p>
+  323:           </div>
+  324:         </StickyActionBar>
+  325:       }
+  326:     >
+  327:       <div className="mx-auto w-full max-w-4xl space-y-3 py-3 sm:space-y-4 sm:py-4">
+  328:         <DashboardGrid className="mb-1">
+  329:           <DashboardCard
+  330:             title="Venit azi"
+  331:             onClick={() => {
+  332:               setSearchTerm('')
+  333:               router.push('/vanzari', { scroll: false })
+  334:             }}
+  335:             contentClassName="grid grid-cols-2 gap-2"
+  336:           >
+  337:             <StatRow label="Venit" value={`${dashboardSummary.venitAzi.toFixed(2)} lei`} valueClassName="value-money-positive" />
+  338:             <StatRow label="Vanzari" value={dashboardSummary.vanzariAziCount} />
+  339:           </DashboardCard>
+  340: 
+  341:           <DashboardCard
+  342:             title="Vanzari finalizate sapt."
+  343:             onClick={() => {
+  344:               setSearchTerm('platit')
+  345:               router.push('/vanzari?filter=platit', { scroll: false })
+  346:             }}
+  347:             contentClassName="grid grid-cols-2 gap-2"
+  348:           >
+  349:             <StatRow label="Finalizate" value={dashboardSummary.vanzariFinalizateSaptamana} />
+  350:             <StatRow label="Status" value="Platit / achitat" />
+  351:           </DashboardCard>
+  352: 
+  353:           <DashboardCard
+  354:             title="Venit saptamana"
+  355:             rightSlot={<Sparkline values={dashboardSummary.venitUltimele7Zile} />}
+  356:             className="md:col-span-2"
+  357:             onClick={() => {
+  358:               setSearchTerm('')
+  359:               router.push('/vanzari', { scroll: false })
+  360:             }}
+  361:             contentClassName="grid grid-cols-2 gap-2"
+  362:           >
+  363:             <StatRow
+  364:               label="Saptamana curenta"
+  365:               value={`${dashboardSummary.venitSaptamana.toFixed(2)} lei`}
+  366:               trend={dashboardSummary.trendDirection}
+  367:               valueClassName="value-money-positive"
+  368:             />
+  369:             <StatRow label="Saptamana trecuta" value={`${dashboardSummary.venitSaptamanaTrecuta.toFixed(2)} lei`} />
+  370:             <StatRow
+  371:               label="Trend"
+  372:               value={`${dashboardSummary.trendPercent >= 0 ? '+' : ''}${dashboardSummary.trendPercent.toFixed(0)}%`}
+  373:             />
+  374:           </DashboardCard>
+  375:         </DashboardGrid>
+  376: 
+  377:         <Input className="agri-control h-12" placeholder="Caută după client sau status..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+  378: 
+  379:         {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={refresh} /> : null}
+  380:         {isLoading ? <LoadingState label="Se încarcă vânzările..." /> : null}
+  381:         {!isLoading && !isError && filteredVanzari.length === 0 ? (
+  382:           <EmptyState
+  383:             icon={<ShoppingCart className="h-16 w-16" />}
+  384:             title="Nicio vânzare încă"
+  385:             description="Adaugă prima vânzare pentru a începe"
+  386:           />
+  387:         ) : null}
+  388: 
+  389:         {!isLoading && !isError && filteredVanzari.length > 0 ? (
+  390:           <>
+  391:             <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
+  392:               {filteredVanzari.map((vanzare) => (
+  393:                 <div key={vanzare.id} className="border-b border-[var(--agri-border)] last:border-b-0">
+  394:                   <VanzareCard
+  395:                     vanzare={vanzare}
+  396:                     clientNume={vanzare.client_id ? clientMap[vanzare.client_id] : undefined}
+  397:                     onView={setViewingVanzare}
+  398:                     onEdit={setEditingVanzare}
+  399:                     onDelete={setDeletingVanzare}
+  400:                   />
+  401:                 </div>
+  402:               ))}
+  403:             </div>
+  404:             <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 lg:grid-cols-3">
+  405:               {filteredVanzari.map((vanzare) => (
+  406:                 <VanzareCard
+  407:                   key={vanzare.id}
+  408:                   vanzare={vanzare}
+  409:                   clientNume={vanzare.client_id ? clientMap[vanzare.client_id] : undefined}
+  410:                   onView={setViewingVanzare}
+  411:                   onEdit={setEditingVanzare}
+  412:                   onDelete={setDeletingVanzare}
+  413:                 />
+  414:               ))}
+  415:             </div>
+  416:           </>
+  417:         ) : null}
+  418:       </div>
+  419: 
+  420:       <AddVanzareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+  421: 
+  422:       <ViewVanzareDialog
+  423:         open={!!viewingVanzare}
+  424:         onOpenChange={(open) => {
+  425:           if (!open) setViewingVanzare(null)
+  426:         }}
+  427:         vanzare={viewingVanzare}
+  428:         clientNume={viewingVanzare?.client_id ? clientMap[viewingVanzare.client_id] : undefined}
+  429:         clientTelefon={viewingVanzare?.client_id ? clientPhoneMap[viewingVanzare.client_id] : null}
+  430:         onEdit={setEditingVanzare}
+  431:         onDelete={setDeletingVanzare}
+  432:       />
+  433: 
+  434:       <EditVanzareDialog
+  435:         vanzare={editingVanzare}
+  436:         open={!!editingVanzare}
+  437:         onOpenChange={(open) => {
+  438:           if (!open) setEditingVanzare(null)
+  439:         }}
+  440:       />
+  441: 
+  442:       <ConfirmDeleteDialog
+  443:         open={!!deletingVanzare}
+  444:         onOpenChange={(open) => {
+  445:           if (!open) setDeletingVanzare(null)
+  446:         }}
+  447:         onConfirm={() => {
+  448:           if (!deletingVanzare) return
+  449:           scheduleDelete(deletingVanzare)
+  450:           setDeletingVanzare(null)
+  451:         }}
+  452:         itemName={buildVanzareDeleteLabel(
+  453:           deletingVanzare,
+  454:           deletingVanzare?.client_id ? clientMap[deletingVanzare.client_id] : ''
+  455:         )}
+  456:         itemType="Vânzare"
+  457:         description={`Ștergi vânzarea din ${deletingVanzare?.data ? new Date(deletingVanzare.data).toLocaleDateString('ro-RO') : 'data necunoscută'} către ${deletingVanzare?.client_id ? clientMap[deletingVanzare.client_id] || 'client necunoscut' : 'client necunoscut'}?`}
+  458:         loading={deleteMutation.isPending}
+  459:       />
+  460:     </AppShell>
+  461:   )
+  462: }
+  463: 
+  464: 

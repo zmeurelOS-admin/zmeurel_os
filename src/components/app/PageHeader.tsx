@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { HighVisibilityToggle } from '@/components/app/HighVisibilityToggle'
@@ -26,7 +26,7 @@ export function PageHeader({ title, subtitle, rightSlot, summary }: PageHeaderPr
             <button
               type="button"
               onClick={triggerAddAction}
-              className="hidden h-10 items-center rounded-xl border border-white/40 bg-white/20 px-3 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30 md:inline-flex"
+              className="hidden h-9 items-center rounded-xl border border-white/40 bg-white/20 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30 md:inline-flex"
             >
               {currentLabel}
             </button>

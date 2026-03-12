@@ -1,0 +1,109 @@
+1	'use client'
+2	
+3	import { Pencil, Trash2 } from 'lucide-react'
+4	
+5	import { CompactListCard } from '@/components/app/CompactListCard'
+6	import { Recoltare } from '@/lib/supabase/queries/recoltari'
+7	
+8	interface RecoltareCardProps {
+9	  recoltare: Recoltare
+10	  culegatorNume?: string
+11	  culegatorTarif?: number
+12	  parcelaNume?: string
+13	  onView: (recoltare: Recoltare) => void
+14	  onEdit: (recoltare: Recoltare) => void
+15	  onDelete: (recoltare: Recoltare) => void
+16	}
+17	
+18	export function RecoltareCard({
+19	  recoltare,
+20	  culegatorNume,
+21	  culegatorTarif,
+22	  parcelaNume,
+23	  onView,
+24	  onEdit,
+25	  onDelete,
+26	}: RecoltareCardProps) {
+27	  const kgCal1 = Number(recoltare.kg_cal1 ?? 0)
+28	  const kgCal2 = Number(recoltare.kg_cal2 ?? 0)
+29	  const totalKg = kgCal1 + kgCal2
+30	  const formattedDate = new Date(recoltare.data).toLocaleDateString('ro-RO')
+31	  const costMuncaSnapshot = Number(recoltare.valoare_munca_lei ?? 0)
+32	  const costMunca = costMuncaSnapshot > 0 ? costMuncaSnapshot : (culegatorTarif ? totalKg * culegatorTarif : 0)
+33	
+34	  return (
+35	    <>
+36	      <div className="cursor-pointer px-4 py-2.5 transition-opacity active:opacity-95 sm:hidden" onClick={() => onView(recoltare)}>
+37	        <p className="truncate text-base font-semibold text-[var(--agri-text)]">
+38	          {formattedDate} · {parcelaNume || 'Nespecificat'} · <span className="value-kg">{totalKg.toFixed(2)} kg</span>
+39	        </p>
+40	        <div className="mt-1 flex items-center justify-between gap-2">
+41	          <p className="truncate text-sm text-[var(--agri-text-muted)]">
+42	            {culegatorNume || 'Nespecificat'} · {costMunca > 0 ? <span className="value-money-negative">{costMunca.toFixed(2)} lei</span> : '-'}
+43	          </p>
+44	          <div className="flex items-center gap-1">
+45	            <button
+46	              type="button"
+47	              aria-label="Editeaza recoltare"
+48	              className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-blue-600"
+49	              onClick={(event) => {
+50	                event.stopPropagation()
+51	                onEdit(recoltare)
+52	              }}
+53	            >
+54	              <Pencil className="h-4 w-4" />
+55	            </button>
+56	            <button
+57	              type="button"
+58	              aria-label="Sterge recoltare"
+59	              className="inline-flex h-11 w-11 items-center justify-center p-2 text-gray-400 transition-colors hover:text-red-600"
+60	              onClick={(event) => {
+61	                event.stopPropagation()
+62	                onDelete(recoltare)
+63	              }}
+64	            >
+65	              <Trash2 className="h-4 w-4" />
+66	            </button>
+67	          </div>
+68	        </div>
+69	      </div>
+70	
+71	      <div className="hidden sm:block">
+72	        <CompactListCard
+73	          title=""
+74	          leftRows={[
+75	            { label: 'Data', value: formattedDate },
+76	            { label: 'Parcela', value: parcelaNume || 'Nespecificat' },
+77	            {
+78	              label: 'Calitati',
+79	              value: (
+80	                <div className="flex items-center gap-1.5">
+81	                  <span className="inline-flex items-center gap-1 rounded-md border border-[var(--agri-border)] px-2 py-1 text-sm font-medium text-[var(--agri-text)]">
+82	                    <span className="text-[11px] text-[var(--agri-text-muted)]">Cal.1</span>
+83	                    <span className="value-kg">{kgCal1.toFixed(2)} kg</span>
+84	                  </span>
+85	                  <span className="inline-flex items-center gap-1 rounded-md border border-[var(--agri-border)] px-2 py-1 text-sm font-medium text-[var(--agri-text)]">
+86	                    <span className="text-[11px] text-[var(--agri-text-muted)]">Cal.2</span>
+87	                    <span className="value-kg">{kgCal2.toFixed(2)} kg</span>
+88	                  </span>
+89	                </div>
+90	              ),
+91	              allowWrap: true,
+92	              forceSingleLine: false,
+93	              rowClassName: 'sm:hidden',
+94	            },
+95	            { label: 'Kg Cal 1', value: `${kgCal1.toFixed(2)} kg`, valueClassName: 'value-kg', rowClassName: 'hidden sm:block' },
+96	            { label: 'Kg Cal 2', value: `${kgCal2.toFixed(2)} kg`, valueClassName: 'value-kg', rowClassName: 'hidden sm:block' },
+97	          ]}
+98	          rightRows={[
+99	            { label: 'Operator cules', value: culegatorNume || 'Nespecificat' },
+100	            { label: 'Total platit', value: costMunca > 0 ? `${costMunca.toFixed(2)} lei` : '-', emphasis: 'financial', valueClassName: 'value-money-negative' },
+101	          ]}
+102	          onClick={() => onView(recoltare)}
+103	          onEdit={() => onEdit(recoltare)}
+104	          onDelete={() => onDelete(recoltare)}
+105	        />
+106	      </div>
+107	    </>
+108	  )
+109	}

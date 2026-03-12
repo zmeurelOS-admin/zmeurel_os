@@ -1,0 +1,138 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e12]:
+            - text: Zmeurel
+            - generic [ref=e13]: OS
+        - navigation [ref=e14]:
+          - generic [ref=e15]:
+            - paragraph [ref=e16]: OPERAȚIUNI
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - link "Dashboard" [ref=e19] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e21]
+                  - text: Dashboard
+              - listitem [ref=e26]:
+                - link "Terenuri" [ref=e27] [cursor=pointer]:
+                  - /url: /parcele
+                  - img [ref=e29]
+                  - text: Terenuri
+              - listitem [ref=e32]:
+                - link "Recoltări" [ref=e33] [cursor=pointer]:
+                  - /url: /recoltari
+                  - img [ref=e35]
+                  - text: Recoltări
+              - listitem [ref=e39]:
+                - link "Stocuri" [ref=e40] [cursor=pointer]:
+                  - /url: /stocuri
+                  - img [ref=e42]
+                  - text: Stocuri
+              - listitem [ref=e45]:
+                - link "Activități agricole" [ref=e46] [cursor=pointer]:
+                  - /url: /activitati-agricole
+                  - img [ref=e48]
+                  - text: Activități agricole
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: RELAȚII
+            - list [ref=e54]:
+              - listitem [ref=e55]:
+                - link "Culegători" [ref=e56] [cursor=pointer]:
+                  - /url: /culegatori
+                  - img [ref=e58]
+                  - text: Culegători
+              - listitem [ref=e63]:
+                - link "Clienți" [ref=e64] [cursor=pointer]:
+                  - /url: /clienti
+                  - img [ref=e66]
+                  - text: Clienți
+          - generic [ref=e70]:
+            - paragraph [ref=e71]: FINANCIAR
+            - list [ref=e72]:
+              - listitem [ref=e73]:
+                - link "Comenzi" [ref=e74] [cursor=pointer]:
+                  - /url: /comenzi
+                  - img [ref=e76]
+                  - text: Comenzi
+              - listitem [ref=e79]:
+                - link "Material săditor" [ref=e80] [cursor=pointer]:
+                  - /url: /vanzari-butasi
+                  - img [ref=e82]
+                  - text: Material săditor
+              - listitem [ref=e85]:
+                - link "Investiții" [ref=e86] [cursor=pointer]:
+                  - /url: /investitii
+                  - img [ref=e88]
+                  - text: Investiții
+              - listitem [ref=e91]:
+                - link "Cheltuieli" [ref=e92] [cursor=pointer]:
+                  - /url: /cheltuieli
+                  - img [ref=e94]
+                  - text: Cheltuieli
+    - main [ref=e97]:
+      - generic [ref=e99]:
+        - paragraph [ref=e100]: Zmeurel OS este în BETA. Trimite feedback
+        - button "Trimite feedback" [ref=e101]
+      - generic [ref=e103]:
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - heading "Activități Agricole" [level=1] [ref=e110]
+            - paragraph [ref=e111]: Istoric lucrari ți tratamente
+          - generic [ref=e113]:
+            - button "Adauga activitate" [ref=e196]
+            - button "Activeaza high visibility mode" [ref=e114]:
+              - img [ref=e115]
+            - button "BA Beta Audit 1773252100" [ref=e123] [cursor=pointer]:
+              - generic [ref=e124]: BA
+              - generic [ref=e125]: Beta Audit 1773252100
+              - img [ref=e126]
+            - img [ref=e129]
+        - main [ref=e132]:
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - button "0 azi" [ref=e290]:
+                - generic [ref=e138]: ✂️
+                - generic [ref=e139]: "0"
+                - generic [ref=e140]: azi
+              - button "0 luna asta" [ref=e291]:
+                - generic [ref=e144]: 📅
+                - generic [ref=e145]: "0"
+                - generic [ref=e146]: luna asta
+              - generic [ref=e147]:
+                - generic [ref=e148]: 🧪
+                - generic [ref=e149]: "0"
+                - generic [ref=e150]: cu pauză activa
+            - generic [ref=e151]:
+              - heading "Stare terenuri" [level=3] [ref=e152]
+              - button "📋 Teren Beta Nicio activitate —" [ref=e292] [cursor=pointer]:
+                - generic [ref=e199]:
+                  - generic [ref=e200]: 📋
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: Teren Beta
+                    - generic [ref=e203]: Nicio activitate
+                  - generic [ref=e204]: —
+            - generic [ref=e153]:
+              - button "Toate" [ref=e154] [cursor=pointer]
+              - button "🧪 Tratamente" [ref=e155] [cursor=pointer]
+              - button "🌱 Fertilizare" [ref=e156] [cursor=pointer]
+              - button "✂️ Taiere" [ref=e157] [cursor=pointer]
+              - button "Altele" [ref=e158] [cursor=pointer]
+            - generic [ref=e159]:
+              - img
+              - searchbox "Caută activități" [ref=e160]
+            - generic [ref=e294]:
+              - img [ref=e296]
+              - heading "Nicio activitate încă" [level=3] [ref=e298]
+              - paragraph [ref=e299]: Adaugă prima activitate pentru a începe
+        - paragraph [ref=e186]: "Total activități: 0"
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e300]:
+        - generic [ref=e302]: Element sters
+        - button "Undo" [ref=e303] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e192] [cursor=pointer]:
+    - img [ref=e193]
+  - alert [ref=e212]

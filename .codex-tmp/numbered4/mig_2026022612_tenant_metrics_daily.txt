@@ -1,0 +1,146 @@
+1	-- Global anonymized admin analytics (aggregated, no tenant-identifiable data)
+2	
+3	create table if not exists public.tenant_metrics_daily (
+4	  date date primary key,
+5	  total_tenants integer not null default 0,
+6	  total_parcele integer not null default 0,
+7	  total_recoltari integer not null default 0,
+8	  total_vanzari integer not null default 0,
+9	  total_kg_cal1 numeric not null default 0,
+10	  total_kg_cal2 numeric not null default 0,
+11	  total_revenue_lei numeric not null default 0,
+12	  created_at timestamptz not null default now(),
+13	  updated_at timestamptz not null default now()
+14	);
+15	
+16	create index if not exists tenant_metrics_daily_date_desc_idx
+17	  on public.tenant_metrics_daily (date desc);
+18	
+19	alter table public.tenant_metrics_daily enable row level security;
+20	
+21	drop policy if exists tenant_metrics_daily_superadmin_select on public.tenant_metrics_daily;
+22	create policy tenant_metrics_daily_superadmin_select
+23	on public.tenant_metrics_daily
+24	for select
+25	using (public.is_superadmin());
+26	
+27	drop policy if exists tenant_metrics_daily_superadmin_insert on public.tenant_metrics_daily;
+28	create policy tenant_metrics_daily_superadmin_insert
+29	on public.tenant_metrics_daily
+30	for insert
+31	with check (public.is_superadmin());
+32	
+33	drop policy if exists tenant_metrics_daily_superadmin_update on public.tenant_metrics_daily;
+34	create policy tenant_metrics_daily_superadmin_update
+35	on public.tenant_metrics_daily
+36	for update
+37	using (public.is_superadmin())
+38	with check (public.is_superadmin());
+39	
+40	drop policy if exists tenant_metrics_daily_superadmin_delete on public.tenant_metrics_daily;
+41	create policy tenant_metrics_daily_superadmin_delete
+42	on public.tenant_metrics_daily
+43	for delete
+44	using (public.is_superadmin());
+45	
+46	create or replace function public.refresh_tenant_metrics_daily(p_date date default current_date)
+47	returns public.tenant_metrics_daily
+48	language plpgsql
+49	security definer
+50	set search_path = public
+51	as $$
+52	declare
+53	  target_date date := coalesce(p_date, current_date);
+54	  metrics_row public.tenant_metrics_daily;
+55	begin
+56	  if auth.uid() is not null and not public.is_superadmin(auth.uid()) then
+57	    raise exception 'FORBIDDEN';
+58	  end if;
+59	
+60	  insert into public.tenant_metrics_daily (
+61	    date,
+62	    total_tenants,
+63	    total_parcele,
+64	    total_recoltari,
+65	    total_vanzari,
+66	    total_kg_cal1,
+67	    total_kg_cal2,
+68	    total_revenue_lei,
+69	    updated_at
+70	  )
+71	  values (
+72	    target_date,
+73	    (
+74	      select count(distinct tenant_id)::int
+75	      from (
+76	        select r.tenant_id from public.recoltari r where r.data = target_date
+77	        union all
+78	        select v.tenant_id from public.vanzari v where v.data = target_date
+79	        union all
+80	        select a.tenant_id from public.activitati_agricole a where a.data_aplicare = target_date
+81	      ) active_tenants
+82	      where tenant_id is not null
+83	    ),
+84	    (
+85	      select count(*)::int
+86	      from public.parcele p
+87	      where p.tenant_id is not null
+88	    ),
+89	    (
+90	      select count(*)::int
+91	      from public.recoltari r
+92	      where r.data = target_date
+93	    ),
+94	    (
+95	      select count(*)::int
+96	      from public.vanzari v
+97	      where v.data = target_date
+98	    ),
+99	    (
+100	      select coalesce(sum(coalesce(r.kg_cal1, 0)), 0)
+101	      from public.recoltari r
+102	      where r.data = target_date
+103	    ),
+104	    (
+105	      select coalesce(sum(coalesce(r.kg_cal2, 0)), 0)
+106	      from public.recoltari r
+107	      where r.data = target_date
+108	    ),
+109	    (
+110	      coalesce((
+111	        select sum(coalesce(v.cantitate_kg, 0) * coalesce(v.pret_lei_kg, 0))
+112	        from public.vanzari v
+113	        where v.data = target_date
+114	      ), 0)
+115	      +
+116	      coalesce((
+117	        select sum(coalesce(vb.cantitate_butasi, 0) * coalesce(vb.pret_unitar_lei, 0))
+118	        from public.vanzari_butasi vb
+119	        where vb.data = target_date
+120	      ), 0)
+121	    ),
+122	    now()
+123	  )
+124	  on conflict (date)
+125	  do update set
+126	    total_tenants = excluded.total_tenants,
+127	    total_parcele = excluded.total_parcele,
+128	    total_recoltari = excluded.total_recoltari,
+129	    total_vanzari = excluded.total_vanzari,
+130	    total_kg_cal1 = excluded.total_kg_cal1,
+131	    total_kg_cal2 = excluded.total_kg_cal2,
+132	    total_revenue_lei = excluded.total_revenue_lei,
+133	    updated_at = now()
+134	  returning * into metrics_row;
+135	
+136	  return metrics_row;
+137	end;
+138	$$;
+139	
+140	grant execute on function public.refresh_tenant_metrics_daily(date) to authenticated;
+141	grant execute on function public.refresh_tenant_metrics_daily(date) to service_role;
+142	
+143	-- seed today snapshot once migration is applied
+144	select public.refresh_tenant_metrics_daily(current_date);
+145	
+146	notify pgrst, 'reload schema';

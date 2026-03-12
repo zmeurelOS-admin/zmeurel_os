@@ -1,0 +1,80 @@
+    1: -- Smart Alerts dismissals (snooze for current Bucharest day)
+    2: 
+    3: create extension if not exists pgcrypto;
+    4: 
+    5: create or replace function public.bucharest_today()
+    6: returns date
+    7: language sql
+    8: stable
+    9: as $$
+   10:   select (now() at time zone 'Europe/Bucharest')::date
+   11: $$;
+   12: 
+   13: grant execute on function public.bucharest_today() to authenticated;
+   14: grant execute on function public.bucharest_today() to service_role;
+   15: 
+   16: create table if not exists public.alert_dismissals (
+   17:   id uuid primary key default gen_random_uuid(),
+   18:   tenant_id uuid not null references public.tenants(id) on delete cascade,
+   19:   user_id uuid not null references auth.users(id) on delete cascade,
+   20:   alert_key text not null,
+   21:   dismissed_on date not null default public.bucharest_today(),
+   22:   created_at timestamptz not null default now(),
+   23:   constraint alert_dismissals_unique_per_day unique (tenant_id, user_id, alert_key, dismissed_on)
+   24: );
+   25: 
+   26: create index if not exists alert_dismissals_tenant_user_day_idx
+   27:   on public.alert_dismissals (tenant_id, user_id, dismissed_on);
+   28: 
+   29: create index if not exists alert_dismissals_tenant_user_key_idx
+   30:   on public.alert_dismissals (tenant_id, user_id, alert_key);
+   31: 
+   32: alter table public.alert_dismissals enable row level security;
+   33: 
+   34: drop policy if exists alert_dismissals_select_own on public.alert_dismissals;
+   35: create policy alert_dismissals_select_own
+   36: on public.alert_dismissals
+   37: for select
+   38: using (
+   39:   (
+   40:     user_id = auth.uid()
+   41:     and tenant_id = (
+   42:       select t.id
+   43:       from public.tenants t
+   44:       where t.owner_user_id = auth.uid()
+   45:       limit 1
+   46:     )
+   47:   )
+   48:   or public.is_superadmin(auth.uid())
+   49: );
+   50: 
+   51: drop policy if exists alert_dismissals_insert_own on public.alert_dismissals;
+   52: create policy alert_dismissals_insert_own
+   53: on public.alert_dismissals
+   54: for insert
+   55: with check (
+   56:   user_id = auth.uid()
+   57:   and tenant_id = (
+   58:     select t.id
+   59:     from public.tenants t
+   60:     where t.owner_user_id = auth.uid()
+   61:     limit 1
+   62:   )
+   63: );
+   64: 
+   65: drop policy if exists alert_dismissals_delete_own on public.alert_dismissals;
+   66: create policy alert_dismissals_delete_own
+   67: on public.alert_dismissals
+   68: for delete
+   69: using (
+   70:   user_id = auth.uid()
+   71:   and tenant_id = (
+   72:     select t.id
+   73:     from public.tenants t
+   74:     where t.owner_user_id = auth.uid()
+   75:     limit 1
+   76:   )
+   77: );
+   78: 
+   79: select pg_notify('pgrst', 'reload schema');
+   80: 

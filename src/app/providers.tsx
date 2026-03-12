@@ -9,6 +9,7 @@ import {
 } from '@/components/app/DashboardAuthContext'
 import { NavigationPerfLogger } from '@/components/app/NavigationPerfLogger'
 import { PageViewTracker } from '@/components/app/PageViewTracker'
+import { RouteTransitionIndicator } from '@/components/app/RouteTransitionIndicator'
 import { AddActionProvider } from '@/contexts/AddActionContext'
 
 export function Providers({
@@ -23,9 +24,12 @@ export function Providers({
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30_000,
+            staleTime: 60_000,
+            gcTime: 10 * 60_000,
+            placeholderData: (previousData: unknown) => previousData,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
+            refetchOnMount: false,
             retry: 1,
           },
         },
@@ -37,6 +41,7 @@ export function Providers({
       <DashboardAuthProvider value={initialAuth}>
         <AddActionProvider>
             <DensityProvider>
+              <RouteTransitionIndicator />
               <NavigationPerfLogger />
               <PageViewTracker />
               {children}
@@ -46,4 +51,3 @@ export function Providers({
     </QueryClientProvider>
   )
 }
-

@@ -1,0 +1,172 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useForm } from 'react-hook-form'
+    6: import * as z from 'zod'
+    7: 
+    8: import { AppDialog } from '@/components/app/AppDialog'
+    9: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   10: import { Input } from '@/components/ui/input'
+   11: import { Label } from '@/components/ui/label'
+   12: import { Textarea } from '@/components/ui/textarea'
+   13: import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
+   14: 
+   15: const CATEGORII_CHELTUIELI = [
+   16:   'Electricitate',
+   17:   'Motorina Transport',
+   18:   'Ambalaje',
+   19:   'Etichete',
+   20:   'Reparatii Utilaje',
+   21:   'Scule',
+   22:   'Fertilizare',
+   23:   'Pesticide',
+   24:   'Intretinere Curenta',
+   25:   'Cules',
+   26:   'Manoperă cules',
+   27:   'Material Saditor',
+   28:   'Sistem Sustinere',
+   29:   'Sistem Irigatie',
+   30:   'Altele',
+   31: ]
+   32: 
+   33: const cheltuialaSchema = z.object({
+   34:   data: z.string().min(1, 'Data este obligatorie'),
+   35:   categorie: z.string().min(1, 'Selecteaza categoria'),
+   36:   suma_lei: z.string().min(1, 'Suma este obligatorie'),
+   37:   furnizor: z.string().optional(),
+   38:   descriere: z.string().optional(),
+   39: })
+   40: 
+   41: export type EditCheltuialaFormData = z.infer<typeof cheltuialaSchema>
+   42: 
+   43: interface EditCheltuialaDialogProps {
+   44:   cheltuiala: Cheltuiala | null
+   45:   open: boolean
+   46:   onOpenChange: (open: boolean) => void
+   47:   onSubmit: (id: string, data: EditCheltuialaFormData) => Promise<void>
+   48: }
+   49: 
+   50: export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit }: EditCheltuialaDialogProps) {
+   51:   const [isSubmitting, setIsSubmitting] = useState(false)
+   52: 
+   53:   const form = useForm<EditCheltuialaFormData>({
+   54:     resolver: zodResolver(cheltuialaSchema),
+   55:     defaultValues: {
+   56:       data: '',
+   57:       categorie: '',
+   58:       suma_lei: '',
+   59:       furnizor: '',
+   60:       descriere: '',
+   61:     },
+   62:   })
+   63: 
+   64:   useEffect(() => {
+   65:     if (cheltuiala && open) {
+   66:       form.reset({
+   67:         data: cheltuiala.data,
+   68:         categorie: cheltuiala.categorie ?? '',
+   69:         suma_lei: String(cheltuiala.suma_lei ?? ''),
+   70:         furnizor: cheltuiala.furnizor ?? '',
+   71:         descriere: cheltuiala.descriere ?? '',
+   72:       })
+   73:     }
+   74:   }, [cheltuiala, open, form])
+   75: 
+   76:   const handleClose = () => {
+   77:     if (isSubmitting) return
+   78:     onOpenChange(false)
+   79:   }
+   80: 
+   81:   const handleSubmit = async (data: EditCheltuialaFormData) => {
+   82:     if (!cheltuiala || isSubmitting) return
+   83: 
+   84:     setIsSubmitting(true)
+   85:     try {
+   86:       await onSubmit(cheltuiala.id, data)
+   87:       onOpenChange(false)
+   88:     } catch (error) {
+   89:       console.error('Error updating cheltuiala:', error)
+   90:     } finally {
+   91:       setIsSubmitting(false)
+   92:     }
+   93:   }
+   94: 
+   95:   if (!cheltuiala) return null
+   96: 
+   97:   return (
+   98:     <AppDialog
+   99:       open={open}
+  100:       onOpenChange={onOpenChange}
+  101:       title="Editeaza cheltuiala"
+  102:       footer={
+  103:         <DialogFormActions
+  104:           onCancel={handleClose}
+  105:           onSave={form.handleSubmit(handleSubmit)}
+  106:           saving={isSubmitting}
+  107:           cancelLabel="Anuleaza"
+  108:           saveLabel="Salveaza"
+  109:         />
+  110:       }
+  111:     >
+  112:       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+  113:         <div className="space-y-2">
+  114:           <Label htmlFor="edit_chelt_data">Data</Label>
+  115:           <Input id="edit_chelt_data" type="date" className="agri-control h-12" {...form.register('data')} />
+  116:           {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
+  117:         </div>
+  118: 
+  119:         <div className="space-y-2">
+  120:           <Label htmlFor="edit_chelt_categorie">Categorie</Label>
+  121:           <select id="edit_chelt_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
+  122:             <option value="">Selecteaza categoria</option>
+  123:             {CATEGORII_CHELTUIELI.map((categorie) => (
+  124:               <option key={categorie} value={categorie}>
+  125:                 {categorie}
+  126:               </option>
+  127:             ))}
+  128:           </select>
+  129:           {form.formState.errors.categorie ? <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p> : null}
+  130:         </div>
+  131: 
+  132:         <div className="space-y-2">
+  133:           <Label htmlFor="edit_chelt_suma">Suma (lei)</Label>
+  134:           <Input
+  135:             id="edit_chelt_suma"
+  136:             type="number"
+  137:             inputMode="decimal"
+  138:             pattern="[0-9]*"
+  139:             step="0.01"
+  140:             min="0"
+  141:             className="agri-control h-12"
+  142:             placeholder="Ex: 150.50"
+  143:             {...form.register('suma_lei')}
+  144:           />
+  145:           {form.formState.errors.suma_lei ? <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p> : null}
+  146:         </div>
+  147: 
+  148:         <div className="space-y-2">
+  149:           <Label htmlFor="edit_chelt_furnizor">Furnizor / Magazin</Label>
+  150:           <Input
+  151:             id="edit_chelt_furnizor"
+  152:             className="agri-control h-12"
+  153:             placeholder="Ex: Lidl, Dedeman, Petrom"
+  154:             {...form.register('furnizor')}
+  155:           />
+  156:         </div>
+  157: 
+  158:         <div className="space-y-2">
+  159:           <Label htmlFor="edit_chelt_descriere">Descriere</Label>
+  160:           <Textarea
+  161:             id="edit_chelt_descriere"
+  162:             rows={4}
+  163:             className="agri-control w-full px-3 py-2 text-base"
+  164:             placeholder="Detalii suplimentare"
+  165:             {...form.register('descriere')}
+  166:           />
+  167:         </div>
+  168:       </form>
+  169:     </AppDialog>
+  170:   )
+  171: }
+  172: 

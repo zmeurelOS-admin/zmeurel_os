@@ -1,0 +1,23 @@
+    1: alter table if exists public.analytics_events
+    2:   add column if not exists event_type text;
+    3: 
+    4: alter table if exists public.analytics_events
+    5:   add column if not exists module text;
+    6: 
+    7: update public.analytics_events
+    8: set
+    9:   event_type = coalesce(event_type, event_name, 'unknown'),
+   10:   module = coalesce(module, 'general')
+   11: where event_type is null or module is null;
+   12: 
+   13: alter table public.analytics_events
+   14:   alter column event_type set default 'unknown',
+   15:   alter column event_type set not null,
+   16:   alter column module set default 'general',
+   17:   alter column module set not null;
+   18: 
+   19: create index if not exists analytics_events_event_type_idx
+   20:   on public.analytics_events (event_type);
+   21: 
+   22: create index if not exists analytics_events_module_idx
+   23:   on public.analytics_events (module);

@@ -1,0 +1,6 @@
+﻿1	import { RecoltariPageClient } from './RecoltariPageClient'
+2	
+3	export default function RecoltariPage() {
+4	  return <RecoltariPageClient />
+5	}
+6	

@@ -26,8 +26,12 @@ function redirectTo(request: NextRequest, pathname: string) {
 }
 
 export async function proxy(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers)
+
   let supabaseResponse = NextResponse.next({
-    request,
+    request: {
+      headers: requestHeaders,
+    },
   })
 
   const supabase = createServerClient<Database>(
@@ -43,7 +47,9 @@ export async function proxy(request: NextRequest) {
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({
-            request,
+            request: {
+              headers: requestHeaders,
+            },
           })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -145,6 +151,19 @@ export async function proxy(request: NextRequest) {
       message: error instanceof Error ? error.message : 'unknown',
     })
     return supabaseResponse
+  }
+
+  requestHeaders.set('x-zmeurel-user-id', user.id)
+  if (user.email) {
+    requestHeaders.set('x-zmeurel-user-email', user.email)
+  } else {
+    requestHeaders.delete('x-zmeurel-user-email')
+  }
+
+  if (tenantId) {
+    requestHeaders.set('x-zmeurel-tenant-id', tenantId)
+  } else {
+    requestHeaders.delete('x-zmeurel-tenant-id')
   }
 
   if (pathname === '/login' || pathname === '/register' || pathname === '/reset-password-request') {

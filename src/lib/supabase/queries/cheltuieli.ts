@@ -1,6 +1,7 @@
 // src/lib/supabase/queries/cheltuieli.ts
 import { getSupabase } from '../client';
 import { generateBusinessId } from '@/lib/supabase/business-ids';
+import { getTenantId } from '@/lib/tenant/get-tenant';
 
 export interface Cheltuiala {
   id: string;
@@ -176,6 +177,7 @@ export async function createCheltuiala(
 ): Promise<Cheltuiala> {
   const supabase = getSupabase();
   const nextId = await generateBusinessId(supabase, 'CH');
+  const tenantId = await getTenantId(supabase);
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -195,6 +197,7 @@ export async function createCheltuiala(
         sync_status: input.sync_status ?? 'synced',
         created_by: user?.id ?? null,
         updated_by: user?.id ?? null,
+        tenant_id: tenantId,
       },
       { onConflict: 'client_sync_id' }
     )
@@ -214,6 +217,7 @@ export async function createCheltuiala(
       suma_lei: input.suma_lei,
       furnizor: input.furnizor || null,
       document_url: input.document_url || null,
+      tenant_id: tenantId,
     };
 
     const { data: fallbackData, error: fallbackError } = await supabase
@@ -281,5 +285,4 @@ export async function deleteCheltuiala(id: string): Promise<void> {
     throw error;
   }
 }
-
 

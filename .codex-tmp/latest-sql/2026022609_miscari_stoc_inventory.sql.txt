@@ -1,0 +1,105 @@
+    1: -- Inventory per location + recoltari schema guard for kg quality columns
+    2: 
+    3: alter table public.recoltari
+    4:   add column if not exists kg_cal1 numeric not null default 0,
+    5:   add column if not exists kg_cal2 numeric not null default 0;
+    6: 
+    7: create table if not exists public.miscari_stoc (
+    8:   id uuid primary key default gen_random_uuid(),
+    9:   tenant_id uuid not null references public.tenants(id) on delete cascade,
+   10:   locatie_id uuid not null references public.parcele(id) on delete cascade,
+   11:   produs text not null,
+   12:   calitate text not null,
+   13:   depozit text not null,
+   14:   tip_miscare text not null,
+   15:   cantitate_kg numeric not null,
+   16:   referinta_id uuid,
+   17:   data date not null default current_date,
+   18:   observatii text,
+   19:   created_at timestamptz not null default now(),
+   20:   constraint miscari_stoc_cantitate_non_negative check (cantitate_kg >= 0),
+   21:   constraint miscari_stoc_calitate_check check (calitate in ('cal1', 'cal2')),
+   22:   constraint miscari_stoc_depozit_check check (depozit in ('fresh', 'congelat', 'procesat')),
+   23:   constraint miscari_stoc_tip_miscare_check check (
+   24:     tip_miscare in (
+   25:       'recoltare',
+   26:       'vanzare',
+   27:       'consum',
+   28:       'oferit_gratuit',
+   29:       'procesare',
+   30:       'congelare',
+   31:       'pierdere',
+   32:       'ajustare'
+   33:     )
+   34:   )
+   35: );
+   36: 
+   37: create index if not exists miscari_stoc_loc_prod_cal_data_idx
+   38:   on public.miscari_stoc (locatie_id, produs, calitate, data);
+   39: 
+   40: create index if not exists miscari_stoc_tenant_locatie_idx
+   41:   on public.miscari_stoc (tenant_id, locatie_id);
+   42: 
+   43: alter table public.miscari_stoc enable row level security;
+   44: 
+   45: drop policy if exists miscari_stoc_select_policy on public.miscari_stoc;
+   46: create policy miscari_stoc_select_policy
+   47: on public.miscari_stoc
+   48: for select
+   49: using (
+   50:   tenant_id = (
+   51:     select id
+   52:     from public.tenants
+   53:     where owner_user_id = auth.uid()
+   54:     limit 1
+   55:   )
+   56: );
+   57: 
+   58: drop policy if exists miscari_stoc_insert_policy on public.miscari_stoc;
+   59: create policy miscari_stoc_insert_policy
+   60: on public.miscari_stoc
+   61: for insert
+   62: with check (
+   63:   tenant_id = (
+   64:     select id
+   65:     from public.tenants
+   66:     where owner_user_id = auth.uid()
+   67:     limit 1
+   68:   )
+   69: );
+   70: 
+   71: drop policy if exists miscari_stoc_update_policy on public.miscari_stoc;
+   72: create policy miscari_stoc_update_policy
+   73: on public.miscari_stoc
+   74: for update
+   75: using (
+   76:   tenant_id = (
+   77:     select id
+   78:     from public.tenants
+   79:     where owner_user_id = auth.uid()
+   80:     limit 1
+   81:   )
+   82: )
+   83: with check (
+   84:   tenant_id = (
+   85:     select id
+   86:     from public.tenants
+   87:     where owner_user_id = auth.uid()
+   88:     limit 1
+   89:   )
+   90: );
+   91: 
+   92: drop policy if exists miscari_stoc_delete_policy on public.miscari_stoc;
+   93: create policy miscari_stoc_delete_policy
+   94: on public.miscari_stoc
+   95: for delete
+   96: using (
+   97:   tenant_id = (
+   98:     select id
+   99:     from public.tenants
+  100:     where owner_user_id = auth.uid()
+  101:     limit 1
+  102:   )
+  103: );
+  104: 
+  105: notify pgrst, 'reload schema';

@@ -303,7 +303,7 @@ export default function ActivitatiPage() {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
+      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <MiniCard icon="✂️" value={String(dashboardSummary.activitatiAzi)} sub="azi" label="" />
           <MiniCard icon="📅" value={String(dashboardSummary.activitatiLuna)} sub="luna asta" label="" />
@@ -441,13 +441,13 @@ export default function ActivitatiPage() {
           aria-label="Caută activități"
         />
 
-        {isError ? <ErrorState title="Eroare la înc?rcare" message={(error as Error).message} onRetry={refresh} /> : null}
-        {isLoading ? <LoadingState label="Se încarcă activitatile..." /> : null}
+        {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={refresh} /> : null}
+        {isLoading ? <LoadingState label="Se încarcă activitățile..." /> : null}
         {!isLoading && !isError && filteredActivitati.length === 0 ? (
           <EmptyState
             icon={<Calendar className="h-16 w-16" />}
-            title="Nicio activitate inca"
-            description="Adaugă prima activitate pentru a incepe"
+            title="Nicio activitate încă"
+            description="Adaugă prima activitate pentru a începe"
           />
         ) : null}
 
@@ -561,7 +561,7 @@ export default function ActivitatiPage() {
                         </div>
                         {kind === 'tratamente' ? (
                           <div style={{ fontSize: 11, color: colors.gray }}>
-                            <strong style={{ color: colors.dark }}>Timp pauză:</strong> {a.timp_pauza_zile || 0} zile · Expira: {expiryDate ? formatDate(expiryDate) : '-'}
+                            <strong style={{ color: colors.dark }}>Timp pauză:</strong> {a.timp_pauza_zile || 0} zile · Expir?: {expiryDate ? formatDate(expiryDate) : '-'}
                           </div>
                         ) : null}
                       </div>
@@ -636,7 +636,7 @@ export default function ActivitatiPage() {
         }}
         itemType="Activitate"
         itemName={buildActivitateDeleteLabel(toDelete)}
-        description={`Stergi activitatea ${toDelete?.tip_activitate || 'necunoscuta'} din ${toDelete?.data_aplicare ? new Date(toDelete.data_aplicare).toLocaleDateString('ro-RO') : 'data necunoscuta'} - teren ${toDelete?.parcela_id ? parcelaMap[toDelete.parcela_id] || 'necunoscut' : 'necunoscut'}?`}
+        description={`Stergi activitatea ${toDelete?.tip_activitate || 'necunoscuta'} din ${toDelete?.data_aplicare ? new Date(toDelete.data_aplicare).toLocaleDateString('ro-RO') : 'data necunoscut?'} - teren ${toDelete?.parcela_id ? parcelaMap[toDelete.parcela_id] || 'necunoscut' : 'necunoscut'}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (!toDelete) return

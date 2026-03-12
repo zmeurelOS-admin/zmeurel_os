@@ -1,0 +1,56 @@
+    1: -- Ensure client_sync_id exists consistently for offline/idempotent flows.
+    2: create extension if not exists pgcrypto;
+    3: 
+    4: alter table public.activitati_agricole
+    5:   add column if not exists client_sync_id uuid,
+    6:   add column if not exists sync_status text default 'synced',
+    7:   add column if not exists conflict_flag boolean default false;
+    8: 
+    9: alter table public.recoltari
+   10:   add column if not exists client_sync_id uuid,
+   11:   add column if not exists sync_status text default 'synced',
+   12:   add column if not exists conflict_flag boolean default false;
+   13: 
+   14: alter table public.vanzari
+   15:   add column if not exists client_sync_id uuid,
+   16:   add column if not exists sync_status text default 'synced',
+   17:   add column if not exists conflict_flag boolean default false;
+   18: 
+   19: alter table public.cheltuieli_diverse
+   20:   add column if not exists client_sync_id uuid,
+   21:   add column if not exists sync_status text default 'synced',
+   22:   add column if not exists conflict_flag boolean default false;
+   23: 
+   24: -- Backfill existing rows and keep insert compatibility.
+   25: update public.activitati_agricole
+   26: set client_sync_id = gen_random_uuid()
+   27: where client_sync_id is null;
+   28: 
+   29: update public.recoltari
+   30: set client_sync_id = gen_random_uuid()
+   31: where client_sync_id is null;
+   32: 
+   33: update public.vanzari
+   34: set client_sync_id = gen_random_uuid()
+   35: where client_sync_id is null;
+   36: 
+   37: update public.cheltuieli_diverse
+   38: set client_sync_id = gen_random_uuid()
+   39: where client_sync_id is null;
+   40: 
+   41: alter table public.activitati_agricole alter column client_sync_id set default gen_random_uuid();
+   42: alter table public.recoltari alter column client_sync_id set default gen_random_uuid();
+   43: alter table public.vanzari alter column client_sync_id set default gen_random_uuid();
+   44: alter table public.cheltuieli_diverse alter column client_sync_id set default gen_random_uuid();
+   45: 
+   46: create unique index if not exists activitati_agricole_client_sync_id_uq
+   47:   on public.activitati_agricole (client_sync_id);
+   48: create unique index if not exists recoltari_client_sync_id_uq
+   49:   on public.recoltari (client_sync_id);
+   50: create unique index if not exists vanzari_client_sync_id_uq
+   51:   on public.vanzari (client_sync_id);
+   52: create unique index if not exists cheltuieli_diverse_client_sync_id_uq
+   53:   on public.cheltuieli_diverse (client_sync_id);
+   54: 
+   55: -- Force PostgREST schema cache refresh in environments where needed.
+   56: notify pgrst, 'reload schema';

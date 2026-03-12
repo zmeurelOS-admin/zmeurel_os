@@ -1,0 +1,94 @@
+    1: -- Superadmin architecture: role separated from plan.
+    2: -- Plan remains in public.tenants.plan, while authorization bypass lives in public.profiles.is_superadmin.
+    3: 
+    4: do $$
+    5: begin
+    6:   if to_regclass('public.profiles') is null then
+    7:     raise exception 'public.profiles table is required for superadmin role';
+    8:   end if;
+    9: end
+   10: $$;
+   11: 
+   12: alter table public.profiles
+   13:   add column if not exists is_superadmin boolean not null default false;
+   14: 
+   15: create index if not exists profiles_is_superadmin_idx
+   16:   on public.profiles (is_superadmin)
+   17:   where is_superadmin = true;
+   18: 
+   19: create or replace function public.is_superadmin(check_user_id uuid default auth.uid())
+   20: returns boolean
+   21: language sql
+   22: stable
+   23: security definer
+   24: set search_path = public
+   25: as $$
+   26:   select exists (
+   27:     select 1
+   28:     from public.profiles p
+   29:     where p.id = check_user_id
+   30:       and coalesce(p.is_superadmin, false) = true
+   31:   );
+   32: $$;
+   33: 
+   34: grant execute on function public.is_superadmin(uuid) to authenticated;
+   35: grant execute on function public.is_superadmin(uuid) to service_role;
+   36: 
+   37: update public.profiles
+   38: set is_superadmin = true
+   39: where id = (
+   40:   select id
+   41:   from auth.users
+   42:   where email = 'popa.andrei.sv@gmail.com'
+   43:   limit 1
+   44: );
+   45: 
+   46: do $$
+   47: declare
+   48:   table_row record;
+   49: begin
+   50:   for table_row in
+   51:     select c.table_name
+   52:     from information_schema.columns c
+   53:     join information_schema.tables t
+   54:       on t.table_schema = c.table_schema
+   55:       and t.table_name = c.table_name
+   56:     where c.table_schema = 'public'
+   57:       and c.column_name = 'tenant_id'
+   58:       and t.table_type = 'BASE TABLE'
+   59:     group by c.table_name
+   60:   loop
+   61:     execute format('alter table public.%I enable row level security', table_row.table_name);
+   62: 
+   63:     execute format('drop policy if exists %I on public.%I', table_row.table_name || '_superadmin_select', table_row.table_name);
+   64:     execute format(
+   65:       'create policy %I on public.%I for select using (public.is_superadmin())',
+   66:       table_row.table_name || '_superadmin_select',
+   67:       table_row.table_name
+   68:     );
+   69: 
+   70:     execute format('drop policy if exists %I on public.%I', table_row.table_name || '_superadmin_insert', table_row.table_name);
+   71:     execute format(
+   72:       'create policy %I on public.%I for insert with check (public.is_superadmin())',
+   73:       table_row.table_name || '_superadmin_insert',
+   74:       table_row.table_name
+   75:     );
+   76: 
+   77:     execute format('drop policy if exists %I on public.%I', table_row.table_name || '_superadmin_update', table_row.table_name);
+   78:     execute format(
+   79:       'create policy %I on public.%I for update using (public.is_superadmin()) with check (public.is_superadmin())',
+   80:       table_row.table_name || '_superadmin_update',
+   81:       table_row.table_name
+   82:     );
+   83: 
+   84:     execute format('drop policy if exists %I on public.%I', table_row.table_name || '_superadmin_delete', table_row.table_name);
+   85:     execute format(
+   86:       'create policy %I on public.%I for delete using (public.is_superadmin())',
+   87:       table_row.table_name || '_superadmin_delete',
+   88:       table_row.table_name
+   89:     );
+   90:   end loop;
+   91: end
+   92: $$;
+   93: 
+   94: notify pgrst, 'reload schema';

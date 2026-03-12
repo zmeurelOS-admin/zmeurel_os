@@ -1,0 +1,22 @@
+    1: import { createClient } from '@/lib/supabase/server';
+    2: import { CheltuialaPageClient } from './CheltuialaPageClient';
+    3: import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli';
+    4: 
+    5: export default async function CheltuieliPage() {
+    6:   const supabase = await createClient();
+    7: 
+    8:   // RLS handles tenant isolation automatically
+    9:   const { data: cheltuieli, error } = await supabase
+   10:     .from('cheltuieli_diverse')
+   11:     .select('id,id_cheltuiala,client_sync_id,data,categorie,descriere,suma_lei,furnizor,document_url,sync_status,conflict_flag,created_by,updated_by,created_at,updated_at,tenant_id')
+   12:     .order('data', { ascending: false });
+   13: 
+   14:   // Nu aruncăm UI changes; doar protejăm de undefined
+   15:   if (error) {
+   16:     // Poți loga în server logs dacă vrei
+   17:     // console.error(error);
+   18:   }
+   19: 
+   20:   return <CheltuialaPageClient initialCheltuieli={(cheltuieli ?? []) as unknown as Cheltuiala[]} />;
+   21: }
+   22: 

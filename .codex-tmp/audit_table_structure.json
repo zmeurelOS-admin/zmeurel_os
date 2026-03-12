@@ -1,0 +1,134 @@
+[
+  {
+    "table_name": "activitati_agricole",
+    "primary_key": "id",
+    "tenant_id": "present",
+    "identifier_columns": "id_activitate"
+  },
+  {
+    "table_name": "activitati_extra_season",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_activitate"
+  },
+  {
+    "table_name": "alert_dismissals",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "analytics_events",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "audit_logs",
+    "primary_key": "id",
+    "tenant_id": "none",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "cheltuieli_diverse",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_cheltuiala"
+  },
+  {
+    "table_name": "clienti",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_client"
+  },
+  {
+    "table_name": "comenzi",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "culegatori",
+    "primary_key": "id",
+    "tenant_id": "present",
+    "identifier_columns": "id_culegator"
+  },
+  {
+    "table_name": "feedback",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "integrations_google_contacts",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "investitii",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_investitie"
+  },
+  {
+    "table_name": "miscari_stoc",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "nomenclatoare",
+    "primary_key": "id",
+    "tenant_id": "present",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "parcele",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_parcela"
+  },
+  {
+    "table_name": "profiles",
+    "primary_key": "id",
+    "tenant_id": "none",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "recoltari",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_recoltare"
+  },
+  {
+    "table_name": "tenant_metrics_daily",
+    "primary_key": "id",
+    "tenant_id": "none",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "tenants",
+    "primary_key": "id",
+    "tenant_id": "none",
+    "identifier_columns": "-"
+  },
+  {
+    "table_name": "vanzari",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "id_vanzare"
+  },
+  {
+    "table_name": "vanzari_butasi",
+    "primary_key": "id",
+    "tenant_id": "present",
+    "identifier_columns": "id_vanzare_butasi"
+  },
+  {
+    "table_name": "vanzari_butasi_items",
+    "primary_key": "id",
+    "tenant_id": "required",
+    "identifier_columns": "-"
+  }
+]

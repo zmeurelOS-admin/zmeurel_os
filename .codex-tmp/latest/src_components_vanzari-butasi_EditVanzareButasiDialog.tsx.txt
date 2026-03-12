@@ -1,0 +1,497 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useMemo } from 'react'
+    4: import * as Sentry from '@sentry/nextjs'
+    5: import { zodResolver } from '@hookform/resolvers/zod'
+    6: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    7: import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
+    8: import { Controller, useFieldArray, useForm } from 'react-hook-form'
+    9: import { toast } from '@/lib/ui/toast'
+   10: import * as z from 'zod'
+   11: 
+   12: import { AppDialog } from '@/components/app/AppDialog'
+   13: import { Button } from '@/components/ui/button'
+   14: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   15: import { Input } from '@/components/ui/input'
+   16: import { Label } from '@/components/ui/label'
+   17: import {
+   18:   Select,
+   19:   SelectContent,
+   20:   SelectItem,
+   21:   SelectTrigger,
+   22:   SelectValue,
+   23: } from '@/components/ui/select'
+   24: import { Textarea } from '@/components/ui/textarea'
+   25: import { trackEvent } from '@/lib/analytics/trackEvent'
+   26: import { getClienti } from '@/lib/supabase/queries/clienti'
+   27: import { getParcele } from '@/lib/supabase/queries/parcele'
+   28: import {
+   29:   VANZARE_BUTASI_STATUSES,
+   30:   type UpdateVanzareButasiInput,
+   31:   type VanzareButasi,
+   32:   type VanzareButasiStatus,
+   33:   updateVanzareButasi,
+   34: } from '@/lib/supabase/queries/vanzari-butasi'
+   35: import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+   36: import { cn } from '@/lib/utils'
+   37: 
+   38: interface EditVanzareButasiDialogProps {
+   39:   vanzare: VanzareButasi | null
+   40:   open: boolean
+   41:   onOpenChange: (open: boolean) => void
+   42: }
+   43: 
+   44: const statusLabels: Record<VanzareButasiStatus, string> = {
+   45:   noua: 'Noua',
+   46:   confirmata: 'Confirmata',
+   47:   pregatita: 'Pregatita',
+   48:   livrata: 'Livrata',
+   49:   anulata: 'Anulata',
+   50: }
+   51: 
+   52: const schema = z.object({
+   53:   client_id: z.string().optional(),
+   54:   parcela_sursa_id: z.string().optional(),
+   55:   status: z.enum(VANZARE_BUTASI_STATUSES),
+   56:   data_comanda: z.string().min(1, 'Data comenzii este obligatorie'),
+   57:   data_livrare_estimata: z.string().optional(),
+   58:   adresa_livrare: z.string().optional(),
+   59:   observatii: z.string().optional(),
+   60:   avans_suma: z.coerce.number().min(0, 'Avansul nu poate fi negativ'),
+   61:   avans_data: z.string().optional(),
+   62:   items: z
+   63:     .array(
+   64:       z.object({
+   65:         soi: z.string().trim().min(1, 'Soiul este obligatoriu'),
+   66:         cantitate: z.coerce.number().int().min(1, 'Cantitatea trebuie sa fie > 0'),
+   67:         pret_unitar: z.coerce.number().gt(0, 'Pretul trebuie sa fie > 0'),
+   68:       })
+   69:     )
+   70:     .min(1, 'Adauga cel putin un produs'),
+   71: })
+   72: 
+   73: type FormValues = z.input<typeof schema>
+   74: type SubmitValues = z.output<typeof schema>
+   75: 
+   76: function formatLei(value: number): string {
+   77:   return `${value.toFixed(2)} lei`
+   78: }
+   79: 
+   80: function getDefaultValues(vanzare: VanzareButasi): FormValues {
+   81:   return {
+   82:     client_id: vanzare.client_id ?? '',
+   83:     parcela_sursa_id: vanzare.parcela_sursa_id ?? '',
+   84:     status: vanzare.status,
+   85:     data_comanda: vanzare.data_comanda || vanzare.data,
+   86:     data_livrare_estimata: vanzare.data_livrare_estimata ?? '',
+   87:     adresa_livrare: vanzare.adresa_livrare ?? '',
+   88:     observatii: vanzare.observatii ?? '',
+   89:     avans_suma: Number(vanzare.avans_suma ?? 0),
+   90:     avans_data: vanzare.avans_data ?? '',
+   91:     items:
+   92:       vanzare.items?.length > 0
+   93:         ? vanzare.items.map((item) => ({
+   94:             soi: item.soi,
+   95:             cantitate: item.cantitate,
+   96:             pret_unitar: item.pret_unitar,
+   97:           }))
+   98:         : [
+   99:             {
+  100:               soi: vanzare.soi_butasi ?? '',
+  101:               cantitate: Math.max(1, Number(vanzare.cantitate_butasi || 1)),
+  102:               pret_unitar: Math.max(0.01, Number(vanzare.pret_unitar_lei || 0.01)),
+  103:             },
+  104:           ],
+  105:   }
+  106: }
+  107: 
+  108: export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVanzareButasiDialogProps) {
+  109:   const queryClient = useQueryClient()
+  110: 
+  111:   const form = useForm<FormValues, unknown, SubmitValues>({
+  112:     resolver: zodResolver(schema),
+  113:     defaultValues: {
+  114:       client_id: '',
+  115:       parcela_sursa_id: '',
+  116:       status: 'noua',
+  117:       data_comanda: '',
+  118:       data_livrare_estimata: '',
+  119:       adresa_livrare: '',
+  120:       observatii: '',
+  121:       avans_suma: 0,
+  122:       avans_data: '',
+  123:       items: [{ soi: '', cantitate: 1, pret_unitar: 0 }],
+  124:     },
+  125:   })
+  126: 
+  127:   const { fields, append, remove } = useFieldArray({
+  128:     control: form.control,
+  129:     name: 'items',
+  130:   })
+  131: 
+  132:   useEffect(() => {
+  133:     if (vanzare && open) {
+  134:       form.reset(getDefaultValues(vanzare))
+  135:     }
+  136:   }, [vanzare, open, form])
+  137: 
+  138:   const { data: clienti = [] } = useQuery({
+  139:     queryKey: ['clienti'],
+  140:     queryFn: getClienti,
+  141:   })
+  142: 
+  143:   const { data: parcele = [] } = useQuery({
+  144:     queryKey: ['parcele'],
+  145:     queryFn: getParcele,
+  146:   })
+  147: 
+  148:   const watchedItems = form.watch('items')
+  149:   const status = form.watch('status')
+  150:   const isProductsReadonly = status === 'anulata'
+  151: 
+  152:   const totalProduse = useMemo(
+  153:     () => watchedItems.reduce((sum, item) => sum + Number(item.cantitate || 0) * Number(item.pret_unitar || 0), 0),
+  154:     [watchedItems]
+  155:   )
+  156: 
+  157:   const avans = Number(form.watch('avans_suma') ?? 0)
+  158:   const restDeIncasat = totalProduse - (Number.isFinite(avans) ? avans : 0)
+  159: 
+  160:   const updateMutation = useMutation({
+  161:     mutationFn: ({ id, input }: { id: string; input: UpdateVanzareButasiInput }) => updateVanzareButasi(id, input),
+  162:     onSuccess: (updatedOrder) => {
+  163:       if (!vanzare) return
+  164: 
+  165:       queryClient.invalidateQueries({ queryKey: ['vanzari-butasi'] })
+  166: 
+  167:       if (updatedOrder.status !== vanzare.status) {
+  168:         trackEvent('butasi_order_status_changed', 'vanzari-butasi', {
+  169:           orderId: updatedOrder.id,
+  170:           from: vanzare.status,
+  171:           to: updatedOrder.status,
+  172:         })
+  173:         Sentry.captureMessage('butasi_order_status_changed', {
+  174:           level: 'info',
+  175:           tags: { module: 'vanzari-butasi' },
+  176:           extra: { orderId: updatedOrder.id, from: vanzare.status, to: updatedOrder.status },
+  177:         })
+  178:       }
+  179: 
+  180:       const avansDelta = Number(updatedOrder.avans_suma) - Number(vanzare.avans_suma)
+  181:       if (avansDelta > 0) {
+  182:         trackEvent('butasi_order_payment_added', 'vanzari-butasi', {
+  183:           orderId: updatedOrder.id,
+  184:           addedAmount: avansDelta,
+  185:           newAvans: updatedOrder.avans_suma,
+  186:         })
+  187:         Sentry.captureMessage('butasi_order_payment_added', {
+  188:           level: 'info',
+  189:           tags: { module: 'vanzari-butasi' },
+  190:           extra: { orderId: updatedOrder.id, addedAmount: avansDelta, newAvans: updatedOrder.avans_suma },
+  191:         })
+  192:       }
+  193: 
+  194:       hapticSuccess()
+  195:       toast.success('Comanda actualizata')
+  196:       onOpenChange(false)
+  197:     },
+  198:     onError: (error: Error) => {
+  199:       hapticError()
+  200:       toast.error(error.message || 'Eroare la actualizare')
+  201:     },
+  202:   })
+  203: 
+  204:   const onSubmit = (values: SubmitValues) => {
+  205:     if (!vanzare || updateMutation.isPending) return
+  206: 
+  207:     updateMutation.mutate({
+  208:       id: vanzare.id,
+  209:       input: {
+  210:         client_id: values.client_id || null,
+  211:         parcela_sursa_id: values.parcela_sursa_id || null,
+  212:         status: values.status,
+  213:         data_comanda: values.data_comanda,
+  214:         data_livrare_estimata: values.data_livrare_estimata || null,
+  215:         adresa_livrare: values.adresa_livrare?.trim() || null,
+  216:         observatii: values.observatii?.trim() || null,
+  217:         avans_suma: Number(values.avans_suma),
+  218:         avans_data: values.avans_data || null,
+  219:         items: values.items.map((item) => ({
+  220:           soi: item.soi.trim(),
+  221:           cantitate: Number(item.cantitate),
+  222:           pret_unitar: Number(item.pret_unitar),
+  223:         })),
+  224:       },
+  225:     })
+  226:   }
+  227: 
+  228:   if (!vanzare) return null
+  229: 
+  230:   return (
+  231:     <AppDialog
+  232:       open={open}
+  233:       onOpenChange={onOpenChange}
+  234:       title="Editeaza comanda butasi"
+  235:       footer={
+  236:         <DialogFormActions
+  237:           onCancel={() => onOpenChange(false)}
+  238:           onSave={form.handleSubmit(onSubmit)}
+  239:           saving={updateMutation.isPending}
+  240:           cancelLabel="Anuleaza"
+  241:           saveLabel="Salveaza comanda"
+  242:         />
+  243:       }
+  244:     >
+  245:       <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
+  246:         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+  247:           <div className="space-y-4">
+  248:             <div className="space-y-2">
+  249:               <Label>Client</Label>
+  250:               <Controller
+  251:                 control={form.control}
+  252:                 name="client_id"
+  253:                 render={({ field }) => (
+  254:                   <Select value={field.value || '__none'} onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}>
+  255:                     <SelectTrigger className="agri-control h-12">
+  256:                       <SelectValue placeholder="Selecteaza client" />
+  257:                     </SelectTrigger>
+  258:                     <SelectContent>
+  259:                       <SelectItem value="__none">Fara client</SelectItem>
+  260:                       {clienti.map((client) => (
+  261:                         <SelectItem key={client.id} value={client.id}>
+  262:                           {client.nume_client}
+  263:                         </SelectItem>
+  264:                       ))}
+  265:                     </SelectContent>
+  266:                   </Select>
+  267:                 )}
+  268:               />
+  269:             </div>
+  270: 
+  271:             <div className="space-y-2">
+  272:               <Label>Status</Label>
+  273:               <div className="grid grid-cols-2 gap-1.5 min-[380px]:grid-cols-3 sm:grid-cols-3">
+  274:                 {VANZARE_BUTASI_STATUSES.map((option) => {
+  275:                   const isActive = status === option
+  276:                   return (
+  277:                     <Button
+  278:                       key={option}
+  279:                       type="button"
+  280:                       variant="outline"
+  281:                       onClick={() => form.setValue('status', option, { shouldDirty: true })}
+  282:                       className={cn(
+  283:                         'h-8 rounded-full border px-2 text-[11px] font-semibold',
+  284:                         isActive && option !== 'anulata' && 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
+  285:                         isActive && option === 'anulata' && 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200',
+  286:                         !isActive && 'bg-white text-slate-600'
+  287:                       )}
+  288:                     >
+  289:                       {statusLabels[option]}
+  290:                     </Button>
+  291:                   )
+  292:                 })}
+  293:               </div>
+  294:             </div>
+  295:           </div>
+  296:         </div>
+  297: 
+  298:         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+  299:           <div className="grid gap-3 md:grid-cols-2">
+  300:             <div className="space-y-2">
+  301:               <Label htmlFor="edit_vb_data_comanda">Data comanda</Label>
+  302:               <div className="relative">
+  303:                 <CalendarDays className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+  304:                 <Input id="edit_vb_data_comanda" type="date" className="agri-control h-12 pl-10" {...form.register('data_comanda')} />
+  305:               </div>
+  306:             </div>
+  307:             <div className="space-y-2">
+  308:               <Label htmlFor="edit_vb_data_livrare">Data preconizata livrare</Label>
+  309:               <div className="relative">
+  310:                 <CalendarDays className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+  311:                 <Input id="edit_vb_data_livrare" type="date" className="agri-control h-12 pl-10" {...form.register('data_livrare_estimata')} />
+  312:               </div>
+  313:             </div>
+  314:           </div>
+  315:         </div>
+  316: 
+  317:         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+  318:           <div className="space-y-3">
+  319:             <div className="space-y-2">
+  320:               <Label htmlFor="edit_vb_adresa">Adresa livrare</Label>
+  321:               <Input id="edit_vb_adresa" className="agri-control h-12" {...form.register('adresa_livrare')} />
+  322:             </div>
+  323: 
+  324:             <div className="space-y-2">
+  325:               <Label htmlFor="edit_vb_obs">Observatii</Label>
+  326:               <Textarea id="edit_vb_obs" rows={4} className="agri-control" {...form.register('observatii')} />
+  327:             </div>
+  328: 
+  329:             <div className="space-y-2">
+  330:               <Label>Parcela sursa</Label>
+  331:               <Controller
+  332:                 control={form.control}
+  333:                 name="parcela_sursa_id"
+  334:                 render={({ field }) => (
+  335:                   <Select value={field.value || '__none'} onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}>
+  336:                     <SelectTrigger className="agri-control h-12">
+  337:                       <SelectValue placeholder="Selecteaza parcela" />
+  338:                     </SelectTrigger>
+  339:                     <SelectContent>
+  340:                       <SelectItem value="__none">Fara parcela</SelectItem>
+  341:                       {parcele.map((parcela) => (
+  342:                         <SelectItem key={parcela.id} value={parcela.id}>
+  343:                           {parcela.nume_parcela}
+  344:                         </SelectItem>
+  345:                       ))}
+  346:                     </SelectContent>
+  347:                   </Select>
+  348:                 )}
+  349:               />
+  350:             </div>
+  351:           </div>
+  352:         </div>
+  353: 
+  354:         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+  355:           <div className="mb-3">
+  356:             <h3 className="text-base font-semibold text-[var(--agri-text)]">Produse</h3>
+  357:           </div>
+  358: 
+  359:           {isProductsReadonly ? (
+  360:             <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+  361:               Comanda anulata: produsele sunt doar in citire.
+  362:             </div>
+  363:           ) : null}
+  364: 
+  365:           <div className="space-y-3">
+  366:             {fields.map((field, index) => {
+  367:               const cantitate = Number(watchedItems[index]?.cantitate || 0)
+  368:               const pret = Number(watchedItems[index]?.pret_unitar || 0)
+  369:               const subtotal = cantitate * pret
+  370: 
+  371:               return (
+  372:                 <div key={field.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+  373:                   <div className="grid gap-3 md:grid-cols-12">
+  374:                     <div className="space-y-2 md:col-span-4">
+  375:                       <Label>Soi</Label>
+  376:                       <Input className="agri-control h-11" disabled={isProductsReadonly} {...form.register(`items.${index}.soi`)} />
+  377:                     </div>
+  378: 
+  379:                     <div className="space-y-2 md:col-span-3">
+  380:                       <Label>Cantitate</Label>
+  381:                       <div className="flex items-center gap-2">
+  382:                         <Button
+  383:                           type="button"
+  384:                           size="icon"
+  385:                           variant="outline"
+  386:                           className="h-10 w-10 rounded-full"
+  387:                           disabled={isProductsReadonly}
+  388:                           onClick={() => {
+  389:                             const nextValue = Math.max(1, cantitate - 1)
+  390:                             form.setValue(`items.${index}.cantitate`, nextValue, { shouldValidate: true })
+  391:                           }}
+  392:                         >
+  393:                           <Minus className="h-4 w-4" />
+  394:                         </Button>
+  395:                         <Input
+  396:                           type="number"
+  397:                           min={1}
+  398:                           className="agri-control h-11 text-center"
+  399:                           disabled={isProductsReadonly}
+  400:                           {...form.register(`items.${index}.cantitate`, { valueAsNumber: true })}
+  401:                         />
+  402:                         <Button
+  403:                           type="button"
+  404:                           size="icon"
+  405:                           variant="outline"
+  406:                           className="h-10 w-10 rounded-full"
+  407:                           disabled={isProductsReadonly}
+  408:                           onClick={() => form.setValue(`items.${index}.cantitate`, cantitate + 1, { shouldValidate: true })}
+  409:                         >
+  410:                           <Plus className="h-4 w-4" />
+  411:                         </Button>
+  412:                       </div>
+  413:                     </div>
+  414: 
+  415:                     <div className="space-y-2 md:col-span-3">
+  416:                       <Label>Pret/buc</Label>
+  417:                       <Input
+  418:                         type="number"
+  419:                         min={0.01}
+  420:                         step="0.01"
+  421:                         className="agri-control h-11"
+  422:                         disabled={isProductsReadonly}
+  423:                         {...form.register(`items.${index}.pret_unitar`, { valueAsNumber: true })}
+  424:                       />
+  425:                     </div>
+  426: 
+  427:                     <div className="space-y-2 md:col-span-2">
+  428:                       <Label>Total linie</Label>
+  429:                       <div className="flex h-11 items-center justify-between rounded-xl border border-emerald-100 bg-white px-3 text-sm font-semibold">
+  430:                         {formatLei(subtotal || 0)}
+  431:                         <Button
+  432:                           type="button"
+  433:                           size="icon"
+  434:                           variant="ghost"
+  435:                           className="h-8 w-8 rounded-full text-red-600 hover:bg-red-100"
+  436:                           onClick={() => {
+  437:                             if (fields.length > 1) {
+  438:                               remove(index)
+  439:                             }
+  440:                           }}
+  441:                           disabled={fields.length === 1 || isProductsReadonly}
+  442:                         >
+  443:                           <Trash2 className="h-4 w-4" />
+  444:                         </Button>
+  445:                       </div>
+  446:                     </div>
+  447:                   </div>
+  448:                 </div>
+  449:               )
+  450:             })}
+  451:           </div>
+  452: 
+  453:           <div className="mt-4">
+  454:             <Button
+  455:               type="button"
+  456:               variant="outline"
+  457:               className="h-11 w-full rounded-xl"
+  458:               onClick={() => append({ soi: '', cantitate: 1, pret_unitar: 0 })}
+  459:               disabled={isProductsReadonly}
+  460:             >
+  461:               + Adauga soi
+  462:             </Button>
+  463:           </div>
+  464:         </div>
+  465: 
+  466:         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+  467:           <div className="space-y-3">
+  468:             <p className="text-lg font-bold text-[var(--agri-text)]">Total produse: {formatLei(totalProduse || 0)}</p>
+  469: 
+  470:             <div className="grid gap-3 md:grid-cols-2">
+  471:               <div className="space-y-2">
+  472:                 <Label htmlFor="edit_vb_avans">Avans platit</Label>
+  473:                 <Input
+  474:                   id="edit_vb_avans"
+  475:                   type="number"
+  476:                   min={0}
+  477:                   step="0.01"
+  478:                   className="agri-control h-12"
+  479:                   {...form.register('avans_suma', { valueAsNumber: true })}
+  480:                 />
+  481:               </div>
+  482:               <div className="space-y-2">
+  483:                 <Label htmlFor="edit_vb_avans_data">Data avans</Label>
+  484:                 <Input id="edit_vb_avans_data" type="date" className="agri-control h-12" {...form.register('avans_data')} />
+  485:               </div>
+  486:             </div>
+  487: 
+  488:             <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+  489:               Rest de incasat: {formatLei(restDeIncasat || 0)}
+  490:             </div>
+  491:           </div>
+  492:         </div>
+  493:       </form>
+  494:     </AppDialog>
+  495:   )
+  496: }
+  497: 

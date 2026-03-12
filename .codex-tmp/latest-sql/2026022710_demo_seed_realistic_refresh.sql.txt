@@ -1,0 +1,314 @@
+    1: -- Refresh demo seed dataset for new tenants.
+    2: -- Idempotent: only replaces functions.
+    3: 
+    4: create or replace function public.seed_demo_for_tenant(
+    5:   p_tenant_id uuid
+    6: )
+    7: returns jsonb
+    8: language plpgsql
+    9: security definer
+   10: set search_path = public
+   11: as $$
+   12: declare
+   13:   v_user_id uuid := auth.uid();
+   14:   v_seed_id uuid;
+   15:   v_seeded boolean := false;
+   16:   v_code text;
+   17: 
+   18:   v_client_1 uuid;
+   19:   v_client_2 uuid;
+   20:   v_parcela_1 uuid;
+   21:   v_parcela_2 uuid;
+   22:   v_culegator_1 uuid;
+   23:   v_culegator_2 uuid;
+   24:   v_culegator_3 uuid;
+   25: 
+   26:   d_today date := current_date;
+   27:   d1 date := current_date - interval '1 day';
+   28:   d2 date := current_date - interval '2 day';
+   29:   d3 date := current_date - interval '3 day';
+   30:   d4 date := current_date - interval '4 day';
+   31:   d5 date := current_date - interval '5 day';
+   32:   d6 date := current_date - interval '6 day';
+   33:   d7 date := current_date - interval '7 day';
+   34:   m1 date := current_date - interval '14 day';
+   35:   m2 date := current_date - interval '21 day';
+   36:   m3 date := current_date - interval '30 day';
+   37:   m4 date := current_date - interval '41 day';
+   38:   m5 date := current_date - interval '55 day';
+   39: begin
+   40:   if v_user_id is null then
+   41:     raise exception 'UNAUTHORIZED';
+   42:   end if;
+   43: 
+   44:   if p_tenant_id is null then
+   45:     raise exception 'TENANT_REQUIRED';
+   46:   end if;
+   47: 
+   48:   if not public.user_can_manage_tenant(p_tenant_id, v_user_id) then
+   49:     raise exception 'FORBIDDEN';
+   50:   end if;
+   51: 
+   52:   select t.demo_seeded, t.demo_seed_id
+   53:   into v_seeded, v_seed_id
+   54:   from public.tenants t
+   55:   where t.id = p_tenant_id
+   56:   for update;
+   57: 
+   58:   if v_seeded = true then
+   59:     return jsonb_build_object(
+   60:       'status', 'already_seeded',
+   61:       'tenant_id', p_tenant_id,
+   62:       'demo_seed_id', v_seed_id
+   63:     );
+   64:   end if;
+   65: 
+   66:   if public.tenant_has_core_data(p_tenant_id) then
+   67:     return jsonb_build_object(
+   68:       'status', 'skipped_existing_data',
+   69:       'tenant_id', p_tenant_id
+   70:     );
+   71:   end if;
+   72: 
+   73:   v_seed_id := gen_random_uuid();
+   74:   v_code := upper(substr(replace(v_seed_id::text, '-', ''), 1, 6));
+   75: 
+   76:   if to_regclass('public.parcele') is not null then
+   77:     insert into public.parcele (
+   78:       tenant_id, id_parcela, nume_parcela, tip_fruct, soi_plantat, suprafata_m2, nr_plante, an_plantare, status, observatii,
+   79:       data_origin, demo_seed_id
+   80:     )
+   81:     values
+   82:       (p_tenant_id, 'DEMO-PAR-' || v_code || '-01', 'Parcela Nord', 'Zmeura', 'Maravilla', 1500, 1200, 2022, 'Activ', 'Parcela demo nord',
+   83:        'demo', v_seed_id),
+   84:       (p_tenant_id, 'DEMO-PAR-' || v_code || '-02', 'Parcela Sud', 'Zmeura', 'Delniwa', 1000, 800, 2023, 'Activ', 'Parcela demo sud',
+   85:        'demo', v_seed_id);
+   86: 
+   87:     select id
+   88:     into v_parcela_1
+   89:     from public.parcele
+   90:     where tenant_id = p_tenant_id
+   91:       and demo_seed_id = v_seed_id
+   92:       and nume_parcela = 'Parcela Nord'
+   93:     limit 1;
+   94: 
+   95:     select id
+   96:     into v_parcela_2
+   97:     from public.parcele
+   98:     where tenant_id = p_tenant_id
+   99:       and demo_seed_id = v_seed_id
+  100:       and nume_parcela = 'Parcela Sud'
+  101:     limit 1;
+  102:   end if;
+  103: 
+  104:   if to_regclass('public.culegatori') is not null then
+  105:     insert into public.culegatori (
+  106:       tenant_id, id_culegator, nume_prenume, tarif_lei_kg, data_angajare, status_activ, telefon, tip_angajare, observatii,
+  107:       data_origin, demo_seed_id
+  108:     ) values
+  109:       (p_tenant_id, 'DEMO-CUL-' || v_code || '-01', 'Maria Popescu', 3.5, m5, true, '0745001100', 'Sezonier', 'Culegator demo',
+  110:        'demo', v_seed_id),
+  111:       (p_tenant_id, 'DEMO-CUL-' || v_code || '-02', 'Ion Moldovan', 3.0, m4, true, '0745002200', 'Sezonier', 'Culegator demo',
+  112:        'demo', v_seed_id),
+  113:       (p_tenant_id, 'DEMO-CUL-' || v_code || '-03', 'Ana Rusu', 3.5, m3, true, '0745003300', 'Permanent', 'Culegator demo',
+  114:        'demo', v_seed_id);
+  115: 
+  116:     select id into v_culegator_1
+  117:     from public.culegatori
+  118:     where tenant_id = p_tenant_id and demo_seed_id = v_seed_id and nume_prenume = 'Maria Popescu'
+  119:     limit 1;
+  120: 
+  121:     select id into v_culegator_2
+  122:     from public.culegatori
+  123:     where tenant_id = p_tenant_id and demo_seed_id = v_seed_id and nume_prenume = 'Ion Moldovan'
+  124:     limit 1;
+  125: 
+  126:     select id into v_culegator_3
+  127:     from public.culegatori
+  128:     where tenant_id = p_tenant_id and demo_seed_id = v_seed_id and nume_prenume = 'Ana Rusu'
+  129:     limit 1;
+  130:   end if;
+  131: 
+  132:   if to_regclass('public.clienti') is not null then
+  133:     insert into public.clienti (
+  134:       tenant_id, id_client, nume_client, telefon, email, adresa, pret_negociat_lei_kg, observatii,
+  135:       data_origin, demo_seed_id
+  136:     ) values
+  137:       (p_tenant_id, 'DEMO-CLI-' || v_code || '-01', 'Magazin BioFruct', '0740100200', 'biofruct@example.ro', 'Suceava', 18, 'Client demo',
+  138:        'demo', v_seed_id),
+  139:       (p_tenant_id, 'DEMO-CLI-' || v_code || '-02', 'Restaurant La Livada', '0740300400', 'restaurant@example.ro', 'Radauti', 20, 'Client demo',
+  140:        'demo', v_seed_id);
+  141: 
+  142:     select id into v_client_1
+  143:     from public.clienti
+  144:     where tenant_id = p_tenant_id and demo_seed_id = v_seed_id and nume_client = 'Magazin BioFruct'
+  145:     limit 1;
+  146: 
+  147:     select id into v_client_2
+  148:     from public.clienti
+  149:     where tenant_id = p_tenant_id and demo_seed_id = v_seed_id and nume_client = 'Restaurant La Livada'
+  150:     limit 1;
+  151:   end if;
+  152: 
+  153:   if to_regclass('public.activitati_agricole') is not null then
+  154:     insert into public.activitati_agricole (
+  155:       tenant_id, id_activitate, data_aplicare, parcela_id, tip_activitate, produs_utilizat, doza, timp_pauza_zile, operator, observatii,
+  156:       data_origin, demo_seed_id
+  157:     ) values
+  158:       (p_tenant_id, 'DEMO-ACT-' || v_code || '-01', m5, v_parcela_1, 'Tratament Fungicid', 'Signum', '1 kg/ha', 7, 'Andrei', 'Aplicare dupa ploaie', 'demo', v_seed_id),
+  159:       (p_tenant_id, 'DEMO-ACT-' || v_code || '-02', m4, v_parcela_2, 'Tratament Fungicid', 'Ortiva Top', '1 l/ha', 7, 'Andrei', 'Preventiv', 'demo', v_seed_id),
+  160:       (p_tenant_id, 'DEMO-ACT-' || v_code || '-03', m3, v_parcela_1, 'Fertilizare Foliara', 'Ingrasamant foliar NPK', '2 l/ha', 0, 'Andrei', 'Faza vegetativa', 'demo', v_seed_id),
+  161:       (p_tenant_id, 'DEMO-ACT-' || v_code || '-04', m2, v_parcela_2, 'Fertilizare Foliara', 'Calciu + bor', '1.5 l/ha', 0, 'Andrei', 'Inainte de coacere', 'demo', v_seed_id),
+  162:       (p_tenant_id, 'DEMO-ACT-' || v_code || '-05', m1, v_parcela_1, 'Tundere/Curatare', 'Foarfeca profesionala', null, 0, 'Andrei', 'Taiere de intretinere', 'demo', v_seed_id);
+  163:   end if;
+  164: 
+  165:   if to_regclass('public.recoltari') is not null then
+  166:     insert into public.recoltari (
+  167:       tenant_id, id_recoltare, data, parcela_id, culegator_id, kg_cal1, kg_cal2, cantitate_kg, pret_lei_pe_kg_snapshot, valoare_munca_lei, observatii,
+  168:       data_origin, demo_seed_id
+  169:     ) values
+  170:       (p_tenant_id, 'DEMO-REC-' || v_code || '-01', d7, v_parcela_1, v_culegator_1, 24, 6, 30, 18, 105, 'Tura dimineata', 'demo', v_seed_id),
+  171:       (p_tenant_id, 'DEMO-REC-' || v_code || '-02', d7, v_parcela_2, v_culegator_2, 20, 5, 25, 18, 75, 'Tura dimineata', 'demo', v_seed_id),
+  172:       (p_tenant_id, 'DEMO-REC-' || v_code || '-03', d6, v_parcela_1, v_culegator_3, 28, 7, 35, 19, 122.5, 'Calitate buna', 'demo', v_seed_id),
+  173:       (p_tenant_id, 'DEMO-REC-' || v_code || '-04', d5, v_parcela_2, v_culegator_1, 18, 5, 23, 18, 80.5, 'Zi calduroasa', 'demo', v_seed_id),
+  174:       (p_tenant_id, 'DEMO-REC-' || v_code || '-05', d4, v_parcela_1, v_culegator_2, 30, 8, 38, 20, 114, 'Lot productiv', 'demo', v_seed_id),
+  175:       (p_tenant_id, 'DEMO-REC-' || v_code || '-06', d3, v_parcela_2, v_culegator_3, 22, 6, 28, 19, 98, 'Sortare in camp', 'demo', v_seed_id),
+  176:       (p_tenant_id, 'DEMO-REC-' || v_code || '-07', d2, v_parcela_1, v_culegator_1, 33, 9, 42, 20, 147, 'Varf de productie', 'demo', v_seed_id),
+  177:       (p_tenant_id, 'DEMO-REC-' || v_code || '-08', d1, v_parcela_2, v_culegator_2, 26, 7, 33, 19, 99, 'Livrare rapida', 'demo', v_seed_id),
+  178:       (p_tenant_id, 'DEMO-REC-' || v_code || '-09', d_today, v_parcela_1, v_culegator_3, 29, 8, 37, 20, 129.5, 'Recoltare curenta', 'demo', v_seed_id);
+  179:   end if;
+  180: 
+  181:   if to_regclass('public.cheltuieli_diverse') is not null then
+  182:     insert into public.cheltuieli_diverse (
+  183:       tenant_id, id_cheltuiala, data, categorie, descriere, suma_lei, furnizor,
+  184:       data_origin, demo_seed_id
+  185:     ) values
+  186:       (p_tenant_id, 'DEMO-CH-' || v_code || '-01', m5, 'Tratamente', 'Tratament fitosanitar Signum', 450, 'Agro Shop Suceava', 'demo', v_seed_id),
+  187:       (p_tenant_id, 'DEMO-CH-' || v_code || '-02', m3, 'Fertilizare', 'Ingrasamant foliar', 320, 'Fitofarm', 'demo', v_seed_id),
+  188:       (p_tenant_id, 'DEMO-CH-' || v_code || '-03', d4, 'Ambalaje', 'Caserole si etichete', 180, 'Ambalaje Nord', 'demo', v_seed_id),
+  189:       (p_tenant_id, 'DEMO-CH-' || v_code || '-04', d2, 'Transport', 'Motorina livrari', 250, 'OMV', 'demo', v_seed_id);
+  190:   end if;
+  191: 
+  192:   if to_regclass('public.vanzari') is not null then
+  193:     insert into public.vanzari (
+  194:       tenant_id, id_vanzare, data, client_id, cantitate_kg, pret_lei_kg, status_plata, observatii_ladite,
+  195:       data_origin, demo_seed_id
+  196:     ) values
+  197:       (p_tenant_id, 'DEMO-VNZ-' || v_code || '-01', d4, v_client_1, 80, 18, 'incasat', 'Livrare standard', 'demo', v_seed_id),
+  198:       (p_tenant_id, 'DEMO-VNZ-' || v_code || '-02', d2, v_client_2, 45, 20, 'partial', 'Livrare restaurant', 'demo', v_seed_id),
+  199:       (p_tenant_id, 'DEMO-VNZ-' || v_code || '-03', d1, v_client_1, 30, 22, 'neincasat', 'Comanda urgenta', 'demo', v_seed_id);
+  200:   end if;
+  201: 
+  202:   if to_regclass('public.comenzi') is not null then
+  203:     insert into public.comenzi (
+  204:       tenant_id, client_id, client_nume_manual, telefon, locatie_livrare, data_comanda, data_livrare, cantitate_kg, pret_per_kg, total, status, observatii,
+  205:       data_origin, demo_seed_id
+  206:     ) values
+  207:       (p_tenant_id, v_client_1, null, '0740100200', 'Suceava', d2, d1, 55, 18, 990, 'confirmata', 'Livrare la ora 09:00', 'demo', v_seed_id),
+  208:       (p_tenant_id, v_client_2, null, '0740300400', 'Radauti', d1, d_today + interval '1 day', 35, 20, 700, 'noua', 'In asteptare confirmare finala', 'demo', v_seed_id);
+  209:   end if;
+  210: 
+  211:   update public.tenants
+  212:   set
+  213:     demo_seeded = true,
+  214:     demo_seed_id = v_seed_id,
+  215:     demo_seeded_at = now(),
+  216:     updated_at = now()
+  217:   where id = p_tenant_id;
+  218: 
+  219:   return jsonb_build_object(
+  220:     'status', 'seeded',
+  221:     'tenant_id', p_tenant_id,
+  222:     'demo_seed_id', v_seed_id
+  223:   );
+  224: end
+  225: $$;
+  226: 
+  227: create or replace function public.delete_demo_for_tenant(
+  228:   p_tenant_id uuid
+  229: )
+  230: returns jsonb
+  231: language plpgsql
+  232: security definer
+  233: set search_path = public
+  234: as $$
+  235: declare
+  236:   v_user_id uuid := auth.uid();
+  237:   v_seed_id uuid;
+  238:   v_deleted bigint := 0;
+  239:   v_count bigint := 0;
+  240:   tbl text;
+  241: begin
+  242:   if v_user_id is null then
+  243:     raise exception 'UNAUTHORIZED';
+  244:   end if;
+  245: 
+  246:   if p_tenant_id is null then
+  247:     raise exception 'TENANT_REQUIRED';
+  248:   end if;
+  249: 
+  250:   if not public.user_can_manage_tenant(p_tenant_id, v_user_id) then
+  251:     raise exception 'FORBIDDEN';
+  252:   end if;
+  253: 
+  254:   select t.demo_seed_id
+  255:   into v_seed_id
+  256:   from public.tenants t
+  257:   where t.id = p_tenant_id
+  258:   for update;
+  259: 
+  260:   foreach tbl in array array[
+  261:     'comenzi',
+  262:     'vanzari',
+  263:     'vanzari_butasi_items',
+  264:     'vanzari_butasi',
+  265:     'recoltari',
+  266:     'cheltuieli_diverse',
+  267:     'activitati_agricole',
+  268:     'culegatori',
+  269:     'clienti',
+  270:     'parcele',
+  271:     'investitii',
+  272:     'miscari_stoc'
+  273:   ] loop
+  274:     if to_regclass('public.' || tbl) is not null then
+  275:       execute format(
+  276:         'with deleted_rows as (
+  277:            delete from public.%I
+  278:            where tenant_id = $1
+  279:              and (
+  280:                data_origin = ''demo''
+  281:                or ($2 is not null and demo_seed_id = $2)
+  282:              )
+  283:            returning 1
+  284:          )
+  285:          select count(*) from deleted_rows',
+  286:         tbl
+  287:       )
+  288:       into v_count
+  289:       using p_tenant_id, v_seed_id;
+  290: 
+  291:       v_deleted := v_deleted + coalesce(v_count, 0);
+  292:     end if;
+  293:   end loop;
+  294: 
+  295:   update public.tenants
+  296:   set
+  297:     demo_seeded = false,
+  298:     demo_seed_id = null,
+  299:     demo_seeded_at = null,
+  300:     updated_at = now()
+  301:   where id = p_tenant_id;
+  302: 
+  303:   return jsonb_build_object(
+  304:     'status', 'deleted',
+  305:     'tenant_id', p_tenant_id,
+  306:     'deleted_rows', v_deleted
+  307:   );
+  308: end
+  309: $$;
+  310: 
+  311: grant execute on function public.seed_demo_for_tenant(uuid) to authenticated;
+  312: grant execute on function public.delete_demo_for_tenant(uuid) to authenticated;
+  313: 
+  314: notify pgrst, 'reload schema';

@@ -1,0 +1,140 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useForm } from 'react-hook-form'
+    6: import * as z from 'zod'
+    7: 
+    8: import { AppDrawer } from '@/components/app/AppDrawer'
+    9: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   10: import { Input } from '@/components/ui/input'
+   11: import { Label } from '@/components/ui/label'
+   12: import { Textarea } from '@/components/ui/textarea'
+   13: 
+   14: const culegatorSchema = z.object({
+   15:   nume_prenume: z.string().trim().min(2, 'Numele trebuie sa aiba minim 2 caractere'),
+   16:   telefon: z.string().optional(),
+   17:   tip_angajare: z.string().min(1, 'Selecteaza tipul de angajare'),
+   18:   tarif_lei_kg: z.string().optional(),
+   19:   data_angajare: z.string().optional(),
+   20:   status_activ: z.boolean().optional(),
+   21:   observatii: z.string().optional(),
+   22: })
+   23: 
+   24: type CulegatorFormData = z.infer<typeof culegatorSchema>
+   25: 
+   26: interface AddCulegatorDialogProps {
+   27:   open: boolean
+   28:   onOpenChange: (open: boolean) => void
+   29:   onSubmit: (data: CulegatorFormData) => Promise<void>
+   30: }
+   31: 
+   32: const defaults = (): CulegatorFormData => ({
+   33:   nume_prenume: '',
+   34:   telefon: '',
+   35:   tip_angajare: 'Sezonier',
+   36:   tarif_lei_kg: '0',
+   37:   data_angajare: '',
+   38:   status_activ: true,
+   39:   observatii: '',
+   40: })
+   41: 
+   42: export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegatorDialogProps) {
+   43:   const [isSubmitting, setIsSubmitting] = useState(false)
+   44: 
+   45:   const form = useForm<CulegatorFormData>({
+   46:     resolver: zodResolver(culegatorSchema),
+   47:     defaultValues: defaults(),
+   48:   })
+   49: 
+   50:   useEffect(() => {
+   51:     if (!open) form.reset(defaults())
+   52:   }, [open, form])
+   53: 
+   54:   const handleSubmit = async (data: CulegatorFormData) => {
+   55:     setIsSubmitting(true)
+   56:     try {
+   57:       await onSubmit(data)
+   58:       onOpenChange(false)
+   59:     } finally {
+   60:       setIsSubmitting(false)
+   61:     }
+   62:   }
+   63: 
+   64:   return (
+   65:     <AppDrawer
+   66:       open={open}
+   67:       onOpenChange={onOpenChange}
+   68:       title="Adauga culegator nou"
+   69:       footer={
+   70:         <DialogFormActions
+   71:           onCancel={() => onOpenChange(false)}
+   72:           onSave={form.handleSubmit(handleSubmit)}
+   73:           saving={isSubmitting}
+   74:           cancelLabel="Anuleaza"
+   75:           saveLabel="Salveaza"
+   76:         />
+   77:       }
+   78:     >
+   79:       <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
+   80:         <div className="space-y-2">
+   81:           <Label htmlFor="culegator_nume">Nume si prenume</Label>
+   82:           <Input id="culegator_nume" className="agri-control h-12" placeholder="Popescu Ion" {...form.register('nume_prenume')} />
+   83:           {form.formState.errors.nume_prenume ? <p className="text-xs text-red-600">{form.formState.errors.nume_prenume.message}</p> : null}
+   84:         </div>
+   85: 
+   86:         <div className="space-y-2">
+   87:           <Label htmlFor="culegator_telefon">Telefon</Label>
+   88:           <Input id="culegator_telefon" type="tel" className="agri-control h-12" placeholder="0740123456" {...form.register('telefon')} />
+   89:         </div>
+   90: 
+   91:         <div className="space-y-2">
+   92:           <Label htmlFor="culegator_tip">Tip angajare</Label>
+   93:           <select id="culegator_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_angajare')}>
+   94:             <option value="Sezonier">Sezonier</option>
+   95:             <option value="Permanent">Permanent</option>
+   96:             <option value="Zilier">Zilier</option>
+   97:             <option value="Colaborator">Colaborator</option>
+   98:           </select>
+   99:         </div>
+  100: 
+  101:         <div className="space-y-2">
+  102:           <Label htmlFor="culegator_tarif">Tarif (lei/kg)</Label>
+  103:           <Input
+  104:             id="culegator_tarif"
+  105:             type="number"
+  106:             inputMode="decimal"
+  107:             step="0.01"
+  108:             min="0"
+  109:             className="agri-control h-12"
+  110:             placeholder="0"
+  111:             {...form.register('tarif_lei_kg')}
+  112:           />
+  113:         </div>
+  114: 
+  115:         <div className="space-y-2">
+  116:           <Label htmlFor="culegator_data">Data angajare</Label>
+  117:           <Input id="culegator_data" type="date" className="agri-control h-12" {...form.register('data_angajare')} />
+  118:         </div>
+  119: 
+  120:         <div className="flex items-center gap-2">
+  121:           <input
+  122:             id="culegator_activ"
+  123:             type="checkbox"
+  124:             className="h-4 w-4 rounded border-gray-300"
+  125:             checked={Boolean(form.watch('status_activ'))}
+  126:             onChange={(event) => form.setValue('status_activ', event.target.checked, { shouldDirty: true })}
+  127:           />
+  128:           <Label htmlFor="culegator_activ" className="cursor-pointer text-sm font-normal">
+  129:             Culegator activ
+  130:           </Label>
+  131:         </div>
+  132: 
+  133:         <div className="space-y-2">
+  134:           <Label htmlFor="culegator_obs">Observatii</Label>
+  135:           <Textarea id="culegator_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
+  136:         </div>
+  137:       </form>
+  138:     </AppDrawer>
+  139:   )
+  140: }

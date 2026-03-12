@@ -1,23 +1,21 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
+import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import AlertCard from '@/components/ui/AlertCard'
 import Sparkline from '@/components/ui/Sparkline'
 import TrendBadge from '@/components/ui/TrendBadge'
-import { AddVanzareDialog } from '@/components/vanzari/AddVanzareDialog'
-import { EditVanzareDialog } from '@/components/vanzari/EditVanzareDialog'
 import { VanzareCard } from '@/components/vanzari/VanzareCard'
-import { ViewVanzareDialog } from '@/components/vanzari/ViewVanzareDialog'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
@@ -28,6 +26,23 @@ import { deleteVanzare, getVanzari, updateVanzare, type Vanzare } from '@/lib/su
 import { buildVanzareDeleteLabel } from '@/lib/ui/delete-labels'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
+
+const AddVanzareDialog = dynamic(
+  () => import('@/components/vanzari/AddVanzareDialog').then((mod) => mod.AddVanzareDialog),
+  { ssr: false }
+)
+const EditVanzareDialog = dynamic(
+  () => import('@/components/vanzari/EditVanzareDialog').then((mod) => mod.EditVanzareDialog),
+  { ssr: false }
+)
+const ViewVanzareDialog = dynamic(
+  () => import('@/components/vanzari/ViewVanzareDialog').then((mod) => mod.ViewVanzareDialog),
+  { ssr: false }
+)
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
 
 interface Client {
   id: string
@@ -158,7 +173,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      toast.success('Vânzare marcata ca incasata ✅')
+      toast.success('Vânzare marcată ca încasată ✅')
     },
     onError: (err: Error) => {
       toast.error(err.message)
@@ -418,8 +433,8 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
   const activeFilterLabel = useMemo(() => {
     if (selectedClient) return `👤 ${selectedClient}`
-    if (paymentFilter === 'incasate') return '✅ Incasate'
-    if (paymentFilter === 'neincasate') return '💸 Neincasate'
+    if (paymentFilter === 'incasate') return '✅ Încasate'
+    if (paymentFilter === 'neincasate') return '💸 Neîncasate'
     return null
   }, [selectedClient, paymentFilter])
 
@@ -496,7 +511,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
           />
           <AlertCard
             icon={dashboardSummary.neincasatRon > 0 ? '💸' : '✅'}
-            label={dashboardSummary.neincasatRon > 0 ? 'Neincasat' : 'Tot incasat'}
+            label={dashboardSummary.neincasatRon > 0 ? 'Neîncasat' : 'Tot încasat'}
             value={dashboardSummary.neincasatRon.toFixed(0)}
             sub={dashboardSummary.neincasatRon > 0 ? 'RON de colectat' : '0 RON de colectat'}
             variant={dashboardSummary.neincasatRon > 0 ? 'warning' : 'success'}
@@ -527,7 +542,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
           </div>
 
           {topClienți.length === 0 ? (
-            <p style={{ fontSize: 11, color: colors.gray }}>Nu exist? vânzări in intervalul selectat.</p>
+            <p style={{ fontSize: 11, color: colors.gray }}>Nu există vânzări în intervalul selectat.</p>
           ) : (
             <div style={{ display: 'grid', gap: spacing.xs }}>
               {topClienți.map((client, index) => {
@@ -645,15 +660,15 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
         <SearchField placeholder="Caută dupa client sau status..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} aria-label="Caută vânzări" />
 
-        {isError ? <ErrorState title="Eroare la înc?rcare" message={(error as Error).message} onRetry={refresh} /> : null}
-        {isLoading ? <LoadingState label="Se încarcă vanzarile..." /> : null}
+        {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={refresh} /> : null}
+        {isLoading ? <TableCardsSkeleton /> : null}
 
         {!isLoading && !isError && filteredVanzari.length === 0 ? (
           <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.xxl, textAlign: 'center' }}>
             <div style={{ fontSize: 42, marginBottom: spacing.sm }}>💰</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>Nicio vânzare inca</h3>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>Nicio vânzare încă</h3>
             <p style={{ fontSize: 12, color: colors.gray, marginTop: spacing.sm }}>
-              Vanzarile apar automat cand livrezi comenzi. Du-te la Comenzi ți apasa LIVRATA.
+              Vânzările apar automat când livrezi comenzi. Du-te la Comenzi și apasă LIVRATĂ.
             </p>
             <button
               type="button"
@@ -716,7 +731,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
                                 vanzare.incasata ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                               }`}
                             >
-                              {vanzare.incasata ? 'Incasata' : 'Neincasata'}
+                              {vanzare.incasata ? 'Încasată' : 'Neîncasată'}
                             </span>
                           </td>
                         </tr>
@@ -746,7 +761,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
                           className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                           onClick={() => markPaidMutation.mutate(desktopSelectedVanzare.id)}
                         >
-                          Marcheaza incasata
+                          Marchează încasată
                         </button>
                       ) : null}
                       <button
@@ -761,14 +776,14 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
                         className="rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
                         onClick={() => setEditingVanzare(desktopSelectedVanzare)}
                       >
-                        Editeaza
+                        Editează
                       </button>
                       <button
                         type="button"
                         className="rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
                         onClick={() => setDeletingVanzare(desktopSelectedVanzare)}
                       >
-                        Sterge
+                        Șterge
                       </button>
                     </div>
                   </div>

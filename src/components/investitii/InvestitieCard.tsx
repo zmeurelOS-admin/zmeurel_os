@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { Investitie } from '@/lib/supabase/queries/investitii'
 
 interface InvestitieCardProps {
@@ -34,100 +33,57 @@ export function InvestitieCard({ investitie, parcelaNume, onEdit, onDelete }: In
   const dataLabel = investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '-'
 
   return (
-    <div
-      style={{
-        borderRadius: radius.lg,
-        border: `1px solid ${colors.grayLight}`,
-        boxShadow: shadows.card,
-        background: colors.white,
-        overflow: 'hidden',
-      }}
-    >
+    <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
-        style={{
-          width: '100%',
-          border: 'none',
-          background: 'transparent',
-          textAlign: 'left',
-          padding: spacing.md,
-          cursor: 'pointer',
-        }}
+        className="w-full p-5 text-left"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.md,
-              background: colors.grayLight,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 16,
-              flexShrink: 0,
-            }}
-          >
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--agri-surface-muted)] text-lg">
             {emoji}
           </div>
 
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: colors.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {investitie.descriere || 'Investitie'}
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
+              {investitie.descriere || 'Investiție'}
             </div>
-            <div style={{ fontSize: 11, color: colors.gray }}>
+            <div className="truncate text-sm text-[var(--agri-text-muted)]">
               {[categorie, investitie.furnizor].filter(Boolean).join(' · ') || '-'}
             </div>
           </div>
 
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: colors.dark }}>{Number(investitie.suma_lei || 0).toFixed(0)} RON</div>
-            <div style={{ fontSize: 10, color: colors.gray }}>{dataLabel}</div>
+          <div className="shrink-0 text-right">
+            <div className="text-lg font-bold text-[var(--agri-text)]">{Number(investitie.suma_lei || 0).toFixed(0)} RON</div>
+            <div className="text-[10px] text-[var(--agri-text-muted)]">{dataLabel}</div>
           </div>
         </div>
       </button>
 
       {expanded ? (
-        <div
-          style={{
-            borderTop: `1px solid ${colors.grayLight}`,
-            padding: `${spacing.sm}px ${spacing.md}px ${spacing.md}px`,
-            display: 'grid',
-            gap: spacing.sm,
-          }}
-        >
-          <div style={{ display: 'grid', gap: 4 }}>
-            <div style={{ fontSize: 11, color: colors.gray }}>
-              <strong style={{ color: colors.dark }}>Parcelă:</strong> {parcelaNume || '-'}
+        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+          <div className="space-y-2 text-sm text-[var(--agri-text-muted)]">
+            <div>
+              <strong className="text-[var(--agri-text)]">Parcelă:</strong> {parcelaNume || '-'}
             </div>
-            <div style={{ fontSize: 11, color: colors.gray }}>
-              <strong style={{ color: colors.dark }}>Furnizor:</strong> {investitie.furnizor || '-'}
+            <div>
+              <strong className="text-[var(--agri-text)]">Furnizor:</strong> {investitie.furnizor || '-'}
             </div>
-            <div style={{ fontSize: 11, color: colors.gray }}>
-              <strong style={{ color: colors.dark }}>Categorie:</strong> {categorie}
+            <div>
+              <strong className="text-[var(--agri-text)]">Categorie:</strong> {categorie}
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: spacing.sm }}>
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 onEdit(investitie)
               }}
-              style={{
-                minHeight: 46,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.yellowLight,
-                color: colors.dark,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
             >
-              ✏️ Edit
+              Editează
             </button>
             <button
               type="button"
@@ -135,18 +91,9 @@ export function InvestitieCard({ investitie, parcelaNume, onEdit, onDelete }: In
                 event.stopPropagation()
                 onDelete(investitie)
               }}
-              style={{
-                minHeight: 46,
-                border: 'none',
-                borderRadius: radius.md,
-                background: colors.coralLight,
-                color: colors.coral,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
             >
-              🗑️ Delete
+              Șterge
             </button>
           </div>
         </div>

@@ -1,0 +1,56 @@
+1	create extension if not exists pgcrypto;
+2	
+3	create table if not exists public.analytics_events (
+4	  id uuid default gen_random_uuid() primary key,
+5	  tenant_id uuid references public.tenants(id) on delete cascade,
+6	  user_id uuid,
+7	  event_name text not null,
+8	  event_data jsonb default '{}'::jsonb,
+9	  page_url text,
+10	  created_at timestamptz default now()
+11	);
+12	
+13	alter table public.analytics_events
+14	  add column if not exists event_data jsonb default '{}'::jsonb;
+15	
+16	alter table public.analytics_events
+17	  add column if not exists page_url text;
+18	
+19	alter table public.analytics_events enable row level security;
+20	
+21	drop policy if exists "Users can insert own events" on public.analytics_events;
+22	drop policy if exists analytics_events_insert_own_tenant on public.analytics_events;
+23	create policy "Users can insert own events"
+24	on public.analytics_events
+25	for insert
+26	to authenticated
+27	with check (
+28	  user_id = auth.uid()
+29	  and exists (
+30	    select 1
+31	    from public.tenants t
+32	    where t.id = analytics_events.tenant_id
+33	      and t.owner_user_id = auth.uid()
+34	  )
+35	);
+36	
+37	drop policy if exists "Superadmin can read all" on public.analytics_events;
+38	drop policy if exists analytics_events_no_read_for_tenant_users on public.analytics_events;
+39	create policy "Superadmin can read all"
+40	on public.analytics_events
+41	for select
+42	to authenticated
+43	using (
+44	  exists (
+45	    select 1
+46	    from public.profiles p
+47	    where p.id = auth.uid()
+48	      and p.is_superadmin = true
+49	  )
+50	);
+51	
+52	create index if not exists idx_analytics_events_tenant
+53	  on public.analytics_events(tenant_id, created_at desc);
+54	
+55	create index if not exists idx_analytics_events_name
+56	  on public.analytics_events(event_name, created_at desc);

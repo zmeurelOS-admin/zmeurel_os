@@ -1,0 +1,44 @@
+    1: -- Safe farm-name update RPC without service-role dependency.
+    2: -- Uses authenticated context and strict ownership checks.
+    3: 
+    4: create or replace function public.update_my_farm_name(
+    5:   p_farm_name text
+    6: )
+    7: returns table (
+    8:   tenant_id uuid,
+    9:   farm_name text
+   10: )
+   11: language plpgsql
+   12: security definer
+   13: set search_path = public
+   14: as $$
+   15: declare
+   16:   v_user_id uuid := auth.uid();
+   17:   v_name text := btrim(coalesce(p_farm_name, ''));
+   18: begin
+   19:   if v_user_id is null then
+   20:     raise exception 'UNAUTHORIZED';
+   21:   end if;
+   22: 
+   23:   if char_length(v_name) < 2 or char_length(v_name) > 120 then
+   24:     raise exception 'INVALID_FARM_NAME';
+   25:   end if;
+   26: 
+   27:   return query
+   28:   update public.tenants t
+   29:   set
+   30:     nume_ferma = v_name,
+   31:     updated_at = now()
+   32:   where t.owner_user_id = v_user_id
+   33:   returning t.id, t.nume_ferma;
+   34: 
+   35:   if not found then
+   36:     raise exception 'TENANT_NOT_FOUND';
+   37:   end if;
+   38: end
+   39: $$;
+   40: 
+   41: grant execute on function public.update_my_farm_name(text) to authenticated;
+   42: grant execute on function public.update_my_farm_name(text) to service_role;
+   43: 
+   44: notify pgrst, 'reload schema';

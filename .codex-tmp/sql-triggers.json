@@ -1,0 +1,114 @@
+﻿[
+    {
+        "name":  "activitati_agricole_set_audit_fields_minimal",
+        "table":  "activitati_agricole",
+        "function":  "set_audit_fields_minimal",
+        "file":  "2026022501_audit_trail_mvp.sql",
+        "line":  201
+    },
+    {
+        "name":  "activitati_agricole_set_sync_audit_fields",
+        "table":  "activitati_agricole",
+        "function":  "set_sync_audit_fields",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  95
+    },
+    {
+        "name":  "analytics_events_set_context",
+        "table":  "analytics_events",
+        "function":  "set_analytics_event_context",
+        "file":  "2026022506_usage_analytics_events.sql",
+        "line":  51
+    },
+    {
+        "name":  "cheltuieli_diverse_set_sync_audit_fields",
+        "table":  "cheltuieli_diverse",
+        "function":  "set_sync_audit_fields",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  100
+    },
+    {
+        "name":  "clienti_set_audit_fields_minimal",
+        "table":  "clienti",
+        "function":  "set_audit_fields_minimal",
+        "file":  "2026022501_audit_trail_mvp.sql",
+        "line":  206
+    },
+    {
+        "name":  "comenzi_set_tenant_and_audit",
+        "table":  "comenzi",
+        "function":  "set_comenzi_tenant_and_audit",
+        "file":  "2026022701_comenzi_module.sql",
+        "line":  72
+    },
+    {
+        "name":  "comenzi_set_tenant_and_audit",
+        "table":  "comenzi",
+        "function":  "set_comenzi_tenant_and_audit",
+        "file":  "2026022702_comenzi_schema_cache_repair.sql",
+        "line":  115
+    },
+    {
+        "name":  "parcele_set_audit_fields_minimal",
+        "table":  "parcele",
+        "function":  "set_audit_fields_minimal",
+        "file":  "2026022501_audit_trail_mvp.sql",
+        "line":  211
+    },
+    {
+        "name":  "recoltari_set_audit_fields_minimal",
+        "table":  "recoltari",
+        "function":  "set_audit_fields_minimal",
+        "file":  "2026022501_audit_trail_mvp.sql",
+        "line":  191
+    },
+    {
+        "name":  "recoltari_set_sync_audit_fields",
+        "table":  "recoltari",
+        "function":  "set_sync_audit_fields",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  85
+    },
+    {
+        "name":  "trg_integrations_google_contacts_updated_at",
+        "table":  "integrations_google_contacts",
+        "function":  "integrations_google_contacts_set_updated_at",
+        "file":  "2026022608_google_contacts_integrations.sql",
+        "line":  41
+    },
+    {
+        "name":  "trg_recoltari_sync_cantitate_kg",
+        "table":  "recoltari",
+        "function":  "recoltari_sync_cantitate_kg",
+        "file":  "2026022505_recoltari_kg_cal_columns.sql",
+        "line":  21
+    },
+    {
+        "name":  "vanzari_butasi_items_enforce_tenant",
+        "table":  "vanzari_butasi_items",
+        "function":  "enforce_vanzari_butasi_items_tenant",
+        "file":  "2026022614_vanzari_butasi_orders_v2.sql",
+        "line":  90
+    },
+    {
+        "name":  "vanzari_butasi_set_tenant_and_public_id",
+        "table":  "vanzari_butasi",
+        "function":  "set_vanzari_butasi_tenant_and_public_id",
+        "file":  "2026030301_vanzari_butasi_server_generated_id.sql",
+        "line":  59
+    },
+    {
+        "name":  "vanzari_set_audit_fields_minimal",
+        "table":  "vanzari",
+        "function":  "set_audit_fields_minimal",
+        "file":  "2026022501_audit_trail_mvp.sql",
+        "line":  196
+    },
+    {
+        "name":  "vanzari_set_sync_audit_fields",
+        "table":  "vanzari",
+        "function":  "set_sync_audit_fields",
+        "file":  "2026022504_idempotency_sync_safety.sql",
+        "line":  90
+    }
+]

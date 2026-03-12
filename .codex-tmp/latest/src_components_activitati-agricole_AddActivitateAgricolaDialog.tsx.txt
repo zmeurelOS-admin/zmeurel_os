@@ -1,0 +1,195 @@
+    1: 'use client'
+    2: 
+    3: import { useEffect, useState } from 'react'
+    4: import { zodResolver } from '@hookform/resolvers/zod'
+    5: import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+    6: import { useForm } from 'react-hook-form'
+    7: import { toast } from '@/lib/ui/toast'
+    8: import * as z from 'zod'
+    9: 
+   10: import { AppDrawer } from '@/components/app/AppDrawer'
+   11: import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+   12: import { Input } from '@/components/ui/input'
+   13: import { Label } from '@/components/ui/label'
+   14: import { Textarea } from '@/components/ui/textarea'
+   15: import { track } from '@/lib/analytics/track'
+   16: import { trackEvent } from '@/lib/analytics/trackEvent'
+   17: import { generateClientId } from '@/lib/offline/generateClientId'
+   18: import { createActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
+   19: import { getParcele } from '@/lib/supabase/queries/parcele'
+   20: import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+   21: 
+   22: const schema = z.object({
+   23:   data_aplicare: z.string().min(1, 'Data este obligatorie'),
+   24:   parcela_id: z.string().optional(),
+   25:   tip_activitate: z.string().min(1, 'Tipul activitatii este obligatoriu'),
+   26:   produs_utilizat: z.string().optional(),
+   27:   doza: z.string().optional(),
+   28:   timp_pauza_zile: z
+   29:     .string()
+   30:     .trim()
+   31:     .optional()
+   32:     .refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= 0), {
+   33:       message: 'Timpul de pauza trebuie sa fie un numar valid',
+   34:     }),
+   35:   observatii: z.string().optional(),
+   36: })
+   37: 
+   38: type FormValues = z.infer<typeof schema>
+   39: 
+   40: interface AddActivitateAgricolaDialogProps {
+   41:   open?: boolean
+   42:   onOpenChange?: (open: boolean) => void
+   43:   hideTrigger?: boolean
+   44: }
+   45: 
+   46: const defaults = (): FormValues => ({
+   47:   data_aplicare: new Date().toISOString().split('T')[0],
+   48:   parcela_id: '',
+   49:   tip_activitate: '',
+   50:   produs_utilizat: '',
+   51:   doza: '',
+   52:   timp_pauza_zile: '0',
+   53:   observatii: '',
+   54: })
+   55: 
+   56: export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = false }: AddActivitateAgricolaDialogProps) {
+   57:   const queryClient = useQueryClient()
+   58:   const [internalOpen, setInternalOpen] = useState(false)
+   59: 
+   60:   const isControlled = typeof open === 'boolean'
+   61:   const dialogOpen = isControlled ? open : internalOpen
+   62:   const setDialogOpen = (nextOpen: boolean) => {
+   63:     if (!isControlled) setInternalOpen(nextOpen)
+   64:     onOpenChange?.(nextOpen)
+   65:   }
+   66: 
+   67:   const form = useForm<FormValues>({
+   68:     resolver: zodResolver(schema),
+   69:     defaultValues: defaults(),
+   70:   })
+   71: 
+   72:   useEffect(() => {
+   73:     if (!dialogOpen) form.reset(defaults())
+   74:   }, [dialogOpen, form])
+   75: 
+   76:   const { data: parcele = [] } = useQuery({
+   77:     queryKey: ['parcele'],
+   78:     queryFn: getParcele,
+   79:   })
+   80: 
+   81:   const mutation = useMutation({
+   82:     mutationFn: createActivitateAgricola,
+   83:     onSuccess: (_, variables) => {
+   84:       queryClient.invalidateQueries({ queryKey: ['activitati'] })
+   85:       trackEvent('create_activitate', 'activitati', { source: 'AddActivitateAgricolaDialog' })
+   86:       track('activitate_add', {
+   87:         tip: variables.tip_activitate,
+   88:         produs: variables.produs_utilizat ?? null,
+   89:       })
+   90:       hapticSuccess()
+   91:       toast.success('Activitate salvata')
+   92:       setDialogOpen(false)
+   93:     },
+   94:     onError: (error: any) => {
+   95:       const conflict = error?.status === 409 || error?.code === '23505'
+   96:       if (conflict) {
+   97:         toast.info('Inregistrarea era deja sincronizata')
+   98:         setDialogOpen(false)
+   99:         return
+  100:       }
+  101:       hapticError()
+  102:       toast.error(error?.message || 'Eroare la salvare')
+  103:     },
+  104:   })
+  105: 
+  106:   const onSubmit = (values: FormValues) => {
+  107:     if (mutation.isPending) return
+  108: 
+  109:     mutation.mutate({
+  110:       client_sync_id: generateClientId(),
+  111:       data_aplicare: values.data_aplicare,
+  112:       parcela_id: values.parcela_id || undefined,
+  113:       tip_activitate: values.tip_activitate,
+  114:       produs_utilizat: values.produs_utilizat?.trim() || undefined,
+  115:       doza: values.doza?.trim() || undefined,
+  116:       timp_pauza_zile: Number(values.timp_pauza_zile || 0),
+  117:       observatii: values.observatii?.trim() || undefined,
+  118:     })
+  119:   }
+  120: 
+  121:   return (
+  122:     <>
+  123:       <AppDrawer
+  124:         open={dialogOpen}
+  125:         onOpenChange={setDialogOpen}
+  126:         title="Adauga activitate agricola"
+  127:         footer={
+  128:           <DialogFormActions
+  129:             onCancel={() => setDialogOpen(false)}
+  130:             onSave={form.handleSubmit(onSubmit)}
+  131:             saving={mutation.isPending}
+  132:             cancelLabel="Anuleaza"
+  133:             saveLabel="Salveaza"
+  134:           />
+  135:         }
+  136:       >
+  137:         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+  138:           <div className="space-y-2">
+  139:             <Label htmlFor="act_data">Data aplicare</Label>
+  140:             <Input id="act_data" type="date" className="agri-control h-12" {...form.register('data_aplicare')} />
+  141:             {form.formState.errors.data_aplicare ? <p className="text-xs text-red-600">{form.formState.errors.data_aplicare.message}</p> : null}
+  142:           </div>
+  143: 
+  144:           <div className="space-y-2">
+  145:             <Label htmlFor="act_parcela">Parcela</Label>
+  146:             <select id="act_parcela" className="agri-control h-12 w-full px-3 text-base" {...form.register('parcela_id')}>
+  147:               <option value="">Selecteaza parcela</option>
+  148:               {parcele.map((parcela: any) => (
+  149:                 <option key={parcela.id} value={parcela.id}>
+  150:                   {parcela.nume_parcela || 'Parcela'}
+  151:                 </option>
+  152:               ))}
+  153:             </select>
+  154:           </div>
+  155: 
+  156:           <div className="space-y-2">
+  157:             <Label htmlFor="act_tip">Tip activitate</Label>
+  158:             <select id="act_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_activitate')}>
+  159:               <option value="">Tip operatiune</option>
+  160:               <option value="fertilizare_foliara">Fertilizare foliara</option>
+  161:               <option value="fertirigare">Fertirigare</option>
+  162:               <option value="fertilizare_baza">Fertilizare de baza</option>
+  163:               <option value="fungicide_pesticide">Fungicide/Pesticide</option>
+  164:               <option value="irigatie">Irigatie</option>
+  165:               <option value="altele">Altele</option>
+  166:             </select>
+  167:             {form.formState.errors.tip_activitate ? <p className="text-xs text-red-600">{form.formState.errors.tip_activitate.message}</p> : null}
+  168:           </div>
+  169: 
+  170:           <div className="space-y-2">
+  171:             <Label htmlFor="act_produs">Produs</Label>
+  172:             <Input id="act_produs" className="agri-control h-12" placeholder="Ex: produs foliar" {...form.register('produs_utilizat')} />
+  173:           </div>
+  174: 
+  175:           <div className="space-y-2">
+  176:             <Label htmlFor="act_doza">Cantitate / doza</Label>
+  177:             <Input id="act_doza" className="agri-control h-12" placeholder="Ex: 2 l/ha" {...form.register('doza')} />
+  178:           </div>
+  179: 
+  180:           <div className="space-y-2">
+  181:             <Label htmlFor="act_pauza">Timp pauza (zile)</Label>
+  182:             <Input id="act_pauza" type="number" min="0" className="agri-control h-12" {...form.register('timp_pauza_zile')} />
+  183:             {form.formState.errors.timp_pauza_zile ? <p className="text-xs text-red-600">{form.formState.errors.timp_pauza_zile.message}</p> : null}
+  184:           </div>
+  185: 
+  186:           <div className="space-y-2">
+  187:             <Label htmlFor="act_obs">Observatii</Label>
+  188:             <Textarea id="act_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
+  189:           </div>
+  190:         </form>
+  191:       </AppDrawer>
+  192:     </>
+  193:   )
+  194: }
+  195: 
