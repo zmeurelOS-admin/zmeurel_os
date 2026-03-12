@@ -47,6 +47,8 @@ test-results/
 playwright-report/
 *.webm
 *.png
+.playwright-cli/
+output/playwright/
 
 # Archives / exports
 *.zip
@@ -54,3 +56,9 @@ playwright-report/
 # Local generated files
 repomix-output.xmlplaywright-report/
 test-results/
+.codex-tmp/
+.next-dev-beta-audit*.log
+lint-after.txt
+lint-result.txt
+tsc-result.txt
+/npx
