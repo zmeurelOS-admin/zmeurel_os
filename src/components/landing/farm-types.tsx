@@ -30,12 +30,12 @@ export default function FarmTypes() {
         </h2>
       </Reveal>
 
-      <div className="mt-10 grid gap-4 md:grid-cols-3">
+      <div className="mt-10 grid items-stretch gap-4 md:grid-cols-3">
         {farmTypes.map((farmType, index) => (
           <Reveal
             key={farmType.title}
             delayMs={index * 80}
-            className="rounded-[28px] border border-[color:rgba(49,46,63,0.08)] bg-white p-6 text-center shadow-[0_12px_34px_rgba(49,46,63,0.06)] transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_24px_54px_rgba(49,46,63,0.12)]"
+            className="flex h-full flex-col rounded-[28px] border border-[color:rgba(49,46,63,0.08)] bg-white p-6 text-center shadow-[0_12px_34px_rgba(49,46,63,0.06)] transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_24px_54px_rgba(49,46,63,0.12)]"
           >
             <div className="text-4xl">{farmType.emoji}</div>
             <h3 className="mt-4 text-xl font-semibold text-[var(--landing-dark)]">{farmType.title}</h3>

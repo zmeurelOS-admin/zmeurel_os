@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Leaf } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 import Reveal from '@/components/landing/reveal'
 import { Button } from '@/components/ui/button'
@@ -79,30 +79,19 @@ export default function Hero() {
       <div className="mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-6 sm:pb-20 lg:px-8 lg:pb-24">
         <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.7fr)] lg:gap-14">
           <div className="space-y-5 sm:space-y-7">
-            <Reveal className="inline-flex items-center gap-2 rounded-full border border-[color:rgba(47,111,78,0.16)] bg-white/84 px-3.5 py-1.5 text-sm font-medium text-[var(--landing-leaf)] shadow-sm backdrop-blur">
-              <Leaf className="size-4" />
-              Evidență simplă pentru fermă
+            <Reveal className="inline-flex items-center gap-2 rounded-full border border-[color:rgba(47,111,78,0.22)] bg-[rgba(47,111,78,0.06)] px-3.5 py-1.5 text-sm font-semibold text-[var(--landing-leaf)] shadow-sm backdrop-blur">
+              🔓 Beta deschis — locuri limitate
             </Reveal>
 
             <Reveal delayMs={80} className="space-y-4 sm:space-y-5">
               <h1 className="max-w-2xl text-[2rem] font-bold leading-[1.06] tracking-tight text-[var(--landing-dark)] sm:text-5xl lg:text-6xl">
-                Ține evidența fermei tale direct pe telefon. Simplu și rapid.
+                Nu mai pierde bani din fermă.
               </h1>
               <p className="max-w-2xl text-[15px] leading-6 text-[color:var(--agri-text-muted)] sm:text-lg sm:leading-7">
-                Recolte, lucrări, vânzări și cheltuieli, toate într-un singur loc.
+                Vezi cât produci, cât vinzi și cât câștigi real — direct de pe telefon.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {farmTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-[color:rgba(49,46,63,0.1)] bg-white/82 px-3 py-1 text-sm text-[var(--landing-dark)] shadow-sm"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
               <p className="text-sm font-medium text-[var(--landing-leaf)]">
-                Aplicația este făcută de un fermier din Suceava pentru fermieri.
+                🌱 Aplicație gratuită în beta · Făcută de un fermier din Suceava
               </p>
             </Reveal>
 
@@ -110,7 +99,7 @@ export default function Hero() {
               <Button
                 asChild
                 size="lg"
-                className="h-12 rounded-full bg-[linear-gradient(135deg,#f16b6b_0%,#d84b62_100%)] px-6 text-white shadow-[0_18px_42px_rgba(241,107,107,0.22)] hover:brightness-105"
+                className="h-12 rounded-full bg-[linear-gradient(135deg,#2f6f4e_0%,#3f8c62_100%)] px-6 text-white shadow-[0_18px_42px_rgba(47,111,78,0.28)] hover:brightness-105"
               >
                 <Link href="/start">Încearcă gratuit</Link>
               </Button>
@@ -118,10 +107,10 @@ export default function Hero() {
                 asChild
                 size="lg"
                 variant="outline"
-                className="h-12 rounded-full border-[var(--landing-dark)]/16 bg-white/82 px-6 text-[var(--landing-dark)] shadow-sm transition-colors hover:border-[var(--landing-dark)]/28 hover:bg-[var(--landing-dark)] hover:text-white"
+                className="h-12 rounded-full border-[color:rgba(49,46,63,0.16)] bg-white/82 px-6 text-[var(--landing-dark)] shadow-sm transition-colors hover:border-[color:rgba(49,46,63,0.28)] hover:bg-[var(--landing-dark)] hover:text-white"
               >
-                <a href="#cum-functioneaza">
-                  Vezi cum funcționează
+                <a href="https://wa.me/40752953048" target="_blank" rel="noopener noreferrer">
+                  Scrie-mi pe WhatsApp
                   <ArrowRight className="size-5" />
                 </a>
               </Button>
@@ -131,7 +120,7 @@ export default function Hero() {
               {[
                 ['Notezi repede', 'Adaugi datele direct din câmp sau din solar.'],
                 ['Vezi clar', 'Ai toate datele fermei într-un singur loc.'],
-                ['Înțelegi mai ușor', 'Vezi ce produce și ce câștig aduce ferma.'],
+                ['Câștigi mai mult', 'Știi exact ce produce și ce profit aduce ferma.'],
               ].map(([title, text], index) => (
                 <Reveal
                   key={title}

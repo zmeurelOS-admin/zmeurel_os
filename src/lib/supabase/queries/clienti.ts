@@ -41,7 +41,7 @@ export async function getClienți(): Promise<Client[]> {
     .from("clienti")
     .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id")
     .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
+    .order("nume_client", { ascending: true })
 
   if (error) throw error
   return (data ?? []) as Client[]

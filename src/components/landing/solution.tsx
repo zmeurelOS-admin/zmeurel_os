@@ -32,10 +32,7 @@ export default function Solution() {
             Ai toate datele fermei într-un singur loc.
           </h2>
           <p className="mt-4 text-base leading-7 text-[color:var(--agri-text-muted)]">
-            În aplicație poți introduce: parcele, solarii, livezi, lucrări, recolte, vânzări și cheltuieli.
-          </p>
-          <p className="mt-3 text-base font-semibold leading-7 text-[var(--landing-dark)]">
-            Vezi clar cât produce fiecare parcelă și cât câștigi din fermă.
+            Introduci datele în 30 de secunde, direct din câmp.
           </p>
         </Reveal>
 

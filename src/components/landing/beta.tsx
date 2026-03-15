@@ -10,22 +10,33 @@ export default function Beta() {
         <Reveal className="rounded-[36px] border border-[color:rgba(47,111,78,0.12)] bg-white/75 p-6 shadow-[0_20px_60px_rgba(47,111,78,0.08)] backdrop-blur sm:p-10 lg:p-12">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--landing-leaf)]">
-              Încearcă și tu
+              Fă primul pas
             </p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-[var(--landing-dark)] sm:text-4xl">
-              Încearcă aplicația în ferma ta
+              Începe azi — e gratuit.
             </h2>
             <p className="mt-4 text-base leading-7 text-[color:var(--agri-text-muted)]">
-              Dacă vrei să vezi cum te ajută în fermă, începe gratuit și introdu primele date chiar
-              azi.
+              Introdu primele date în fermă în mai puțin de 2 minute.
             </p>
-            <Button
-              asChild
-              size="lg"
-              className="mt-8 h-12 rounded-full bg-[linear-gradient(135deg,#2f6f4e_0%,#3f8c62_100%)] px-8 text-white shadow-[0_18px_48px_rgba(47,111,78,0.22)] transition-all hover:scale-[1.02] hover:shadow-[0_24px_58px_rgba(47,111,78,0.3)]"
-            >
-              <Link href="/start">Încearcă gratuit</Link>
-            </Button>
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+              <Button
+                asChild
+                size="lg"
+                className="h-12 w-full rounded-full bg-[linear-gradient(135deg,#2f6f4e_0%,#3f8c62_100%)] px-8 text-white shadow-[0_18px_48px_rgba(47,111,78,0.22)] transition-all hover:scale-[1.02] hover:shadow-[0_24px_58px_rgba(47,111,78,0.3)] sm:w-auto"
+              >
+                <Link href="/start">Încearcă gratuit</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="h-12 w-full rounded-full border-[color:rgba(49,46,63,0.16)] bg-white px-8 text-[var(--landing-dark)] shadow-sm transition-colors hover:border-[color:rgba(49,46,63,0.28)] hover:bg-[var(--landing-dark)] hover:text-white sm:w-auto"
+              >
+                <a href="https://wa.me/40752953048" target="_blank" rel="noopener noreferrer">
+                  Scrie-mi pe WhatsApp
+                </a>
+              </Button>
+            </div>
           </div>
         </Reveal>
       </div>

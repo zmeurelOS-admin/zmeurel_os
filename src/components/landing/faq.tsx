@@ -2,12 +2,20 @@ import Reveal from '@/components/landing/reveal'
 
 const faqItems = [
   {
+    question: 'Cât costă?',
+    answer: 'Aplicația este gratuită în perioada de beta.',
+  },
+  {
     question: 'Trebuie instalată aplicația?',
-    answer: 'Nu. Funcționează direct din browser.',
+    answer: 'Nu. Funcționează direct din browser, pe orice telefon sau calculator.',
+  },
+  {
+    question: 'Pot să o folosesc și pe calculator?',
+    answer: 'Da, funcționează pe orice dispozitiv cu browser — telefon, tabletă sau calculator.',
   },
   {
     question: 'Merge pe Android și iPhone?',
-    answer: 'Da.',
+    answer: 'Da, pe orice telefon cu browser modern.',
   },
   {
     question: 'Datele mele sunt în siguranță?',
@@ -15,7 +23,11 @@ const faqItems = [
   },
   {
     question: 'Pot folosi aplicația pentru solarii sau livezi?',
-    answer: 'Da.',
+    answer: 'Da, aplicația funcționează pentru fructe de pădure, solarii, livezi și orice alt tip de fermă.',
+  },
+  {
+    question: 'Cum primesc ajutor?',
+    answer: 'Scrie-mi direct pe WhatsApp și te ajut.',
   },
 ]
 

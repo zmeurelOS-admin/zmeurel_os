@@ -1,6 +1,7 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -212,7 +213,7 @@ export default function StartOnboardingPage() {
         const message =
           typeof payload.error === 'string'
             ? payload.error
-            : payload.error?.message || 'Nu am putut incarca datele demo.'
+            : payload.error?.message || 'Nu am putut încărca datele demo.'
         throw new Error(message)
       }
 
@@ -221,7 +222,7 @@ export default function StartOnboardingPage() {
         payload.status !== 'already_seeded' &&
         payload.status !== 'skipped_existing_data'
       ) {
-        throw new Error('Raspuns invalid de la seed demo.')
+        throw new Error('Răspuns invalid de la seed demo.')
       }
 
       enableDemoMode()
@@ -230,7 +231,7 @@ export default function StartOnboardingPage() {
       track('demo_started', { demo_type: demoType })
       router.replace('/dashboard')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nu am putut incarca datele demo.'
+      const message = error instanceof Error ? error.message : 'Nu am putut încărca datele demo.'
       setErrorMessage(message)
       toast.error(message)
       setPendingAction(null)
@@ -246,11 +247,9 @@ export default function StartOnboardingPage() {
     return (
       <main className="min-h-screen bg-[var(--agri-bg)] px-4 py-6 sm:px-6 sm:py-10">
         <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-3xl items-center">
-          <div className="mx-auto w-full max-w-[480px] space-y-5">
+          <div className="mx-auto w-full max-w-2xl space-y-5">
             <div className="space-y-2 text-center">
-              <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-lg font-semibold text-[var(--agri-primary)] shadow-sm">
-                Z
-              </div>
+              <Image src="/icons/icon.svg" alt="Zmeurel OS" width={48} height={48} className="mx-auto" />
               <div>
                 <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-[var(--agri-text)]">
                   Ce tip de fermă vrei să explorezi?
@@ -261,7 +260,7 @@ export default function StartOnboardingPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid items-stretch gap-4 sm:grid-cols-2">
               {FARM_TYPE_OPTIONS.map((option) => {
                 const isSelected = chosenDemoType === option.type
                 const isLoading = isSelected && pendingAction === 'demo'
@@ -271,11 +270,11 @@ export default function StartOnboardingPage() {
                     type="button"
                     disabled={isBusy}
                     onClick={() => handleChooseFarmType(option.type)}
-                    className="flex flex-col items-start gap-3 rounded-2xl border border-black/5 bg-white p-5 shadow-sm text-left transition-all hover:border-emerald-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex min-h-[260px] flex-col items-start gap-4 rounded-2xl border border-black/5 bg-white p-6 text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 sm:p-8"
                   >
-                    <span className="text-4xl">{isLoading ? '⏳' : option.emoji}</span>
-                    <div className="space-y-1">
-                      <p className="text-base font-semibold text-[var(--agri-text)]">
+                    <span className="text-5xl">{isLoading ? '⏳' : option.emoji}</span>
+                    <div className="space-y-2">
+                      <p className="text-xl font-semibold text-[var(--agri-text)]">
                         {isLoading ? (
                           <span className="flex items-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -283,13 +282,13 @@ export default function StartOnboardingPage() {
                           </span>
                         ) : option.title}
                       </p>
-                      <p className="text-sm text-[var(--agri-text-muted)]">{option.description}</p>
+                      <p className="text-base text-[var(--agri-text-muted)]">{option.description}</p>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {option.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--agri-text-muted)]"
+                          className="rounded-full bg-[var(--agri-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--agri-text-muted)]"
                         >
                           {tag}
                         </span>
@@ -335,24 +334,22 @@ export default function StartOnboardingPage() {
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-3xl items-center">
         <div className="mx-auto w-full max-w-[420px] space-y-4">
           <div className="space-y-2 text-center">
-            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-lg font-semibold text-[var(--agri-primary)] shadow-sm">
-              Z
-            </div>
+            <Image src="/icons/icon.svg" alt="Zmeurel OS" width={48} height={48} className="mx-auto" />
             <div>
               <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[var(--agri-text)]">
-                Intra in aplicatie
+                Intră în aplicație
               </h1>
               <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
-                Intri rapid cu Google, cu email sau direct intr-o ferma demo.
+                Intri rapid cu Google, cu email sau direct într-o fermă demo.
               </p>
             </div>
           </div>
 
           <section className={cardClassName}>
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-[var(--agri-text)]">Incepe in mai putin de 5 secunde</h2>
+              <h2 className="text-lg font-semibold text-[var(--agri-text)]">Începe în mai puțin de 5 secunde</h2>
               <p className="text-sm text-[var(--agri-text-muted)]">
-                Pentru beta nu cerem confirmare pe email. Dupa autentificare intri direct in dashboard.
+                Pentru beta nu cerem confirmare pe email. După autentificare intri direct în dashboard.
               </p>
             </div>
 
@@ -366,12 +363,12 @@ export default function StartOnboardingPage() {
                 {pendingAction === 'google' ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Se redirectioneaza...
+                    Se redirecționează...
                   </>
                 ) : (
                   <>
                     <GoogleMark />
-                    Continua cu Google
+                    Continuă cu Google
                   </>
                 )}
               </Button>
@@ -381,7 +378,7 @@ export default function StartOnboardingPage() {
                 variant="outline"
                 className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
               >
-                <Link href={buildLoginUrl({ mode: 'register', next: '/dashboard' })}>Continua cu email</Link>
+                <Link href={buildLoginUrl({ mode: 'register', next: '/dashboard' })}>Continuă cu email</Link>
               </Button>
 
               <SectionDivider />
@@ -400,7 +397,7 @@ export default function StartOnboardingPage() {
                 }}
                 disabled={authState === 'loading' || isBusy}
               >
-                Continua fara cont
+                Continuă fără cont
               </Button>
 
               <Button asChild variant="ghost" className="h-10 w-full rounded-xl text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]">
@@ -410,9 +407,9 @@ export default function StartOnboardingPage() {
           </section>
 
           <section className={cardClassName}>
-            <h2 className="text-sm font-semibold text-[var(--agri-text)]">Ce primesti in demo</h2>
+            <h2 className="text-sm font-semibold text-[var(--agri-text)]">Ce primești în demo</h2>
             <p className="mt-2 text-sm text-[var(--agri-text-muted)]">
-              Ferma demo porneste cu parcele, recoltari, stoc, vanzari si culegatori, intr-un tenant separat si resetabil.
+              Ferma demo pornește cu parcele, recoltări, stoc, vânzări și culegători, într-un tenant separat și resetabil.
             </p>
           </section>
 
@@ -426,7 +423,7 @@ export default function StartOnboardingPage() {
                 disabled={isBusy}
                 className="mt-3 h-9 rounded-xl border-red-200 bg-white text-red-700 hover:bg-red-100"
               >
-                Incearca din nou
+                Încearcă din nou
               </Button>
             </div>
           ) : null}

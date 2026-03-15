@@ -4,17 +4,17 @@ const steps = [
   {
     step: '1',
     title: 'Creezi ferma',
-    text: 'Introduci parcelele, solariile sau livezile.',
+    text: 'Introduci parcelele, solariile sau livezile. Durează 2 minute.',
   },
   {
     step: '2',
-    title: 'Introduci ce faci în fermă',
-    text: 'Notezi lucrări, recolte, vânzări și cheltuieli.',
+    title: 'Notezi ce faci',
+    text: 'Recolte, lucrări, vânzări, cheltuieli — în câteva secunde, direct din câmp.',
   },
   {
     step: '3',
-    title: 'Vezi producția și vânzările',
-    text: 'Aplicația îți arată cât produce fiecare parcelă și cât ai câștigat.',
+    title: 'Vezi rezultatele',
+    text: 'Aplicația îți arată cât produce fiecare parcelă și cât câștigi real.',
   },
 ]
 

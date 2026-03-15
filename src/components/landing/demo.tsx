@@ -7,7 +7,6 @@ import { ArrowRight, PlayCircle } from 'lucide-react'
 import CountUp from '@/components/landing/count-up'
 import Reveal from '@/components/landing/reveal'
 import { Button } from '@/components/ui/button'
-import { buildLoginUrl } from '@/lib/auth/redirects'
 
 export default function Demo() {
   return (
@@ -34,7 +33,7 @@ export default function Demo() {
               size="lg"
               className="h-12 rounded-full bg-[linear-gradient(135deg,#f16b6b_0%,#d84b62_100%)] px-6 text-white shadow-[0_18px_44px_rgba(241,107,107,0.28)] hover:brightness-105"
             >
-              <Link href={buildLoginUrl()}>
+              <Link href="/start">
                 Vezi demo
                 <ArrowRight className="size-5" />
               </Link>

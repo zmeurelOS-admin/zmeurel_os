@@ -174,14 +174,15 @@ export default function SettingsPage() {
     return null
   }, [confirmPassword, newPassword])
 
-  const canConfirmDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === 'STERGE CONTUL'
+  const isDemo = safeEmail.includes('@demo.zmeurel.local')
+  const canConfirmDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === 'ȘTERGE CONTUL'
   const isDemoActionPending = isReseedingDemoData || isExitingDemoMode
   const demoActionConfig = useMemo(() => {
     if (demoActionDialog === 'exit') {
       return {
-        title: 'Iesi din modul demo?',
-        description: 'Datele demo vor fi sterse, iar fluxul de configurare va fi reactivat.',
-        confirmLabel: isExitingDemoMode ? 'Se inchide...' : 'Iesi din demo',
+        title: 'Ieși din modul demo?',
+        description: 'Datele demo vor fi șterse, iar fluxul de configurare va fi reactivat.',
+        confirmLabel: isExitingDemoMode ? 'Se închide...' : 'Ieși din demo',
       }
     }
 
@@ -205,7 +206,7 @@ export default function SettingsPage() {
       const { error } = await supabase.auth.updateUser({ password: newPassword })
       if (error) throw error
 
-      toast.success('Parola a fost actualizata.')
+      toast.success('Parola a fost actualizată.')
       setPasswordDialogOpen(false)
       setNewPassword('')
       setConfirmPassword('')
@@ -497,7 +498,7 @@ export default function SettingsPage() {
 
       const supabase = getSupabase()
       await supabase.auth.signOut()
-      toast.success('Contul ți tenantul au fost sterse.')
+      toast.success('Contul și tenantul au fost șterse.')
       router.push('/login')
       router.refresh()
     } catch (error: unknown) {
@@ -513,26 +514,32 @@ export default function SettingsPage() {
       header={<PageHeader title="Cont și setări" subtitle="Profil utilizator și preferințe" rightSlot={<Settings2 className="h-5 w-5" />} />}
     >
       <div className="mx-auto mt-3 w-full max-w-md space-y-3 py-3 sm:max-w-3xl sm:mt-0 lg:space-y-6 xl:space-y-8">
-        <section id="profil" className="agri-card space-y-3 p-4">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Profil utilizator</h2>
+        <section id="profil" className="agri-card space-y-4 p-6">
+          <h2 className="text-lg font-semibold text-[var(--agri-text)]">Contul tău</h2>
 
           <div className="space-y-2">
-            <Label className="text-xs uppercase text-[var(--agri-text-muted)]">Email</Label>
-            <div className="agri-control flex h-11 items-center gap-2 px-3 text-sm font-medium text-[var(--agri-text)]">
-              <UserCircle2 className="h-4 w-4 text-[var(--agri-text-muted)]" />
-              {safeEmail}
-            </div>
+            <Label className="text-sm font-medium text-[var(--agri-text-muted)]">Email</Label>
+            {isDemo ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-800">
+                Cont demo — conectează-te cu Google sau email pentru a-ți crea ferma ta.
+              </div>
+            ) : (
+              <div className="agri-control flex h-11 items-center gap-2 px-3 text-sm font-medium text-[var(--agri-text)]">
+                <UserCircle2 className="h-4 w-4 text-[var(--agri-text-muted)]" />
+                {safeEmail}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="farm-name" className="text-xs uppercase text-[var(--agri-text-muted)]">Nume fermă</Label>
+            <Label htmlFor="farm-name" className="text-sm font-medium text-[var(--agri-text-muted)]">Numele fermei</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 id="farm-name"
                 className="agri-control h-11"
                 value={farmNameDraft}
                 onChange={(event) => setFarmNameDraft(event.target.value)}
-                placeholder="Nume fermă"
+                placeholder="Numele fermei"
               />
               <Button
                 type="button"
@@ -552,45 +559,49 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Button type="button" variant="outline" className="agri-control h-11 justify-start gap-2" onClick={() => setPasswordDialogOpen(true)}>
-            <KeyRound className="h-4 w-4" />
-            Schimbă parola
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="agri-control h-11 justify-start gap-2"
-            onClick={async () => {
-              const supabase = getSupabase()
-              const { data: { user } } = await supabase.auth.getUser()
-              if (!user) return
-              await supabase.from('profiles').update({ hide_onboarding: false }).eq('id', user.id)
-              toast.success('Ghidul de pornire a fost reactivat. Mergi în Dashboard pentru a-l vedea.')
-            }}
-          >
-            Arată ghidul de pornire
-          </Button>
+          <div className="flex flex-row flex-wrap items-center gap-3">
+            {!isDemo && (
+              <Button type="button" variant="outline" className="agri-control h-11 justify-start gap-2" onClick={() => setPasswordDialogOpen(true)}>
+                <KeyRound className="h-4 w-4" />
+                Schimbă parola
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 justify-start gap-2"
+              onClick={async () => {
+                const supabase = getSupabase()
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) return
+                await supabase.from('profiles').update({ hide_onboarding: false }).eq('id', user.id)
+                toast.success('Ghidul de pornire a fost reactivat. Mergi în Dashboard pentru a-l vedea.')
+              }}
+            >
+              Arată ghidul de pornire
+            </Button>
+            {isDemo && (
+              <Button
+                type="button"
+                className="h-11 rounded-xl bg-[var(--agri-primary)] px-5 text-white hover:bg-emerald-700"
+                onClick={async () => {
+                  const supabase = getSupabase()
+                  await supabase.auth.signOut()
+                  window.location.href = '/start'
+                }}
+              >
+                Creează-ți ferma →
+              </Button>
+            )}
+          </div>
 
         </section>
 
-        <section id="gdpr" className="agri-card space-y-3 p-4">
-          <div className="space-y-1">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Protecția datelor (GDPR)</h2>
-            <p className="text-sm text-[var(--agri-text-muted)]">
-              Zmeurel OS respectă Regulamentul (UE) 2016/679 privind protecția datelor.
-            </p>
-            <p className="text-xs text-[var(--agri-text-muted)]">
-              Exportul include datele operaționale: Terenuri, Activități, Recoltări, Cheltuieli, Vânzări, Material săditor, Clienți, Comenzi, Culegători.
-            </p>
-            <p className="text-xs text-[var(--agri-text-muted)]">
-              Evenimentele de analytics sunt metrici interne de utilizare și nu sunt incluse în export.
-            </p>
-            <p className="text-xs text-[var(--agri-text-muted)]">
-              Evenimentele de analytics sunt eliminate când ștergi datele fermei sau contul.
-            </p>
-            <p className="text-xs text-[var(--agri-text-muted)]">
-              Datele operaționale sunt păstrate până când le ștergi. Evenimentele de analytics sunt păstrate maximum 90 de zile pentru îmbunătățirea produsului.
+        <section id="gdpr" className="agri-card w-full space-y-4 p-6">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-[var(--agri-text)]">Datele tale</h2>
+            <p className="text-sm leading-relaxed text-[var(--agri-text-muted)]">
+              Datele fermei tale sunt private și în siguranță. Doar tu ai acces. Poți exporta sau șterge oricând toate datele.
             </p>
           </div>
 
@@ -604,25 +615,25 @@ export default function SettingsPage() {
             {isExportingJson ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             {isExportingJson
               ? `Se generează JSON... (${jsonExportProgress?.done ?? 0}/${jsonExportProgress?.total ?? GDPR_TABLES.length})`
-              : 'Exportă toate datele (JSON)'}
+              : 'Descarcă toate datele'}
           </Button>
 
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Export CSV per modul</p>
+            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Descarcă date pe categorii</p>
             <div className="grid grid-cols-2 gap-2">
               {CSV_MODULES.map((module) => (
                 <Button
                   key={module.key}
                   type="button"
                   variant="outline"
-                  className="agri-control h-10 text-xs"
+                  className="agri-control h-10 w-full justify-center text-xs"
                   disabled={Boolean(exportingCsvModule)}
                   onClick={() => handleExportModuleCsv(module.key)}
                 >
                   {exportingCsvModule === module.key ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {`Se exporta... (${csvExportRowsFetched} randuri)`}
+                      {`Se exportă... (${csvExportRowsFetched} rânduri)`}
                     </>
                   ) : (
                     module.label
@@ -634,12 +645,12 @@ export default function SettingsPage() {
 
         </section>
 
-        <section id="demo" className="agri-card space-y-4 p-4">
+        <section id="demo" className="agri-card space-y-4 p-6">
           <div className="space-y-4">
             <div className="space-y-1">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Mod demo</h2>
+              <h2 className="text-lg font-semibold text-[var(--agri-text)]">Mod demo</h2>
               <p className="text-sm text-[var(--agri-text-muted)]">
-                Datele demo sunt exemple si pot fi resetate oricand.
+                Datele demo sunt exemple și pot fi resetate oricând.
               </p>
             </div>
 
@@ -653,7 +664,7 @@ export default function SettingsPage() {
                   void handleReseedDemoData()
                 }}
               >
-                {isReseedingDemoData ? 'Se reincarca datele demo...' : 'Reincarca datele demo'}
+                {isReseedingDemoData ? 'Se reîncarcă datele demo...' : 'Reîncarcă datele demo'}
               </Button>
               <Button
                 type="button"
@@ -662,16 +673,16 @@ export default function SettingsPage() {
                 disabled={!tenantId || isDemoActionPending}
                 onClick={() => setDemoActionDialog('exit')}
               >
-                {isExitingDemoMode ? 'Se inchide modul demo...' : 'Iesi din demo'}
+                {isExitingDemoMode ? 'Se închide modul demo...' : 'Ieși din demo'}
               </Button>
             </div>
           </div>
 
           <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4">
             <div className="space-y-1">
-              <h3 className="text-sm font-bold uppercase tracking-wide text-red-800">Actiuni permanente</h3>
+              <h3 className="text-base font-semibold text-red-800">Acțiuni permanente</h3>
               <p className="text-sm text-red-700">
-                Aceste actiuni sterg date reale si necesita confirmare.
+                Aceste acțiuni șterg date reale și necesită confirmare.
               </p>
             </div>
 
@@ -682,7 +693,7 @@ export default function SettingsPage() {
                 className="agri-control h-11 w-full justify-start border-red-300 bg-white text-red-700 hover:bg-red-100"
                 onClick={() => setDeleteFarmStep1Open(true)}
               >
-                Reseteaza datele fermei
+                Resetează datele fermei
               </Button>
               <Button
                 type="button"
@@ -691,11 +702,11 @@ export default function SettingsPage() {
                 onClick={() => setDeleteAccountStep1Open(true)}
                 disabled={isProtectedSuperadmin}
               >
-                Sterge contul si ferma
+                Șterge contul și ferma
               </Button>
               {isProtectedSuperadmin ? (
                 <p className="text-xs font-medium text-red-700">
-                  Cont protejat: acest cont nu poate fi sters.
+                  Cont protejat: acest cont nu poate fi șters.
                 </p>
               ) : null}
             </div>
@@ -703,14 +714,14 @@ export default function SettingsPage() {
         </section>
 
         {isSuperAdmin ? (
-          <section id="ferma" className="agri-card space-y-3 p-4">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Schimbă fermă</h2>
+          <section id="ferma" className="agri-card space-y-3 p-6">
+            <h2 className="text-lg font-semibold text-[var(--agri-text)]">Schimbă fermă</h2>
             <FarmSwitcher variant="panel" />
           </section>
         ) : null}
 
-        <section id="interfata" className="agri-card space-y-3 p-4">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Tip interfață</h2>
+        <section id="interfata" className="agri-card space-y-3 p-6">
+          <h2 className="text-lg font-semibold text-[var(--agri-text)]">Tip interfață</h2>
           <p className="text-sm text-[var(--agri-text-muted)]">Aici alegi interfața normală sau compactă. Controlul nu mai apare în header.</p>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -739,7 +750,7 @@ export default function SettingsPage() {
             setDemoActionDialog(null)
           }
         }}
-        title={demoActionConfig?.title ?? 'Actiune demo'}
+        title={demoActionConfig?.title ?? 'Acțiune demo'}
         description={demoActionConfig?.description}
         footer={
           <>
@@ -750,7 +761,7 @@ export default function SettingsPage() {
               disabled={isDemoActionPending}
               onClick={() => setDemoActionDialog(null)}
             >
-              Anuleaza
+              Anulează
             </Button>
             <Button
               type="button"
@@ -762,13 +773,13 @@ export default function SettingsPage() {
                 }
               }}
             >
-              {demoActionConfig?.confirmLabel ?? 'Continua'}
+              {demoActionConfig?.confirmLabel ?? 'Continuă'}
             </Button>
           </>
         }
       >
         <p className="text-sm text-[var(--agri-text-muted)]">
-          Actiunea afecteaza doar tenantul curent si nu poate modifica alte ferme.
+          Acțiunea afectează doar tenantul curent și nu poate modifica alte ferme.
         </p>
       </AppDialog>
 
@@ -801,7 +812,7 @@ export default function SettingsPage() {
       >
         <div id="password" className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="new-password">Parola noua</Label>
+            <Label htmlFor="new-password">Parolă nouă</Label>
             <Input
               id="new-password"
               type="password"
@@ -883,7 +894,7 @@ export default function SettingsPage() {
         open={deleteAccountStep2Open}
         onOpenChange={setDeleteAccountStep2Open}
         title="Confirmare finală - cont și tenant"
-        description="Tastează STERGE CONTUL pentru confirmare."
+        description="Tastează ȘTERGE CONTUL pentru confirmare."
         footer={
           <>
             <Button type="button" variant="outline" className="agri-cta" onClick={() => setDeleteAccountStep2Open(false)}>
@@ -905,7 +916,7 @@ export default function SettingsPage() {
           <Input
             id="confirm-delete-account"
             className="agri-control h-11"
-            placeholder="STERGE CONTUL"
+            placeholder="ȘTERGE CONTUL"
             value={deleteAccountConfirmText}
             onChange={(event) => setDeleteAccountConfirmText(event.target.value)}
           />

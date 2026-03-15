@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { Trash2 } from 'lucide-react'
 
 import { colors } from '@/lib/design-tokens'
 import type { Client } from '@/lib/supabase/queries/clienti'
@@ -64,8 +65,8 @@ export function ClientCard({
   const waHref = client.telefon ? toWhatsapp(client.telefon) : ''
 
   return (
-    <div ref={rootRef} className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
-      <button type="button" onClick={() => setExpanded((current) => !current)} className="w-full p-4 text-left">
+    <div ref={rootRef} className="relative overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
+      <button type="button" onClick={() => setExpanded((current) => !current)} className="w-full p-4 pr-10 text-left">
         <div className="flex items-start gap-3">
           <div
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
@@ -98,6 +99,18 @@ export function ClientCard({
             ) : null}
           </div>
         </div>
+      </button>
+
+      <button
+        type="button"
+        aria-label={`Șterge ${client.nume_client}`}
+        className="absolute right-2.5 top-2.5 rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
+        onClick={(e: MouseEvent<HTMLButtonElement>) => {
+          e.stopPropagation()
+          onDelete(client.id)
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
       </button>
 
       {expanded ? (

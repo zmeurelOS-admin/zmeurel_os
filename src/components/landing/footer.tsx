@@ -5,10 +5,11 @@ import { buildLoginUrl } from '@/lib/auth/redirects'
 const footerLinks = [
   { href: '#poveste', label: 'Despre aplicație' },
   { href: '#cum-functioneaza', label: 'Cum funcționează' },
-  { href: '#demo', label: 'Demo' },
+  { href: '/start', label: 'Demo' },
   { href: buildLoginUrl(), label: 'Login' },
-  { href: '/ajutor', label: 'Ajutor' },
+  { href: 'https://wa.me/40752953048', label: 'WhatsApp', external: true },
   { href: 'mailto:contact@zmeurel.ro', label: 'Contact' },
+  { href: '/ajutor', label: 'Ajutor' },
   { href: '/confidentialitate', label: 'Politica de confidențialitate' },
   { href: '/termeni', label: 'Termeni și condiții' },
 ]
@@ -50,12 +51,18 @@ export default function Footer() {
           </div>
           <nav className="flex flex-wrap items-center gap-4 text-sm text-[color:var(--agri-text-muted)]">
             {footerLinks.map((link) =>
-              link.href.startsWith('mailto:') || link.href.startsWith('#') ? (
-                <a key={link.href} href={link.href} className="transition-colors hover:text-[var(--landing-dark)]">
+              link.href.startsWith('mailto:') || link.href.startsWith('#') || link.href.startsWith('https:') ? (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target={link.external ? '_blank' : undefined}
+                  rel={link.external ? 'noopener noreferrer' : undefined}
+                  className="transition-colors hover:text-[var(--landing-dark)]"
+                >
                   {link.label}
                 </a>
               ) : (
-                <Link key={link.href} href={link.href} className="transition-colors hover:text-[var(--landing-dark)]">
+                <Link key={link.label} href={link.href} className="transition-colors hover:text-[var(--landing-dark)]">
                   {link.label}
                 </Link>
               )

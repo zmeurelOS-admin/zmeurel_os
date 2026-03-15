@@ -111,7 +111,11 @@ function formatLeiCompact(value: number): string {
 }
 
 function normalize(value: string): string {
-  return value.trim().toLowerCase()
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 function canDeliverStatus(status: string): boolean {
@@ -738,13 +742,13 @@ function ComandaDialog({
   }, [initialFormState, open])
 
   const filteredClienti = useMemo(() => {
-    const term = clientSearch.trim().toLowerCase()
+    const term = normalize(clientSearch)
     if (!term) return clienti
 
     return clienti.filter((client) => {
-      const name = String(client.nume_client ?? '').toLowerCase()
-      const phone = String(client.telefon ?? '').toLowerCase()
-      const email = String(client.email ?? '').toLowerCase()
+      const name = normalize(String(client.nume_client ?? ''))
+      const phone = normalize(String(client.telefon ?? ''))
+      const email = normalize(String(client.email ?? ''))
       return name.includes(term) || phone.includes(term) || email.includes(term)
     })
   }, [clientSearch, clienti])

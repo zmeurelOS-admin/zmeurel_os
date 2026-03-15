@@ -24,6 +24,9 @@ import {
 
 import LogoutButton from '@/components/LogoutButton'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { useDemoBannerVisible } from '@/hooks/useDemoBannerVisible'
+
+const BANNER_HEIGHT = 48
 
 const navGroups = [
   {
@@ -188,17 +191,21 @@ export function Sidebar() {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const { isSuperAdmin: isSuperAdminUser } = useDashboardAuth()
+  const bannerVisible = useDemoBannerVisible()
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname.startsWith(href)
   }
 
+  const bannerOffset = bannerVisible ? BANNER_HEIGHT : 0
+
   return (
     <>
       <button
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-xl bg-[#312E3F] text-white shadow-lg lg:hidden"
+        style={{ top: 16 + bannerOffset }}
+        className="fixed left-4 z-50 flex h-10 w-10 items-center justify-center rounded-xl bg-[#312E3F] text-white shadow-lg lg:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -211,9 +218,10 @@ export function Sidebar() {
       ) : null}
 
       <aside
-        className={`fixed left-0 top-0 z-50 h-full w-72 bg-[#312E3F] transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed left-0 z-50 w-72 bg-[#312E3F] transition-transform duration-300 ease-in-out lg:hidden ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ top: bannerOffset, height: `calc(100vh - ${bannerOffset}px)` }}
       >
         <button
           onClick={() => setMobileOpen(false)}
@@ -230,7 +238,10 @@ export function Sidebar() {
       </aside>
 
       <aside className="hidden w-64 lg:flex">
-        <div className="fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-[#312E3F]">
+        <div
+          className="fixed left-0 z-30 flex w-64 flex-col bg-[#312E3F]"
+          style={{ top: bannerOffset, height: `calc(100vh - ${bannerOffset}px)` }}
+        >
           <SidebarContent
             isActive={isActive}
             onNavigate={() => setMobileOpen(false)}
