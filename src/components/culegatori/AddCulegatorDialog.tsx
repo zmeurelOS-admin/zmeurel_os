@@ -12,9 +12,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 const culegatorSchema = z.object({
-  nume_prenume: z.string().trim().min(2, 'Numele trebuie sa aiba minim 2 caractere'),
+  nume_prenume: z.string().trim().min(2, 'Numele trebuie să aibă minimum 2 caractere'),
   telefon: z.string().optional(),
-  tip_angajare: z.string().min(1, 'Selecteaza tipul de angajare'),
+  tip_angajare: z.string().min(1, 'Selectează tipul de angajare'),
   tarif_lei_kg: z.string().optional(),
   data_angajare: z.string().optional(),
   status_activ: z.boolean().optional(),

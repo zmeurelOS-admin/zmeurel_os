@@ -273,6 +273,18 @@ async function hasLegacyDemoParcela(tenantId: string, fallbackParcelaIds: string
   return (fallbackTagRows?.length ?? 0) > 0
 }
 
+async function verifySeededDemoParcela(
+  tenantId: string,
+  demoSeedId: string,
+  fallbackParcelaIds: string[]
+): Promise<boolean> {
+  if (await hasStableDemoParcela(tenantId, demoSeedId)) {
+    return true
+  }
+
+  return hasLegacyDemoParcela(tenantId, fallbackParcelaIds)
+}
+
 async function hasAnyParcela(tenantId: string): Promise<boolean> {
   const admin = createServiceRoleClient()
   const { data, error } = await ((admin.from('parcele') as unknown) as TableSelector<{ id: string }>)
@@ -595,7 +607,7 @@ export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams
     await updateTenantDemoState(tenant.id, true, demoSeedId)
     await refreshDemoDates(tenant.id, demoSeedId)
 
-    if (!(await hasStableDemoParcela(tenant.id, demoSeedId))) {
+    if (!(await verifySeededDemoParcela(tenant.id, demoSeedId, fallbackRows.parcele.map((row) => row.id_parcela)))) {
       throw new Error('Demo seed verification failed after legacy RPC path')
     }
 
@@ -613,7 +625,7 @@ export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams
     await updateTenantDemoState(tenant.id, true, demoSeedId)
     await refreshDemoDates(tenant.id, demoSeedId)
 
-    if (!(await hasStableDemoParcela(tenant.id, demoSeedId))) {
+    if (!(await verifySeededDemoParcela(tenant.id, demoSeedId, fallbackRows.parcele.map((row) => row.id_parcela)))) {
       throw new Error('Demo seed verification failed after fallback inserts')
     }
 
@@ -626,7 +638,7 @@ export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams
   await updateTenantDemoState(tenant.id, true, demoSeedId)
   await refreshDemoDates(tenant.id, demoSeedId)
 
-  if (!(await hasStableDemoParcela(tenant.id, demoSeedId))) {
+  if (!(await verifySeededDemoParcela(tenant.id, demoSeedId, fallbackRows.parcele.map((row) => row.id_parcela)))) {
     throw new Error('Demo seed verification failed: no stable demo parcela marker found')
   }
 

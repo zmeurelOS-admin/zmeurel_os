@@ -49,8 +49,8 @@ const modules = [
   },
   {
     href: '/vanzari',
-    label: 'Vânzări Fructe',
-    description: 'Vânzări fructe proaspete',
+    label: 'Vânzări',
+    description: 'Livrări și încasări',
     icon: ShoppingCart,
     color: '#F16B6B',
   },

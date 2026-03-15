@@ -766,7 +766,7 @@ export function RapoartePageClient({
         />
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-5xl space-y-4 py-4 sm:mt-0">
+      <div className="mx-auto mt-3 w-full max-w-5xl space-y-3 py-3 sm:mt-0">
         <section className="agri-card space-y-4 p-4">
           <div className="flex items-center gap-2 text-[var(--agri-text)]">
             <Filter className="h-4 w-4" />

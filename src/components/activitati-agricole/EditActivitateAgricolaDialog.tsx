@@ -25,7 +25,7 @@ import { queryKeys } from '@/lib/query-keys'
 const schema = z.object({
   data_aplicare: z.string().min(1, 'Data este obligatorie'),
   parcela_id: z.string().optional(),
-  tip_activitate: z.string().min(1, 'Tipul activitatii este obligatoriu'),
+  tip_activitate: z.string().min(1, 'Tipul activității este obligatoriu'),
   produs_utilizat: z.string().optional(),
   doza: z.string().optional(),
   timp_pauza_zile: z
@@ -33,7 +33,7 @@ const schema = z.object({
     .trim()
     .optional()
     .refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= 0), {
-      message: 'Timpul de pauză trebuie sa fie un numar valid',
+      message: 'Timpul de pauză trebuie să fie un număr valid',
     }),
   observatii: z.string().optional(),
 })
@@ -140,7 +140,7 @@ export function EditActivitateAgricolaDialog({
       queryClient.invalidateQueries({ queryKey: queryKeys.activitati })
       track('activitate_edit', { id: variables.id })
       hapticSuccess()
-      toast.success('Activitate actualizata')
+      toast.success('Activitate actualizată')
       onOpenChange(false)
     },
     onError: (error: unknown) => {
@@ -161,7 +161,7 @@ export function EditActivitateAgricolaDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editează activitate agricola"
+      title="Editează activitate agricolă"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}
@@ -194,7 +194,7 @@ export function EditActivitateAgricolaDialog({
         <div className="space-y-2">
           <Label htmlFor="act_edit_tip">Tip activitate</Label>
           <select id="act_edit_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_activitate')}>
-            <option value="">Tip operatiune</option>
+            <option value="">Tip operațiune</option>
             {activityOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

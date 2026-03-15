@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useMemo } from 'react'
 import {
@@ -20,12 +19,11 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
-import { toast } from '@/lib/ui/toast'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
-import { getSupabase } from '@/lib/supabase/client'
+import { getSupabase, resetSupabaseInstance } from '@/lib/supabase/client'
 
 interface MoreMenuDrawerProps {
   open: boolean
@@ -46,14 +44,14 @@ type MenuGroup = {
 
 const groups: MenuGroup[] = [
   {
-    title: 'Operatiuni',
+    title: 'Operațiuni',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/activitati-agricole', label: 'Activități agricole', icon: ClipboardList },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
-      { href: '/vanzari', label: 'Vânzări fructe', icon: BanknoteArrowUp },
+      { href: '/vanzari', label: 'Vânzări', icon: BanknoteArrowUp },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
       { href: '/vanzari-butasi', label: 'Material săditor', icon: ShoppingBag },
     ],
@@ -72,12 +70,11 @@ const adminGroup: MenuGroup = {
   title: 'Admin (Zmeurel)',
   badge: 'Admin',
   items: [
-    { href: '/admin/analytics', label: 'Analytics global (agregat)', icon: BarChart3 },
-    { href: '/admin', label: 'Lista tenanți', icon: UsersRound },
+    { href: '/admin/analytics', label: 'Analytics global', icon: BarChart3 },
+    { href: '/admin', label: 'Lista tenantilor', icon: UsersRound },
   ],
 }
 
-// Modules rendered in the mobile bottom navbar should not be duplicated in More.
 const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/recoltari', '/comenzi'])
 
 export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
@@ -95,20 +92,32 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   }, [isSuperAdminUser])
 
   const handleLogout = async () => {
-    const supabase = getSupabase()
-    await supabase.auth.signOut()
+    try {
+      const supabase = getSupabase()
+      await supabase.auth.signOut({ scope: 'local' })
+      resetSupabaseInstance()
+    } catch {
+      // ignore — proceed with redirect regardless
+    }
+    window.location.replace('/')
+  }
+
+  const handleNavigate = (href: string) => {
     onOpenChange(false)
-    router.push('/login')
-    toast.success('Te-ai delogat cu succes.')
+    window.setTimeout(() => {
+      router.push(href)
+    }, 0)
   }
 
   return (
-    <AppDrawer open={open} onOpenChange={onOpenChange} title="Mai multe module">
+    <AppDrawer open={open} onOpenChange={onOpenChange} title="Mai mult">
       <div className="space-y-6">
         {sections.map((group) => (
           <section key={group.title} className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">{group.title}</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">
+                {group.title}
+              </h3>
               {'badge' in group ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                   <ShieldCheck className="h-3 w-3" />
@@ -122,17 +131,17 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
                 const Icon = item.icon
 
                 return (
-                  <Link
+                  <button
                     key={`${group.title}-${item.href}-${item.label}`}
-                    href={item.href}
-                    onClick={() => onOpenChange(false)}
-                    className={`agri-control flex h-12 items-center gap-3 px-3 text-sm font-semibold ${
+                    type="button"
+                    onClick={() => handleNavigate(item.href)}
+                    className={`agri-control flex h-12 w-full items-center gap-3 px-3 text-sm font-semibold ${
                       active ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'text-[var(--agri-text)]'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
-                  </Link>
+                  </button>
                 )
               })}
             </div>
@@ -140,25 +149,27 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
         ))}
 
         <section className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">Cont & Setari</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">
+            Cont & Setări
+          </h3>
           <div className="space-y-2">
-            <Link
-              href="/settings#profil"
-              onClick={() => onOpenChange(false)}
-              className="agri-control flex h-12 items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
+            <button
+              type="button"
+              onClick={() => handleNavigate('/settings#profil')}
+              className="agri-control flex h-12 w-full items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
             >
               <Settings className="h-4 w-4" />
               Profil utilizator
-            </Link>
+            </button>
 
-            <Link
-              href="/termeni"
-              onClick={() => onOpenChange(false)}
-              className="agri-control flex h-12 items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
+            <button
+              type="button"
+              onClick={() => handleNavigate('/termeni')}
+              className="agri-control flex h-12 w-full items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
             >
               <ShieldCheck className="h-4 w-4" />
               Ajutor
-            </Link>
+            </button>
 
             <Button
               type="button"
@@ -175,4 +186,3 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
     </AppDrawer>
   )
 }
-

@@ -1,5 +1,6 @@
 'use client'
 
+import type { User } from '@supabase/supabase-js'
 import { useEffect } from 'react'
 import { setSentryTenantTag } from '@/lib/monitoring/sentry'
 import { getSupabase } from '@/lib/supabase/client'
@@ -9,25 +10,38 @@ export function useSentryUser() {
   useEffect(() => {
     const supabase = getSupabase()
 
-    void (async () => {
+    async function syncSentryUser(user: User | null) {
       try {
-        const [{ data }, Sentry] = await Promise.all([
-          supabase.auth.getUser(),
-          import('@sentry/nextjs'),
-        ])
+        const Sentry = await import('@sentry/nextjs')
 
-        if (!data?.user) return
+        if (!user) {
+          Sentry.setUser(null)
+          setSentryTenantTag(null)
+          return
+        }
 
         Sentry.setUser({
-          id: data.user.id,
-          email: data.user.email ?? undefined,
+          id: user.id,
+          email: user.email ?? undefined,
         })
 
-        const tenantId = await getTenantIdByUserIdOrNull(supabase, data.user.id)
+        const tenantId = await getTenantIdByUserIdOrNull(supabase, user.id)
         setSentryTenantTag(tenantId)
       } catch {
         // monitoring must never affect app runtime
       }
-    })()
+    }
+
+    void supabase.auth.getUser().then(({ data }) => syncSentryUser(data.user ?? null))
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      void syncSentryUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 }

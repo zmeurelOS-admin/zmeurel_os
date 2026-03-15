@@ -76,7 +76,7 @@ export function ViewComandaDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="fixed left-1/2 top-1/2 z-[100000101] w-[94vw] max-w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-4 shadow-xl"
+        className="w-[94vw] max-w-[420px] rounded-xl bg-white p-4 shadow-xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
@@ -86,7 +86,7 @@ export function ViewComandaDialog({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="Inchide dialog"
+            aria-label="Închide dialog"
             className="absolute top-3 right-3 h-8 w-8 text-gray-500"
           >
             <X className="h-4 w-4" />
@@ -103,7 +103,7 @@ export function ViewComandaDialog({
             </section>
 
             <section className="space-y-2 border-t border-gray-100 pt-2">
-              <h3 className="text-sm font-semibold text-gray-900">Detalii comanda</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Detalii comandă</h3>
               <div className="flex flex-col items-center text-center">
                 <p className="text-xs text-gray-500">TOTAL</p>
                 <p className="text-xl font-semibold text-gray-900">{formatLei(total)}</p>
@@ -114,7 +114,7 @@ export function ViewComandaDialog({
                   <p className="text-sm font-medium text-gray-900">{formatNumber(cantitate)} kg</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-xs text-gray-500">Pret per kg</p>
+                  <p className="text-xs text-gray-500">Preț per kg</p>
                   <p className="text-sm font-medium text-gray-900">{formatNumber(pretKg)} lei/kg</p>
                 </div>
               </div>
@@ -127,7 +127,7 @@ export function ViewComandaDialog({
                   <p className="text-sm font-medium text-gray-900">{formatLei(avans)}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-xs text-gray-500">Rest de incasat</p>
+                  <p className="text-xs text-gray-500">Rest de încasat</p>
                   <p className="text-sm font-semibold text-red-600">{formatLei(restDePlata)}</p>
                 </div>
               </section>
@@ -135,11 +135,11 @@ export function ViewComandaDialog({
 
             <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
               <div className="space-y-1">
-                <p className="text-xs text-gray-500">Data comanda</p>
+                <p className="text-xs text-gray-500">Data comandă</p>
                 <p className="text-sm font-medium text-gray-900">{formatDate(comanda?.data_comanda)}</p>
               </div>
               <div className="space-y-1 text-right">
-                <p className="text-xs text-gray-500">Data scadenta</p>
+                <p className="text-xs text-gray-500">Data scadentă</p>
                 <p className="text-sm font-medium text-gray-900">{formatDate(comanda?.data_livrare)}</p>
               </div>
             </section>
@@ -206,7 +206,7 @@ export function ViewComandaDialog({
             {comanda?.status === 'livrata' && comanda?.linked_vanzare_id ? (
               <section className="border-t border-gray-100 pt-2">
                 <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700">
-                  Livrată pe {formatDate(comanda?.updated_at)}. Vânzare de {formatLei(total)} creata automat.
+                  Livrată pe {formatDate(comanda?.updated_at)}. Vânzare de {formatLei(total)} creată automat.
                 </div>
               </section>
             ) : null}

@@ -1,7 +1,6 @@
 'use client'
 
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
-import { HighVisibilityToggle } from '@/components/app/HighVisibilityToggle'
 import { UserProfileMenu } from '@/components/app/UserProfileMenu'
 import { useAddAction } from '@/contexts/AddActionContext'
 
@@ -26,12 +25,11 @@ export function PageHeader({ title, subtitle, rightSlot, summary }: PageHeaderPr
             <button
               type="button"
               onClick={triggerAddAction}
-              className="hidden h-9 items-center rounded-xl border border-white/40 bg-white/20 px-4 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/30 md:inline-flex"
+              className="hidden h-8 items-center rounded-full border border-white/35 bg-white/18 px-3.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/28 md:inline-flex"
             >
               {currentLabel}
             </button>
           ) : null}
-          <HighVisibilityToggle />
           <div className="hidden md:flex">
             <UserProfileMenu />
           </div>

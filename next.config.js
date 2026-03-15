@@ -166,4 +166,9 @@ const nextConfig = {
 
 module.exports = withSentryConfig(withPWA(nextConfig), {
   silent: true,
+  webpack: {
+    reactComponentAnnotation: {
+      enabled: true,
+    },
+  },
 })

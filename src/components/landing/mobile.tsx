@@ -15,7 +15,7 @@ const quickSteps = [
 export default function Mobile() {
   return (
     <section className="bg-[linear-gradient(180deg,rgba(241,107,107,0.05),transparent_35%)]">
-      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:gap-16 lg:px-8 lg:py-24">
+      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,220px)] lg:gap-16 lg:px-8 lg:py-24">
         <Reveal className="space-y-5">
           <p className="text-sm font-semibold tracking-[0.18em] text-[var(--landing-raspberry)] uppercase">
             Direct pe telefon
@@ -39,19 +39,19 @@ export default function Mobile() {
             ))}
           </div>
         </Reveal>
-        <Reveal delayMs={120} className="mx-auto w-full max-w-[380px]">
+        <Reveal delayMs={120} className="mx-auto w-full max-w-[200px]">
           <motion.div
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
             className="will-change-transform"
           >
-            <div className="rounded-[38px] border border-[color:rgba(49,46,63,0.08)] bg-white p-4 shadow-[0_24px_80px_rgba(49,46,63,0.14)]">
+            <div className="overflow-hidden rounded-[2.5rem] border-[8px] border-gray-800 bg-gray-800 shadow-2xl">
               <Image
-                src="/landing/mobile-mockup.svg"
-                alt="Telefon cu aplicația Zmeurel OS."
-                width={760}
-                height={1280}
-                className="h-auto w-full rounded-[28px]"
+                src="/landing/screenshot-solar-detail.jpg"
+                alt="Aplicația Zmeurel OS — detalii solar și activități."
+                width={430}
+                height={932}
+                className="h-auto max-h-[440px] w-full rounded-[1.8rem] object-cover object-top"
               />
             </div>
           </motion.div>

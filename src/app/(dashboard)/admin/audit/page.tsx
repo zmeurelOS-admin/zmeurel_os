@@ -59,7 +59,7 @@ export default async function AdminAuditPage({
     <AppShell
       header={<PageHeader title="Audit Planuri" subtitle="Istoric schimbari plan (superadmin only)" rightSlot={<ShieldCheck className="h-5 w-5" />} />}
     >
-      <div className="mx-auto mt-4 w-full max-w-6xl space-y-4 py-4 sm:mt-0">
+      <div className="mx-auto mt-3 w-full max-w-6xl space-y-3 py-3 sm:mt-0">
         {(logsError || countError) ? (
           <Card className="rounded-2xl border-red-200 bg-red-50">
             <CardContent className="p-4 text-sm text-red-800">

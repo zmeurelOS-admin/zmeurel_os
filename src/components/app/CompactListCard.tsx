@@ -45,7 +45,7 @@ function CardRow({
 
   return (
     <div className={cn('space-y-0.5 sm:space-y-1 lg:text-left', rowClassName)}>
-      <p className="truncate overflow-hidden whitespace-nowrap text-sm leading-tight text-muted-foreground sm:text-sm">{label}</p>
+      <p className="overflow-hidden text-sm leading-tight text-muted-foreground sm:text-sm">{label}</p>
       <div
         className={cn(
           'text-base leading-tight text-[var(--agri-text)] sm:text-base sm:leading-normal',
@@ -90,7 +90,8 @@ export function CompactListCard({
   return (
     <ListCard
       className={cn(
-        'relative min-h-[146px] sm:min-h-[208px] lg:min-h-[208px] lg:text-left',
+        'relative min-h-[124px] sm:min-h-[208px] lg:min-h-[208px] lg:text-left',
+        onClick && 'transition-transform duration-120 active:scale-[0.98]',
         borderTone === 'danger' && 'border-red-500',
         borderTone === 'warning' && 'border-amber-400',
         className
@@ -99,16 +100,22 @@ export function CompactListCard({
     >
       <ActionIcons onEdit={onEdit} onDelete={onDelete} />
 
-      <div className="grid grid-cols-2 gap-1.5 pr-14 pt-6 sm:gap-3 sm:pr-16 sm:pt-6 lg:gap-4 lg:pr-14 lg:pt-6">
+      {onClick ? (
+        <span className="pointer-events-none absolute right-3 top-3 text-sm leading-none text-[var(--agri-text-muted)] opacity-35">
+          {'\u203A'}
+        </span>
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-2 pr-14 pt-4 sm:gap-3 sm:pr-16 sm:pt-6 lg:gap-4 lg:pr-14 lg:pt-6">
         <CardLeftColumn className={contentDensity}>
           {computedLeftRows.map((row, index) => (
-            <CardRow key={`left-${index}`} {...row} forceSingleLine={row.forceSingleLine ?? true} />
+            <CardRow key={`left-${index}`} {...row} forceSingleLine={row.forceSingleLine ?? false} />
           ))}
         </CardLeftColumn>
 
         <CardRightColumn className={contentDensity}>
           {computedRightRows.map((row, index) => (
-            <CardRow key={`right-${index}`} {...row} forceSingleLine={row.forceSingleLine ?? true} />
+            <CardRow key={`right-${index}`} {...row} forceSingleLine={row.forceSingleLine ?? false} />
           ))}
         </CardRightColumn>
       </div>

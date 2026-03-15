@@ -5,8 +5,54 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useDocumentModalState } from "@/components/ui/modal-layer"
 
-const Dialog = DialogPrimitive.Root
+type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root>
+
+const Dialog = ({ open, onOpenChange, ...props }: DialogProps) => {
+  const addedHistoryEntryRef = React.useRef(false)
+  const closingFromBackRef = React.useRef(false)
+  useDocumentModalState(Boolean(open))
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !open || addedHistoryEntryRef.current) return
+
+    window.history.pushState(
+      {
+        ...(window.history.state ?? {}),
+        __zmeurelDialog: true,
+      },
+      ""
+    )
+    addedHistoryEntryRef.current = true
+
+    const handlePopState = () => {
+      if (!addedHistoryEntryRef.current) return
+      closingFromBackRef.current = true
+      addedHistoryEntryRef.current = false
+      onOpenChange?.(false)
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [open, onOpenChange])
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || open) return
+
+    if (closingFromBackRef.current) {
+      closingFromBackRef.current = false
+      return
+    }
+
+    if (addedHistoryEntryRef.current) {
+      addedHistoryEntryRef.current = false
+      window.history.back()
+    }
+  }, [open])
+
+  return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />
+}
 
 const DialogTrigger = DialogPrimitive.Trigger
 
@@ -36,26 +82,28 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, showCloseButton = true, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay className="fixed inset-0 z-[100000100] bg-black/40 backdrop-blur-sm" />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed left-1/2 top-1/2 z-[100000101] grid w-[92vw] max-w-sm -translate-x-1/2 -translate-y-1/2 gap-4 border bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg sm:rounded-2xl",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close
-          style={{ backgroundColor: 'transparent' }}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 data-[state=open]:text-slate-500"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
-      )}
-    </DialogPrimitive.Content>
+    <DialogOverlay className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm" />
+    <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "relative grid max-h-[calc(100dvh-2rem)] w-[92vw] max-w-sm gap-4 overflow-y-auto rounded-2xl border bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        {showCloseButton && (
+          <DialogPrimitive.Close
+            style={{ backgroundColor: 'transparent' }}
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 data-[state=open]:text-slate-500"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </div>
   </DialogPortal>
 ))
 DialogContent.displayName = DialogPrimitive.Content.displayName

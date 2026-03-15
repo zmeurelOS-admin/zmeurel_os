@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, useWatch } from 'react-hook-form'
@@ -54,13 +54,19 @@ const defaults = (): VanzareFormData => ({
   client_id: '',
   cantitate_kg: '',
   pret_lei_kg: '',
-  status_plata: 'Platit',
+  status_plata: 'platit',
   observatii_ladite: '',
 })
+
+function formatStatusPlataLabel(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
 
 export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: AddVanzareDialogProps) {
   const queryClient = useQueryClient()
   const [internalOpen, setInternalOpen] = useState(false)
+  const submittedRef = useRef(false)
+  const hasOpenedRef = useRef(false)
 
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
@@ -75,6 +81,13 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
   })
 
   useEffect(() => {
+    if (dialogOpen) {
+      hasOpenedRef.current = true
+      submittedRef.current = false
+      trackEvent({ eventName: 'open_create_form', moduleName: 'vanzari', status: 'started' })
+    } else if (hasOpenedRef.current && !submittedRef.current) {
+      trackEvent({ eventName: 'form_abandoned', moduleName: 'vanzari', status: 'abandoned' })
+    }
     if (!dialogOpen) form.reset(defaults())
   }, [dialogOpen, form])
 
@@ -102,6 +115,10 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      submittedRef.current = true
+      trackEvent({ eventName: 'create_success', moduleName: 'vanzari', status: 'success' })
       trackEvent('create_vanzare', 'vanzari', { source: 'AddVanzareDialog' })
       track('vanzare_add', {
         amount: Number(variables.cantitate_kg || 0) * Number(variables.pret_lei_kg || 0),
@@ -115,23 +132,19 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
       const maybeError = error as { status?: number; code?: string; message?: string; details?: string; hint?: string }
       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
+        submittedRef.current = true
         toast.info('Inregistrarea era deja sincronizat?.')
         setDialogOpen(false)
         return
       }
 
+      trackEvent({ eventName: 'create_failed', moduleName: 'vanzari', status: 'failed' })
       const message =
         maybeError?.message ||
         maybeError?.details ||
         maybeError?.hint ||
         'Eroare la adaugarea vanzarii'
 
-      console.error('Error creating vanzare:', {
-        message: maybeError?.message,
-        code: maybeError?.code,
-        details: maybeError?.details,
-        hint: maybeError?.hint,
-      })
       hapticError()
       toast.error(message)
     },
@@ -226,7 +239,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
             <select id="v_status" className="agri-control h-12 w-full px-3 text-base" {...form.register('status_plata')}>
               {STATUS_PLATA.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {formatStatusPlataLabel(status)}
                 </option>
               ))}
             </select>

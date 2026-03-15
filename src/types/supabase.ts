@@ -747,6 +747,7 @@ export type Database = {
           sistem_irigare: string | null
           soi: string | null
           soi_plantat: string | null
+          stadiu?: string | null
           status: string | null
           suprafata_m2: number
           tenant_id: string
@@ -771,6 +772,7 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
+          stadiu?: string | null
           status?: string | null
           suprafata_m2: number
           tenant_id?: string
@@ -795,6 +797,7 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
+          stadiu?: string | null
           status?: string | null
           suprafata_m2?: number
           tenant_id?: string
@@ -937,16 +940,19 @@ export type Database = {
       }
       profiles: {
         Row: {
+          hide_onboarding: boolean
           id: string
           is_superadmin: boolean
           tenant_id: string | null
         }
         Insert: {
+          hide_onboarding?: boolean
           id: string
           is_superadmin?: boolean
           tenant_id?: string | null
         }
         Update: {
+          hide_onboarding?: boolean
           id?: string
           is_superadmin?: boolean
           tenant_id?: string | null
@@ -1150,7 +1156,9 @@ export type Database = {
       tenants: {
         Row: {
           created_at: string | null
+          expires_at: string | null
           id: string
+          is_demo: boolean
           nume_ferma: string
           owner_user_id: string | null
           plan: string | null
@@ -1158,7 +1166,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          expires_at?: string | null
           id?: string
+          is_demo?: boolean
           nume_ferma: string
           owner_user_id?: string | null
           plan?: string | null
@@ -1166,7 +1176,9 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          expires_at?: string | null
           id?: string
+          is_demo?: boolean
           nume_ferma?: string
           owner_user_id?: string | null
           plan?: string | null

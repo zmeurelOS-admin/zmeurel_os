@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 
 const START_STEP = 12
@@ -28,14 +28,14 @@ export function RouteTransitionIndicator() {
   const [active, setActive] = useState(false)
   const [progress, setProgress] = useState(0)
 
-  const clearTimers = () => {
+  const clearTimers = useEffectEvent(() => {
     if (timerRef.current) clearInterval(timerRef.current)
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     timerRef.current = null
     hideTimerRef.current = null
-  }
+  })
 
-  const start = () => {
+  const start = useEffectEvent(() => {
     clearTimers()
     setActive(true)
     setProgress(START_STEP)
@@ -47,16 +47,16 @@ export function RouteTransitionIndicator() {
         return Math.min(MAX_IN_PROGRESS, next)
       })
     }, 120)
-  }
+  })
 
-  const finish = () => {
+  const finish = useEffectEvent(() => {
     clearTimers()
     setProgress(COMPLETE)
     hideTimerRef.current = setTimeout(() => {
       setActive(false)
       setProgress(0)
     }, 180)
-  }
+  })
 
   useEffect(() => {
     const onClickCapture = (event: MouseEvent) => {
@@ -85,7 +85,11 @@ export function RouteTransitionIndicator() {
   useEffect(() => {
     if (pathname !== previousPathRef.current) {
       previousPathRef.current = pathname
-      finish()
+      const frame = window.requestAnimationFrame(() => {
+        finish()
+      })
+
+      return () => window.cancelAnimationFrame(frame)
     }
   }, [pathname])
 
@@ -96,7 +100,7 @@ export function RouteTransitionIndicator() {
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none fixed inset-x-0 top-0 z-[100000120] h-1 transition-opacity duration-150 ${
+      className={`pointer-events-none fixed inset-x-0 top-0 z-[120] h-1 transition-opacity duration-150 ${
         active ? 'opacity-100' : 'opacity-0'
       }`}
     >

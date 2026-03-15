@@ -53,6 +53,17 @@ export interface StocLocationRow {
   total_kg: number
 }
 
+export interface StocGlobal {
+  cal1: number
+  cal2: number
+}
+
+export interface RecoltareDeleteImpact {
+  hasStock: boolean
+  stockToRemoveKg: number
+  hasDownstreamSales: boolean
+}
+
 interface MiscareStocWithParcela {
   locatie_id: string
   produs: string
@@ -150,11 +161,13 @@ export async function deleteMiscariStocByReference(
   tipMiscare?: TipMiscareStoc
 ): Promise<void> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   let query = supabase
     .from('miscari_stoc')
     .delete()
     .eq('referinta_id', referintaId)
+    .eq('tenant_id', tenantId)
 
   if (tipMiscare) {
     query = query.eq('tip_miscare', tipMiscare)
@@ -172,10 +185,12 @@ export async function getStocCantitateKg(params: {
   depozit: DepozitStoc
 }): Promise<number> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('miscari_stoc')
     .select('tip_miscare,cantitate_kg')
+    .eq('tenant_id', tenantId)
     .eq('locatie_id', params.locatieId)
     .eq('produs', params.produs)
     .eq('calitate', params.calitate)
@@ -195,10 +210,12 @@ export async function getStocCantitateKg(params: {
 
 export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<StocLocationRow[]> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   let query = supabase
     .from('miscari_stoc')
     .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg,parcele(nume_parcela)')
+    .eq('tenant_id', tenantId)
     .not('locatie_id', 'is', null)
     .not('produs', 'is', null)
     .not('calitate', 'is', null)
@@ -257,4 +274,118 @@ export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<St
   })
 
   return Array.from(grouped.values()).sort((a, b) => a.locatie_nume.localeCompare(b.locatie_nume, 'ro'))
+}
+
+export async function getStocGlobal(): Promise<StocGlobal> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { data, error } = await supabase
+    .from('miscari_stoc')
+    .select('calitate,tip_miscare,cantitate_kg')
+    .eq('tenant_id', tenantId)
+    .not('calitate', 'is', null)
+    .not('tip_miscare', 'is', null)
+    .not('cantitate_kg', 'is', null)
+
+  if (error) {
+    if (isMissingInventoryTableError(error)) {
+      return { cal1: 0, cal2: 0 }
+    }
+    throw error
+  }
+
+  return (data ?? []).reduce<StocGlobal>(
+    (acc, row) => {
+      const calitate = row.calitate as CalitateStoc
+      if (calitate !== 'cal1' && calitate !== 'cal2') return acc
+
+      const qty = signedQuantity(row.tip_miscare as TipMiscareStoc, Number(row.cantitate_kg ?? 0))
+      acc[calitate] = round2(acc[calitate] + qty)
+      return acc
+    },
+    { cal1: 0, cal2: 0 },
+  )
+}
+
+export async function getRecoltareDeleteImpact(recoltareId: string): Promise<RecoltareDeleteImpact> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { data, error } = await supabase
+    .from('miscari_stoc')
+    .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg')
+    .eq('tenant_id', tenantId)
+    .eq('referinta_id', recoltareId)
+    .eq('tip_miscare', 'recoltare')
+
+  if (error) {
+    if (isMissingInventoryTableError(error)) {
+      return {
+        hasStock: false,
+        stockToRemoveKg: 0,
+        hasDownstreamSales: false,
+      }
+    }
+    throw error
+  }
+
+  const harvestMoves = (data ?? []) as Array<{
+    locatie_id: string | null
+    produs: string | null
+    calitate: CalitateStoc | null
+    depozit: DepozitStoc | null
+    tip_miscare: TipMiscareStoc | null
+    cantitate_kg: number | null
+  }>
+
+  if (harvestMoves.length === 0) {
+    return {
+      hasStock: false,
+      stockToRemoveKg: 0,
+      hasDownstreamSales: false,
+    }
+  }
+
+  let hasDownstreamSales = false
+  const stockToRemoveKg = round2(
+    harvestMoves.reduce((sum, move) => sum + Number(move.cantitate_kg ?? 0), 0)
+  )
+
+  for (const move of harvestMoves) {
+    if (!move.locatie_id || !move.produs || !move.calitate || !move.depozit) {
+      continue
+    }
+
+    const { data: bucketRows, error: bucketError } = await supabase
+      .from('miscari_stoc')
+      .select('tip_miscare,cantitate_kg')
+      .eq('tenant_id', tenantId)
+      .eq('locatie_id', move.locatie_id)
+      .eq('produs', move.produs)
+      .eq('calitate', move.calitate)
+      .eq('depozit', move.depozit)
+
+    if (bucketError) {
+      if (isMissingInventoryTableError(bucketError)) {
+        break
+      }
+      throw bucketError
+    }
+
+    const availableQty = round2(
+      (bucketRows ?? []).reduce((sum, row) => {
+        return sum + signedQuantity(row.tip_miscare as TipMiscareStoc, Number(row.cantitate_kg ?? 0))
+      }, 0)
+    )
+
+    if (availableQty + 0.001 < Number(move.cantitate_kg ?? 0)) {
+      hasDownstreamSales = true
+      break
+    }
+  }
+
+  return {
+    hasStock: true,
+    stockToRemoveKg,
+    hasDownstreamSales,
+  }
 }

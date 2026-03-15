@@ -13,6 +13,7 @@ import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
 import { CheltuialaCard, getCheltuialaCategoryEmoji } from '@/components/cheltuieli/CheltuialaCard'
 import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
@@ -23,6 +24,7 @@ import TrendBadge from '@/components/ui/TrendBadge'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { captureReactError } from '@/lib/monitoring/sentry'
@@ -116,6 +118,7 @@ function handleCheltuialaError(error: unknown, fallbackMessage: string) {
 }
 
 export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClientProps) {
+  useTrackModuleView('cheltuieli')
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
   const pathname = usePathname()
@@ -421,7 +424,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3">
           <div
             onClick={() => setTemporalFilter('luna')}
@@ -456,7 +459,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
 
         <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>Cheltuieli pe categorii</h3>
+            <SectionTitle className="flex-1" title="Cheltuieli pe categorii" />
             {selectedCategory ? (
               <button
                 type="button"

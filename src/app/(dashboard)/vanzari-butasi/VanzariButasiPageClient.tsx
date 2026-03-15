@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import AlertCard from '@/components/ui/AlertCard'
 import MiniCard from '@/components/ui/MiniCard'
@@ -317,7 +318,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <MiniCard
             icon={'\u{1F33F}'}
@@ -338,6 +339,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
             value={formatCompactNumber(summary.valoareTotala)}
             sub="RON"
             label="Valoare"
+            className="col-span-2 sm:col-span-1"
             onClick={() => applyDashboardFilter('toate', selectedSoi || undefined)}
           />
         </div>
@@ -370,7 +372,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>Comenzi pe soi</h3>
+            <SectionTitle className="flex-1" title="Comenzi pe soi" />
             {selectedSoi ? (
               <button
                 type="button"

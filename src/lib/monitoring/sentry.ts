@@ -57,7 +57,5 @@ export function captureReactError(error: unknown, context: SentryErrorContext = 
 }
 
 export function setSentryTenantTag(tenantId: string | null | undefined) {
-  if (!tenantId) return
-  Sentry.setTag('tenant_id', tenantId)
+  Sentry.setContext('tenant', tenantId ? { id: tenantId } : null)
 }
-

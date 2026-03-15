@@ -13,8 +13,19 @@ import { getParcele } from '@/lib/supabase/queries/parcele'
 import { createRecoltare } from '@/lib/supabase/queries/recoltari'
 import { queryKeys } from '@/lib/query-keys'
 
+function todayInputValue(): string {
+  const now = new Date()
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000)
+  return local.toISOString().slice(0, 10)
+}
+
 const schema = z.object({
-  data: z.string().min(1, 'Selecteaza data'),
+  data: z
+    .string()
+    .min(1, 'Selecteaza data')
+    .refine((value) => value <= todayInputValue(), {
+      message: 'Data recoltării nu poate fi în viitor',
+    }),
   parcela_id: z.string().min(1, 'Selecteaza parcela'),
   culegator_id: z.string().min(1, 'Selecteaza culegatorul'),
   kg_cal1: z.number().refine((v) => Number.isFinite(v) && v >= 0, 'Kg Cal 1 trebuie sa fie >= 0'),
@@ -46,7 +57,7 @@ export default function NewRecoltarePage() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      data: new Date().toISOString().split('T')[0],
+      data: todayInputValue(),
       kg_cal1: 0,
       kg_cal2: 0,
     },
@@ -63,9 +74,23 @@ export default function NewRecoltarePage() {
 
   const mutation = useMutation({
     mutationFn: createRecoltare,
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+
       queryClient.invalidateQueries({ queryKey: queryKeys.recoltari })
-      toast.success('Recoltare adaugata')
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli })
+      if (result.warning) {
+        toast.warning(result.warning)
+      } else {
+        toast.success('Recoltare adaugata')
+      }
       router.back()
     },
     onError: (error: unknown) => {
@@ -204,4 +229,3 @@ export default function NewRecoltarePage() {
     </div>
   )
 }
-

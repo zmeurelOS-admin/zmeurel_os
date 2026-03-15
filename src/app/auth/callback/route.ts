@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { ensureTenantForUser, normalizeFarmName } from '@/lib/auth/ensure-tenant'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
@@ -24,14 +25,6 @@ function errorCode(error: unknown): string | null {
 
 function errorStatus(error: unknown): number | null {
   return (error as { status?: number } | null)?.status ?? null
-}
-
-function errorDetails(error: unknown): string | null {
-  return (error as { details?: string } | null)?.details ?? null
-}
-
-function errorHint(error: unknown): string | null {
-  return (error as { hint?: string } | null)?.hint ?? null
 }
 
 function logInfo(step: string, payload: Record<string, unknown>) {
@@ -114,26 +107,6 @@ function toLoginErrorRedirect(baseUrl: string, errorValue: string) {
   return buildRedirect(baseUrl, '/login', { error: errorValue })
 }
 
-async function waitForTenantIdAssignment(
-  supabase: ServerSupabase,
-  userId: string,
-  attempts = 5,
-  delayMs = 200
-): Promise<string | null> {
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const tenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), userId)
-    if (tenantId) {
-      return tenantId
-    }
-
-    if (attempt < attempts) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs))
-    }
-  }
-
-  return null
-}
-
 async function buildSupabaseClient() {
   const cookieStore = await cookies()
 
@@ -163,7 +136,17 @@ async function completeOnboardingForUser(
   let tenantId: string | null
 
   try {
-    tenantId = await waitForTenantIdAssignment(supabase, user.id)
+    tenantId = await ensureTenantForUser({
+      supabase: asDbClient(supabase),
+      userId: user.id,
+      fallbackFarmName: normalizeFarmName(
+        typeof user.user_metadata?.farm_name === 'string'
+          ? user.user_metadata.farm_name
+          : typeof user.user_metadata?.full_name === 'string'
+            ? `${user.user_metadata.full_name}'s Farm`
+            : null
+      ),
+    })
     logInfo('tenant.assignment_resolved', {
       userId: user.id,
       tenantId,
@@ -181,10 +164,10 @@ async function completeOnboardingForUser(
   }
 
   if (!tenantId) {
-    logInfo('tenant.pending_assignment', {
+    logError('tenant.missing_after_repair', {
       userId: user.id,
     })
-    return null
+    return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'tenant_lookup_failed'))
   }
 
   return null
@@ -196,19 +179,19 @@ async function resolvePostLoginPath(
   safeNext: string | null,
   resolvedTenantId?: string | null
 ): Promise<string> {
-  if (safeNext && safeNext !== '/dashboard') return safeNext
+  if (safeNext && safeNext !== '/dashboard' && safeNext !== '/start') return safeNext
 
-  let tenantId = resolvedTenantId ?? null
+  if (resolvedTenantId !== undefined) {
+    return '/dashboard'
+  }
+
   try {
-    if (tenantId === null) {
-      tenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), userId)
-    }
+    await getTenantIdByUserIdOrNull(asDbClient(supabase), userId)
+    return '/dashboard'
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown'
     throw new Error(`[tenant] read for redirect failed: ${message}`)
   }
-
-  return tenantId ? '/dashboard' : '/start'
 }
 
 export async function GET(request: NextRequest) {

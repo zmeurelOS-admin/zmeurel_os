@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -9,23 +9,14 @@ import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState as BaseLoadingState } from '@/components/app/LoadingState'
 import { DashboardSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
-import { DemoFirstRunTutorial } from '@/components/dashboard/DemoFirstRunTutorial'
+import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import AlertCard from '@/components/ui/AlertCard'
 import MiniCard from '@/components/ui/MiniCard'
 import Sparkline from '@/components/ui/Sparkline'
 import StatusBadge from '@/components/ui/StatusBadge'
 import TrendBadge from '@/components/ui/TrendBadge'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import {
-  isDemoModeEnabled,
-  isFarmSetupEnabled,
-} from '@/lib/demo/onboarding-storage'
-import {
-  clearDemoTutorialPending,
-  hasSeenDemoTutorial,
-  isDemoTutorialPending,
-  markDemoTutorialSeen,
-} from '@/lib/demo/tutorial-storage'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
@@ -36,6 +27,7 @@ import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import { getCultureStageLogsForUnitati, getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
+import { getSupabase } from '@/lib/supabase/client'
 import { toast } from '@/lib/ui/toast'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -85,6 +77,10 @@ function formatTimestamp(value: string): string {
   }).format(parsed)
 }
 
+function formatCountLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 function toTrend(current: number, previous: number): { value: number; positive: boolean } | undefined {
   if (previous <= 0) return undefined
   const delta = ((current - previous) / previous) * 100
@@ -118,15 +114,6 @@ type SolarPlanItem = {
   href: string
 }
 
-type OnboardingStep = {
-  key: string
-  title: string
-  description: string
-  href: string
-  cta: string
-  done: boolean
-}
-
 function LoadingState({ label }: { label?: string }) {
   if (label?.toLowerCase().includes('dashboard')) {
     return <DashboardSkeleton />
@@ -135,9 +122,80 @@ function LoadingState({ label }: { label?: string }) {
   return <BaseLoadingState label={label} />
 }
 
+type GuideKey = 'recoltari' | 'comenzi' | 'financiar' | 'activitati'
+const GUIDE_LS_KEYS: Record<GuideKey, string> = {
+  recoltari: 'dismissed_guide_recoltari',
+  comenzi: 'dismissed_guide_comenzi',
+  financiar: 'dismissed_guide_financiar',
+  activitati: 'dismissed_guide_activitati',
+}
+
+function GuideCard({
+  emoji,
+  title,
+  text,
+  actionLabel,
+  onDismiss,
+  onAction,
+}: {
+  emoji: string
+  title: string
+  text: string
+  actionLabel?: string
+  onDismiss: () => void
+  onAction?: () => void
+}) {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        border: '1.5px dashed rgba(0,0,0,0.13)',
+        borderRadius: radius.xl,
+        background: 'rgba(248,250,248,0.7)',
+        padding: spacing.lg,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Ascunde"
+        style={{
+          position: 'absolute', top: 8, right: 8,
+          border: 'none', background: 'rgba(0,0,0,0.06)',
+          borderRadius: radius.full, width: 22, height: 22,
+          fontWeight: 700, color: colors.gray,
+          cursor: 'pointer', fontSize: 14, lineHeight: '22px',
+        }}
+      >×</button>
+      <div style={{ fontSize: 24 }}>{emoji}</div>
+      <div style={{ marginTop: spacing.sm, fontSize: 13, fontWeight: 700, color: colors.dark }}>{title}</div>
+      <div style={{ marginTop: 4, fontSize: 12, color: colors.gray, lineHeight: 1.5 }}>{text}</div>
+      {actionLabel ? (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            marginTop: spacing.sm,
+            border: `1px solid ${colors.primary}`,
+            borderRadius: radius.lg,
+            background: 'transparent',
+            color: colors.primary,
+            fontSize: 12,
+            fontWeight: 700,
+            padding: '6px 14px',
+            cursor: 'pointer',
+          }}
+        >
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const router = useRouter()
-  const [showTutorial, setShowTutorial] = useState(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     trackEvent('open_dashboard', 'dashboard')
@@ -211,6 +269,36 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
   })
 
+  const profileQuery = useQuery({
+    queryKey: queryKeys.currentUserProfile,
+    queryFn: async () => {
+      const supabase = getSupabase()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return false
+      const { data } = await supabase.from('profiles').select('hide_onboarding').eq('id', user.id).maybeSingle()
+      return data?.hide_onboarding ?? false
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+
+  const hideOnboarding = profileQuery.data === true
+
+  const dismissOnboardingMutation = useMutation({
+    mutationFn: async () => {
+      const supabase = getSupabase()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      await supabase.from('profiles').update({ hide_onboarding: true }).eq('id', user.id)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.currentUserProfile })
+    },
+    onError: () => {
+      toast.error('Nu am putut salva preferința.')
+    },
+  })
+
   const coreQueries = [
     recoltariQuery,
     parceleQuery,
@@ -246,34 +334,6 @@ export default function DashboardPage() {
   const solarClimateLogs = solarClimateQuery.data ?? []
   const solarStageLogs = solarStagesQuery.data ?? []
   const shouldRedirectToStart = false
-
-  useEffect(() => {
-    if (isLoading || hasError) return
-    if (isDemoModeEnabled()) {
-      if (showTutorial) setShowTutorial(false)
-      return
-    }
-
-    if (!isFarmSetupEnabled()) return
-    if (parcele.length > 0) return
-
-    const shouldShow = isDemoTutorialPending() || !hasSeenDemoTutorial()
-    if (!shouldShow) return
-
-    clearDemoTutorialPending()
-    setShowTutorial(true)
-  }, [hasError, isLoading, parcele.length, showTutorial])
-
-  const closeTutorial = () => {
-    markDemoTutorialSeen()
-    clearDemoTutorialPending()
-    setShowTutorial(false)
-  }
-
-  const finishTutorial = () => {
-    closeTutorial()
-    toast.success('Gata! Poți începe cu datele demo sau poți adăuga datele tale.')
-  }
 
   const todayIso = getIsoDay(0)
   const yesterdayIso = getIsoDay(-1)
@@ -327,12 +387,15 @@ export default function DashboardPage() {
 
   const harvestedTodayIds = useMemo(() => new Set(recoltariAzi.map((r) => r.parcela_id).filter(Boolean)), [recoltariAzi])
   const unrecoltateParcele = useMemo(
-    () => activeParcele.filter((p) => !harvestedTodayIds.has(p.id)),
+    () => activeParcele.filter((p) => !harvestedTodayIds.has(p.id) && p.stadiu === 'cules'),
     [activeParcele, harvestedTodayIds],
   )
 
   const dismissKey = `dashboard-unrecoltate-${todayIso}`
   const [dismissed, setDismissed] = useState<string[]>([])
+
+  const planDismissKey = `solar-plan-dismissed-${todayIso}`
+  const [dismissedPlanItems, setDismissedPlanItems] = useState<string[]>([])
 
   useEffect(() => {
     try {
@@ -358,6 +421,40 @@ export default function DashboardPage() {
     } catch {
       // ignore
     }
+  }
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(planDismissKey)
+      if (!raw) { setDismissedPlanItems([]); return }
+      const parsed = JSON.parse(raw) as unknown
+      setDismissedPlanItems(Array.isArray(parsed) ? (parsed as unknown[]).filter((x): x is string => typeof x === 'string') : [])
+    } catch {
+      setDismissedPlanItems([])
+    }
+  }, [planDismissKey])
+
+  const dismissPlanItem = (key: string) => {
+    const next = Array.from(new Set([...dismissedPlanItems, key]))
+    setDismissedPlanItems(next)
+    try { localStorage.setItem(planDismissKey, JSON.stringify(next)) } catch { /* ignore */ }
+  }
+
+  const [dismissedGuides, setDismissedGuides] = useState<Record<GuideKey, boolean>>({
+    recoltari: false, comenzi: false, financiar: false, activitati: false,
+  })
+
+  useEffect(() => {
+    const loaded = {} as Record<GuideKey, boolean>
+    for (const key of Object.keys(GUIDE_LS_KEYS) as GuideKey[]) {
+      try { loaded[key] = localStorage.getItem(GUIDE_LS_KEYS[key]) === 'true' } catch { loaded[key] = false }
+    }
+    setDismissedGuides(loaded)
+  }, [])
+
+  const dismissGuide = (key: GuideKey) => {
+    setDismissedGuides((prev) => ({ ...prev, [key]: true }))
+    try { localStorage.setItem(GUIDE_LS_KEYS[key], 'true') } catch { /* ignore */ }
   }
 
   const activePauseByParcela = useMemo(() => {
@@ -562,8 +659,8 @@ export default function DashboardPage() {
         items.push({
           key: `climate-missing-${parcela.id}`,
           label: 'Climat neactualizat',
-          value: `${parcelaName}: adauga prima masuratoare`,
-          sub: 'Regula: fiecare solar trebuie sa aiba minim o masuratoare de climat.',
+          value: `${parcelaName}: adaugă prima măsurătoare`,
+          sub: 'Regula: fiecare solar trebuie să aibă minimum o măsurătoare de climat.',
           variant: 'warning',
           href: `/parcele/${parcela.id}`,
         })
@@ -573,7 +670,7 @@ export default function DashboardPage() {
           items.push({
             key: `climate-stale-${parcela.id}`,
             label: 'Climat neactualizat',
-            value: `${parcelaName}: f?r? update de ${climateAgeDays} zile`,
+            value: `${parcelaName}: fără update de ${climateAgeDays} zile`,
             sub: 'Regula: daca ultimul climat este mai vechi de 2 zile, cere verificare.',
             variant: 'warning',
             href: `/parcele/${parcela.id}`,
@@ -586,7 +683,7 @@ export default function DashboardPage() {
             key: `temp-high-${parcela.id}`,
             label: 'Temperatura ridicata',
             value: `${parcelaName}: ${formatNumber(latestTemp, 1)}°C`,
-            sub: 'Regula: peste 32?C se recomand? aerisire ?i verificare irigare.',
+            sub: 'Regula: peste 32°C se recomandă aerisire și verificare irigare.',
             variant: 'danger',
             href: `/parcele/${parcela.id}`,
           })
@@ -598,7 +695,7 @@ export default function DashboardPage() {
         items.push({
           key: `stages-missing-${parcela.id}`,
           label: 'Etape cultura lipsa',
-          value: `${parcelaName}: plantat recent, f?r? etape`,
+          value: `${parcelaName}: plantat recent, fără etape`,
           sub: 'Regula: daca data plantarii e in ultimele 14 zile, trebuie macar o etapa notata.',
           variant: 'warning',
           href: `/parcele/${parcela.id}`,
@@ -608,7 +705,7 @@ export default function DashboardPage() {
       if (!latestActivity) {
         items.push({
           key: `activity-missing-${parcela.id}`,
-          label: 'Activit??i lips?',
+          label: 'Activități lipsă',
           value: `${parcelaName}: fără activități înregistrate`,
           sub: 'Regula: pentru solarii păstrăm cel puțin o activitate recentă în jurnal.',
           variant: 'warning',
@@ -634,7 +731,7 @@ export default function DashboardPage() {
         key: 'solar-ok',
         label: 'Plan in grafic',
         value: 'Nu există priorități urgente în solarii',
-        sub: 'Regulile simple de climat, etape ?i activit??i sunt acoperite azi.',
+        sub: 'Regulile simple de climat, etape și activitățile sunt acoperite azi.',
         variant: 'success',
         href: '/parcele',
       })
@@ -709,53 +806,51 @@ export default function DashboardPage() {
       .slice(0, 5)
   }, [activitati, comenzi, linkedOrderBySaleId, parcelaById, recoltari, vanzari])
 
+  const showWelcomeCard = coreSettled && parcele.length === 0 && !hideOnboarding
   const emptyState = coreSettled && activeParcele.length === 0
+
+  const hasAnyRecoltari = recoltari.length > 0
+  const hasAnyComenzi = comenzi.length > 0
+  const hasAnyActivitati = activitati.length > 0
+  const hasAnyFinanciar = vanzari.length > 0 || cheltuieli.length > 0
+  const hasAnyTopStats = hasAnyRecoltari || hasAnyComenzi || hasAnyActivitati
   const hasAlerts = Boolean(visibleUnrecoltata) || comenziRestante.length > 0 || Boolean(pauseAlert)
-  const onboardingSteps = useMemo<OnboardingStep[]>(
-    () => [
-      {
-        key: 'terrain',
-        title: 'Creează primul teren',
-        description: 'Adaugă o unitate de producție (câmp, solar sau livadă).',
-        href: '/parcele',
-        cta: 'Adaugă teren',
-        done: parcele.length > 0,
-      },
-      {
-        key: 'harvest',
-        title: 'Adaugă prima recoltare',
-        description: 'Înregistrează cantitatea recoltată pentru un teren.',
-        href: '/recoltari',
-        cta: 'Adaugă recoltare',
-        done: recoltari.length > 0,
-      },
-      {
-        key: 'client',
-        title: 'Adaugă primul client',
-        description: 'Creează contactul clientului pentru comenzi și vânzări.',
-        href: '/clienti',
-        cta: 'Adaugă client',
-        done: clienti.length > 0,
-      },
-      {
-        key: 'order',
-        title: 'Creează prima comandă',
-        description: 'Introdu o comandă nouă și urmărește livrarea.',
-        href: '/comenzi?add=1',
-        cta: 'Adaugă comandă',
-        done: comenzi.length > 0,
-      },
-    ],
-    [clienti.length, comenzi.length, parcele.length, recoltari.length],
-  )
-  const onboardingCompletedCount = onboardingSteps.filter((step) => step.done).length
-  const onboardingProgress = Math.round((onboardingCompletedCount / onboardingSteps.length) * 100)
-  const shouldShowOnboardingGuide = coreSettled && !isDemoModeEnabled() && onboardingCompletedCount < onboardingSteps.length
-  const nextOnboardingStep = onboardingSteps.find((step) => !step.done) ?? onboardingSteps[0]
+  const todayPlanSummary = `${formatCountLabel(activitatiAziCount, 'activitate', 'activități')} • ${formatCountLabel(comenziAzi.length, 'livrare', 'livrări')}`
 
   return (
-    <AppShell header={<PageHeader title="Dashboard" subtitle="Planul de azi" />}>
-      <div className="mx-auto mt-4 w-full max-w-[980px] sm:mt-0 lg:max-w-[1360px]" style={{ paddingTop: spacing.xxl, paddingBottom: spacing.md }}>
+    <AppShell
+      header={
+        <PageHeader
+          title="Dashboard"
+          subtitle="Planul de azi"
+          summary={
+            <div className="lg:hidden">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: spacing.sm,
+                  borderRadius: radius.xl,
+                  border: `1px solid rgba(15, 23, 42, 0.06)`,
+                  background: 'rgba(255,255,255,0.96)',
+                  boxShadow: shadows.card,
+                  padding: 14,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark, lineHeight: 1.2 }}>Plan azi</div>
+                  <div style={{ marginTop: 4, fontSize: 12, color: 'rgba(16,32,21,0.72)', lineHeight: 1.3 }}>
+                    {todayPlanSummary}
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        />
+      }
+    >
+      <div className="mx-auto mt-3 w-full max-w-[980px] sm:mt-0 lg:max-w-[1360px]" style={{ paddingTop: spacing.lg, paddingBottom: spacing.md }}>
         {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
         {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
 
@@ -765,165 +860,76 @@ export default function DashboardPage() {
 
         {!showDashboardSkeleton && !shouldRedirectToStart ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            {shouldShowOnboardingGuide ? (
-              <section
-                style={{
-                  background: colors.white,
-                  borderRadius: radius.xl,
-                  boxShadow: shadows.card,
-                  border: `1px solid ${colors.blueLight}`,
-                  padding: spacing.lg,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: spacing.sm,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
-                  <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Ghid de pornire</h3>
-                  <StatusBadge text={`${onboardingCompletedCount}/${onboardingSteps.length}`} variant="info" />
-                </div>
-                <div style={{ height: 6, borderRadius: radius.full, background: colors.grayLight, overflow: 'hidden' }}>
-                  <div style={{ width: `${onboardingProgress}%`, height: '100%', background: colors.primary }} />
-                </div>
-                <div style={{ display: 'grid', gap: spacing.xs }}>
-                  {onboardingSteps.map((step, index) => (
-                    <button
-                      key={step.key}
-                      type="button"
-                      onClick={() => router.push(step.href)}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        border: `1px solid ${step.done ? colors.green : colors.grayLight}`,
-                        borderRadius: radius.md,
-                        background: step.done ? colors.greenLight : colors.white,
-                        padding: `${spacing.xs + 2}px ${spacing.sm}px`,
-                        cursor: 'pointer',
-                        display: 'grid',
-                        gridTemplateColumns: 'auto 1fr auto',
-                        alignItems: 'center',
-                        gap: spacing.sm,
-                      }}
-                    >
-                      <span style={{ fontSize: 13 }}>{step.done ? '✅' : `${index + 1}.`}</span>
-                      <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: colors.dark }}>{step.title}</span>
-                        <span style={{ display: 'block', fontSize: 10, color: colors.gray }}>{step.description}</span>
-                      </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.primary }}>{step.cta}</span>
-                    </button>
-                  ))}
-                </div>
-                {nextOnboardingStep ? (
-                  <button
-                    type="button"
-                    onClick={() => router.push(nextOnboardingStep.href)}
-                    style={{
-                      border: 'none',
-                      borderRadius: radius.lg,
-                      background: colors.primary,
-                      color: colors.white,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      padding: '12px 14px',
-                      minHeight: 46,
-                      width: '100%',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Continua: {nextOnboardingStep.cta}
-                  </button>
-                ) : null}
-              </section>
+            {showWelcomeCard ? (
+              <WelcomeCard
+                onAddTerrain={() => router.push('/parcele')}
+                onDismiss={() => dismissOnboardingMutation.mutate()}
+              />
             ) : null}
 
-            {emptyState ? (
-              <div
-                style={{
-                  background: colors.coralLight,
-                  borderRadius: radius.xl,
-                  boxShadow: shadows.card,
-                  border: `1px solid ${colors.coral}`,
-                  padding: spacing.xxl,
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: 40, lineHeight: 1, marginBottom: spacing.md }}>🌱</div>
-                <h2 style={{ fontSize: 20, lineHeight: 1.2, margin: 0, color: colors.dark }}>Bun venit în Zmeurel OS!</h2>
-                <p style={{ margin: `${spacing.sm}px 0 ${spacing.lg}px`, color: colors.gray, fontSize: 13 }}>
-                  Începe prin a-ți adăuga primul teren.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => router.push('/parcele')}
-                  style={{
-                    border: 'none',
-                    borderRadius: radius.lg,
-                    background: colors.primary,
-                    color: colors.white,
-                    fontWeight: 700,
-                    fontSize: 14,
-                    padding: '14px',
-                    minHeight: 48,
-                    width: '100%',
-                    cursor: 'pointer',
-                  }}
-                >
-                  🗺️ Adaugă primul teren
-                </button>
-                <p style={{ marginTop: spacing.sm, color: colors.gray, fontSize: 11 }}>
-                  Apoi poți adăuga recoltări, comenzi și cheltuieli.
-                </p>
-              </div>
-            ) : (
+            {emptyState ? null : (
               <>
-                <section data-tutorial="dashboard-stats">
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                    <MiniCard
-                      icon="🫐"
-                      label="Recoltat azi"
-                      value={`${formatNumber(totalKgAzi)} kg`}
-                      sub={`${recoltariAzi.length} recoltări`}
-                      trend={recoltareTrend}
-                      onClick={() => router.push('/recoltari')}
-                    />
-                    <MiniCard
-                      icon="📦"
-                      label="De livrat"
-                      value={`${comenziActive.length}`}
-                      sub={`${formatNumber(kgComenziActive)} kg`}
-                      onClick={() => router.push('/comenzi')}
-                    />
-                    <MiniCard
-                      icon="✂️"
-                      label="Activități"
-                      value={`${activitatiAziCount}`}
-                      sub="azi"
-                      onClick={() => router.push('/activitati-agricole')}
-                    />
-                  </div>
-                </section>
+                {hasAnyTopStats ? (
+                  <section data-tutorial="dashboard-stats">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                      {hasAnyRecoltari ? (
+                        <MiniCard
+                          icon="🫐"
+                          label="Recoltat azi"
+                          value={`${formatNumber(totalKgAzi)} kg`}
+                          sub={`${recoltariAzi.length} recoltări`}
+                          trend={recoltareTrend}
+                          onClick={() => router.push('/recoltari')}
+                        />
+                      ) : null}
+                      {hasAnyComenzi ? (
+                        <MiniCard
+                          icon="📦"
+                          label="De livrat"
+                          value={`${comenziActive.length}`}
+                          sub={`${formatNumber(kgComenziActive)} kg`}
+                          onClick={() => router.push('/comenzi')}
+                        />
+                      ) : null}
+                      {hasAnyActivitati ? (
+                        <MiniCard
+                          icon="✂️"
+                          label="Activități"
+                          value={`${activitatiAziCount}`}
+                          sub="azi"
+                          className="col-span-2 sm:col-span-1"
+                          onClick={() => router.push('/activitati-agricole')}
+                        />
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
 
                 {solarParcele.length > 0 ? (
                   <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Solarii</h3>
-                      <StatusBadge text={`${solarParcele.length} active`} variant="success" />
-                    </div>
+                    <SectionTitle
+                      title="Solarii"
+                      rightSlot={
+                        <StatusBadge
+                          text={`${solarParcele.length} ${solarParcele.length === 1 ? 'activă' : 'active'}`}
+                          variant="success"
+                        />
+                      }
+                    />
 
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                       <MiniCard
                         icon="🌿"
                         label="Număr solarii"
                         value={`${solarParcele.length}`}
-                        sub="unitati de tip solar"
+                        sub="unități de tip solar"
                         onClick={() => router.push('/parcele')}
                       />
                       <MiniCard
                         icon="🪴"
                         label="Plante totale"
                         value={`${formatNumber(solarPlantTotal, 0)}`}
-                        sub="plante in solarii"
+                        sub="plante în solarii"
                         onClick={() => router.push('/parcele')}
                       />
                       <MiniCard
@@ -942,14 +948,14 @@ export default function DashboardPage() {
                       />
                       <MiniCard
                         icon="🌡️"
-                        label="Temp. medie recent?"
+                        label="Temp. medie recentă"
                         value={solarAvgTemp === null ? '-' : `${formatNumber(solarAvgTemp, 1)}°C`}
                         sub={
                           solarClimateQuery.isLoading
                             ? 'se încarcă climatul...'
                             : recentClimateSamples.length > 0
                               ? `${recentClimateSamples.length} înregistrări`
-                              : 'f?r? date climat'
+                              : 'fără date climat'
                         }
                         onClick={() => router.push('/parcele')}
                       />
@@ -961,8 +967,8 @@ export default function DashboardPage() {
                           solarClimateQuery.isLoading
                             ? 'se încarcă climatul...'
                             : recentClimateSamples.length > 0
-                              ? 'fereastra recent?'
-                              : 'f?r? date climat'
+                              ? 'fereastră recentă'
+                              : 'fără date climat'
                         }
                         onClick={() => router.push('/parcele')}
                       />
@@ -973,32 +979,49 @@ export default function DashboardPage() {
                 {solarParcele.length > 0 ? (
                   <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Planul zilei in solarii</h3>
-                      <StatusBadge text={hasSolarWarnings ? 'priorit??i' : 'ok'} variant={hasSolarWarnings ? 'warning' : 'success'} />
+                      <SectionTitle className="flex-1" title="Planul zilei în solarii" />
+                      <StatusBadge text={hasSolarWarnings ? 'priorități' : 'ok'} variant={hasSolarWarnings ? 'warning' : 'success'} />
                     </div>
 
                     {solarStagesQuery.isError || solarClimateQuery.isError ? (
                       <AlertCard
                         icon="⚠️"
-                        label="Date partiale"
+                        label="Date parțiale"
                         value="Nu am putut încărca toate datele pentru solarii"
-                        sub="Planul zilei foloseste doar datele disponibile momentan."
+                        sub="Planul zilei folosește doar datele disponibile momentan."
                         variant="warning"
                         onClick={() => router.push('/parcele')}
                       />
                     ) : null}
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                      {solarPlanItems.map((item) => (
-                        <AlertCard
-                          key={item.key}
-                          icon={item.variant === 'danger' ? '🔥' : item.variant === 'warning' ? '⚠️' : '✅'}
-                          label={item.label}
-                          value={item.value}
-                          sub={item.sub}
-                          variant={item.variant}
-                          onClick={() => router.push(item.href)}
-                        />
+                      {solarPlanItems.filter((item) => !dismissedPlanItems.includes(item.key)).map((item) => (
+                        <div key={item.key} style={{ position: 'relative' }}>
+                          {item.variant !== 'success' ? (
+                            <button
+                              type="button"
+                              onClick={(event) => { event.stopPropagation(); dismissPlanItem(item.key) }}
+                              aria-label="Ascunde alerta"
+                              style={{
+                                position: 'absolute', top: 6, right: 6,
+                                border: 'none', background: 'rgba(255,255,255,0.85)',
+                                borderRadius: radius.full, width: 22, height: 22,
+                                fontWeight: 700, color: colors.gray,
+                                cursor: 'pointer', zIndex: 2, fontSize: 14, lineHeight: '22px',
+                              }}
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                          <AlertCard
+                            icon={item.variant === 'danger' ? '🔥' : item.variant === 'warning' ? '⚠️' : '✅'}
+                            label={item.label}
+                            value={item.value}
+                            sub={item.sub}
+                            variant={item.variant}
+                            onClick={() => router.push(item.href)}
+                          />
+                        </div>
                       ))}
                     </div>
                   </section>
@@ -1007,7 +1030,7 @@ export default function DashboardPage() {
                 {hasAlerts ? (
                   <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Alerte</h3>
+                      <SectionTitle className="flex-1" title="Alerte" />
                       <StatusBadge text="active" variant="warning" />
                     </div>
 
@@ -1053,7 +1076,7 @@ export default function DashboardPage() {
                         icon="⚠️"
                         label="Comenzi restante"
                         value={`${comenziRestante.length} comenzi restante`}
-                        sub="Au dep??it data de livrare"
+                        sub="Au depășit data de livrare"
                         variant="warning"
                         onClick={() => router.push('/comenzi')}
                       />
@@ -1073,9 +1096,21 @@ export default function DashboardPage() {
                 ) : null}
 
                 <div className="lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)] lg:gap-4">
+                {!hasAnyRecoltari && !dismissedGuides.recoltari ? (
+                  <GuideCard
+                    emoji="🫐"
+                    title="Înregistrează prima recoltare"
+                    text="Adaugă zilnic cantitățile recoltate pe fiecare teren. Vei vedea evoluția producției și statistici în timp real."
+                    actionLabel="Mergi la Recoltare →"
+                    onDismiss={() => dismissGuide('recoltari')}
+                    onAction={() => router.push('/recoltari')}
+                  />
+                ) : null}
+
+                {hasAnyRecoltari ? (
                 <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Recoltare azi pe terenuri</h3>
+                    <SectionTitle className="flex-1" title="Recoltare azi pe terenuri" />
                     <button
                       type="button"
                       onClick={() => router.push('/recoltari')}
@@ -1119,10 +1154,23 @@ export default function DashboardPage() {
                     })}
                   </div>
                 </section>
+                ) : null}
 
+                {!hasAnyFinanciar && !dismissedGuides.financiar ? (
+                  <GuideCard
+                    emoji="💰"
+                    title="Urmărește veniturile și cheltuielile"
+                    text="Adaugă vânzări și cheltuieli pentru a vedea profitul fermei, evoluția financiară și rapoarte pe sezoane."
+                    actionLabel="Mergi la Vânzări →"
+                    onDismiss={() => dismissGuide('financiar')}
+                    onAction={() => router.push('/vanzari')}
+                  />
+                ) : null}
+
+                {hasAnyFinanciar ? (
                 <section data-tutorial="dashboard-comenzi" style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Financiar sezon</h3>
+                    <SectionTitle className="flex-1" title="Financiar sezon" />
                     <button
                       type="button"
                       onClick={() => router.push('/rapoarte')}
@@ -1141,6 +1189,7 @@ export default function DashboardPage() {
                       <button
                         key={item.key}
                         type="button"
+                        className={item.key === 'profit' ? 'col-span-2 sm:col-span-1' : undefined}
                         onClick={() => router.push('/rapoarte')}
                         style={{
                           width: '100%',
@@ -1149,19 +1198,20 @@ export default function DashboardPage() {
                           border: `1px solid ${colors.grayLight}`,
                           borderRadius: radius.xl,
                           boxShadow: shadows.card,
-                          padding: spacing.lg,
-                          minHeight: 110,
+                          padding: 14,
+                          minHeight: 98,
                           cursor: 'pointer',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 10, color: colors.gray }}>{item.label}</span>
+                          <span style={{ fontSize: 11, color: colors.gray }}>{item.label}</span>
                           {item.trend ? <TrendBadge value={item.trend.value} positive={item.trend.positive} /> : null}
                         </div>
                         <div style={{ marginTop: spacing.xs, display: 'flex', alignItems: 'baseline', gap: 4 }}>
                           <span
                             style={{
                               fontSize: 16,
+                              lineHeight: 1.1,
                               fontWeight: 700,
                               color: item.key === 'profit' ? (item.value >= 0 ? colors.green : colors.coral) : colors.dark,
                             }}
@@ -1179,10 +1229,23 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </section>
+                ) : null}
 
+                {!hasAnyComenzi && !dismissedGuides.comenzi ? (
+                  <GuideCard
+                    emoji="📦"
+                    title="Gestionează comenzile clienților"
+                    text="Înregistrează comenzile și urmărește livrările. Vei vedea ce ai de livrat azi, mâine și în zilele următoare."
+                    actionLabel="Mergi la Comenzi →"
+                    onDismiss={() => dismissGuide('comenzi')}
+                    onAction={() => router.push('/comenzi')}
+                  />
+                ) : null}
+
+                {hasAnyComenzi ? (
                 <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Comenzi de livrat</h3>
+                    <SectionTitle className="flex-1" title="Comenzi de livrat" />
                     <button
                       type="button"
                       onClick={() => router.push('/comenzi')}
@@ -1234,10 +1297,22 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 </section>
+                ) : null}
+
+                {!hasAnyActivitati && !dismissedGuides.activitati ? (
+                  <GuideCard
+                    emoji="✂️"
+                    title="Planifică activitățile agricole"
+                    text="Înregistrează tăierile, tratamentele, fertilizările și alte lucrări. Vei putea urmări istoricul și timpii de pauză."
+                    actionLabel="Mergi la Activități →"
+                    onDismiss={() => dismissGuide('activitati')}
+                    onAction={() => router.push('/activitati-agricole')}
+                  />
+                ) : null}
 
                 {recentActivity.length > 0 ? (
                   <section className="lg:self-start" style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <h3 style={{ margin: 0, fontSize: 14, color: colors.dark }}>Activitate recentă</h3>
+                    <SectionTitle title="Activitate recentă" />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                       {recentActivity.map((item) => (
                         <button
@@ -1300,7 +1375,6 @@ export default function DashboardPage() {
           </div>
         ) : null}
       </div>
-      <DemoFirstRunTutorial open={showTutorial} onSkip={closeTutorial} onFinish={finishTutorial} />
     </AppShell>
   )
 }

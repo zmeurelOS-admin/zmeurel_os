@@ -14,6 +14,8 @@ const STATUS_BADGE_CLASS_MAP: Record<string, string> = {
   in_livrare: 'bg-cyan-100 text-cyan-700',
   livrata: 'bg-green-100 text-green-700',
   anulata: 'bg-red-100 text-red-700',
+  avans: 'bg-amber-100 text-amber-700',
+  platit: 'bg-green-100 text-green-700',
   restanta: 'bg-red-500 text-white font-semibold',
   achitat: 'bg-green-100 text-green-700',
   achitata: 'bg-green-100 text-green-700',

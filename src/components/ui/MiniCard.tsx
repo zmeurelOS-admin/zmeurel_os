@@ -1,71 +1,98 @@
-"use client";
+'use client'
 
-import { colors, radius, shadows, spacing } from "@/lib/design-tokens";
-import TrendBadge from "@/components/ui/TrendBadge";
+import TrendBadge from '@/components/ui/TrendBadge'
+import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { cn } from '@/lib/utils'
 
 type MiniCardProps = {
-  icon: string;
-  value: string;
-  sub: string;
-  label: string;
-  onClick?: () => void;
+  icon: string
+  value: string
+  sub: string
+  label: string
+  onClick?: () => void
+  className?: string
   trend?: {
-    value: number;
-    positive: boolean;
-  };
-};
+    value: number
+    positive: boolean
+  }
+}
 
-export default function MiniCard({ icon, value, sub, label, onClick, trend }: MiniCardProps) {
+export default function MiniCard({
+  icon,
+  value,
+  sub,
+  label,
+  onClick,
+  className,
+  trend,
+}: MiniCardProps) {
+  const isClickable = Boolean(onClick)
+
   return (
     <button
-      className="flex flex-col justify-between"
+      className={cn(
+        'flex h-full flex-col justify-between text-left transition-transform duration-120 active:scale-[0.98]',
+        className
+      )}
       type="button"
       onClick={onClick}
       style={{
-        width: "100%",
-        textAlign: "left",
+        width: '100%',
         background: colors.white,
-        border: "none",
+        border: `1px solid ${colors.grayLight}`,
         borderRadius: radius.xl,
         boxShadow: shadows.card,
-        padding: `${spacing.lg}px`,
-        cursor: onClick ? "pointer" : "default",
-        gap: spacing.sm,
-        minHeight: 110,
+        padding: '14px',
+        cursor: onClick ? 'pointer' : 'default',
+        gap: 6,
+        minHeight: 96,
       }}
     >
       <div
         style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
           gap: spacing.sm,
         }}
       >
-        <div style={{ display: "flex", alignItems: "flex-start", gap: spacing.xs, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, minWidth: 0 }}>
           <span
             aria-hidden="true"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               width: 20,
               height: 20,
-              fontSize: 16,
+              fontSize: 20,
               lineHeight: 1,
               flexShrink: 0,
             }}
           >
             {icon}
           </span>
-          {label ? <span style={{ fontSize: 10, fontWeight: 700, color: colors.gray, lineHeight: 1.2 }}>{label}</span> : null}
+          {label ? (
+            <span style={{ fontSize: 11, fontWeight: 700, color: colors.gray, lineHeight: 1.25 }}>
+              {label}
+            </span>
+          ) : null}
         </div>
-        {trend ? <TrendBadge value={trend.value} positive={trend.positive} /> : null}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          {trend ? <TrendBadge value={trend.value} positive={trend.positive} /> : null}
+          {isClickable ? (
+            <span aria-hidden="true" style={{ fontSize: 14, opacity: 0.35, color: colors.gray, lineHeight: 1 }}>
+              {'\u203A'}
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      <div style={{ fontSize: 20, fontWeight: 700, color: colors.dark, lineHeight: 1.15 }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: colors.dark, lineHeight: 1.02 }}>
+        {value}
+      </div>
 
-      <div style={{ fontSize: 10, color: colors.gray, lineHeight: 1.2 }}>{sub}</div>
+      <div style={{ fontSize: 11, color: colors.gray, lineHeight: 1.25 }}>{sub}</div>
     </button>
-  );
+  )
 }

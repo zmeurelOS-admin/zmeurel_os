@@ -32,7 +32,7 @@ export default async function AdminPage() {
     <AppShell
       header={<PageHeader title="Admin" subtitle="Panou administrare" rightSlot={<ShieldCheck className="h-5 w-5" />} />}
     >
-      <div className="mx-auto mt-4 w-full max-w-6xl space-y-4 py-4 sm:mt-0">
+      <div className="mx-auto mt-3 w-full max-w-6xl space-y-3 py-3 sm:mt-0">
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card className="rounded-2xl border-[var(--agri-border)]">
             <CardContent className="flex items-center gap-3 p-4">

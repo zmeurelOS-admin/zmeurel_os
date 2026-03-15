@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
+import { getSessionId } from './session'
 
 type EventData = Record<string, unknown>
 
@@ -59,6 +60,7 @@ export function track(eventName: string, eventData?: Record<string, unknown>) {
             event_name: eventName,
             event_data: (eventData ?? {}) as EventData,
             page_url: window.location.pathname,
+            session_id: getSessionId(),
           })
         } catch {
           // analytics must never break UX

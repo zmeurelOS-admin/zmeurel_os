@@ -17,6 +17,7 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 
 function formatUserName(email: string | null): string {
   if (!email) return 'Popa Andrei'
+  if (email.endsWith('@demo.zmeurel.local')) return 'Demo'
   const local = email.split('@')[0] ?? ''
   if (!local) return 'Popa Andrei'
 

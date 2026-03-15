@@ -23,6 +23,18 @@ type DemoTable =
   | 'culture_stage_logs'
 
 type DemoColumnsSupport = Record<DemoTable, boolean>
+type DemoType = 'berries' | 'solar'
+type DemoSeedRpcStatus = 'seeded' | 'already_seeded' | 'skipped_existing_data'
+type DemoSeedRpcRow = {
+  status?: string | null
+  demo_seed_id?: string | null
+  demo_type?: string | null
+}
+type DemoSeedRpcResult = {
+  status: DemoSeedRpcStatus
+  demoSeedId: string | null
+  demoType: DemoType
+}
 
 export type DemoSeedSummary = {
   parcele: number
@@ -81,6 +93,7 @@ const EMPTY_SUMMARY: DemoSeedSummary = {
   climate: 0,
   etape: 0,
 }
+const LEGACY_DEMO_DATA_ORIGIN = 'demo'
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false
@@ -178,6 +191,17 @@ async function collectFallbackRows(
   return data ?? []
 }
 
+function hasStoredDemoMarker(row: Record<string, unknown>, seedId: string | null) {
+  const rowSeedId = typeof row.demo_seed_id === 'string' ? row.demo_seed_id : null
+  const dataOrigin = String(row.data_origin ?? '').trim().toLowerCase()
+
+  if (seedId && rowSeedId === seedId) {
+    return true
+  }
+
+  return dataOrigin === DEMO_DATA_ORIGIN || dataOrigin === LEGACY_DEMO_DATA_ORIGIN || rowSeedId !== null
+}
+
 function isFallbackDemoRow(table: DemoTable, row: Record<string, unknown>): boolean {
   switch (table) {
     case 'parcele':
@@ -215,63 +239,41 @@ async function collectDemoRowIds(params: {
   const { supabaseAdmin, tenantId, table, seedId, demoColumnsSupport } = params
 
   if (demoColumnsSupport[table]) {
-    const baseQuery = ((supabaseAdmin.from(table) as unknown) as {
+    const selectByTable: Record<DemoTable, string> = {
+      parcele: 'id,id_parcela,observatii,data_origin,demo_seed_id',
+      culegatori: 'id,id_culegator,observatii,data_origin,demo_seed_id',
+      clienti: 'id,id_client,observatii,data_origin,demo_seed_id',
+      recoltari: 'id,id_recoltare,observatii,data_origin,demo_seed_id',
+      comenzi: 'id,observatii,data_origin,demo_seed_id',
+      vanzari: 'id,id_vanzare,observatii_ladite,data_origin,demo_seed_id',
+      cheltuieli_diverse: 'id,id_cheltuiala,descriere,data_origin,demo_seed_id',
+      activitati_agricole: 'id,id_activitate,observatii,data_origin,demo_seed_id',
+      solar_climate_logs: 'id,observatii,data_origin,demo_seed_id',
+      culture_stage_logs: 'id,etapa,observatii,data_origin,demo_seed_id',
+    }
+
+    const { data, error } = await ((supabaseAdmin.from(table) as unknown) as {
       select: (columns: string) => {
         eq: (
           column: string,
           value: string
-        ) => {
-          eq: (
-            column: string,
-            value: string
-          ) => {
-            eq: (
-              column: string,
-              value: string
-            ) => Promise<{
-              data: Array<{ id?: string | null }> | null
-              error: { message?: string } | null
-            }>
-            then: undefined
-          }
-          then: undefined
-        }
+        ) => Promise<{
+          data: Array<Record<string, unknown>> | null
+          error: { message?: string } | null
+        }>
       }
     })
-      .select('id')
+      .select(selectByTable[table])
       .eq('tenant_id', tenantId)
-      .eq('data_origin', DEMO_DATA_ORIGIN)
-
-    const result = seedId
-      ? await baseQuery.eq('demo_seed_id', seedId)
-      : await ((supabaseAdmin.from(table) as unknown) as {
-          select: (columns: string) => {
-            eq: (
-              column: string,
-              value: string
-            ) => {
-              eq: (
-                column: string,
-                value: string
-              ) => Promise<{
-                data: Array<{ id?: string | null }> | null
-                error: { message?: string } | null
-              }>
-              then: undefined
-            }
-          }
-        })
-          .select('id')
-          .eq('tenant_id', tenantId)
-          .eq('data_origin', DEMO_DATA_ORIGIN)
-
-    const { data, error } = result
 
     if (error) {
       throw new Error(`Demo select failed for ${table}: ${error.message ?? 'Unknown error'}`)
     }
 
-    return (data ?? []).map((row: { id?: string | null }) => String(row.id ?? '')).filter(Boolean)
+    return (data ?? [])
+      .filter((row) => hasStoredDemoMarker(row, seedId) || isFallbackDemoRow(table, row))
+      .map((row) => String(row.id ?? ''))
+      .filter(Boolean)
   }
 
   const fallbackRows = await collectFallbackRows(supabaseAdmin, table, tenantId)
@@ -370,18 +372,104 @@ async function updateTenantDemoFlags(
   }
 }
 
-async function runSeedDemoRpc(supabaseAdmin: SupabaseClient<Database>, tenantId: string): Promise<void> {
-  const { error } = await (supabaseAdmin as unknown as {
+function normalizeDemoSeedRpcStatus(status: string | null | undefined): DemoSeedRpcStatus {
+  if (status === 'already_seeded' || status === 'skipped_existing_data' || status === 'seeded') {
+    return status
+  }
+
+  throw new Error(`Unexpected demo seed status: ${status ?? 'null'}`)
+}
+
+function normalizeDemoType(value: string | null | undefined): DemoType {
+  return value === 'solar' ? 'solar' : 'berries'
+}
+
+async function inferDemoTypeForTenant(
+  supabaseAdmin: SupabaseClient<Database>,
+  tenantId: string,
+  demoColumnsSupport: DemoColumnsSupport
+): Promise<DemoType> {
+  const hasSolarRows = async (table: 'solar_climate_logs' | 'culture_stage_logs') => {
+    if (!demoColumnsSupport[table]) return false
+
+    const { data, error } = await ((supabaseAdmin.from(table) as unknown) as {
+      select: (columns: string) => {
+        eq: (
+          column: string,
+          value: string
+        ) => Promise<{
+          data: Array<Record<string, unknown>> | null
+          error: { message?: string } | null
+        }>
+      }
+    })
+      .select('id,observatii,data_origin,demo_seed_id')
+      .eq('tenant_id', tenantId)
+
+    if (error) {
+      throw new Error(`Demo type detection failed for ${table}: ${error.message ?? 'Unknown error'}`)
+    }
+
+    return (data ?? []).some((row) => hasStoredDemoMarker(row, null) || isFallbackDemoRow(table, row))
+  }
+
+  if ((await hasSolarRows('solar_climate_logs')) || (await hasSolarRows('culture_stage_logs'))) {
+    return 'solar'
+  }
+
+  const { data, error } = await ((supabaseAdmin.from('parcele') as unknown) as {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => Promise<{
+        data: Array<Record<string, unknown>> | null
+        error: { message?: string } | null
+      }>
+    }
+  })
+    .select('id,id_parcela,observatii,tip_unitate,data_origin,demo_seed_id')
+    .eq('tenant_id', tenantId)
+
+  if (error) {
+    throw new Error(`Demo type detection failed for parcele: ${error.message ?? 'Unknown error'}`)
+  }
+
+  const hasSolarParcel = (data ?? []).some((row) => {
+    if (!hasStoredDemoMarker(row, null) && !isFallbackDemoRow('parcele', row)) {
+      return false
+    }
+
+    return String(row.tip_unitate ?? '').trim().toLowerCase() === 'solar' ||
+      String(row.observatii ?? '').trim().toLowerCase().includes('solar')
+  })
+
+  return hasSolarParcel ? 'solar' : 'berries'
+}
+
+async function runSeedDemoRpc(
+  supabaseAdmin: SupabaseClient<Database>,
+  tenantId: string,
+  demoType: DemoType
+): Promise<DemoSeedRpcResult> {
+  const { data, error } = await (supabaseAdmin as unknown as {
     rpc: (
       fn: string,
-      args: { p_tenant_id: string }
-    ) => Promise<{ error: { message?: string } | null }>
+      args: { p_tenant_id: string; p_demo_type: DemoType }
+    ) => Promise<{ data: DemoSeedRpcRow | null; error: { message?: string } | null }>
   }).rpc('seed_demo_for_tenant', {
     p_tenant_id: tenantId,
+    p_demo_type: demoType,
   })
 
   if (error) {
     throw new Error(`seed_demo_for_tenant failed: ${error.message ?? 'Unknown error'}`)
+  }
+
+  return {
+    status: normalizeDemoSeedRpcStatus(data?.status ?? null),
+    demoSeedId: typeof data?.demo_seed_id === 'string' ? data.demo_seed_id : null,
+    demoType: normalizeDemoType(data?.demo_type ?? demoType),
   }
 }
 
@@ -443,34 +531,20 @@ export async function getTenantDemoContext(
 
 export async function seedDemoDataForTenant(
   supabaseAdmin: SupabaseClient<Database>,
-  tenantId: string
-): Promise<{ seedId: string; summary: DemoSeedSummary }> {
-  const seedId = randomUUID()
-  await runSeedDemoRpc(supabaseAdmin, tenantId)
+  tenantId: string,
+  demoType: DemoType = 'berries'
+): Promise<{ status: DemoSeedRpcStatus; seedId: string | null; summary: DemoSeedSummary }> {
+  const rpcResult = await runSeedDemoRpc(supabaseAdmin, tenantId, demoType)
 
-  await updateTenantDemoFlags(supabaseAdmin, tenantId, {
-    demo_seeded: true,
-    demo_seed_id: seedId,
-    demo_seeded_at: new Date().toISOString(),
-  })
+  if (rpcResult.status === 'skipped_existing_data') {
+    return {
+      status: rpcResult.status,
+      seedId: null,
+      summary: { ...EMPTY_SUMMARY },
+    }
+  }
 
-  return { seedId, summary: { ...EMPTY_SUMMARY } }
-}
-
-export async function reloadDemoDataForTenant(
-  supabaseAdmin: SupabaseClient<Database>,
-  tenantId: string
-): Promise<{ deletedRows: number; seedId: string; summary: DemoSeedSummary }> {
-  const demoColumnsSupport = await resolveDemoColumnSupport(supabaseAdmin)
-  const deletedRows = await deleteDemoRows({
-    supabaseAdmin,
-    tenantId,
-    seedId: null,
-    demoColumnsSupport,
-  })
-
-  const seedId = randomUUID()
-  await runSeedDemoRpc(supabaseAdmin, tenantId)
+  const seedId = rpcResult.demoSeedId ?? randomUUID()
 
   await updateTenantDemoFlags(supabaseAdmin, tenantId, {
     demo_seeded: true,
@@ -479,8 +553,45 @@ export async function reloadDemoDataForTenant(
   })
 
   return {
-    deletedRows,
+    status: rpcResult.status,
     seedId,
+    summary: { ...EMPTY_SUMMARY },
+  }
+}
+
+export async function reloadDemoDataForTenant(
+  supabaseAdmin: SupabaseClient<Database>,
+  tenantId: string
+): Promise<{ deletedRows: number; seedId: string; summary: DemoSeedSummary }> {
+  const demoColumnsSupport = await resolveDemoColumnSupport(supabaseAdmin)
+  const demoType = await inferDemoTypeForTenant(supabaseAdmin, tenantId, demoColumnsSupport)
+  const deletedRows = await deleteDemoRows({
+    supabaseAdmin,
+    tenantId,
+    seedId: null,
+    demoColumnsSupport,
+  })
+
+  await updateTenantDemoFlags(supabaseAdmin, tenantId, {
+    demo_seeded: false,
+    demo_seed_id: null,
+    demo_seeded_at: null,
+  })
+
+  const rpcResult = await runSeedDemoRpc(supabaseAdmin, tenantId, demoType)
+  if (rpcResult.status !== 'seeded' || !rpcResult.demoSeedId) {
+    throw new Error(`Demo reload failed: seed status ${rpcResult.status}`)
+  }
+
+  await updateTenantDemoFlags(supabaseAdmin, tenantId, {
+    demo_seeded: true,
+    demo_seed_id: rpcResult.demoSeedId,
+    demo_seeded_at: new Date().toISOString(),
+  })
+
+  return {
+    deletedRows,
+    seedId: rpcResult.demoSeedId,
     summary: { ...EMPTY_SUMMARY },
   }
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { MessageCircleMore, Loader2 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -21,7 +21,15 @@ const RATING_OPTIONS = [
   { value: 5, emoji: '<3' },
 ] as const
 
-export function BetaBanner() {
+export function HeaderBetaBadge() {
+  return (
+    <span className="inline-flex h-[22px] items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-2 text-[12px] font-semibold leading-none text-emerald-900">
+      BETA
+    </span>
+  )
+}
+
+export function HeaderFeedbackButton() {
   const { userId } = useDashboardAuth()
   const pathname = usePathname()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
@@ -56,7 +64,6 @@ export function BetaBanner() {
       if (insertError) throw insertError
 
       track('feedback_sent', { rating, page: pathname || '/' })
-
       toast.success('Mulțumim pentru feedback!')
       setMessage('')
       setRating(4)
@@ -71,22 +78,17 @@ export function BetaBanner() {
 
   return (
     <>
-      <div className="sticky top-0 z-50 border-b border-amber-200 bg-amber-100/95 text-amber-900 backdrop-blur">
-        <div className="mx-auto flex min-h-9 w-full max-w-7xl items-center justify-between gap-2 px-3 py-1.5 sm:px-4">
-          <p className="text-xs font-medium sm:text-sm">Zmeurel OS este în BETA. Trimite feedback</p>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-7 border-amber-300 bg-amber-50 px-2.5 text-xs text-amber-900 hover:bg-amber-200"
-            onClick={() => {
-              track('feedback_banner_click', { page: pathname || '/' })
-              setFeedbackOpen(true)
-            }}
-          >
-            Trimite feedback
-          </Button>
-        </div>
-      </div>
+      <button
+        type="button"
+        className="inline-flex h-[27px] items-center gap-1.5 rounded-full border border-[var(--agri-border)] bg-white/96 px-2.5 text-[12px] font-medium text-[var(--agri-text)] shadow-sm transition hover:bg-[var(--agri-surface-muted)]"
+        onClick={() => {
+          track('feedback_header_click', { page: pathname || '/' })
+          setFeedbackOpen(true)
+        }}
+      >
+        <MessageCircleMore className="h-3.5 w-3.5" />
+        Feedback
+      </button>
 
       <AppDialog
         open={feedbackOpen}
@@ -145,6 +147,10 @@ export function BetaBanner() {
       </AppDialog>
     </>
   )
+}
+
+export function BetaBanner() {
+  return null
 }
 
 export function resetBetaBannerDismissal() {

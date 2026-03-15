@@ -55,7 +55,7 @@ export function RecentActivityCard({ items }: { items?: RecentActivityItem[] }) 
   return (
     <BaseCard className="min-h-[196px]">
       <div className="space-y-3">
-        <h3 className="text-base font-semibold text-[var(--agri-text)]">Activitate recent?</h3>
+        <h3 className="text-base font-semibold text-[var(--agri-text)]">Activitate recentă</h3>
 
         <div className="space-y-2">
           {activityItems.map((item) => {

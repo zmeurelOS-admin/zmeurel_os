@@ -4,12 +4,26 @@
 
 ▲ Next.js 16.1.6 (Turbopack)
 - Local:         http://localhost:3000
-- Network:       http://192.168.100.14:3000
+- Network:       http://100.112.0.178:3000
 - Environments: .env.local
 - Experiments (use with caution):
   · clientTraceMetadata
 
 ✓ Starting...
-⨯ Unable to acquire lock at C:\Users\Andrei\Desktop\zmeurel\.next\dev\lock, is another instance of next dev running?
-  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
-[?25h
+Creating turbopack project { dir: 'C:\\Users\\Andrei\\Desktop\\zmeurel', testMode: true }
+✓ Ready in 29.9s
+○ Compiling / ...
+ GET / 200 in 887ms (compile: 8ms, proxy.ts: 8ms, render: 871ms)
+ GET /login 200 in 3.0s (compile: 2.9s, proxy.ts: 24ms, render: 40ms)
+ GET /start 200 in 1745ms (compile: 1691ms, proxy.ts: 9ms, render: 46ms)
+ GET /login?mode=register&next=%2Fstart 200 in 85ms (compile: 11ms, proxy.ts: 16ms, render: 58ms)
+ GET /login 200 in 50ms (compile: 9ms, proxy.ts: 12ms, render: 29ms)
+ GET /start 200 in 318ms (compile: 12ms, proxy.ts: 29ms, render: 276ms)
+ GET /start 200 in 93ms (compile: 9ms, proxy.ts: 12ms, render: 71ms)
+✓ Compiled in 3s
+ GET /start 200 in 1230ms (compile: 261ms, proxy.ts: 297ms, render: 671ms)
+ GET /start 200 in 1480ms (compile: 332ms, proxy.ts: 236ms, render: 912ms)
+✓ Compiled in 1106ms
+✓ Compiled in 2.6s
+✓ Compiled in 1885ms
+✓ Compiled in 562ms

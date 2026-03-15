@@ -42,7 +42,7 @@ import {
   type ComandaStatus,
   updateComanda,
 } from '@/lib/supabase/queries/comenzi'
-import { getStocGlobal } from '@/lib/supabase/queries/stoc'
+import { getStocGlobal } from '@/lib/supabase/queries/miscari-stoc'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
@@ -116,7 +116,7 @@ function normalize(value: string): string {
 
 function canDeliverStatus(status: string): boolean {
   const normalized = normalize(status)
-  return normalized === 'confirmata' || normalized === 'noua'
+  return ['noua', 'confirmata', 'programata', 'in_livrare'].includes(normalized)
 }
 
 function isOpenStatus(status: ComandaStatus): boolean {
@@ -179,6 +179,13 @@ function toWhatsAppUrl(phone: string | null | undefined): string {
 function isPaidStatus(status: string | null | undefined): boolean {
   const value = normalize(String(status ?? ''))
   return value.includes('platit') || value.includes('incasat')
+}
+
+function getComandaIcon(isDelivered: boolean, isUrgent: boolean, isFuture: boolean): string {
+  if (isDelivered) return '✅'
+  if (isUrgent) return '🚚'
+  if (isFuture) return '🗓️'
+  return '📦'
 }
 
 function ComenziTabs({
@@ -248,6 +255,7 @@ function ComandaCard({
   onConfirmDeliver,
   onGoToVanzari,
   onReopen,
+  onQuickStatusChange,
 }: {
   comanda: Comanda
   clientName: string
@@ -262,7 +270,9 @@ function ComandaCard({
   onConfirmDeliver: (comanda: Comanda) => void
   onGoToVanzari: () => void
   onReopen: (comanda: Comanda) => void
+  onQuickStatusChange: (comanda: Comanda, status: ComandaStatus) => void
 }) {
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const today = todayIso()
   const delivery = comanda.data_livrare ?? ''
   const isDelivered = comanda.status === 'livrata'
@@ -273,7 +283,7 @@ function ComandaCard({
   const phone = (comanda.telefon || '').trim()
   const hasPhone = phone.length > 0
   const isNewPhone = !comanda.client_id && hasPhone
-  const icon = isDelivered ? '?' : isUrgent ? '?' : isFuture ? '?' : '?'
+  const icon = getComandaIcon(isDelivered, isUrgent, isFuture)
   const iconBg = isDelivered ? colors.greenLight : isUrgent ? colors.coralLight : colors.yellowLight
   const whatsappUrl = toWhatsAppUrl(phone)
 
@@ -289,6 +299,7 @@ function ComandaCard({
         }
       }}
       style={{
+        position: 'relative',
         borderRadius: radius.lg,
         border: `1px solid ${colors.grayLight}`,
         borderLeft: isDelivered ? `4px solid ${colors.green}` : undefined,
@@ -322,14 +333,12 @@ function ComandaCard({
                   fontSize: 14,
                   fontWeight: 700,
                   color: colors.dark,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  lineHeight: 1.25,
                 }}
               >
                 {clientName}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                 {hasPhone ? (
                   <a
                     href={`tel:${phone}`}
@@ -345,10 +354,58 @@ function ComandaCard({
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              <StatusBadge text={statusLabelMap[comanda.status]} variant={statusVariantMap[comanda.status]} />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setStatusMenuOpen((previous) => !previous)
+                }}
+                style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+              >
+                <StatusBadge text={statusLabelMap[comanda.status]} variant={statusVariantMap[comanda.status]} />
+              </button>
               <span style={{ fontSize: 11, color: colors.gray }}>{formatDate(comanda.data_livrare)}</span>
             </div>
           </div>
+
+          {statusMenuOpen ? (
+            <div
+              onClick={(event) => event.stopPropagation()}
+              style={{
+                marginTop: spacing.sm,
+                display: 'grid',
+                gap: 6,
+                borderRadius: radius.lg,
+                border: `1px solid ${colors.grayLight}`,
+                background: colors.white,
+                boxShadow: shadows.card,
+                padding: spacing.xs,
+              }}
+            >
+              {COMENZI_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => {
+                    setStatusMenuOpen(false)
+                    onQuickStatusChange(comanda, status)
+                  }}
+                  style={{
+                    minHeight: 40,
+                    border: 'none',
+                    borderRadius: radius.md,
+                    background: status === comanda.status ? colors.greenLight : colors.grayLight,
+                    color: status === comanda.status ? colors.green : colors.dark,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {statusLabelMap[status]}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div
             style={{
@@ -356,8 +413,8 @@ function ComandaCard({
               borderTop: `1px solid ${colors.grayLight}`,
               paddingTop: spacing.sm,
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, minmax(0,1fr)) auto',
-              alignItems: 'end',
+              gridTemplateColumns: 'repeat(3, minmax(0,1fr))',
+              alignItems: 'start',
               gap: spacing.sm,
             }}
           >
@@ -373,17 +430,26 @@ function ComandaCard({
               <div style={{ fontSize: 10, color: colors.gray }}>TOTAL</div>
               <div style={{ fontSize: 13, fontWeight: 700, color: colors.green }}>{formatLei(comanda.total)}</div>
             </div>
-            <span
-              style={{
-                fontSize: 16,
-                color: colors.gray,
-                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease',
-                alignSelf: 'center',
-              }}
-            >
-              ▾
-            </span>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
+              <div>
+                <div style={{ fontSize: 10, color: colors.gray }}>LIVRARE</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatDate(comanda.data_livrare)}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                <div style={{ fontSize: 11, color: colors.gray }}>{comanda.locatie_livrare || 'fără locație'}</div>
+                <span
+                  style={{
+                    fontSize: 16,
+                    color: colors.gray,
+                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s ease',
+                    alignSelf: 'center',
+                  }}
+                >
+                  ▾
+                </span>
+              </div>
+            </div>
           </div>
 
           {canDeliver ? (
@@ -464,7 +530,7 @@ function ComandaCard({
                     cursor: 'pointer',
                   }}
                 >
-                  MARCHEAZĂ LIVRATĂ
+                  Marchează livrată
                 </button>
               )}
             </div>
@@ -658,10 +724,30 @@ function ComandaDialog({
     }
   }, [initial])
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
+  const [clientSearch, setClientSearch] = useState('')
   const manualName = form.client_nume_manual.trim()
   const selectedClient = clienti.find((client) => client.id === form.client_id)
   const suggestedClientName = manualName || selectedClient?.nume_client || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && form.telefon.trim().length > 0
+
+  useEffect(() => {
+    if (!open) {
+      setClientSearch('')
+      setForm(initialFormState)
+    }
+  }, [initialFormState, open])
+
+  const filteredClienti = useMemo(() => {
+    const term = clientSearch.trim().toLowerCase()
+    if (!term) return clienti
+
+    return clienti.filter((client) => {
+      const name = String(client.nume_client ?? '').toLowerCase()
+      const phone = String(client.telefon ?? '').toLowerCase()
+      const email = String(client.email ?? '').toLowerCase()
+      return name.includes(term) || phone.includes(term) || email.includes(term)
+    })
+  }, [clientSearch, clienti])
 
   return (
     <AppDialog
@@ -701,6 +787,17 @@ function ComandaDialog({
     >
       <div className="space-y-3">
         <div className="space-y-1.5">
+          <Label htmlFor="comanda_client_search">Caută client</Label>
+          <Input
+            id="comanda_client_search"
+            className="agri-control h-12"
+            placeholder="Caută după nume, telefon sau email"
+            value={clientSearch}
+            onChange={(event) => setClientSearch(event.target.value)}
+          />
+        </div>
+
+        <div className="space-y-1.5">
           <Label>Client existent</Label>
           <Select value={form.client_id || '__none'} onValueChange={(value) => setForm((prev) => ({ ...prev, client_id: value === '__none' ? '' : value }))}>
             <SelectTrigger className="agri-control h-12">
@@ -708,7 +805,7 @@ function ComandaDialog({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__none">Fără client</SelectItem>
-              {clienti.map((client) => (
+              {filteredClienti.map((client) => (
                 <SelectItem key={client.id} value={client.id}>
                   {client.nume_client}
                 </SelectItem>
@@ -746,7 +843,7 @@ function ComandaDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>Data comanda</Label>
+            <Label>Data comandă</Label>
             <Input type="date" className="agri-control h-12" value={form.data_comanda} onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))} />
           </div>
           <div className="space-y-1.5">
@@ -761,7 +858,7 @@ function ComandaDialog({
             <Input type="number" min="0" step="0.01" className="agri-control h-12" value={form.cantitate_kg} onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))} />
           </div>
           <div className="space-y-1.5">
-            <Label>Pret per kg</Label>
+            <Label>Preț per kg</Label>
             <Input type="number" min="0" step="0.01" className="agri-control h-12" value={form.pret_per_kg} onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))} />
           </div>
         </div>
@@ -936,6 +1033,21 @@ export function ComenziPageClient() {
     },
   })
 
+  const restorePendingDeleteItem = (comandaId: string) => {
+    const pendingItem = pendingDeletedItems.current[comandaId]
+    if (!pendingItem) return
+
+    delete pendingDeletedItems.current[comandaId]
+    queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current = []) => {
+      if (current.some((item) => item.id === comandaId)) return current
+
+      const next = [...current]
+      const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+      next.splice(insertAt, 0, pendingItem.item)
+      return next
+    })
+  }
+
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) => updateComanda(id, payload),
     onSuccess: (_, variables) => {
@@ -957,12 +1069,19 @@ export function ComenziPageClient() {
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      delete pendingDeletedItems.current[deletedId]
       track('comanda_delete', { id: deletedId })
       hapticSuccess()
       toast.success('Comandă ștearsă')
       setDeleting(null)
     },
-    onError: (err: Error) => {
+    onError: (err: Error, deletedId) => {
+      restorePendingDeleteItem(deletedId)
       hapticError()
       toast.error(err.message)
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
@@ -994,6 +1113,8 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       hapticSuccess()
       toast('Comandă livrată! Vânzare creată.')
 
@@ -1023,6 +1144,8 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       hapticSuccess()
       toast.success('Comandă redeschisă')
       setReopening(null)
@@ -1054,7 +1177,7 @@ export function ComenziPageClient() {
   }, [addFromQuery, pathname, router, searchParams])
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga comanda')
+    const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă comandă')
     return unregister
   }, [registerAddAction])
 
@@ -1081,7 +1204,6 @@ export function ComenziPageClient() {
 
     const timer = setTimeout(() => {
       delete pendingDeleteTimers.current[comandaId]
-      delete pendingDeletedItems.current[comandaId]
       deleteMutation.mutate(comandaId)
     }, 5000)
 
@@ -1231,6 +1353,26 @@ export function ComenziPageClient() {
     })
   }
 
+  const handleQuickStatusChange = async (comanda: Comanda, status: ComandaStatus) => {
+    if (status === comanda.status) return
+
+    if (status === 'livrata') {
+      await handleConfirmDeliver(comanda)
+      return
+    }
+
+    if (comanda.status === 'livrata') {
+      await reopenMutation.mutateAsync(comanda.id)
+    }
+
+    await updateMutation.mutateAsync({
+      id: comanda.id,
+      payload: {
+        status,
+      },
+    })
+  }
+
   const desktopSelectedComanda =
     filteredComenzi.find((item) => item.id === desktopSelectedComandaId) ??
     filteredComenzi[0] ??
@@ -1251,11 +1393,14 @@ export function ComenziPageClient() {
       }
     >
       <div
-        className="mx-auto mt-4 w-full max-w-[980px] sm:mt-0 lg:max-w-[1320px]"
+        className="mx-auto mt-3 w-full max-w-[980px] sm:mt-0 lg:max-w-[1320px]"
         style={{ display: 'flex', flexDirection: 'column', gap: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.md }}
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div style={{ border: comenziAzi.length > 0 ? `1px solid ${colors.coral}` : `1px solid ${colors.grayLight}`, borderRadius: radius.xl }}>
+          <div
+            className="col-span-1"
+            style={{ border: comenziAzi.length > 0 ? `1px solid ${colors.coral}` : `1px solid ${colors.grayLight}`, borderRadius: radius.xl }}
+          >
             <MiniCard
               icon={comenziAzi.length > 0 ? '🚚' : '📦'}
               value={`${comenziAzi.length}`}
@@ -1271,7 +1416,13 @@ export function ComenziPageClient() {
             label="active total"
             onClick={() => setFilterAndTab('de_livrat', 'active')}
           />
-          <MiniCard icon="💰" value={`${formatLeiCompact(totalActiveValue)} RON`} sub="RON valoare" label="valoare" />
+          <MiniCard
+            className="col-span-2 sm:col-span-1"
+            icon="💰"
+            value={`${formatLeiCompact(totalActiveValue)} RON`}
+            sub="valoare totală"
+            label="valoare"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -1292,6 +1443,7 @@ export function ComenziPageClient() {
             onClick={() => setFilterAndTab('livrate', 'neincasat')}
           />
           <AlertCard
+            className="col-span-2 sm:col-span-1"
             icon="📦"
             label="Stoc disp."
             value={formatKg(totalStocDisponibilKg)}
@@ -1358,6 +1510,7 @@ export function ComenziPageClient() {
                   onConfirmDeliver={handleConfirmDeliver}
                   onGoToVanzari={() => router.push('/vanzari')}
                   onReopen={setReopening}
+                  onQuickStatusChange={handleQuickStatusChange}
                 />
               ))}
             </div>
@@ -1401,15 +1554,15 @@ export function ComenziPageClient() {
               </div>
 
               <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Detalii comanda</h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Detalii comandă</h3>
                 {desktopSelectedComanda ? (
                   <div className="mt-4 space-y-3 text-sm text-gray-700">
                     <p><span className="font-medium text-gray-900">Client:</span> {getClientName(desktopSelectedComanda, clientMap)}</p>
                     <p><span className="font-medium text-gray-900">Telefon:</span> {desktopSelectedComanda.telefon || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Data comanda:</span> {formatDate(desktopSelectedComanda.data_comanda)}</p>
+                    <p><span className="font-medium text-gray-900">Data comandă:</span> {formatDate(desktopSelectedComanda.data_comanda)}</p>
                     <p><span className="font-medium text-gray-900">Data livrare:</span> {formatDate(desktopSelectedComanda.data_livrare)}</p>
                     <p><span className="font-medium text-gray-900">Cantitate:</span> {formatKg(Number(desktopSelectedComanda.cantitate_kg || 0))}</p>
-                    <p><span className="font-medium text-gray-900">Pret/kg:</span> {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}</p>
+                    <p><span className="font-medium text-gray-900">Preț/kg:</span> {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}</p>
                     <p><span className="font-medium text-gray-900">Total:</span> {formatLei(Number(desktopSelectedComanda.total || 0))}</p>
                     <div>
                       <StatusBadge
@@ -1476,12 +1629,12 @@ export function ComenziPageClient() {
           const pret = Number(values.pret_per_kg)
           if (!Number.isFinite(cantitate) || cantitate <= 0) {
             hapticError()
-            toast.error('Cantitatea trebuie sa fie mai mare decat 0.')
+            toast.error('Cantitatea trebuie să fie mai mare decât 0.')
             return
           }
           if (!Number.isFinite(pret) || pret <= 0) {
             hapticError()
-            toast.error('Pretul trebuie sa fie mai mare decat 0.')
+            toast.error('Prețul trebuie să fie mai mare decât 0.')
             return
           }
 
@@ -1516,12 +1669,12 @@ export function ComenziPageClient() {
           const pret = Number(values.pret_per_kg)
           if (!Number.isFinite(cantitate) || cantitate <= 0) {
             hapticError()
-            toast.error('Cantitatea trebuie sa fie mai mare decat 0.')
+            toast.error('Cantitatea trebuie să fie mai mare decât 0.')
             return
           }
           if (!Number.isFinite(pret) || pret <= 0) {
             hapticError()
-            toast.error('Pretul trebuie sa fie mai mare decat 0.')
+            toast.error('Prețul trebuie să fie mai mare decât 0.')
             return
           }
 
@@ -1602,7 +1755,7 @@ export function ComenziPageClient() {
         itemType="Comanda"
         itemName={reopening ? getClientName(reopening, clientMap) : 'Comanda livrată'}
         title="Confirmi redeschiderea?"
-        description="Redeschiderea va anula vanzarea asociata ți va restaura stocul aferent livrarii."
+        description="Redeschiderea va anula vânzarea asociată și va restaura stocul aferent livrării."
         confirmText="Redeschide"
         loading={reopenMutation.isPending}
       />

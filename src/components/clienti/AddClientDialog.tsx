@@ -11,14 +11,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { downloadVCard } from '@/lib/utils/downloadVCard'
 
 const schema = z.object({
-  nume_client: z.string().trim().min(2, 'Numele trebuie sa aiba minim 2 caractere'),
+  nume_client: z.string().trim().min(2, 'Numele trebuie să aibă minimum 2 caractere'),
   telefon: z.string().optional(),
   email: z.string().email('Email invalid').or(z.literal('')).optional(),
   adresa: z.string().optional(),
   pret_negociat_lei_kg: z.string().optional(),
   observatii: z.string().optional(),
+  salveaza_in_telefon: z.boolean().optional(),
 })
 
 type ClientFormData = z.infer<typeof schema>
@@ -37,6 +39,7 @@ const defaults = (initialValues?: Partial<ClientFormData>): ClientFormData => ({
   adresa: initialValues?.adresa ?? '',
   pret_negociat_lei_kg: initialValues?.pret_negociat_lei_kg ?? '',
   observatii: initialValues?.observatii ?? '',
+  salveaza_in_telefon: false,
 })
 
 export function AddClientDialog({ open, onOpenChange, onSubmit, initialValues }: AddClientDialogProps) {
@@ -59,6 +62,11 @@ export function AddClientDialog({ open, onOpenChange, onSubmit, initialValues }:
     setIsSubmitting(true)
     try {
       await onSubmit(data)
+      const name = data.nume_client.trim()
+      const phone = (data.telefon ?? '').trim()
+      if (data.salveaza_in_telefon && name && phone) {
+        downloadVCard(name, phone)
+      }
       onOpenChange(false)
     } finally {
       setIsSubmitting(false)
@@ -112,12 +120,12 @@ export function AddClientDialog({ open, onOpenChange, onSubmit, initialValues }:
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="client_adresa">Adresa</Label>
+          <Label htmlFor="client_adresa">Adresă</Label>
           <Textarea id="client_adresa" rows={3} className="agri-control w-full px-3 py-2 text-base" {...form.register('adresa')} />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="client_pret">Pret negociat (lei/kg)</Label>
+          <Label htmlFor="client_pret">Preț negociat (lei/kg)</Label>
           <Input
             id="client_pret"
             type="number"
@@ -134,6 +142,20 @@ export function AddClientDialog({ open, onOpenChange, onSubmit, initialValues }:
           <Label htmlFor="client_obs">Observații</Label>
           <Textarea id="client_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
         </div>
+
+        <label className="flex items-start gap-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 py-3 text-sm text-[var(--agri-text)]">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)]"
+            {...form.register('salveaza_in_telefon')}
+          />
+          <span>
+            <span className="block font-medium">Salvează și în telefon</span>
+            <span className="block text-xs text-[var(--agri-text-muted)]">
+              Descarcă automat contactul ca vCard după salvare.
+            </span>
+          </span>
+        </label>
       </form>
     </AppDrawer>
   )

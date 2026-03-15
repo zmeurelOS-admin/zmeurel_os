@@ -52,9 +52,13 @@ const defaults = (): EditVanzareFormData => ({
   client_id: '',
   cantitate_kg: '',
   pret_lei_kg: '',
-  status_plata: 'Platit',
+  status_plata: 'platit',
   observatii_ladite: '',
 })
+
+function formatStatusPlataLabel(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
 
 export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDialogProps) {
   const queryClient = useQueryClient()
@@ -72,7 +76,7 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
       client_id: vanzare.client_id ?? '',
       cantitate_kg: String(vanzare.cantitate_kg ?? ''),
       pret_lei_kg: String(vanzare.pret_lei_kg ?? ''),
-      status_plata: vanzare.status_plata || 'Platit',
+      status_plata: vanzare.status_plata || 'platit',
       observatii_ladite: vanzare.observatii_ladite ?? '',
     })
   }, [open, vanzare, form])
@@ -94,19 +98,27 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
         status_plata: data.status_plata,
         observatii_ladite: data.observatii_ladite?.trim() || undefined,
       }),
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
+      if (!result.success) {
+        hapticError()
+        toast.error(result.error)
+        return
+      }
+
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       track('vanzare_edit', { id: variables.id })
       hapticSuccess()
       toast.success('Vânzare actualizata')
       onOpenChange(false)
     },
     onError: (error) => {
-      console.error('Error updating vanzare:', error)
       hapticError()
-      toast.error('Eroare la actualizarea vanzarii')
+      const message = error instanceof Error ? error.message : 'Eroare la actualizarea vanzarii'
+      toast.error(message)
     },
   })
 
@@ -170,7 +182,7 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange }: EditVanzareDi
           <select id="ev_status" className="agri-control h-12 w-full px-3 text-base" {...form.register('status_plata')}>
             {STATUS_PLATA.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {formatStatusPlataLabel(status)}
               </option>
             ))}
           </select>

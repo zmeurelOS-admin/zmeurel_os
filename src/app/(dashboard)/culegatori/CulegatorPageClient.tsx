@@ -107,9 +107,10 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     refetchOnWindowFocus: false,
   })
 
-  const { data: recoltari = [], isLoading: recoltariLoading } = useQuery({
+  const { data: recoltari = [] } = useQuery({
     queryKey: queryKeys.recoltari,
     queryFn: getRecoltari,
+    initialData: [],
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
@@ -368,7 +369,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [selectedCulegatorId, filteredCulegatori.length])
 
-  const isLoading = culegatoriLoading || recoltariLoading
+  const isLoading = culegatoriLoading
 
   return (
     <AppShell
@@ -381,11 +382,11 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <MiniCard icon={'\u{1F464}'} value={String(activeTodayCount)} sub="activi azi" label="Activi azi" />
           <MiniCard icon={'\u{1FAD0}'} value={formatKg(totalKgToday, 1)} sub="kg azi" label="Total recoltat azi" />
-          <MiniCard icon={'\u{1F4B8}'} value={manoperaAzi === null ? '—' : formatCurrency(manoperaAzi)} sub="RON manoper?" label="Cost manoperă azi" />
+          <MiniCard icon={'\u{1F4B8}'} value={manoperaAzi === null ? '—' : formatCurrency(manoperaAzi)} sub="RON manoperă" label="Cost manoperă azi" />
         </div>
 
         <div
@@ -416,7 +417,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
           </div>
 
           {rankingItems.length === 0 ? (
-            <div style={{ fontSize: 12, color: colors.gray }}>Nicio recoltare ?nregistrat? azi.</div>
+            <div style={{ fontSize: 12, color: colors.gray }}>Nicio recoltare înregistrată azi.</div>
           ) : (
             <div style={{ display: 'grid', gap: spacing.xs }}>
               {rankingItems.map((worker, index) => {
@@ -480,10 +481,10 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         </div>
 
         <SearchField
-          placeholder="Caut? culeg?tor..."
+          placeholder="Caută culegător..."
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          aria-label="Caut? culeg?tori"
+          aria-label="Caută culegători"
         />
 
         {selectedCulegatorId ? (
@@ -501,16 +502,16 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
               cursor: 'pointer',
             }}
           >
-            {'\u2715'} Arat? to?i culeg?torii
+            {'\u2715'} Arată toți culegătorii
           </button>
         ) : null}
         {culegatoriError ? <ErrorState title="Eroare" message={(culegatoriErrorValue as Error).message} /> : null}
-        {isLoading ? <LoadingState label="Se ?ncarc? culeg?torii..." /> : null}
+        {isLoading ? <LoadingState label="Se încarcă culegătorii..." /> : null}
         {!isLoading && !culegatoriError && filteredCulegatori.length === 0 ? (
           <EmptyState
             icon={<UserPlus className="h-16 w-16" />}
-            title="Niciun culeg?tor ?nc?"
-            description="Adaug? primul culeg?tor pentru a ?ncepe"
+            title="Niciun culegător încă"
+            description="Adaugă primul culegător pentru a începe"
           />
         ) : null}
 
@@ -574,8 +575,8 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         onOpenChange={(open) => {
           if (!open) setDeleting(null)
         }}
-        itemType="Culeg?tor"
-        itemName={deleting?.nume_prenume || 'Culeg?tor selectat'}
+        itemType="Culegător"
+        itemName={deleting?.nume_prenume || 'Culegător selectat'}
         description={`Ștergi culegătorul ${deleting?.nume_prenume || 'selectat'}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {

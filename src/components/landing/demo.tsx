@@ -7,12 +7,13 @@ import { ArrowRight, PlayCircle } from 'lucide-react'
 import CountUp from '@/components/landing/count-up'
 import Reveal from '@/components/landing/reveal'
 import { Button } from '@/components/ui/button'
+import { buildLoginUrl } from '@/lib/auth/redirects'
 
 export default function Demo() {
   return (
-    <section id="demo" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-      <Reveal className="overflow-hidden rounded-[36px] border border-[color:rgba(49,46,63,0.08)] bg-[linear-gradient(135deg,#312e3f_0%,#3a3650_55%,#2f6f4e_140%)] p-8 text-white shadow-[0_30px_80px_rgba(49,46,63,0.2)] sm:p-10 lg:p-12">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <section id="demo" className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-24">
+      <Reveal className="overflow-hidden rounded-[36px] border border-[color:rgba(49,46,63,0.08)] bg-[linear-gradient(135deg,#312e3f_0%,#3a3650_55%,#2f6f4e_140%)] p-6 text-white shadow-[0_30px_80px_rgba(49,46,63,0.2)] sm:p-10 lg:p-12">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-8">
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-medium text-white/90">
               <PlayCircle className="size-4" />
@@ -22,7 +23,8 @@ export default function Demo() {
               Vezi cum arată ferma ta într-o aplicație simplă
             </h2>
             <p className="max-w-2xl text-base leading-7 text-white/75">
-              Poți intra rapid într-o fermă demo și vezi cum se notează parcelele, lucrările, recoltele și vânzările.
+              Intră rapid într-o fermă demo și vezi cum se notează parcelele, lucrările, recoltele
+              și vânzările.
             </p>
           </div>
 
@@ -32,7 +34,7 @@ export default function Demo() {
               size="lg"
               className="h-12 rounded-full bg-[linear-gradient(135deg,#f16b6b_0%,#d84b62_100%)] px-6 text-white shadow-[0_18px_44px_rgba(241,107,107,0.28)] hover:brightness-105"
             >
-              <Link href="/login">
+              <Link href={buildLoginUrl()}>
                 Vezi demo
                 <ArrowRight className="size-5" />
               </Link>
@@ -54,7 +56,7 @@ export default function Demo() {
             transition={{ duration: 0.24, ease: 'easeOut' }}
             className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur"
           >
-            <p className="text-xs font-semibold tracking-[0.14em] text-white/65 uppercase">Exemplu de recoltă</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/65">Exemplu de recoltă</p>
             <p className="mt-2 text-3xl font-bold text-white">
               <CountUp to={120} suffix=" kg" />
             </p>
@@ -65,7 +67,7 @@ export default function Demo() {
             transition={{ duration: 0.24, ease: 'easeOut' }}
             className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur"
           >
-            <p className="text-xs font-semibold tracking-[0.14em] text-white/65 uppercase">Echipă activă</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/65">Echipă activă</p>
             <p className="mt-2 text-3xl font-bold text-white">
               <CountUp to={4} /> culegători
             </p>

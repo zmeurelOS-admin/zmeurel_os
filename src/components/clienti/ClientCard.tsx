@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 
 import { colors } from '@/lib/design-tokens'
 import type { Client } from '@/lib/supabase/queries/clienti'
+import { downloadVCard } from '@/lib/utils/downloadVCard'
 
 interface ClientCardProps {
   client: Client
@@ -63,21 +64,14 @@ export function ClientCard({
   const waHref = client.telefon ? toWhatsapp(client.telefon) : ''
 
   return (
-    <div
-      ref={rootRef}
-      className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm"
-    >
-      <button
-        type="button"
-        onClick={() => setExpanded((current) => !current)}
-        className="w-full p-5 text-left"
-      >
-        <div className="flex items-start gap-4">
+    <div ref={rootRef} className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
+      <button type="button" onClick={() => setExpanded((current) => !current)} className="w-full p-4 text-left">
+        <div className="flex items-start gap-3">
           <div
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg"
             style={{ background: hasRecentSales ? colors.greenLight : colors.grayLight }}
           >
-            🤝
+            👤
           </div>
 
           <div className="min-w-0 flex-1 space-y-1.5">
@@ -89,7 +83,7 @@ export function ClientCard({
             >
               {client.telefon || '-'}
             </a>
-            <div className="truncate text-sm text-[var(--agri-text-muted)]">{client.adresa || '-'}</div>
+            <div className="line-clamp-2 text-sm text-[var(--agri-text-muted)]">{client.adresa || 'Fără adresă'}</div>
           </div>
 
           <div className="shrink-0 text-right">
@@ -107,11 +101,15 @@ export function ClientCard({
       </button>
 
       {expanded ? (
-        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-4 py-4">
+          <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Total cumpărat</div>
               <div className="text-xs font-semibold text-[var(--agri-text)]">{totalRon.toFixed(0)} RON</div>
+            </div>
+            <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
+              <div className="text-[10px] text-[var(--agri-text-muted)]">Cantitate totală</div>
+              <div className="text-xs font-semibold text-[var(--agri-text)]">{totalKg.toFixed(1)} kg</div>
             </div>
             <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Nr. comenzi</div>
@@ -126,24 +124,25 @@ export function ClientCard({
           <div className="space-y-2 text-sm text-[var(--agri-text-muted)]">
             <div>
               <strong className="text-[var(--agri-text)]">Ultima comandă:</strong>{' '}
-              {lastComanda ? `${formatDate(lastComanda.data)} · ${lastComanda.kg.toFixed(1)} kg · ${lastComanda.status}` : '-'}
+              {lastComanda
+                ? `${formatDate(lastComanda.data)} · ${lastComanda.kg.toFixed(1)} kg · ${lastComanda.status}`
+                : '-'}
             </div>
             <div>
               <strong className="text-[var(--agri-text)]">Ultima vânzare:</strong>{' '}
-              {lastVanzare ? `${formatDate(lastVanzare.data)} · ${lastVanzare.kg.toFixed(1)} kg · ${lastVanzare.totalRon.toFixed(0)} RON` : '-'}
-            </div>
-            <div>
-              <strong className="text-[var(--agri-text)]">Cantitate totală:</strong> {totalKg.toFixed(1)} kg
+              {lastVanzare
+                ? `${formatDate(lastVanzare.data)} · ${lastVanzare.kg.toFixed(1)} kg · ${lastVanzare.totalRon.toFixed(0)} RON`
+                : '-'}
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <a
               href={phoneHref}
               onClick={(event) => event.stopPropagation()}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
             >
-              📞
+              Sună
             </a>
             <a
               href={waHref || undefined}
@@ -152,8 +151,29 @@ export function ClientCard({
               onClick={(event) => event.stopPropagation()}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700"
             >
-              💬
+              Mesaj
             </a>
+            <button
+              type="button"
+              onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                if (!client.telefon) return
+                downloadVCard(client.nume_client, client.telefon)
+              }}
+              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
+            >
+              Contact
+            </button>
+            <button
+              type="button"
+              onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                onOpenDetails?.(client)
+              }}
+              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
+            >
+              Detalii
+            </button>
             <button
               type="button"
               onClick={(event: MouseEvent<HTMLButtonElement>) => {
@@ -173,16 +193,6 @@ export function ClientCard({
               className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
             >
               Șterge
-            </button>
-            <button
-              type="button"
-              onClick={(event: MouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                onOpenDetails?.(client)
-              }}
-              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
-            >
-              Detalii
             </button>
           </div>
         </div>

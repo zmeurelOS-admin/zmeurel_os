@@ -2,8 +2,17 @@
 
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
+import { getSessionId } from './session'
 
 type EventMetadata = Record<string, unknown>
+type StatusType = 'success' | 'failed' | 'abandoned' | 'started'
+
+interface TrackEventParams {
+  eventName: string
+  moduleName?: string
+  status?: StatusType
+  metadata?: EventMetadata
+}
 
 interface AnalyticsContext {
   userId: string
@@ -41,17 +50,8 @@ async function getAnalyticsContext(): Promise<AnalyticsContext | null> {
   return contextPromise
 }
 
-export function trackEvent(eventType: string, module: string, metadata?: EventMetadata): void
-export function trackEvent(eventType: string, metadata?: EventMetadata): void
-export function trackEvent(
-  eventType: string,
-  moduleOrMetadata: string | EventMetadata = 'general',
-  metadata: EventMetadata = {}
-): void {
+function fireInsert(eventName: string, moduleName: string, metadata: EventMetadata, status?: StatusType): void {
   if (typeof window === 'undefined') return
-
-  const moduleName = typeof moduleOrMetadata === 'string' ? moduleOrMetadata : 'general'
-  const payloadMetadata = typeof moduleOrMetadata === 'string' ? metadata : moduleOrMetadata
 
   queueMicrotask(() => {
     void (async () => {
@@ -64,16 +64,37 @@ export function trackEvent(
         await (supabase as any).from('analytics_events').insert({
           tenant_id: context.tenantId,
           user_id: context.userId,
-          event_name: eventType,
-          event_type: eventType,
+          event_name: eventName,
+          event_type: eventName,
           module: moduleName,
-          metadata: payloadMetadata ?? {},
+          metadata: metadata ?? {},
+          session_id: getSessionId(),
+          ...(status !== undefined ? { status } : {}),
         })
       } catch {
         // swallow errors: analytics must never block UX
       }
     })()
   })
+}
+
+export function trackEvent(params: TrackEventParams): void
+export function trackEvent(eventType: string, module: string, metadata?: EventMetadata): void
+export function trackEvent(eventType: string, metadata?: EventMetadata): void
+export function trackEvent(
+  eventTypeOrParams: string | TrackEventParams,
+  moduleOrMetadata?: string | EventMetadata,
+  metadata: EventMetadata = {}
+): void {
+  if (typeof eventTypeOrParams === 'object') {
+    const { eventName, moduleName = 'general', status, metadata: meta = {} } = eventTypeOrParams
+    fireInsert(eventName, moduleName, meta, status)
+    return
+  }
+
+  const moduleName = typeof moduleOrMetadata === 'string' ? moduleOrMetadata : 'general'
+  const payloadMetadata = typeof moduleOrMetadata === 'string' ? metadata : (moduleOrMetadata ?? {})
+  fireInsert(eventTypeOrParams, moduleName, payloadMetadata)
 }
 
 

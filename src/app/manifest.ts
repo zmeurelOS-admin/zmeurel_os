@@ -2,32 +2,24 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Zmeurel Agricultura',
+    name: 'Zmeurel OS',
     short_name: 'Zmeurel',
-    description: 'Management agricol pentru parcele, recoltări și vânzări.',
-    start_url: '/',
+    description: 'Evidență simplă pentru fermă',
+    start_url: '/dashboard',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#f5f7f5',
-    theme_color: '#1f8f4a',
+    background_color: '#f0fdf4',
+    theme_color: '#16a34a',
     icons: [
-      {
-        src: '/icon-192.png',
-        sizes: '192x192',
-        type: 'image/png',
-      },
-      {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-      },
-      {
-        src: '/icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
+      { src: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },
+      { src: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
+      { src: '/icons/icon-128.png', sizes: '128x128', type: 'image/png' },
+      { src: '/icons/icon-144.png', sizes: '144x144', type: 'image/png' },
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-384.png', sizes: '384x384', type: 'image/png' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   }
 }

@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Map as MapIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
@@ -13,17 +12,20 @@ import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { ParceleList } from '@/components/parcele/ParceleList'
 import MiniCard from '@/components/ui/MiniCard'
 import { useAddAction } from '@/contexts/AddActionContext'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { computeActivityRemainingDays } from '@/lib/parcele/pauza'
 import { getUnitateFilterLabel, normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
+import { queryKeys } from '@/lib/query-keys'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
-import { queryKeys } from '@/lib/query-keys'
+import { toast } from '@/lib/ui/toast'
 
 const AddParcelDrawer = dynamic(
   () => import('@/components/parcele/AddParcelDrawer').then((mod) => mod.AddParcelDrawer),
@@ -39,7 +41,6 @@ const ConfirmDeleteDialog = dynamic(
 )
 
 interface ParcelePageClientProps {
-  initialParcele?: Parcela[]
   initialError?: string | null
 }
 
@@ -52,14 +53,18 @@ function toDateOnly(value: string | null | undefined): string {
 }
 
 function toIsoDate(value: Date): string {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
+    value.getDate()
+  ).padStart(2, '0')}`
 }
 
 function getActivityEmoji(type: string | null | undefined): string {
   const value = (type ?? '').toLowerCase()
   if (value.includes('tratament')) return '🧪'
   if (value.includes('fertiliz')) return '🌱'
-  if (value.includes('tundere') || value.includes('taiere') || value.includes('curatare')) return '✂️'
+  if (value.includes('tundere') || value.includes('taiere') || value.includes('curatare')) {
+    return '✂️'
+  }
   return '📋'
 }
 
@@ -71,6 +76,7 @@ function formatSurface(totalMp: number): { value: string; unit: string } {
 }
 
 export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
+  useTrackModuleView('parcele')
   const router = useRouter()
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
@@ -113,7 +119,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const deleteMutation = useMutation({
     mutationFn: deleteParcela,
     onSuccess: () => {
-      toast.success('Teren sters')
+      toast.success('Teren șters.')
       queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })
     },
     onError: (err: Error) => {
@@ -136,7 +142,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   }, [])
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga teren')
+    const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă teren')
     return unregister
   }, [registerAddAction])
 
@@ -146,7 +152,10 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     const deleteIndex = currentItems.findIndex((item) => item.id === parcelaId)
 
     pendingDeletedItems.current[parcelaId] = { item: parcela, index: deleteIndex }
-    queryClient.setQueryData<Parcela[]>(queryKeys.parcele, (current = []) => current.filter((item) => item.id !== parcelaId))
+    queryClient.setQueryData<Parcela[]>(
+      queryKeys.parcele,
+      (current = []) => current.filter((item) => item.id !== parcelaId)
+    )
 
     const timer = setTimeout(() => {
       delete pendingDeleteTimers.current[parcelaId]
@@ -156,7 +165,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
     pendingDeleteTimers.current[parcelaId] = timer
 
-    toast('Element sters', {
+    toast('Element șters.', {
       duration: 5000,
       action: {
         label: 'Undo',
@@ -197,6 +206,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       }),
     [parcele]
   )
+
   const unitFilterCounts = useMemo(
     () => ({
       toate: parcele.length,
@@ -206,12 +216,20 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     }),
     [parcele]
   )
+
   const filteredParcele = useMemo(() => {
     if (unitFilter === 'toate') return parcele
     return parcele.filter((parcela) => normalizeUnitateTip(parcela.tip_unitate) === unitFilter)
   }, [parcele, unitFilter])
-  const totalSurfaceMp = useMemo(() => parcele.reduce((sum, row) => sum + Number(row.suprafata_m2 || 0), 0), [parcele])
-  const totalPlants = useMemo(() => parcele.reduce((sum, row) => sum + Number(row.nr_plante || 0), 0), [parcele])
+
+  const totalSurfaceMp = useMemo(
+    () => parcele.reduce((sum, row) => sum + Number(row.suprafata_m2 || 0), 0),
+    [parcele]
+  )
+  const totalPlants = useMemo(
+    () => parcele.reduce((sum, row) => sum + Number(row.nr_plante || 0), 0),
+    [parcele]
+  )
   const surface = formatSurface(totalSurfaceMp)
 
   const productionByParcela = useMemo(() => {
@@ -261,17 +279,20 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     return map
   }, [activitati, today])
 
-  const productionRows = useMemo(() => {
-    return filteredParcele.map((parcela) => ({
-      parcela,
-      kg: productionByParcela.get(parcela.id) ?? 0,
-    }))
-  }, [filteredParcele, productionByParcela])
+  const productionRows = useMemo(
+    () =>
+      filteredParcele.map((parcela) => ({
+        parcela,
+        kg: productionByParcela.get(parcela.id) ?? 0,
+      })),
+    [filteredParcele, productionByParcela]
+  )
 
   const maxProduction = useMemo(
     () => productionRows.reduce((max, row) => (row.kg > max ? row.kg : max), 0),
     [productionRows]
   )
+
   const visibleFocusParcelId = useMemo(() => {
     if (!focusParcelId) return null
     return filteredParcele.some((parcela) => parcela.id === focusParcelId) ? focusParcelId : null
@@ -293,23 +314,15 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       map[parcela.id] = {
         productionKg: productionByParcela.get(parcela.id) ?? 0,
         latestHarvest: latestHarvest ? { date: latestHarvest.date, kg: latestHarvest.kg } : null,
-        latestActivity: latestActivity
-          ? { date: latestActivity.date, type: latestActivity.type }
-          : null,
+        latestActivity: latestActivity ? { date: latestActivity.date, type: latestActivity.type } : null,
       }
     }
     return map
-  }, [parcele, productionByParcela, latestHarvestByParcela, latestActivityByParcela])
+  }, [latestActivityByParcela, latestHarvestByParcela, parcele, productionByParcela])
 
   return (
     <AppShell
-      header={
-        <PageHeader
-          title="Terenuri"
-          subtitle="Administrare terenuri cultivate"
-          rightSlot={<MapIcon className="h-5 w-5" />}
-        />
-      }
+      header={<PageHeader title="Terenuri" subtitle="Administrare terenuri cultivate" rightSlot={<MapIcon className="h-5 w-5" />} />}
       bottomBar={
         <StickyActionBar>
           <div className="flex items-center justify-between gap-3">
@@ -318,8 +331,14 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
-        {resolvedError ? <ErrorState title="Eroare la încărcare" message={resolvedError} onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })} /> : null}
+      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+        {resolvedError ? (
+          <ErrorState
+            title="Eroare la încărcare"
+            message={resolvedError}
+            onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })}
+          />
+        ) : null}
 
         {isLoading ? (
           <div className="space-y-3">
@@ -330,11 +349,21 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         ) : null}
 
         {!isLoading && !resolvedError && parcele.length === 0 ? (
-          <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.xxl, textAlign: 'center' }}>
+          <div
+            style={{
+              background: colors.white,
+              borderRadius: radius.xl,
+              boxShadow: shadows.card,
+              padding: spacing.xxl,
+              textAlign: 'center',
+            }}
+          >
             <div style={{ fontSize: 40 }}>🗺️</div>
-            <h3 style={{ marginTop: spacing.sm, fontSize: 20, fontWeight: 700, color: colors.dark }}>Niciun teren încă</h3>
+            <h3 style={{ marginTop: spacing.sm, fontSize: 20, fontWeight: 700, color: colors.dark }}>
+              Niciun teren încă
+            </h3>
             <p style={{ marginTop: spacing.sm, fontSize: 12, color: colors.gray }}>
-              Adaugă primul teren ca s? poți înregistra recoltări ți activități.
+              Adaugă primul teren ca să poți înregistra recoltări și activități.
             </p>
             <button
               type="button"
@@ -359,9 +388,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         {!isLoading && !resolvedError && parcele.length > 0 ? (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <MiniCard icon="🗺️" value={String(activeParcele.length)} sub="terenuri" label="Active" />
+              <MiniCard icon="🗺️" value={String(activeParcele.length)} sub="terenuri active" label="" />
               <MiniCard icon="📐" value={surface.value} sub={surface.unit} label="Suprafață" />
-              <MiniCard icon="🌿" value={String(totalPlants)} sub="plante" label="Total" />
+              <MiniCard icon="🌿" value={String(totalPlants)} sub="plante" label="Total" className="col-span-2 sm:col-span-1" />
             </div>
 
             <div style={{ display: 'flex', gap: spacing.xs, overflowX: 'auto', paddingBottom: 2 }}>
@@ -391,7 +420,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
             </div>
 
             <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark, marginBottom: spacing.sm }}>Producție sezon per teren</h3>
+              <SectionTitle className="mb-2" title="Producție pe sezon" />
               <div style={{ display: 'grid', gap: spacing.xs }}>
                 {productionRows.length === 0 ? (
                   <div style={{ fontSize: 11, color: colors.gray }}>
@@ -417,9 +446,21 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>{row.parcela.nume_parcela || 'Teren'}</div>
-                            <div style={{ fontSize: 10, color: colors.gray }}>{row.parcela.soi_plantat || 'Soi necunoscut'}</div>
-                            <div style={{ marginTop: 4, height: 6, borderRadius: radius.full, background: colors.grayLight, overflow: 'hidden' }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>
+                              {row.parcela.nume_parcela || 'Teren'}
+                            </div>
+                            <div style={{ fontSize: 10, color: colors.gray }}>
+                              {row.parcela.soi_plantat || row.parcela.soi || 'Soi necunoscut'}
+                            </div>
+                            <div
+                              style={{
+                                marginTop: 4,
+                                height: 6,
+                                borderRadius: radius.full,
+                                background: colors.grayLight,
+                                overflow: 'hidden',
+                              }}
+                            >
                               <div
                                 style={{
                                   width: `${percent}%`,
@@ -429,7 +470,11 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 }}
                               />
                             </div>
-                            {row.kg <= 0 ? <div style={{ fontSize: 10, color: colors.gray, marginTop: 2 }}>Nicio recoltare încă</div> : null}
+                            {row.kg <= 0 ? (
+                              <div style={{ fontSize: 10, color: colors.gray, marginTop: 2 }}>
+                                Nicio recoltare încă
+                              </div>
+                            ) : null}
                           </div>
                           <div style={{ textAlign: 'right', flexShrink: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{row.kg.toFixed(1)}</div>
@@ -444,7 +489,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
             </div>
 
             <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark, marginBottom: spacing.sm }}>Ultima activitate</h3>
+              <SectionTitle className="mb-2" title="Ultima activitate" />
               <div style={{ display: 'grid', gap: spacing.xs }}>
                 {filteredParcele.map((parcela) => {
                   const item = latestActivityByParcela.get(parcela.id)
@@ -466,7 +511,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                         <span style={{ fontSize: 14, flexShrink: 0 }}>{getActivityEmoji(item?.type)}</span>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>{parcela.nume_parcela || 'Teren'}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>
+                            {parcela.nume_parcela || 'Teren'}
+                          </div>
                           <div style={{ fontSize: 11, color: colors.gray }}>
                             {item ? `${item.type}${item.product ? ` · ${item.product}` : ''}` : 'Fără activitate'}
                           </div>
@@ -483,7 +530,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 fontWeight: 700,
                               }}
                             >
-                              ⏳ Pauză pîn? {new Date(item.pauseUntil).toLocaleDateString('ro-RO')}
+                              Pauză până la {new Date(item.pauseUntil).toLocaleDateString('ro-RO')}
                             </span>
                           ) : null}
                         </div>
@@ -501,9 +548,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
               parcele={filteredParcele}
               parcelInsights={parcelInsights}
               focusParcelId={visibleFocusParcelId}
-              onOpen={(parcela) => {
-                router.push(`/parcele/${parcela.id}`)
-              }}
+              onOpen={(parcela) => router.push(`/parcele/${parcela.id}`)}
               onEdit={(parcela) => {
                 setSelectedParcela(parcela)
                 setEditOpen(true)
@@ -543,7 +588,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         }}
         itemType="Teren"
         itemName={buildParcelaDeleteLabel(selectedParcela)}
-        description={`Stergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`}
+        description={`Ștergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (!selectedParcela) return

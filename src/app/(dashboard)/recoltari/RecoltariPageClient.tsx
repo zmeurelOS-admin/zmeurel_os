@@ -14,6 +14,7 @@ import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { RecoltareCard } from '@/components/recoltari/RecoltareCard'
 import MiniCard from '@/components/ui/MiniCard'
 import { SearchField } from '@/components/ui/SearchField'
@@ -22,8 +23,10 @@ import TrendBadge from '@/components/ui/TrendBadge'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { formatUnitateDisplayName, getUnitateTipLabel } from '@/lib/parcele/unitate'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
+import { getRecoltareDeleteImpact } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { deleteRecoltare, getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
 import { buildRecoltareDeleteLabel } from '@/lib/ui/delete-labels'
@@ -99,6 +102,7 @@ export function RecoltariPageClient({
   parcele: initialParcele = [],
   initialError = null,
 }: RecoltariPageClientProps) {
+  useTrackModuleView('recoltari')
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -170,23 +174,61 @@ export function RecoltariPageClient({
     refetchOnWindowFocus: false,
   })
 
+  const { data: recoltareDeleteImpact, isLoading: isLoadingDeleteImpact } = useQuery({
+    queryKey: ['recoltare-delete-impact', deletingRecoltare?.id ?? null],
+    queryFn: () => getRecoltareDeleteImpact(deletingRecoltare!.id),
+    enabled: Boolean(deletingRecoltare?.id),
+    staleTime: 10000,
+    refetchOnWindowFocus: false,
+  })
+
   useMobileScrollRestore({
     storageKey: 'scroll:recoltari',
     ready: !isLoading,
   })
 
+  const restorePendingDeleteItem = (recoltareId: string) => {
+    const pendingItem = pendingDeletedItems.current[recoltareId]
+    if (!pendingItem) return
+
+    delete pendingDeletedItems.current[recoltareId]
+    queryClient.setQueryData<Recoltare[]>(queryKeys.recoltari, (current = []) => {
+      if (current.some((item) => item.id === recoltareId)) return current
+
+      const next = [...current]
+      const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+      next.splice(insertAt, 0, pendingItem.item)
+      return next
+    })
+  }
+
   const deleteMutation = useMutation({
     mutationFn: deleteRecoltare,
-    onSuccess: (_, deletedId) => {
+    onSuccess: (result, deletedId) => {
+      if (!result.success) {
+        restorePendingDeleteItem(deletedId)
+        toast.error(result.error)
+        return
+      }
+
       queryClient.invalidateQueries({ queryKey: queryKeys.recoltari, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli })
+      delete pendingDeletedItems.current[deletedId]
       trackEvent('delete_item', 'recoltari')
       track('recoltare_delete', { id: deletedId })
-      toast.success('Recoltare stearsa')
+      if (result.warning) {
+        toast.warning(result.warning)
+      } else {
+        toast.success('Recoltare stearsa')
+      }
       setDeletingRecoltare(null)
     },
-    onError: (err: Error) => {
+    onError: (err: Error, deletedId) => {
+      restorePendingDeleteItem(deletedId)
       toast.error(err.message)
     },
   })
@@ -231,7 +273,6 @@ export function RecoltariPageClient({
 
     const timer = setTimeout(() => {
       delete pendingDeleteTimers.current[recoltareId]
-      delete pendingDeletedItems.current[recoltareId]
       deleteMutation.mutate(recoltareId)
     }, 5000)
 
@@ -512,7 +553,7 @@ export function RecoltariPageClient({
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
@@ -629,7 +670,7 @@ export function RecoltariPageClient({
                   icon={'\u{1F3C6}'}
                   label="Top azi"
                   value={topCulegatorAzi?.name || '-'}
-                  sub={topCulegatorAzi ? `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(topCulegatorAzi.kg)} kg` : 'f?r? date'}
+                  sub={topCulegatorAzi ? `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(topCulegatorAzi.kg)} kg` : 'fără date'}
                   onClick={topCulegatorAzi ? () => toggleCulegatorFilter(topCulegatorAzi.id) : undefined}
                 />
               </div>
@@ -725,7 +766,7 @@ export function RecoltariPageClient({
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: colors.dark }}>Culegători azi</h3>
+                <SectionTitle className="flex-1" title="Culegători azi" />
                 {selectedCulegatorId ? (
                   <button
                     type="button"
@@ -956,6 +997,11 @@ export function RecoltariPageClient({
         }}
         onConfirm={() => {
           if (!deletingRecoltare) return
+          if (isLoadingDeleteImpact) return
+          if (recoltareDeleteImpact?.hasDownstreamSales) {
+            toast.error('Această recoltare are vânzări asociate și nu poate fi ștearsă.')
+            return
+          }
           scheduleDelete(deletingRecoltare)
           setDeletingRecoltare(null)
         }}
@@ -964,7 +1010,15 @@ export function RecoltariPageClient({
           deletingRecoltare?.parcela_id ? parcelaMap[deletingRecoltare.parcela_id]?.name || '' : ''
         )}
         itemType="recoltare"
-        description={`Stergi recoltarea din ${deletingRecoltare?.data ? new Date(deletingRecoltare.data).toLocaleDateString('ro-RO') : 'data necunoscuta'} - parcelă ${deletingRecoltare?.parcela_id ? parcelaMap[deletingRecoltare.parcela_id]?.name || 'necunoscuta' : 'necunoscuta'}?`}
+        description={
+          isLoadingDeleteImpact
+            ? 'Se verifică impactul acestei ștergeri asupra stocului...'
+            : recoltareDeleteImpact?.hasDownstreamSales
+              ? 'Această recoltare are vânzări asociate și nu poate fi ștearsă.'
+              : recoltareDeleteImpact?.hasStock
+                ? `Ștergerea va elimina și ${formatKg(recoltareDeleteImpact.stockToRemoveKg)} din stoc.`
+                : `Stergi recoltarea din ${deletingRecoltare?.data ? new Date(deletingRecoltare.data).toLocaleDateString('ro-RO') : 'data necunoscuta'} - parcelă ${deletingRecoltare?.parcela_id ? parcelaMap[deletingRecoltare.parcela_id]?.name || 'necunoscuta' : 'necunoscuta'}?`
+        }
       />
     </AppShell>
   )

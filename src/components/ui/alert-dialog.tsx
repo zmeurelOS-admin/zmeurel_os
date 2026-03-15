@@ -5,8 +5,15 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { useDocumentModalState } from "@/components/ui/modal-layer"
 
-const AlertDialog = AlertDialogPrimitive.Root
+type AlertDialogProps = React.ComponentProps<typeof AlertDialogPrimitive.Root>
+
+const AlertDialog = ({ open, ...props }: AlertDialogProps) => {
+  useDocumentModalState(Boolean(open))
+
+  return <AlertDialogPrimitive.Root open={open} {...props} />
+}
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger
 
@@ -32,8 +39,8 @@ const AlertDialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
 >(({ className, ...props }, ref) => (
   <AlertDialogPortal>
-    <AlertDialogOverlay />
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <AlertDialogOverlay className="fixed inset-0 z-[1000] bg-black/30" />
+    <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
       <AlertDialogPrimitive.Content
         ref={ref}
         className={cn(
@@ -67,7 +74,7 @@ const AlertDialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-2",
       className
     )}
     {...props}

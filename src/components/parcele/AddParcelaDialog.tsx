@@ -11,17 +11,40 @@ import { Plus } from 'lucide-react';
 import { AppDialog } from '@/components/app/AppDialog';
 import { Button } from '@/components/ui/button';
 import { DialogFormActions } from '@/components/ui/dialog-form-actions';
+import { generateBusinessId } from '@/lib/supabase/business-ids';
+import { getSupabase } from '@/lib/supabase/client';
 import { createParcela } from '@/lib/supabase/queries/parcele';
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
 import { ParcelaForm, type ParcelaFormData } from './ParcelaForm';
 import { queryKeys } from '@/lib/query-keys'
 
+const MAX_SUPRAFATA_M2 = 100_000_000;
+const CURRENT_YEAR = new Date().getFullYear();
+
 const parcelaSchema = z.object({
   nume_parcela: z.string().min(1, 'Numele parcelei este obligatoriu'),
-  suprafata_m2: z.string().min(1, 'Suprafata este obligatorie'),
+  suprafata_m2: z
+    .string()
+    .min(1, 'Suprafata este obligatorie')
+    .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+      message: 'Suprafata trebuie să fie pozitivă',
+    })
+    .refine((value) => Number(value) < MAX_SUPRAFATA_M2, {
+      message: 'Suprafata introdusă pare nerealist de mare',
+    }),
   soi_plantat: z.string().optional(),
-  an_plantare: z.string().min(1, 'Anul plantarii este obligatoriu'),
-  nr_plante: z.string().optional(),
+  an_plantare: z
+    .string()
+    .min(1, 'Anul plantarii este obligatoriu')
+    .refine((value) => Number.isInteger(Number(value)) && Number(value) >= 1900 && Number(value) <= CURRENT_YEAR + 1, {
+      message: 'Anul plantării nu este valid',
+    }),
+  nr_plante: z
+    .string()
+    .optional()
+    .refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= 0), {
+      message: 'Numărul de plante trebuie să fie pozitiv sau zero',
+    }),
   status: z.string().default('Activ'),
   observatii: z.string().optional(),
 });
@@ -50,7 +73,8 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
 
   const createMutation = useMutation({
     mutationFn: async (data: ParcelaFormData) => {
-      const idParcela = `PAR-${Date.now().toString().slice(-6)}`;
+      const supabase = getSupabase();
+      const idParcela = await generateBusinessId(supabase, 'PAR');
       return createParcela({
         id_parcela: idParcela,
         nume_parcela: data.nume_parcela,
@@ -109,4 +133,3 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
     </>
   );
 }
-

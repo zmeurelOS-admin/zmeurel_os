@@ -23,6 +23,7 @@ import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { computeActivityRemainingDays } from '@/lib/parcele/pauza'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { deleteActivitateAgricola, getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { buildActivitateDeleteLabel } from '@/lib/ui/delete-labels'
@@ -76,6 +77,7 @@ function formatDate(value: string | null | undefined): string {
 }
 
 export default function ActivitatiPage() {
+  useTrackModuleView('activitati')
   const router = useRouter()
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
@@ -91,10 +93,15 @@ export default function ActivitatiPage() {
   } = useQuery({
     queryKey: queryKeys.activitati,
     queryFn: getActivitatiAgricole,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   })
   const { data: parcele = [] } = useQuery({
     queryKey: queryKeys.parcele,
     queryFn: getParcele,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   })
 
   const [addOpen, setAddOpen] = useState(false)

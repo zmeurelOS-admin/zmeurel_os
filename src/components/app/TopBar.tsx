@@ -1,7 +1,7 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
-import { Tractor } from 'lucide-react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { FarmSwitcher } from '@/components/app/FarmSwitcher'
@@ -24,7 +24,7 @@ export function TopBar() {
       >
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between">
           <div className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--agri-text)]">
-            <Tractor className="h-4 w-4 text-emerald-700" />
+            <Image src="/icons/icon.svg" alt="Zmeurel" width={24} height={24} className="shrink-0" />
             Zmeurel
           </div>
 

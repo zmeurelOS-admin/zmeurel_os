@@ -35,10 +35,12 @@ export interface UpdateClientInput {
 
 export async function getClienți(): Promise<Client[]> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from("clienti")
     .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id")
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
 
   if (error) throw error
@@ -75,6 +77,7 @@ export async function updateClienți(
   input: UpdateClientInput
 ): Promise<Client> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from("clienti")
@@ -83,6 +86,7 @@ export async function updateClienți(
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .select()
     .single()
 
@@ -92,12 +96,14 @@ export async function updateClienți(
 
 export async function deleteClienți(id: string): Promise<void> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   // Check for related records before deleting
   const { count: vanzariCount, error: vanzariError } = await supabase
     .from("vanzari")
     .select("*", { count: "exact", head: true })
     .eq("client_id", id)
+    .eq("tenant_id", tenantId)
 
   if (vanzariError) throw vanzariError
 
@@ -105,6 +111,7 @@ export async function deleteClienți(id: string): Promise<void> {
     .from("comenzi")
     .select("*", { count: "exact", head: true })
     .eq("client_id", id)
+    .eq("tenant_id", tenantId)
 
   if (comenziError) throw comenziError
 
@@ -112,6 +119,7 @@ export async function deleteClienți(id: string): Promise<void> {
     .from("vanzari_butasi")
     .select("*", { count: "exact", head: true })
     .eq("client_id", id)
+    .eq("tenant_id", tenantId)
 
   if (vanzariButasiError) throw vanzariButasiError
 
@@ -130,6 +138,7 @@ export async function deleteClienți(id: string): Promise<void> {
     .from("clienti")
     .delete()
     .eq("id", id)
+    .eq("tenant_id", tenantId)
 
   if (error) throw error
 }

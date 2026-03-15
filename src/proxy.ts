@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { buildLoginUrl } from '@/lib/auth/redirects'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
@@ -23,6 +24,11 @@ function redirectTo(request: NextRequest, pathname: string) {
   redirectUrl.pathname = pathname
   redirectUrl.search = ''
   return NextResponse.redirect(redirectUrl)
+}
+
+function redirectToLogin(request: NextRequest) {
+  const next = `${request.nextUrl.pathname}${request.nextUrl.search}`
+  return NextResponse.redirect(new URL(buildLoginUrl({ next }), request.url))
 }
 
 export async function proxy(request: NextRequest) {
@@ -73,6 +79,7 @@ export async function proxy(request: NextRequest) {
   // Public routes that should NOT require authentication
   const isPublicRoute =
     pathname === '/' ||
+    pathname === '/start' ||
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/termeni' ||
@@ -80,6 +87,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/update-password') ||
+    pathname === '/api/auth/beta-signup' ||
+    pathname === '/api/auth/beta-guest' ||
     pathname.startsWith('/api/cron/google-contacts-sync') ||
     isPublicAssetRoute
 
@@ -121,7 +130,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // Redirect to login for protected routes
-    return redirectTo(request, '/login')
+    return redirectToLogin(request)
   }
 
   // Landing is always visible, even for authenticated users.
@@ -171,10 +180,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === '/start') {
-    if (tenantId) {
-      return redirectTo(request, '/dashboard')
-    }
-
     return supabaseResponse
   }
 

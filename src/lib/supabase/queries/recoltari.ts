@@ -1,6 +1,4 @@
 import { getSupabase } from '../client'
-import type { TablesUpdate } from '@/types/supabase'
-import { deleteMiscariStocByReference, insertMiscareStoc } from './miscari-stoc'
 import { upsertManoperaCheltuiala } from './manopera-auto'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
@@ -41,28 +39,60 @@ export interface UpdateRecoltareInput {
   observatii?: string
 }
 
-type RecoltareUpdate = TablesUpdate<'recoltari'>
+export type RecoltareMutationResult =
+  | { success: true; data: Recoltare; warning?: string }
+  | { success: false; error: string }
 
-type CulegatorTarifRow = {
-  tarif_lei_kg: number | null
+export type DeleteRecoltareResult =
+  | { success: true; warning?: string }
+  | { success: false; error: string }
+
+type RecoltareRow = Parameters<typeof mapRecoltare>[0]
+
+type RecoltareRpcError = {
+  message?: string
 }
 
 type RecoltareRpcClient = ReturnType<typeof getSupabase> & {
-  rpc: (
-    fn: 'create_recoltare_with_stock',
-    args: {
-      p_data: string
-      p_parcela_id: string
-      p_culegator_id: string
-      p_kg_cal1: number
-      p_kg_cal2: number
-      p_observatii?: string | null
-      p_tenant_id?: string | null
-    }
-  ) => Promise<{
-    data: Parameters<typeof mapRecoltare>[0] | null
-    error: { message?: string } | null
-  }>
+  rpc: {
+    (
+      fn: 'create_recoltare_with_stock',
+      args: {
+        p_data: string
+        p_parcela_id: string
+        p_culegator_id: string
+        p_kg_cal1: number
+        p_kg_cal2: number
+        p_observatii?: string | null
+        p_tenant_id?: string | null
+      }
+    ): Promise<{
+      data: RecoltareRow | null
+      error: RecoltareRpcError | null
+    }>
+    (
+      fn: 'update_recoltare_with_stock',
+      args: {
+        p_recoltare_id: string
+        p_data: string
+        p_parcela_id: string
+        p_culegator_id: string
+        p_kg_cal1: number
+        p_kg_cal2: number
+        p_observatii?: string | null
+      }
+    ): Promise<{
+      data: RecoltareRow | null
+      error: RecoltareRpcError | null
+    }>
+    (
+      fn: 'delete_recoltare_with_stock',
+      args: { p_recoltare_id: string }
+    ): Promise<{
+      data: null
+      error: RecoltareRpcError | null
+    }>
+  }
 }
 
 function round2(value: number): number {
@@ -83,25 +113,6 @@ function computeKg(input: { kg_cal1?: number; kg_cal2?: number }) {
     kgCal2: round2(kgCal2),
     totalKg: round2(kgCal1 + kgCal2),
   }
-}
-
-async function getCulegatorTarif(culegatorId: string): Promise<number> {
-  const supabase = getSupabase()
-
-  const { data, error } = await supabase
-    .from('culegatori')
-    .select('tarif_lei_kg')
-    .eq('id', culegatorId)
-    .single()
-
-  if (error) throw error
-
-  const tarif = Number((data as CulegatorTarifRow).tarif_lei_kg ?? 0)
-  if (!Number.isFinite(tarif) || tarif <= 0) {
-    throw new Error('Culegatorul nu are tarif setat in profil')
-  }
-
-  return round2(tarif)
 }
 
 function mapRecoltare(row: {
@@ -136,12 +147,42 @@ function mapRecoltare(row: {
   }
 }
 
+const AUTO_MANOPERA_WARNING =
+  'Recoltarea a fost salvată, dar sincronizarea cheltuielilor de manoperă a eșuat. Verificați modulul Cheltuieli.'
+
+async function scheduleAutoManoperaSync(params: {
+  supabase: ReturnType<typeof getSupabase>
+  tenantId?: string | null
+  dates: Array<string | null | undefined>
+}): Promise<void> {
+  const tenantId = params.tenantId ?? null
+  if (!tenantId) return
+
+  const uniqueDates = Array.from(new Set(params.dates.map((d) => String(d || '').slice(0, 10)).filter(Boolean)))
+  if (!uniqueDates.length) return
+
+  await Promise.all(uniqueDates.map((date) => upsertManoperaCheltuiala(params.supabase, tenantId, date)))
+}
+
+function toSchemaAwareError(error: RecoltareRpcError | null): Error {
+  const message = (error?.message || '').toLowerCase()
+  if (message.includes('kg_cal1') || message.includes('schema cache') || message.includes('could not find')) {
+    return new Error('Coloana kg_cal1 lipseste din baza de date. Va rugam actualizati schema.')
+  }
+  if (error instanceof Error) {
+    return error
+  }
+  return new Error(error?.message || 'Operatiunea pe recoltari a esuat.')
+}
+
 export async function getRecoltari(): Promise<Recoltare[]> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('recoltari')
     .select(RECOLTARI_SELECT)
+    .eq('tenant_id', tenantId)
     .order('data', { ascending: false })
 
   if (error) {
@@ -152,187 +193,177 @@ export async function getRecoltari(): Promise<Recoltare[]> {
     throw error
   }
 
-  return (data ?? []).map((row) => mapRecoltare(row as Parameters<typeof mapRecoltare>[0]))
+  return (data ?? []).map((row) => mapRecoltare(row as RecoltareRow))
 }
 
-async function replaceRecoltareMovements(params: {
-  recoltareId: string
-  tenantId?: string | null
-  parcelaId?: string | null
-  data: string
-  kgCal1: number
-  kgCal2: number
-}) {
-  const tenantId = params.tenantId ?? undefined
-  const parcelaId = params.parcelaId
-
-  if (!parcelaId) return
-
-  await deleteMiscariStocByReference(params.recoltareId, 'recoltare')
-
-  if (params.kgCal1 > 0) {
-    await insertMiscareStoc({
-      tenant_id: tenantId,
-      locatie_id: parcelaId,
-      produs: 'zmeura',
-      calitate: 'cal1',
-      depozit: 'fresh',
-      tip_miscare: 'recoltare',
-      cantitate_kg: params.kgCal1,
-      referinta_id: params.recoltareId,
-      data: params.data,
-    })
-  }
-
-  if (params.kgCal2 > 0) {
-    await insertMiscareStoc({
-      tenant_id: tenantId,
-      locatie_id: parcelaId,
-      produs: 'zmeura',
-      calitate: 'cal2',
-      depozit: 'fresh',
-      tip_miscare: 'recoltare',
-      cantitate_kg: params.kgCal2,
-      referinta_id: params.recoltareId,
-      data: params.data,
-    })
-  }
-}
-
-function scheduleAutoManoperaSync(params: {
-  supabase: ReturnType<typeof getSupabase>
-  tenantId?: string | null
-  dates: Array<string | null | undefined>
-}) {
-  const tenantId = params.tenantId ?? null
-  if (!tenantId) return
-
-  const uniqueDates = Array.from(new Set(params.dates.map((d) => String(d || '').slice(0, 10)).filter(Boolean)))
-  if (!uniqueDates.length) return
-
-  void Promise.all(uniqueDates.map((date) => upsertManoperaCheltuiala(params.supabase, tenantId, date))).catch((error) => {
-    console.error('Auto manopera sync failed:', error)
-  })
-}
-
-export async function createRecoltare(input: CreateRecoltareInput): Promise<Recoltare> {
+export async function createRecoltare(input: CreateRecoltareInput): Promise<RecoltareMutationResult> {
   const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
-  const kg = computeKg(input)
-  const rpcClient = supabase as RecoltareRpcClient
-  const { data, error } = await rpcClient.rpc('create_recoltare_with_stock', {
-    p_data: input.data,
-    p_parcela_id: input.parcela_id,
-    p_culegator_id: input.culegator_id,
-    p_kg_cal1: kg.kgCal1,
-    p_kg_cal2: kg.kgCal2,
-    p_observatii: input.observatii ?? null,
-    p_tenant_id: tenantId,
-  })
 
-  if (error) {
-    const message = (error.message || '').toLowerCase()
-    if (message.includes('kg_cal1') || message.includes('schema cache') || message.includes('could not find')) {
-      throw new Error('Coloana kg_cal1 lipseste din baza de date. Va rugam actualizati schema.')
+  try {
+    const tenantId = await getTenantId(supabase)
+    const kg = computeKg(input)
+    const rpcClient = supabase as RecoltareRpcClient
+    const { data, error } = await rpcClient.rpc('create_recoltare_with_stock', {
+      p_data: input.data,
+      p_parcela_id: input.parcela_id,
+      p_culegator_id: input.culegator_id,
+      p_kg_cal1: kg.kgCal1,
+      p_kg_cal2: kg.kgCal2,
+      p_observatii: input.observatii ?? null,
+      p_tenant_id: tenantId,
+    })
+
+    if (error) {
+      return { success: false, error: toSchemaAwareError(error).message }
     }
-    throw error
+
+    if (!data) {
+      return { success: false, error: 'Nu am primit recoltarea creata de la baza de date.' }
+    }
+
+    const recoltare = mapRecoltare(data)
+
+    try {
+      await scheduleAutoManoperaSync({
+        supabase,
+        tenantId: recoltare.tenant_id,
+        dates: [recoltare.data],
+      })
+      return { success: true, data: recoltare }
+    } catch (syncError) {
+      console.error('Labor expense sync failed:', syncError)
+      return {
+        success: true,
+        data: recoltare,
+        warning: AUTO_MANOPERA_WARNING,
+      }
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Operatiunea pe recoltari a esuat.',
+    }
   }
-
-  if (!data) {
-    throw new Error('Nu am primit recoltarea creata de la baza de date.')
-  }
-
-  const recoltare = mapRecoltare(data)
-
-  scheduleAutoManoperaSync({
-    supabase,
-    tenantId: recoltare.tenant_id,
-    dates: [recoltare.data],
-  })
-
-  return recoltare
 }
 
-export async function updateRecoltare(id: string, input: UpdateRecoltareInput): Promise<Recoltare> {
+export async function updateRecoltare(id: string, input: UpdateRecoltareInput): Promise<RecoltareMutationResult> {
   const supabase = getSupabase()
 
-  const { data: existing, error: existingError } = await supabase
-    .from('recoltari')
-    .select('id,culegator_id,kg_cal1,kg_cal2,data,tenant_id')
-    .eq('id', id)
-    .single()
+  try {
+    const tenantId = await getTenantId(supabase)
+    const rpcClient = supabase as RecoltareRpcClient
+    const { data: existing, error: existingError } = await supabase
+      .from('recoltari')
+      .select('id,culegator_id,parcela_id,kg_cal1,kg_cal2,data,observatii,tenant_id')
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .single()
 
-  if (existingError) throw existingError
+    if (existingError) {
+      return { success: false, error: existingError.message }
+    }
 
-  const nextCulegatorId = input.culegator_id ?? existing.culegator_id
-  if (!nextCulegatorId) {
-    throw new Error('Culegatorul este obligatoriu')
+    const nextCulegatorId = input.culegator_id ?? existing.culegator_id
+    if (!nextCulegatorId) {
+      return { success: false, error: 'Culegatorul este obligatoriu' }
+    }
+
+    const nextParcelaId = input.parcela_id ?? existing.parcela_id
+    if (!nextParcelaId) {
+      return { success: false, error: 'Parcela este obligatorie' }
+    }
+
+    const kg = computeKg({
+      kg_cal1: input.kg_cal1 ?? existing.kg_cal1 ?? 0,
+      kg_cal2: input.kg_cal2 ?? existing.kg_cal2 ?? 0,
+    })
+
+    const { data, error } = await rpcClient.rpc('update_recoltare_with_stock', {
+      p_recoltare_id: id,
+      p_data: input.data ?? existing.data,
+      p_parcela_id: nextParcelaId,
+      p_culegator_id: nextCulegatorId,
+      p_kg_cal1: kg.kgCal1,
+      p_kg_cal2: kg.kgCal2,
+      p_observatii: input.observatii ?? existing.observatii ?? null,
+    })
+
+    if (error) {
+      return { success: false, error: toSchemaAwareError(error).message }
+    }
+
+    if (!data) {
+      return { success: false, error: 'Nu am primit recoltarea actualizata de la baza de date.' }
+    }
+
+    const recoltare = mapRecoltare(data)
+
+    try {
+      await scheduleAutoManoperaSync({
+        supabase,
+        tenantId: recoltare.tenant_id ?? existing.tenant_id,
+        dates: [existing.data, recoltare.data],
+      })
+      return { success: true, data: recoltare }
+    } catch (syncError) {
+      console.error('Labor expense sync failed:', syncError)
+      return {
+        success: true,
+        data: recoltare,
+        warning: AUTO_MANOPERA_WARNING,
+      }
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Operatiunea pe recoltari a esuat.',
+    }
   }
-
-  const kg = computeKg({
-    kg_cal1: input.kg_cal1 ?? existing.kg_cal1 ?? 0,
-    kg_cal2: input.kg_cal2 ?? existing.kg_cal2 ?? 0,
-  })
-
-  const tarifSnapshot = await getCulegatorTarif(nextCulegatorId)
-  const valoareMunca = round2(kg.totalKg * tarifSnapshot)
-
-  const payload: RecoltareUpdate = {
-    ...input,
-    culegator_id: nextCulegatorId,
-    kg_cal1: kg.kgCal1,
-    kg_cal2: kg.kgCal2,
-    pret_lei_pe_kg_snapshot: tarifSnapshot,
-    valoare_munca_lei: valoareMunca,
-    updated_at: new Date().toISOString(),
-  }
-
-  const { data, error } = await supabase
-    .from('recoltari')
-    .update(payload)
-    .eq('id', id)
-    .select(RECOLTARI_SELECT)
-    .single()
-
-  if (error) throw error
-
-  const recoltare = mapRecoltare(data as Parameters<typeof mapRecoltare>[0])
-
-  await replaceRecoltareMovements({
-    recoltareId: recoltare.id,
-    tenantId: recoltare.tenant_id,
-    parcelaId: recoltare.parcela_id,
-    data: recoltare.data,
-    kgCal1: recoltare.kg_cal1,
-    kgCal2: recoltare.kg_cal2,
-  })
-
-  scheduleAutoManoperaSync({
-    supabase,
-    tenantId: recoltare.tenant_id ?? existing.tenant_id,
-    dates: [existing.data, recoltare.data],
-  })
-
-  return recoltare
 }
 
-export async function deleteRecoltare(id: string): Promise<void> {
+export async function deleteRecoltare(id: string): Promise<DeleteRecoltareResult> {
   const supabase = getSupabase()
-  const { data: existing } = await supabase
-    .from('recoltari')
-    .select('tenant_id,data')
-    .eq('id', id)
-    .maybeSingle()
 
-  await deleteMiscariStocByReference(id, 'recoltare')
+  try {
+    const tenantId = await getTenantId(supabase)
+    const rpcClient = supabase as RecoltareRpcClient
+    const { data: existing, error: existingError } = await supabase
+      .from('recoltari')
+      .select('tenant_id,data')
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
 
-  const { error } = await supabase.from('recoltari').delete().eq('id', id)
+    if (existingError) {
+      return { success: false, error: existingError.message }
+    }
 
-  if (error) throw error
+    const { error } = await rpcClient.rpc('delete_recoltare_with_stock', {
+      p_recoltare_id: id,
+    })
 
-  scheduleAutoManoperaSync({
-    supabase,
-    tenantId: existing?.tenant_id ?? null,
-    dates: [existing?.data ?? null],
-  })
+    if (error) {
+      return { success: false, error: toSchemaAwareError(error).message }
+    }
+
+    try {
+      await scheduleAutoManoperaSync({
+        supabase,
+        tenantId: existing?.tenant_id ?? null,
+        dates: [existing?.data ?? null],
+      })
+      return { success: true }
+    } catch (syncError) {
+      console.error('Labor expense sync failed:', syncError)
+      return {
+        success: true,
+        warning: AUTO_MANOPERA_WARNING,
+      }
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Operatiunea pe recoltari a esuat.',
+    }
+  }
 }

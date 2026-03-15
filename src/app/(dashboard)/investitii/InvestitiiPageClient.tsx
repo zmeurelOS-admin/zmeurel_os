@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { AddInvestitieDialog } from '@/components/investitii/AddInvestitieDialog'
 import { EditInvestitieDialog } from '@/components/investitii/EditInvestitieDialog'
@@ -153,7 +154,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
         <div className="grid grid-cols-2 gap-3">
           <MiniCard icon="🏗️" value={`${stats.totalInvestit.toFixed(0)} RON`} sub={`${stats.count} investitii`} label="Total" />
           <MiniCard icon="📅" value={`${stats.totalAnulAsta.toFixed(0)} RON`} sub={`RON ${yearNow}`} label="" />
@@ -161,7 +162,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
 
         <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>Investitii pe categorii</h3>
+            <SectionTitle className="flex-1" title="Investiții pe categorii" />
             {selectedCategory ? (
               <button
                 type="button"

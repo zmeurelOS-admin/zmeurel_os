@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
-import { createVanzare, deleteVanzare, type Vanzare } from './vanzari'
+import { type Vanzare } from './vanzari'
 
 export const COMENZI_STATUSES = [
   'noua',
@@ -84,6 +84,50 @@ type SupabaseLikeError = {
   hint?: string
 }
 
+type DeliverOrderAtomicPayload = {
+  delivered_order: Record<string, unknown> | null
+  vanzare: Vanzare | null
+  remaining_order: Record<string, unknown> | null
+  deducted_stock_kg: number | null
+}
+
+type ComenziRpcClient = ReturnType<typeof getSupabase> & {
+  rpc: {
+    (
+      fn: 'deliver_order_atomic',
+      args: {
+        p_order_id: string
+        p_delivered_qty: number
+        p_payment_status: string
+        p_remaining_delivery_date: string | null
+      }
+    ): Promise<{
+      data: DeliverOrderAtomicPayload | null
+      error: SupabaseLikeError | null
+    }>
+    (
+      fn: 'delete_comanda_atomic',
+      args: {
+        p_comanda_id: string
+        p_tenant_id: string
+      }
+    ): Promise<{
+      data: null
+      error: SupabaseLikeError | null
+    }>
+    (
+      fn: 'reopen_comanda_atomic',
+      args: {
+        p_comanda_id: string
+        p_tenant_id: string
+      }
+    ): Promise<{
+      data: Record<string, unknown> | null
+      error: SupabaseLikeError | null
+    }>
+  }
+}
+
 function toReadableError(error: unknown, fallbackMessage: string) {
   const e = (error ?? {}) as SupabaseLikeError
   const message = e.message || e.details || e.hint || fallbackMessage
@@ -139,11 +183,13 @@ function signedQuantity(tipMiscare: string, cantitateKg: number): number {
 
 async function getStockBuckets(): Promise<StockBucket[]> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
   const { data, error } = await (supabase as any)
     .from('miscari_stoc')
     .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg')
+    .eq('tenant_id', tenantId)
 
-  if (error) throw toReadableError(error, 'Nu am putut încărca stocul disponibil.')
+  if (error) throw toReadableError(error, 'Nu am putut incarca stocul disponibil.')
 
   const grouped = new Map<string, StockBucket>()
   for (const row of data ?? []) {
@@ -165,52 +211,15 @@ async function getStockBuckets(): Promise<StockBucket[]> {
     .sort((a, b) => b.availableKg - a.availableKg)
 }
 
-async function applyStockOutflowForVanzare(vanzareId: string, cantitateKg: number, tenantId: string): Promise<number> {
-  const supabase = getSupabase()
-  let remaining = round2(cantitateKg)
-  if (remaining <= 0) return 0
-
-  const buckets = await getStockBuckets()
-  let deducted = 0
-
-  for (const bucket of buckets) {
-    if (remaining <= 0) break
-    const take = round2(Math.min(bucket.availableKg, remaining))
-    if (take <= 0) continue
-
-    const payload = {
-      tenant_id: tenantId,
-      locatie_id: bucket.locatie_id,
-      produs: bucket.produs,
-      calitate: bucket.calitate,
-      depozit: bucket.depozit,
-      tip_miscare: 'vanzare',
-      cantitate_kg: take,
-      referinta_id: vanzareId,
-      data: new Date().toISOString().split('T')[0],
-      observatii: 'Consum stoc prin livrare comanda',
-    }
-
-    const { error } = await (supabase as any).from('miscari_stoc').insert(payload)
-    if (error) {
-      throw toReadableError(error, 'Nu am putut actualiza stocul pentru livrare.')
-    }
-
-    deducted = round2(deducted + take)
-    remaining = round2(remaining - take)
-  }
-
-  return deducted
-}
-
 function mapPlataToStatus(plata: ComandaPlata): string {
-  if (plata === 'integral') return 'Platit'
-  if (plata === 'avans') return 'Avans'
-  return 'Restanta'
+  if (plata === 'integral') return 'platit'
+  if (plata === 'avans') return 'avans'
+  return 'restanta'
 }
 
 export async function getComenzi(): Promise<Comanda[]> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
   const { data, error } = await (supabase as any)
     .from('comenzi')
     .select(`
@@ -235,10 +244,11 @@ export async function getComenzi(): Promise<Comanda[]> {
         nume_client
       )
     `)
+    .eq('tenant_id', tenantId)
     .order('data_livrare', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 
-  if (error) throw toReadableError(error, 'Nu am putut încărca comenzile.')
+  if (error) throw toReadableError(error, 'Nu am putut incarca comenzile.')
   return (data ?? []).map(mapComanda)
 }
 
@@ -293,6 +303,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
 
 export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
   const payload = {
     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
     ...(input.client_nume_manual !== undefined ? { client_nume_manual: input.client_nume_manual?.trim() || null } : {}),
@@ -312,8 +323,9 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
       .from('comenzi')
       .select('cantitate_kg,pret_per_kg')
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .single()
-    if (currentError) throw toReadableError(currentError, 'Nu am putut încărca comanda pentru editare.')
+    if (currentError) throw toReadableError(currentError, 'Nu am putut incarca comanda pentru editare.')
 
     const cantitate = round2(payload.cantitate_kg ?? Number(current.cantitate_kg ?? 0))
     const pret = round2(payload.pret_per_kg ?? Number(current.pret_per_kg ?? 0))
@@ -324,6 +336,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     .from('comenzi')
     .update(payload)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select(`
       id,
       tenant_id,
@@ -353,28 +366,23 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
 }
 
 export async function deleteComanda(id: string): Promise<void> {
+  /*
+  SQL reference for the atomic delete path lives in:
+  supabase/migrations/20260313_atomic_order_operations.sql
+
+  create or replace function public.delete_comanda_atomic(
+    p_comanda_id uuid,
+    p_tenant_id uuid
+  ) returns void;
+  */
   const supabase = getSupabase()
-  
-  // First, fetch the comanda to check if it has a linked vanzare
-  const { data: comanda, error: fetchError } = await (supabase as any)
-    .from('comenzi')
-    .select('linked_vanzare_id, status')
-    .eq('id', id)
-    .single()
-  
-  if (fetchError) throw toReadableError(fetchError, 'Nu am putut încărca comanda pentru ștergere.')
-  
-  // If comanda has linked_vanzare_id or status='livrata', delete the linked vanzare first
-  // This creates a cascade: comanda delete → vanzare delete → stock movements delete
-  if (comanda.linked_vanzare_id || comanda.status === 'livrata') {
-    if (comanda.linked_vanzare_id) {
-      // deleteVanzare already handles deleting stock movements (miscari_stoc)
-      await deleteVanzare(comanda.linked_vanzare_id)
-    }
-  }
-  
-  // Finally, delete the comanda
-  const { error } = await (supabase as any).from('comenzi').delete().eq('id', id)
+  const tenantId = await getTenantId(supabase)
+  const rpcClient = supabase as ComenziRpcClient
+  const { error } = await rpcClient.rpc('delete_comanda_atomic', {
+    p_comanda_id: id,
+    p_tenant_id: tenantId,
+  })
+
   if (error) throw toReadableError(error, 'Nu am putut sterge comanda.')
 }
 
@@ -384,195 +392,58 @@ export async function deliverComanda(input: DeliverComandaInput): Promise<{
   remainingOrder: Comanda | null
   deductedStockKg: number
 }> {
-  const supabase = getSupabase()
-  const { data: current, error: currentError } = await (supabase as any)
-    .from('comenzi')
-    .select('*')
-    .eq('id', input.comandaId)
-    .single()
-
-  if (currentError) throw toReadableError(currentError, 'Nu am putut încărca comanda.')
-  const currentQty = round2(Number(current.cantitate_kg ?? 0))
   const deliveredQty = round2(input.cantitateLivrataKg)
 
   if (!Number.isFinite(deliveredQty) || deliveredQty <= 0) {
-    throw new Error('Cantitatea livrată trebuie sa fie mai mare decat 0.')
-  }
-  if (deliveredQty > currentQty) {
-    throw new Error('Cantitatea livrată nu poate depasi cantitatea comandata.')
-  }
-  if (current.status === 'anulata') {
-    throw new Error('Comanda anulata nu poate fi livrată.')
-  }
-  if (!current.tenant_id) {
-    throw new Error('Comanda nu are tenant asociat. Nu putem finaliza livrarea.')
+    throw new Error('Cantitatea livrata trebuie sa fie mai mare decat 0.')
   }
 
-  const today = new Date().toISOString().split('T')[0]
-  const saleObservatii = [current.observatii, `Livrare comanda ${current.id}`].filter(Boolean).join(' | ')
-  const vanzare = await createVanzare({
-    tenant_id: current.tenant_id,
-    data: today,
-    client_id: current.client_id ?? undefined,
-    comanda_id: current.id,
-    cantitate_kg: deliveredQty,
-    pret_lei_kg: Number(current.pret_per_kg ?? 0),
-    status_plata: mapPlataToStatus(input.plata),
-    observatii_ladite: saleObservatii,
+  const rpcClient = getSupabase() as ComenziRpcClient
+  const { data, error } = await rpcClient.rpc('deliver_order_atomic', {
+    p_order_id: input.comandaId,
+    p_delivered_qty: deliveredQty,
+    p_payment_status: mapPlataToStatus(input.plata),
+    p_remaining_delivery_date: input.dataLivrareRamasa ?? null,
   })
 
-  const deductedStockKg = await applyStockOutflowForVanzare(vanzare.id, deliveredQty, current.tenant_id)
+  if (error) {
+    throw toReadableError(error, 'Nu am putut finaliza livrarea comenzii.')
+  }
 
-  const { data: deliveredData, error: deliveredError } = await (supabase as any)
-    .from('comenzi')
-    .update({
-      status: 'livrata',
-      linked_vanzare_id: vanzare.id,
-      updated_at: new Date().toISOString(),
-      observatii: [current.observatii, `Livrata: ${deliveredQty.toFixed(2)} kg`].filter(Boolean).join(' | '),
-    })
-    .eq('id', input.comandaId)
-    .select(`
-      id,
-      tenant_id,
-      client_id,
-      client_nume_manual,
-      telefon,
-      locatie_livrare,
-      data_comanda,
-      data_livrare,
-      cantitate_kg,
-      pret_per_kg,
-      total,
-      status,
-      observatii,
-      linked_vanzare_id,
-      parent_comanda_id,
-      created_at,
-      updated_at,
-      clienti (
-        nume_client
-      )
-    `)
-    .single()
-
-  if (deliveredError) throw toReadableError(deliveredError, 'Nu am putut actualiza comanda ca livrata.')
-
-  let remainingOrder: Comanda | null = null
-  const remainingQty = round2(currentQty - deliveredQty)
-  if (remainingQty > 0) {
-    const fallbackDate = new Date()
-    fallbackDate.setDate(fallbackDate.getDate() + 1)
-    const remainingDate = input.dataLivrareRamasa || fallbackDate.toISOString().split('T')[0]
-    const today = new Date().toISOString().split('T')[0]
-
-    const { data: remainingData, error: remainingError } = await (supabase as any)
-      .from('comenzi')
-      .insert({
-        tenant_id: current.tenant_id,
-        client_id: current.client_id,
-        client_nume_manual: current.client_nume_manual,
-        telefon: current.telefon,
-        locatie_livrare: current.locatie_livrare,
-        data_comanda: today,
-        data_livrare: remainingDate,
-        cantitate_kg: remainingQty,
-        pret_per_kg: Number(current.pret_per_kg ?? 0),
-        total: round2(remainingQty * Number(current.pret_per_kg ?? 0)),
-        status: remainingDate > today ? 'programata' : 'confirmata',
-        observatii: [current.observatii, `Rest din comanda ${current.id}`].filter(Boolean).join(' | '),
-        parent_comanda_id: current.id,
-      })
-      .select(`
-        id,
-        tenant_id,
-        client_id,
-        client_nume_manual,
-        telefon,
-        locatie_livrare,
-        data_comanda,
-        data_livrare,
-        cantitate_kg,
-        pret_per_kg,
-        total,
-        status,
-        observatii,
-        linked_vanzare_id,
-        parent_comanda_id,
-        created_at,
-        updated_at,
-        clienti (
-          nume_client
-        )
-      `)
-      .single()
-
-    if (remainingError) throw toReadableError(remainingError, 'Nu am putut crea comanda restanta.')
-    remainingOrder = mapComanda(remainingData)
+  if (!data?.delivered_order || !data.vanzare) {
+    throw new Error('Livrarea nu a putut fi finalizata complet.')
   }
 
   return {
-    deliveredOrder: mapComanda(deliveredData),
-    vanzare,
-    remainingOrder,
-    deductedStockKg,
+    deliveredOrder: mapComanda(data.delivered_order),
+    vanzare: data.vanzare,
+    remainingOrder: data.remaining_order ? mapComanda(data.remaining_order) : null,
+    deductedStockKg: round2(Number(data.deducted_stock_kg ?? 0)),
   }
 }
 
 export async function reopenComanda(id: string): Promise<Comanda> {
+  /*
+  SQL reference for the atomic reopen path lives in:
+  supabase/migrations/20260313_atomic_order_operations.sql
+
+  create or replace function public.reopen_comanda_atomic(
+    p_comanda_id uuid,
+    p_tenant_id uuid
+  ) returns public.comenzi;
+  */
   const supabase = getSupabase()
-  const { data: current, error: currentError } = await (supabase as any)
-    .from('comenzi')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (currentError) throw toReadableError(currentError, 'Nu am putut încărca comanda pentru redeschidere.')
-  if (current.status !== 'livrata') throw new Error('Doar comenzile livrate pot fi redeschise.')
-
-  if (current.linked_vanzare_id) {
-    await deleteVanzare(current.linked_vanzare_id)
-    await (supabase as any)
-      .from('miscari_stoc')
-      .delete()
-      .eq('referinta_id', current.linked_vanzare_id)
-      .eq('tip_miscare', 'vanzare')
-  }
-
-  const { data, error } = await (supabase as any)
-    .from('comenzi')
-    .update({
-      status: 'confirmata',
-      linked_vanzare_id: null,
-      updated_at: new Date().toISOString(),
-      observatii: [current.observatii, 'Comanda redeschisa'].filter(Boolean).join(' | '),
-    })
-    .eq('id', id)
-    .select(`
-      id,
-      tenant_id,
-      client_id,
-      client_nume_manual,
-      telefon,
-      locatie_livrare,
-      data_comanda,
-      data_livrare,
-      cantitate_kg,
-      pret_per_kg,
-      total,
-      status,
-      observatii,
-      linked_vanzare_id,
-      parent_comanda_id,
-      created_at,
-      updated_at,
-      clienti (
-        nume_client
-      )
-    `)
-    .single()
+  const tenantId = await getTenantId(supabase)
+  const rpcClient = supabase as ComenziRpcClient
+  const { data, error } = await rpcClient.rpc('reopen_comanda_atomic', {
+    p_comanda_id: id,
+    p_tenant_id: tenantId,
+  })
 
   if (error) throw toReadableError(error, 'Nu am putut redeschide comanda.')
+  if (!data) {
+    throw new Error('Nu am primit comanda redeschisa de la baza de date.')
+  }
   return mapComanda(data)
 }
 

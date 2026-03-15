@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getHarvestCropSelection, stripHiddenAgricultureMetadata } from '@/lib/parcele/crop-config'
 import { type Recoltare } from '@/lib/supabase/queries/recoltari'
 
 interface ViewRecoltareDialogProps {
@@ -48,10 +49,15 @@ export function ViewRecoltareDialog({
   const kgCal2 = Number(recoltare.kg_cal2 || 0)
   const totalKg = kgCal1 + kgCal2
   const title = parcelaNume ? `Recoltare - ${parcelaNume}` : `Recoltare #${recoltare.id_recoltare || recoltare.id}`
+  const selectedCrop = getHarvestCropSelection(recoltare.observatii)
+  const visibleObservatii = stripHiddenAgricultureMetadata(recoltare.observatii)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="mx-auto max-w-lg rounded-xl bg-white p-0 lg:max-w-2xl xl:max-w-3xl">
+      <DialogContent
+        aria-describedby={undefined}
+        className="mx-auto max-w-lg rounded-xl bg-white p-0 lg:max-w-2xl xl:max-w-3xl"
+      >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
@@ -59,7 +65,7 @@ export function ViewRecoltareDialog({
           <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-gray-100 py-4 text-left lg:gap-3">
             <DialogTitle className="text-xl font-semibold text-gray-900">{title}</DialogTitle>
             <DialogClose asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Inchide dialog">
+              <Button type="button" variant="ghost" size="icon" aria-label="Închide dialog">
                 <X className="h-4 w-4" />
               </Button>
             </DialogClose>
@@ -71,7 +77,7 @@ export function ViewRecoltareDialog({
               <div>
                 <p className="text-sm text-gray-500">Parcelă</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-base font-medium text-gray-900">{parcelaNume || 'Nespecificata'}</p>
+                  <p className="text-base font-medium text-gray-900">{parcelaNume || 'Nespecificată'}</p>
                   {parcelaTip ? (
                     <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
                       {parcelaTip}
@@ -80,25 +86,33 @@ export function ViewRecoltareDialog({
                 </div>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Culegator</p>
+                <p className="text-sm text-gray-500">Culegător</p>
                 <p className="text-base font-medium text-gray-900">{culegatorNume || 'Nespecificat'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Data</p>
                 <p className="text-base font-medium text-gray-900">{formatDate(recoltare.data)}</p>
               </div>
+              {selectedCrop ? (
+                <div>
+                  <p className="text-sm text-gray-500">Produs recoltat</p>
+                  <p className="text-base font-medium text-gray-900">
+                    {[selectedCrop.culture, selectedCrop.variety].filter(Boolean).join(' · ') || 'Nespecificat'}
+                  </p>
+                </div>
+              ) : null}
             </div>
           </section>
 
           <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Cantitati</h3>
+            <h3 className="mb-3 text-base font-semibold text-gray-900">Cantități</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Cal1</p>
+                <p className="text-sm text-gray-500">Cal. 1</p>
                 <p className="text-base font-medium text-gray-900">{formatKg(kgCal1)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Cal2</p>
+                <p className="text-sm text-gray-500">Cal. 2</p>
                 <p className="text-base font-medium text-gray-900">{formatKg(kgCal2)}</p>
               </div>
               <div>
@@ -112,22 +126,24 @@ export function ViewRecoltareDialog({
             <h3 className="mb-3 text-base font-semibold text-gray-900">Financiar</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Pret/kg</p>
+                <p className="text-sm text-gray-500">Preț/kg</p>
                 <p className="text-base font-medium text-gray-900">
                   {formatLei(Number(recoltare.pret_lei_pe_kg_snapshot || 0))}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Valoare munca</p>
-                <p className="text-base font-medium text-gray-900">{formatLei(Number(recoltare.valoare_munca_lei || 0))}</p>
+                <p className="text-sm text-gray-500">Valoare muncă</p>
+                <p className="text-base font-medium text-gray-900">
+                  {formatLei(Number(recoltare.valoare_munca_lei || 0))}
+                </p>
               </div>
             </div>
           </section>
 
-          {recoltare.observatii?.trim() ? (
+          {visibleObservatii.trim() ? (
             <section className="py-4">
               <h3 className="mb-3 text-base font-semibold text-gray-900">Observații</h3>
-              <p className="text-base font-medium text-gray-900">{recoltare.observatii}</p>
+              <p className="text-base font-medium text-gray-900">{visibleObservatii}</p>
             </section>
           ) : null}
         </div>
@@ -142,7 +158,7 @@ export function ViewRecoltareDialog({
               onEdit(recoltare)
             }}
           >
-            ✏️ Editează
+            Editează
           </Button>
           <Button
             type="button"
@@ -153,7 +169,7 @@ export function ViewRecoltareDialog({
               onDelete(recoltare)
             }}
           >
-            🗑️ Șterge
+            Șterge
           </Button>
         </div>
       </DialogContent>

@@ -39,7 +39,11 @@ export function ViewCheltuialaDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="mx-auto max-w-lg rounded-xl bg-white p-0 lg:max-w-2xl xl:max-w-3xl">
+      <DialogContent
+        aria-describedby={undefined}
+        showCloseButton={false}
+        className="mx-auto max-w-lg rounded-xl bg-white p-0 lg:max-w-2xl xl:max-w-3xl"
+      >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
@@ -110,11 +114,11 @@ export function ViewCheltuialaDialog({
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4 lg:gap-3">
+        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
           <Button
             type="button"
             variant="outline"
-            className="lg:hover:opacity-95"
+            className="h-10 min-w-[100px]"
             onClick={() => {
               onOpenChange(false)
               onEdit(cheltuiala)
@@ -125,7 +129,7 @@ export function ViewCheltuialaDialog({
           <Button
             type="button"
             variant="destructive"
-            className="lg:hover:opacity-95"
+            className="h-10 min-w-[100px]"
             onClick={() => {
               onOpenChange(false)
               onDelete(cheltuiala)

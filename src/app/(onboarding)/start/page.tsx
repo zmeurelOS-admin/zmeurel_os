@@ -1,175 +1,436 @@
-﻿'use client'
+'use client'
 
 import { Loader2 } from 'lucide-react'
-import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { Button } from '@/components/ui/button'
+import { buildAuthCallbackUrl, buildLoginUrl } from '@/lib/auth/redirects'
 import {
   disableFarmSetupMode,
   enableDemoMode,
   markDemoSeedAttempted,
 } from '@/lib/demo/onboarding-storage'
-import {
-  clearDemoTutorialPending,
-  markDemoTutorialSeen,
-} from '@/lib/demo/tutorial-storage'
+import { getSupabase } from '@/lib/supabase/client'
 import { toast } from '@/lib/ui/toast'
+import { track } from '@/lib/analytics/track'
 
+type PendingAction = 'demo' | 'google' | null
+type AuthState = 'loading' | 'guest' | 'user'
 type DemoType = 'berries' | 'solar'
-type PendingAction = DemoType | null
+type Step = 'auth' | 'farm-type'
+
+const FARM_TYPE_OPTIONS: Array<{
+  type: DemoType
+  emoji: string
+  title: string
+  description: string
+  tags: string[]
+}> = [
+  {
+    type: 'berries',
+    emoji: '🫐',
+    title: 'Fructe de pădure',
+    description: 'Fermă demo cu zmeură, mur, afin și căpșuni. Culegători, recoltări și vânzări incluse.',
+    tags: ['Zmeură', 'Mur', 'Afin', 'Căpșuni'],
+  },
+  {
+    type: 'solar',
+    emoji: '🍅',
+    title: 'Solarii',
+    description: 'Fermă demo cu sere și solarii. Roșii, castraveți și ardei, cu stoc și comenzi.',
+    tags: ['Roșii', 'Castraveți', 'Ardei'],
+  },
+]
+
+const cardClassName =
+  'rounded-2xl border border-black/5 bg-white p-6 shadow-sm sm:p-6'
+
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.5c-.2 1.3-1.5 3.9-5.5 3.9-3.3 0-6-2.8-6-6.2s2.7-6.2 6-6.2c1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 6.8 2 2.5 6.5 2.5 12S6.8 22 12 22c6.9 0 9.1-4.9 9.1-7.4 0-.5 0-.9-.1-1.3H12z"
+      />
+      <path
+        fill="#34A853"
+        d="M3.6 7.3l3.2 2.4c.9-2.6 3.3-4.4 6.2-4.4 1.9 0 3.1.8 3.8 1.5l2.6-2.6C16.8 3 14.6 2 12 2 8.4 2 5.2 4 3.6 7.3z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M12 22c2.5 0 4.7-.8 6.3-2.3l-2.9-2.4c-.8.6-1.8 1-3.4 1-3.9 0-5.3-2.5-5.6-3.8l-3.2 2.5C4.8 20 8.1 22 12 22z"
+      />
+      <path
+        fill="#4285F4"
+        d="M21.1 12.8c0-.6 0-1-.2-1.5H12v3.9h5.5c-.2 1.1-1 2.7-2.6 3.7l2.9 2.4c1.7-1.5 3.3-4.4 3.3-8.5z"
+      />
+    </svg>
+  )
+}
+
+function SectionDivider() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-[var(--agri-border)]" />
+      <span className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--agri-text-muted)]">sau</span>
+      <div className="h-px flex-1 bg-[var(--agri-border)]" />
+    </div>
+  )
+}
 
 export default function StartOnboardingPage() {
   const router = useRouter()
+  const supabase = useMemo(() => getSupabase(), [])
+  const [authState, setAuthState] = useState<AuthState>('loading')
+  const [redirectAuthenticatedUser, setRedirectAuthenticatedUser] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [step, setStep] = useState<Step>('auth')
+  const [chosenDemoType, setChosenDemoType] = useState<DemoType | null>(null)
 
   const isBusy = pendingAction !== null
+
+  useEffect(() => {
+    let mounted = true
+
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      const hasSession = Boolean(data.session)
+      setAuthState(hasSession ? 'user' : 'guest')
+      setRedirectAuthenticatedUser(hasSession)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return
+      setAuthState(session ? 'user' : 'guest')
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    if (redirectAuthenticatedUser && authState === 'user' && pendingAction === null) {
+      router.replace('/dashboard')
+    }
+  }, [authState, pendingAction, redirectAuthenticatedUser, router])
 
   const handleRetry = () => {
     if (isBusy) return
     setErrorMessage(null)
-    router.refresh()
-    window.location.reload()
+  }
+
+  const handleGoogleStart = async () => {
+    if (isBusy) return
+    setPendingAction('google')
+    setErrorMessage(null)
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: buildAuthCallbackUrl('/dashboard', window.location.origin),
+          skipBrowserRedirect: true,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (!data?.url) {
+        throw new Error('Nu am putut porni autentificarea cu Google.')
+      }
+
+      window.location.assign(data.url)
+    } catch (error) {
+      setPendingAction(null)
+      const message =
+        error instanceof Error ? error.message : 'Nu am putut porni autentificarea cu Google.'
+      setErrorMessage(message)
+      toast.error(message)
+    }
   }
 
   const handleStartDemo = async (demoType: DemoType) => {
     if (isBusy) return
 
-    setPendingAction(demoType)
+    setPendingAction('demo')
     setErrorMessage(null)
 
     try {
+      if (authState === 'user') {
+        router.replace('/dashboard')
+        return
+      }
+
+      const guestResponse = await fetch('/api/auth/beta-guest', {
+        method: 'POST',
+      })
+      const guestPayload = (await guestResponse.json().catch(() => ({}))) as {
+        ok?: boolean
+        email?: string
+        accessToken?: string
+        refreshToken?: string
+        error?: string | { message?: string }
+      }
+
+      if (!guestResponse.ok || guestPayload.ok === false || !guestPayload.accessToken || !guestPayload.refreshToken) {
+        const message =
+          typeof guestPayload.error === 'string'
+            ? guestPayload.error
+            : guestPayload.error?.message || 'Nu am putut porni demo-ul.'
+        throw new Error(message)
+      }
+
+      const { error: guestLoginError } = await supabase.auth.setSession({
+        access_token: guestPayload.accessToken,
+        refresh_token: guestPayload.refreshToken,
+      })
+
+      if (guestLoginError) {
+        throw guestLoginError
+      }
+
       const response = await fetch('/api/demo/seed', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ demo_type: demoType }),
       })
-      const payload = (await response.json().catch(() => ({}))) as { status?: string; error?: string }
-
-      if (!response.ok) {
-        throw new Error(payload.error || 'Nu am putut încărca datele demo.')
+      const payload = (await response.json().catch(() => ({}))) as {
+        status?: string
+        error?: string | { message?: string }
       }
 
-      if (payload.status !== 'seeded' && payload.status !== 'already_seeded') {
+      if (!response.ok) {
+        const message =
+          typeof payload.error === 'string'
+            ? payload.error
+            : payload.error?.message || 'Nu am putut incarca datele demo.'
+        throw new Error(message)
+      }
+
+      if (
+        payload.status !== 'seeded' &&
+        payload.status !== 'already_seeded' &&
+        payload.status !== 'skipped_existing_data'
+      ) {
         throw new Error('Raspuns invalid de la seed demo.')
       }
 
       enableDemoMode()
       disableFarmSetupMode()
       markDemoSeedAttempted()
-      clearDemoTutorialPending()
-      markDemoTutorialSeen()
+      track('demo_started', { demo_type: demoType })
       router.replace('/dashboard')
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nu am putut încărca datele demo.'
+      const message = error instanceof Error ? error.message : 'Nu am putut incarca datele demo.'
       setErrorMessage(message)
       toast.error(message)
-    } finally {
       setPendingAction(null)
     }
   }
 
-  const landingBackgroundStyle = {
-    '--landing-accent': '#F16B6B',
-    '--landing-hero-start': 'var(--agri-primary)',
-    '--landing-hero-end': '#2fa65e',
-    backgroundImage: 'linear-gradient(135deg, var(--landing-hero-start) 0%, var(--landing-hero-end) 100%)',
-  } as CSSProperties
+  const handleChooseFarmType = (demoType: DemoType) => {
+    setChosenDemoType(demoType)
+    void handleStartDemo(demoType)
+  }
+
+  if (step === 'farm-type') {
+    return (
+      <main className="min-h-screen bg-[var(--agri-bg)] px-4 py-6 sm:px-6 sm:py-10">
+        <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-3xl items-center">
+          <div className="mx-auto w-full max-w-[480px] space-y-5">
+            <div className="space-y-2 text-center">
+              <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-lg font-semibold text-[var(--agri-primary)] shadow-sm">
+                Z
+              </div>
+              <div>
+                <h1 className="text-[24px] font-semibold tracking-[-0.02em] text-[var(--agri-text)]">
+                  Ce tip de fermă vrei să explorezi?
+                </h1>
+                <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
+                  Alege un demo presetat. Îl poți reseta oricând din setări.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {FARM_TYPE_OPTIONS.map((option) => {
+                const isSelected = chosenDemoType === option.type
+                const isLoading = isSelected && pendingAction === 'demo'
+                return (
+                  <button
+                    key={option.type}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => handleChooseFarmType(option.type)}
+                    className="flex flex-col items-start gap-3 rounded-2xl border border-black/5 bg-white p-5 shadow-sm text-left transition-all hover:border-emerald-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className="text-4xl">{isLoading ? '⏳' : option.emoji}</span>
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold text-[var(--agri-text)]">
+                        {isLoading ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Se pregătește...
+                          </span>
+                        ) : option.title}
+                      </p>
+                      <p className="text-sm text-[var(--agri-text-muted)]">{option.description}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {option.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--agri-text-muted)]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 w-full rounded-xl text-[var(--agri-text-muted)] hover:bg-[var(--agri-surface-muted)]"
+              disabled={isBusy}
+              onClick={() => setStep('auth')}
+            >
+              ← Înapoi
+            </Button>
+
+            {errorMessage ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div>{errorMessage}</div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRetry}
+                  disabled={isBusy}
+                  className="mt-3 h-9 rounded-xl border-red-200 bg-white text-red-700 hover:bg-red-100"
+                >
+                  Încearcă din nou
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
-    <main className="relative min-h-screen overflow-hidden" style={landingBackgroundStyle}>
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div
-          className="absolute -top-28 left-1/2 h-[460px] w-[460px] -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 72%)' }}
-        />
-        <div
-          className="absolute right-[-120px] top-12 h-[320px] w-[320px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(241,107,107,0.12) 0%, rgba(241,107,107,0) 72%)' }}
-        />
-      </div>
-
-      <div className="relative z-10 mx-auto w-full max-w-[1000px] px-4 py-12 sm:px-6 sm:py-16">
-        <section className="text-center">
-          <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-coral-light)] text-3xl shadow-sm">
-            🌱
+    <main className="min-h-screen bg-[var(--agri-bg)] px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-3xl items-center">
+        <div className="mx-auto w-full max-w-[420px] space-y-4">
+          <div className="space-y-2 text-center">
+            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-lg font-semibold text-[var(--agri-primary)] shadow-sm">
+              Z
+            </div>
+            <div>
+              <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[var(--agri-text)]">
+                Intra in aplicatie
+              </h1>
+              <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
+                Intri rapid cu Google, cu email sau direct intr-o ferma demo.
+              </p>
+            </div>
           </div>
-          <h1 className="mt-5 text-3xl font-semibold text-white">Testează Zmeurel OS în modul demo</h1>
-          <p className="mt-2 text-base text-emerald-50">
-            Alege tipul fermei pentru a vedea cum funcționează aplicația
-          </p>
-        </section>
 
-        <section className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
-          <article className="agri-card flex h-full flex-col rounded-2xl border bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-xl font-semibold text-[var(--agri-text)]">🍓 Fructe de pădure / câmp</h2>
+          <section className={cardClassName}>
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-[var(--agri-text)]">Incepe in mai putin de 5 secunde</h2>
+              <p className="text-sm text-[var(--agri-text-muted)]">
+                Pentru beta nu cerem confirmare pe email. Dupa autentificare intri direct in dashboard.
+              </p>
+            </div>
 
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ideal pentru:</p>
-            <p className="mt-1 text-sm text-[var(--agri-text-muted)]">zmeură, afine, mure, căpșuni</p>
+            <div className="mt-5 space-y-4">
+              <Button
+                type="button"
+                className="h-11 w-full rounded-xl bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+                onClick={handleGoogleStart}
+                disabled={authState === 'loading' || isBusy}
+              >
+                {pendingAction === 'google' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Se redirectioneaza...
+                  </>
+                ) : (
+                  <>
+                    <GoogleMark />
+                    Continua cu Google
+                  </>
+                )}
+              </Button>
 
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Demo include:</p>
-            <ul className="mt-2 space-y-2 text-sm text-[var(--agri-text-muted)]">
-              <li>- terenuri</li>
-              <li>- recoltări</li>
-              <li>- activități agricole</li>
-              <li>- vânzări</li>
-            </ul>
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+              >
+                <Link href={buildLoginUrl({ mode: 'register', next: '/dashboard' })}>Continua cu email</Link>
+              </Button>
 
-            <button
-              type="button"
-              onClick={() => handleStartDemo('berries')}
-              disabled={isBusy}
-              className="agri-control mt-6 h-11 rounded-xl bg-[var(--agri-primary)] px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              <span className="inline-flex items-center gap-2">
-                {pendingAction === 'berries' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Pornește demo
-              </span>
-            </button>
-          </article>
+              <SectionDivider />
 
-          <article className="agri-card flex h-full flex-col rounded-2xl border bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-xl font-semibold text-[var(--agri-text)]">🍅 Legume în solarii</h2>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+                onClick={() => {
+                  if (authState === 'user') {
+                    router.replace('/dashboard')
+                    return
+                  }
+                  setErrorMessage(null)
+                  setStep('farm-type')
+                }}
+                disabled={authState === 'loading' || isBusy}
+              >
+                Continua fara cont
+              </Button>
 
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ideal pentru:</p>
-            <p className="mt-1 text-sm text-[var(--agri-text-muted)]">roșii, castraveți, ardei</p>
+              <Button asChild variant="ghost" className="h-10 w-full rounded-xl text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]">
+                <Link href={buildLoginUrl({ next: '/dashboard' })}>Am deja cont</Link>
+              </Button>
+            </div>
+          </section>
 
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Demo include:</p>
-            <ul className="mt-2 space-y-2 text-sm text-[var(--agri-text-muted)]">
-              <li>- solarii</li>
-              <li>- climat solar</li>
-              <li>- etape cultură</li>
-              <li>- activități solarii</li>
-            </ul>
+          <section className={cardClassName}>
+            <h2 className="text-sm font-semibold text-[var(--agri-text)]">Ce primesti in demo</h2>
+            <p className="mt-2 text-sm text-[var(--agri-text-muted)]">
+              Ferma demo porneste cu parcele, recoltari, stoc, vanzari si culegatori, intr-un tenant separat si resetabil.
+            </p>
+          </section>
 
-            <button
-              type="button"
-              onClick={() => handleStartDemo('solar')}
-              disabled={isBusy}
-              className="agri-control mt-6 h-11 rounded-xl bg-[var(--agri-primary)] px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              <span className="inline-flex items-center gap-2">
-                {pendingAction === 'solar' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Pornește demo
-              </span>
-            </button>
-          </article>
-        </section>
-
-        {errorMessage ? (
-          <div className="mt-4 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm text-[var(--agri-danger)]">{errorMessage}</p>
-            <button
-              type="button"
-              onClick={handleRetry}
-              disabled={isBusy}
-              className="agri-control h-10 rounded-xl border border-white/60 bg-white px-4 text-sm font-semibold text-[var(--agri-text)] hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              Reîncearcă
-            </button>
-          </div>
-        ) : null}
+          {errorMessage ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div>{errorMessage}</div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRetry}
+                disabled={isBusy}
+                className="mt-3 h-9 rounded-xl border-red-200 bg-white text-red-700 hover:bg-red-100"
+              >
+                Incearca din nou
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </main>
   )

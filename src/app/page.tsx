@@ -12,6 +12,7 @@ import Mobile from '@/components/landing/mobile'
 import Modules from '@/components/landing/modules'
 import Problems from '@/components/landing/problems'
 import Solution from '@/components/landing/solution'
+import About from '@/components/landing/about'
 import Story from '@/components/landing/story'
 
 export const metadata: Metadata = {
@@ -34,6 +35,7 @@ export default function Page() {
     >
       <Hero />
       <Story />
+      <About />
       <Problems />
       <Solution />
       <FarmTypes />

@@ -22,6 +22,15 @@ export function getSupabase() {
   return supabaseInstance
 }
 
+/**
+ * Resets the singleton browser Supabase client.
+ * Call after signOut so the next login creates a fresh instance
+ * without stale Navigator LockManager lock state.
+ */
+export function resetSupabaseInstance() {
+  supabaseInstance = null
+}
+
 export function createClient() {
   return getSupabase()
 }

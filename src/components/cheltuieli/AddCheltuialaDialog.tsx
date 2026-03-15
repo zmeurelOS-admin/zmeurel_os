@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { generateClientId } from '@/lib/offline/generateClientId'
+import { trackEvent } from '@/lib/analytics/trackEvent'
 import { hapticError } from '@/lib/utils/haptic'
 
 const CATEGORII_CHELTUIELI = [
@@ -36,7 +37,12 @@ const cheltuialaSchema = z.object({
   client_sync_id: z.string().optional(),
   data: z.string().min(1, 'Data este obligatorie'),
   categorie: z.string().min(1, 'Selecteaza categoria'),
-  suma_lei: z.string().min(1, 'Suma este obligatorie'),
+  suma_lei: z
+    .string()
+    .min(1, 'Suma este obligatorie')
+    .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+      message: 'Suma trebuie să fie pozitivă',
+    }),
   furnizor: z.string().optional(),
   descriere: z.string().optional(),
 })
@@ -60,6 +66,18 @@ const defaultValues = (): CheltuialaFormData => ({
 
 export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltuialaDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittedRef = useRef(false)
+  const hasOpenedRef = useRef(false)
+
+  useEffect(() => {
+    if (open) {
+      hasOpenedRef.current = true
+      submittedRef.current = false
+      trackEvent({ eventName: 'open_create_form', moduleName: 'cheltuieli', status: 'started' })
+    } else if (hasOpenedRef.current && !submittedRef.current) {
+      trackEvent({ eventName: 'form_abandoned', moduleName: 'cheltuieli', status: 'abandoned' })
+    }
+  }, [open])
 
   const form = useForm<CheltuialaFormData>({
     resolver: zodResolver(cheltuialaSchema),
@@ -80,17 +98,21 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltui
         ...data,
         client_sync_id: data.client_sync_id ?? generateClientId(),
       })
+      submittedRef.current = true
+      trackEvent({ eventName: 'create_success', moduleName: 'cheltuieli', status: 'success' })
       form.reset(defaultValues())
       onOpenChange(false)
     } catch (error: unknown) {
       const maybeError = error as { status?: number; code?: string }
       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
+        submittedRef.current = true
         toast.info('Inregistrarea era deja sincronizat?.')
         onOpenChange(false)
         return
       }
 
+      trackEvent({ eventName: 'create_failed', moduleName: 'cheltuieli', status: 'failed' })
       console.error('Error creating cheltuiala:', error)
       hapticError()
       toast.error('Eroare la salvare.')
@@ -170,5 +192,4 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit }: AddCheltui
     </AppDrawer>
   )
 }
-
 

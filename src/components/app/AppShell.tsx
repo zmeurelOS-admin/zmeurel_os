@@ -20,10 +20,10 @@ export function AppShell({
       <div className="relative z-20 lg:z-40">{header}</div>
 
       <main
-        className="relative z-10 px-4 lg:px-8 xl:px-10"
+        className="relative z-10 px-[14px] lg:px-8 xl:px-10"
         style={{ paddingBottom: bottomInset }}
       >
-        {children}
+        <div className="mx-auto w-full max-w-md sm:max-w-full">{children}</div>
       </main>
 
       {bottomBar ? <div className="relative z-30">{bottomBar}</div> : null}

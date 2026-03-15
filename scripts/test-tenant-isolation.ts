@@ -3,8 +3,8 @@ import { createClient, type PostgrestError, type SupabaseClient } from '@supabas
 
 import type { Database } from '../src/types/supabase'
 
-config({ path: '.env.test' })
 config({ path: '.env.local' })
+config({ path: '.env.test' })
 
 type TestContext = {
   runId: string
@@ -28,18 +28,23 @@ type OwnedTenant = {
   created_at?: string | null
 }
 
-function requireEnv(name: 'NEXT_PUBLIC_SUPABASE_URL' | 'NEXT_PUBLIC_SUPABASE_ANON_KEY' | 'SUPABASE_SERVICE_ROLE_KEY'): string {
-  const value = process.env[name]
+type ExpectedProfilePrivileges = {
+  tenant_id: string
+  is_superadmin: boolean
+}
+
+function requireFirstEnv(...names: string[]): string {
+  const value = names.map((name) => process.env[name]).find(Boolean)
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`)
+    throw new Error(`Missing required environment variable. Tried: ${names.join(', ')}`)
   }
 
   return value
 }
 
 function createAdminClient(): SupabaseClient<Database> {
-  const url = requireEnv('NEXT_PUBLIC_SUPABASE_URL')
-  const serviceRoleKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
+  const url = requireFirstEnv('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL')
+  const serviceRoleKey = requireFirstEnv('SUPABASE_SERVICE_ROLE_KEY')
 
   return createClient<Database>(url, serviceRoleKey, {
     auth: {
@@ -50,8 +55,8 @@ function createAdminClient(): SupabaseClient<Database> {
 }
 
 function createUserClient(): SupabaseClient<Database> {
-  const url = requireEnv('NEXT_PUBLIC_SUPABASE_URL')
-  const anonKey = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const url = requireFirstEnv('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL')
+  const anonKey = requireFirstEnv('SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
   return createClient<Database>(url, anonKey, {
     auth: {
@@ -278,12 +283,12 @@ async function cleanup(admin: SupabaseClient<Database>, context: TestContext) {
 }
 
 async function insertClient(
-  admin: SupabaseClient<Database>,
+  userClient: SupabaseClient<Database>,
   tenantId: string,
   runId: string
 ) {
-  const adminAny = admin as any
-  const { data, error } = await adminAny
+  const clientAny = userClient as any
+  const { data, error } = await clientAny
     .from('clienti')
     .insert({
       tenant_id: tenantId,
@@ -301,13 +306,13 @@ async function insertClient(
 }
 
 async function insertRecoltare(
-  admin: SupabaseClient<Database>,
+  userClient: SupabaseClient<Database>,
   tenantId: string,
   parcelId: string,
   runId: string
 ) {
-  const adminAny = admin as any
-  const { data, error } = await adminAny
+  const clientAny = userClient as any
+  const { data, error } = await clientAny
     .from('recoltari')
     .insert({
       tenant_id: tenantId,
@@ -331,13 +336,13 @@ async function insertRecoltare(
 }
 
 async function insertVanzare(
-  admin: SupabaseClient<Database>,
+  userClient: SupabaseClient<Database>,
   tenantId: string,
   clientId: string,
   runId: string
 ) {
-  const adminAny = admin as any
-  const { data, error } = await adminAny
+  const clientAny = userClient as any
+  const { data, error } = await clientAny
     .from('vanzari')
     .insert({
       tenant_id: tenantId,
@@ -347,6 +352,7 @@ async function insertVanzare(
       cantitate_kg: 4,
       pret_lei_kg: 12,
       status_plata: 'Platit',
+      client_sync_id: crypto.randomUUID(),
     })
     .select('id')
     .single()
@@ -359,13 +365,13 @@ async function insertVanzare(
 }
 
 async function insertComanda(
-  admin: SupabaseClient<Database>,
+  userClient: SupabaseClient<Database>,
   tenantId: string,
   clientId: string
 ) {
-  const adminAny = admin as any
+  const clientAny = userClient as any
   const today = todayIso()
-  const { data, error } = await adminAny
+  const { data, error } = await clientAny
     .from('comenzi')
     .insert({
       tenant_id: tenantId,
@@ -388,12 +394,12 @@ async function insertComanda(
 }
 
 async function insertMiscareStoc(
-  admin: SupabaseClient<Database>,
+  userClient: SupabaseClient<Database>,
   tenantId: string,
   parcelId: string
 ) {
-  const adminAny = admin as any
-  const { data, error } = await adminAny
+  const clientAny = userClient as any
+  const { data, error } = await clientAny
     .from('miscari_stoc')
     .insert({
       tenant_id: tenantId,
@@ -420,13 +426,13 @@ async function insertMiscareStoc(
 }
 
 async function insertAlertDismissal(
-  admin: SupabaseClient<Database>,
+  userClient: SupabaseClient<Database>,
   tenantId: string,
   userId: string,
   runId: string
 ) {
-  const adminAny = admin as any
-  const { data, error } = await adminAny
+  const clientAny = userClient as any
+  const { data, error } = await clientAny
     .from('alert_dismissals')
     .insert({
       tenant_id: tenantId,
@@ -561,6 +567,47 @@ async function assertRowStillExists(
   assertCondition(data?.id === rowId, `${label} was modified or removed unexpectedly`)
 }
 
+async function assertOwnProfilePrivilegeEscalationBlocked(
+  userClient: SupabaseClient<Database>,
+  admin: SupabaseClient<Database>,
+  userId: string,
+  patch: Record<string, unknown>,
+  expected: ExpectedProfilePrivileges,
+  label: string
+) {
+  const clientAny = userClient as any
+  const { data, error } = await clientAny
+    .from('profiles')
+    .update(patch)
+    .eq('id', userId)
+    .select('id,tenant_id,is_superadmin')
+    .maybeSingle()
+
+  if (!error && data) {
+    throw new Error(`Expected profile privilege update to be blocked for ${label}, but it succeeded.`)
+  }
+
+  const adminAny = admin as any
+  const { data: profile, error: verifyError } = await adminAny
+    .from('profiles')
+    .select('tenant_id,is_superadmin')
+    .eq('id', userId)
+    .single()
+
+  if (verifyError) {
+    throw new Error(`Failed verifying profile privilege protection for ${label}: ${verifyError.message}`)
+  }
+
+  assertCondition(profile.tenant_id === expected.tenant_id, `${label} unexpectedly changed profiles.tenant_id`)
+  assertCondition(Boolean(profile.is_superadmin) === expected.is_superadmin, `${label} unexpectedly changed profiles.is_superadmin`)
+
+  console.log(
+    error
+      ? `Profile privilege check passed for ${label}: blocked with code ${error.code ?? 'unknown'}.`
+      : `Profile privilege check passed for ${label}: 0 rows affected.`
+  )
+}
+
 async function main() {
   const admin = createAdminClient()
   const context: TestContext = {
@@ -591,14 +638,38 @@ async function main() {
     await ensureProfileTenant(admin, userA.id, context.tenantAId)
     await ensureProfileTenant(admin, userB.id, context.tenantBId)
 
+    await assertOwnProfilePrivilegeEscalationBlocked(
+      tenantAClient,
+      admin,
+      userA.id,
+      { tenant_id: context.tenantBId },
+      {
+        tenant_id: context.tenantAId,
+        is_superadmin: false,
+      },
+      'self profile tenant_id update'
+    )
+
+    await assertOwnProfilePrivilegeEscalationBlocked(
+      tenantAClient,
+      admin,
+      userA.id,
+      { is_superadmin: true },
+      {
+        tenant_id: context.tenantAId,
+        is_superadmin: false,
+      },
+      'self profile is_superadmin update'
+    )
+
     context.parcelAId = await insertParcel(tenantAClient, context.tenantAId, context.runId, 'A', 'A_test_parcel')
     context.parcelBId = await insertParcel(tenantBClient, context.tenantBId, context.runId, 'B', 'B_test_parcel')
-    context.clientBId = await insertClient(admin, context.tenantBId, context.runId)
-    context.harvestBId = await insertRecoltare(admin, context.tenantBId, context.parcelBId, context.runId)
-    context.saleBId = await insertVanzare(admin, context.tenantBId, context.clientBId, context.runId)
-    context.orderBId = await insertComanda(admin, context.tenantBId, context.clientBId)
-    context.stockMoveBId = await insertMiscareStoc(admin, context.tenantBId, context.parcelBId)
-    context.alertDismissalBId = await insertAlertDismissal(admin, context.tenantBId, userB.id, context.runId)
+    context.clientBId = await insertClient(tenantBClient, context.tenantBId, context.runId)
+    context.harvestBId = await insertRecoltare(tenantBClient, context.tenantBId, context.parcelBId, context.runId)
+    context.saleBId = await insertVanzare(tenantBClient, context.tenantBId, context.clientBId, context.runId)
+    context.orderBId = await insertComanda(tenantBClient, context.tenantBId, context.clientBId)
+    context.stockMoveBId = await insertMiscareStoc(tenantBClient, context.tenantBId, context.parcelBId)
+    context.alertDismissalBId = await insertAlertDismissal(tenantBClient, context.tenantBId, userB.id, context.runId)
 
     const { data: visibleParcels, error: selectError } = await tenantAClient
       .from('parcele')
@@ -701,7 +772,7 @@ async function main() {
     await assertRowStillExists(admin, 'miscari_stoc', context.stockMoveBId!, 'tenant B miscare_stoc')
     await assertRowStillExists(admin, 'alert_dismissals', context.alertDismissalBId!, 'tenant B alert dismissal')
 
-    console.log('PASS: Tenant isolation verified for parcele, clienti, recoltari, vanzari, comenzi, miscari_stoc, and alert_dismissals.')
+    console.log('Tenant isolation: OK')
   } finally {
     if (tenantAClient) {
       await tenantAClient.auth.signOut()

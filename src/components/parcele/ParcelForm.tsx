@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { UseFormReturn } from 'react-hook-form'
+import { Controller, type UseFormReturn, useFieldArray } from 'react-hook-form'
 import { z } from 'zod'
 
 import { NumericField } from '@/components/app/NumericField'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -29,6 +30,12 @@ export interface ParcelFormValues {
   soi_plantat: string
   cultura: string
   soi: string
+  crop_rows: Array<{
+    id: string
+    culture: string
+    variety: string
+    plantCount: string
+  }>
   nr_randuri: string
   an_plantare: string
   nr_plante: string
@@ -36,6 +43,7 @@ export interface ParcelFormValues {
   sistem_irigare: string
   data_plantarii: string
   status: string
+  stadiu: string
   observatii: string
 }
 
@@ -55,6 +63,16 @@ export const parcelFormSchema = z.object({
   soi_plantat: z.string(),
   cultura: z.string(),
   soi: z.string(),
+  crop_rows: z.array(
+    z.object({
+      id: z.string(),
+      culture: z.string(),
+      variety: z.string(),
+      plantCount: z.string().trim().refine((value) => !value || Number.isInteger(Number(value)), {
+        message: 'Numărul de plante trebuie să fie un număr întreg',
+      }),
+    }),
+  ),
   nr_randuri: z.string().trim().refine((value) => !value || Number.isInteger(Number(value)), {
     message: 'Numărul de rânduri trebuie să fie un număr întreg',
   }),
@@ -79,6 +97,7 @@ export const parcelFormSchema = z.object({
     message: 'Data plantării nu este validă',
   }),
   status: z.string().trim().min(1, 'Statusul este obligatoriu'),
+  stadiu: z.string(),
   observatii: z.string(),
 })
 
@@ -90,6 +109,7 @@ export const getParcelFormDefaults = (): ParcelFormValues => ({
   soi_plantat: '',
   cultura: '',
   soi: '',
+  crop_rows: [{ id: 'crop-1', culture: '', variety: '', plantCount: '' }],
   nr_randuri: '',
   an_plantare: String(new Date().getFullYear()),
   nr_plante: '',
@@ -97,6 +117,7 @@ export const getParcelFormDefaults = (): ParcelFormValues => ({
   sistem_irigare: '',
   data_plantarii: '',
   status: 'Activ',
+  stadiu: 'crestere',
   observatii: '',
 })
 
@@ -171,12 +192,17 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
   const [customCropMode, setCustomCropMode] = useState(false)
   const [customVarietyMode, setCustomVarietyMode] = useState(false)
+  const { fields: cropFields, append: appendCropRow, remove: removeCropRow, replace: replaceCropRows } = useFieldArray({
+    control: form.control,
+    name: 'crop_rows',
+  })
 
   const tipUnitate = form.watch('tip_unitate')
   const tipFruct = form.watch('tip_fruct')
   const soiPlantat = form.watch('soi_plantat')
   const suprafataValue = form.watch('suprafata_m2')
   const isSolar = tipUnitate === 'solar'
+  const cropRows = form.watch('crop_rows')
 
   const cropsQuery = useQuery({
     queryKey: queryKeys.crops(tipUnitate),
@@ -283,11 +309,48 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
     form.setValue('cultura', '', { shouldDirty: false, shouldValidate: false })
     form.setValue('soi', '', { shouldDirty: false, shouldValidate: false })
+    form.setValue('crop_rows', [{ id: 'crop-1', culture: '', variety: '', plantCount: '' }], {
+      shouldDirty: false,
+      shouldValidate: false,
+    })
     form.setValue('nr_randuri', '', { shouldDirty: false, shouldValidate: false })
     form.setValue('distanta_intre_randuri', '', { shouldDirty: false, shouldValidate: false })
     form.setValue('sistem_irigare', '', { shouldDirty: false, shouldValidate: false })
     form.setValue('data_plantarii', '', { shouldDirty: false, shouldValidate: false })
   }, [form, tipUnitate])
+
+  useEffect(() => {
+    if (!isSolar) return
+
+    if (!cropRows || cropRows.length === 0) {
+      replaceCropRows([{ id: 'crop-1', culture: tipFruct || '', variety: soiPlantat || '', plantCount: form.getValues('nr_plante') || '' }])
+      return
+    }
+
+    const normalizedRows = cropRows
+      .map((row, index) => ({
+        id: row.id || `crop-${index + 1}`,
+        culture: row.culture.trim(),
+        variety: row.variety.trim(),
+        plantCount: row.plantCount.trim(),
+      }))
+      .filter((row) => row.culture || row.variety || row.plantCount)
+
+    const primary = normalizedRows[0]
+    const totalPlants = normalizedRows.reduce((sum, row) => sum + (Number(row.plantCount || 0) || 0), 0)
+
+    form.setValue('cultura', primary?.culture || tipFruct || '', { shouldDirty: false, shouldValidate: false })
+    form.setValue('soi', primary?.variety || soiPlantat || '', { shouldDirty: false, shouldValidate: false })
+    form.setValue('nr_plante', totalPlants > 0 ? String(totalPlants) : '', { shouldDirty: false, shouldValidate: false })
+
+    if (primary?.culture && primary.culture !== tipFruct) {
+      form.setValue('tip_fruct', primary.culture, { shouldDirty: false, shouldValidate: true })
+    }
+
+    if (primary?.variety && primary.variety !== soiPlantat) {
+      form.setValue('soi_plantat', primary.variety, { shouldDirty: false, shouldValidate: true })
+    }
+  }, [cropRows, form, isSolar, replaceCropRows, soiPlantat, tipFruct])
 
   const cropSelectValue = customCropMode ? OTHER_CROP_VALUE : selectedCropOption ?? ''
 
@@ -492,24 +555,86 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
         <div className="space-y-4 rounded-2xl border border-[var(--agri-border,#e5e7eb)] bg-white p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date solar</p>
 
-          <div className="space-y-2">
-            <Label htmlFor="cultura">Cultură</Label>
-            <input
-              id="cultura"
-              className="agri-control h-12 w-full px-3 text-base"
-              placeholder="Ex: Roșii"
-              {...form.register('cultura')}
-            />
-          </div>
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-[var(--agri-text)]">Culturi în solar</p>
+              <p className="text-xs text-muted-foreground">Adaugă una sau mai multe culturi pentru același solar.</p>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="soi">Soi</Label>
-            <input
-              id="soi"
-              className="agri-control h-12 w-full px-3 text-base"
-              placeholder="Ex: Prekos F1"
-              {...form.register('soi')}
-            />
+            <div className="space-y-3">
+              {cropFields.map((field, index) => (
+                <div key={field.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                  <div className="grid gap-3 md:grid-cols-12">
+                    <div className="space-y-2 md:col-span-4">
+                      <Label>Cultură</Label>
+                      <Input
+                        className="agri-control h-11"
+                        placeholder="Ex: Roșii"
+                        {...form.register(`crop_rows.${index}.culture`)}
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-4">
+                      <Label>Soi</Label>
+                      <Input
+                        className="agri-control h-11"
+                        placeholder="Ex: Inimă de bou"
+                        {...form.register(`crop_rows.${index}.variety`)}
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-3">
+                      <Label>Nr. plante</Label>
+                      <Controller
+                        control={form.control}
+                        name={`crop_rows.${index}.plantCount`}
+                        render={({ field }) => (
+                          <Input
+                            className="agri-control h-11"
+                            inputMode="numeric"
+                            placeholder="0"
+                            {...field}
+                          />
+                        )}
+                      />
+                    </div>
+
+                    <div className="flex items-end md:col-span-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (cropFields.length > 1) {
+                            removeCropRow(index)
+                          } else {
+                            form.setValue(`crop_rows.${index}.culture`, '', { shouldDirty: true })
+                            form.setValue(`crop_rows.${index}.variety`, '', { shouldDirty: true })
+                            form.setValue(`crop_rows.${index}.plantCount`, '', { shouldDirty: true })
+                          }
+                        }}
+                        className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
+                      >
+                        Șterge
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                appendCropRow({
+                  id: `crop-${Date.now()}`,
+                  culture: '',
+                  variety: '',
+                  plantCount: '',
+                })
+              }
+              className="inline-flex h-9 items-center rounded-xl border border-[var(--agri-border)] px-3 text-xs font-semibold text-[var(--agri-text)]"
+            >
+              + Adaugă cultură
+            </button>
           </div>
 
           <NumericField
@@ -588,6 +713,25 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
             <SelectItem value="Activ">Activ</SelectItem>
             <SelectItem value="Inactiv">Inactiv</SelectItem>
             <SelectItem value="In Pregatire">În pregătire</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Stadiu de creștere</Label>
+        <Select
+          value={form.watch('stadiu')}
+          onValueChange={(value) => form.setValue('stadiu', value, { shouldDirty: true })}
+        >
+          <SelectTrigger className={selectTriggerClass}>
+            <SelectValue placeholder="Alege stadiul" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="plantare">🌱 Plantare</SelectItem>
+            <SelectItem value="crestere">🌿 Creștere</SelectItem>
+            <SelectItem value="inflorire">🌸 Înflorire</SelectItem>
+            <SelectItem value="cules">🫐 Cules</SelectItem>
+            <SelectItem value="repaus">❄️ Repaus</SelectItem>
           </SelectContent>
         </Select>
       </div>

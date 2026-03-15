@@ -32,18 +32,56 @@ const LOW_STOCK_THRESHOLD = 20
 
 export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
   const [locatieId, setLocatieId] = useState<string>('all')
-  const [produs, setProdus] = useState<string>('zmeura')
+  const [produs, setProdus] = useState<string>('all')
   const [depozit, setDepozit] = useState<'all' | 'fresh' | 'congelat' | 'procesat'>('all')
   const [calitate, setCalitate] = useState<'all' | 'cal1' | 'cal2'>('all')
+
+  const locationOnlyFilters = useMemo<StocFilters>(
+    () => ({
+      locatieId: locatieId === 'all' ? undefined : locatieId,
+      depozit: 'all',
+      calitate: 'all',
+    }),
+    [locatieId]
+  )
+
+  const { data: stocuriPeLocatie = [] } = useQuery({
+    queryKey: queryKeys.stocuriLocatii(locationOnlyFilters),
+    queryFn: () => getStocuriPeLocatii(locationOnlyFilters),
+  })
+
+  const produseDisponibile = useMemo(
+    () =>
+      Array.from(new Set(stocuriPeLocatie.map((row) => String(row.produs || '').trim()).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b, 'ro')
+      ),
+    [stocuriPeLocatie]
+  )
+
+  const effectiveProdus = useMemo(() => {
+    if (produseDisponibile.length === 0) {
+      return 'all'
+    }
+
+    if (locatieId !== 'all') {
+      return produseDisponibile.includes(produs) ? produs : produseDisponibile[0]
+    }
+
+    if (produs !== 'all' && !produseDisponibile.includes(produs)) {
+      return 'all'
+    }
+
+    return produs
+  }, [locatieId, produs, produseDisponibile])
 
   const queryFilters = useMemo<StocFilters>(
     () => ({
       locatieId: locatieId === 'all' ? undefined : locatieId,
-      produs: produs === 'all' ? undefined : produs,
+      produs: effectiveProdus === 'all' ? undefined : effectiveProdus,
       depozit,
       calitate,
     }),
-    [locatieId, produs, depozit, calitate]
+    [locatieId, effectiveProdus, depozit, calitate]
   )
 
   const {
@@ -67,14 +105,14 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
 
   return (
     <AppShell
-      header={<PageHeader title="Stocuri" subtitle="Inventar real pe locație" rightSlot={<Archive className="h-5 w-5" />} />}
+      header={<PageHeader title="Stocuri" subtitle="Inventar clar pe terenuri și unități" rightSlot={<Archive className="h-5 w-5" />} />}
       bottomBar={
         <StickyActionBar>
           <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total stoc: {totalKg.toFixed(2)} kg</p>
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-5xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
+      <div className="mx-auto mt-3 w-full max-w-5xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
         <div className="grid grid-cols-2 gap-3">
           <div
             style={{
@@ -84,7 +122,7 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
           >
             <MiniCard icon="📦" value={totalKg.toFixed(1)} sub="kg disponibil" label="" />
           </div>
-          <MiniCard icon="🗺️" value={String(activeLocations)} sub="locatii active" label="" />
+          <MiniCard icon="🗺️" value={String(activeLocations)} sub="locații active" label="" />
         </div>
 
         {lowStockRows.length > 0 ? (
@@ -93,7 +131,7 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
               <AlertCard
                 key={`low-${row.locatie_id}`}
                 icon="⚠️"
-                label={`Stoc scazut la ${row.locatie_nume}: ${Number(row.total_kg || 0).toFixed(1)} kg`}
+                label={`Stoc scăzut la ${row.locatie_nume}: ${Number(row.total_kg || 0).toFixed(1)} kg`}
                 value={`${Number(row.total_kg || 0).toFixed(1)} kg`}
                 sub={`Prag recomandat: ${LOW_STOCK_THRESHOLD} kg`}
                 variant="warning"
@@ -111,10 +149,10 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
               <Label>Locație</Label>
               <Select value={locatieId} onValueChange={setLocatieId}>
                 <SelectTrigger className="agri-control h-11">
-                  <SelectValue placeholder="Toate locatiile" />
+                  <SelectValue placeholder="Toate locațiile" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toate locatiile</SelectItem>
+                  <SelectItem value="all">Toate locațiile</SelectItem>
                   {initialParcele.map((parcela) => (
                     <SelectItem key={parcela.id} value={parcela.id}>
                       {parcela.nume_parcela || 'Parcela'}
@@ -126,12 +164,17 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
 
             <div className="space-y-2">
               <Label>Produs</Label>
-              <Select value={produs} onValueChange={setProdus}>
+              <Select value={effectiveProdus} onValueChange={setProdus}>
                 <SelectTrigger className="agri-control h-11">
                   <SelectValue placeholder="Produs" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="zmeura">Zmeura</SelectItem>
+                  <SelectItem value="all">Toate produsele</SelectItem>
+                  {produseDisponibile.map((produsOption) => (
+                    <SelectItem key={produsOption} value={produsOption}>
+                      {produsOption}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -155,10 +198,10 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
               <Label>Calitate</Label>
               <Select value={calitate} onValueChange={(value) => setCalitate(value as typeof calitate)}>
                 <SelectTrigger className="agri-control h-11">
-                  <SelectValue placeholder="Toate calitatile" />
+                  <SelectValue placeholder="Toate calitățile" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Toate calitatile</SelectItem>
+                  <SelectItem value="all">Toate calitățile</SelectItem>
                   <SelectItem value="cal1">Calitatea 1</SelectItem>
                   <SelectItem value="cal2">Calitatea 2</SelectItem>
                 </SelectContent>
@@ -167,9 +210,9 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
           </CardContent>
         </Card>
 
-        {isError ? <ErrorState title="Eroare la înc?rcare stocuri" message={(error as Error).message} onRetry={() => refetch()} /> : null}
-        {isLoading ? <LoadingState label="Se calculeaza stocurile..." /> : null}
-        {!isLoading && !isError && stocuri.length === 0 ? <EmptyState title="Nu exist? miscari de stoc" /> : null}
+        {isError ? <ErrorState title="Eroare la încărcarea stocurilor" message={(error as Error).message} onRetry={() => refetch()} /> : null}
+        {isLoading ? <LoadingState label="Se calculează stocurile..." /> : null}
+        {!isLoading && !isError && stocuri.length === 0 ? <EmptyState title="Nu există mișcări de stoc" /> : null}
 
         {!isLoading && !isError && stocuri.length > 0 ? (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -187,6 +230,9 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
                     <p className="text-xs text-[var(--agri-text-muted)]">Stoc total: {Number(row.total_kg || 0).toFixed(2)} kg</p>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
+                    <p className="text-xs text-[var(--agri-text-muted)]">
+                      {row.produs} disponibil în fresh, congelat și procesat pentru această locație.
+                    </p>
                     <div>
                       <div className="mb-1 flex items-center justify-between text-xs">
                         <span>Cal I</span>

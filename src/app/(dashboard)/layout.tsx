@@ -1,5 +1,4 @@
 import { Sidebar } from '@/components/layout/Sidebar'
-import { BetaBanner } from '@/components/layout/BetaBanner'
 import { BottomTabBar } from '@/components/app/BottomTabBar'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { createClient } from '@/lib/supabase/server'
@@ -33,13 +32,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="hidden min-h-screen bg-[var(--agri-bg)] lg:flex">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
-          <BetaBanner />
           <div className="min-h-screen">{children}</div>
         </main>
       </div>
 
       <div className="bg-[var(--agri-bg)] lg:hidden">
-        <BetaBanner />
         {children}
         <BottomTabBar />
       </div>

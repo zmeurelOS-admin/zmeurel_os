@@ -42,7 +42,14 @@ function getUnitateMeta(tipUnitate: string | null | undefined): {
   return { label: 'Câmp', background: colors.greenLight, color: colors.primaryDark }
 }
 
-export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights = {}, focusParcelId }: ParceleListProps) {
+export function ParceleList({
+  parcele,
+  onEdit,
+  onDelete,
+  onOpen,
+  parcelInsights = {},
+  focusParcelId,
+}: ParceleListProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const nowDate = useMemo(() => new Date(), [])
@@ -56,7 +63,7 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
   const currentYear = new Date().getFullYear()
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {parcele.map((parcela) => {
         const insight = parcelInsights[parcela.id]
         const productionKg = Number(insight?.productionKg || 0)
@@ -70,9 +77,10 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
         const area = Number(parcela.suprafata_m2 || 0)
         const plants = Number(parcela.nr_plante || 0)
         const density = area > 0 ? plants / area : 0
-        const plantationAge = parcela.an_plantare ? Math.max(0, currentYear - Number(parcela.an_plantare)) : 0
+        const plantationAge = parcela.an_plantare
+          ? Math.max(0, currentYear - Number(parcela.an_plantare))
+          : 0
 
-        const titleId = parcela.id_parcela || 'PAR'
         const titleName = parcela.nume_parcela || 'Teren'
         const soi = parcela.soi_plantat || parcela.soi || 'Soi necunoscut'
         const unitate = getUnitateMeta(parcela.tip_unitate)
@@ -92,18 +100,16 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
               onClick={() => {
                 setExpanded((current) => ({ ...current, [parcela.id]: !current[parcela.id] }))
               }}
-              className="w-full p-5 text-left"
+              className="w-full p-4 text-left"
             >
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--agri-border)] bg-white text-xs font-bold text-[var(--agri-text)]">
-                  PAR
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--agri-border)] bg-white text-lg">
+                  🌿
                 </div>
 
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
-                      {titleId} - {titleName}
-                    </div>
+                    <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{titleName}</div>
                     <span
                       className="shrink-0 rounded-full px-2 py-1 text-[10px] font-bold leading-none"
                       style={{ background: unitate.background, color: unitate.color }}
@@ -111,7 +117,7 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
                       {unitate.label}
                     </span>
                   </div>
-                  <div className="truncate text-sm text-[var(--agri-text-muted)]">
+                  <div className="text-sm text-[var(--agri-text-muted)]">
                     {soi} · {area.toFixed(0)} mp · {plants.toFixed(0)} plante
                   </div>
                 </div>
@@ -125,18 +131,15 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
             </button>
 
             {isExpanded ? (
-              <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-4 py-4">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     ['Suprafață', `${area.toFixed(0)} mp`],
                     ['Nr. plante', `${plants.toFixed(0)}`],
                     ['Densitate', `${density.toFixed(2)}/mp`],
                     ['Vârstă', `${plantationAge} ani`],
                   ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2"
-                    >
+                    <div key={label} className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
                       <div className="text-[10px] text-[var(--agri-text-muted)]">{label}</div>
                       <div className="text-xs font-semibold text-[var(--agri-text)]">{value}</div>
                     </div>
@@ -146,15 +149,19 @@ export function ParceleList({ parcele, onEdit, onDelete, onOpen, parcelInsights 
                 <div className="space-y-2 text-sm text-[var(--agri-text-muted)]">
                   <div>
                     <strong className="text-[var(--agri-text)]">Ultima recoltare:</strong>{' '}
-                    {latestHarvest ? `${formatDate(latestHarvest.date)} · ${latestHarvest.kg.toFixed(1)} kg` : 'Nicio recoltare'}
+                    {latestHarvest
+                      ? `${formatDate(latestHarvest.date)} · ${latestHarvest.kg.toFixed(1)} kg`
+                      : 'Nicio recoltare'}
                   </div>
                   <div>
                     <strong className="text-[var(--agri-text)]">Ultima activitate:</strong>{' '}
-                    {latestActivity ? `${formatDate(latestActivity.date)} · ${latestActivity.type}` : 'Nicio activitate'}
+                    {latestActivity
+                      ? `${formatDate(latestActivity.date)} · ${latestActivity.type}`
+                      : 'Nicio activitate'}
                   </div>
                 </div>
 
-                <div className={`mt-4 grid gap-2 ${onOpen ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className={`grid gap-2 ${onOpen ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   {onOpen ? (
                     <button
                       type="button"

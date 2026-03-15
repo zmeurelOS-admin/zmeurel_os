@@ -7,6 +7,7 @@ import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 
 import {
   getParcele,
+  getParcelaDeleteImpact,
   deleteParcela,
   type Parcela,
 } from '@/lib/supabase/queries/parcele'
@@ -39,6 +40,14 @@ export function ParcelaPageClient({
     refetchOnWindowFocus: false,
   })
 
+  const { data: parcelaDeleteImpact, isLoading: isLoadingDeleteImpact } = useQuery({
+    queryKey: ['parcela-delete-impact', selectedParcela?.id ?? null],
+    queryFn: () => getParcelaDeleteImpact(selectedParcela!.id),
+    enabled: deleteOpen && Boolean(selectedParcela?.id),
+    staleTime: 10000,
+    refetchOnWindowFocus: false,
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteParcela(id),
     onSuccess: () => {
@@ -46,6 +55,9 @@ export function ParcelaPageClient({
       toast.success('Teren sters')
       setDeleteOpen(false)
       setSelectedParcela(null)
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 
@@ -163,7 +175,7 @@ export function ParcelaPageClient({
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-gray-600">Selecteaza un teren pentru detalii.</p>
+                  <p className="mt-4 text-sm text-gray-600">Selectează un teren pentru detalii.</p>
                 )}
               </aside>
             </div>
@@ -204,10 +216,26 @@ export function ParcelaPageClient({
         onOpenChange={setDeleteOpen}
         itemName={buildParcelaDeleteLabel(selectedParcela)}
         itemType="Teren"
-        description={`Ștergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`}
+        description={
+          isLoadingDeleteImpact
+            ? 'Se verifică dependențele acestui teren...'
+            : parcelaDeleteImpact && (parcelaDeleteImpact.recoltariCount > 0 || parcelaDeleteImpact.activitatiCount > 0)
+              ? `Terenul nu poate fi șters. Are ${[
+                  parcelaDeleteImpact.recoltariCount > 0 ? `${parcelaDeleteImpact.recoltariCount} recoltări` : null,
+                  parcelaDeleteImpact.activitatiCount > 0 ? `${parcelaDeleteImpact.activitatiCount} activități agricole` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' și ')} asociate.`
+              : `Ștergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`
+        }
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (selectedParcela) {
+            if (isLoadingDeleteImpact) return
+            if (parcelaDeleteImpact && (parcelaDeleteImpact.recoltariCount > 0 || parcelaDeleteImpact.activitatiCount > 0)) {
+              toast.error('Terenul nu poate fi șters cât timp are recoltări sau activități agricole asociate.')
+              return
+            }
             deleteMutation.mutate(selectedParcela.id)
           }
         }}

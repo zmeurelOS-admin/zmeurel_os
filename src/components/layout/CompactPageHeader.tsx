@@ -1,5 +1,7 @@
 'use client'
 
+import { HeaderBetaBadge, HeaderFeedbackButton } from '@/components/app/BetaBanner'
+
 interface CompactPageHeaderProps {
   title?: string
   subtitle?: string
@@ -9,21 +11,37 @@ interface CompactPageHeaderProps {
 
 export function CompactPageHeader({ title, subtitle, rightSlot, summary }: CompactPageHeaderProps) {
   return (
-    <header className="sticky top-9 z-30 overflow-hidden rounded-b-2xl border-b border-black/5 px-4 pt-[calc(var(--safe-t)+6px)] pb-2.5 backdrop-blur-md sm:px-6 sm:pt-[calc(var(--safe-t)+12px)] sm:pb-4 lg:static lg:z-40 lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-6 lg:backdrop-blur-none xl:px-10">
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-600/90 to-emerald-700/90 lg:from-emerald-600 lg:to-emerald-700" />
+    <header className="sticky top-0 z-30 overflow-hidden border-b border-black/5 px-[14px] pb-[10px] pt-[calc(var(--safe-t)+10px)] backdrop-blur-md lg:static lg:z-40 lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-6 lg:pt-4 lg:backdrop-blur-none xl:px-10">
+      <div className="absolute inset-0 bg-[var(--agri-bg)]/95 lg:hidden" />
+      <div className="absolute inset-0 hidden bg-gradient-to-b from-emerald-600 to-emerald-700 lg:block" />
 
       <div className="relative mx-auto w-full max-w-7xl">
-        {(title || subtitle || rightSlot) && (
-          <div className="flex items-start justify-between gap-3 lg:items-center">
-            <div className="min-w-0 space-y-0.5">
-              {title ? <h1 className="truncate text-lg font-semibold text-white sm:text-2xl">{title}</h1> : null}
-              {subtitle ? <p className="text-[11px] text-emerald-100 sm:text-sm">{subtitle}</p> : null}
+        {(title || subtitle) && (
+          <>
+            <div className="flex min-h-[58px] items-start justify-between gap-3 lg:hidden">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2.5">
+                  {title ? <h1 className="truncate text-[22px] font-semibold leading-[1.05] text-[var(--agri-text)]">{title}</h1> : null}
+                  <HeaderBetaBadge />
+                </div>
+                {subtitle ? <p className="mt-1 line-clamp-2 text-[13px] leading-4 text-[color:rgba(16,32,21,0.72)]">{subtitle}</p> : null}
+              </div>
+              <div className="shrink-0 pt-0.5">
+                <HeaderFeedbackButton />
+              </div>
             </div>
-            {rightSlot ? <div className="shrink-0 text-white lg:flex lg:items-center lg:justify-end">{rightSlot}</div> : null}
-          </div>
+
+            <div className="hidden items-start justify-between gap-3 lg:flex lg:items-center">
+              <div className="min-w-0 space-y-0.5">
+                {title ? <h1 className="truncate text-2xl font-semibold text-white">{title}</h1> : null}
+                {subtitle ? <p className="line-clamp-2 text-sm text-emerald-100">{subtitle}</p> : null}
+              </div>
+              {rightSlot ? <div className="hidden shrink-0 text-white md:flex lg:items-center lg:justify-end">{rightSlot}</div> : null}
+            </div>
+          </>
         )}
 
-        {summary ? <div className="mt-2.5">{summary}</div> : null}
+        {summary ? <div className="mt-2 lg:mt-3">{summary}</div> : null}
       </div>
     </header>
   )

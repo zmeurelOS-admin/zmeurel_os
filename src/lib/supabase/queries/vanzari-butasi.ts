@@ -1,6 +1,7 @@
 // src/lib/supabase/queries/vanzari-butasi.ts
 
 import { getSupabase } from '../client'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 export const VANZARE_BUTASI_STATUSES = ['noua', 'confirmata', 'pregatita', 'livrata', 'anulata'] as const
 
@@ -264,6 +265,7 @@ function mapVanzareRow(row: RawVanzareButasiRow): VanzareButasi {
 
 async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('vanzari_butasi')
@@ -300,6 +302,7 @@ async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
       )
     `)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comanda de butasi.')
@@ -309,6 +312,7 @@ async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
 
 export async function getVanzariButasi(): Promise<VanzareButasi[]> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('vanzari_butasi')
@@ -344,6 +348,7 @@ export async function getVanzariButasi(): Promise<VanzareButasi[]> {
         created_at
       )
     `)
+    .eq('tenant_id', tenantId)
     .order('data_comanda', { ascending: false })
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comenzile de butasi.')
@@ -353,6 +358,7 @@ export async function getVanzariButasi(): Promise<VanzareButasi[]> {
 
 export async function createVanzareButasi(input: CreateVanzareButasiInput): Promise<VanzareButasi> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
   const normalized = normalizeItems(input.items)
   const avansSuma = roundTo2(Number(input.avans_suma ?? 0))
 
@@ -366,6 +372,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const { data, error } = await supabase
     .from('vanzari_butasi')
     .insert({
+      tenant_id: tenantId,
       data: input.data_comanda,
       data_comanda: input.data_comanda,
       data_livrare_estimata: input.data_livrare_estimata || null,
@@ -388,6 +395,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
 
   const comandaId = data.id
   const itemsPayload = normalized.items.map((item) => ({
+    tenant_id: tenantId,
     comanda_id: comandaId,
     soi: item.soi,
     cantitate: item.cantitate,
@@ -398,7 +406,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const { error: itemsError } = await supabase.from('vanzari_butasi_items').insert(itemsPayload)
 
   if (itemsError) {
-    await supabase.from('vanzari_butasi').delete().eq('id', comandaId)
+    await supabase.from('vanzari_butasi').delete().eq('id', comandaId).eq('tenant_id', tenantId)
     throw toReadableError(itemsError, 'Nu am putut salva produsele comenzii de butasi.')
   }
 
@@ -407,11 +415,13 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
 
 export async function updateVanzareButasi(id: string, input: UpdateVanzareButasiInput): Promise<VanzareButasi> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data: existing, error: existingError } = await supabase
     .from('vanzari_butasi')
     .select('id,status,total_lei,avans_suma,cantitate_butasi,tenant_id')
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .single()
 
   if (existingError) throw toReadableError(existingError, 'Nu am putut încărca comanda pentru editare.')
@@ -473,6 +483,7 @@ export async function updateVanzareButasi(id: string, input: UpdateVanzareButasi
     .from('vanzari_butasi')
     .update(payload)
     .eq('id', id)
+    .eq('tenant_id', tenantId)
 
   if (updateError) throw toReadableError(updateError, 'Nu am putut actualiza comanda de butasi.')
 
@@ -481,10 +492,12 @@ export async function updateVanzareButasi(id: string, input: UpdateVanzareButasi
       .from('vanzari_butasi_items')
       .delete()
       .eq('comanda_id', id)
+      .eq('tenant_id', tenantId)
 
     if (deleteError) throw toReadableError(deleteError, 'Nu am putut actualiza liniile comenzii de butasi.')
 
     const itemRows = normalizedItems.items.map((item) => ({
+      tenant_id: tenantId,
       comanda_id: id,
       soi: item.soi,
       cantitate: item.cantitate,
@@ -504,11 +517,13 @@ export async function updateVanzareButasi(id: string, input: UpdateVanzareButasi
 
 export async function deleteVanzareButasi(id: string): Promise<void> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { error } = await supabase
     .from('vanzari_butasi')
     .delete()
     .eq('id', id)
+    .eq('tenant_id', tenantId)
 
   if (error) throw toReadableError(error, 'Nu am putut sterge comanda de butasi.')
 }

@@ -47,7 +47,7 @@ export default function UiTemplateDemoPage() {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-4 py-4 sm:mt-0">
+      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 py-3 sm:mt-0">
         <LoadingState label="Se pregateste lista..." />
 
         <div className="agri-card space-y-4 p-4">
@@ -112,4 +112,3 @@ export default function UiTemplateDemoPage() {
     </AppShell>
   )
 }
-

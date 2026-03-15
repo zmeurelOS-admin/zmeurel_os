@@ -12,6 +12,7 @@ import { LoadingState } from '@/components/app/LoadingState'
 import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
+import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import AlertCard from '@/components/ui/AlertCard'
 import Sparkline from '@/components/ui/Sparkline'
 import TrendBadge from '@/components/ui/TrendBadge'
@@ -19,6 +20,7 @@ import { VanzareCard } from '@/components/vanzari/VanzareCard'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getClienți } from '@/lib/supabase/queries/clienti'
@@ -100,6 +102,7 @@ function isIncasata(status: string | null | undefined): boolean {
 }
 
 export function VanzariPageClient({ initialVanzari = [], clienti: initialClienți = [] }: VanzariPageClientProps) {
+  useTrackModuleView('vanzari')
   const router = useRouter()
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
@@ -151,29 +154,53 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
     refetchOnWindowFocus: false,
   })
 
+  const restorePendingDeleteItem = (vanzareId: string) => {
+    const pendingItem = pendingDeletedItems.current[vanzareId]
+    if (!pendingItem) return
+
+    delete pendingDeletedItems.current[vanzareId]
+    queryClient.setQueryData<Vanzare[]>(queryKeys.vanzari, (current = []) => {
+      if (current.some((item) => item.id === vanzareId)) return current
+
+      const next = [...current]
+      const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
+      next.splice(insertAt, 0, pendingItem.item)
+      return next
+    })
+  }
+
   const deleteMutation = useMutation({
     mutationFn: deleteVanzare,
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      delete pendingDeletedItems.current[deletedId]
       trackEvent('delete_item', 'vanzari')
       track('vanzare_delete', { id: deletedId })
       toast.success('Vânzare stearsa')
       setDeletingVanzare(null)
     },
-    onError: (err: Error) => {
+    onError: (err: Error, deletedId) => {
+      restorePendingDeleteItem(deletedId)
       toast.error(err.message)
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
     },
   })
 
   const markPaidMutation = useMutation({
-    mutationFn: (id: string) => updateVanzare(id, { status_plata: 'incasata' }),
-    onSuccess: () => {
+    mutationFn: (id: string) => updateVanzare(id, { status_plata: 'platit' }),
+    onSuccess: (result) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      toast.success('Vânzare marcată ca încasată ✅')
+      toast.success('Vânzare marcată ca plătită ✅')
     },
     onError: (err: Error) => {
       toast.error(err.message)
@@ -212,7 +239,6 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
     const timer = setTimeout(() => {
       delete pendingDeleteTimers.current[vanzareId]
-      delete pendingDeletedItems.current[vanzareId]
       deleteMutation.mutate(vanzareId)
     }, 5000)
 
@@ -449,7 +475,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
   return (
     <AppShell
-      header={<PageHeader title="Vânzări Fructe" subtitle="Registrul de livrari completate" />}
+      header={<PageHeader title="Vânzări" subtitle="Registrul livrărilor finalizate" />}
       bottomBar={
         <StickyActionBar>
           <div className="flex items-center justify-between gap-3">
@@ -458,7 +484,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4 lg:max-w-7xl">
+      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4 lg:max-w-7xl">
         <div className="grid grid-cols-2 gap-3">
           <div
             onClick={() => setTemporalFilter('luna')}
@@ -500,7 +526,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <AlertCard
             icon="✅"
-            label="Incasat"
+            label="Încasat"
             value={dashboardSummary.incasatRon.toFixed(0)}
             sub="RON"
             variant="success"
@@ -520,8 +546,8 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
               setSelectedClient(null)
             } : undefined}
           />
-          <div style={{ background: colors.white, border: `1px solid ${colors.grayLight}`, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg, minHeight: 110 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark, marginBottom: spacing.xs }}>📊 Pret mediu</div>
+          <div className="col-span-2 sm:col-span-1" style={{ background: colors.white, border: `1px solid ${colors.grayLight}`, borderRadius: radius.xl, boxShadow: shadows.card, padding: 14, minHeight: 98 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark, marginBottom: spacing.xs }}>📊 Preț mediu</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: colors.dark }}>{dashboardSummary.pretMediu.toFixed(2)}</div>
             <div style={{ fontSize: 10, color: colors.gray }}>lei/kg</div>
           </div>
@@ -529,7 +555,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
         <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>Top clienti</h3>
+            <SectionTitle className="flex-1" title="Top clienți" />
             {selectedClient ? (
               <button
                 type="button"
@@ -788,7 +814,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-gray-600">Selecteaza o vanzare pentru detalii.</p>
+                  <p className="mt-4 text-sm text-gray-600">Selectează o vânzare pentru detalii.</p>
                 )}
               </aside>
             </div>

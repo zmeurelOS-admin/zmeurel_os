@@ -1,14 +1,25 @@
 // src/app/(dashboard)/vanzari-butasi/page.tsx
 
 import { createClient } from '@/lib/supabase/server'
+import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { VanzariButasiPageClient } from './VanzariButasiPageClient'
 import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
 
 export default async function VanzariButasiPage() {
   const supabase = await createClient()
+  const tenantId = await getTenantIdOrNull(supabase)
 
-  // RLS handles tenant isolation automatically - no manual auth check needed (middleware handles it)
-  const { data: vanzariButasi } = await supabase
+  if (!tenantId) {
+    return (
+      <VanzariButasiPageClient
+        initialVanzari={[]}
+        clienti={[]}
+        parcele={[]}
+      />
+    )
+  }
+
+  const { data: vanzariButasi, error: vanzariError } = await supabase
     .from('vanzari_butasi')
     .select(`
       id,
@@ -42,15 +53,30 @@ export default async function VanzariButasiPage() {
         created_at
       )
     `)
+    .eq('tenant_id', tenantId)
     .order('data_comanda', { ascending: false })
 
-  const { data: clienti } = await supabase
+  if (vanzariError) {
+    console.error('[vanzari-butasi] load error:', vanzariError.message)
+  }
+
+  const { data: clienti, error: clientiError } = await supabase
     .from('clienti')
     .select('id, id_client, nume_client, telefon')
+    .eq('tenant_id', tenantId)
 
-  const { data: parcele } = await supabase
+  if (clientiError) {
+    console.error('[vanzari-butasi] clienti error:', clientiError.message)
+  }
+
+  const { data: parcele, error: parceleError } = await supabase
     .from('parcele')
     .select('id, id_parcela, nume_parcela')
+    .eq('tenant_id', tenantId)
+
+  if (parceleError) {
+    console.error('[vanzari-butasi] parcele error:', parceleError.message)
+  }
 
   // Type-safe fallback pentru null
   const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []) as unknown as VanzareButasi[]
@@ -65,4 +91,3 @@ export default async function VanzariButasiPage() {
     />
   )
 }
-

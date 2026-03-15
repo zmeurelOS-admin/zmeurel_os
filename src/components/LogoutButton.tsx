@@ -1,11 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { LogOut } from 'lucide-react'
 
-import { getSupabase } from '@/lib/supabase/client'
+import { getSupabase, resetSupabaseInstance } from '@/lib/supabase/client'
 
 interface LogoutButtonProps {
   className?: string
@@ -14,30 +13,23 @@ interface LogoutButtonProps {
 }
 
 export default function LogoutButton({ className, label, variant = 'solid' }: LogoutButtonProps) {
-  const router = useRouter()
   const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleLogout = async () => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-
       const supabase = getSupabase()
-      const { error } = await supabase.auth.signOut()
-
-      if (error) {
-        alert('Eroare la deconectare. Incearca din nou.')
-        return
-      }
-
+      await supabase.auth.signOut({ scope: 'local' })
+      resetSupabaseInstance()
       await queryClient.cancelQueries()
       queryClient.clear()
-      router.push('/login')
-      router.refresh()
     } catch {
-      alert('Eroare la deconectare. Incearca din nou.')
-    } finally {
-      setIsLoading(false)
+      // ignore — proceed with redirect regardless
+    }
+    // Force redirect — prevents back-button returning to dashboard
+    if (typeof window !== 'undefined') {
+      window.location.replace('/')
     }
   }
 

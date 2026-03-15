@@ -24,7 +24,7 @@ import { queryKeys } from '@/lib/query-keys'
 const schema = z.object({
   data_aplicare: z.string().min(1, 'Data este obligatorie'),
   parcela_id: z.string().optional(),
-  tip_activitate: z.string().min(1, 'Tipul activitatii este obligatoriu'),
+  tip_activitate: z.string().min(1, 'Tipul activității este obligatoriu'),
   produs_utilizat: z.string().optional(),
   doza: z.string().optional(),
   timp_pauza_zile: z
@@ -32,7 +32,7 @@ const schema = z.object({
     .trim()
     .optional()
     .refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= 0), {
-      message: 'Timpul de pauză trebuie sa fie un numar valid',
+      message: 'Timpul de pauză trebuie să fie un număr valid',
     }),
   observatii: z.string().optional(),
 })
@@ -59,6 +59,8 @@ export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = 
   const queryClient = useQueryClient()
   const [internalOpen, setInternalOpen] = useState(false)
   const previousParcelaIdRef = useRef<string>('')
+  const submittedRef = useRef(false)
+  const hasOpenedRef = useRef(false)
 
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
@@ -73,6 +75,13 @@ export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = 
   })
 
   useEffect(() => {
+    if (dialogOpen) {
+      hasOpenedRef.current = true
+      submittedRef.current = false
+      trackEvent({ eventName: 'open_create_form', moduleName: 'activitati', status: 'started' })
+    } else if (hasOpenedRef.current && !submittedRef.current) {
+      trackEvent({ eventName: 'form_abandoned', moduleName: 'activitati', status: 'abandoned' })
+    }
     if (!dialogOpen) form.reset(defaults())
   }, [dialogOpen, form])
 
@@ -119,23 +128,27 @@ export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = 
     mutationFn: createActivitateAgricola,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.activitati })
+      submittedRef.current = true
+      trackEvent({ eventName: 'create_success', moduleName: 'activitati', status: 'success' })
       trackEvent('create_activitate', 'activitati', { source: 'AddActivitateAgricolaDialog' })
       track('activitate_add', {
         tip: variables.tip_activitate,
         produs: variables.produs_utilizat ?? null,
       })
       hapticSuccess()
-      toast.success('Activitate salvata')
+      toast.success('Activitate salvată')
       setDialogOpen(false)
     },
     onError: (error: unknown) => {
       const maybeError = error as { status?: number; code?: string; message?: string }
       const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
       if (conflict) {
-        toast.info('Inregistrarea era deja sincronizat?')
+        submittedRef.current = true
+        toast.info('Înregistrarea era deja sincronizată.')
         setDialogOpen(false)
         return
       }
+      trackEvent({ eventName: 'create_failed', moduleName: 'activitati', status: 'failed' })
       hapticError()
       toast.error(maybeError?.message || 'Eroare la salvare')
     },
@@ -161,7 +174,7 @@ export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = 
       <AppDrawer
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Adaugă activitate agricola"
+        title="Adaugă activitate agricolă"
         footer={
           <DialogFormActions
             onCancel={() => setDialogOpen(false)}
@@ -194,7 +207,7 @@ export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = 
           <div className="space-y-2">
             <Label htmlFor="act_tip">Tip activitate</Label>
             <select id="act_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_activitate')}>
-              <option value="">Tip operatiune</option>
+              <option value="">Tip operațiune</option>
               {activityOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -229,4 +242,3 @@ export function AddActivitateAgricolaDialog({ open, onOpenChange, hideTrigger = 
     </>
   )
 }
-

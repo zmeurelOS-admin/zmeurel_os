@@ -24,7 +24,7 @@ export function buildParcelaDeleteLabel(parcela: {
 } | null | undefined): string {
   if (!parcela) return 'Teren selectat'
 
-  const name = joinParts([parcela.id_parcela, parcela.nume_parcela])
+  const name = normalizeText(parcela.nume_parcela)
   const crop = joinParts([
     parcela.soi_plantat,
     parcela.an_plantare ? String(parcela.an_plantare) : '',

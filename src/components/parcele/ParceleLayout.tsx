@@ -62,8 +62,8 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
         subtitle="Administrare terenuri cultivate"
       />
 
-      <main className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--safe-b)+24px)]">
-        <div className="mx-auto w-full max-w-3xl space-y-4 py-4">
+      <main className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[14px] pb-[calc(var(--safe-b)+24px)]">
+        <div className="mx-auto w-full max-w-3xl space-y-3 py-3">
           {isLoading && <p className="text-center text-sm text-slate-600">Se încarcă...</p>}
 
           {!isLoading && parcele.length === 0 && (
@@ -120,4 +120,3 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
     </div>
   )
 }
-

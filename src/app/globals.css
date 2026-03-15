@@ -6,7 +6,7 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
 
-  --tabbar-h: 64px;
+  --tabbar-h: 88px;
   --app-nav-clearance: calc(var(--tabbar-h) + var(--safe-b));
   --mobile-scroll-padding: 88px;
 
@@ -106,6 +106,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html[data-modal-open='true'] [data-mobile-fab='true'] {
+  display: none !important;
+}
+
 .agri-control {
   min-height: var(--touch-control-h);
   border-radius: 12px;
@@ -128,7 +132,7 @@ body {
 
 .agri-card {
   border-radius: 1rem;
-  border: 1px solid transparent;
+  border: 1px solid var(--agri-border);
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(16, 32, 21, 0.05);
 }
@@ -194,4 +198,31 @@ html[data-density='compact'] [data-slot='table-head'] {
 html[data-density='compact'] [data-slot='table-cell'] {
   padding: 0.375rem 0.5rem;
   font-size: 0.8125rem;
+}
+
+@media (max-width: 1023px) {
+  .agri-card {
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(16, 32, 21, 0.05);
+  }
+
+  [data-slot='card'] {
+    gap: 0.75rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(16, 32, 21, 0.05);
+  }
+
+  [data-slot='card-header'] {
+    gap: 0.25rem;
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    padding-top: 0.875rem;
+  }
+
+  [data-slot='card-content'],
+  [data-slot='card-footer'] {
+    padding-left: 0.875rem;
+    padding-right: 0.875rem;
+    padding-bottom: 0.875rem;
+  }
 }

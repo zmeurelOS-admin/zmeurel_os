@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { getStatusBadgeClass, STATUS_BADGE_LAYOUT_CLASS } from '@/lib/ui/status-badges'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
+import { downloadVCard } from '@/lib/utils/downloadVCard'
 
 interface ClientDetailsDrawerProps {
   open: boolean
@@ -63,30 +64,63 @@ export function ClientDetailsDrawer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="max-h-[85dvh] rounded-t-2xl rounded-b-none p-0 sm:max-h-[80vh] sm:rounded-2xl sm:p-0">
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-h-[85dvh] rounded-t-2xl rounded-b-none p-0 sm:max-h-[80vh] sm:rounded-2xl sm:p-0"
+      >
         <DialogHeader>
-          <DialogTitle className="sr-only">Dialog</DialogTitle>
+          <DialogTitle className="sr-only">Detalii client</DialogTitle>
         </DialogHeader>
         <div className="flex max-h-[85dvh] flex-col sm:max-h-[80vh]">
           <DialogHeader className="border-b border-[var(--agri-border)] px-4 py-4 text-left">
             <DialogTitle>Detalii client</DialogTitle>
-            <DialogDescription>Informații client și comenzi asociate</DialogDescription>
+            <DialogDescription>Informații de contact și comenzi asociate</DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Client</h3>
-              <div className="space-y-2 rounded-xl border border-[var(--agri-border)] bg-white p-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+                Client
+              </h3>
+              <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-white p-3">
                 <p className="text-base font-semibold text-[var(--agri-text)]">{client.nume_client}</p>
                 <p className="text-sm text-[var(--agri-text-muted)]">Telefon: {client.telefon || '-'}</p>
                 <p className="text-sm text-[var(--agri-text-muted)]">Locație livrare: {client.adresa || '-'}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10"
+                    disabled={!client.telefon}
+                    onClick={() => {
+                      if (!client.telefon) return
+                      downloadVCard(client.nume_client, client.telefon)
+                    }}
+                  >
+                    Salvează contact
+                  </Button>
+                  <a
+                    href={client.telefon ? `tel:${client.telefon}` : undefined}
+                    className={`inline-flex h-10 items-center justify-center rounded-xl border text-sm font-medium ${
+                      client.telefon
+                        ? 'border-blue-200 bg-blue-50 text-blue-700'
+                        : 'pointer-events-none border-slate-200 bg-slate-100 text-slate-400'
+                    }`}
+                  >
+                    Sună
+                  </a>
+                </div>
               </div>
             </section>
 
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Comenzi asociate</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+                Comenzi asociate
+              </h3>
 
-              {isLoadingComenzi ? <p className="text-sm text-[var(--agri-text-muted)]">Se încarcă comenzile...</p> : null}
+              {isLoadingComenzi ? (
+                <p className="text-sm text-[var(--agri-text-muted)]">Se încarcă comenzile...</p>
+              ) : null}
 
               {!isLoadingComenzi && comenzi.length === 0 ? (
                 <p className="rounded-xl border border-[var(--agri-border)] bg-white p-3 text-sm text-[var(--agri-text-muted)]">
@@ -104,11 +138,19 @@ export function ClientDetailsDrawer({
                       <div key={comanda.id} className="rounded-xl border border-[var(--agri-border)] bg-white p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 space-y-1 text-sm">
-                            <p className="text-[var(--agri-text-muted)]">Data: {formatDate(comanda.data_livrare || comanda.data_comanda)}</p>
-                            <p className="text-[var(--agri-text-muted)]">Cantitate: <span className="value-kg">{formatKg(comanda.cantitate_kg)}</span></p>
-                            <p className="font-semibold text-[var(--agri-text)]">Suma: <span className="value-money-positive">{formatLei(comanda.total)}</span></p>
+                            <p className="text-[var(--agri-text-muted)]">
+                              Data: {formatDate(comanda.data_livrare || comanda.data_comanda)}
+                            </p>
+                            <p className="text-[var(--agri-text-muted)]">
+                              Cantitate: <span className="value-kg">{formatKg(comanda.cantitate_kg)}</span>
+                            </p>
+                            <p className="font-semibold text-[var(--agri-text)]">
+                              Suma: <span className="value-money-positive">{formatLei(comanda.total)}</span>
+                            </p>
                           </div>
-                          <Badge className={`badge-consistent ${STATUS_BADGE_LAYOUT_CLASS} ${statusClass}`}>{statusLabel}</Badge>
+                          <Badge className={`badge-consistent ${STATUS_BADGE_LAYOUT_CLASS} ${statusClass}`}>
+                            {statusLabel}
+                          </Badge>
                         </div>
                       </div>
                     )
