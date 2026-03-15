@@ -37,7 +37,9 @@
       "Bash(python3 -c \"import uuid; print\\(str\\(uuid.uuid4\\(\\)\\).replace\\('-',''\\)[:32]\\)\" 2>/dev/null || node -e \"const c=require\\('node:crypto'\\);console.log\\(c.randomBytes\\(32\\).toString\\('hex'\\)\\)\")",
       "Bash(wait:*)",
       "Bash(grep:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
