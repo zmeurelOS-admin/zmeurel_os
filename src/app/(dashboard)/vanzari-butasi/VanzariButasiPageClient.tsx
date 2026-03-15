@@ -227,7 +227,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
 
     if (selectedSoi) {
       const selectedSoiLower = selectedSoi.toLowerCase()
-      rows = rows.filter((order) => order.items.some((item) => item.soi?.toLowerCase() === selectedSoiLower))
+      rows = rows.filter((order) => (order.items ?? []).some((item) => item.soi?.toLowerCase() === selectedSoiLower))
     }
 
     if (!searchTerm.trim()) return rows
@@ -237,7 +237,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
       const clientName = order.client_id
         ? clientMap[order.client_id]?.toLowerCase()
         : (order.client_nume_manual?.toLowerCase() || '')
-      const itemNames = order.items.map((item) => item.soi.toLowerCase()).join(' ')
+      const itemNames = (order.items ?? []).map((item) => item.soi.toLowerCase()).join(' ')
 
       return (
         order.status.toLowerCase().includes(term) ||
@@ -264,7 +264,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
     const totalComenziCount = activeOrders.length
 
     const totalButasi = activeOrders.reduce(
-      (sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + Number(item.cantitate || 0), 0),
+      (sum, order) => sum + (order.items ?? []).reduce((itemSum, item) => itemSum + Number(item.cantitate || 0), 0),
       0
     )
 
@@ -275,7 +275,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
     const perSoiMap = new Map<string, { soi: string; cantitate: number; comandaIds: Set<string> }>()
 
     activeOrders.forEach((order) => {
-      order.items.forEach((item) => {
+      ;(order.items ?? []).forEach((item) => {
         const soi = item.soi?.trim()
         if (!soi) return
 

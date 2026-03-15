@@ -34,12 +34,12 @@ type MetricsRow = {
 type AnalyticsEvent = {
   user_id: string | null
   tenant_id: string | null
-  module_name: string | null
+  module: string | null
   event_name: string | null
   status: string | null
   created_at: string
   metadata: Record<string, unknown> | null
-  route_path: string | null
+  page_url: string | null
 }
 
 type TenantRow = {
@@ -127,7 +127,7 @@ export async function AnalyticsDashboard() {
   // — 7-day events for KPI cards (DAU / WAU / active tenants) —
   const { data: raw7d, error: err7d } = await admin
     .from('analytics_events' as any)
-    .select('user_id, tenant_id, module_name, event_name, status, created_at, metadata, route_path')
+    .select('user_id, tenant_id, module, event_name, status, created_at, metadata, page_url')
     .gte('created_at', sevenDaysAgo())
 
   console.log('[analytics] 7d query:', { count: raw7d?.length ?? 0, error: err7d?.message ?? null, sample: raw7d?.[0] ?? null })
@@ -146,20 +146,20 @@ export async function AnalyticsDashboard() {
   // — 30-day events for the analytics sections below —
   const { data: raw30d } = await admin
     .from('analytics_events' as any)
-    .select('user_id, tenant_id, module_name, event_name, status, created_at, metadata, route_path')
+    .select('user_id, tenant_id, module, event_name, status, created_at, metadata, page_url')
     .gte('created_at', thirtyDaysAgo())
     .order('created_at', { ascending: false })
 
   const events30d: AnalyticsEvent[] = (raw30d ?? []) as unknown as AnalyticsEvent[]
 
-  // — 1. Module usage — view_module (trackEvent, uses module_name col) OR page_view (track, uses route_path) —
+  // — 1. Module usage — view_module (trackEvent, uses module col) OR page_view (track, uses page_url) —
   const moduleViewMap: Record<string, { count: number; users: Set<string> }> = {}
   for (const e of events30d) {
     let mod: string | null = null
-    if (e.event_name === 'view_module' && e.module_name) {
-      mod = e.module_name
+    if (e.event_name === 'view_module' && e.module) {
+      mod = e.module
     } else if (e.event_name === 'page_view') {
-      mod = routeToModuleName(e.route_path)
+      mod = routeToModuleName(e.page_url)
     }
     if (!mod) continue
     if (!moduleViewMap[mod]) moduleViewMap[mod] = { count: 0, users: new Set() }
@@ -175,11 +175,11 @@ export async function AnalyticsDashboard() {
   const funnelModuleSet = new Set(
     events30d
       .filter((e) => ['open_create_form', 'create_success', 'form_abandoned'].includes(e.event_name ?? ''))
-      .map((e) => e.module_name)
+      .map((e) => e.module)
       .filter((m): m is string => Boolean(m))
   )
   const funnelData = Array.from(funnelModuleSet).map((mod) => {
-    const modEvents = events30d.filter((e) => e.module_name === mod)
+    const modEvents = events30d.filter((e) => e.module === mod)
     const opened = modEvents.filter((e) => e.event_name === 'open_create_form').length
     const succeeded = modEvents.filter((e) => e.event_name === 'create_success').length
     const abandoned = modEvents.filter((e) => e.event_name === 'form_abandoned').length
@@ -222,11 +222,11 @@ export async function AnalyticsDashboard() {
     if (e.status !== 'failed') continue
     const errorMsg =
       (e.metadata as Record<string, unknown> | null)?.error_message as string | undefined ?? '—'
-    const key = `${e.module_name ?? 'general'}::${e.event_name ?? 'unknown'}::${errorMsg}`
+    const key = `${e.module ?? 'general'}::${e.event_name ?? 'unknown'}::${errorMsg}`
     if (!failedGroupMap[key]) {
       failedGroupMap[key] = {
         count: 0,
-        module: e.module_name ?? 'general',
+        module: e.module ?? 'general',
         eventName: e.event_name ?? 'unknown',
         errorMessage: errorMsg,
       }

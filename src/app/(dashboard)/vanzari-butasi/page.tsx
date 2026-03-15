@@ -78,8 +78,11 @@ export default async function VanzariButasiPage() {
     console.error('[vanzari-butasi] parcele error:', parceleError.message)
   }
 
-  // Type-safe fallback pentru null
-  const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []) as unknown as VanzareButasi[]
+  // Map raw Supabase rows: nested join comes back as `vanzari_butasi_items`, component expects `items`
+  const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []).map((row) => ({
+    ...(row as unknown as VanzareButasi),
+    items: (row as unknown as { vanzari_butasi_items?: VanzareButasi['items'] }).vanzari_butasi_items ?? [],
+  }))
   const safeClienți = clienti ?? []
   const safeParcele = parcele ?? []
 
