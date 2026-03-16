@@ -26,7 +26,6 @@ import { Button } from '@/components/ui/button'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { queryKeys } from '@/lib/query-keys'
-import { generateBusinessId } from '@/lib/supabase/business-ids'
 import { getSupabase } from '@/lib/supabase/client'
 import {
   createClienți as createClienti,
@@ -470,10 +469,10 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       const supabase = getSupabase()
       const tenantId = await getTenantId(supabase)
 
-      // Load existing clients once for duplicate detection (name + phone combo)
+      // Load existing clients once: for duplicate detection AND to find max id_client number
       const { data: existingData } = await supabase
         .from('clienti')
-        .select('nume_client,telefon')
+        .select('nume_client,telefon,id_client')
         .eq('tenant_id', tenantId)
       const existingSet = new Set(
         (existingData ?? []).map(
@@ -481,7 +480,26 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         )
       )
 
-      // Generate business IDs, skipping duplicates
+      // Find the highest numeric suffix among existing id_client values for this tenant.
+      // This prevents collisions caused by a reset or out-of-sync global sequence.
+      // E.g. existing "C001"…"C038" → idCounter starts at 39.
+      let idCounter = 0
+      for (const row of existingData ?? []) {
+        const match = row.id_client?.match(/(\d+)$/)
+        if (match) {
+          const num = parseInt(match[1], 10)
+          if (num > idCounter) idCounter = num
+        }
+      }
+      idCounter++ // start one above the current max
+
+      // Generate IDs locally (no RPC per-row) — avoids global-sequence/reset collisions
+      const makeClientId = (): string => {
+        const n = idCounter++
+        return `C${String(n).padStart(3, '0')}`
+      }
+
+      // Build records, skipping duplicates
       type ImportRecord = {
         supabaseRow: {
           tenant_id: string; id_client: string; nume_client: string
@@ -499,11 +517,10 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           setImportProgress({ done: i + 1, total: validRows.length, phase: 'ids' })
           continue
         }
-        const id_client = await generateBusinessId(supabase, 'C')
         records.push({
           supabaseRow: {
             tenant_id: tenantId,
-            id_client,
+            id_client: makeClientId(),
             nume_client: row.nume_client.trim(),
             telefon: row.telefon || null,
             email: row.email || null,
