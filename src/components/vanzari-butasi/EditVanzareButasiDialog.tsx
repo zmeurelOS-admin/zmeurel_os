@@ -146,6 +146,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
 
   useEffect(() => {
     if (vanzare && open) {
+      console.log('[EditVanzareButasiDialog] clienti loaded:', clienti.length)
       form.reset(getDefaultValues(vanzare))
       if (vanzare.client_id) {
         const client = clienti.find((c) => c.id === vanzare.client_id)
@@ -174,15 +175,16 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
   }, [])
 
   const comboFiltered = useMemo(() => {
-    const term = (comboInput ?? '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-    if (!term || term.length < 2) return clienti.slice(0, 30)
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    const words = normalize(comboInput ?? '')
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+    if (words.length === 0 || (words.length === 1 && words[0].length < 2)) return clienti.slice(0, 30)
     return clienti.filter((c) => {
-      const name = (c.nume_client ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const name = normalize(c.nume_client ?? '')
       const phone = (c.telefon ?? '').toLowerCase()
-      return name.includes(term) || phone.includes(term)
+      return words.every((w) => name.includes(w) || phone.includes(w))
     })
   }, [comboInput, clienti])
 
