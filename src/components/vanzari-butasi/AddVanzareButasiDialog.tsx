@@ -241,7 +241,7 @@ export function AddVanzareButasiDialog({
         extra: { orderId: savedOrder.id, status: savedOrder.status, total: savedOrder.total_lei },
       })
       hapticSuccess()
-      toast.success('Comanda a fost salvata')
+      toast.success('Comanda a fost salvată')
       setDialogOpen(false)
     },
     onError: (error: unknown) => {
@@ -339,6 +339,7 @@ export function AddVanzareButasiDialog({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title="Adaugă vânzare material săditor"
+        contentClassName="sm:max-w-2xl"
         footer={
           <DialogFormActions
             onCancel={() => setDialogOpen(false)}
@@ -457,7 +458,7 @@ export function AddVanzareButasiDialog({
                       }
                     />
                     <Label htmlFor="vb_save_client_to_database" className="cursor-pointer text-sm font-normal">
-                      Salvează clientul in lista de clienti
+                      Salvează clientul în lista de clienți
                     </Label>
                   </div>
                 </>
@@ -493,14 +494,14 @@ export function AddVanzareButasiDialog({
           <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="vb_data_comanda">Data comanda</Label>
+                <Label htmlFor="vb_data_comanda">Data comandă</Label>
                 <div className="relative">
                   <CalendarDays className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input id="vb_data_comanda" type="date" className="agri-control h-12 pl-10" {...form.register('data_comanda')} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="vb_data_livrare">Data preconizata livrare</Label>
+                <Label htmlFor="vb_data_livrare">Data preconizată livrare</Label>
                 <div className="relative">
                   <CalendarDays className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input id="vb_data_livrare" type="date" className="agri-control h-12 pl-10" {...form.register('data_livrare_estimata')} />
@@ -512,7 +513,7 @@ export function AddVanzareButasiDialog({
           <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="vb_adresa">Adresa livrare</Label>
+                <Label htmlFor="vb_adresa">Adresă livrare</Label>
                 <Input id="vb_adresa" className="agri-control h-12" placeholder="Strada, numar, localitate" {...form.register('adresa_livrare')} />
               </div>
 
@@ -522,7 +523,7 @@ export function AddVanzareButasiDialog({
               </div>
 
               <div className="space-y-2">
-                <Label>Teren sursa</Label>
+                <Label>Teren sursă</Label>
                 <Controller
                   control={form.control}
                   name="parcela_sursa_id"
@@ -558,21 +559,34 @@ export function AddVanzareButasiDialog({
                 const subtotal = cantitate * pret
 
                 return (
-                  <div key={field.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-                    <div className="grid gap-3 md:grid-cols-12">
+                  <div key={field.id} className="relative rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="absolute right-2 top-2 h-7 w-7 rounded-full text-red-500 hover:bg-red-100"
+                      onClick={() => {
+                        if (fields.length > 1) remove(index)
+                      }}
+                      disabled={fields.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+
+                    <div className="grid gap-3 pr-8 md:grid-cols-12">
                       <div className="space-y-2 md:col-span-4">
                         <Label>Soi</Label>
                         <Input className="agri-control h-11" {...form.register(`items.${index}.soi`)} />
                       </div>
 
-                      <div className="space-y-2 md:col-span-3">
+                      <div className="space-y-2 md:col-span-4">
                         <Label>Cantitate</Label>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <Button
                             type="button"
                             size="icon"
                             variant="outline"
-                            className="h-10 w-10 rounded-full"
+                            className="h-10 w-10 shrink-0 rounded-full"
                             onClick={() => {
                               const nextValue = Math.max(1, cantitate - 1)
                               form.setValue(`items.${index}.cantitate`, nextValue, { shouldValidate: true })
@@ -590,7 +604,7 @@ export function AddVanzareButasiDialog({
                             type="button"
                             size="icon"
                             variant="outline"
-                            className="h-10 w-10 rounded-full"
+                            className="h-10 w-10 shrink-0 rounded-full"
                             onClick={() => form.setValue(`items.${index}.cantitate`, cantitate + 1, { shouldValidate: true })}
                           >
                             <Plus className="h-4 w-4" />
@@ -598,8 +612,8 @@ export function AddVanzareButasiDialog({
                         </div>
                       </div>
 
-                      <div className="space-y-2 md:col-span-3">
-                        <Label>Pret/buc</Label>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Preț/buc</Label>
                         <Input
                           type="number"
                           min={0.01}
@@ -610,23 +624,9 @@ export function AddVanzareButasiDialog({
                       </div>
 
                       <div className="space-y-2 md:col-span-2">
-                        <Label>Total linie</Label>
-                        <div className="flex h-11 items-center justify-between rounded-xl border border-emerald-100 bg-white px-3 text-sm font-semibold">
+                        <Label className="text-xs">Subtotal</Label>
+                        <div className="flex h-11 items-center justify-end rounded-xl border border-emerald-100 bg-white px-2 text-sm font-semibold">
                           {formatLei(subtotal || 0)}
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 rounded-full text-red-600 hover:bg-red-100"
-                            onClick={() => {
-                              if (fields.length > 1) {
-                                remove(index)
-                              }
-                            }}
-                            disabled={fields.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </div>
                     </div>
@@ -653,7 +653,7 @@ export function AddVanzareButasiDialog({
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="vb_avans">Avans platit</Label>
+                  <Label htmlFor="vb_avans">Avans plătit</Label>
                   <Input
                     id="vb_avans"
                     type="number"
@@ -670,7 +670,7 @@ export function AddVanzareButasiDialog({
               </div>
 
               <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
-                Rest de incasat: {formatLei(restDeIncasat || 0)}
+                Rest de încasat: {formatLei(restDeIncasat || 0)}
               </div>
             </div>
           </div>

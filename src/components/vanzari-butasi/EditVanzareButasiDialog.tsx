@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -130,12 +130,6 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     name: 'items',
   })
 
-  useEffect(() => {
-    if (vanzare && open) {
-      form.reset(getDefaultValues(vanzare))
-    }
-  }, [vanzare, open, form])
-
   const { data: clienti = [] } = useQuery({
     queryKey: queryKeys.clienti,
     queryFn: getClienți,
@@ -145,6 +139,52 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
+
+  const [comboInput, setComboInput] = useState('')
+  const [comboOpen, setComboOpen] = useState(false)
+  const comboRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (vanzare && open) {
+      form.reset(getDefaultValues(vanzare))
+      if (vanzare.client_id) {
+        const client = clienti.find((c) => c.id === vanzare.client_id)
+        setComboInput(client?.nume_client ?? '')
+      } else {
+        setComboInput('')
+      }
+    }
+  }, [vanzare, open, form, clienti])
+
+  useEffect(() => {
+    if (!open) {
+      setComboInput('')
+      setComboOpen(false)
+    }
+  }, [open])
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (comboRef.current && !comboRef.current.contains(event.target as Node)) {
+        setComboOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
+  const comboFiltered = useMemo(() => {
+    const term = (comboInput ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    if (!term || term.length < 2) return clienti.slice(0, 30)
+    return clienti.filter((c) => {
+      const name = (c.nume_client ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const phone = (c.telefon ?? '').toLowerCase()
+      return name.includes(term) || phone.includes(term)
+    })
+  }, [comboInput, clienti])
 
   const watchedItems = form.watch('items')
   const status = form.watch('status')
@@ -193,7 +233,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
       }
 
       hapticSuccess()
-      toast.success('Comanda actualizata')
+      toast.success('Comandă actualizată')
       onOpenChange(false)
     },
     onError: (error: Error) => {
@@ -232,7 +272,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editează vanzarea de material saditor"
+      title="Editează vânzarea de material săditor"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}
@@ -246,27 +286,60 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
       <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Client</Label>
-              <Controller
-                control={form.control}
-                name="client_id"
-                render={({ field }) => (
-                  <Select value={field.value || '__none'} onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}>
-                    <SelectTrigger className="agri-control h-12">
-                      <SelectValue placeholder="Selectează client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">Fără client</SelectItem>
-                      {clienti.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.nume_client}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div className="space-y-2" ref={comboRef}>
+              <Label htmlFor="edit_vb_client_combo">Client</Label>
+              <div className="relative">
+                <Input
+                  id="edit_vb_client_combo"
+                  className="agri-control h-12"
+                  placeholder="Caută după nume sau telefon..."
+                  autoComplete="off"
+                  value={comboInput}
+                  onFocus={() => setComboOpen(true)}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setComboInput(val)
+                    setComboOpen(true)
+                    form.setValue('client_id', '', { shouldDirty: true })
+                  }}
+                />
+                {comboOpen && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-1.5 border-b border-gray-100 px-3 py-2.5 text-left text-sm text-gray-500 hover:bg-gray-50"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        setComboInput('')
+                        setComboOpen(false)
+                        form.setValue('client_id', '', { shouldDirty: true })
+                      }}
+                    >
+                      — Fără client
+                    </button>
+                    {comboFiltered.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-gray-400">Niciun client găsit</p>
+                    ) : (
+                      comboFiltered.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            setComboInput(client.nume_client)
+                            setComboOpen(false)
+                            form.setValue('client_id', client.id, { shouldDirty: true })
+                          }}
+                        >
+                          <span className="font-medium text-gray-900">{client.nume_client}</span>
+                          {client.telefon ? <span className="text-gray-400">— {client.telefon}</span> : null}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
-              />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -299,14 +372,14 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="edit_vb_data_comanda">Data comanda</Label>
+              <Label htmlFor="edit_vb_data_comanda">Data comandă</Label>
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input id="edit_vb_data_comanda" type="date" className="agri-control h-12 pl-10" {...form.register('data_comanda')} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit_vb_data_livrare">Data preconizata livrare</Label>
+              <Label htmlFor="edit_vb_data_livrare">Data preconizată livrare</Label>
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input id="edit_vb_data_livrare" type="date" className="agri-control h-12 pl-10" {...form.register('data_livrare_estimata')} />
@@ -318,7 +391,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
         <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label htmlFor="edit_vb_adresa">Adresa livrare</Label>
+              <Label htmlFor="edit_vb_adresa">Adresă livrare</Label>
               <Input id="edit_vb_adresa" className="agri-control h-12" {...form.register('adresa_livrare')} />
             </div>
 
@@ -328,7 +401,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
             </div>
 
             <div className="space-y-2">
-              <Label>Teren sursa</Label>
+              <Label>Teren sursă</Label>
               <Controller
                 control={form.control}
                 name="parcela_sursa_id"
@@ -359,7 +432,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
 
           {isProductsReadonly ? (
             <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
-              Comanda anulata: produsele sunt doar in citire.
+              Comandă anulată: produsele sunt doar în citire.
             </div>
           ) : null}
 
@@ -370,21 +443,34 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
               const subtotal = cantitate * pret
 
               return (
-                <div key={field.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-                  <div className="grid gap-3 md:grid-cols-12">
+                <div key={field.id} className="relative rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute right-2 top-2 h-7 w-7 rounded-full text-red-500 hover:bg-red-100"
+                    onClick={() => {
+                      if (fields.length > 1) remove(index)
+                    }}
+                    disabled={fields.length === 1 || isProductsReadonly}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+
+                  <div className="grid gap-3 pr-8 md:grid-cols-12">
                     <div className="space-y-2 md:col-span-4">
                       <Label>Soi</Label>
                       <Input className="agri-control h-11" disabled={isProductsReadonly} {...form.register(`items.${index}.soi`)} />
                     </div>
 
-                    <div className="space-y-2 md:col-span-3">
+                    <div className="space-y-2 md:col-span-4">
                       <Label>Cantitate</Label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <Button
                           type="button"
                           size="icon"
                           variant="outline"
-                          className="h-10 w-10 rounded-full"
+                          className="h-10 w-10 shrink-0 rounded-full"
                           disabled={isProductsReadonly}
                           onClick={() => {
                             const nextValue = Math.max(1, cantitate - 1)
@@ -404,7 +490,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                           type="button"
                           size="icon"
                           variant="outline"
-                          className="h-10 w-10 rounded-full"
+                          className="h-10 w-10 shrink-0 rounded-full"
                           disabled={isProductsReadonly}
                           onClick={() => form.setValue(`items.${index}.cantitate`, cantitate + 1, { shouldValidate: true })}
                         >
@@ -413,8 +499,8 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                       </div>
                     </div>
 
-                    <div className="space-y-2 md:col-span-3">
-                      <Label>Pret/buc</Label>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Preț/buc</Label>
                       <Input
                         type="number"
                         min={0.01}
@@ -426,23 +512,9 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label>Total linie</Label>
-                      <div className="flex h-11 items-center justify-between rounded-xl border border-emerald-100 bg-white px-3 text-sm font-semibold">
+                      <Label className="text-xs">Subtotal</Label>
+                      <div className="flex h-11 items-center justify-end rounded-xl border border-emerald-100 bg-white px-2 text-sm font-semibold">
                         {formatLei(subtotal || 0)}
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-full text-red-600 hover:bg-red-100"
-                          onClick={() => {
-                            if (fields.length > 1) {
-                              remove(index)
-                            }
-                          }}
-                          disabled={fields.length === 1 || isProductsReadonly}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
                   </div>
@@ -470,7 +542,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="edit_vb_avans">Avans platit</Label>
+                <Label htmlFor="edit_vb_avans">Avans plătit</Label>
                 <Input
                   id="edit_vb_avans"
                   type="number"
@@ -487,7 +559,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
             </div>
 
             <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
-              Rest de incasat: {formatLei(restDeIncasat || 0)}
+              Rest de încasat: {formatLei(restDeIncasat || 0)}
             </div>
           </div>
         </div>

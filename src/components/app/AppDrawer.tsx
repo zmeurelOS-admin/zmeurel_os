@@ -10,12 +10,13 @@ interface AppDrawerProps {
   description?: string
   children: React.ReactNode
   footer?: React.ReactNode
+  contentClassName?: string
 }
 
-export function AppDrawer({ open, onOpenChange, title, description, children, footer }: AppDrawerProps) {
+export function AppDrawer({ open, onOpenChange, title, description, children, footer, contentClassName }: AppDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <FormDialogLayout title={title} description={description} footer={footer}>
+      <FormDialogLayout title={title} description={description} footer={footer} contentClassName={contentClassName}>
         {children}
       </FormDialogLayout>
     </Dialog>
