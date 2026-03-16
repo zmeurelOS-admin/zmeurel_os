@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -181,6 +181,40 @@ export function AddVanzareButasiDialog({
     queryFn: getParcele,
   })
 
+  const [comboInput, setComboInput] = useState('')
+  const [comboOpen, setComboOpen] = useState(false)
+  const comboRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!dialogOpen) {
+      setComboInput('')
+      setComboOpen(false)
+    }
+  }, [dialogOpen])
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (comboRef.current && !comboRef.current.contains(event.target as Node)) {
+        setComboOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
+
+  const comboFiltered = useMemo(() => {
+    const term = (comboInput ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    if (!term || term.length < 2) return clienti.slice(0, 30)
+    return clienti.filter((c) => {
+      const name = (c.nume_client ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const phone = (c.telefon ?? '').toLowerCase()
+      return name.includes(term) || phone.includes(term)
+    })
+  }, [comboInput, clienti])
+
   const watchedItems = form.watch('items')
   const avans = Number(form.watch('avans_suma') ?? 0)
   const clientMode = form.watch('client_mode')
@@ -318,61 +352,75 @@ export function AddVanzareButasiDialog({
         <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
           <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Client</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant={clientMode === 'existing' ? 'default' : 'outline'}
-                    className="h-10"
-                    onClick={() => {
-                      form.setValue('client_mode', 'existing', { shouldDirty: true })
-                      form.setValue('save_client_to_database', false, { shouldDirty: true })
-                    }}
-                  >
-                    Client existent
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={clientMode === 'manual' ? 'default' : 'outline'}
-                    className="h-10"
-                    onClick={() => {
+              {/* Single client combobox — replaces the old mode-toggle + select + manual fields */}
+              <div className="space-y-2" ref={comboRef}>
+                <Label htmlFor="vb_client_combo">Client</Label>
+                <div className="relative">
+                  <Input
+                    id="vb_client_combo"
+                    className="agri-control h-12"
+                    placeholder="Caută după nume sau telefon..."
+                    autoComplete="off"
+                    value={comboInput}
+                    onFocus={() => setComboOpen(true)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setComboInput(val)
+                      setComboOpen(true)
                       form.setValue('client_mode', 'manual', { shouldDirty: true })
                       form.setValue('client_id', '', { shouldDirty: true })
+                      form.setValue('client_nume_manual', val, { shouldDirty: true })
                     }}
-                  >
-                    Client manual
-                  </Button>
+                  />
+                  {comboOpen && (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                      {comboFiltered.length === 0 ? (
+                        <p className="px-3 py-2 text-sm text-gray-400">Niciun client găsit — completează manual</p>
+                      ) : (
+                        comboFiltered.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50"
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              setComboInput(client.nume_client)
+                              setComboOpen(false)
+                              form.setValue('client_mode', 'existing', { shouldDirty: true })
+                              form.setValue('client_id', client.id, { shouldDirty: true })
+                              form.setValue('client_nume_manual', '', { shouldDirty: true })
+                              form.setValue('client_telefon_manual', '', { shouldDirty: true })
+                              form.setValue('save_client_to_database', false, { shouldDirty: true })
+                              if (client.adresa) {
+                                form.setValue('adresa_livrare', client.adresa, { shouldDirty: true })
+                              }
+                            }}
+                          >
+                            <span className="font-medium text-gray-900">{client.nume_client}</span>
+                            {client.telefon ? <span className="text-gray-400">— {client.telefon}</span> : null}
+                          </button>
+                        ))
+                      )}
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-1.5 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          setComboOpen(false)
+                          form.setValue('client_mode', 'manual', { shouldDirty: true })
+                          form.setValue('client_id', '', { shouldDirty: true })
+                          form.setValue('client_nume_manual', comboInput, { shouldDirty: true })
+                        }}
+                      >
+                        ➕ Client nou — completează manual
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {clientMode === 'existing' ? (
-                <div className="space-y-2">
-                  <Label>Selectează client existent</Label>
-                  <Controller
-                    control={form.control}
-                    name="client_id"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value || '__none'}
-                        onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}
-                      >
-                        <SelectTrigger className="agri-control h-12">
-                          <SelectValue placeholder="Selectează client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none">Fără client</SelectItem>
-                          {clienti.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.nume_client}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-              ) : (
+              {/* Manual fields — visible only when client_mode is 'manual' */}
+              {clientMode === 'manual' ? (
                 <>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2">
@@ -413,7 +461,7 @@ export function AddVanzareButasiDialog({
                     </Label>
                   </div>
                 </>
-              )}
+              ) : null}
 
               <div className="space-y-2">
                 <Label>Status</Label>

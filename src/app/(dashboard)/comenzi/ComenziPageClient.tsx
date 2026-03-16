@@ -728,30 +728,48 @@ function ComandaDialog({
     }
   }, [initial])
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
-  const [clientSearch, setClientSearch] = useState('')
-  const manualName = form.client_nume_manual.trim()
+  const [comboInput, setComboInput] = useState('')
+  const [comboOpen, setComboOpen] = useState(false)
+  const comboRef = useRef<HTMLDivElement>(null)
+
   const selectedClient = clienti.find((client) => client.id === form.client_id)
-  const suggestedClientName = manualName || selectedClient?.nume_client || 'Client'
+  const suggestedClientName = form.client_nume_manual.trim() || selectedClient?.nume_client || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && form.telefon.trim().length > 0
 
   useEffect(() => {
     if (!open) {
-      setClientSearch('')
+      setComboInput('')
+      setComboOpen(false)
       setForm(initialFormState)
+    } else {
+      // Pre-fill combo input when editing an existing comanda
+      if (initialFormState.client_id) {
+        const client = clienti.find((c) => c.id === initialFormState.client_id)
+        setComboInput(client?.nume_client ?? '')
+      } else {
+        setComboInput(initialFormState.client_nume_manual ?? '')
+      }
     }
-  }, [initialFormState, open])
+  }, [open, initialFormState, clienti])
 
-  const filteredClienti = useMemo(() => {
-    const term = normalize(clientSearch)
-    if (!term) return clienti
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (comboRef.current && !comboRef.current.contains(event.target as Node)) {
+        setComboOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [])
 
-    return clienti.filter((client) => {
-      const name = normalize(String(client.nume_client ?? ''))
-      const phone = normalize(String(client.telefon ?? ''))
-      const email = normalize(String(client.email ?? ''))
-      return name.includes(term) || phone.includes(term) || email.includes(term)
-    })
-  }, [clientSearch, clienti])
+  const comboFiltered = useMemo(() => {
+    const term = normalize(comboInput)
+    if (!term || term.length < 2) return clienti.slice(0, 30)
+    return clienti.filter((c) =>
+      normalize(c.nume_client ?? '').includes(term) ||
+      normalize(c.telefon ?? '').includes(term)
+    )
+  }, [comboInput, clienti])
 
   return (
     <AppDialog
@@ -790,37 +808,66 @@ function ComandaDialog({
       }
     >
       <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="comanda_client_search">Caută client</Label>
-          <Input
-            id="comanda_client_search"
-            className="agri-control h-12"
-            placeholder="Caută după nume, telefon sau email"
-            value={clientSearch}
-            onChange={(event) => setClientSearch(event.target.value)}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Client existent</Label>
-          <Select value={form.client_id || '__none'} onValueChange={(value) => setForm((prev) => ({ ...prev, client_id: value === '__none' ? '' : value }))}>
-            <SelectTrigger className="agri-control h-12">
-              <SelectValue placeholder="Selectează client" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">Fără client</SelectItem>
-              {filteredClienti.map((client) => (
-                <SelectItem key={client.id} value={client.id}>
-                  {client.nume_client}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Nume client manual</Label>
-          <Input className="agri-control h-12" value={form.client_nume_manual} onChange={(e) => setForm((prev) => ({ ...prev, client_nume_manual: e.target.value }))} />
+        {/* Single client combobox — replaces the old search + select + manual-name triple */}
+        <div className="space-y-1.5" ref={comboRef}>
+          <Label htmlFor="comanda_client_combo">Client</Label>
+          <div className="relative">
+            <Input
+              id="comanda_client_combo"
+              className="agri-control h-12"
+              placeholder="Caută după nume sau telefon..."
+              autoComplete="off"
+              value={comboInput}
+              onFocus={() => setComboOpen(true)}
+              onChange={(e) => {
+                const val = e.target.value
+                setComboInput(val)
+                setComboOpen(true)
+                setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: val }))
+              }}
+            />
+            {comboOpen && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                {comboFiltered.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-gray-400">Niciun client găsit — completează manual</p>
+                ) : (
+                  comboFiltered.map((client) => (
+                    <button
+                      key={client.id}
+                      type="button"
+                      className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        setComboInput(client.nume_client)
+                        setComboOpen(false)
+                        setForm((prev) => ({
+                          ...prev,
+                          client_id: client.id,
+                          client_nume_manual: '',
+                          telefon: client.telefon || prev.telefon,
+                          locatie_livrare: client.adresa || prev.locatie_livrare,
+                        }))
+                      }}
+                    >
+                      <span className="font-medium text-gray-900">{client.nume_client}</span>
+                      {client.telefon ? <span className="text-gray-400">— {client.telefon}</span> : null}
+                    </button>
+                  ))
+                )}
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-1.5 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    setComboOpen(false)
+                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: comboInput }))
+                  }}
+                >
+                  ➕ Client nou — completează manual
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-1.5">
