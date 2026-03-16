@@ -43,11 +43,11 @@ interface EditVanzareButasiDialogProps {
 }
 
 const statusLabels: Record<VanzareButasiStatus, string> = {
-  noua: 'Noua',
-  confirmata: 'Confirmata',
-  pregatita: 'Pregatita',
+  noua: 'Nouă',
+  confirmata: 'Confirmată',
+  pregatita: 'Pregătită',
   livrata: 'Livrată',
-  anulata: 'Anulata',
+  anulata: 'Anulată',
 }
 
 const schema = z.object({

@@ -36,11 +36,11 @@ import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 
 const statusLabels: Record<VanzareButasiStatus, string> = {
-  noua: 'Noua',
-  confirmata: 'Confirmata',
-  pregatita: 'Pregatita',
+  noua: 'Nouă',
+  confirmata: 'Confirmată',
+  pregatita: 'Pregătită',
   livrata: 'Livrată',
-  anulata: 'Anulata',
+  anulata: 'Anulată',
 }
 
 const schema = z.object({
@@ -219,7 +219,7 @@ export function AddVanzareButasiDialog({
         statusText?: string
       }
       const resolvedMessage = resolveErrorMessage(error)
-      console.error('Error creating butasi order:', {
+      console.error('[DEBUG] Error creating butasi order:', {
         message: maybeError?.message || resolvedMessage,
         code: maybeError?.code,
         details: maybeError?.details,
@@ -304,7 +304,7 @@ export function AddVanzareButasiDialog({
       <AppDrawer
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="Adaugă vanzare material saditor"
+        title="Adaugă vânzare material săditor"
         footer={
           <DialogFormActions
             onCancel={() => setDialogOpen(false)}

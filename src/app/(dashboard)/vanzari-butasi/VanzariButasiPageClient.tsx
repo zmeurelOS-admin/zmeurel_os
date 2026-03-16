@@ -22,6 +22,7 @@ import { VanzareButasiCard } from '@/components/vanzari-butasi/VanzareButasiCard
 import { ViewVanzareButasiDialog } from '@/components/vanzari-butasi/ViewVanzareButasiDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { getClienți } from '@/lib/supabase/queries/clienti'
 import {
   deleteVanzareButasi,
   getVanzariButasi,
@@ -126,7 +127,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
   }, [])
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga vanzare material saditor')
+    const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă vânzare material săditor')
     return unregister
   }, [registerAddAction])
 
@@ -190,21 +191,27 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
     })
   }
 
+  const { data: clientiData = clienti } = useQuery({
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
+    initialData: clienti,
+  })
+
   const clientMap = useMemo(() => {
     const map: Record<string, string> = {}
-    clienti.forEach((client) => {
+    clientiData.forEach((client) => {
       map[client.id] = client.nume_client || 'Client'
     })
     return map
-  }, [clienti])
+  }, [clientiData])
 
   const clientPhoneMap = useMemo(() => {
     const map: Record<string, string | null> = {}
-    clienti.forEach((client) => {
+    clientiData.forEach((client) => {
       map[client.id] = client.telefon
     })
     return map
-  }, [clienti])
+  }, [clientiData])
 
   const parcelaMap = useMemo(() => {
     const map: Record<string, string> = {}

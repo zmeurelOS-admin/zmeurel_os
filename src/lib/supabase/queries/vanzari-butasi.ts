@@ -369,29 +369,35 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const status = assertStatus(input.status ?? 'noua')
   const firstItem = normalized.items[0]
 
+  const insertPayload = {
+    tenant_id: tenantId,
+    data: input.data_comanda,
+    data_comanda: input.data_comanda,
+    data_livrare_estimata: input.data_livrare_estimata || null,
+    status,
+    client_id: input.client_id || null,
+    parcela_sursa_id: input.parcela_sursa_id || null,
+    adresa_livrare: input.adresa_livrare?.trim() || null,
+    observatii: input.observatii?.trim() || null,
+    avans_suma: avansSuma,
+    avans_data: input.avans_data || null,
+    total_lei: normalized.totalLei,
+    soi_butasi: firstItem?.soi ?? null,
+    cantitate_butasi: normalized.totalCantitate,
+    pret_unitar_lei: roundTo2(normalized.totalLei / normalized.totalCantitate),
+  }
+  console.log('[DEBUG] createVanzareButasi payload:', insertPayload)
+
   const { data, error } = await supabase
     .from('vanzari_butasi')
-    .insert({
-      tenant_id: tenantId,
-      data: input.data_comanda,
-      data_comanda: input.data_comanda,
-      data_livrare_estimata: input.data_livrare_estimata || null,
-      status,
-      client_id: input.client_id || null,
-      parcela_sursa_id: input.parcela_sursa_id || null,
-      adresa_livrare: input.adresa_livrare?.trim() || null,
-      observatii: input.observatii?.trim() || null,
-      avans_suma: avansSuma,
-      avans_data: input.avans_data || null,
-      total_lei: normalized.totalLei,
-      soi_butasi: firstItem?.soi ?? null,
-      cantitate_butasi: normalized.totalCantitate,
-      pret_unitar_lei: roundTo2(normalized.totalLei / normalized.totalCantitate),
-    })
+    .insert(insertPayload)
     .select('id')
     .single()
 
-  if (error) throw toReadableError(error, 'Nu am putut salva comanda de butasi.')
+  if (error) {
+    console.error('[DEBUG] createVanzareButasi main insert error:', error)
+    throw toReadableError(error, 'Nu am putut salva comanda de butasi.')
+  }
 
   const comandaId = data.id
   const itemsPayload = normalized.items.map((item) => ({
@@ -406,6 +412,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const { error: itemsError } = await supabase.from('vanzari_butasi_items').insert(itemsPayload)
 
   if (itemsError) {
+    console.error('[DEBUG] createVanzareButasi items insert error:', itemsError)
     await supabase.from('vanzari_butasi').delete().eq('id', comandaId).eq('tenant_id', tenantId)
     throw toReadableError(itemsError, 'Nu am putut salva produsele comenzii de butasi.')
   }
