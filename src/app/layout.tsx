@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 
 import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
 import { MonitoringInit } from '@/components/app/MonitoringInit'
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MonitoringInit />
         {children}
         <Toaster />
+        <Analytics />
       </body>
     </html>
   )
