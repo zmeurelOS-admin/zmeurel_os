@@ -7,15 +7,17 @@ import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDocumentModalState } from "@/components/ui/modal-layer"
 
-type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root>
+type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root> & {
+  disableHistory?: boolean
+}
 
-const Dialog = ({ open, onOpenChange, ...props }: DialogProps) => {
+const Dialog = ({ open, onOpenChange, disableHistory = false, ...props }: DialogProps) => {
   const addedHistoryEntryRef = React.useRef(false)
   const closingFromBackRef = React.useRef(false)
   useDocumentModalState(Boolean(open))
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || !open || addedHistoryEntryRef.current) return
+    if (disableHistory || typeof window === "undefined" || !open || addedHistoryEntryRef.current) return
 
     window.history.pushState(
       {
@@ -35,10 +37,10 @@ const Dialog = ({ open, onOpenChange, ...props }: DialogProps) => {
 
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [open, onOpenChange])
+  }, [open, onOpenChange, disableHistory])
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || open) return
+    if (disableHistory || typeof window === "undefined" || open) return
 
     if (closingFromBackRef.current) {
       closingFromBackRef.current = false
@@ -47,9 +49,11 @@ const Dialog = ({ open, onOpenChange, ...props }: DialogProps) => {
 
     if (addedHistoryEntryRef.current) {
       addedHistoryEntryRef.current = false
-      window.history.back()
+      if (window.history.state?.__zmeurelDialog) {
+        window.history.back()
+      }
     }
-  }, [open])
+  }, [open, disableHistory])
 
   return <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} {...props} />
 }
@@ -82,12 +86,15 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, showCloseButton = true, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm" />
+    <DialogOverlay
+      className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm"
+      style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+    />
     <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "relative grid max-h-[calc(100dvh-2rem)] w-[92vw] max-w-sm gap-4 overflow-y-auto rounded-2xl border bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "relative grid max-h-[calc(100dvh-2rem)] w-[92vw] max-w-sm gap-4 overflow-y-auto rounded-2xl border border-[var(--agri-border)] bg-[var(--surface-elevated)] p-6 text-[var(--agri-text)] shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className
         )}
         {...props}
@@ -96,7 +103,7 @@ const DialogContent = React.forwardRef<
         {showCloseButton && (
           <DialogPrimitive.Close
             style={{ backgroundColor: 'transparent' }}
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 data-[state=open]:text-slate-500"
+            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-[var(--agri-surface-muted)] data-[state=open]:text-[var(--agri-text-muted)]"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
@@ -128,7 +135,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      "flex flex-col-reverse gap-3 pb-[env(safe-area-inset-bottom,0px)] sm:flex-row sm:justify-end sm:gap-2",
       className
     )}
     {...props}
@@ -157,7 +164,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-slate-500", className)}
+    className={cn("text-sm text-[var(--agri-text-muted)]", className)}
     {...props}
   />
 ))

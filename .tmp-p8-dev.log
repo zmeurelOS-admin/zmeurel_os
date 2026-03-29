@@ -1,0 +1,31 @@
+
+> zmeurel@0.1.0 dev
+> next dev --port 3001
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.1.145:3001
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+Creating turbopack project { dir: 'C:\\Users\\Andrei\\Desktop\\zmeurel', testMode: true }
+○ Compiling instrumentation Node.js ...
+✓ Ready in 37.3s
+○ Compiling /login ...
+○ Compiling /cheltuieli ...
+ GET /manifest.webmanifest 200 in 726ms (compile: 583ms, render: 143ms)
+ GET /cheltuieli 200 in 17.4s (compile: 9.3s, proxy.ts: 4.0s, render: 4.0s)
+ GET /manifest.webmanifest 200 in 3.2s (compile: 3.0s, render: 190ms)
+✓ Finished writing to filesystem cache in 13.5s
+✓ Finished filesystem cache database compaction in 75s
+✓ Finished writing to filesystem cache in 101s
+✓ Finished filesystem cache database compaction in 2.8min
+✓ Finished writing to filesystem cache in 2.5min
+✓ Finished filesystem cache database compaction in 61s
+✓ Finished writing to filesystem cache in 61s
+○ Compiling /parcele ...
+✓ Finished filesystem cache database compaction in 35.6s
+✓ Finished writing to filesystem cache in 15.8s
+[?25h

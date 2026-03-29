@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { Download, KeyRound, Loader2, Settings2, UserCircle2 } from 'lucide-react'
+import { Download, KeyRound, Loader2, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -26,6 +27,8 @@ import {
 } from '@/lib/demo/onboarding-storage'
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantByIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
+import { hapticConfirm } from '@/lib/utils/haptic'
+import { isValidRomanianPhone, normalizePhone } from '@/lib/utils/phone'
 
 type CsvModule = 'activitati' | 'cheltuieli' | 'vanzari' | 'recoltari' | 'clienti' | 'comenzi'
 type DemoAction = 'exit'
@@ -117,15 +120,25 @@ function getApiErrorMessage(
 export default function SettingsPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { theme, resolvedTheme, setTheme } = useTheme()
   const { density, setDensity } = useUiDensity()
   const { userId, email, isSuperAdmin } = useDashboardAuth()
   const safeEmail = email ?? 'Necunoscut'
   const isProtectedSuperadmin = safeEmail.toLowerCase() === PROTECTED_SUPERADMIN_EMAIL
+  const [themeReady, setThemeReady] = useState(false)
 
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [farmName, setFarmName] = useState('')
   const [farmNameDraft, setFarmNameDraft] = useState('')
   const [isSavingFarmName, setIsSavingFarmName] = useState(false)
+  const [profilePhone, setProfilePhone] = useState('')
+  const [profilePhoneDraft, setProfilePhoneDraft] = useState('')
+  const [profilePhoneError, setProfilePhoneError] = useState('')
+  const [isSavingProfilePhone, setIsSavingProfilePhone] = useState(false)
+  const [farmPhone, setFarmPhone] = useState('')
+  const [farmPhoneDraft, setFarmPhoneDraft] = useState('')
+  const [farmPhoneError, setFarmPhoneError] = useState('')
+  const [isSavingFarmPhone, setIsSavingFarmPhone] = useState(false)
 
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
@@ -143,10 +156,16 @@ export default function SettingsPage() {
   const [isDeletingFarmData, setIsDeletingFarmData] = useState(false)
   const [demoActionDialog, setDemoActionDialog] = useState<DemoAction | null>(null)
 
+  const [deleteAiConversationsOpen, setDeleteAiConversationsOpen] = useState(false)
+  const [isDeletingAiConversations, setIsDeletingAiConversations] = useState(false)
   const [deleteAccountStep1Open, setDeleteAccountStep1Open] = useState(false)
   const [deleteAccountStep2Open, setDeleteAccountStep2Open] = useState(false)
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('')
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+
+  useEffect(() => {
+    setThemeReady(true)
+  }, [])
 
   useEffect(() => {
     void (async () => {
@@ -155,7 +174,13 @@ export default function SettingsPage() {
       const supabase = getSupabase()
       const resolvedTenantId = await getTenantIdByUserIdOrNull(supabase, userId)
 
-      const tenantRow = await getTenantByIdOrNull(supabase, resolvedTenantId)
+      const [tenantRow, farmPhoneResult, profileResult] = await Promise.all([
+        getTenantByIdOrNull(supabase, resolvedTenantId),
+        resolvedTenantId
+          ? supabase.from('tenants').select('contact_phone').eq('id', resolvedTenantId).single()
+          : Promise.resolve({ data: null }),
+        supabase.from('profiles').select('phone').eq('id', userId).single(),
+      ])
 
       if (tenantRow?.id) {
         setTenantId(tenantRow.id)
@@ -164,6 +189,13 @@ export default function SettingsPage() {
         setFarmName(tenantRow.nume_ferma)
         setFarmNameDraft(tenantRow.nume_ferma)
       }
+      const cp = farmPhoneResult.data?.contact_phone ?? ''
+      setFarmPhone(cp)
+      setFarmPhoneDraft(cp)
+
+      const pp = profileResult.data?.phone ?? ''
+      setProfilePhone(pp)
+      setProfilePhoneDraft(pp)
     })()
   }, [userId])
 
@@ -215,6 +247,64 @@ export default function SettingsPage() {
       toast.error(message)
     } finally {
       setIsSavingPassword(false)
+    }
+  }
+
+  const handleSaveProfilePhone = async () => {
+    const draft = profilePhoneDraft.trim()
+    if (!draft || !isValidRomanianPhone(draft)) {
+      setProfilePhoneError('Număr invalid. Trebuie să înceapă cu 07 și să aibă 10 cifre.')
+      return
+    }
+    setProfilePhoneError('')
+    setIsSavingProfilePhone(true)
+    try {
+      const res = await fetch('/api/profile/phone', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: draft }),
+      })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error((payload as { error?: string }).error ?? 'Eroare la salvare.')
+      }
+      const normalized = normalizePhone(draft) ?? draft
+      setProfilePhone(normalized)
+      setProfilePhoneDraft(normalized)
+      toast.success('Telefonul personal a fost actualizat.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? 'Nu am putut salva numărul.'
+      toast.error(msg)
+    } finally {
+      setIsSavingProfilePhone(false)
+    }
+  }
+
+  const handleSaveFarmPhone = async () => {
+    const draft = farmPhoneDraft.trim()
+    if (draft && !isValidRomanianPhone(draft)) {
+      setFarmPhoneError('Număr invalid. Trebuie să înceapă cu 07 și să aibă 10 cifre.')
+      return
+    }
+    setFarmPhoneError('')
+    if (!tenantId) return
+    setIsSavingFarmPhone(true)
+    try {
+      const normalized = draft ? (normalizePhone(draft) ?? draft) : ''
+      const supabase = getSupabase()
+      const { error } = await supabase
+        .from('tenants')
+        .update({ contact_phone: normalized || null } as never)
+        .eq('id', tenantId)
+      if (error) throw error
+      setFarmPhone(normalized)
+      setFarmPhoneDraft(normalized)
+      toast.success('Telefonul fermei a fost actualizat.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? 'Nu am putut salva numărul.'
+      toast.error(msg)
+    } finally {
+      setIsSavingFarmPhone(false)
     }
   }
 
@@ -509,6 +599,35 @@ export default function SettingsPage() {
     }
   }
 
+  const handleDeleteAiConversations = async () => {
+    if (!userId) {
+      toast.error('Trebuie să fii autentificat pentru a șterge conversațiile AI.')
+      return
+    }
+
+    setIsDeletingAiConversations(true)
+    try {
+      const supabase = getSupabase()
+      const { error } = await supabase
+        .from('ai_conversations' as unknown as 'alert_dismissals')
+        .delete()
+        .eq('user_id', userId)
+
+      if (error) {
+        throw error
+      }
+
+      setDeleteAiConversationsOpen(false)
+      toast.success('Conversațiile AI au fost șterse')
+    } catch (error: unknown) {
+      const message =
+        (error as { message?: string })?.message || 'Nu am putut șterge conversațiile AI.'
+      toast.error(message)
+    } finally {
+      setIsDeletingAiConversations(false)
+    }
+  }
+
   return (
     <AppShell
       header={<PageHeader title="Cont și setări" subtitle="Profil utilizator și preferințe" rightSlot={<Settings2 className="h-5 w-5" />} />}
@@ -520,7 +639,7 @@ export default function SettingsPage() {
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[var(--agri-text-muted)]">Email</Label>
             {isDemo ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-800">
+              <div className="rounded-xl border border-[var(--soft-warning-border)] bg-[var(--soft-warning-bg)] px-4 py-3 text-sm leading-relaxed text-[var(--soft-warning-text)]">
                 Cont demo — conectează-te cu Google sau email pentru a-ți crea ferma ta.
               </div>
             ) : (
@@ -543,7 +662,7 @@ export default function SettingsPage() {
               />
               <Button
                 type="button"
-                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
                 disabled={isSavingFarmName || farmNameDraft.trim().length < 2 || farmNameDraft.trim() === farmName}
                 onClick={handleSaveFarmName}
               >
@@ -557,6 +676,56 @@ export default function SettingsPage() {
                 )}
               </Button>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-phone" className="text-sm font-medium text-[var(--agri-text-muted)]">Telefonul tău</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="profile-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                className="agri-control h-11"
+                value={profilePhoneDraft}
+                onChange={(e) => { setProfilePhoneDraft(e.target.value); if (profilePhoneError) setProfilePhoneError('') }}
+                placeholder="07XX XXX XXX"
+              />
+              <Button
+                type="button"
+                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                disabled={isSavingProfilePhone || profilePhoneDraft.trim() === profilePhone}
+                onClick={handleSaveProfilePhone}
+              >
+                {isSavingProfilePhone ? <><Loader2 className="h-4 w-4 animate-spin" />Se salvează...</> : 'Salvează'}
+              </Button>
+            </div>
+            {profilePhoneError ? <p className="text-xs text-red-600">{profilePhoneError}</p> : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="farm-phone" className="text-sm font-medium text-[var(--agri-text-muted)]">Telefon contact fermă</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="farm-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                className="agri-control h-11"
+                value={farmPhoneDraft}
+                onChange={(e) => { setFarmPhoneDraft(e.target.value); if (farmPhoneError) setFarmPhoneError('') }}
+                placeholder="07XX XXX XXX"
+              />
+              <Button
+                type="button"
+                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                disabled={isSavingFarmPhone || farmPhoneDraft.trim() === farmPhone}
+                onClick={handleSaveFarmPhone}
+              >
+                {isSavingFarmPhone ? <><Loader2 className="h-4 w-4 animate-spin" />Se salvează...</> : 'Salvează'}
+              </Button>
+            </div>
+            {farmPhoneError ? <p className="text-xs text-red-600">{farmPhoneError}</p> : null}
           </div>
 
           <div className="flex flex-row flex-wrap items-center gap-3">
@@ -583,7 +752,7 @@ export default function SettingsPage() {
             {isDemo && (
               <Button
                 type="button"
-                className="h-11 rounded-xl bg-[var(--agri-primary)] px-5 text-white hover:bg-emerald-700"
+                className="h-11 rounded-xl bg-[var(--agri-primary)] px-5 text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
                 onClick={async () => {
                   const supabase = getSupabase()
                   await supabase.auth.signOut()
@@ -643,6 +812,30 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] p-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-semibold text-[var(--soft-danger-text)]">Date AI</h3>
+              <p className="text-sm text-[var(--soft-danger-text)]">
+                Poți șterge permanent istoricul conversațiilor tale cu asistentul AI.
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
+                disabled={!userId || isDeletingAiConversations}
+                onClick={() => {
+                  hapticConfirm()
+                  setDeleteAiConversationsOpen(true)
+                }}
+              >
+                Șterge toate conversațiile AI
+              </Button>
+            </div>
+          </div>
+
         </section>
 
         <section id="demo" className="agri-card space-y-4 p-6">
@@ -658,7 +851,7 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="agri-control h-11 w-full justify-start border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                className="agri-control h-11 w-full justify-start border-[var(--soft-success-border)] text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)]"
                 disabled={!tenantId || isDemoActionPending}
                 onClick={() => {
                   void handleReseedDemoData()
@@ -669,7 +862,7 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="agri-control h-11 w-full justify-start border-blue-300 text-blue-800 hover:bg-blue-50"
+                className="agri-control h-11 w-full justify-start border-[var(--soft-info-border)] text-[var(--soft-info-text)] hover:bg-[var(--soft-info-bg)]"
                 disabled={!tenantId || isDemoActionPending}
                 onClick={() => setDemoActionDialog('exit')}
               >
@@ -678,10 +871,10 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-200 bg-red-50/80 p-4">
+          <div className="rounded-2xl border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] p-4">
             <div className="space-y-1">
-              <h3 className="text-base font-semibold text-red-800">Acțiuni permanente</h3>
-              <p className="text-sm text-red-700">
+              <h3 className="text-base font-semibold text-[var(--soft-danger-text)]">Acțiuni permanente</h3>
+              <p className="text-sm text-[var(--soft-danger-text)]">
                 Aceste acțiuni șterg date reale și necesită confirmare.
               </p>
             </div>
@@ -690,22 +883,28 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="agri-control h-11 w-full justify-start border-red-300 bg-white text-red-700 hover:bg-red-100"
-                onClick={() => setDeleteFarmStep1Open(true)}
+                className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
+                onClick={() => {
+                  hapticConfirm()
+                  setDeleteFarmStep1Open(true)
+                }}
               >
                 Resetează datele fermei
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                className="agri-control h-11 w-full justify-start border-red-500 bg-white text-red-800 hover:bg-red-100"
-                onClick={() => setDeleteAccountStep1Open(true)}
+                className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
+                onClick={() => {
+                  hapticConfirm()
+                  setDeleteAccountStep1Open(true)
+                }}
                 disabled={isProtectedSuperadmin}
               >
                 Șterge contul și ferma
               </Button>
               {isProtectedSuperadmin ? (
-                <p className="text-xs font-medium text-red-700">
+                <p className="text-xs font-medium text-[var(--soft-danger-text)]">
                   Cont protejat: acest cont nu poate fi șters.
                 </p>
               ) : null}
@@ -719,6 +918,61 @@ export default function SettingsPage() {
             <FarmSwitcher variant="panel" />
           </section>
         ) : null}
+
+        <section id="tema" className="agri-card space-y-3 p-6">
+          <h2 className="text-lg font-semibold text-[var(--agri-text)]">Tema aplicației</h2>
+          <p className="text-sm text-[var(--agri-text-muted)]">
+            Salvez preferința pe acest dispozitiv și pot urma tema sistemului când alegi Auto.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {[
+              {
+                value: 'system',
+                label: 'Auto',
+                description: themeReady ? `Acum: ${resolvedTheme === 'dark' ? 'Întunecat' : 'Luminos'}` : 'Urmează dispozitivul',
+                icon: MonitorSmartphone,
+              },
+              {
+                value: 'light',
+                label: 'Luminos',
+                description: 'Aspect clar, clasic',
+                icon: Sun,
+              },
+              {
+                value: 'dark',
+                label: 'Întunecat',
+                description: 'Mai confortabil seara',
+                icon: Moon,
+              },
+            ].map((option) => {
+              const Icon = option.icon
+              const selected = (themeReady ? theme : 'system') === option.value
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setTheme(option.value)}
+                  className={`rounded-2xl border p-4 text-left transition-colors ${
+                    selected
+                      ? 'border-[var(--agri-primary)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
+                      : 'border-[var(--agri-border)] bg-[var(--agri-surface)] text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--agri-surface-muted)] text-[var(--agri-text)]">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      <p className="text-xs text-[var(--agri-text-muted)]">{option.description}</p>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </section>
 
         <section id="interfata" className="agri-card space-y-3 p-6">
           <h2 className="text-lg font-semibold text-[var(--agri-text)]">Tip interfață</h2>
@@ -765,7 +1019,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
               disabled={isDemoActionPending || demoActionDialog !== 'exit'}
               onClick={() => {
                 if (demoActionDialog === 'exit') {
@@ -794,7 +1048,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
               disabled={isSavingPassword || !!passwordError || newPassword.length === 0}
               onClick={handleChangePassword}
             >
@@ -859,6 +1113,42 @@ export default function SettingsPage() {
       >
         <p className="text-sm text-[var(--agri-text-muted)]">
           Toate recoltele, lucrările, vânzările, cheltuielile și culegătorii vor fi șterse. Contul tău rămâne activ și poți adăuga date noi oricând.
+        </p>
+      </AppDialog>
+
+      <AppDialog
+        open={deleteAiConversationsOpen}
+        onOpenChange={(open) => {
+          if (!isDeletingAiConversations) {
+            setDeleteAiConversationsOpen(open)
+          }
+        }}
+        title="Ștergi istoricul conversațiilor AI?"
+        description="Ești sigur? Toate conversațiile tale cu asistentul AI vor fi șterse permanent."
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-cta"
+              disabled={isDeletingAiConversations}
+              onClick={() => setDeleteAiConversationsOpen(false)}
+            >
+              Anulează
+            </Button>
+            <Button
+              type="button"
+              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              disabled={isDeletingAiConversations}
+              onClick={handleDeleteAiConversations}
+            >
+              {isDeletingAiConversations ? 'Se șterge...' : 'Șterge conversațiile'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-[var(--agri-text-muted)]">
+          Acțiunea afectează doar conversațiile AI asociate contului tău curent.
         </p>
       </AppDialog>
 

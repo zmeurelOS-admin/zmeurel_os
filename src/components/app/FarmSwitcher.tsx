@@ -51,7 +51,7 @@ export function FarmSwitcher({ variant = 'panel', onActivate }: FarmSwitcherProp
       <button
         type="button"
         onClick={onActivate}
-        className="agri-control inline-flex h-9 max-w-[190px] items-center gap-2 rounded-full border border-[var(--agri-border)] bg-white px-3 text-xs font-semibold text-[var(--agri-text)]"
+        className="agri-control inline-flex h-9 max-w-[190px] items-center gap-2 rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-xs font-semibold text-[var(--agri-text)]"
         aria-label="Schimbă fermă"
       >
         <Tractor className="h-3.5 w-3.5 text-emerald-700" />

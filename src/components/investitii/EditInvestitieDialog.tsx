@@ -12,6 +12,7 @@ import { toast } from '@/lib/ui/toast'
 import {
   AppDialog,
 } from '@/components/app/AppDialog'
+import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -59,10 +60,12 @@ export function EditInvestitieDialog({
 }: EditInvestitieDialogProps) {
   const queryClient = useQueryClient()
 
-  const { data: parcele = [] } = useQuery({
+  const { data: parcele = [], isLoading: isLoadingParcele } = useQuery({
     queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
+
+  const isInitialDataLoading = open && isLoadingParcele && parcele.length === 0
 
   const {
     register,
@@ -148,7 +151,7 @@ export function EditInvestitieDialog({
           <Button
             type="submit"
             form="edit-investitie-form"
-            disabled={updateMutation.isPending}
+            disabled={updateMutation.isPending || isInitialDataLoading}
             className="bg-[#F16B6B] hover:bg-[#E05A5A]"
           >
             {updateMutation.isPending ? (
@@ -163,6 +166,7 @@ export function EditInvestitieDialog({
         </>
       }
     >
+        {isInitialDataLoading ? <DialogInitialDataSkeleton compact /> : (
         <form id="edit-investitie-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
             <Label>Data</Label>
@@ -173,7 +177,7 @@ export function EditInvestitieDialog({
             <Label>Categorie</Label>
             <select
               {...register('categorie')}
-              className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+              className="agri-control h-10 w-full px-3 py-2 text-sm"
             >
               <option value="">Selectează categoria...</option>
               {CATEGORII_INVESTITII.map((cat) => (
@@ -188,7 +192,7 @@ export function EditInvestitieDialog({
             <Label>Parcelă</Label>
             <select
               {...register('parcela_id')}
-              className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+              className="agri-control h-10 w-full px-3 py-2 text-sm"
             >
               <option value="">Fără legătură cu parcelă</option>
               {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
@@ -215,6 +219,7 @@ export function EditInvestitieDialog({
           </div>
 
         </form>
+        )}
     </AppDialog>
   )
 }

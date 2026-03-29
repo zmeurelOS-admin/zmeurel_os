@@ -11,12 +11,15 @@ interface AppDrawerProps {
   children: React.ReactNode
   footer?: React.ReactNode
   contentClassName?: string
+  disableHistory?: boolean
+  hideHeader?: boolean
+  showHandle?: boolean
 }
 
-export function AppDrawer({ open, onOpenChange, title, description, children, footer, contentClassName }: AppDrawerProps) {
+export function AppDrawer({ open, onOpenChange, title, description, children, footer, contentClassName, disableHistory, hideHeader, showHandle }: AppDrawerProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <FormDialogLayout title={title} description={description} footer={footer} contentClassName={contentClassName}>
+    <Dialog open={open} onOpenChange={onOpenChange} disableHistory={disableHistory}>
+      <FormDialogLayout title={title} description={description} footer={footer} contentClassName={contentClassName} hideHeader={hideHeader} showHandle={showHandle}>
         {children}
       </FormDialogLayout>
     </Dialog>

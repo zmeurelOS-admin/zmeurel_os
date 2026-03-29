@@ -8,7 +8,11 @@ import { dispatchDemoBannerDismissed, useDemoBannerVisible } from '@/hooks/useDe
 
 async function handleCreateFarm() {
   const supabase = getSupabase()
-  await supabase.auth.signOut()
+  try {
+    await supabase.auth.signOut()
+  } catch (error) {
+    console.error('Sign out failed:', error)
+  }
   window.location.href = '/start'
 }
 
@@ -27,7 +31,7 @@ export function DemoBanner() {
           <Button
             type="button"
             size="sm"
-            className="h-8 rounded-full bg-white px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+            className="h-8 rounded-full bg-[var(--agri-surface)] px-4 text-sm font-semibold text-emerald-700 hover:bg-[var(--soft-success-bg)]"
             onClick={handleCreateFarm}
           >
             Creează-ți ferma →

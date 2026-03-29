@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 
 import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
 import { MonitoringInit } from '@/components/app/MonitoringInit'
+import { ThemeProvider } from '@/components/app/ThemeProvider'
 import { Toaster } from '@/components/Toaster'
 import './globals.css'
 
@@ -40,8 +41,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" data-scroll-behavior="smooth">
+    <html lang="ro" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}` }} />
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#166534" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -51,10 +53,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body className={inter.variable}>
-        <HighVisibilityInit />
-        <MonitoringInit />
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          <HighVisibilityInit />
+          <MonitoringInit />
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )

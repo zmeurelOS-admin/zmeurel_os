@@ -6,18 +6,18 @@
 
 ## 📊 STATUS PROIECT
 
-**Progres MVP:** ~40% complet  
+**Status produs:** Beta privat — toate modulele core funcționale  
 **Ultima actualizare:** 12 Februarie 2026  
 
 ### ✅ **Module funcționale:**
 - **Parcele** - CRUD complet (Create, Read, Update, Delete) ✅
 - **Authentication** - Supabase Auth cu RLS policies ✅
-- **Database** - 11 tabele cu multi-tenant architecture ✅
+- **Database** - 24+ tabele cu multi-tenant architecture ✅
 
 ### 🚧 **În dezvoltare:**
-- Clienți, Culegători (next up)
-- Recoltări, Vânzări
-- Dashboard cu KPIs
+- Polish UX și optimizări de performanță
+- Testing extins și hardening de securitate
+- Automatizări, AI flows și rapoarte avansate
 
 ---
 
@@ -49,26 +49,28 @@ npm install
 
 **Pachete principale:**
 - Next.js 16.1.6 (Turbopack)
+- React 19
 - @supabase/ssr
-- @tanstack/react-query
+- @tanstack/react-query v5
+- @ai-sdk/google
+- framer-motion
 - shadcn/ui components
-- Tailwind CSS v4 alpha
+- Tailwind CSS v4
+- Sentry
 
 ---
 
 ### **3. Configure environment variables:**
 
-Creează fișier `.env.local` în root:
+Copiază `.env.local.example` în `.env.local` și completează valorile necesare.
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://ilybohhdeplwcrbpblqw.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+**Lista completă a variabilelor necesare este documentată în `.env.local.example`.**
 
-**⚠️ Obține credențiale din:**
+**⚠️ Completează cel puțin credențialele și secretele cerute de:**
 - Supabase Dashboard → Settings → API
-- **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-- **anon/public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Sentry
+- Gemini / AI SDK
+- Vercel Cron și alte integrări active
 
 ---
 
@@ -84,11 +86,9 @@ npm run dev
 
 ### **5. Access aplicația:**
 
-**Login:**
-- Email: popa.andrei.sv@gmail.com
-- Password: [solicită la developer]
+Pentru acces, contactează administratorul pe WhatsApp: 0752953048
 
-**Primera pagină:** http://localhost:3000/parcele
+**Prima pagină:** http://localhost:3000/dashboard
 
 ---
 
@@ -115,12 +115,7 @@ INSERT INTO nomenclatoare (tip, valoare, descriere) VALUES
 -- Tenant isolation (users văd doar datele lor)
 CREATE POLICY "tenant_isolation" ON parcele
 FOR SELECT
-USING (
-  tenant_id IN (
-    SELECT id FROM tenants 
-    WHERE owner_user_id = auth.uid()
-  )
-);
+USING (tenant_id = public.current_tenant_id());
 ```
 
 ---
@@ -171,12 +166,16 @@ zmeurel/
 
 ### **Frontend:**
 - **Framework:** Next.js 16.1.6 (App Router + Turbopack)
+- **UI Runtime:** React 19
 - **Language:** TypeScript
-- **Styling:** Tailwind CSS v4 alpha
+- **Styling:** Tailwind CSS 4
 - **UI Components:** shadcn/ui (Radix UI primitives)
-- **State Management:** TanStack Query (React Query v5)
+- **State Management:** TanStack Query v5
 - **Forms:** React Hook Form + Zod validation
 - **Icons:** Lucide React
+- **Animations:** Framer Motion
+- **AI:** @ai-sdk/google
+- **Monitoring:** Sentry
 
 ### **Backend:**
 - **Database:** Supabase PostgreSQL
@@ -325,8 +324,8 @@ Dacă vrei să contribui în viitor:
 
 ## 📞 SUPPORT
 
-**Developer:** Popa Andrei  
-**Email:** popa.andrei.sv@gmail.com  
+**Developer:** Popa Andrei
+**Contact Beta:** WhatsApp 0752953048
 **GitHub:** https://github.com/zmeurelOS-admin/zmeurel-os
 
 **AI Assistant:** Claude (Anthropic)
@@ -383,7 +382,7 @@ Planificat pentru viitor: MIT License când devine open-source / SaaS public.
 - ✅ Auto-generated IDs (P001, P002...)
 - ✅ Multi-tenant architecture active
 
-**Progress:** 35% → 40% MVP ⬆️
+**Progress:** Beta — toate modulele core funcționale ✅
 
 ---
 

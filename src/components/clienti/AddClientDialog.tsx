@@ -85,7 +85,7 @@ export function AddClientDialog({ open, onOpenChange, onSubmit, initialValues }:
           </Button>
           <Button
             type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
             onClick={form.handleSubmit(handleSubmit)}
             disabled={isSubmitting}
           >

@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al 2026031501_beta_launch_analytics_cleanup.sql (format A)
 -- One-time cleanup: delete all pre-beta analytics data (before 2026-03-15).
 -- Run once in the Supabase SQL editor. Safe to run multiple times (idempotent deletes).
 

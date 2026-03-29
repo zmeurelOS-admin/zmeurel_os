@@ -42,63 +42,63 @@ export function ViewCheltuialaDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="mx-auto max-w-lg rounded-xl bg-white p-0 lg:max-w-2xl xl:max-w-3xl"
+        className="mx-auto max-w-lg rounded-xl bg-[var(--agri-surface)] p-0 lg:max-w-2xl xl:max-w-3xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
         <div className="max-h-[85dvh] overflow-y-auto p-6">
-          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-gray-100 py-4 text-left lg:gap-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">Cheltuială</DialogTitle>
+          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[var(--agri-border)] py-4 text-left lg:gap-3">
+            <DialogTitle className="text-xl font-semibold text-[var(--agri-text)]">Cheltuială</DialogTitle>
             <DialogClose asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Inchide dialog">
+              <Button type="button" variant="ghost" size="icon" aria-label="Închide dialog">
                 <X className="h-4 w-4" />
               </Button>
             </DialogClose>
           </DialogHeader>
 
-          <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Detalii</h3>
+          <section className="border-b border-[var(--agri-border)] py-4">
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Detalii</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Categorie</p>
-                <p className="text-base font-medium text-gray-900">{cheltuiala.categorie || 'Nespecificata'}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Categorie</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{cheltuiala.categorie || 'Nespecificata'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Furnizor</p>
-                <p className="text-base font-medium text-gray-900">{cheltuiala.furnizor || 'Nespecificat'}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Furnizor</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{cheltuiala.furnizor || 'Nespecificat'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Descriere</p>
-                <p className="text-base font-medium text-gray-900">{cheltuiala.descriere || '-'}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Descriere</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{cheltuiala.descriere || '-'}</p>
               </div>
             </div>
           </section>
 
-          <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Financiar</h3>
+          <section className="border-b border-[var(--agri-border)] py-4">
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Financiar</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Sumă</p>
-                <p className="text-lg font-bold text-gray-900">{formatLei(cheltuiala.suma_lei)}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Sumă</p>
+                <p className="text-lg font-bold text-[var(--agri-text)]">{formatLei(cheltuiala.suma_lei)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Metodă plată</p>
-                <p className="text-base font-medium text-gray-900">{metodaPlata}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Metodă plată</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{metodaPlata}</p>
               </div>
             </div>
           </section>
 
-          <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Date</h3>
+          <section className="border-b border-[var(--agri-border)] py-4">
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Date</h3>
             <div>
-              <p className="text-sm text-gray-500">Data</p>
-              <p className="text-base font-medium text-gray-900">{formatDate(cheltuiala.data)}</p>
+              <p className="text-sm text-[var(--agri-text-muted)]">Data</p>
+              <p className="text-base font-medium text-[var(--agri-text)]">{formatDate(cheltuiala.data)}</p>
             </div>
           </section>
 
           <section className="py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Document</h3>
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Document</h3>
             {cheltuiala.document_url ? (
               <a
                 href={cheltuiala.document_url}
@@ -109,12 +109,12 @@ export function ViewCheltuialaDialog({
                 Vezi atașament
               </a>
             ) : (
-              <p className="text-base font-medium text-gray-900">Fără atașament</p>
+              <p className="text-base font-medium text-[var(--agri-text)]">Fără atașament</p>
             )}
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--agri-border)] px-6 py-4">
           <Button
             type="button"
             variant="outline"

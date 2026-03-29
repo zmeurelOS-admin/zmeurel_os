@@ -73,11 +73,16 @@ export function validateSameOriginMutation(
   }
 
   const origin = getOrigin(request.headers.get('origin'))
+  const referer = getOrigin(request.headers.get('referer'))
+
+  if (!origin && !referer) {
+    return apiError(403, 'MISSING_ORIGIN', 'Request-ul necesită header Origin sau Referer.', options)
+  }
+
   if (origin && !sameOrigin(origin, requestOrigin)) {
     return apiError(403, 'INVALID_ORIGIN', 'Cererea nu a fost acceptata.', options)
   }
 
-  const referer = getOrigin(request.headers.get('referer'))
   if (referer && !sameOrigin(referer, requestOrigin)) {
     return apiError(403, 'INVALID_ORIGIN', 'Cererea nu a fost acceptata.', options)
   }

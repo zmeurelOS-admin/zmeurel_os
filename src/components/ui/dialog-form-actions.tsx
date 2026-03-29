@@ -37,7 +37,7 @@ export function DialogFormActions({
       </Button>
       <Button
         type="button"
-        className="agri-cta h-11 rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700 sm:h-12"
+        className="agri-cta h-11 rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600 sm:h-12"
         onClick={onSave}
         disabled={disabled || saving}
       >

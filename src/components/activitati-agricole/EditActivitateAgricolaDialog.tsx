@@ -8,6 +8,7 @@ import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { ActivityTypeCombobox } from '@/components/activitati-agricole/ActivityTypeCombobox'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -192,16 +193,19 @@ export function EditActivitateAgricolaDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="act_edit_tip">Tip activitate</Label>
-          <select id="act_edit_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_activitate')}>
-            <option value="">Tip operațiune</option>
-            {activityOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          {form.formState.errors.tip_activitate ? <p className="text-xs text-red-600">{form.formState.errors.tip_activitate.message}</p> : null}
+          <ActivityTypeCombobox
+            id="act_edit_tip"
+            label="Tip operațiune"
+            options={activityOptions}
+            value={selectedTip}
+            onChange={(nextValue) =>
+              form.setValue('tip_activitate', nextValue, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+            error={form.formState.errors.tip_activitate?.message}
+          />
         </div>
 
         <div className="space-y-2">

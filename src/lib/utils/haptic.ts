@@ -1,12 +1,22 @@
-export function hapticSuccess() {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate(50)
+function canVibrate() {
+  return typeof navigator !== 'undefined' && 'vibrate' in navigator
+}
+
+function vibrate(pattern: number | number[]) {
+  if (canVibrate()) {
+    navigator.vibrate(pattern)
   }
 }
 
+export function hapticSuccess() {
+  vibrate(10)
+}
+
+export function hapticConfirm() {
+  vibrate(10)
+}
+
 export function hapticError() {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate([50, 30, 50])
-  }
+  vibrate([10, 24, 10])
 }
 

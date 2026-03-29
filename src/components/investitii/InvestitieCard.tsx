@@ -33,7 +33,7 @@ export function InvestitieCard({ investitie, parcelaNume, onEdit, onDelete }: In
   const dataLabel = investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '-'
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
@@ -61,7 +61,7 @@ export function InvestitieCard({ investitie, parcelaNume, onEdit, onDelete }: In
       </button>
 
       {expanded ? (
-        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+        <div className="grid gap-4 border-t border-[var(--surface-divider)] bg-[var(--agri-surface)] px-5 py-5">
           <div className="space-y-2 text-sm text-[var(--agri-text-muted)]">
             <div>
               <strong className="text-[var(--agri-text)]">Parcelă:</strong> {parcelaNume || '-'}
@@ -81,7 +81,7 @@ export function InvestitieCard({ investitie, parcelaNume, onEdit, onDelete }: In
                 event.stopPropagation()
                 onEdit(investitie)
               }}
-              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
+              className="min-h-11 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-sm font-semibold text-[var(--status-warning-text)]"
             >
               Editează
             </button>
@@ -91,7 +91,7 @@ export function InvestitieCard({ investitie, parcelaNume, onEdit, onDelete }: In
                 event.stopPropagation()
                 onDelete(investitie)
               }}
-              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
+              className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-sm font-semibold text-[var(--status-danger-text)]"
             >
               Șterge
             </button>

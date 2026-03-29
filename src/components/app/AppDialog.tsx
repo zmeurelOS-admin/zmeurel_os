@@ -10,12 +10,13 @@ interface AppDialogProps {
   description?: string
   children: React.ReactNode
   footer?: React.ReactNode
+  contentClassName?: string
 }
 
-export function AppDialog({ open, onOpenChange, title, description, children, footer }: AppDialogProps) {
+export function AppDialog({ open, onOpenChange, title, description, children, footer, contentClassName }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <FormDialogLayout title={title} description={description} footer={footer}>
+      <FormDialogLayout title={title} description={description} footer={footer} contentClassName={contentClassName}>
         {children}
       </FormDialogLayout>
     </Dialog>

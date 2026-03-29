@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Droplets, Leaf, ListChecks, Thermometer } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Droplets, Leaf, ListChecks, Plus, Thermometer } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
@@ -17,8 +18,10 @@ import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { getConditiiMediuLabel, getConditiiMediuLabelLower } from '@/lib/parcele/culturi'
 import { queryKeys } from '@/lib/query-keys'
 import { getParcelaById } from '@/lib/supabase/queries/parcele'
+import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import {
   createCultureStageLog,
   createSolarClimateLog,
@@ -26,6 +29,11 @@ import {
   getSolarClimateLogs,
 } from '@/lib/supabase/queries/solar-tracking'
 import { toast } from '@/lib/ui/toast'
+
+const AddCulturaDialog = dynamic(
+  () => import('@/components/parcele/AddCulturaDialog').then((mod) => mod.AddCulturaDialog),
+  { ssr: false }
+)
 
 const climateSchema = z.object({
   temperatura: z
@@ -117,6 +125,7 @@ export default function ParcelaDetailPage() {
   const parcelaId = Array.isArray(params.id) ? params.id[0] : params.id
   const [climateOpen, setClimateOpen] = useState(false)
   const [stageOpen, setStageOpen] = useState(false)
+  const [addCulturaOpen, setAddCulturaOpen] = useState(false)
 
   const climateForm = useForm<ClimateFormValues>({
     resolver: zodResolver(climateSchema),
@@ -155,11 +164,21 @@ export default function ParcelaDetailPage() {
     enabled: Boolean(parcelaId),
   })
 
+  const culturiQuery = useQuery({
+    queryKey: queryKeys.culturi(parcelaId),
+    queryFn: () => getCulturiForSolar(parcelaId),
+    enabled: Boolean(parcelaId),
+    staleTime: 30000,
+    refetchOnMount: true,
+  })
+
   const createClimateMutation = useMutation({
     mutationFn: createSolarClimateLog,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.parcelaSolarClimate(parcelaId) })
-      toast.success('Înregistrarea de climat a fost salvată.')
+      toast.success(
+        isSolar ? 'Înregistrarea de microclimat a fost salvată.' : 'Condițiile de mediu au fost salvate.'
+      )
       setClimateOpen(false)
       climateForm.reset({ temperatura: '', umiditate: '', observatii: '' })
     },
@@ -188,6 +207,8 @@ export default function ParcelaDetailPage() {
 
   const parcela = parcelaQuery.data
   const isSolar = (parcela?.tip_unitate ?? 'camp') === 'solar'
+  const conditiiLabel = getConditiiMediuLabel(parcela?.tip_unitate)
+  const conditiiLabelLower = getConditiiMediuLabelLower(parcela?.tip_unitate)
   const latestClimate = climateQuery.data?.[0] ?? null
   const sincePlanting = daysSincePlanting(parcela?.data_plantarii)
   const selectedStageOption = stageForm.watch('etapa')
@@ -195,7 +216,7 @@ export default function ParcelaDetailPage() {
 
   const sectionClasses = useMemo(
     () => ({
-      base: 'rounded-2xl bg-white p-4 shadow-sm',
+      base: 'rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm',
       title: 'mb-3 text-sm font-semibold text-[var(--agri-text)]',
       label: 'text-xs text-[var(--agri-text-muted)]',
       value: 'text-sm font-medium text-[var(--agri-text)]',
@@ -316,21 +337,70 @@ export default function ParcelaDetailPage() {
           </div>
         </div>
 
+        {isSolar ? (
+          <div className={sectionClasses.base}>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className={sectionClasses.title}>Culturi în solar</h2>
+              <button
+                type="button"
+                onClick={() => setAddCulturaOpen(true)}
+                className="inline-flex h-9 items-center gap-1 rounded-xl bg-[var(--agri-primary)] px-3 text-xs font-semibold text-white"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Adaugă cultură
+              </button>
+            </div>
+
+            {culturiQuery.isLoading ? (
+              <p className={sectionClasses.label}>Se încarcă culturile...</p>
+            ) : null}
+            {!culturiQuery.isLoading && (culturiQuery.data?.length ?? 0) === 0 ? (
+              <p className={sectionClasses.label}>Nu există culturi înregistrate pentru acest solar.</p>
+            ) : null}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(culturiQuery.data ?? []).map((cultura) => (
+                <div key={cultura.id} className="w-full rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className={sectionClasses.value}>{cultura.tip_planta}</p>
+                      {cultura.soi ? (
+                        <p className={`${sectionClasses.label} mt-0.5`}>Soi: {cultura.soi}</p>
+                      ) : null}
+                      {cultura.nr_plante ? (
+                        <p className={`${sectionClasses.label} mt-0.5`}>Nr. plante: {cultura.nr_plante}</p>
+                      ) : null}
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        cultura.activa
+                          ? 'border border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                          : 'border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)]'
+                      }`}
+                    >
+                      {cultura.activa ? 'Activă' : 'Desființată'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <>
             <div className={sectionClasses.base}>
               <div className="mb-3 flex items-center justify-between gap-3">
-                <h2 className={sectionClasses.title}>{isSolar ? 'Climat și observații' : 'Condiții și observații'}</h2>
+                <h2 className={sectionClasses.title}>{conditiiLabel} și observații</h2>
                 <button
                   type="button"
                   onClick={() => setClimateOpen(true)}
                   className="inline-flex h-9 items-center rounded-xl bg-[var(--agri-primary)] px-3 text-xs font-semibold text-white"
                 >
-                  Adaugă climat
+                  {`Adaugă ${conditiiLabelLower}`}
                 </button>
               </div>
 
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <div className="rounded-xl border border-[var(--agri-border)] p-3">
+                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
                   <div className="mb-1 flex items-center gap-2">
                     <Thermometer className="h-4 w-4 text-rose-600" />
                     <p className={sectionClasses.label}>Temperatură</p>
@@ -339,7 +409,7 @@ export default function ParcelaDetailPage() {
                     {latestClimate ? `${Number(latestClimate.temperatura).toFixed(1)}°C` : '-'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-[var(--agri-border)] p-3">
+                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
                   <div className="mb-1 flex items-center gap-2">
                     <Droplets className="h-4 w-4 text-sky-600" />
                     <p className={sectionClasses.label}>Umiditate</p>
@@ -348,7 +418,7 @@ export default function ParcelaDetailPage() {
                     {latestClimate ? `${Number(latestClimate.umiditate).toFixed(0)}%` : '-'}
                   </p>
                 </div>
-                <div className="rounded-xl border border-[var(--agri-border)] p-3">
+                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
                   <p className={sectionClasses.label}>Ultima actualizare</p>
                   <p className={sectionClasses.value}>{toCompactDateTimeLabel(latestClimate?.created_at)}</p>
                 </div>
@@ -356,16 +426,16 @@ export default function ParcelaDetailPage() {
             </div>
 
             <div className={sectionClasses.base}>
-              <h2 className={sectionClasses.title}>Istoric climat</h2>
+              <h2 className={sectionClasses.title}>{`Istoric ${conditiiLabelLower}`}</h2>
               {climateQuery.isLoading ? (
-                <p className={sectionClasses.label}>Se încarcă istoricul de climat...</p>
+                <p className={sectionClasses.label}>{`Se încarcă istoricul de ${conditiiLabelLower}...`}</p>
               ) : null}
               {!climateQuery.isLoading && (climateQuery.data?.length ?? 0) === 0 ? (
-                <p className={sectionClasses.label}>Nu există încă înregistrări de climat.</p>
+                <p className={sectionClasses.label}>{`Nu există încă înregistrări de ${conditiiLabelLower}.`}</p>
               ) : null}
               <div className="space-y-2">
                 {(climateQuery.data ?? []).map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-[var(--agri-border)] p-3">
+                  <div key={entry.id} className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className={sectionClasses.value}>{toFullDateTimeLabel(entry.created_at)}</p>
@@ -399,7 +469,7 @@ export default function ParcelaDetailPage() {
               ) : null}
               <div className="space-y-2">
                 {(stageQuery.data ?? []).map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-[var(--agri-border)] p-3">
+                  <div key={entry.id} className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <ListChecks className="h-4 w-4 text-emerald-700" />
@@ -420,7 +490,7 @@ export default function ParcelaDetailPage() {
       <AppDialog
         open={climateOpen}
         onOpenChange={setClimateOpen}
-        title="Adaugă climat"
+        title={`Adaugă ${conditiiLabelLower}`}
         footer={
           <DialogFormActions
             onCancel={() => setClimateOpen(false)}
@@ -434,21 +504,21 @@ export default function ParcelaDetailPage() {
         <form className="space-y-4" onSubmit={climateForm.handleSubmit(onClimateSubmit)}>
           <div className="space-y-2">
             <Label htmlFor="climat_temperatura">Temperatură (°C)</Label>
-            <Input id="climat_temperatura" className="agri-control h-12" inputMode="decimal" {...climateForm.register('temperatura')} />
+            <Input id="climat_temperatura" aria-label="Temperatură în grade Celsius" className="agri-control h-12" inputMode="decimal" {...climateForm.register('temperatura')} />
             {climateForm.formState.errors.temperatura ? (
               <p className="text-xs text-red-600">{climateForm.formState.errors.temperatura.message}</p>
             ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="climat_umiditate">Umiditate (%)</Label>
-            <Input id="climat_umiditate" className="agri-control h-12" inputMode="decimal" {...climateForm.register('umiditate')} />
+            <Input id="climat_umiditate" aria-label="Umiditate în procente" className="agri-control h-12" inputMode="decimal" {...climateForm.register('umiditate')} />
             {climateForm.formState.errors.umiditate ? (
               <p className="text-xs text-red-600">{climateForm.formState.errors.umiditate.message}</p>
             ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="climat_observatii">Observații de teren</Label>
-            <Textarea id="climat_observatii" rows={3} className="agri-control w-full px-3 py-2 text-base" {...climateForm.register('observatii')} />
+            <Textarea id="climat_observatii" aria-label="Observații de teren" rows={3} className="agri-control w-full px-3 py-2 text-base" {...climateForm.register('observatii')} />
           </div>
         </form>
       </AppDialog>
@@ -470,7 +540,7 @@ export default function ParcelaDetailPage() {
         <form className="space-y-4" onSubmit={stageForm.handleSubmit(onStageSubmit)}>
           <div className="space-y-2">
             <Label htmlFor="etapa_select">Etapă</Label>
-            <select id="etapa_select" className="agri-control h-12 w-full px-3 text-base" {...stageForm.register('etapa')}>
+            <select id="etapa_select" aria-label="Etapă de cultură" className="agri-control h-12 w-full px-3 text-base" {...stageForm.register('etapa')}>
               {STAGE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -482,7 +552,7 @@ export default function ParcelaDetailPage() {
           {requiresCustomStage ? (
             <div className="space-y-2">
               <Label htmlFor="etapa_custom">Etapă personalizată</Label>
-              <Input id="etapa_custom" className="agri-control h-12" {...stageForm.register('etapa_custom')} />
+              <Input id="etapa_custom" aria-label="Etapă personalizată" className="agri-control h-12" {...stageForm.register('etapa_custom')} />
               {stageForm.formState.errors.etapa_custom ? (
                 <p className="text-xs text-red-600">{stageForm.formState.errors.etapa_custom.message}</p>
               ) : null}
@@ -491,7 +561,7 @@ export default function ParcelaDetailPage() {
 
           <div className="space-y-2">
             <Label htmlFor="etapa_data">Data</Label>
-            <Input id="etapa_data" type="date" className="agri-control h-12" {...stageForm.register('data')} />
+            <Input id="etapa_data" aria-label="Data etapei" type="date" className="agri-control h-12" {...stageForm.register('data')} />
             {stageForm.formState.errors.data ? (
               <p className="text-xs text-red-600">{stageForm.formState.errors.data.message}</p>
             ) : null}
@@ -499,10 +569,20 @@ export default function ParcelaDetailPage() {
 
           <div className="space-y-2">
             <Label htmlFor="etapa_observatii">Observații</Label>
-            <Textarea id="etapa_observatii" rows={3} className="agri-control w-full px-3 py-2 text-base" {...stageForm.register('observatii')} />
+            <Textarea id="etapa_observatii" aria-label="Observații pentru etapă" rows={3} className="agri-control w-full px-3 py-2 text-base" {...stageForm.register('observatii')} />
           </div>
         </form>
       </AppDialog>
+
+      <AddCulturaDialog
+        open={addCulturaOpen}
+        onOpenChange={setAddCulturaOpen}
+        parcelaId={parcelaId}
+        tipUnitate={parcela?.tip_unitate}
+        onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.culturi(parcelaId) })
+        }}
+      />
     </AppShell>
   )
 }

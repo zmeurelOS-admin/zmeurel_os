@@ -15,6 +15,7 @@ import { generateBusinessId } from '@/lib/supabase/business-ids';
 import { getSupabase } from '@/lib/supabase/client';
 import { createParcela } from '@/lib/supabase/queries/parcele';
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
+import { parseLocalizedNumber } from '@/lib/utils/area';
 import { ParcelaForm, type ParcelaFormData } from './ParcelaForm';
 import { queryKeys } from '@/lib/query-keys'
 
@@ -26,10 +27,10 @@ const parcelaSchema = z.object({
   suprafata_m2: z
     .string()
     .min(1, 'Suprafata este obligatorie')
-    .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
+    .refine((value) => Number.isFinite(parseLocalizedNumber(value)) && parseLocalizedNumber(value) > 0, {
       message: 'Suprafata trebuie să fie pozitivă',
     })
-    .refine((value) => Number(value) < MAX_SUPRAFATA_M2, {
+    .refine((value) => parseLocalizedNumber(value) < MAX_SUPRAFATA_M2, {
       message: 'Suprafata introdusă pare nerealist de mare',
     }),
   soi_plantat: z.string().optional(),
@@ -78,7 +79,7 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
       return createParcela({
         id_parcela: idParcela,
         nume_parcela: data.nume_parcela,
-        suprafata_m2: Number(data.suprafata_m2),
+        suprafata_m2: parseLocalizedNumber(data.suprafata_m2),
         soi_plantat: data.soi_plantat || undefined,
         an_plantare: Number(data.an_plantare),
         nr_plante: data.nr_plante ? Number(data.nr_plante) : undefined,

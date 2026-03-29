@@ -107,7 +107,7 @@ function isSchemaMismatchError(error: { code?: string; message?: string } | null
 }
 
 function logSeedDuration(start: number) {
-  console.log('Demo seed completed in', Date.now() - start, 'ms')
+  void start
 }
 
 function buildFallbackRows(tenantId: string, demoType: DemoType): {

@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al grupului 2026031301-03 (format A)
 create or replace function public.delete_comanda_atomic(
   p_comanda_id uuid,
   p_tenant_id uuid default null

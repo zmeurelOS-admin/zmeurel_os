@@ -53,7 +53,7 @@ export function RecoltareCard({
   const workerTitle = culegatorNume || 'Nespecificat'
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
       <button
         type="button"
         onClick={() => setExpanded((previous) => !previous)}
@@ -87,10 +87,10 @@ export function RecoltareCard({
           <div className="shrink-0 text-right">
             <div className="text-lg font-bold text-[var(--agri-text)]">{totalKg.toFixed(2)} kg</div>
             <div className="mt-1.5 flex justify-end gap-1">
-              <span className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">
+              <span className="rounded-md border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-[10px] font-bold text-[var(--status-success-text)]">
                 C1: {kgCal1.toFixed(2)}
               </span>
-              <span className="rounded-md bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700">
+              <span className="rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-1 text-[10px] font-bold text-[var(--status-danger-text)]">
                 C2: {kgCal2.toFixed(2)}
               </span>
             </div>
@@ -99,15 +99,15 @@ export function RecoltareCard({
       </button>
 
       {expanded ? (
-        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+        <div className="grid gap-4 border-t border-[var(--surface-divider)] bg-[var(--agri-surface)] px-5 py-5">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div className="rounded-xl bg-emerald-50 p-3">
+            <div className="rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Valoare Cal. I</div>
-              <div className="text-sm font-semibold text-emerald-700">{valoareCal1.toFixed(2)} lei</div>
+              <div className="text-sm font-semibold text-[var(--status-success-text)]">{valoareCal1.toFixed(2)} lei</div>
             </div>
-            <div className="rounded-xl bg-red-50 p-3">
+            <div className="rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Valoare Cal. II</div>
-              <div className="text-sm font-semibold text-red-700">{valoareCal2.toFixed(2)} lei</div>
+              <div className="text-sm font-semibold text-[var(--status-danger-text)]">{valoareCal2.toFixed(2)} lei</div>
             </div>
             <div className="rounded-xl bg-[var(--agri-surface-muted)] p-3">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Total</div>
@@ -127,7 +127,7 @@ export function RecoltareCard({
                 event.stopPropagation()
                 onView(recoltare)
               }}
-              className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
+              className="min-h-11 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-3 text-sm font-semibold text-[var(--status-info-text)]"
             >
               Vezi
             </button>
@@ -137,7 +137,7 @@ export function RecoltareCard({
                 event.stopPropagation()
                 onEdit(recoltare)
               }}
-              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
+              className="min-h-11 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-sm font-semibold text-[var(--status-warning-text)]"
             >
               Editează
             </button>
@@ -147,7 +147,7 @@ export function RecoltareCard({
                 event.stopPropagation()
                 onDelete(recoltare)
               }}
-              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
+              className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-sm font-semibold text-[var(--status-danger-text)]"
             >
               Șterge
             </button>

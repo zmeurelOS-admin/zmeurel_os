@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { updateParcela } from '@/lib/supabase/queries/parcele';
 import type { Parcela } from '@/lib/supabase/queries/parcele';
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
-import { formatM2ToHa } from '@/lib/utils/area';
+import { formatM2ToHa, parseLocalizedNumber } from '@/lib/utils/area';
 
 type ParcelaUpdate = Partial<Omit<Parcela, 'id' | 'tenant_id' | 'id_parcela' | 'created_at' | 'updated_at'>>;
 
@@ -72,7 +72,7 @@ export function EditParcelaDialog({
 
       const updateData: ParcelaUpdate = {
         nume_parcela: formData.nume_parcela,
-        suprafata_m2: parseFloat(formData.suprafata_m2),
+        suprafata_m2: parseLocalizedNumber(formData.suprafata_m2),
         soi_plantat: formData.soi_plantat || null,
         an_plantare: parseInt(formData.an_plantare, 10),
         nr_plante: formData.nr_plante ? parseInt(formData.nr_plante, 10) : null,
@@ -117,14 +117,14 @@ export function EditParcelaDialog({
     >
       <form id="edit-parcela-form" onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="nume_parcela">Nume teren</Label>
+          <Label htmlFor="nume_parcela">Nume teren *</Label>
           <Input id="nume_parcela" value={formData.nume_parcela} onChange={(e) => handleInputChange('nume_parcela', e.target.value)} required />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="suprafata_m2">Suprafață (m2)</Label>
+          <Label htmlFor="suprafata_m2">Suprafață (m2) *</Label>
           <Input id="suprafata_m2" type="number" step="0.01" value={formData.suprafata_m2} onChange={(e) => handleInputChange('suprafata_m2', e.target.value)} required />
-          <p className="text-xs text-muted-foreground">?? {formatM2ToHa(formData.suprafata_m2)}</p>
+          <p className="text-xs text-muted-foreground">≈ {formatM2ToHa(formData.suprafata_m2)}</p>
         </div>
 
         <div className="space-y-2">
@@ -144,7 +144,7 @@ export function EditParcelaDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="an_plantare">An Plantare</Label>
+          <Label htmlFor="an_plantare">An Plantare *</Label>
           <Input id="an_plantare" type="number" min="2000" max={new Date().getFullYear()} value={formData.an_plantare} onChange={(e) => handleInputChange('an_plantare', e.target.value)} required />
         </div>
 
@@ -154,7 +154,7 @@ export function EditParcelaDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="status">Status</Label>
+          <Label htmlFor="status">Status *</Label>
           <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
             <SelectTrigger>
               <SelectValue />

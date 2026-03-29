@@ -1,15 +1,16 @@
 'use client'
 
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 function PulseBlock({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-lg bg-slate-200', className)} />
+  return <Skeleton className={cn('rounded-lg', className)} />
 }
 
 export function DashboardSkeleton() {
   return (
     <div className="space-y-4">
-      <section className="rounded-3xl border border-[var(--agri-border)] bg-white p-4 shadow-sm">
+      <section className="rounded-3xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">
         <div className="space-y-3">
           <PulseBlock className="h-4 w-32" />
           <PulseBlock className="h-2.5 w-full rounded-full" />
@@ -35,7 +36,7 @@ export function DashboardSkeleton() {
         {Array.from({ length: 6 }).map((_, index) => (
           <div
             key={index}
-            className="flex min-h-[110px] flex-col justify-between rounded-3xl border border-[var(--agri-border)] bg-white p-4 shadow-sm"
+            className="flex min-h-[110px] flex-col justify-between rounded-3xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <PulseBlock className="h-4 w-16" />
@@ -48,7 +49,7 @@ export function DashboardSkeleton() {
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)] lg:gap-4">
-        <section className="rounded-3xl border border-[var(--agri-border)] bg-white p-4 shadow-sm">
+        <section className="rounded-3xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <PulseBlock className="h-4 w-40" />
             <PulseBlock className="h-3 w-16" />
@@ -64,7 +65,7 @@ export function DashboardSkeleton() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-[var(--agri-border)] bg-white p-4 shadow-sm">
+        <section className="rounded-3xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <PulseBlock className="h-4 w-28" />
             <PulseBlock className="h-3 w-12" />
@@ -90,7 +91,7 @@ export function OrderCardsSkeleton({ count = 4 }: { count?: number }) {
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="rounded-2xl border border-[var(--agri-border)] bg-white p-4 shadow-sm"
+          className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 space-y-2">
@@ -124,7 +125,7 @@ export function TableCardsSkeleton({
         {Array.from({ length: cardCount }).map((_, index) => (
           <div
             key={index}
-            className="rounded-2xl border border-[var(--agri-border)] bg-white p-4 shadow-sm"
+            className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 space-y-2">
@@ -144,8 +145,8 @@ export function TableCardsSkeleton({
 
       {withDesktopTable ? (
         <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.9fr)_minmax(340px,1fr)] lg:gap-4">
-          <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
-            <div className="border-b border-[var(--agri-border)] bg-slate-50 px-4 py-3">
+          <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
+            <div className="border-b border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-4 py-3">
               <PulseBlock className="h-4 w-48" />
             </div>
             <div className="divide-y divide-[var(--agri-border)]">
@@ -161,7 +162,7 @@ export function TableCardsSkeleton({
             </div>
           </div>
 
-          <aside className="rounded-2xl border border-[var(--agri-border)] bg-white p-4 shadow-sm">
+          <aside className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">
             <PulseBlock className="h-4 w-32" />
             <div className="mt-4 space-y-3">
               {Array.from({ length: 6 }).map((_, index) => (
@@ -192,7 +193,7 @@ export function DashboardCardsRowSkeleton({
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="flex min-h-[110px] flex-col justify-between rounded-3xl border border-[var(--agri-border)] bg-white p-4 shadow-sm"
+          className="flex min-h-[110px] flex-col justify-between rounded-3xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm"
         >
           <div className="flex items-start justify-between gap-3">
             <PulseBlock className="h-4 w-16" />

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from 'lucide-react'
 
 import { InfoCard } from '@/components/ui/app-card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 interface KpiCardProps {
@@ -19,17 +20,17 @@ const trendMap = {
   up: {
     label: 'Trend crescator',
     icon: ArrowUpRight,
-    className: 'text-emerald-700 bg-emerald-100',
+    className: 'bg-[var(--soft-success-bg)] text-[var(--soft-success-text)]',
   },
   down: {
     label: 'Trend descrescator',
     icon: ArrowDownRight,
-    className: 'text-red-700 bg-red-100',
+    className: 'bg-[var(--soft-danger-bg)] text-[var(--soft-danger-text)]',
   },
   neutral: {
     label: 'Trend stabil',
     icon: ArrowRight,
-    className: 'text-slate-800 bg-slate-200',
+    className: 'bg-[var(--agri-surface-muted)] text-[var(--agri-text)]',
   },
 } as const
 
@@ -93,9 +94,9 @@ export function KpiCardSkeleton() {
   return (
     <InfoCard className="animate-pulse">
       <div className="space-y-3">
-        <div className="h-3 w-28 rounded bg-slate-200" />
-        <div className="h-10 w-32 rounded bg-slate-300" />
-        <div className="h-4 w-40 rounded bg-slate-200" />
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-4 w-40" />
       </div>
     </InfoCard>
   )

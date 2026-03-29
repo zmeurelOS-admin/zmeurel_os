@@ -1,32 +1,28 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Receipt } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
-import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton'
+import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
-import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
-import { CheltuialaCard, getCheltuialaCategoryEmoji } from '@/components/cheltuieli/CheltuialaCard'
+import { getCheltuialaCategoryEmoji } from '@/components/cheltuieli/CheltuialaCard'
 import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
-import { ViewCheltuialaDialog } from '@/components/cheltuieli/ViewCheltuialaDialog'
-import { EmptyState } from '@/components/ui/EmptyState'
-import Sparkline from '@/components/ui/Sparkline'
-import TrendBadge from '@/components/ui/TrendBadge'
+import { Button } from '@/components/ui/button'
+import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { useAddAction } from '@/contexts/AddActionContext'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { captureReactError } from '@/lib/monitoring/sentry'
 import { createCheltuiala, deleteCheltuiala, getCheltuieli, updateCheltuiala, type Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
 import { isAutoManoperaCheltuiala } from '@/lib/supabase/queries/manopera-auto'
@@ -47,7 +43,7 @@ interface CheltuialaPageClientProps {
   initialCheltuieli: Cheltuiala[]
 }
 
-type TemporalFilter = 'azi' | 'sapt' | 'luna' | 'sezon' | 'toate'
+type TemporalFilter = 'luna' | 'sapt' | 'toate'
 
 function toIsoDate(value: Date): string {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
@@ -73,12 +69,6 @@ function getStartOfMonth(value: Date): Date {
   return date
 }
 
-function getStartOfSeason(value: Date): Date {
-  const date = new Date(value.getFullYear(), 0, 1)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
-
 function normalizeText(value: string | null | undefined): string {
   return (value ?? '')
     .toLowerCase()
@@ -97,24 +87,137 @@ function handleCheltuialaError(error: unknown, fallbackMessage: string) {
 
   captureReactError(error, {
     component: 'CheltuialaPageClient',
-    tags: {
-      module: 'cheltuieli',
-      table: 'cheltuieli_diverse',
-    },
-    extra: {
-      originalMessage: message,
-      schemaIssue,
-    },
+    tags: { module: 'cheltuieli', table: 'cheltuieli_diverse' },
+    extra: { originalMessage: message, schemaIssue },
   })
 
   if (schemaIssue) {
     hapticError()
-    toast.error('Schema DB nu e sincronizat?. Reîncarcă aplicația sau ruleaza reload schema in Supabase.')
+    toast.error('Schema DB nu e sincronizat. Reîncarcă aplicația sau rulează reload schema în Supabase.')
     return
   }
 
   hapticError()
   toast.error(message || fallbackMessage)
+}
+
+function formatData(value: string): string {
+  return new Date(value).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })
+}
+
+function formatRon(value: number): string {
+  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+}
+
+interface CheltuialaCardNewProps {
+  cheltuiala: Cheltuiala
+  isExpanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+}
+
+function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete }: CheltuialaCardNewProps) {
+  const suma = Number(cheltuiala.suma_lei || 0)
+  const emoji = getCheltuialaCategoryEmoji(cheltuiala.categorie)
+  const isAuto = isAutoManoperaCheltuiala(cheltuiala)
+
+  return (
+    <div
+      style={{
+        background: 'var(--agri-surface)',
+        borderRadius: 14,
+        border: '1px solid var(--agri-border)',
+        borderLeft: '4px solid var(--value-negative)',
+        overflow: 'hidden',
+        marginBottom: 8,
+      }}
+    >
+      {/* COLLAPSED ROW */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          padding: '11px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+            <span style={{ fontSize: 14 }}>{emoji}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>
+              {cheltuiala.descriere || cheltuiala.categorie || 'Cheltuială'}
+            </span>
+            {isAuto ? (
+              <span style={{
+                fontSize: 8, fontWeight: 600, color: 'var(--soft-info-text)',
+                background: 'var(--soft-info-bg)', padding: '2px 5px', borderRadius: 8,
+              }}>auto</span>
+            ) : null}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>
+            {cheltuiala.categorie || 'Altele'} · {formatData(cheltuiala.data)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--value-negative)' }}>{formatRon(suma)}</span>
+          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>RON</span>
+        </div>
+      </button>
+
+      {/* DRAG INDICATOR */}
+      <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isExpanded ? 0 : 4 }}>
+        <div style={{ width: 40, height: 2, borderRadius: 999, background: 'var(--surface-divider)' }} />
+      </div>
+
+      {/* EXPANDED */}
+      {isExpanded ? (
+        <div style={{ borderTop: '1px solid var(--agri-border)', padding: '10px 14px 14px' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 8 }}>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Categorie: </span><strong>{cheltuiala.categorie || 'Altele'}</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Sumă: </span><strong style={{ color: 'var(--value-negative)' }}>{formatRon(suma)} RON</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Data: </span><strong>{new Date(cheltuiala.data).toLocaleDateString('ro-RO')}</strong></span>
+            {cheltuiala.furnizor ? (
+              <span><span style={{ color: 'var(--agri-text-muted)' }}>Furnizor: </span><strong>{cheltuiala.furnizor}</strong></span>
+            ) : null}
+            {cheltuiala.descriere ? (
+              <span><span style={{ color: 'var(--agri-text-muted)' }}>Observații: </span><strong>{cheltuiala.descriere}</strong></span>
+            ) : null}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit() }}
+              style={{
+                border: '1px solid var(--button-muted-border)', background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)',
+                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              ✏️ Editează
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              style={{
+                border: '1px solid var(--status-danger-border)', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)',
+                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              🗑️ Șterge
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClientProps) {
@@ -126,16 +229,44 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   const searchParams = useSearchParams()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Cheltuiala; index: number }>>({})
+  const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
   const [search, setSearch] = useState('')
   const [temporalFilter, setTemporalFilter] = useState<TemporalFilter>('luna')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [viewing, setViewing] = useState<Cheltuiala | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<Cheltuiala | null>(null)
   const [deleting, setDeleting] = useState<Cheltuiala | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
   const addFromQuery = searchParams.get('add') === '1'
+  const openFormFromQuery = searchParams.get('openForm') === '1'
+  const prefillSuma = searchParams.get('suma') ?? undefined
+  const prefillData = searchParams.get('data') ?? undefined
+  const prefillDescriereRaw = searchParams.get('descriere') ?? undefined
+  const prefillCategorie = searchParams.get('categorie') ?? undefined
+
+  const clearCheltuialaFormQueryParams = () => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('add')
+    nextParams.delete('openForm')
+    nextParams.delete('edit')
+    nextParams.delete('suma')
+    nextParams.delete('data')
+    nextParams.delete('descriere')
+    nextParams.delete('categorie')
+    const query = nextParams.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+
+    if (typeof window !== 'undefined') {
+      const currentUrl = `${window.location.pathname}${window.location.search}`
+      if (currentUrl !== nextUrl) {
+        window.history.replaceState(window.history.state, '', nextUrl)
+      }
+    }
+
+    router.replace(nextUrl, { scroll: false })
+  }
 
   const {
     data: cheltuieli = initialCheltuieli,
@@ -171,12 +302,12 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli, exact: true })
       track('cheltuiala_add', { suma: Number(variables.suma_lei || 0), categorie: variables.categorie })
       hapticSuccess()
-      toast.success('Cheltuială adaugata')
+      toast.success('Cheltuială adăugată')
     },
     onError: (err: Error & { status?: number; code?: string }) => {
       const conflict = err?.status === 409 || err?.code === '23505'
       if (conflict) {
-        toast.info('Inregistrarea era deja sincronizat?.')
+        toast.info('Înregistrarea era deja sincronizată.')
         return
       }
       handleCheltuialaError(err, 'Nu am putut salva cheltuiala.')
@@ -196,7 +327,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli, exact: true })
       track('cheltuiala_edit', { id: variables.id })
       hapticSuccess()
-      toast.success('Cheltuială actualizata')
+      toast.success('Cheltuială actualizată')
     },
     onError: (err: Error) => {
       handleCheltuialaError(err, 'Nu am putut actualiza cheltuiala.')
@@ -210,30 +341,42 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       trackEvent('delete_item', 'cheltuieli')
       track('cheltuiala_delete', { id: deletedId })
       hapticSuccess()
-      toast.success('Cheltuială stearsa')
+      toast.success('Cheltuială ștearsă')
       setDeleting(null)
     },
     onError: (err: Error) => {
-      handleCheltuialaError(err, 'Nu am putut sterge cheltuiala.')
+      handleCheltuialaError(err, 'Nu am putut șterge cheltuiala.')
     },
   })
 
+  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
     return () => {
-      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+      Object.keys(pendingDeleteTimers.current).forEach((id) => {
+        clearTimeout(pendingDeleteTimers.current[id])
+        if (pendingDeletedItems.current[id]) {
+          delete pendingDeletedItems.current[id]
+          deleteMutateRef.current(id)
+        }
+      })
+      pendingDeleteTimers.current = {}
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!addFromQuery) return
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('add')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    setAddOpen(true)
+    clearCheltuialaFormQueryParams()
   }, [addFromQuery, pathname, router, searchParams])
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), 'Adauga cheltuiala')
+    if (!openFormFromQuery) return
+    clearCheltuialaFormQueryParams()
+    setAddOpen(true)
+  }, [openFormFromQuery, pathname, router, searchParams])
+
+  useEffect(() => {
+    const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă cheltuială')
     return unregister
   }, [registerAddAction])
 
@@ -262,7 +405,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
 
     pendingDeleteTimers.current[cheltuialaId] = timer
 
-    toast('Element sters', {
+    toast('Element șters', {
       duration: 5000,
       action: {
         label: 'Undo',
@@ -288,263 +431,177 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
     })
   }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayIso = toIsoDate(today)
-  const monthStartIso = toIsoDate(getStartOfMonth(today))
-  const seasonStartIso = toIsoDate(getStartOfSeason(today))
-  const weekStartIso = toIsoDate(getStartOfWeek(today))
+  const today = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+
+  const todayIso = useMemo(() => toIsoDate(today), [today])
+  const monthStartIso = useMemo(() => toIsoDate(getStartOfMonth(today)), [today])
+  const weekStartIso = useMemo(() => toIsoDate(getStartOfWeek(today)), [today])
 
   const cheltuieliLuna = useMemo(
     () => cheltuieli.filter((row) => toDateOnly(row.data) >= monthStartIso && toDateOnly(row.data) <= todayIso),
     [cheltuieli, monthStartIso, todayIso]
   )
 
-  const cheltuieliSezon = useMemo(
-    () => cheltuieli.filter((row) => toDateOnly(row.data) >= seasonStartIso && toDateOnly(row.data) <= todayIso),
-    [cheltuieli, seasonStartIso, todayIso]
-  )
+  const scoreboard = useMemo(() => {
+    const totalLuna = cheltuieliLuna.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
+
+    const catMap = new Map<string, number>()
+    for (const row of cheltuieliLuna) {
+      const key = row.categorie || 'Altele'
+      catMap.set(key, (catMap.get(key) ?? 0) + Number(row.suma_lei || 0))
+    }
+    let topCategorie = ''
+    let topSum = 0
+    catMap.forEach((sum, cat) => {
+      if (sum > topSum) { topSum = sum; topCategorie = cat }
+    })
+
+    return { totalLuna, topCategorie }
+  }, [cheltuieliLuna])
 
   const searched = useMemo(() => {
     const term = normalizeText(search)
     if (!term) return cheltuieli
-    return cheltuieli.filter((row) => {
-      return (
-        normalizeText(row.categorie).includes(term) ||
-        normalizeText(row.descriere).includes(term) ||
-        normalizeText(row.furnizor).includes(term)
-      )
-    })
+    return cheltuieli.filter((row) =>
+      normalizeText(row.categorie).includes(term) ||
+      normalizeText(row.descriere).includes(term) ||
+      normalizeText(row.furnizor).includes(term)
+    )
   }, [cheltuieli, search])
 
-  const temporalFiltered = useMemo(() => {
+  const filtered = useMemo(() => {
     if (temporalFilter === 'toate') return searched
+
     return searched.filter((row) => {
       const date = toDateOnly(row.data)
-      if (temporalFilter === 'azi') return date === todayIso
       if (temporalFilter === 'sapt') return date >= weekStartIso && date <= todayIso
-      if (temporalFilter === 'luna') return date >= monthStartIso && date <= todayIso
-      return date >= seasonStartIso && date <= todayIso
+      return date >= monthStartIso && date <= todayIso
     })
-  }, [searched, temporalFilter, todayIso, weekStartIso, monthStartIso, seasonStartIso])
+  }, [searched, temporalFilter, todayIso, weekStartIso, monthStartIso])
 
-  const filtered = useMemo(() => {
-    if (!selectedCategory) return temporalFiltered
-    return temporalFiltered.filter((row) => (row.categorie || 'Altele') === selectedCategory)
-  }, [temporalFiltered, selectedCategory])
-
-  const total = useMemo(() => filtered.reduce((sum, c) => sum + Number(c.suma_lei || 0), 0), [filtered])
-
-  const dashboardSummary = useMemo(() => {
-    const totalLunaCurenta = cheltuieliLuna.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
-    const totalSezon = cheltuieliSezon.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
-
-    const prevMonthStart = new Date(today)
-    prevMonthStart.setDate(1)
-    prevMonthStart.setMonth(prevMonthStart.getMonth() - 1)
-    const prevMonthStartIso = toIsoDate(prevMonthStart)
-
-    const prevMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
-    const prevMonthEndIso = toIsoDate(prevMonthEnd)
-
-    const totalLunaTrecuta = cheltuieli.reduce((sum, row) => {
-      const date = toDateOnly(row.data)
-      if (date < prevMonthStartIso || date > prevMonthEndIso) return sum
-      return sum + Number(row.suma_lei || 0)
-    }, 0)
-
-    const trendPercent = totalLunaTrecuta > 0 ? ((totalLunaCurenta - totalLunaTrecuta) / totalLunaTrecuta) * 100 : totalLunaCurenta > 0 ? 100 : 0
-
-    const sparklineLuna = Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(today)
-      day.setDate(today.getDate() - 6 + index)
-      const dayIso = toIsoDate(day)
-      return cheltuieli.reduce((sum, row) => (toDateOnly(row.data) === dayIso ? sum + Number(row.suma_lei || 0) : sum), 0)
-    })
-
-    const sparklineSezon = Array.from({ length: 4 }, (_, index) => {
-      const end = new Date(today)
-      end.setDate(today.getDate() - (3 - index) * 7)
-      const start = new Date(end)
-      start.setDate(end.getDate() - 6)
-      const startIso = toIsoDate(start)
-      const endIso = toIsoDate(end)
-      return cheltuieliSezon.reduce((sum, row) => {
-        const date = toDateOnly(row.data)
-        if (date < startIso || date > endIso) return sum
-        return sum + Number(row.suma_lei || 0)
-      }, 0)
-    })
-
-    const autoManoperaLuna = cheltuieliLuna
-      .filter((row) => isAutoManoperaCheltuiala(row))
-      .reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
-
-    const distinctDaysInMonth = new Set(cheltuieliLuna.map((row) => toDateOnly(row.data))).size
-    const medieZilnica = distinctDaysInMonth > 0 ? totalLunaCurenta / distinctDaysInMonth : 0
-
-    return {
-      totalLunaCurenta,
-      totalSezon,
-      totalLunaTrecuta,
-      trendPercent,
-      sparklineLuna,
-      sparklineSezon,
-      countLuna: cheltuieliLuna.length,
-      autoManoperaLuna,
-      medieZilnica,
-    }
-  }, [cheltuieli, cheltuieliLuna, cheltuieliSezon, today])
-
-  const topCategories = useMemo(() => {
-    const grouped = new Map<string, number>()
-    for (const row of cheltuieliLuna) {
-      const key = row.categorie || 'Altele'
-      grouped.set(key, (grouped.get(key) ?? 0) + Number(row.suma_lei || 0))
-    }
-    const totalMonth = cheltuieliLuna.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
-    return Array.from(grouped.entries())
-      .map(([name, amount]) => ({
-        name,
-        amount,
-        percent: totalMonth > 0 ? (amount / totalMonth) * 100 : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5)
-  }, [cheltuieliLuna])
+  const PILL_FILTERS: { key: TemporalFilter; label: string }[] = [
+    { key: 'luna', label: 'Luna' },
+    { key: 'sapt', label: 'Săpt.' },
+    { key: 'toate', label: 'Toate' },
+  ]
+  const desktopColumns = useMemo<ColumnDef<Cheltuiala>[]>(() => [
+    {
+      accessorKey: 'data',
+      header: 'Data',
+      cell: ({ row }) => formatData(row.original.data),
+      meta: {
+        searchValue: (row: Cheltuiala) => row.data,
+      },
+    },
+    {
+      accessorKey: 'categorie',
+      header: 'Categorie',
+      cell: ({ row }) => (
+        <span className="inline-flex items-center gap-2 font-medium">
+          <span>{getCheltuialaCategoryEmoji(row.original.categorie)}</span>
+          <span>{row.original.categorie || 'Altele'}</span>
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'descriere',
+      header: 'Descriere',
+      cell: ({ row }) => row.original.descriere || '-',
+      meta: {
+        searchValue: (row: Cheltuiala) => row.descriere,
+      },
+    },
+    {
+      accessorKey: 'suma_lei',
+      header: 'Cost',
+      cell: ({ row }) => `${formatRon(Number(row.original.suma_lei || 0))} RON`,
+      meta: {
+        searchValue: (row: Cheltuiala) => row.suma_lei,
+      },
+    },
+    {
+      accessorKey: 'furnizor',
+      header: 'Furnizor',
+      cell: ({ row }) => row.original.furnizor || '-',
+    },
+    {
+      id: 'actions',
+      header: 'Acțiuni',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Editează cheltuiala"
+            onClick={(event) => {
+              event.stopPropagation()
+              setEditing(row.original)
+              setEditOpen(true)
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Șterge cheltuiala"
+            onClick={(event) => {
+              event.stopPropagation()
+              setDeleting(row.original)
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+          </Button>
+        </div>
+      ),
+      meta: {
+        searchable: false,
+        sticky: 'right',
+        headerClassName: 'w-[104px] text-right',
+        cellClassName: 'w-[104px] text-right',
+      },
+    },
+  ], [])
 
   return (
     <AppShell
       header={<PageHeader title="Cheltuieli" subtitle="Monitorizare costuri operaționale" />}
-      bottomBar={
-        <StickyActionBar>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total: {total.toFixed(2)} lei</p>
-          </div>
-        </StickyActionBar>
-      }
+      bottomBar={null}
     >
-      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div
-            onClick={() => setTemporalFilter('luna')}
-            style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg, minHeight: 110, cursor: 'pointer' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-              <span style={{ fontSize: 16 }}>📉</span>
-              {Math.abs(dashboardSummary.trendPercent) > 0.01 ? (
-                <TrendBadge value={Number(Math.abs(dashboardSummary.trendPercent).toFixed(0))} positive={dashboardSummary.trendPercent <= 0} />
-              ) : null}
-            </div>
-            <div style={{ fontSize: 10, color: colors.gray }}>Luna asta</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>{dashboardSummary.totalLunaCurenta.toFixed(0)} RON</div>
-            <div style={{ fontSize: 10, color: colors.gray, marginBottom: spacing.xs }}>{dashboardSummary.countLuna} înregistrări</div>
-            {dashboardSummary.sparklineLuna.some((value) => value > 0) ? (
-              <Sparkline data={dashboardSummary.sparklineLuna} color={colors.coral} width={120} height={26} />
+      <div className="mx-auto mt-3 w-full max-w-4xl py-3 sm:mt-0 sm:py-4">
+
+        {/* SCOREBOARD */}
+        {scoreboard.totalLuna > 0 ? (
+          <div style={{
+            background: 'var(--agri-surface)', borderRadius: 12, padding: '10px 14px',
+            border: '1px solid var(--agri-border)', marginBottom: 8,
+            display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
+          }}>
+            <span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--value-negative)', letterSpacing: '-0.03em' }}>
+                {formatRon(scoreboard.totalLuna)}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 4 }}>RON</span>
+            </span>
+            {scoreboard.topCategorie ? (
+              <span style={{ fontSize: 11 }}>
+                <span style={{ color: 'var(--agri-text-muted)' }}>Top: </span>
+                <strong style={{ color: 'var(--agri-text)' }}>{scoreboard.topCategorie}</strong>
+              </span>
             ) : null}
           </div>
+        ) : null}
 
-          <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg, minHeight: 110 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-              <span style={{ fontSize: 16 }}>📅</span>
-            </div>
-            <div style={{ fontSize: 10, color: colors.gray }}>Sezon</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>{dashboardSummary.totalSezon.toFixed(0)} RON</div>
-            <div style={{ fontSize: 10, color: colors.gray, marginBottom: spacing.xs }}>RON total sezon</div>
-            {dashboardSummary.sparklineSezon.some((value) => value > 0) ? (
-              <Sparkline data={dashboardSummary.sparklineSezon} color={colors.coral} width={120} height={26} />
-            ) : null}
-          </div>
-        </div>
-
-        <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-            <SectionTitle className="flex-1" title="Cheltuieli pe categorii" />
-            {selectedCategory ? (
-              <button
-                type="button"
-                onClick={() => setSelectedCategory(null)}
-                style={{ border: 'none', background: 'transparent', color: colors.coral, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-              >
-                ✕ Reset
-              </button>
-            ) : null}
-          </div>
-
-          {topCategories.length === 0 ? (
-            <p style={{ fontSize: 11, color: colors.gray }}>Nu există cheltuieli în luna curentă.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: spacing.xs }}>
-              {topCategories.map((item) => {
-                const selected = selectedCategory === item.name
-                return (
-                  <button
-                    key={item.name}
-                    type="button"
-                    onClick={() => setSelectedCategory((current) => (current === item.name ? null : item.name))}
-                    style={{
-                      border: 'none',
-                      background: selected ? colors.primary : colors.white,
-                      color: selected ? colors.white : colors.dark,
-                      borderRadius: radius.md,
-                      padding: `${spacing.xs + 2}px ${spacing.sm}px`,
-                      width: '100%',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                      <span style={{ fontSize: 15, flexShrink: 0 }}>{getCheltuialaCategoryEmoji(item.name)}</span>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.name}
-                        </div>
-                        <div style={{ marginTop: 3, height: 5, borderRadius: radius.full, background: selected ? 'rgba(255,255,255,0.35)' : colors.grayLight, overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.max(item.percent, 4)}%`, height: '100%', borderRadius: radius.full, background: selected ? colors.white : colors.coral }} />
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>{item.amount.toFixed(0)} RON</div>
-                        <div style={{ fontSize: 10, opacity: selected ? 0.9 : 0.8 }}>{item.percent.toFixed(0)}%</div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className={`grid gap-2 ${dashboardSummary.autoManoperaLuna > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {dashboardSummary.autoManoperaLuna > 0 ? (
-            <div style={{ background: colors.blueLight, border: `1px solid ${colors.blue}`, borderRadius: radius.lg, boxShadow: shadows.card, padding: spacing.md }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-                <span>👷</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>Manoperă auto</span>
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: colors.dark }}>{dashboardSummary.autoManoperaLuna.toFixed(0)}</div>
-              <div style={{ fontSize: 10, color: colors.gray }}>RON (din recoltări)</div>
-            </div>
-          ) : null}
-
-          <div style={{ background: colors.white, border: `1px solid ${colors.grayLight}`, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-              <span>📊</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>Medie/zi</span>
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: colors.dark }}>{dashboardSummary.medieZilnica.toFixed(0)}</div>
-            <div style={{ fontSize: 10, color: colors.gray }}>RON/zi</div>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
-          {([
-            ['azi', 'Azi'],
-            ['sapt', 'Sapt.'],
-            ['luna', 'Luna'],
-            ['sezon', 'Sezon'],
-            ['toate', 'Toate'],
-          ] as Array<[TemporalFilter, string]>).map(([key, label]) => {
+        {/* PILLS */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          {PILL_FILTERS.map(({ key, label }) => {
             const active = temporalFilter === key
             return (
               <button
@@ -552,15 +609,10 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
                 type="button"
                 onClick={() => setTemporalFilter(key)}
                 style={{
-                  minHeight: 34,
-                  borderRadius: radius.md,
-                  border: active ? 'none' : `1px solid ${colors.grayLight}`,
-                  background: active ? colors.primary : colors.white,
-                  color: active ? colors.white : colors.gray,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '0 10px',
-                  cursor: 'pointer',
+                  padding: '6px 14px', fontSize: 11, fontWeight: 600,
+                  borderRadius: 20, border: 'none', cursor: 'pointer',
+                  background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+                  color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
                 }}
               >
                 {label}
@@ -569,53 +621,73 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
           })}
         </div>
 
-        <SearchField placeholder="Caută categorie, descriere, furnizor..." value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Caută cheltuieli" />
-
-        {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
-        {isLoading ? (
-          <>
-            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="border-b border-[var(--agri-border)] last:border-b-0">
-                  <ListSkeletonRow />
-                </div>
-              ))}
-            </div>
-            <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
-              ))}
-            </div>
-          </>
-        ) : null}
-        {!isLoading && !isError && filtered.length === 0 ? (
-          <EmptyState icon={<Receipt className="h-16 w-16" />} title="Nicio cheltuială încă" description="Adaugă prima cheltuială pentru a începe" />
-        ) : null}
-
-        {!isLoading && !isError && filtered.length > 0 ? (
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((c) => (
-              <CheltuialaCard
-                key={c.id}
-                cheltuiala={c}
-                onView={setViewing}
-                onEdit={(ch) => {
-                  setEditing(ch)
-                  setEditOpen(true)
-                }}
-                onDelete={(id) => {
-                  const target = filtered.find((item) => item.id === id) ?? null
-                  setDeleting(target)
-                }}
-              />
-            ))}
+        {/* SEARCH */}
+        {cheltuieli.length > 5 ? (
+          <div style={{ marginBottom: 10 }}>
+            <SearchField
+              containerClassName="md:hidden"
+              placeholder="Caută categorie, descriere, furnizor..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Caută cheltuieli"
+            />
           </div>
         ) : null}
+
+        {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+        {isLoading ? <TableCardsSkeleton /> : null}
+
+        {/* EMPTY STATE */}
+        {!isLoading && !isError && filtered.length === 0 ? (
+          <div style={{
+            background: 'var(--agri-surface)', borderRadius: 14, padding: '36px 20px',
+            textAlign: 'center', border: '1px solid var(--agri-border)',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>📉</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 6 }}>Nicio cheltuială înregistrată</div>
+            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>Adaugă prima cheltuială cu butonul +</div>
+          </div>
+        ) : null}
+
+        {/* LIST */}
+        {!isLoading && !isError && filtered.length > 0 ? (
+          <ResponsiveDataView
+            columns={desktopColumns}
+            data={filtered}
+            getRowId={(row) => row.id}
+            searchPlaceholder="Caută în cheltuieli..."
+            emptyMessage="Nu am găsit cheltuieli pentru filtrele curente."
+            renderCard={(cheltuiala) => (
+              <CheltuialaCardNew
+                cheltuiala={cheltuiala}
+                isExpanded={expandedId === cheltuiala.id}
+                onToggle={() => setExpandedId(expandedId === cheltuiala.id ? null : cheltuiala.id)}
+                onEdit={() => {
+                  setEditing(cheltuiala)
+                  setEditOpen(true)
+                }}
+                onDelete={() => setDeleting(cheltuiala)}
+              />
+            )}
+          />
+        ) : null}
+
       </div>
 
       <AddCheltuialaDialog
-        open={addOpen || addFromQuery}
-        onOpenChange={setAddOpen}
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open)
+          if (!open) {
+            clearCheltuialaFormQueryParams()
+          }
+        }}
+        initialValues={{
+          suma_lei: prefillSuma,
+          data: prefillData,
+          descriere: prefillDescriereRaw,
+          categorie: prefillCategorie,
+        }}
         onSubmit={async (data) => {
           await createMutation.mutateAsync({
             client_sync_id: data.client_sync_id,
@@ -625,23 +697,6 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
             furnizor: data.furnizor || undefined,
             descriere: data.descriere || undefined,
           })
-        }}
-      />
-
-      <ViewCheltuialaDialog
-        open={!!viewing}
-        onOpenChange={(open) => {
-          if (!open) setViewing(null)
-        }}
-        cheltuiala={viewing}
-        onEdit={(ch) => {
-          setViewing(null)
-          setEditing(ch)
-          setEditOpen(true)
-        }}
-        onDelete={(ch) => {
-          setViewing(null)
-          setDeleting(ch)
         }}
       />
 
@@ -675,9 +730,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         itemName={buildCheltuialaDeleteLabel(deleting)}
         description={
           deleting && isAutoManoperaCheltuiala(deleting)
-            ? `Atenție: această cheltuială este generată automat din recoltări. Dacă o ștergi, va fi recreată la următoarea recoltare. Ești sigur??
-
-Ștergi cheltuiala ${deleting?.categorie || deleting?.furnizor || deleting?.descriere || 'necunoscută'} din ${deleting?.data ? new Date(deleting.data).toLocaleDateString('ro-RO') : 'data necunoscută'} - ${Number(deleting?.suma_lei ?? 0).toFixed(2)} lei?`
+            ? `Atenție: această cheltuială este generată automat din recoltări. Dacă o ștergi, va fi recreată la următoarea recoltare.\n\nȘtergi cheltuiala ${deleting?.categorie || deleting?.furnizor || deleting?.descriere || 'necunoscută'} din ${deleting?.data ? new Date(deleting.data).toLocaleDateString('ro-RO') : 'data necunoscută'} - ${Number(deleting?.suma_lei ?? 0).toFixed(2)} lei?`
             : `Ștergi cheltuiala ${deleting?.categorie || deleting?.furnizor || deleting?.descriere || 'necunoscută'} din ${deleting?.data ? new Date(deleting.data).toLocaleDateString('ro-RO') : 'data necunoscută'} - ${Number(deleting?.suma_lei ?? 0).toFixed(2)} lei?`
         }
         loading={deleteMutation.isPending}

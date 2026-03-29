@@ -76,63 +76,70 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
         />
       }
     >
-      <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
-        <div className="space-y-2">
-          <Label htmlFor="culegator_nume">Nume și prenume</Label>
-          <Input id="culegator_nume" className="agri-control h-12" placeholder="Popescu Ion" {...form.register('nume_prenume')} />
-          {form.formState.errors.nume_prenume ? <p className="text-xs text-red-600">{form.formState.errors.nume_prenume.message}</p> : null}
-        </div>
+      <form className="space-y-0" onSubmit={form.handleSubmit(handleSubmit)}>
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Nume: full-width */}
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="culegator_nume">Nume și prenume</Label>
+            <Input id="culegator_nume" className="agri-control h-12" placeholder="Popescu Ion" {...form.register('nume_prenume')} />
+            {form.formState.errors.nume_prenume ? <p className="text-xs text-red-600">{form.formState.errors.nume_prenume.message}</p> : null}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="culegator_telefon">Telefon</Label>
-          <Input id="culegator_telefon" type="tel" className="agri-control h-12" placeholder="0740123456" {...form.register('telefon')} />
-        </div>
+          {/* Row 1: Telefon + Tip angajare */}
+          <div className="space-y-2">
+            <Label htmlFor="culegator_telefon">Telefon</Label>
+            <Input id="culegator_telefon" type="tel" className="agri-control h-12" placeholder="0740123456" {...form.register('telefon')} />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="culegator_tip">Tip angajare</Label>
-          <select id="culegator_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_angajare')}>
-            <option value="Sezonier">Sezonier</option>
-            <option value="Permanent">Permanent</option>
-            <option value="Zilier">Zilier</option>
-            <option value="Colaborator">Colaborator</option>
-          </select>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="culegator_tip">Tip angajare</Label>
+            <select id="culegator_tip" className="agri-control h-12 w-full px-3 text-base" {...form.register('tip_angajare')}>
+              <option value="Sezonier">Sezonier</option>
+              <option value="Permanent">Permanent</option>
+              <option value="Zilier">Zilier</option>
+              <option value="Colaborator">Colaborator</option>
+            </select>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="culegator_tarif">Tarif (lei/kg)</Label>
-          <Input
-            id="culegator_tarif"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            className="agri-control h-12"
-            placeholder="0"
-            {...form.register('tarif_lei_kg')}
-          />
-        </div>
+          {/* Row 2: Tarif + Data angajare */}
+          <div className="space-y-2">
+            <Label htmlFor="culegator_tarif">Tarif (lei/kg)</Label>
+            <Input
+              id="culegator_tarif"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0"
+              className="agri-control h-12"
+              placeholder="0"
+              {...form.register('tarif_lei_kg')}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="culegator_data">Data angajare</Label>
-          <Input id="culegator_data" type="date" className="agri-control h-12" {...form.register('data_angajare')} />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="culegator_data">Data angajare</Label>
+            <Input id="culegator_data" type="date" className="agri-control h-12" {...form.register('data_angajare')} />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            id="culegator_activ"
-            type="checkbox"
-            className="h-4 w-4 rounded border-gray-300"
-            checked={Boolean(form.watch('status_activ'))}
-            onChange={(event) => form.setValue('status_activ', event.target.checked, { shouldDirty: true })}
-          />
-          <Label htmlFor="culegator_activ" className="cursor-pointer text-sm font-normal">
-            Culegător activ
-          </Label>
-        </div>
+          {/* Status activ: full-width */}
+          <div className="flex items-center gap-2 md:col-span-2">
+            <input
+              id="culegator_activ"
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 dark:border-zinc-600"
+              checked={Boolean(form.watch('status_activ'))}
+              onChange={(event) => form.setValue('status_activ', event.target.checked, { shouldDirty: true })}
+            />
+            <Label htmlFor="culegator_activ" className="cursor-pointer text-sm font-normal">
+              Culegător activ
+            </Label>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="culegator_obs">Observații</Label>
-          <Textarea id="culegator_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
+          {/* Observații: full-width */}
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="culegator_obs">Observații</Label>
+            <Textarea id="culegator_obs" rows={3} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii')} />
+          </div>
         </div>
       </form>
     </AppDrawer>

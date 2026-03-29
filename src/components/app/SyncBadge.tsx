@@ -23,22 +23,22 @@ export function SyncBadge({ status, className }: SyncBadgeProps) {
     synced: {
       label: 'Sincronizat',
       icon: CheckCircle2,
-      classes: 'border-emerald-300 bg-emerald-100 text-emerald-900',
+      classes: 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
     },
     pending: {
       label: 'Salvat local',
       icon: Clock3,
-      classes: 'border-amber-300 bg-amber-100 text-amber-900',
+      classes: 'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     },
     syncing: {
       label: 'Sincronizare',
       icon: RefreshCw,
-      classes: 'border-blue-300 bg-blue-100 text-blue-900',
+      classes: 'border-blue-300 bg-blue-100 text-blue-900 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
     },
     failed: {
       label: 'Eroare sync',
       icon: AlertTriangle,
-      classes: 'border-red-300 bg-red-100 text-red-900',
+      classes: 'border-red-300 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300',
     },
   }[normalized]
 

@@ -370,6 +370,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const firstItem = normalized.items[0]
 
   const insertPayload = {
+    id_vanzare_butasi: '',
     tenant_id: tenantId,
     data: input.data_comanda,
     data_comanda: input.data_comanda,
@@ -386,8 +387,6 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
     cantitate_butasi: normalized.totalCantitate,
     pret_unitar_lei: roundTo2(normalized.totalLei / normalized.totalCantitate),
   }
-  console.log('[DEBUG] createVanzareButasi payload:', insertPayload)
-
   const { data, error } = await supabase
     .from('vanzari_butasi')
     .insert(insertPayload)
@@ -413,7 +412,14 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
 
   if (itemsError) {
     console.error('[DEBUG] createVanzareButasi items insert error:', itemsError)
-    await supabase.from('vanzari_butasi').delete().eq('id', comandaId).eq('tenant_id', tenantId)
+    const { error: rollbackError } = await supabase
+      .from('vanzari_butasi')
+      .delete()
+      .eq('id', comandaId)
+      .eq('tenant_id', tenantId)
+    if (rollbackError) {
+      console.error('[DEBUG] createVanzareButasi rollback delete error:', rollbackError)
+    }
     throw toReadableError(itemsError, 'Nu am putut salva produsele comenzii de butasi.')
   }
 

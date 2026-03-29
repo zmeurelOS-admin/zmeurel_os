@@ -24,6 +24,11 @@ export interface CreateClientInput {
   observatii?: string | null
 }
 
+export interface ClientDuplicateWarning {
+  id: string
+  nume_client: string
+}
+
 export interface UpdateClientInput {
   nume_client?: string
   telefon?: string | null
@@ -47,18 +52,50 @@ export async function getClienți(): Promise<Client[]> {
   return (data ?? []) as Client[]
 }
 
-export async function createClienți(input: CreateClientInput): Promise<Client> {
+function normalizeClientName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+export async function createClienți(
+  input: CreateClientInput,
+  options?: { onDuplicateWarning?: (existing: ClientDuplicateWarning) => void }
+): Promise<Client> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const normalizedName = normalizeClientName(input.nume_client)
+
+  if (normalizedName) {
+    const { data: existing, error: duplicateError } = await supabase
+      .from("clienti")
+      .select("id,nume_client")
+      .eq("tenant_id", tenantId)
+      .ilike("nume_client", normalizedName)
+      .limit(1)
+
+    if (duplicateError) throw duplicateError
+
+    const similarClient = existing?.[0]
+    if (similarClient) {
+      options?.onDuplicateWarning?.({
+        id: similarClient.id,
+        nume_client: similarClient.nume_client,
+      })
+    }
+  }
 
   const id_client = await generateBusinessId(supabase, 'C')
-  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from("clienti")
     .insert({
       tenant_id: tenantId,
       id_client,
-      nume_client: input.nume_client,
+      nume_client: input.nume_client.trim(),
       telefon: input.telefon ?? null,
       email: input.email ?? null,
       adresa: input.adresa ?? null,

@@ -2,6 +2,8 @@
 
 import { Database } from 'lucide-react'
 
+import { Skeleton } from '@/components/ui/skeleton'
+
 interface LoadingStateProps {
   label?: string
   rows?: number
@@ -19,10 +21,10 @@ export function LoadingState({ label = 'Se încarcă...', rows = 3 }: LoadingSta
 
       <div className="space-y-3">
         {Array.from({ length: rows }).map((_, index) => (
-          <div key={index} className="animate-pulse rounded-2xl border border-[var(--agri-border)] bg-white p-4">
-            <div className="h-3 w-32 rounded bg-slate-200" />
-            <div className="mt-3 h-7 w-48 rounded bg-slate-300" />
-            <div className="mt-3 h-3 w-40 rounded bg-slate-200" />
+          <div key={index} className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="mt-3 h-7 w-48" />
+            <Skeleton className="mt-3 h-3 w-40" />
           </div>
         ))}
       </div>

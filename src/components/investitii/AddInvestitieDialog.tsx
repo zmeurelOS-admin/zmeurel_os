@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -9,6 +9,7 @@ import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +34,7 @@ interface AddInvestitieDialogProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   hideTrigger?: boolean
+  initialValues?: Partial<Pick<InvestitieFormData, 'data' | 'suma_lei' | 'categorie' | 'descriere'>>
 }
 
 const defaultValues = (): InvestitieFormData => ({
@@ -44,21 +46,23 @@ const defaultValues = (): InvestitieFormData => ({
   suma_lei: '',
 })
 
-export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }: AddInvestitieDialogProps) {
+export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, initialValues }: AddInvestitieDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
-  const setDialogOpen = (nextOpen: boolean) => {
+  const setDialogOpen = useCallback((nextOpen: boolean) => {
     if (!isControlled) setInternalOpen(nextOpen)
     onOpenChange?.(nextOpen)
-  }
+  }, [isControlled, onOpenChange])
 
   const queryClient = useQueryClient()
 
-  const { data: parcele = [] } = useQuery({
+  const { data: parcele = [], isLoading: isLoadingParcele } = useQuery({
     queryKey: queryKeys.parcele,
     queryFn: getParcele,
   })
+
+  const isInitialDataLoading = dialogOpen && isLoadingParcele && parcele.length === 0
 
   const form = useForm<InvestitieFormData>({
     resolver: zodResolver(investitieSchema),
@@ -66,8 +70,18 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
   })
 
   useEffect(() => {
-    if (!dialogOpen) form.reset(defaultValues())
-  }, [dialogOpen, form])
+    if (dialogOpen) {
+      form.reset({
+        ...defaultValues(),
+        ...(initialValues?.data ? { data: initialValues.data } : {}),
+        ...(initialValues?.suma_lei != null ? { suma_lei: String(initialValues.suma_lei) } : {}),
+        ...(initialValues?.categorie ? { categorie: initialValues.categorie } : {}),
+        ...(initialValues?.descriere ? { descriere: initialValues.descriere } : {}),
+      })
+    } else {
+      form.reset(defaultValues())
+    }
+  }, [dialogOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const createMutation = useMutation({
     mutationFn: createInvestitie,
@@ -123,9 +137,9 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
+              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
               onClick={form.handleSubmit(onSubmit)}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || isInitialDataLoading}
             >
               {createMutation.isPending ? (
                 <>
@@ -139,6 +153,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
           </div>
         }
       >
+        {isInitialDataLoading ? <DialogInitialDataSkeleton compact /> : (
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
           <div className="space-y-2">
             <Label htmlFor="inv_data">Data</Label>
@@ -196,6 +211,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false }:
             <Textarea id="inv_descriere" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('descriere')} />
           </div>
         </form>
+        )}
       </AppDrawer>
     </>
   )

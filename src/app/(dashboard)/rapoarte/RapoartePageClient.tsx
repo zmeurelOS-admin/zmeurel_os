@@ -1,17 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, Download, FileSpreadsheet, FileText, Filter } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
-import { EmptyState } from '@/components/app/EmptyState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { PerformanceTable, type PerformanceRow } from '@/components/app/PerformanceTable'
-import MiniCard from '@/components/ui/MiniCard'
-import TrendBadge from '@/components/ui/TrendBadge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -30,9 +26,8 @@ import {
 import { calculateProfit } from '@/lib/calculations/profit'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 
-type PeriodType = 'zi' | 'luna' | 'sezon' | 'custom'
+type PeriodType = 'sapt' | 'luna' | 'sezon' | 'an'
 type ReportType =
   | 'productie_totala'
   | 'venit_total'
@@ -157,8 +152,6 @@ export function RapoartePageClient({
   const [selectedParcelaId, setSelectedParcelaId] = useState<string>('all')
   const [selectedCultura, setSelectedCultura] = useState<string>('all')
   const [reportType, setReportType] = useState<ReportType>('productie_totala')
-  const [customFrom, setCustomFrom] = useState<string>(toInputDate(seasonStart))
-  const [customTo, setCustomTo] = useState<string>(toInputDate(today))
 
   useEffect(() => {
     trackEvent('view_rapoarte', { source: 'RapoartePageClient' })
@@ -193,8 +186,9 @@ export function RapoartePageClient({
     const end = new Date(today)
     end.setHours(23, 59, 59, 999)
 
-    if (periodType === 'zi') {
+    if (periodType === 'sapt') {
       const start = new Date(today)
+      start.setDate(today.getDate() - 6)
       start.setHours(0, 0, 0, 0)
       return { start, end }
     }
@@ -211,12 +205,11 @@ export function RapoartePageClient({
       return { start, end }
     }
 
-    const start = new Date(customFrom || toInputDate(seasonStart))
+    // 'an' — current calendar year
+    const start = new Date(today.getFullYear(), 0, 1)
     start.setHours(0, 0, 0, 0)
-    const customEnd = new Date(customTo || toInputDate(today))
-    customEnd.setHours(23, 59, 59, 999)
-    return { start, end: customEnd }
-  }, [customFrom, customTo, periodType, seasonStart, today])
+    return { start, end }
+  }, [periodType, seasonStart, today])
 
   const filteredRecoltari = useMemo(() => {
     return initialRecoltari.filter((r) => {
@@ -758,173 +751,95 @@ export function RapoartePageClient({
 
   return (
     <AppShell
-      header={
-        <PageHeader
-          title="Rapoarte"
-          subtitle="Analiza comerciala ți operationala"
-          rightSlot={<BarChart3 className="h-5 w-5" />}
-        />
-      }
+      header={<PageHeader title="Rapoarte" subtitle="Analiză comercială și operațională" rightSlot={<span style={{ fontSize: 22 }}>📊</span>} />}
     >
       <div className="mx-auto mt-3 w-full max-w-5xl space-y-3 py-3 sm:mt-0">
-        <section className="agri-card space-y-4 p-4">
-          <div className="flex items-center gap-2 text-[var(--agri-text)]">
-            <Filter className="h-4 w-4" />
-            <h2 className="text-sm font-bold uppercase tracking-wide">Filtre raport</h2>
+
+        {/* Period pills */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([['sapt', 'Săpt.'], ['luna', 'Lună'], ['sezon', 'Sezon'], ['an', 'An']] as Array<[PeriodType, string]>).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setPeriodType(value)}
+              style={{
+                borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
+                background: periodType === value ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+                color: periodType === value ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* KPI scoreboard compact */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8,
+        }}>
+          {[
+            { icon: '💰', label: 'Venituri', value: currencyFormatter.format(kpi.revenue), color: 'var(--value-positive)' },
+            { icon: '📉', label: 'Cheltuieli', value: currencyFormatter.format(kpi.cost), color: 'var(--value-negative)' },
+            { icon: '📊', label: 'Profit', value: currencyFormatter.format(kpi.profit), color: kpi.profit >= 0 ? 'var(--value-positive)' : 'var(--value-negative)' },
+            { icon: '🫐', label: 'Producție', value: `${numberFormatter.format(kpi.productieKg)} kg`, color: 'var(--value-positive)' },
+          ].map(({ icon, label, value, color }) => (
+            <div key={label} style={{ background: 'var(--agri-surface)', borderRadius: 12, border: '1px solid var(--agri-border)', padding: '10px 12px' }}>
+              <div style={{ fontSize: 18, marginBottom: 4 }}>{icon}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
+              <div style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginTop: 2 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Cultură</p>
+            <Select value={selectedCultura} onValueChange={setSelectedCultura}>
+              <SelectTrigger className="agri-control h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toate culturile</SelectItem>
+                {cultures.map((culture) => (
+                  <SelectItem key={culture} value={culture}>{culture}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Perioada</p>
-            <div className="flex flex-wrap gap-2">
-              {([
-                ['zi', 'Zi'],
-                ['luna', 'Luna'],
-                ['sezon', 'Sezon'],
-                ['custom', 'Custom'],
-              ] as Array<[PeriodType, string]>).map(([value, label]) => {
-                const active = periodType === value
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setPeriodType(value)}
-                    style={{
-                      minHeight: 34,
-                      borderRadius: 20,
-                      border: active ? 'none' : `1px solid ${colors.grayLight}`,
-                      background: active ? colors.primary : colors.white,
-                      color: active ? colors.white : colors.gray,
-                      padding: '0 12px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Parcelă</p>
+            <Select value={selectedParcelaId} onValueChange={setSelectedParcelaId}>
+              <SelectTrigger className="agri-control h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toate parcelele</SelectItem>
+                {initialParcele.map((parcela) => (
+                  <SelectItem key={parcela.id} value={parcela.id}>{parcela.nume_parcela || 'Parcela'}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Cultura</p>
-              <Select value={selectedCultura} onValueChange={setSelectedCultura}>
-                <SelectTrigger className="agri-control h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toate culturile</SelectItem>
-                  {cultures.map((culture) => (
-                    <SelectItem key={culture} value={culture}>
-                      {culture}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Parcelă</p>
-              <Select value={selectedParcelaId} onValueChange={setSelectedParcelaId}>
-                <SelectTrigger className="agri-control h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toate parcelele</SelectItem>
-                  {initialParcele.map((parcela) => (
-                    <SelectItem key={parcela.id} value={parcela.id}>
-                      {parcela.nume_parcela || 'Parcela'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Tip raport</p>
-              <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
-                <SelectTrigger className="agri-control h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="productie_totala">Producție totala (kg)</SelectItem>
-                  <SelectItem value="venit_total">Venit total</SelectItem>
-                  <SelectItem value="costuri_totale">Costuri totale</SelectItem>
-                  <SelectItem value="profit_estimat">Profit estimat</SelectItem>
-                  <SelectItem value="productivitate_parcela">Productivitate per parcelă</SelectItem>
-                  <SelectItem value="productivitate_culegator">Productivitate per culegator</SelectItem>
-                  <SelectItem value="vanzari_client">Vânzări per client</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Tip raport</p>
+            <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
+              <SelectTrigger className="agri-control h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="productie_totala">Producție totală (kg)</SelectItem>
+                <SelectItem value="venit_total">Venit total</SelectItem>
+                <SelectItem value="costuri_totale">Costuri totale</SelectItem>
+                <SelectItem value="profit_estimat">Profit estimat</SelectItem>
+                <SelectItem value="productivitate_parcela">Productivitate per parcelă</SelectItem>
+                <SelectItem value="productivitate_culegator">Productivitate per culegător</SelectItem>
+                <SelectItem value="vanzari_client">Vânzări per client</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-
-          {periodType === 'custom' ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Data inceput</p>
-                <Input
-                  type="date"
-                  value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className="agri-control h-11"
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase text-[var(--agri-text-muted)]">Data sfarsit</p>
-                <Input
-                  type="date"
-                  value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className="agri-control h-11"
-                />
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MiniCard
-            icon="💰"
-            label="Venit total"
-            value={currencyFormatter.format(kpi.revenue)}
-            sub="RON"
-            trend={{ value: Number(Math.abs(kpiTrend.venit).toFixed(0)), positive: kpiTrend.venit >= 0 }}
-          />
-          <div style={{ border: `1px solid ${colors.coral}`, borderRadius: radius.xl }}>
-            <MiniCard
-              icon="📉"
-              label="Cheltuieli"
-              value={currencyFormatter.format(kpi.cost)}
-              sub="RON"
-              trend={{ value: Number(Math.abs(kpiTrend.cheltuieli).toFixed(0)), positive: kpiTrend.cheltuieli <= 0 }}
-            />
-          </div>
-          <div
-            style={{
-              background: colors.white,
-              borderRadius: radius.xl,
-              boxShadow: shadows.card,
-              padding: `${spacing.lg}px`,
-              minHeight: 110,
-            }}
-          >
-            <div style={{ fontSize: 16, marginBottom: spacing.sm }}>📊</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: kpi.profit >= 0 ? colors.green : colors.coral }}>
-              {currencyFormatter.format(kpi.profit)}
-            </div>
-            <div style={{ fontSize: 10, color: colors.gray, marginTop: spacing.xs }}>Profit</div>
-          </div>
-          <MiniCard
-            icon="🫐"
-            label="Producție"
-            value={`${numberFormatter.format(kpi.productieKg)} kg`}
-            sub="kg recoltat"
-            trend={{ value: Number(Math.abs(kpiTrend.productie).toFixed(0)), positive: kpiTrend.productie >= 0 }}
-          />
-        </section>
+        </div>
 
         {monthlyFinancialRows.length > 0 ? (
           <section className="agri-card space-y-3 p-4">
@@ -938,9 +853,9 @@ export function RapoartePageClient({
                 const cheltHeight = (row.cheltuieli / financialChartMax) * chartHeight
                 return (
                   <g key={row.key}>
-                    <rect x={xBase} y={125 - venitHeight} width={20} height={Math.max(2, venitHeight)} fill={colors.green} rx={4} />
-                    <rect x={xBase + 24} y={125 - cheltHeight} width={20} height={Math.max(2, cheltHeight)} fill={colors.coral} rx={4} />
-                    <text x={xBase + 22} y={150} textAnchor="middle" fontSize="10" fill={colors.gray}>
+                    <rect x={xBase} y={125 - venitHeight} width={20} height={Math.max(2, venitHeight)} fill="var(--value-positive)" rx={4} />
+                    <rect x={xBase + 24} y={125 - cheltHeight} width={20} height={Math.max(2, cheltHeight)} fill="var(--value-negative)" rx={4} />
+                    <text x={xBase + 22} y={150} textAnchor="middle" fontSize="10" fill="var(--agri-text-muted)">
                       {row.label}
                     </text>
                   </g>
@@ -951,35 +866,32 @@ export function RapoartePageClient({
         ) : null}
 
         <section className="agri-card space-y-4 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-2">
             <h3 className="text-base font-semibold text-[var(--agri-text)]">{reportLabel}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" className="h-10 rounded-[10px] border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]" onClick={exportCsv}>
-                📥 CSV
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button type="button" variant="outline" className="h-11 w-full" onClick={exportCsv}>
+                📥 Export CSV
               </Button>
-              <Button type="button" variant="outline" className="h-10 rounded-[10px] border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]" onClick={exportExcel}>
-                📥 Excel
+              <Button type="button" variant="outline" className="h-11 w-full" onClick={exportExcel}>
+                📥 Export Excel
               </Button>
-              <Button type="button" variant="outline" className="agri-control h-11" onClick={exportPdf}>
+              <Button type="button" variant="outline" className="h-11 w-full" onClick={exportPdf}>
                 <FileText className="mr-1 h-4 w-4" />
                 Export PDF
               </Button>
-              <Button type="button" variant="outline" className="agri-control h-11" onClick={exportSeasonCsv}>
+              <Button type="button" variant="outline" className="h-11 w-full" onClick={exportSeasonCsv}>
                 <Download className="mr-1 h-4 w-4" />
                 Export sezon complet
               </Button>
-              <Button type="button" variant="outline" className="agri-control h-11" onClick={exportTratamenteCsv}>
+              <Button type="button" variant="outline" className="col-span-1 h-11 w-full sm:col-span-2" onClick={exportTratamenteCsv}>
                 <Download className="mr-1 h-4 w-4" />
-                Export tratamente
+                Export tratamente parcele
               </Button>
             </div>
           </div>
 
           {reportRows.length === 0 ? (
-            <EmptyState
-              title="Fără rezultate pentru filtrele curente"
-              description="Ajusteaza perioada sau selectorii de cultura/parcelă."
-            />
+            <p className="text-sm text-[var(--agri-text-muted)]">Fără rezultate pentru filtrele curente.</p>
           ) : (
             <>
               <div className="space-y-2">

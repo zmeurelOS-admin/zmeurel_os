@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Trash2, UserCheck, Users, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Pencil, Trash2 } from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { AppShell } from '@/components/app/AppShell'
@@ -11,20 +12,13 @@ import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { SectionTitle } from '@/components/dashboard/SectionTitle'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
-import { ClientCard } from '@/components/clienti/ClientCard'
-import { ClientDetailsDrawer } from '@/components/clienti/ClientDetailsDrawer'
 import { EditClientDialog } from '@/components/clienti/EditClientDialog'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
-import AlertCard from '@/components/ui/AlertCard'
-import MiniCard from '@/components/ui/MiniCard'
 import { Button } from '@/components/ui/button'
 import { useAddAction } from '@/contexts/AddActionContext'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { queryKeys } from '@/lib/query-keys'
 import { getSupabase } from '@/lib/supabase/client'
 import {
@@ -33,14 +27,43 @@ import {
   getClienți as getClienti,
   updateClienți as updateClienti,
   type Client,
+  type ClientDuplicateWarning,
 } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { toast } from '@/lib/ui/toast'
 
+type ComandaItem = Awaited<ReturnType<typeof getComenzi>>[number]
+type VanzareItem = Awaited<ReturnType<typeof getVanzari>>[number]
+type CreateClientMutationVariables = {
+  input: Parameters<typeof createClienti>[0]
+  onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
+}
+
 interface ClientPageClientProps {
   initialClienți: Client[]
+}
+
+export function hasAiClientOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
+  return searchParams.get('openForm') === '1'
+}
+
+export function parseAiClientPrefill(searchParams: Pick<URLSearchParams, 'get'>): {
+  nume_client: string
+  telefon: string
+  email: string
+  adresa: string
+  observatii: string
+} | null {
+  if (!hasAiClientOpenForm(searchParams)) return null
+  return {
+    nume_client: searchParams.get('nume_client')?.trim() ?? '',
+    telefon: searchParams.get('telefon')?.trim() ?? '',
+    email: searchParams.get('email')?.trim() ?? '',
+    adresa: searchParams.get('adresa')?.trim() ?? '',
+    observatii: searchParams.get('observatii')?.trim() ?? '',
+  }
 }
 
 type ParsedClientRow = {
@@ -101,10 +124,10 @@ function parseCsvLine(line: string): string[] {
 }
 
 type ImportPreview = {
-  rows: ParsedClientRow[]          // rows with non-empty name only
-  totalParsed: number              // total rows in file (including empty names)
-  skippedNoName: number            // rows dropped because name was empty
-  formulaFixCount: number          // rows where Display Name was a formula/placeholder — fixed via First+Last
+  rows: ParsedClientRow[]
+  totalParsed: number
+  skippedNoName: number
+  formulaFixCount: number
   mappingSummary: string[]
   unmappedColumns: string[]
   hasNameColumn: boolean
@@ -133,22 +156,18 @@ function mapHeadersToClients(
   const pick = (...aliases: string[]) =>
     normalizedHeaders.findIndex((h) => aliases.includes(h))
 
-  // Nume client — Google Contacts: "Display Name"; standard: "Nume", "Name" etc.
   const nameIndex = pick(
     'display_name', 'displayname', 'full_name', 'fullname',
     'nume_complet', 'nume_client', 'client', 'contact', 'persoana',
     'name', 'denumire', 'nume'
   )
-  // First + Last fallback for Google Contacts
   const firstNameIndex = pick('first_name', 'given_name', 'prenume', 'firstname')
   const lastNameIndex  = pick('last_name', 'family_name', 'surname', 'lastname', 'nume_familie')
 
-  // Primary phone — "Phone 1 - Value" → phone_1_value after normalization
   const phoneIndex = pick(
     'phone_1_value', 'phone', 'phone_number', 'phonenumber', 'mobile', 'nr_telefon',
     'nr_tel', 'numar_telefon', 'numar_tel', 'telefon', 'tel', 'mobil'
   )
-  // Secondary phone fallback
   const phone2Index = pick('phone_2_value', 'phone2', 'mobile2', 'telefon_alt', 'alt_telefon')
 
   const emailIndex = pick('email', 'e_mail', 'email_address', 'mail', 'adresa_email', 'email_1_value')
@@ -161,16 +180,11 @@ function mapHeadersToClients(
   const hasNameColumn = nameIndex >= 0 || firstNameIndex >= 0 || lastNameIndex >= 0
   const hasPhoneColumn = phoneIndex >= 0 || phone2Index >= 0
 
-  console.log('[clienti import] headers (normalized):', normalizedHeaders)
-  console.log('[clienti import] column map:', { nameIndex, firstNameIndex, lastNameIndex, phoneIndex, phone2Index, emailIndex, addressIndex, notesIndex })
-
-  // Track which header indices are mapped
   const mappedIndices = new Set(
     [nameIndex, firstNameIndex, lastNameIndex, phoneIndex, phone2Index, emailIndex, addressIndex, notesIndex]
       .filter((i) => i >= 0)
   )
 
-  // Build human-readable mapping summary for preview
   const mappingSummary: string[] = []
   if (nameIndex >= 0) {
     mappingSummary.push(`"${originalHeaders[nameIndex]}" → Nume client ✓`)
@@ -193,8 +207,6 @@ function mapHeadersToClients(
   const allRows = dataRows.map((columns) => {
     let numeName = nameIndex >= 0 ? (columns[nameIndex] ?? '').trim() : ''
 
-    // Detect raw Excel formula text or "Gospodar Nou" auto-generated placeholders.
-    // When found, fall back to First + Last Name columns.
     const isRawFormula = numeName.startsWith('=')
     const isPlaceholder = /^Gospodar\s*Nou\b/i.test(numeName)
     if (!numeName || isRawFormula || isPlaceholder) {
@@ -209,7 +221,6 @@ function mapHeadersToClients(
       }
     }
 
-    // Use primary phone; fall back to secondary if primary is empty
     let phoneVal = phoneIndex >= 0 ? (columns[phoneIndex] ?? '').trim() : ''
     if (!phoneVal && phone2Index >= 0) {
       phoneVal = (columns[phone2Index] ?? '').trim()
@@ -231,23 +242,17 @@ function mapHeadersToClients(
 }
 
 const HEADER_DETECTION_ALIASES = new Set([
-  // name
   'display_name', 'displayname', 'full_name', 'fullname', 'first_name', 'last_name',
   'given_name', 'family_name', 'surname', 'firstname', 'lastname', 'nume_familie',
   'nume_complet', 'nume_client', 'client', 'contact', 'persoana', 'name', 'denumire', 'prenume', 'nume',
-  // phone
   'telefon', 'phone', 'phone_1_value', 'phone_2_value', 'phone_number', 'phonenumber',
   'tel', 'mobil', 'mobile', 'mobile2', 'nr_telefon', 'numar_telefon',
-  // email
   'email', 'e_mail', 'email_1_value', 'email_address', 'mail', 'adresa_email',
-  // address
   'adresa', 'address', 'delivery_location', 'location', 'localitate', 'oras', 'city', 'loc', 'sat', 'comuna',
-  // notes
   'notes', 'note', 'observatii', 'obs', 'detalii', 'comments',
 ])
 
 function parseClientCsv(content: string): ImportPreview {
-  // Strip UTF-8 BOM
   const raw = content.replace(/^\uFEFF/, '')
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
   if (!lines.length) return { rows: [], totalParsed: 0, skippedNoName: 0, formulaFixCount: 0, mappingSummary: [], unmappedColumns: [], hasNameColumn: false, hasPhoneColumn: false }
@@ -265,7 +270,6 @@ function parseClientCsv(content: string): ImportPreview {
 
 async function parseClientXlsx(buffer: ArrayBuffer): Promise<ImportPreview> {
   const XLSX = await import('xlsx')
-  // cellFormula: false → use cached computed values instead of formula strings
   const workbook = XLSX.read(buffer, { type: 'array', cellFormula: false })
   const firstSheetName = workbook.SheetNames[0]
   if (!firstSheetName) throw new Error('Fișierul Excel nu conține foi de calcul.')
@@ -291,7 +295,6 @@ async function downloadImportTemplate() {
     ['Maria Ionescu', '0722334455', '', 'Fălticeni', 'Client fidel'],
   ]
   const ws = XLSX.utils.aoa_to_sheet(rows)
-  // Set column widths
   ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 22 }, { wch: 16 }, { wch: 20 }]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Clienți')
@@ -308,22 +311,218 @@ async function parseClientFile(file: File): Promise<ImportPreview> {
   return parseClientCsv(content)
 }
 
+// ─── Inline card component ────────────────────────────────────────────────────
+
+const PILL = {
+  base: { borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600, border: 'none', display: 'inline-flex', alignItems: 'center' },
+  green: { background: 'var(--status-success-bg)', color: 'var(--status-success-text)' },
+  red: { background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)' },
+  gray: { background: 'var(--status-neutral-bg)', color: 'var(--status-neutral-text)' },
+  orange: { background: 'var(--status-warning-bg)', color: 'var(--status-warning-text)' },
+}
+
+function comandaStatusLabel(status: string): string {
+  if (status === 'livrata') return '✅ Livrată'
+  if (status === 'anulata') return '❌ Anulată'
+  if (status === 'in_procesare') return '🔵 În procesare'
+  return '🟡 Nouă'
+}
+
+function ClientCardNew({
+  client,
+  metrics,
+  clientComenzi,
+  clientVanzari,
+  expanded,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  client: Client
+  metrics: {
+    totalRon: number
+    vanzariCount: number
+    unpaidRon: number
+    comenziCount: number
+  }
+  clientComenzi: ComandaItem[]
+  clientVanzari: VanzareItem[]
+  expanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const hasPhone = Boolean(client.telefon)
+  const phoneClean = (client.telefon ?? '').replace(/\s+/g, '')
+
+  return (
+    <div
+      style={{
+        background: 'var(--agri-surface)',
+        borderRadius: 14,
+        border: '1px solid var(--agri-border)',
+        overflow: 'hidden',
+        marginBottom: 8,
+      }}
+    >
+      {/* Header row — always visible */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          background: 'none',
+          border: 'none',
+          padding: '12px 14px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 10,
+        }}
+      >
+        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>🤝</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {client.nume_client}
+            </span>
+            <span style={{ fontSize: 16, color: 'var(--agri-text-muted)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 3 }}>
+            {client.telefon && (
+              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{client.telefon}</span>
+            )}
+            {metrics.comenziCount > 0 && (
+              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{metrics.comenziCount} comenzi</span>
+            )}
+            {metrics.vanzariCount > 0 && (
+              <span style={{ fontSize: 12, color: 'var(--value-positive)', fontWeight: 600 }}>{metrics.totalRon.toFixed(0)} RON</span>
+            )}
+            {metrics.unpaidRon > 0 && (
+              <span style={{ ...PILL.base, ...PILL.red, fontSize: 11 }}>💸 {metrics.unpaidRon.toFixed(0)} RON neîncasat</span>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/* Expanded section */}
+      {expanded && (
+        <div style={{ padding: '0 14px 14px' }}>
+          {/* Contact actions */}
+          {hasPhone && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <a
+                href={`tel:${phoneClean}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                  background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', textDecoration: 'none',
+                  border: '1px solid var(--button-muted-border)',
+                }}
+              >
+                📞 Sună
+              </a>
+              <a
+                href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                  background: 'var(--status-success-bg)', color: 'var(--status-success-text)', textDecoration: 'none',
+                  border: '1px solid var(--status-success-border)',
+                }}
+              >
+                💬 WhatsApp
+              </a>
+            </div>
+          )}
+
+          {/* Last 3 comenzi */}
+          {clientComenzi.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--agri-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                Ultimele comenzi
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {clientComenzi.map((cmd) => (
+                  <div key={cmd.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text)' }}>
+                    <span>{cmd.data_comanda?.slice(0, 10) ?? '—'} · {Number(cmd.cantitate_kg || 0).toFixed(0)} kg</span>
+                    <span style={{ fontSize: 11, color: 'var(--agri-text-muted)' }}>{comandaStatusLabel(cmd.status)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Last 3 vânzări */}
+          {clientVanzari.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--agri-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                Ultimele vânzări
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {clientVanzari.map((v) => {
+                  const ron = Number(v.cantitate_kg || 0) * Number(v.pret_lei_kg || 0)
+                  return (
+                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text)' }}>
+                      <span>{v.data?.slice(0, 10) ?? '—'} · {Number(v.cantitate_kg || 0).toFixed(0)} kg · {ron.toFixed(0)} RON</span>
+                      <span style={{ fontSize: 11, color: isIncasata(v.status_plata) ? 'var(--status-success-text)' : 'var(--status-danger-text)' }}>
+                        {isIncasata(v.status_plata) ? '✅' : '⏳'}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Edit / Delete */}
+          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid var(--agri-border)', paddingTop: 12 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit() }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: 'var(--button-muted-bg)', border: '1px solid var(--button-muted-border)', color: 'var(--button-muted-text)', cursor: 'pointer',
+              }}
+            >
+              ✏️ Editează
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger-border)', color: 'var(--status-danger-text)', cursor: 'pointer',
+              }}
+            >
+              🗑️ Șterge
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Page component ───────────────────────────────────────────────────────────
+
 export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
-  const router = useRouter()
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showOnlyUnpaid, setShowOnlyUnpaid] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [desktopSelectedClientId, setDesktopSelectedClientId] = useState<string | null>(null)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [deletingClient, setDeletingClient] = useState<Client | null>(null)
-  const [focusClientId, setFocusClientId] = useState<string | null>(null)
-  const [focusTick, setFocusTick] = useState(0)
   const [importingCsv, setImportingCsv] = useState(false)
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
@@ -333,9 +532,19 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [showFailedRows, setShowFailedRows] = useState(false)
   const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ done: number; total: number } | null>(null)
+  const [addClientInitialValues, setAddClientInitialValues] = useState<{
+    nume_client: string
+    telefon: string
+    email: string
+    adresa: string
+    observatii: string
+  } | null>(null)
+  const addFromQuery = searchParams.get('add') === '1'
+  const openFormFromQuery = hasAiClientOpenForm(searchParams)
 
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, Client>>({})
+  const deleteMutateRef = useRef<(id: string) => void>(() => {})
   const csvInputRef = useRef<HTMLInputElement | null>(null)
 
   const {
@@ -354,7 +563,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     ready: !isLoading,
   })
 
-  const { data: comenzi = [], isLoading: isLoadingComenzi } = useQuery({
+  const { data: comenzi = [] } = useQuery({
     queryKey: queryKeys.comenzi,
     queryFn: getComenzi,
   })
@@ -365,7 +574,10 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
   })
 
   const createMutation = useMutation({
-    mutationFn: createClienti,
+    mutationFn: ({
+      input,
+      onDuplicateWarning,
+    }: CreateClientMutationVariables) => createClienti(input, { onDuplicateWarning }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
       toast.success('Client adăugat cu succes.')
@@ -402,23 +614,59 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     },
   })
 
+  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
     return () => {
-      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+      Object.keys(pendingDeleteTimers.current).forEach((id) => {
+        clearTimeout(pendingDeleteTimers.current[id])
+        if (pendingDeletedItems.current[id]) {
+          delete pendingDeletedItems.current[id]
+          deleteMutateRef.current(id)
+        }
+      })
+      pendingDeleteTimers.current = {}
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setDialogOpen(true), 'Adaugă client')
+    const unregister = registerAddAction(() => {
+      setAddClientInitialValues(null)
+      setDialogOpen(true)
+    }, 'Adaugă client')
     return unregister
   }, [registerAddAction])
+
+  useEffect(() => {
+    if (!addFromQuery) return
+    setAddClientInitialValues(null)
+    setDialogOpen(true)
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('add')
+    const query = nextParams.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [addFromQuery, pathname, router, searchParams])
+
+  useEffect(() => {
+    if (!openFormFromQuery) return
+    setAddClientInitialValues(parseAiClientPrefill(searchParams))
+    setDialogOpen(true)
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('openForm')
+    nextParams.delete('nume_client')
+    nextParams.delete('telefon')
+    nextParams.delete('email')
+    nextParams.delete('adresa')
+    nextParams.delete('observatii')
+    const query = nextParams.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [openFormFromQuery, pathname, router, searchParams])
 
   const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file || importingCsv) return
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024
     if (file.size > MAX_FILE_SIZE) {
       toast.error('Fișierul este prea mare. Limita este 10MB.')
       return
@@ -469,7 +717,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       const supabase = getSupabase()
       const tenantId = await getTenantId(supabase)
 
-      // Load existing clients once: for duplicate detection AND to find max id_client number
       const { data: existingData } = await supabase
         .from('clienti')
         .select('nume_client,telefon,id_client')
@@ -480,9 +727,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         )
       )
 
-      // Find the highest numeric suffix among existing id_client values for this tenant.
-      // This prevents collisions caused by a reset or out-of-sync global sequence.
-      // E.g. existing "C001"…"C038" → idCounter starts at 39.
       let idCounter = 0
       for (const row of existingData ?? []) {
         const match = row.id_client?.match(/(\d+)$/)
@@ -491,15 +735,13 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           if (num > idCounter) idCounter = num
         }
       }
-      idCounter++ // start one above the current max
+      idCounter++
 
-      // Generate IDs locally (no RPC per-row) — avoids global-sequence/reset collisions
       const makeClientId = (): string => {
         const n = idCounter++
         return `C${String(n).padStart(3, '0')}`
       }
 
-      // Build records, skipping duplicates
       type ImportRecord = {
         supabaseRow: {
           tenant_id: string; id_client: string; nume_client: string
@@ -532,14 +774,12 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         setImportProgress({ done: i + 1, total: validRows.length, phase: 'ids' })
       }
 
-      // Batch insert in chunks of 50; fall back to row-by-row if a batch fails
       const CHUNK_SIZE = 50
       for (let i = 0; i < records.length; i += CHUNK_SIZE) {
         const chunk = records.slice(i, i + CHUNK_SIZE)
         const { error } = await supabase.from('clienti').insert(chunk.map((r) => r.supabaseRow))
 
         if (error) {
-          // Batch failed — try each row individually to isolate bad rows
           const pgError = error as unknown as Record<string, unknown>
           console.error('[clienti import] batch insert failed, retrying row-by-row:', {
             message: error.message, details: pgError.details, hint: pgError.hint, code: pgError.code,
@@ -629,7 +869,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       const chunk = toDelete.slice(i, i + CHUNK)
       const ids = chunk.map((c) => c.id)
 
-      // Batch delete — fast path (no FK check). Fails if clients have related records.
       const { error } = await supabase
         .from('clienti')
         .delete()
@@ -637,7 +876,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         .in('id', ids)
 
       if (error) {
-        // Fall back to individual deletes (which check FK constraints properly)
         for (const client of chunk) {
           try {
             await deleteClienti(client.id)
@@ -668,6 +906,8 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     setBulkDeleteProgress(null)
   }
 
+  // ── Computed data ──────────────────────────────────────────────────────────
+
   const metricsByClient = useMemo(() => {
     const map: Record<
       string,
@@ -686,14 +926,8 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     const now = Date.now()
     for (const client of clienti) {
       map[client.id] = {
-        totalRon: 0,
-        totalKg: 0,
-        vanzariCount: 0,
-        unpaidRon: 0,
-        hasRecentSales: false,
-        lastVanzare: null,
-        comenziCount: 0,
-        lastComanda: null,
+        totalRon: 0, totalKg: 0, vanzariCount: 0, unpaidRon: 0,
+        hasRecentSales: false, lastVanzare: null, comenziCount: 0, lastComanda: null,
       }
     }
 
@@ -711,11 +945,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         if (daysDiff <= 30) entry.hasRecentSales = true
       }
       if (!entry.lastVanzare || vanzare.data > entry.lastVanzare.data) {
-        entry.lastVanzare = {
-          data: vanzare.data,
-          kg: Number(vanzare.cantitate_kg || 0),
-          totalRon,
-        }
+        entry.lastVanzare = { data: vanzare.data, kg: Number(vanzare.cantitate_kg || 0), totalRon }
       }
     }
 
@@ -725,11 +955,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       entry.comenziCount += 1
       const date = comanda.data_livrare || comanda.data_comanda
       if (!entry.lastComanda || date > entry.lastComanda.data) {
-        entry.lastComanda = {
-          data: date,
-          kg: Number(comanda.cantitate_kg || 0),
-          status: comanda.status,
-        }
+        entry.lastComanda = { data: date, kg: Number(comanda.cantitate_kg || 0), status: comanda.status }
       }
     }
 
@@ -748,30 +974,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         return isIncasata(row.status_plata) ? sum : sum + value
       }, 0),
     [vanzari]
-  )
-
-  const clientsWithUnpaid = useMemo(
-    () => clienti.filter((client) => (metricsByClient[client.id]?.unpaidRon ?? 0) > 0),
-    [clienti, metricsByClient]
-  )
-
-  const ranking = useMemo(
-    () =>
-      clienti
-        .map((client) => ({
-          client,
-          totalRon: metricsByClient[client.id]?.totalRon ?? 0,
-          totalKg: metricsByClient[client.id]?.totalKg ?? 0,
-        }))
-        .filter((row) => row.totalRon > 0)
-        .sort((a, b) => b.totalRon - a.totalRon)
-        .slice(0, 5),
-    [clienti, metricsByClient]
-  )
-
-  const rankingMaxRon = useMemo(
-    () => ranking.reduce((max, row) => (row.totalRon > max ? row.totalRon : max), 0),
-    [ranking]
   )
 
   const filteredClienti = useMemo(() => {
@@ -793,287 +995,284 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     return rows
   }, [clienti, metricsByClient, searchTerm, showOnlyUnpaid])
 
-  const selectedClientComenzi = useMemo(() => {
-    if (!selectedClient) return []
-    return comenzi.filter((comanda) => comanda.client_id === selectedClient.id)
-  }, [comenzi, selectedClient])
+  const comenziByClient = useMemo(() => {
+    const map: Record<string, ComandaItem[]> = {}
+    for (const cmd of comenzi) {
+      if (!cmd.client_id) continue
+      if (!map[cmd.client_id]) map[cmd.client_id] = []
+      map[cmd.client_id].push(cmd)
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => {
+        const da = a.data_comanda ?? ''
+        const db = b.data_comanda ?? ''
+        return db > da ? 1 : -1
+      })
+    }
+    return map
+  }, [comenzi])
 
-  const focusKeyByClient = useMemo(() => {
-    if (!focusClientId) return {}
-    return { [focusClientId]: focusTick }
-  }, [focusClientId, focusTick])
+  const vanzariByClient = useMemo(() => {
+    const map: Record<string, VanzareItem[]> = {}
+    for (const v of vanzari) {
+      if (!v.client_id) continue
+      if (!map[v.client_id]) map[v.client_id] = []
+      map[v.client_id].push(v)
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => {
+        const da = a.data ?? ''
+        const db = b.data ?? ''
+        return db > da ? 1 : -1
+      })
+    }
+    return map
+  }, [vanzari])
+  const desktopColumns = useMemo<ColumnDef<Client>[]>(() => [
+    {
+      accessorKey: 'nume_client',
+      header: 'Nume',
+      cell: ({ row }) => <span className="font-medium">{row.original.nume_client}</span>,
+    },
+    {
+      accessorKey: 'telefon',
+      header: 'Telefon',
+      cell: ({ row }) => row.original.telefon || '-',
+    },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+      cell: ({ row }) => row.original.email || '-',
+    },
+    {
+      id: 'comenziCount',
+      header: 'Nr. comenzi',
+      accessorFn: (row) => metricsByClient[row.id]?.comenziCount ?? 0,
+      cell: ({ row }) => metricsByClient[row.original.id]?.comenziCount ?? 0,
+      meta: {
+        searchValue: (row: Client) => metricsByClient[row.id]?.comenziCount ?? 0,
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Acțiuni',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Editează clientul"
+            onClick={(event) => {
+              event.stopPropagation()
+              setEditingClient(row.original)
+              setEditOpen(true)
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Șterge clientul"
+            onClick={(event) => {
+              event.stopPropagation()
+              setDeletingClient(row.original)
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+          </Button>
+        </div>
+      ),
+      meta: {
+        searchable: false,
+        sticky: 'right',
+        headerClassName: 'w-[104px] text-right',
+        cellClassName: 'w-[104px] text-right',
+      },
+    },
+  ], [metricsByClient])
 
-  const desktopSelectedClient =
-    filteredClienti.find((item) => item.id === desktopSelectedClientId) ?? filteredClienti[0] ?? null
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <AppShell
-      header={<PageHeader title="Clienți" subtitle="Administrare clienți" rightSlot={<UserCheck className="h-5 w-5" />} />}
-      bottomBar={
-        <StickyActionBar>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total clienți: {clienti.length}</p>
-          </div>
-        </StickyActionBar>
-      }
+      header={<PageHeader title="Clienți" subtitle="Administrare clienți" rightSlot={<span style={{ fontSize: 22 }}>🤝</span>} />}
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 lg:max-w-7xl">
+      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 py-3 sm:mt-0">
         <input ref={csvInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className="hidden" onChange={handleFileSelect} />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <MiniCard icon="👤" value={String(clienti.length)} sub="clienți" label="" />
-          <MiniCard icon="📦" value={String(totalOpenOrders)} sub="comenzi active" label="" onClick={() => router.push('/comenzi')} />
-          <MiniCard icon="💸" value={`${totalUnpaidRon.toFixed(0)} RON`} sub="RON de colectat" label="Neîncasat" className="col-span-2 sm:col-span-1" />
-        </div>
-
-        <div
-          style={{
-            background: colors.white,
-            borderRadius: radius.xl,
-            boxShadow: shadows.card,
-            padding: spacing.lg,
-          }}
-        >
-          <SectionTitle className="mb-2" title="Top clienți (valoare)" />
-          {ranking.length === 0 ? (
-            <p style={{ fontSize: 11, color: colors.gray }}>Nu există vânzări pentru clasament.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: spacing.xs }}>
-              {ranking.map((row, index) => {
-                const progress = rankingMaxRon > 0 ? Math.max(6, (row.totalRon / rankingMaxRon) * 100) : 0
-                const rankBg = [colors.greenLight, colors.blueLight, colors.yellowLight, colors.coralLight][index % 4]
-
-                return (
-                  <button
-                    key={row.client.id}
-                    type="button"
-                    onClick={() => {
-                      setFocusClientId(row.client.id)
-                      setFocusTick((current) => current + 1)
-                    }}
-                    style={{
-                      border: 'none',
-                      background: colors.white,
-                      borderRadius: radius.md,
-                      width: '100%',
-                      textAlign: 'left',
-                      padding: `${spacing.xs + 2}px ${spacing.sm}px`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: radius.sm,
-                          background: rankBg,
-                          color: colors.dark,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {index + 1}
-                      </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: colors.dark,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {row.client.nume_client}
-                        </div>
-                        <div
-                          style={{
-                            marginTop: 3,
-                            height: 5,
-                            borderRadius: radius.full,
-                            background: colors.grayLight,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${progress}%`,
-                              height: '100%',
-                              borderRadius: radius.full,
-                              background: colors.green,
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{row.totalRon.toFixed(0)} RON</div>
-                        <div style={{ fontSize: 10, color: colors.gray }}>{row.totalKg.toFixed(1)} kg</div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+        {/* Scoreboard compact */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: '4px 14px', alignItems: 'center',
+          padding: '10px 14px', background: 'var(--pill-active-bg)', borderRadius: 14,
+        }}>
+          <span style={{ color: 'var(--pill-active-text)', fontWeight: 700, fontSize: 15 }}>{clienti.length} clienți</span>
+          {totalOpenOrders > 0 && (
+            <>
+              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 25%, transparent)' }}>·</span>
+              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 72%, transparent)', fontSize: 13 }}>{totalOpenOrders} comenzi deschise</span>
+            </>
+          )}
+          {totalUnpaidRon > 0 && (
+            <>
+              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 25%, transparent)' }}>·</span>
+              <span style={{ color: 'var(--status-danger-text)', fontSize: 13, fontWeight: 600 }}>{totalUnpaidRon.toFixed(0)} RON neîncasat</span>
+            </>
           )}
         </div>
 
-        {clientsWithUnpaid.length > 0 ? (
-          <AlertCard
-            icon="💸"
-            label={`${clientsWithUnpaid.length} clienți cu sold neîncasat`}
-            value={`${totalUnpaidRon.toFixed(0)} RON`}
-            sub="RON de colectat"
-            variant="warning"
-            onClick={() => setShowOnlyUnpaid(true)}
+        {/* Search + pills */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <SearchField
+            containerClassName="md:hidden"
+            placeholder="Caută după nume, telefon sau email"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            aria-label="Caută clienți"
           />
-        ) : null}
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <SearchField
-              containerClassName="flex-1"
-              placeholder="Caută după nume, telefon sau email"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              aria-label="Caută clienți"
-            />
-            {showOnlyUnpaid ? (
-              <Button type="button" variant="outline" className="h-12 shrink-0" onClick={() => setShowOnlyUnpaid(false)}>
-                Reset
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Button type="button" variant="outline" className="h-11" disabled={importingCsv || isDeletingAll} onClick={() => csvInputRef.current?.click()}>
-              {importProgress?.phase === 'insert'
-                ? `Import ${importProgress.done}/${importProgress.total}...`
-                : importProgress?.phase === 'ids'
-                  ? `Pregătire ${importProgress.done}/${importProgress.total}...`
-                  : importingCsv
-                    ? 'Se importă...'
-                    : 'Importă din fișier'}
-            </Button>
-            <Button type="button" variant="outline" className="h-11" onClick={() => setDialogOpen(true)} disabled={isDeletingAll}>
-              Client nou
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="col-span-2 h-11 border-red-200 text-red-700 hover:bg-red-50 sm:col-span-1"
-              disabled={clienti.length === 0 || isDeletingAll || importingCsv}
-              onClick={() => setBulkDeleteOpen(true)}
-            >
-              <Trash2 className="h-4 w-4" />
-              {bulkDeleteProgress
-                ? `Se șterge... ${bulkDeleteProgress.done}/${bulkDeleteProgress.total}`
-                : isDeletingAll
-                  ? 'Se șterge...'
-                  : 'Șterge toți'}
-            </Button>
-          </div>
-
-          <p className="text-xs text-[var(--agri-text-muted)]">
-            Acceptă fișiere CSV sau Excel (.xlsx). În fișa clientului poți salva rapid contactul în telefon.{' '}
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
-              className="inline text-[var(--agri-primary)] underline-offset-2 hover:underline"
-              onClick={() => setImportHelpOpen(true)}
+              onClick={() => setShowOnlyUnpaid(false)}
+              style={{
+                borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
+                background: !showOnlyUnpaid ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+                color: !showOnlyUnpaid ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
+                border: 'none', cursor: 'pointer',
+              }}
             >
-              ℹ️ Cum trebuie să arate fișierul?
+              Toți
             </button>
-          </p>
-
-          {importPreview && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
-              {/* Count summary */}
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-emerald-800">
-                  {importPreview.totalParsed} contacte găsite
-                  {importPreview.skippedNoName > 0
-                    ? `, ${importPreview.rows.length} cu nume valid, ${importPreview.skippedNoName} fără nume (vor fi sărite)`
-                    : `, ${importPreview.rows.length} cu nume valid`}
-                </p>
-                {!importPreview.hasPhoneColumn && (
-                  <p className="text-xs font-medium text-amber-700">⚠️ Nu s-a detectat coloana de telefon</p>
-                )}
-                {importPreview.formulaFixCount > 0 && (
-                  <p className="text-xs font-medium text-blue-700">
-                    ℹ️ {importPreview.formulaFixCount} {importPreview.formulaFixCount === 1 ? 'contact are' : 'contacte au'} nume din formulă Excel — s-a folosit coloana "First Name"
-                  </p>
-                )}
-              </div>
-
-              {/* Mapped columns */}
-              {importPreview.mappingSummary.length > 0 && (
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Coloane detectate</p>
-                  {importPreview.mappingSummary.map((line) => (
-                    <p key={line} className="text-xs text-emerald-700">{line}</p>
-                  ))}
-                </div>
-              )}
-
-              {/* Unmapped columns */}
-              {importPreview.unmappedColumns.length > 0 && (
-                <div className="space-y-0.5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Coloane nerecunoscute (ignorate)</p>
-                  <p className="text-xs text-gray-400">{importPreview.unmappedColumns.join(', ')}</p>
-                </div>
-              )}
-
-              {/* Row preview */}
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Primele rânduri</p>
-                {importPreview.rows.slice(0, 5).map((row, i) => (
-                  <div key={i} className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-emerald-800">
-                    <span className="font-semibold">{row.nume_client}</span>
-                    {row.telefon ? <span className="text-emerald-600">{row.telefon}</span> : null}
-                    {row.email ? <span className="text-emerald-600">{row.email}</span> : null}
-                    {row.adresa ? <span className="text-emerald-600">{row.adresa}</span> : null}
-                  </div>
-                ))}
-                {importPreview.rows.length > 5 ? (
-                  <p className="text-xs text-emerald-600">...și încă {importPreview.rows.length - 5} contacte</p>
-                ) : null}
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-emerald-600 text-white hover:bg-emerald-700"
-                  onClick={handleConfirmImport}
-                  disabled={importingCsv || !importPreview.rows.length}
-                >
-                  {importProgress
-                    ? importProgress.phase === 'ids'
-                      ? `Pregătire ${importProgress.done}/${importProgress.total}...`
-                      : `Import ${importProgress.done}/${importProgress.total}...`
-                    : importingCsv
-                      ? 'Se importă...'
-                      : `Importă ${importPreview.rows.length} contacte`}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setImportPreview(null)}
-                  disabled={importingCsv}
-                >
-                  Anulează
-                </Button>
-              </div>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() => setShowOnlyUnpaid(true)}
+              style={{
+                borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
+                background: showOnlyUnpaid ? 'var(--status-danger-text)' : 'var(--pill-inactive-bg)',
+                color: showOnlyUnpaid ? '#fff' : 'var(--pill-inactive-text)',
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              💸 Neîncasat
+            </button>
+          </div>
         </div>
 
+        {/* Import buttons */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Button type="button" variant="outline" className="h-11" disabled={importingCsv || isDeletingAll} onClick={() => csvInputRef.current?.click()}>
+            {importProgress?.phase === 'insert'
+              ? `Import ${importProgress.done}/${importProgress.total}...`
+              : importProgress?.phase === 'ids'
+                ? `Pregătire ${importProgress.done}/${importProgress.total}...`
+                : importingCsv
+                  ? 'Se importă...'
+                  : 'Importă din fișier'}
+          </Button>
+          <Button type="button" variant="outline" className="h-11" onClick={() => setDialogOpen(true)} disabled={isDeletingAll}>
+            Client nou
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="col-span-2 h-11 border-red-200 text-red-700 hover:bg-red-50 sm:col-span-1"
+            disabled={clienti.length === 0 || isDeletingAll || importingCsv}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            {bulkDeleteProgress
+              ? `Se șterge... ${bulkDeleteProgress.done}/${bulkDeleteProgress.total}`
+              : isDeletingAll
+                ? 'Se șterge...'
+                : 'Șterge toți'}
+          </Button>
+        </div>
+
+        <p className="text-xs text-[var(--agri-text-muted)]">
+          Acceptă fișiere CSV sau Excel (.xlsx).{' '}
+          <button
+            type="button"
+            className="inline text-[var(--agri-primary)] underline-offset-2 hover:underline"
+            onClick={() => setImportHelpOpen(true)}
+          >
+            ℹ️ Cum trebuie să arate fișierul?
+          </button>
+        </p>
+
+        {/* Import preview */}
+        {importPreview && (
+          <div className="space-y-3 rounded-xl border border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-[var(--soft-success-text)]">
+                {importPreview.totalParsed} contacte găsite
+                {importPreview.skippedNoName > 0
+                  ? `, ${importPreview.rows.length} cu nume valid, ${importPreview.skippedNoName} fără nume (vor fi sărite)`
+                  : `, ${importPreview.rows.length} cu nume valid`}
+              </p>
+              {!importPreview.hasPhoneColumn && (
+                <p className="text-xs font-medium text-[var(--soft-warning-text)]">⚠️ Nu s-a detectat coloana de telefon</p>
+              )}
+              {importPreview.formulaFixCount > 0 && (
+                <p className="text-xs font-medium text-[var(--soft-info-text)]">
+                  ℹ️ {importPreview.formulaFixCount} {importPreview.formulaFixCount === 1 ? 'contact are' : 'contacte au'} nume din formulă Excel — s-a folosit coloana &ldquo;First Name&rdquo;
+                </p>
+              )}
+            </div>
+            {importPreview.mappingSummary.length > 0 && (
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--soft-success-text)]">Coloane detectate</p>
+                {importPreview.mappingSummary.map((line) => (
+                  <p key={line} className="text-xs text-[var(--soft-success-text)]">{line}</p>
+                ))}
+              </div>
+            )}
+            {importPreview.unmappedColumns.length > 0 && (
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-zinc-400">Coloane nerecunoscute (ignorate)</p>
+                <p className="text-xs text-gray-400 dark:text-zinc-400">{importPreview.unmappedColumns.join(', ')}</p>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--soft-success-text)]">Primele rânduri</p>
+              {importPreview.rows.slice(0, 5).map((row, i) => (
+                <div key={i} className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--agri-text)]">
+                  <span className="font-semibold">{row.nume_client}</span>
+                  {row.telefon ? <span className="text-[var(--agri-text-muted)]">{row.telefon}</span> : null}
+                  {row.email ? <span className="text-[var(--agri-text-muted)]">{row.email}</span> : null}
+                  {row.adresa ? <span className="text-[var(--agri-text-muted)]">{row.adresa}</span> : null}
+                </div>
+              ))}
+              {importPreview.rows.length > 5 ? (
+                <p className="text-xs text-[var(--agri-text-muted)]">...și încă {importPreview.rows.length - 5} contacte</p>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                onClick={handleConfirmImport}
+                disabled={importingCsv || !importPreview.rows.length}
+              >
+                {importProgress
+                  ? importProgress.phase === 'ids'
+                    ? `Pregătire ${importProgress.done}/${importProgress.total}...`
+                    : `Import ${importProgress.done}/${importProgress.total}...`
+                  : importingCsv
+                    ? 'Se importă...'
+                    : `Importă ${importPreview.rows.length} contacte`}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setImportPreview(null)} disabled={importingCsv}>
+                Anulează
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
         {isError ? (
           <ErrorState
             title="Eroare la încărcare"
@@ -1082,162 +1281,80 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           />
         ) : null}
 
+        {/* Loading skeleton */}
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, index) => (
-              <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
+              <ListSkeletonCard key={index} className="min-h-[72px]" />
             ))}
           </div>
         ) : null}
 
+        {/* Empty state */}
         {!isLoading && !isError && filteredClienti.length === 0 ? (
-          <EmptyState icon={<Users className="h-16 w-16" />} title="Niciun client încă" description="Adaugă primul client pentru a începe" />
+          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🤝</div>
+            <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--agri-text)', marginBottom: 6 }}>Niciun client adăugat</p>
+            <p style={{ fontSize: 13, color: 'var(--agri-text-muted)' }}>Adaugă primul client pentru a începe</p>
+          </div>
         ) : null}
 
+        {/* Cards */}
         {!isLoading && !isError && filteredClienti.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-              {filteredClienti.map((client) => {
-                const metrics = metricsByClient[client.id]
-                return (
-                  <ClientCard
-                    key={client.id}
-                    client={client}
-                    totalRon={metrics?.totalRon ?? 0}
-                    totalKg={metrics?.totalKg ?? 0}
-                    comenziCount={metrics?.comenziCount ?? 0}
-                    vanzariCount={metrics?.vanzariCount ?? 0}
-                    unpaidRon={metrics?.unpaidRon ?? 0}
-                    hasRecentSales={metrics?.hasRecentSales ?? false}
-                    lastComanda={metrics?.lastComanda}
-                    lastVanzare={metrics?.lastVanzare}
-                    focusKey={focusKeyByClient[client.id] ?? 0}
-                    onEdit={(item) => {
-                      setEditingClient(item)
-                      setEditOpen(true)
-                    }}
-                    onDelete={(id) => {
-                      const target = clienti.find((item) => item.id === id) ?? null
-                      setDeletingClient(target)
-                    }}
-                    onOpenDetails={(item) => {
-                      setSelectedClient(item)
-                      setDrawerOpen(true)
-                    }}
-                  />
-                )
-              })}
-            </div>
-
-            <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.9fr)_minmax(360px,1fr)] lg:gap-4">
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Client</th>
-                      <th className="px-4 py-3 font-semibold">Telefon</th>
-                      <th className="px-4 py-3 font-semibold">Vânzări</th>
-                      <th className="px-4 py-3 font-semibold">Comenzi</th>
-                      <th className="px-4 py-3 font-semibold">Neîncasat</th>
-                      <th className="w-8 px-2 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredClienti.map((client) => {
-                      const metrics = metricsByClient[client.id]
-                      const isSelected = desktopSelectedClient?.id === client.id
-                      return (
-                        <tr
-                          key={client.id}
-                          className={`cursor-pointer border-t border-gray-100 transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                          onClick={() => setDesktopSelectedClientId(client.id)}
-                        >
-                          <td className="px-4 py-3 font-medium text-gray-900">{client.nume_client}</td>
-                          <td className="px-4 py-3 text-gray-700">{client.telefon || '-'}</td>
-                          <td className="px-4 py-3 text-gray-700">{metrics?.vanzariCount ?? 0}</td>
-                          <td className="px-4 py-3 text-gray-700">{metrics?.comenziCount ?? 0}</td>
-                          <td className="px-4 py-3 text-gray-900">{(metrics?.unpaidRon ?? 0).toFixed(0)} RON</td>
-                          <td className="px-2 py-3">
-                            <button
-                              type="button"
-                              aria-label={`Șterge ${client.nume_client}`}
-                              className="rounded p-1 text-gray-300 opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 [tr:hover_&]:opacity-100"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setDeletingClient(client)
-                              }}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <aside className="sticky top-6 self-start max-h-[calc(100vh-5rem)] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Profil client</h3>
-                {desktopSelectedClient ? (
-                  <div className="mt-4 space-y-3 text-sm text-gray-700">
-                    <p><span className="font-medium text-gray-900">Nume:</span> {desktopSelectedClient.nume_client}</p>
-                    <p><span className="font-medium text-gray-900">Telefon:</span> {desktopSelectedClient.telefon || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Email:</span> {desktopSelectedClient.email || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Adresă:</span> {desktopSelectedClient.adresa || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Vânzări:</span> {metricsByClient[desktopSelectedClient.id]?.vanzariCount ?? 0}</p>
-                    <p><span className="font-medium text-gray-900">Comenzi:</span> {metricsByClient[desktopSelectedClient.id]?.comenziCount ?? 0}</p>
-                    <p><span className="font-medium text-gray-900">Sold neîncasat:</span> {(metricsByClient[desktopSelectedClient.id]?.unpaidRon ?? 0).toFixed(0)} RON</p>
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <button
-                        type="button"
-                        className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800"
-                        onClick={() => {
-                          setSelectedClient(desktopSelectedClient)
-                          setDrawerOpen(true)
-                        }}
-                      >
-                        Vezi detalii
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                        onClick={() => {
-                          setEditingClient(desktopSelectedClient)
-                          setEditOpen(true)
-                        }}
-                      >
-                        Editează
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
-                        onClick={() => setDeletingClient(desktopSelectedClient)}
-                      >
-                        Șterge
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-gray-600">Selectează un client pentru detalii.</p>
-                )}
-              </aside>
-            </div>
-          </>
+          <ResponsiveDataView
+            columns={desktopColumns}
+            data={filteredClienti}
+            getRowId={(row) => row.id}
+            searchPlaceholder="Caută în clienți..."
+            emptyMessage="Nu am găsit clienți pentru filtrele curente."
+            renderCard={(client) => {
+              const metrics = metricsByClient[client.id]
+              return (
+                <ClientCardNew
+                  client={client}
+                  metrics={{
+                    totalRon: metrics?.totalRon ?? 0,
+                    vanzariCount: metrics?.vanzariCount ?? 0,
+                    unpaidRon: metrics?.unpaidRon ?? 0,
+                    comenziCount: metrics?.comenziCount ?? 0,
+                  }}
+                  clientComenzi={(comenziByClient[client.id] ?? []).slice(0, 3)}
+                  clientVanzari={(vanzariByClient[client.id] ?? []).slice(0, 3)}
+                  expanded={expandedId === client.id}
+                  onToggle={() => setExpandedId(expandedId === client.id ? null : client.id)}
+                  onEdit={() => {
+                    setEditingClient(client)
+                    setEditOpen(true)
+                  }}
+                  onDelete={() => setDeletingClient(client)}
+                />
+              )
+            }}
+          />
         ) : null}
       </div>
 
+      {/* Dialogs */}
       <AddClientDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setAddClientInitialValues(null)
+        }}
+        initialValues={addClientInitialValues ?? undefined}
         onSubmit={async (data) => {
           await createMutation.mutateAsync({
-            nume_client: data.nume_client,
-            telefon: data.telefon || null,
-            email: data.email || null,
-            adresa: data.adresa || null,
-            pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
-            observatii: data.observatii || null,
+            input: {
+              nume_client: data.nume_client,
+              telefon: data.telefon || null,
+              email: data.email || null,
+              adresa: data.adresa || null,
+              pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
+              observatii: data.observatii || null,
+            },
+            onDuplicateWarning: (existing) => {
+              toast.warning(`Un client cu un nume similar există deja: ${existing.nume_client}. Continui.`)
+            },
           })
         }}
       />
@@ -1261,27 +1378,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
               observatii: data.observatii || null,
             },
           })
-        }}
-      />
-
-      <ClientDetailsDrawer
-        open={drawerOpen}
-        onOpenChange={(open) => {
-          setDrawerOpen(open)
-          if (!open) setSelectedClient(null)
-        }}
-        client={selectedClient}
-        comenzi={selectedClientComenzi}
-        isLoadingComenzi={isLoadingComenzi}
-        onEdit={(client) => {
-          setSelectedClient(client)
-          setDrawerOpen(false)
-          setEditingClient(client)
-          setEditOpen(true)
-        }}
-        onDelete={(client) => {
-          setDrawerOpen(false)
-          setDeletingClient(client)
         }}
       />
 
@@ -1325,7 +1421,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
             Fișierul trebuie să aibă un <strong className="text-[var(--agri-text)]">rând de antet</strong> (header)
             pe prima linie cu numele coloanelor.
           </p>
-
           <div className="space-y-2">
             <p className="font-medium text-[var(--agri-text)]">Coloane recunoscute:</p>
             <ul className="space-y-1.5 pl-1">
@@ -1343,7 +1438,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
               ))}
             </ul>
           </div>
-
           <div className="space-y-2">
             <p className="font-medium text-[var(--agri-text)]">Exemplu:</p>
             <div className="overflow-x-auto rounded-lg border border-[var(--agri-border)]">
@@ -1372,7 +1466,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
               </table>
             </div>
           </div>
-
           <p className="rounded-lg bg-[var(--agri-surface-muted)] px-3 py-2 text-xs">
             Fișierele exportate din <strong className="text-[var(--agri-text)]">Google Contacts</strong> sau din{' '}
             <strong className="text-[var(--agri-text)]">agenda telefonului</strong> sunt recunoscute automat.
@@ -1400,13 +1493,13 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                 <span><strong>{importResult.imported}</strong> clienți importați</span>
               </p>
               {importResult.skippedNoName > 0 && (
-                <p className="flex items-center gap-2 text-gray-500">
+                <p className="flex items-center gap-2 text-gray-500 dark:text-zinc-400">
                   <span className="text-base">⏭️</span>
                   <span><strong>{importResult.skippedNoName}</strong> fără nume — săriți</span>
                 </p>
               )}
               {importResult.skippedDuplicate > 0 && (
-                <p className="flex items-center gap-2 text-gray-500">
+                <p className="flex items-center gap-2 text-gray-500 dark:text-zinc-400">
                   <span className="text-base">⏭️</span>
                   <span><strong>{importResult.skippedDuplicate}</strong> {importResult.skippedDuplicate === 1 ? 'duplicat' : 'duplicate'} — sărite</span>
                 </p>
@@ -1454,3 +1547,5 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     </AppShell>
   )
 }
+
+

@@ -119,7 +119,8 @@ export default function LoginPageClient() {
       track('user_login')
       router.replace(nextPath)
       router.refresh()
-    } catch {
+    } catch (error) {
+      console.error('Post-login redirect handling failed:', error)
       router.replace(nextPath)
       router.refresh()
     }
@@ -234,6 +235,7 @@ export default function LoginPageClient() {
 
       window.location.assign(data.url)
     } catch (error) {
+      console.error('Google sign-in failed:', error)
       setGoogleLoading(false)
       const message =
         error instanceof Error ? error.message : 'Nu am putut porni autentificarea cu Google.'

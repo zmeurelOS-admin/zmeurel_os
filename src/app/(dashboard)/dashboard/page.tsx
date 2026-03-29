@@ -1,45 +1,82 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import GridLayout, { WidthProvider } from 'react-grid-layout/legacy'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
-import { AppShell } from '@/components/app/AppShell'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState as BaseLoadingState } from '@/components/app/LoadingState'
 import { DashboardSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
 import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
-import { SectionTitle } from '@/components/dashboard/SectionTitle'
-import AlertCard from '@/components/ui/AlertCard'
-import MiniCard from '@/components/ui/MiniCard'
-import Sparkline from '@/components/ui/Sparkline'
-import StatusBadge from '@/components/ui/StatusBadge'
-import TrendBadge from '@/components/ui/TrendBadge'
+import {
+  ActivitatiPlanificateWidget,
+  ComenziRecenteWidget,
+  KpiSummaryWidget,
+  RecoltariRecenteWidget,
+  StocuriCriticeWidget,
+  SumarVenituriWidget,
+} from '@/components/dashboard/DashboardWidgets'
+import { AppShell } from '@/components/app/AppShell'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DASHBOARD_WIDGET_META,
+  normalizeDashboardLayout,
+  sortDashboardWidgetsForDisplay,
+  toReactGridLayout,
+  type DashboardLayoutConfig,
+  type DashboardWidgetId,
+} from '@/lib/dashboard/layout'
+import { STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG } from '@/lib/calculations/stock-audit-thresholds'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
+import { queryKeys } from '@/lib/query-keys'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
-import { getClienți } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
+import { getStocuriPeLocatii } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import {
+  dismissDashboardOnboarding,
+  getDashboardProfilePreferences,
+  updateDashboardLayout,
+} from '@/lib/supabase/queries/profile-dashboard'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
-import { getCultureStageLogsForUnitati, getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
-import { getSupabase } from '@/lib/supabase/client'
 import { toast } from '@/lib/ui/toast'
-import { queryKeys } from '@/lib/query-keys'
 
 const DAY_MS = 24 * 60 * 60 * 1000
+const EMPTY_LIST: never[] = []
+const DashboardGridLayout = WidthProvider(GridLayout)
 
 function toDateOnly(value: string | null | undefined): string {
   return (value ?? '').slice(0, 10)
 }
 
+function parseDateOnly(value: string | null | undefined): Date | null {
+  const dateOnly = toDateOnly(value)
+  if (!dateOnly) return null
+  const parsed = new Date(`${dateOnly}T12:00:00`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 function asNumber(value: unknown): number {
-  const n = Number(value ?? 0)
-  return Number.isFinite(n) ? n : 0
+  const parsed = Number(value ?? 0)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function getIsoDay(offset = 0): string {
@@ -47,6 +84,10 @@ function getIsoDay(offset = 0): string {
   date.setHours(0, 0, 0, 0)
   if (offset !== 0) date.setTime(date.getTime() + offset * DAY_MS)
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function toIsoDate(value: Date): string {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
 }
 
 function formatNumber(value: number, fractionDigits = 1): string {
@@ -60,9 +101,24 @@ function formatMoney(value: number): string {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(value))
 }
 
-function formatDateLabel(isoDate: string): string {
-  const parsed = new Date(`${isoDate}T12:00:00`)
-  if (Number.isNaN(parsed.getTime())) return isoDate || '-'
+function formatCompactKpiMoney(value: number): string {
+  const absoluteValue = Math.abs(value)
+  if (absoluteValue >= 10_000) {
+    const compactValue = absoluteValue / 1_000
+    const formatted = new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: compactValue < 100 ? 1 : 0,
+      minimumFractionDigits: compactValue < 100 ? 1 : 0,
+    }).format(compactValue)
+
+    return `${value < 0 ? '-' : ''}${formatted}k RON`
+  }
+
+  return `${formatMoney(value)} RON`
+}
+
+function formatShortDate(value: string): string {
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value || '-'
   return new Intl.DateTimeFormat('ro-RO', { day: '2-digit', month: 'short' }).format(parsed)
 }
 
@@ -77,14 +133,14 @@ function formatTimestamp(value: string): string {
   }).format(parsed)
 }
 
-function formatCountLabel(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}`
-}
-
-function toTrend(current: number, previous: number): { value: number; positive: boolean } | undefined {
-  if (previous <= 0) return undefined
-  const delta = ((current - previous) / previous) * 100
-  return { value: Math.round(Math.abs(delta)), positive: delta >= 0 }
+function buildTrend(current: number, previous: number): { percent: number; positive: boolean } | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null
+  const delta = current - previous
+  if (delta === 0) return null
+  return {
+    percent: Math.abs((delta / Math.abs(previous)) * 100),
+    positive: delta > 0,
+  }
 }
 
 function isActiveParcela(status: string | null): boolean {
@@ -92,117 +148,49 @@ function isActiveParcela(status: string | null): boolean {
   return !['anulat', 'inactiv', 'inactiva'].includes(normalized)
 }
 
-function isSolarTip(tipUnitate: string | null | undefined): boolean {
-  return String(tipUnitate ?? '').trim().toLowerCase() === 'solar'
-}
-
-type FeedItem = {
-  key: string
-  icon: string
-  iconBg: string
-  text: string
-  timestamp: string
-  href: string
-}
-
-type SolarPlanItem = {
-  key: string
-  label: string
-  value: string
-  sub: string
-  variant: 'success' | 'warning' | 'danger'
-  href: string
+function getGreeting(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Bună dimineața'
+  if (h < 18) return 'Bună ziua'
+  return 'Bună seara'
 }
 
 function LoadingState({ label }: { label?: string }) {
   if (label?.toLowerCase().includes('dashboard')) {
     return <DashboardSkeleton />
   }
-
   return <BaseLoadingState label={label} />
 }
 
-type GuideKey = 'recoltari' | 'comenzi' | 'financiar' | 'activitati'
-const GUIDE_LS_KEYS: Record<GuideKey, string> = {
-  recoltari: 'dismissed_guide_recoltari',
-  comenzi: 'dismissed_guide_comenzi',
-  financiar: 'dismissed_guide_financiar',
-  activitati: 'dismissed_guide_activitati',
-}
-
-function GuideCard({
-  emoji,
-  title,
-  text,
-  actionLabel,
-  onDismiss,
-  onAction,
-}: {
-  emoji: string
-  title: string
-  text: string
-  actionLabel?: string
-  onDismiss: () => void
-  onAction?: () => void
-}) {
-  return (
-    <div
-      style={{
-        position: 'relative',
-        border: '1.5px dashed rgba(0,0,0,0.13)',
-        borderRadius: radius.xl,
-        background: 'rgba(248,250,248,0.7)',
-        padding: spacing.lg,
-      }}
-    >
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label="Ascunde"
-        style={{
-          position: 'absolute', top: 8, right: 8,
-          border: 'none', background: 'rgba(0,0,0,0.06)',
-          borderRadius: radius.full, width: 22, height: 22,
-          fontWeight: 700, color: colors.gray,
-          cursor: 'pointer', fontSize: 14, lineHeight: '22px',
-        }}
-      >×</button>
-      <div style={{ fontSize: 24 }}>{emoji}</div>
-      <div style={{ marginTop: spacing.sm, fontSize: 13, fontWeight: 700, color: colors.dark }}>{title}</div>
-      <div style={{ marginTop: 4, fontSize: 12, color: colors.gray, lineHeight: 1.5 }}>{text}</div>
-      {actionLabel ? (
-        <button
-          type="button"
-          onClick={onAction}
-          style={{
-            marginTop: spacing.sm,
-            border: `1px solid ${colors.primary}`,
-            borderRadius: radius.lg,
-            background: 'transparent',
-            color: colors.primary,
-            fontSize: 12,
-            fontWeight: 700,
-            padding: '6px 14px',
-            cursor: 'pointer',
-          }}
-        >
-          {actionLabel}
-        </button>
-      ) : null}
-    </div>
-  )
+function getComparableLayoutJson(layout: DashboardLayoutConfig): string {
+  return JSON.stringify({
+    version: 1,
+    widgets: layout.widgets.map((widget) => ({
+      id: widget.id,
+      x: widget.x,
+      y: widget.y,
+      w: widget.w,
+      h: widget.h,
+      active: widget.active,
+      static: widget.static ?? false,
+    })),
+  })
 }
 
 export default function DashboardPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { userId } = useDashboardAuth()
+  const [editMode, setEditMode] = useState(false)
+  const [addWidgetOpen, setAddWidgetOpen] = useState(false)
+  const [draftLayout, setDraftLayout] = useState<DashboardLayoutConfig | null>(null)
 
   useEffect(() => {
     trackEvent('open_dashboard', 'dashboard')
   }, [])
 
   useEffect(() => {
-    ;['/parcele', '/activitati-agricole', '/recoltari', '/vanzari', '/comenzi'].forEach((href) => {
+    ;['/parcele', '/activitati-agricole', '/recoltari', '/vanzari', '/comenzi', '/stocuri'].forEach((href) => {
       router.prefetch(href)
     })
   }, [router])
@@ -243,59 +231,58 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
   })
 
-  const clientiQuery = useQuery({
-    queryKey: queryKeys.clienti,
-    queryFn: getClienți,
-    staleTime: 30000,
-    refetchOnWindowFocus: false,
-  })
-
-  const solarParcelaIdsForQuery = useMemo(
-    () => (parceleQuery.data ?? []).filter((parcela) => isSolarTip(parcela.tip_unitate)).map((parcela) => parcela.id),
-    [parceleQuery.data],
-  )
-
-  const solarClimateQuery = useQuery({
-    queryKey: queryKeys.solarClimate(solarParcelaIdsForQuery.join(',')),
-    queryFn: () => getSolarClimateLogsForUnitati(solarParcelaIdsForQuery, 240),
-    enabled: solarParcelaIdsForQuery.length > 0,
-    placeholderData: (previousData) => previousData,
-  })
-
-  const solarStagesQuery = useQuery({
-    queryKey: queryKeys.solarStages(solarParcelaIdsForQuery.join(',')),
-    queryFn: () => getCultureStageLogsForUnitati(solarParcelaIdsForQuery, 240),
-    enabled: solarParcelaIdsForQuery.length > 0,
+  const stocuriQuery = useQuery({
+    queryKey: queryKeys.stocuriLocatiiRoot,
+    queryFn: () => getStocuriPeLocatii(),
     placeholderData: (previousData) => previousData,
   })
 
   const profileQuery = useQuery({
     queryKey: queryKeys.currentUserProfile,
+    enabled: Boolean(userId),
     queryFn: async () => {
-      const supabase = getSupabase()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return false
-      const { data } = await supabase.from('profiles').select('hide_onboarding').eq('id', user.id).maybeSingle()
-      return data?.hide_onboarding ?? false
+      if (!userId) {
+        return { hideOnboarding: false, dashboardLayout: null }
+      }
+      return getDashboardProfilePreferences(userId)
     },
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   })
 
-  const hideOnboarding = profileQuery.data === true
+  const savedLayout = useMemo(
+    () => normalizeDashboardLayout(profileQuery.data?.dashboardLayout ?? null),
+    [profileQuery.data?.dashboardLayout]
+  )
+  const currentLayout = editMode ? (draftLayout ?? savedLayout) : savedLayout
 
   const dismissOnboardingMutation = useMutation({
     mutationFn: async () => {
-      const supabase = getSupabase()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      await supabase.from('profiles').update({ hide_onboarding: true }).eq('id', user.id)
+      if (!userId) return
+      await dismissDashboardOnboarding(userId)
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.currentUserProfile })
     },
     onError: () => {
       toast.error('Nu am putut salva preferința.')
+    },
+  })
+
+  const saveLayoutMutation = useMutation({
+    mutationFn: async () => {
+      if (!userId) throw new Error('Utilizatorul nu este autentificat.')
+      await updateDashboardLayout(userId, currentLayout)
+    },
+    onSuccess: async () => {
+      toast.success('Dashboard-ul a fost salvat.')
+      setEditMode(false)
+      setAddWidgetOpen(false)
+      setDraftLayout(null)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.currentUserProfile })
+    },
+    onError: () => {
+      toast.error('Nu am putut salva layout-ul dashboard-ului.')
     },
   })
 
@@ -306,15 +293,12 @@ export default function DashboardPage() {
     vanzariQuery,
     cheltuieliQuery,
     comenziQuery,
-    clientiQuery,
+    stocuriQuery,
   ]
 
   const hasResolvedCoreData = coreQueries.some((query) => query.data !== undefined)
   const isLoading = !hasResolvedCoreData && coreQueries.some((query) => query.isLoading)
   const hasError = coreQueries.some((query) => query.isError)
-  const coreSettled = coreQueries.every((query) => !query.isLoading)
-  const showDashboardSkeleton = isLoading && !hasError
-
   const errorMessage =
     (recoltariQuery.error as Error | null)?.message ||
     (parceleQuery.error as Error | null)?.message ||
@@ -322,1059 +306,592 @@ export default function DashboardPage() {
     (vanzariQuery.error as Error | null)?.message ||
     (cheltuieliQuery.error as Error | null)?.message ||
     (comenziQuery.error as Error | null)?.message ||
-    (clientiQuery.error as Error | null)?.message
+    (stocuriQuery.error as Error | null)?.message
 
-  const recoltari = recoltariQuery.data ?? []
-  const parcele = parceleQuery.data ?? []
-  const activitati = activitatiQuery.data ?? []
-  const vanzari = vanzariQuery.data ?? []
-  const cheltuieli = cheltuieliQuery.data ?? []
-  const comenzi = comenziQuery.data ?? []
-  const clienti = clientiQuery.data ?? []
-  const solarClimateLogs = solarClimateQuery.data ?? []
-  const solarStageLogs = solarStagesQuery.data ?? []
-  const shouldRedirectToStart = false
+  const recoltari = recoltariQuery.data ?? EMPTY_LIST
+  const parcele = parceleQuery.data ?? EMPTY_LIST
+  const activitati = activitatiQuery.data ?? EMPTY_LIST
+  const vanzari = vanzariQuery.data ?? EMPTY_LIST
+  const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
+  const comenzi = comenziQuery.data ?? EMPTY_LIST
+  const stocuri = stocuriQuery.data ?? EMPTY_LIST
 
+  const hideOnboarding = profileQuery.data?.hideOnboarding === true
+
+  const now = new Date()
   const todayIso = getIsoDay(0)
   const yesterdayIso = getIsoDay(-1)
-  const recentPlantingThresholdIso = getIsoDay(-14)
-  const weekDays = Array.from({ length: 7 }, (_, i) => getIsoDay(i - 6))
-  const prevWeekDays = Array.from({ length: 7 }, (_, i) => getIsoDay(i - 13))
-  const nowMs = useMemo(() => new Date(`${todayIso}T12:00:00`).getTime(), [todayIso])
+  const tomorrowIso = getIsoDay(1)
+  const seasonStartIso = `${now.getFullYear()}-03-01`
+  const previousSeasonStartIso = `${now.getFullYear() - 1}-03-01`
+  const seasonElapsedDays = Math.max(
+    0,
+    Math.floor(((parseDateOnly(todayIso)?.getTime() ?? 0) - (parseDateOnly(seasonStartIso)?.getTime() ?? 0)) / DAY_MS)
+  )
+  const previousSeasonEndDate = parseDateOnly(previousSeasonStartIso) ?? new Date(`${previousSeasonStartIso}T12:00:00`)
+  previousSeasonEndDate.setDate(previousSeasonEndDate.getDate() + seasonElapsedDays)
+  const previousSeasonEndIso = toIsoDate(previousSeasonEndDate)
 
-  const activeParcele = useMemo(() => parcele.filter((p) => isActiveParcela(p.status ?? null)), [parcele])
-  const solarParcele = useMemo(() => activeParcele.filter((parcela) => isSolarTip(parcela.tip_unitate)), [activeParcele])
-  const solarParcelaIdSet = useMemo(() => new Set(solarParcele.map((parcela) => parcela.id)), [solarParcele])
+  const activeParcele = useMemo(() => parcele.filter((parcela) => isActiveParcela(parcela.status ?? null)), [parcele])
   const parcelaById = useMemo(
     () =>
       new Map(
-        activeParcele.map((p) => [
-          p.id,
-          {
-            name: formatUnitateDisplayName(p.nume_parcela, p.tip_unitate),
-            soi: p.soi_plantat || p.tip_fruct || '-',
-          },
-        ]),
+        activeParcele.map((parcela) => [
+          parcela.id,
+          formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate),
+        ])
       ),
-    [activeParcele],
+    [activeParcele]
   )
 
-  const recoltariAzi = useMemo(() => recoltari.filter((r) => toDateOnly(r.data) === todayIso), [recoltari, todayIso])
-  const recoltariIeri = useMemo(() => recoltari.filter((r) => toDateOnly(r.data) === yesterdayIso), [recoltari, yesterdayIso])
-  const totalKgAzi = recoltariAzi.reduce((sum, r) => sum + asNumber(r.kg_cal1) + asNumber(r.kg_cal2), 0)
-  const totalKgIeri = recoltariIeri.reduce((sum, r) => sum + asNumber(r.kg_cal1) + asNumber(r.kg_cal2), 0)
-  const recoltareTrend = toTrend(totalKgAzi, totalKgIeri)
+  const recoltariAzi = useMemo(() => recoltari.filter((row) => toDateOnly(row.data) === todayIso), [recoltari, todayIso])
+  const recoltariIeri = useMemo(() => recoltari.filter((row) => toDateOnly(row.data) === yesterdayIso), [recoltari, yesterdayIso])
+  const totalKgAzi = recoltariAzi.reduce((sum, row) => sum + asNumber(row.kg_cal1) + asNumber(row.kg_cal2), 0)
+  const totalKgIeri = recoltariIeri.reduce((sum, row) => sum + asNumber(row.kg_cal1) + asNumber(row.kg_cal2), 0)
 
   const comenziActive = useMemo(
-    () => comenzi.filter((c) => c.status !== 'livrata' && c.status !== 'anulata'),
-    [comenzi],
+    () => comenzi.filter((row) => row.status !== 'livrata' && row.status !== 'anulata'),
+    [comenzi]
   )
-  const comenziAzi = comenziActive.filter((c) => toDateOnly(c.data_livrare) === todayIso)
-  const comenziViitoare = comenziActive.filter((c) => {
-    const date = toDateOnly(c.data_livrare)
-    return !!date && date > todayIso
-  })
-  const comenziRestante = comenziActive.filter((c) => {
-    const date = toDateOnly(c.data_livrare)
-    return !!date && date < todayIso
-  })
-
-  const kgComenziAzi = comenziAzi.reduce((sum, c) => sum + asNumber(c.cantitate_kg), 0)
-  const kgComenziViitoare = comenziViitoare.reduce((sum, c) => sum + asNumber(c.cantitate_kg), 0)
-  const kgComenziActive = comenziActive.reduce((sum, c) => sum + asNumber(c.cantitate_kg), 0)
-
-  const activitatiAziCount = activitati.filter((a) => toDateOnly(a.data_aplicare) === todayIso).length
-
-  const harvestedTodayIds = useMemo(() => new Set(recoltariAzi.map((r) => r.parcela_id).filter(Boolean)), [recoltariAzi])
-  const unrecoltateParcele = useMemo(
-    () => activeParcele.filter((p) => !harvestedTodayIds.has(p.id) && p.stadiu === 'cules'),
-    [activeParcele, harvestedTodayIds],
-  )
-
-  const dismissKey = `dashboard-unrecoltate-${todayIso}`
-  const [dismissed, setDismissed] = useState<string[]>([])
-
-  const planDismissKey = `solar-plan-dismissed-${todayIso}`
-  const [dismissedPlanItems, setDismissedPlanItems] = useState<string[]>([])
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(dismissKey)
-      if (!raw) {
-        setDismissed([])
-        return
-      }
-      const parsed = JSON.parse(raw)
-      setDismissed(Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : [])
-    } catch {
-      setDismissed([])
-    }
-  }, [dismissKey])
-
-  const visibleUnrecoltata = unrecoltateParcele.find((p) => !dismissed.includes(p.id))
-
-  const dismissUnrecoltata = (id: string) => {
-    const next = Array.from(new Set([...dismissed, id]))
-    setDismissed(next)
-    try {
-      localStorage.setItem(dismissKey, JSON.stringify(next))
-    } catch {
-      // ignore
-    }
-  }
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(planDismissKey)
-      if (!raw) { setDismissedPlanItems([]); return }
-      const parsed = JSON.parse(raw) as unknown
-      setDismissedPlanItems(Array.isArray(parsed) ? (parsed as unknown[]).filter((x): x is string => typeof x === 'string') : [])
-    } catch {
-      setDismissedPlanItems([])
-    }
-  }, [planDismissKey])
-
-  const dismissPlanItem = (key: string) => {
-    const next = Array.from(new Set([...dismissedPlanItems, key]))
-    setDismissedPlanItems(next)
-    try { localStorage.setItem(planDismissKey, JSON.stringify(next)) } catch { /* ignore */ }
-  }
-
-  const [dismissedGuides, setDismissedGuides] = useState<Record<GuideKey, boolean>>({
-    recoltari: false, comenzi: false, financiar: false, activitati: false,
-  })
-
-  useEffect(() => {
-    const loaded = {} as Record<GuideKey, boolean>
-    for (const key of Object.keys(GUIDE_LS_KEYS) as GuideKey[]) {
-      try { loaded[key] = localStorage.getItem(GUIDE_LS_KEYS[key]) === 'true' } catch { loaded[key] = false }
-    }
-    setDismissedGuides(loaded)
-  }, [])
-
-  const dismissGuide = (key: GuideKey) => {
-    setDismissedGuides((prev) => ({ ...prev, [key]: true }))
-    try { localStorage.setItem(GUIDE_LS_KEYS[key], 'true') } catch { /* ignore */ }
-  }
-
-  const activePauseByParcela = useMemo(() => {
-    const byParcela = new Map<string, { exp: string; produs: string; data: string }>()
-
-    for (const activity of activitati) {
-      const tip = String(activity.tip_activitate ?? '').toLowerCase()
-      if (!tip.includes('tratament')) continue
-      if (!activity.parcela_id) continue
-      const pauseDays = asNumber(activity.timp_pauza_zile)
-      if (pauseDays <= 0) continue
-
-      const dateOnly = toDateOnly(activity.data_aplicare)
-      const expDate = new Date(`${dateOnly}T12:00:00`)
-      expDate.setDate(expDate.getDate() + pauseDays)
-      const expIso = `${expDate.getFullYear()}-${String(expDate.getMonth() + 1).padStart(2, '0')}-${String(expDate.getDate()).padStart(2, '0')}`
-      if (expIso <= todayIso) continue
-
-      if (!byParcela.has(activity.parcela_id)) {
-        byParcela.set(activity.parcela_id, {
-          exp: expIso,
-          produs: activity.produs_utilizat || 'produs',
-          data: dateOnly,
-        })
-      }
-    }
-
-    return byParcela
-  }, [activitati, todayIso])
-
-  const pauseAlert = useMemo(() => {
-    const first = Array.from(activePauseByParcela.entries())[0]
-    if (!first) return undefined
-    const [parcelaId, info] = first
-    return {
-      parcelaName: parcelaById.get(parcelaId)?.name || 'Parcela',
-      exp: info.exp,
-      produs: info.produs,
-      data: info.data,
-    }
-  }, [activePauseByParcela, parcelaById])
-
-  const recoltarePerParcelaAzi = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const row of recoltariAzi) {
-      if (!row.parcela_id) continue
-      const value = asNumber(row.kg_cal1) + asNumber(row.kg_cal2)
-      map.set(row.parcela_id, asNumber(map.get(row.parcela_id)) + value)
-    }
-    return map
-  }, [recoltariAzi])
-
-  const seasonStartIso = `${new Date().getFullYear()}-03-01`
-
-  const solarPlantTotal = solarParcele.reduce((sum, parcela) => sum + asNumber(parcela.nr_plante), 0)
-  const solarHarvestAziKg = recoltariAzi
-    .filter((row) => !!row.parcela_id && solarParcelaIdSet.has(row.parcela_id))
-    .reduce((sum, row) => sum + asNumber(row.kg_cal1) + asNumber(row.kg_cal2), 0)
-  const solarHarvestSezonKg = recoltari
-    .filter((row) => {
-      const day = toDateOnly(row.data)
-      return !!row.parcela_id && solarParcelaIdSet.has(row.parcela_id) && day >= seasonStartIso && day <= todayIso
-    })
-    .reduce((sum, row) => sum + asNumber(row.kg_cal1) + asNumber(row.kg_cal2), 0)
-
-  const recentClimateSamples = useMemo(() => {
-    const recent = solarClimateLogs.filter((entry) => {
-      const ts = new Date(entry.created_at).getTime()
-      return Number.isFinite(ts) && nowMs - ts <= 2 * DAY_MS
-    })
-    if (recent.length > 0) return recent
-    return solarClimateLogs.slice(0, 12)
-  }, [nowMs, solarClimateLogs])
-
-  const solarAvgTemp = useMemo(() => {
-    if (recentClimateSamples.length === 0) return null
-    const total = recentClimateSamples.reduce((sum, entry) => sum + asNumber(entry.temperatura), 0)
-    return total / recentClimateSamples.length
-  }, [recentClimateSamples])
-
-  const solarAvgHumidity = useMemo(() => {
-    if (recentClimateSamples.length === 0) return null
-    const total = recentClimateSamples.reduce((sum, entry) => sum + asNumber(entry.umiditate), 0)
-    return total / recentClimateSamples.length
-  }, [recentClimateSamples])
+  const kgComenziActive = comenziActive.reduce((sum, row) => sum + asNumber(row.cantitate_kg), 0)
+  const activitatiAziCount = activitati.filter((row) => toDateOnly(row.data_aplicare) === todayIso).length
 
   const venitSezon = vanzari
-    .filter((v) => {
-      const date = toDateOnly(v.data)
+    .filter((row) => {
+      const date = toDateOnly(row.data)
       return date >= seasonStartIso && date <= todayIso
     })
-    .reduce((sum, v) => sum + asNumber(v.cantitate_kg) * asNumber(v.pret_lei_kg), 0)
+    .reduce((sum, row) => sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg), 0)
+
+  const venitSezonAnterior = vanzari
+    .filter((row) => {
+      const date = toDateOnly(row.data)
+      return date >= previousSeasonStartIso && date <= previousSeasonEndIso
+    })
+    .reduce((sum, row) => sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg), 0)
 
   const costSezon = cheltuieli
-    .filter((c) => {
-      const date = toDateOnly(c.data)
+    .filter((row) => {
+      const date = toDateOnly(row.data)
       return date >= seasonStartIso && date <= todayIso
     })
-    .reduce((sum, c) => sum + asNumber(c.suma_lei), 0)
+    .reduce((sum, row) => sum + asNumber(row.suma_lei), 0)
+
+  const costSezonAnterior = cheltuieli
+    .filter((row) => {
+      const date = toDateOnly(row.data)
+      return date >= previousSeasonStartIso && date <= previousSeasonEndIso
+    })
+    .reduce((sum, row) => sum + asNumber(row.suma_lei), 0)
 
   const profitSezon = venitSezon - costSezon
+  const profitSezonAnterior = venitSezonAnterior - costSezonAnterior
+  const venitTrend = buildTrend(venitSezon, venitSezonAnterior)
+  const profitTrend = buildTrend(profitSezon, profitSezonAnterior)
 
-  const venitByDay = new Map<string, number>()
-  for (const row of vanzari) {
-    const date = toDateOnly(row.data)
-    venitByDay.set(date, asNumber(venitByDay.get(date)) + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg))
-  }
+  const greetingSummary = useMemo(() => {
+    const tomorrowActivity = activitati.find((activity) => toDateOnly(activity.data_aplicare) === tomorrowIso)
+    if (tomorrowActivity) {
+      const parcelaName = parcelaById.get(tomorrowActivity.parcela_id ?? '') || 'Parcela'
+      return `Mâine: ${tomorrowActivity.tip_activitate || 'Activitate'} pe ${parcelaName}`
+    }
 
-  const costByDay = new Map<string, number>()
-  for (const row of cheltuieli) {
-    const date = toDateOnly(row.data)
-    costByDay.set(date, asNumber(costByDay.get(date)) + asNumber(row.suma_lei))
-  }
+    const overdueOrders = comenziActive.filter((row) => {
+      const deliveryDate = toDateOnly(row.data_livrare)
+      return Boolean(deliveryDate) && deliveryDate < todayIso
+    })
+    if (overdueOrders.length > 0) {
+      return `Ai ${overdueOrders.length} ${overdueOrders.length === 1 ? 'comandă restantă' : 'comenzi restante'}`
+    }
 
-  const venitSeries = weekDays.map((day) => asNumber(venitByDay.get(day)))
-  const costSeries = weekDays.map((day) => asNumber(costByDay.get(day)))
-  const profitSeries = weekDays.map((_, index) => venitSeries[index] - costSeries[index])
-  const hasSparkline = (arr: number[]) => arr.length > 1 && arr.some((v) => v !== 0)
+    return null
+  }, [activitati, comenziActive, parcelaById, todayIso, tomorrowIso])
 
-  const venitTrend = toTrend(
-    venitSeries.reduce((sum, v) => sum + v, 0),
-    prevWeekDays.reduce((sum, day) => sum + asNumber(venitByDay.get(day)), 0),
-  )
-  const costTrend = toTrend(
-    costSeries.reduce((sum, v) => sum + v, 0),
-    prevWeekDays.reduce((sum, day) => sum + asNumber(costByDay.get(day)), 0),
-  )
-  const profitTrend = toTrend(
-    profitSeries.reduce((sum, v) => sum + v, 0),
-    prevWeekDays.reduce((sum, day) => sum + asNumber(venitByDay.get(day)) - asNumber(costByDay.get(day)), 0),
-  )
+  const todayLabel = new Intl.DateTimeFormat('ro-RO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date())
 
-  const orderName = (row: (typeof comenzi)[number]) => {
+  const orderName = useCallback((row: (typeof comenzi)[number]) => {
     const joined = String(row.client_nume ?? '').trim()
     const manual = String(row.client_nume_manual ?? '').trim()
     return joined || manual || 'Client'
-  }
+  }, [])
 
-  const linkedOrderBySaleId = useMemo(() => {
-    const map = new Map<string, (typeof comenzi)[number]>()
-    for (const row of comenzi) {
-      if (row.linked_vanzare_id) map.set(row.linked_vanzare_id, row)
-    }
-    return map
-  }, [comenzi])
-
-  const latestSolarClimateByParcela = useMemo(() => {
-    const byParcela = new Map<string, (typeof solarClimateLogs)[number]>()
-    for (const entry of solarClimateLogs) {
-      const current = byParcela.get(entry.unitate_id)
-      if (!current) {
-        byParcela.set(entry.unitate_id, entry)
-        continue
-      }
-      const currentTs = new Date(current.created_at).getTime()
-      const nextTs = new Date(entry.created_at).getTime()
-      if (Number.isFinite(nextTs) && nextTs > currentTs) {
-        byParcela.set(entry.unitate_id, entry)
-      }
-    }
-    return byParcela
-  }, [solarClimateLogs])
-
-  const stageCountByParcela = useMemo(() => {
-    const byParcela = new Map<string, number>()
-    for (const entry of solarStageLogs) {
-      byParcela.set(entry.unitate_id, asNumber(byParcela.get(entry.unitate_id)) + 1)
-    }
-    return byParcela
-  }, [solarStageLogs])
-
-  const latestSolarActivityByParcela = useMemo(() => {
-    const byParcela = new Map<string, (typeof activitati)[number]>()
-    for (const activity of activitati) {
-      if (!activity.parcela_id || !solarParcelaIdSet.has(activity.parcela_id)) continue
-      const current = byParcela.get(activity.parcela_id)
-      if (!current) {
-        byParcela.set(activity.parcela_id, activity)
-        continue
-      }
-      const currentTs = new Date(current.data_aplicare).getTime()
-      const nextTs = new Date(activity.data_aplicare).getTime()
-      if (Number.isFinite(nextTs) && nextTs > currentTs) {
-        byParcela.set(activity.parcela_id, activity)
-      }
-    }
-    return byParcela
-  }, [activitati, solarParcelaIdSet])
-
-  const solarPlanItems = useMemo<SolarPlanItem[]>(() => {
-    if (solarParcele.length === 0) return []
-
-    const items: SolarPlanItem[] = []
-
-    for (const parcela of solarParcele) {
-      const parcelaName = formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate, 'Solar')
-      const latestClimate = latestSolarClimateByParcela.get(parcela.id)
-      const latestActivity = latestSolarActivityByParcela.get(parcela.id)
-      const stageCount = asNumber(stageCountByParcela.get(parcela.id))
-
-      if (!latestClimate) {
-        items.push({
-          key: `climate-missing-${parcela.id}`,
-          label: 'Climat neactualizat',
-          value: `${parcelaName}: adaugă prima măsurătoare`,
-          sub: 'Regula: fiecare solar trebuie să aibă minimum o măsurătoare de climat.',
-          variant: 'warning',
-          href: `/parcele/${parcela.id}`,
+  const recentOrders = useMemo(
+    () =>
+      [...comenzi]
+        .sort((left, right) => {
+          const leftTime = new Date(left.updated_at || left.created_at || `${toDateOnly(left.data_livrare || left.data_comanda)}T00:00:00`).getTime()
+          const rightTime = new Date(right.updated_at || right.created_at || `${toDateOnly(right.data_livrare || right.data_comanda)}T00:00:00`).getTime()
+          return rightTime - leftTime
         })
-      } else {
-        const climateAgeDays = Math.floor((nowMs - new Date(latestClimate.created_at).getTime()) / DAY_MS)
-        if (climateAgeDays >= 2) {
-          items.push({
-            key: `climate-stale-${parcela.id}`,
-            label: 'Climat neactualizat',
-            value: `${parcelaName}: fără update de ${climateAgeDays} zile`,
-            sub: 'Regula: daca ultimul climat este mai vechi de 2 zile, cere verificare.',
-            variant: 'warning',
-            href: `/parcele/${parcela.id}`,
-          })
-        }
+        .slice(0, 5)
+        .map((row) => ({
+          id: row.id,
+          client: orderName(row),
+          status: row.status || 'nouă',
+          quantity: `${formatNumber(asNumber(row.cantitate_kg))} kg`,
+          deliveryDate: toDateOnly(row.data_livrare)
+            ? `Livrare ${formatShortDate(toDateOnly(row.data_livrare))}`
+            : 'Fără dată de livrare',
+        })),
+    [comenzi, orderName]
+  )
 
-        const latestTemp = asNumber(latestClimate.temperatura)
-        if (latestTemp >= 32) {
-          items.push({
-            key: `temp-high-${parcela.id}`,
-            label: 'Temperatura ridicata',
-            value: `${parcelaName}: ${formatNumber(latestTemp, 1)}°C`,
-            sub: 'Regula: peste 32°C se recomandă aerisire și verificare irigare.',
-            variant: 'danger',
-            href: `/parcele/${parcela.id}`,
-          })
-        }
-      }
-
-      const plantingDay = toDateOnly(parcela.data_plantarii)
-      if (plantingDay && plantingDay >= recentPlantingThresholdIso && stageCount === 0) {
-        items.push({
-          key: `stages-missing-${parcela.id}`,
-          label: 'Etape cultura lipsa',
-          value: `${parcelaName}: plantat recent, fără etape`,
-          sub: 'Regula: daca data plantarii e in ultimele 14 zile, trebuie macar o etapa notata.',
-          variant: 'warning',
-          href: `/parcele/${parcela.id}`,
+  const plannedActivities = useMemo(
+    () =>
+      [...activitati]
+        .filter((row) => {
+          const date = toDateOnly(row.data_aplicare)
+          return !!date && date > todayIso
         })
-      }
-
-      if (!latestActivity) {
-        items.push({
-          key: `activity-missing-${parcela.id}`,
-          label: 'Activități lipsă',
-          value: `${parcelaName}: fără activități înregistrate`,
-          sub: 'Regula: pentru solarii păstrăm cel puțin o activitate recentă în jurnal.',
-          variant: 'warning',
-          href: '/activitati-agricole',
+        .sort((left, right) => {
+          const leftTime = parseDateOnly(left.data_aplicare)?.getTime() ?? 0
+          const rightTime = parseDateOnly(right.data_aplicare)?.getTime() ?? 0
+          return leftTime - rightTime
         })
-      } else {
-        const activityAgeDays = Math.floor((nowMs - new Date(latestActivity.data_aplicare).getTime()) / DAY_MS)
-        if (activityAgeDays >= 4) {
-          items.push({
-            key: `activity-stale-${parcela.id}`,
-            label: 'Activitate veche',
-            value: `${parcelaName}: ultima activitate acum ${activityAgeDays} zile`,
-            sub: 'Regula: daca ultima activitate depaseste 4 zile, verificam planul zilnic.',
-            variant: 'warning',
-            href: '/activitati-agricole',
-          })
-        }
+        .slice(0, 5)
+        .map((row) => ({
+          id: row.id,
+          title: row.tip_activitate || 'Activitate agricolă',
+          parcela: parcelaById.get(row.parcela_id ?? '') || 'Parcelă nedefinită',
+          date: formatShortDate(toDateOnly(row.data_aplicare)),
+          detail: row.produs_utilizat ? `Produs: ${row.produs_utilizat}` : 'Fără produs specificat',
+        })),
+    [activitati, parcelaById, todayIso]
+  )
+
+  const recentHarvests = useMemo(
+    () =>
+      [...recoltari]
+        .sort((left, right) => {
+          const leftTime = new Date(left.created_at || `${toDateOnly(left.data)}T00:00:00`).getTime()
+          const rightTime = new Date(right.created_at || `${toDateOnly(right.data)}T00:00:00`).getTime()
+          return rightTime - leftTime
+        })
+        .slice(0, 5)
+        .map((row) => ({
+          id: row.id,
+          parcela: parcelaById.get(row.parcela_id ?? '') || 'Parcelă',
+          quantity: `${formatNumber(asNumber(row.kg_cal1) + asNumber(row.kg_cal2))} kg`,
+          timestamp: formatTimestamp(row.created_at || `${toDateOnly(row.data)}T12:00:00`),
+        })),
+    [parcelaById, recoltari]
+  )
+
+  const criticalStocks = useMemo(
+    () =>
+      [...stocuri]
+        .filter((row) => row.total_kg <= STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG)
+        .sort((left, right) => left.total_kg - right.total_kg)
+        .slice(0, 5)
+        .map((row) => ({
+          id: `${row.locatie_id}:${row.produs}`,
+          produs: row.produs,
+          locatie: row.locatie_nume || 'Locație',
+          quantity: `${formatNumber(row.total_kg)} kg`,
+          severity: row.total_kg <= 5 ? ('critical' as const) : ('warning' as const),
+        })),
+    [stocuri]
+  )
+
+  const revenueSeries = useMemo(() => {
+    const buckets: number[] = []
+    for (let bucketIndex = 7; bucketIndex >= 0; bucketIndex -= 1) {
+      const end = new Date()
+      end.setHours(23, 59, 59, 999)
+      end.setDate(end.getDate() - bucketIndex * 7)
+      const start = new Date(end)
+      start.setDate(end.getDate() - 6)
+      start.setHours(0, 0, 0, 0)
+      const startIso = toIsoDate(start)
+      const endIso = toIsoDate(end)
+
+      const bucketValue = vanzari.reduce((sum, row) => {
+        const date = toDateOnly(row.data)
+        if (!date || date < startIso || date > endIso) return sum
+        return sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg)
+      }, 0)
+
+      buckets.push(Math.round(bucketValue))
+    }
+    return buckets
+  }, [vanzari])
+
+  const kpiItems = useMemo(
+    () =>
+      [
+        {
+          id: 'recoltat-azi',
+          label: 'Recoltat azi',
+          value: `${formatNumber(totalKgAzi)} kg`,
+          meta: totalKgIeri > 0 ? `Ieri: ${formatNumber(totalKgIeri)} kg` : 'Fără referință ieri',
+          tone: 'positive' as const,
+          metricValue: totalKgAzi,
+        },
+        {
+          id: 'comenzi-active',
+          label: 'Comenzi active',
+          value: String(comenziActive.length),
+          meta: `${formatNumber(kgComenziActive)} kg în curs`,
+          metricValue: comenziActive.length,
+        },
+        {
+          id: 'venit-sezon',
+          label: 'Venit sezon',
+          value: formatCompactKpiMoney(venitSezon),
+          meta: 'Sezon curent',
+          trendLabel: venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}% vs sezon anterior` : undefined,
+          metricValue: venitSezon,
+        },
+        {
+          id: 'profit-sezon',
+          label: 'Profit sezon',
+          value: formatCompactKpiMoney(profitSezon),
+          meta: 'Venituri minus cheltuieli',
+          tone: profitSezon >= 0 ? ('positive' as const) : ('negative' as const),
+          trendLabel: profitTrend ? `${profitTrend.positive ? '+' : '-'}${Math.round(profitTrend.percent)}% vs sezon anterior` : undefined,
+          metricValue: profitSezon,
+        },
+        {
+          id: 'activitati-azi',
+          label: 'Activități azi',
+          value: String(activitatiAziCount),
+          meta: `${activitati.length} activități totale`,
+          metricValue: activitatiAziCount,
+        },
+      ]
+        .filter((item) => item.metricValue !== null && item.metricValue !== 0)
+        .map((item) => ({
+          id: item.id,
+          label: item.label,
+          value: item.value,
+          meta: item.meta,
+          tone: item.tone,
+          trendLabel: item.trendLabel,
+        })),
+    [
+      activitati.length,
+      activitatiAziCount,
+      comenziActive.length,
+      kgComenziActive,
+      profitSezon,
+      profitTrend,
+      totalKgAzi,
+      totalKgIeri,
+      venitSezon,
+      venitTrend,
+    ]
+  )
+
+  const widgetEmptyState = useMemo<Record<DashboardWidgetId, boolean>>(
+    () => ({
+      'kpi-summary': kpiItems.length === 0,
+      'comenzi-recente': recentOrders.length === 0,
+      'activitati-planificate': plannedActivities.length === 0,
+      'recoltari-recente': recentHarvests.length === 0,
+      'stocuri-critice': criticalStocks.length === 0,
+      'sumar-venituri': venitSezon <= 0 && revenueSeries.every((value) => value <= 0),
+    }),
+    [criticalStocks.length, kpiItems.length, plannedActivities.length, recentHarvests.length, recentOrders.length, revenueSeries, venitSezon]
+  )
+
+  const showWelcomeCard = parcele.length === 0 && !hideOnboarding
+
+  const renderWidget = useCallback(
+    (widgetId: DashboardWidgetId, inEditMode: boolean) => {
+      const disableWidget = DASHBOARD_WIDGET_META[widgetId].removable
+        ? () => {
+            setDraftLayout((current) => {
+              const base = current ?? savedLayout
+              return {
+                ...base,
+                widgets: base.widgets.map((widget) =>
+                widget.id === widgetId ? { ...widget, active: false } : widget
+                ),
+              }
+            })
+          }
+        : undefined
+
+      switch (widgetId) {
+        case 'kpi-summary':
+          return <KpiSummaryWidget editMode={inEditMode} items={kpiItems} />
+        case 'comenzi-recente':
+          return (
+            <ComenziRecenteWidget
+              editMode={inEditMode}
+              items={recentOrders}
+              empty={widgetEmptyState[widgetId]}
+              onDisable={disableWidget}
+            />
+          )
+        case 'activitati-planificate':
+          return (
+            <ActivitatiPlanificateWidget
+              editMode={inEditMode}
+              items={plannedActivities}
+              empty={widgetEmptyState[widgetId]}
+              onDisable={disableWidget}
+            />
+          )
+        case 'recoltari-recente':
+          return (
+            <RecoltariRecenteWidget
+              editMode={inEditMode}
+              items={recentHarvests}
+              empty={widgetEmptyState[widgetId]}
+              onDisable={disableWidget}
+            />
+          )
+        case 'stocuri-critice':
+          return (
+            <StocuriCriticeWidget
+              editMode={inEditMode}
+              items={criticalStocks}
+              empty={widgetEmptyState[widgetId]}
+              onDisable={disableWidget}
+            />
+          )
+        case 'sumar-venituri':
+          return (
+            <SumarVenituriWidget
+              editMode={inEditMode}
+              empty={widgetEmptyState[widgetId]}
+              total={`${formatMoney(venitSezon)} RON`}
+              previous={`${formatMoney(venitSezonAnterior)} RON`}
+              periodLabel="Sezon curent"
+              trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
+              series={revenueSeries}
+              onDisable={disableWidget}
+            />
+          )
+        default:
+          return null
       }
-    }
+    },
+    [
+      criticalStocks,
+      kpiItems,
+      plannedActivities,
+      recentHarvests,
+      recentOrders,
+      revenueSeries,
+      savedLayout,
+      venitSezon,
+      venitSezonAnterior,
+      venitTrend,
+      widgetEmptyState,
+    ]
+  )
 
-    if (items.length === 0) {
-      items.push({
-        key: 'solar-ok',
-        label: 'Plan in grafic',
-        value: 'Nu există priorități urgente în solarii',
-        sub: 'Regulile simple de climat, etape și activitățile sunt acoperite azi.',
-        variant: 'success',
-        href: '/parcele',
+  const activeWidgets = useMemo(
+    () => sortDashboardWidgetsForDisplay(currentLayout.widgets.filter((widget) => widget.active)),
+    [currentLayout.widgets]
+  )
+  const desktopWidgets = useMemo(
+    () => activeWidgets.filter((widget) => editMode || !widgetEmptyState[widget.id]),
+    [activeWidgets, editMode, widgetEmptyState]
+  )
+  const mobileWidgets = useMemo(
+    () => activeWidgets.filter((widget) => !widgetEmptyState[widget.id]),
+    [activeWidgets, widgetEmptyState]
+  )
+  const inactiveWidgets = useMemo(
+    () => currentLayout.widgets.filter((widget) => !widget.active && DASHBOARD_WIDGET_META[widget.id].removable),
+    [currentLayout.widgets]
+  )
+
+  const handleLayoutChange = useCallback(
+    (nextLayout: readonly { i: string; x: number; y: number; w: number; h: number }[]) => {
+      if (!editMode) return
+
+      const nextById = new Map(nextLayout.map((item) => [item.i as DashboardWidgetId, item]))
+      setDraftLayout((current) => {
+        const base = current ?? savedLayout
+        return {
+          ...base,
+          widgets: base.widgets.map((widget) => {
+            const nextItem = nextById.get(widget.id)
+            if (!nextItem || widget.static) return widget
+            return {
+              ...widget,
+              x: nextItem.x,
+              y: nextItem.y,
+              w: nextItem.w,
+              h: nextItem.h,
+            }
+          }),
+        }
       })
-    }
+    },
+    [editMode, savedLayout]
+  )
 
-    return items.slice(0, 6)
-  }, [
-    activitati,
-    latestSolarActivityByParcela,
-    latestSolarClimateByParcela,
-    nowMs,
-    recentPlantingThresholdIso,
-    solarParcele,
-    stageCountByParcela,
-  ])
+  const addWidget = useCallback((widgetId: DashboardWidgetId) => {
+    setDraftLayout((current) => {
+      const base = current ?? savedLayout
+      return {
+        ...base,
+        widgets: base.widgets.map((widget) =>
+          widget.id === widgetId ? { ...widget, active: true } : widget
+        ),
+      }
+    })
+    setAddWidgetOpen(false)
+  }, [savedLayout])
 
-  const hasSolarWarnings = solarPlanItems.some((item) => item.variant !== 'success')
-
-  const recentActivity = useMemo<FeedItem[]>(() => {
-    const feed: FeedItem[] = []
-
-    for (const row of recoltari) {
-      const kg = asNumber(row.kg_cal1) + asNumber(row.kg_cal2)
-      const parcelaName = parcelaById.get(row.parcela_id ?? '')?.name || 'Parcela'
-      feed.push({
-        key: `rec-${row.id}`,
-        icon: '🫐',
-        iconBg: colors.blueLight,
-        text: `Recoltat ${formatNumber(kg)} kg — ${parcelaName}`,
-        timestamp: row.created_at || `${toDateOnly(row.data)}T00:00:00`,
-        href: '/recoltari',
-      })
-    }
-
-    for (const row of vanzari) {
-      const linked = linkedOrderBySaleId.get(row.id)
-      feed.push({
-        key: `van-${row.id}`,
-        icon: '💰',
-        iconBg: colors.greenLight,
-        text: `Vândut ${formatNumber(asNumber(row.cantitate_kg))} kg → ${linked ? orderName(linked) : 'Client'}`,
-        timestamp: row.created_at || `${toDateOnly(row.data)}T00:00:00`,
-        href: '/vanzari',
-      })
-    }
-
-    for (const row of activitati) {
-      const parcelaName = parcelaById.get(row.parcela_id ?? '')?.name || 'Parcela'
-      feed.push({
-        key: `act-${row.id}`,
-        icon: '✂️',
-        iconBg: colors.yellowLight,
-        text: `${row.tip_activitate || 'Activitate'} — ${parcelaName}`,
-        timestamp: row.created_at || `${toDateOnly(row.data_aplicare)}T00:00:00`,
-        href: '/activitati-agricole',
-      })
-    }
-
-    for (const row of comenzi.filter((c) => c.status === 'livrata')) {
-      feed.push({
-        key: `com-${row.id}`,
-        icon: '📦',
-        iconBg: colors.coralLight,
-        text: `Livrat ${formatNumber(asNumber(row.cantitate_kg))} kg → ${orderName(row)}`,
-        timestamp: row.updated_at || row.created_at || `${toDateOnly(row.data_livrare || row.data_comanda)}T00:00:00`,
-        href: '/comenzi?add=1',
-      })
-    }
-
-    return feed
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 5)
-  }, [activitati, comenzi, linkedOrderBySaleId, parcelaById, recoltari, vanzari])
-
-  const showWelcomeCard = coreSettled && parcele.length === 0 && !hideOnboarding
-  const emptyState = coreSettled && activeParcele.length === 0
-
-  const hasAnyRecoltari = recoltari.length > 0
-  const hasAnyComenzi = comenzi.length > 0
-  const hasAnyActivitati = activitati.length > 0
-  const hasAnyFinanciar = vanzari.length > 0 || cheltuieli.length > 0
-  const hasAnyTopStats = hasAnyRecoltari || hasAnyComenzi || hasAnyActivitati
-  const hasAlerts = Boolean(visibleUnrecoltata) || comenziRestante.length > 0 || Boolean(pauseAlert)
-  const todayPlanSummary = `${formatCountLabel(activitatiAziCount, 'activitate', 'activități')} • ${formatCountLabel(comenziAzi.length, 'livrare', 'livrări')}`
+  const savedLayoutJson = useMemo(() => getComparableLayoutJson(savedLayout), [savedLayout])
+  const currentLayoutJson = useMemo(() => getComparableLayoutJson(currentLayout), [currentLayout])
+  const hasUnsavedChanges = savedLayoutJson !== currentLayoutJson
 
   return (
     <AppShell
       header={
         <PageHeader
-          title="Dashboard"
-          subtitle="Planul de azi"
+          title={`${getGreeting()} 👋`}
+          subtitle={todayLabel}
           summary={
-            <div className="lg:hidden">
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: spacing.sm,
-                  borderRadius: radius.xl,
-                  border: `1px solid rgba(15, 23, 42, 0.06)`,
-                  background: 'rgba(255,255,255,0.96)',
-                  boxShadow: shadows.card,
-                  padding: 14,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark, lineHeight: 1.2 }}>Plan azi</div>
-                  <div style={{ marginTop: 4, fontSize: 12, color: 'rgba(16,32,21,0.72)', lineHeight: 1.3 }}>
-                    {todayPlanSummary}
-                  </div>
-                </div>
+            greetingSummary ? (
+              <div className="inline-block max-w-full overflow-hidden rounded-full bg-[rgba(45,106,79,0.08)] px-3 py-1.5 text-xs font-semibold text-[var(--agri-primary)] text-ellipsis whitespace-nowrap">
+                {greetingSummary}
               </div>
+            ) : null
+          }
+          rightSlot={
+            <div className="flex items-center gap-2">
+              {!editMode ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDraftLayout(savedLayout)
+                    setEditMode(true)
+                  }}
+                >
+                  ✏️ Editează Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setAddWidgetOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    Adaugă Widget
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => saveLayoutMutation.mutate()}
+                    disabled={!hasUnsavedChanges || saveLayoutMutation.isPending}
+                  >
+                    ✅ Salvează
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setDraftLayout(null)
+                      setEditMode(false)
+                    }}
+                  >
+                    Anulează
+                  </Button>
+                </>
+              )}
             </div>
           }
         />
       }
     >
-      <div className="mx-auto mt-3 w-full max-w-[980px] sm:mt-0 lg:max-w-[1360px]" style={{ paddingTop: spacing.lg, paddingBottom: spacing.md }}>
+      <div className="mx-auto max-w-7xl pb-24 pt-1">
         {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
         {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
 
-        {!showDashboardSkeleton && shouldRedirectToStart ? (
-          <LoadingState label="Se pregătește onboarding..." />
-        ) : null}
-
-        {!showDashboardSkeleton && !shouldRedirectToStart ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+        {!isLoading ? (
+          <>
             {showWelcomeCard ? (
-              <WelcomeCard
-                onAddTerrain={() => router.push('/parcele')}
-                onDismiss={() => dismissOnboardingMutation.mutate()}
-              />
+              <div className="mb-5">
+                <WelcomeCard
+                  onAddTerrain={() => router.push('/parcele')}
+                  onDismiss={() => dismissOnboardingMutation.mutate()}
+                />
+              </div>
             ) : null}
 
-            {emptyState ? null : (
-              <>
-                {hasAnyTopStats ? (
-                  <section data-tutorial="dashboard-stats">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                      {hasAnyRecoltari ? (
-                        <MiniCard
-                          icon="🫐"
-                          label="Recoltat azi"
-                          value={`${formatNumber(totalKgAzi)} kg`}
-                          sub={`${recoltariAzi.length} recoltări`}
-                          trend={recoltareTrend}
-                          onClick={() => router.push('/recoltari')}
-                        />
-                      ) : null}
-                      {hasAnyComenzi ? (
-                        <MiniCard
-                          icon="📦"
-                          label="De livrat"
-                          value={`${comenziActive.length}`}
-                          sub={`${formatNumber(kgComenziActive)} kg`}
-                          onClick={() => router.push('/comenzi')}
-                        />
-                      ) : null}
-                      {hasAnyActivitati ? (
-                        <MiniCard
-                          icon="✂️"
-                          label="Activități"
-                          value={`${activitatiAziCount}`}
-                          sub="azi"
-                          className="col-span-2 sm:col-span-1"
-                          onClick={() => router.push('/activitati-agricole')}
-                        />
-                      ) : null}
-                    </div>
-                  </section>
-                ) : null}
+            <div className="space-y-4 md:hidden">
+              {mobileWidgets.map((widget) => (
+                <div key={widget.id}>{renderWidget(widget.id, false)}</div>
+              ))}
+            </div>
 
-                {solarParcele.length > 0 ? (
-                  <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <SectionTitle
-                      title="Solarii"
-                      rightSlot={
-                        <StatusBadge
-                          text={`${solarParcele.length} ${solarParcele.length === 1 ? 'activă' : 'active'}`}
-                          variant="success"
-                        />
-                      }
-                    />
-
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                      <MiniCard
-                        icon="🌿"
-                        label="Număr solarii"
-                        value={`${solarParcele.length}`}
-                        sub="unități de tip solar"
-                        onClick={() => router.push('/parcele')}
-                      />
-                      <MiniCard
-                        icon="🪴"
-                        label="Plante totale"
-                        value={`${formatNumber(solarPlantTotal, 0)}`}
-                        sub="plante în solarii"
-                        onClick={() => router.push('/parcele')}
-                      />
-                      <MiniCard
-                        icon="🧺"
-                        label="Recoltat azi"
-                        value={`${formatNumber(solarHarvestAziKg)} kg`}
-                        sub="din solarii"
-                        onClick={() => router.push('/recoltari')}
-                      />
-                      <MiniCard
-                        icon="📈"
-                        label="Sezon solarii"
-                        value={`${formatNumber(solarHarvestSezonKg)} kg`}
-                        sub={`de la ${formatDateLabel(seasonStartIso)}`}
-                        onClick={() => router.push('/recoltari')}
-                      />
-                      <MiniCard
-                        icon="🌡️"
-                        label="Temp. medie recentă"
-                        value={solarAvgTemp === null ? '-' : `${formatNumber(solarAvgTemp, 1)}°C`}
-                        sub={
-                          solarClimateQuery.isLoading
-                            ? 'se încarcă climatul...'
-                            : recentClimateSamples.length > 0
-                              ? `${recentClimateSamples.length} înregistrări`
-                              : 'fără date climat'
-                        }
-                        onClick={() => router.push('/parcele')}
-                      />
-                      <MiniCard
-                        icon="💧"
-                        label="Umiditate medie"
-                        value={solarAvgHumidity === null ? '-' : `${formatNumber(solarAvgHumidity, 0)}%`}
-                        sub={
-                          solarClimateQuery.isLoading
-                            ? 'se încarcă climatul...'
-                            : recentClimateSamples.length > 0
-                              ? 'fereastră recentă'
-                              : 'fără date climat'
-                        }
-                        onClick={() => router.push('/parcele')}
-                      />
-                    </div>
-                  </section>
-                ) : null}
-
-                {solarParcele.length > 0 ? (
-                  <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <SectionTitle className="flex-1" title="Planul zilei în solarii" />
-                      <StatusBadge text={hasSolarWarnings ? 'priorități' : 'ok'} variant={hasSolarWarnings ? 'warning' : 'success'} />
-                    </div>
-
-                    {solarStagesQuery.isError || solarClimateQuery.isError ? (
-                      <AlertCard
-                        icon="⚠️"
-                        label="Date parțiale"
-                        value="Nu am putut încărca toate datele pentru solarii"
-                        sub="Planul zilei folosește doar datele disponibile momentan."
-                        variant="warning"
-                        onClick={() => router.push('/parcele')}
-                      />
-                    ) : null}
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                      {solarPlanItems.filter((item) => !dismissedPlanItems.includes(item.key)).map((item) => (
-                        <div key={item.key} style={{ position: 'relative' }}>
-                          {item.variant !== 'success' ? (
-                            <button
-                              type="button"
-                              onClick={(event) => { event.stopPropagation(); dismissPlanItem(item.key) }}
-                              aria-label="Ascunde alerta"
-                              style={{
-                                position: 'absolute', top: 6, right: 6,
-                                border: 'none', background: 'rgba(255,255,255,0.85)',
-                                borderRadius: radius.full, width: 22, height: 22,
-                                fontWeight: 700, color: colors.gray,
-                                cursor: 'pointer', zIndex: 2, fontSize: 14, lineHeight: '22px',
-                              }}
-                            >
-                              ×
-                            </button>
-                          ) : null}
-                          <AlertCard
-                            icon={item.variant === 'danger' ? '🔥' : item.variant === 'warning' ? '⚠️' : '✅'}
-                            label={item.label}
-                            value={item.value}
-                            sub={item.sub}
-                            variant={item.variant}
-                            onClick={() => router.push(item.href)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-
-                {hasAlerts ? (
-                  <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <SectionTitle className="flex-1" title="Alerte" />
-                      <StatusBadge text="active" variant="warning" />
-                    </div>
-
-                    {visibleUnrecoltata ? (
-                      <div style={{ position: 'relative' }}>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            dismissUnrecoltata(visibleUnrecoltata.id)
-                          }}
-                          aria-label="Dismiss"
-                          style={{
-                            position: 'absolute',
-                            top: 6,
-                            right: 6,
-                            border: 'none',
-                            background: colors.white,
-                            borderRadius: radius.full,
-                            width: 22,
-                            height: 22,
-                            fontWeight: 700,
-                            color: colors.coral,
-                            cursor: 'pointer',
-                            zIndex: 2,
-                          }}
-                        >
-                          ×
-                        </button>
-                        <AlertCard
-                          icon="⚠️"
-                          label="Terenuri nerecoltate"
-                          value={`${formatUnitateDisplayName(visibleUnrecoltata.nume_parcela, visibleUnrecoltata.tip_unitate, 'Parcela')} — nerecoltat azi`}
-                          sub={`${unrecoltateParcele.length} terenuri active fără recoltare azi`}
-                          variant="danger"
-                          onClick={() => router.push('/recoltari')}
-                        />
-                      </div>
-                    ) : null}
-
-                    {comenziRestante.length > 0 ? (
-                      <AlertCard
-                        icon="⚠️"
-                        label="Comenzi restante"
-                        value={`${comenziRestante.length} comenzi restante`}
-                        sub="Au depășit data de livrare"
-                        variant="warning"
-                        onClick={() => router.push('/comenzi')}
-                      />
-                    ) : null}
-
-                    {pauseAlert ? (
-                      <AlertCard
-                        icon="⚠️"
-                        label="Timp pauză activ"
-                        value={`${pauseAlert.parcelaName} — pauză până ${formatDateLabel(pauseAlert.exp)}`}
-                        sub={`${pauseAlert.produs} aplicat pe ${formatDateLabel(pauseAlert.data)}`}
-                        variant="warning"
-                        onClick={() => router.push('/activitati-agricole')}
-                      />
-                    ) : null}
-                  </section>
-                ) : null}
-
-                <div className="lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)] lg:gap-4">
-                {!hasAnyRecoltari && !dismissedGuides.recoltari ? (
-                  <GuideCard
-                    emoji="🫐"
-                    title="Înregistrează prima recoltare"
-                    text="Adaugă zilnic cantitățile recoltate pe fiecare teren. Vei vedea evoluția producției și statistici în timp real."
-                    actionLabel="Mergi la Recoltare →"
-                    onDismiss={() => dismissGuide('recoltari')}
-                    onAction={() => router.push('/recoltari')}
-                  />
-                ) : null}
-
-                {hasAnyRecoltari ? (
-                <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <SectionTitle className="flex-1" title="Recoltare azi pe terenuri" />
-                    <button
-                      type="button"
-                      onClick={() => router.push('/recoltari')}
-                      style={{ border: 'none', background: 'transparent', color: colors.primary, fontSize: 12, fontWeight: 700 }}
-                    >
-                      Vezi tot →
-                    </button>
+            <div className="hidden md:block">
+              <DashboardGridLayout
+                className="dashboard-grid-layout"
+                layout={toReactGridLayout(desktopWidgets)}
+                cols={12}
+                rowHeight={84}
+                margin={[24, 24]}
+                containerPadding={[0, 0]}
+                isDraggable={editMode}
+                isResizable={editMode}
+                compactType="vertical"
+                useCSSTransforms
+                draggableHandle=".dashboard-widget-handle"
+                onLayoutChange={handleLayoutChange}
+              >
+                {desktopWidgets.map((widget) => (
+                  <div key={widget.id} className="h-full">
+                    {renderWidget(widget.id, editMode)}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {activeParcele.map((parcela) => {
-                      const kg = asNumber(recoltarePerParcelaAzi.get(parcela.id))
-                      const harvested = kg > 0
-                      return (
-                        <button
-                          key={parcela.id}
-                          type="button"
-                          onClick={() => router.push(`/recoltari?parcela=${parcela.id}`)}
-                          style={{
-                            textAlign: 'left',
-                            borderRadius: radius.lg,
-                            border: `1px solid ${harvested ? colors.green : colors.grayLight}`,
-                            background: harvested ? colors.greenLight : colors.grayLight,
-                            boxShadow: shadows.card,
-                            padding: spacing.md,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>
-                            {formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate)}
-                          </div>
-                          <div style={{ fontSize: 10, color: colors.gray, marginTop: 2 }}>{parcela.soi_plantat || '-'}</div>
-                          <div style={{ marginTop: spacing.sm, display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                            <span style={{ fontSize: 20, fontWeight: 700, color: harvested ? colors.green : colors.dark }}>
-                              {formatNumber(kg)}
-                            </span>
-                            <span style={{ fontSize: 10, color: colors.gray }}>kg</span>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </section>
-                ) : null}
-
-                {!hasAnyFinanciar && !dismissedGuides.financiar ? (
-                  <GuideCard
-                    emoji="💰"
-                    title="Urmărește veniturile și cheltuielile"
-                    text="Adaugă vânzări și cheltuieli pentru a vedea profitul fermei, evoluția financiară și rapoarte pe sezoane."
-                    actionLabel="Mergi la Vânzări →"
-                    onDismiss={() => dismissGuide('financiar')}
-                    onAction={() => router.push('/vanzari')}
-                  />
-                ) : null}
-
-                {hasAnyFinanciar ? (
-                <section data-tutorial="dashboard-comenzi" style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <SectionTitle className="flex-1" title="Financiar sezon" />
-                    <button
-                      type="button"
-                      onClick={() => router.push('/rapoarte')}
-                      style={{ border: 'none', background: 'transparent', color: colors.primary, fontSize: 12, fontWeight: 700 }}
-                    >
-                      Rapoarte →
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {[
-                      { key: 'venit', label: 'Venit', value: venitSezon, series: venitSeries, color: colors.green, trend: venitTrend },
-                      { key: 'cost', label: 'Cheltuieli', value: costSezon, series: costSeries, color: colors.coral, trend: costTrend },
-                      { key: 'profit', label: 'Profit', value: profitSezon, series: profitSeries, color: colors.primary, trend: profitTrend },
-                    ].map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        className={item.key === 'profit' ? 'col-span-2 sm:col-span-1' : undefined}
-                        onClick={() => router.push('/rapoarte')}
-                        style={{
-                          width: '100%',
-                          textAlign: 'left',
-                          background: colors.white,
-                          border: `1px solid ${colors.grayLight}`,
-                          borderRadius: radius.xl,
-                          boxShadow: shadows.card,
-                          padding: 14,
-                          minHeight: 98,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: 11, color: colors.gray }}>{item.label}</span>
-                          {item.trend ? <TrendBadge value={item.trend.value} positive={item.trend.positive} /> : null}
-                        </div>
-                        <div style={{ marginTop: spacing.xs, display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                          <span
-                            style={{
-                              fontSize: 16,
-                              lineHeight: 1.1,
-                              fontWeight: 700,
-                              color: item.key === 'profit' ? (item.value >= 0 ? colors.green : colors.coral) : colors.dark,
-                            }}
-                          >
-                            {formatMoney(item.value)}
-                          </span>
-                          <span style={{ fontSize: 9, color: colors.gray }}>RON</span>
-                        </div>
-                        {hasSparkline(item.series) ? (
-                          <div style={{ marginTop: spacing.sm }}>
-                            <Sparkline data={item.series} color={item.color} width={64} height={22} />
-                          </div>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-                ) : null}
-
-                {!hasAnyComenzi && !dismissedGuides.comenzi ? (
-                  <GuideCard
-                    emoji="📦"
-                    title="Gestionează comenzile clienților"
-                    text="Înregistrează comenzile și urmărește livrările. Vei vedea ce ai de livrat azi, mâine și în zilele următoare."
-                    actionLabel="Mergi la Comenzi →"
-                    onDismiss={() => dismissGuide('comenzi')}
-                    onAction={() => router.push('/comenzi')}
-                  />
-                ) : null}
-
-                {hasAnyComenzi ? (
-                <section style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <SectionTitle className="flex-1" title="Comenzi de livrat" />
-                    <button
-                      type="button"
-                      onClick={() => router.push('/comenzi')}
-                      style={{ border: 'none', background: 'transparent', color: colors.primary, fontSize: 12, fontWeight: 700 }}
-                    >
-                      Toate →
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    <button
-                      type="button"
-                      onClick={() => router.push('/comenzi?filter=azi')}
-                      style={{
-                        textAlign: 'left',
-                        border: `1px solid ${comenziAzi.length > 0 ? colors.coral : colors.gray}`,
-                        borderLeft: `4px solid ${comenziAzi.length > 0 ? colors.coral : colors.gray}`,
-                        background: comenziAzi.length > 0 ? colors.coralLight : colors.grayLight,
-                        borderRadius: radius.xl,
-                        boxShadow: shadows.card,
-                        padding: spacing.lg,
-                        minHeight: 110,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: comenziAzi.length > 0 ? colors.coral : colors.gray }}>AZI</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: colors.dark, lineHeight: 1 }}>{comenziAzi.length}</div>
-                      <div style={{ fontSize: 12, color: colors.gray }}>{formatNumber(kgComenziAzi)} kg</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => router.push('/comenzi?filter=viitoare')}
-                      style={{
-                        textAlign: 'left',
-                        border: `1px solid ${colors.yellow}`,
-                        borderLeft: `4px solid ${colors.yellow}`,
-                        background: colors.yellowLight,
-                        borderRadius: radius.xl,
-                        boxShadow: shadows.card,
-                        padding: spacing.lg,
-                        minHeight: 110,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{ fontSize: 10, fontWeight: 700, color: colors.dark }}>VIITOARE</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: colors.dark, lineHeight: 1 }}>{comenziViitoare.length}</div>
-                      <div style={{ fontSize: 12, color: colors.gray }}>{formatNumber(kgComenziViitoare)} kg</div>
-                    </button>
-                  </div>
-                </section>
-                ) : null}
-
-                {!hasAnyActivitati && !dismissedGuides.activitati ? (
-                  <GuideCard
-                    emoji="✂️"
-                    title="Planifică activitățile agricole"
-                    text="Înregistrează tăierile, tratamentele, fertilizările și alte lucrări. Vei putea urmări istoricul și timpii de pauză."
-                    actionLabel="Mergi la Activități →"
-                    onDismiss={() => dismissGuide('activitati')}
-                    onAction={() => router.push('/activitati-agricole')}
-                  />
-                ) : null}
-
-                {recentActivity.length > 0 ? (
-                  <section className="lg:self-start" style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <SectionTitle title="Activitate recentă" />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                      {recentActivity.map((item) => (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => router.push(item.href)}
-                          style={{
-                            width: '100%',
-                            border: `1px solid ${colors.grayLight}`,
-                            background: colors.white,
-                            borderRadius: radius.lg,
-                            boxShadow: shadows.card,
-                            padding: spacing.sm,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: spacing.sm,
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: radius.md,
-                              background: item.iconBg,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 16,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {item.icon}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 700,
-                                color: colors.dark,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {item.text}
-                            </div>
-                            <div style={{ marginTop: 2, fontSize: 10, color: colors.gray }}>{formatTimestamp(item.timestamp)}</div>
-                          </div>
-                          <div style={{ fontSize: 20, color: colors.gray, lineHeight: 1 }}>›</div>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
-                </div>
-              </>
-            )}
-          </div>
+                ))}
+              </DashboardGridLayout>
+            </div>
+          </>
         ) : null}
       </div>
+
+      <Dialog open={addWidgetOpen} onOpenChange={setAddWidgetOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Adaugă Widget</DialogTitle>
+            <DialogDescription>Alege un widget inactiv pe care vrei să-l readuci în dashboard.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {inactiveWidgets.length > 0 ? (
+              inactiveWidgets.map((widget) => (
+                <button
+                  key={widget.id}
+                  type="button"
+                  onClick={() => addWidget(widget.id)}
+                  className="flex w-full items-start justify-between gap-4 rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-4 text-left transition hover:border-[var(--agri-primary)]/40 hover:bg-[var(--agri-surface-muted)]"
+                >
+                  <div>
+                    <div className="text-sm font-semibold text-[var(--agri-text)]">{DASHBOARD_WIDGET_META[widget.id].title}</div>
+                    <div className="mt-1 text-xs leading-5 text-[var(--agri-text-muted)]">{DASHBOARD_WIDGET_META[widget.id].description}</div>
+                  </div>
+                  <span className="rounded-full bg-[rgba(45,106,79,0.08)] px-2.5 py-1 text-xs font-semibold text-[var(--agri-primary)]">
+                    Activează
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/60 px-4 py-8 text-center text-sm text-[var(--agri-text-muted)]">
+                Toate widget-urile disponibile sunt deja active.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAddWidgetOpen(false)}>
+              Închide
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }

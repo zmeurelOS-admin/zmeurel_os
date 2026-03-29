@@ -65,7 +65,7 @@ export function RecentActivityCard({ items }: { items?: RecentActivityItem[] }) 
                 key={item.id}
                 className="flex items-center gap-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 py-2.5"
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-white text-[var(--agri-text-muted)]">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] text-[var(--agri-text-muted)]">
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">

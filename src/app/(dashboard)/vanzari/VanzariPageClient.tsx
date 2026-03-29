@@ -2,30 +2,25 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
+import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
-import { LoadingState } from '@/components/app/LoadingState'
 import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
-import { StickyActionBar } from '@/components/app/StickyActionBar'
-import { SectionTitle } from '@/components/dashboard/SectionTitle'
-import AlertCard from '@/components/ui/AlertCard'
-import Sparkline from '@/components/ui/Sparkline'
-import TrendBadge from '@/components/ui/TrendBadge'
-import { VanzareCard } from '@/components/vanzari/VanzareCard'
+import { Button } from '@/components/ui/button'
+import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import { deleteVanzare, getVanzari, updateVanzare, type Vanzare } from '@/lib/supabase/queries/vanzari'
-import { buildVanzareDeleteLabel } from '@/lib/ui/delete-labels'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -35,10 +30,6 @@ const AddVanzareDialog = dynamic(
 )
 const EditVanzareDialog = dynamic(
   () => import('@/components/vanzari/EditVanzareDialog').then((mod) => mod.EditVanzareDialog),
-  { ssr: false }
-)
-const ViewVanzareDialog = dynamic(
-  () => import('@/components/vanzari/ViewVanzareDialog').then((mod) => mod.ViewVanzareDialog),
   { ssr: false }
 )
 const ConfirmDeleteDialog = dynamic(
@@ -57,7 +48,7 @@ interface VanzariPageClientProps {
   clienti?: Client[]
 }
 
-type TemporalFilter = 'azi' | 'sapt' | 'luna' | 'sezon' | 'toate'
+type TemporalFilter = 'luna' | 'sapt' | 'toate'
 
 function toDateOnly(value: string | null | undefined): string {
   return (value ?? '').slice(0, 10)
@@ -83,12 +74,6 @@ function getStartOfMonth(value: Date): Date {
   return date
 }
 
-function getStartOfSeason(value: Date): Date {
-  const date = new Date(value.getFullYear(), 0, 1)
-  date.setHours(0, 0, 0, 0)
-  return date
-}
-
 function normalizeText(value: string | null | undefined): string {
   return (value ?? '')
     .toLowerCase()
@@ -101,6 +86,218 @@ function isIncasata(status: string | null | undefined): boolean {
   return normalized.includes('incasat') || normalized.includes('platit') || normalized.includes('achitat')
 }
 
+function formatData(value: string): string {
+  const d = new Date(value)
+  return d.toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })
+}
+
+function formatRon(value: number): string {
+  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+}
+
+interface EnrichedVanzare extends Vanzare {
+  clientNume: string
+  telefon: string | null
+  totalRon: number
+  incasata: boolean
+}
+
+interface VanzareCardNewProps {
+  vanzare: EnrichedVanzare
+  isExpanded: boolean
+  onToggle: () => void
+  onMarkPaid: () => void
+  onMarkUnpaid: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onOpenComanda: () => void
+}
+
+function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpaid, onEdit, onDelete, onOpenComanda }: VanzareCardNewProps) {
+  const accentColor = vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)'
+
+  return (
+    <div
+      style={{
+        background: 'var(--agri-surface)',
+        borderRadius: 14,
+        border: '1px solid var(--agri-border)',
+        borderLeft: `4px solid ${accentColor}`,
+        overflow: 'hidden',
+        marginBottom: 8,
+      }}
+    >
+      {/* COLLAPSED ROW */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          padding: '11px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>{vanzare.clientNume}</span>
+            {vanzare.comanda_id ? (
+              <span style={{
+                fontSize: 8, fontWeight: 600, color: 'var(--soft-info-text)',
+                background: 'var(--soft-info-bg)', padding: '2px 6px', borderRadius: 10,
+              }}>din comandă</span>
+            ) : null}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>
+            {Number(vanzare.cantitate_kg || 0).toFixed(1)} kg · {formatData(vanzare.data)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
+          <div>
+            <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--agri-text)' }}>{formatRon(vanzare.totalRon)}</span>
+            <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>RON</span>
+          </div>
+          <div style={{ marginTop: 2 }}>
+            {vanzare.incasata ? (
+              <span style={{ fontSize: 9, color: 'var(--status-success-text)', background: 'var(--status-success-bg)', padding: '2px 6px', borderRadius: 8, fontWeight: 600 }}>Încasat</span>
+            ) : (
+              <span style={{ fontSize: 9, color: 'var(--status-warning-text)', background: 'var(--status-warning-bg)', padding: '2px 6px', borderRadius: 8, fontWeight: 600 }}>Neîncasat</span>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/* DRAG INDICATOR */}
+      <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isExpanded ? 0 : 4 }}>
+        <div style={{ width: 40, height: 2, borderRadius: 999, background: 'var(--surface-divider)' }} />
+      </div>
+
+      {/* EXPANDED */}
+      {isExpanded ? (
+        <div style={{ borderTop: '1px solid var(--agri-border)', padding: '10px 14px 14px' }}>
+          {/* DETALII */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 8 }}>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Client: </span><strong>{vanzare.clientNume}</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cantitate: </span><strong>{Number(vanzare.cantitate_kg || 0).toFixed(2)} kg</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Preț: </span><strong>{Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Total: </span><strong style={{ color: 'var(--value-positive)' }}>{formatRon(vanzare.totalRon)} RON</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Data: </span><strong>{new Date(vanzare.data).toLocaleDateString('ro-RO')}</strong></span>
+            <span>
+              <span style={{ color: 'var(--agri-text-muted)' }}>Încasat: </span>
+              <strong style={{ color: vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)' }}>{vanzare.incasata ? 'Da' : 'Nu'}</strong>
+            </span>
+          </div>
+
+          {/* LINK COMANDA */}
+          {vanzare.comanda_id ? (
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpenComanda() }}
+                style={{
+                  padding: '7px 12px', fontSize: 10, fontWeight: 600,
+                  background: 'var(--soft-info-bg)', color: 'var(--soft-info-text)', borderRadius: 8,
+                  border: '1px solid var(--soft-info-border)', cursor: 'pointer',
+                }}
+              >
+                📦 Vezi comanda
+              </button>
+            </div>
+          ) : null}
+
+          {/* CONTACT BUTTONS */}
+          {vanzare.telefon ? (
+            <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
+              <a
+                href={`tel:${vanzare.telefon}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 4, padding: '7px 0', fontSize: 10, fontWeight: 600,
+                  background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', borderRadius: 8,
+                  border: '1px solid var(--button-muted-border)',
+                  textDecoration: 'none',
+                }}
+              >
+                📞 Sună
+              </a>
+              <a
+                href={`https://wa.me/${vanzare.telefon.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: 4, padding: '7px 0', fontSize: 10, fontWeight: 600,
+                  background: 'var(--status-success-bg)', color: 'var(--status-success-text)', borderRadius: 8,
+                  border: '1px solid var(--status-success-border)',
+                  textDecoration: 'none',
+                }}
+              >
+                💬 WhatsApp
+              </a>
+            </div>
+          ) : null}
+
+          {/* TOGGLE INCASARE */}
+          {!vanzare.incasata ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMarkPaid() }}
+              style={{
+                marginTop: 8, width: '100%', padding: '9px', fontSize: 11, fontWeight: 700,
+                background: 'var(--pill-active-bg)', color: 'var(--pill-active-text)', borderRadius: 10, border: 'none', cursor: 'pointer',
+              }}
+            >
+              💰 Marchează ca încasat
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onMarkUnpaid() }}
+              style={{
+                marginTop: 8, width: '100%', padding: '9px', fontSize: 11, fontWeight: 600,
+                background: 'var(--button-muted-bg)', color: 'var(--agri-text-muted)', borderRadius: 10, border: '1px solid var(--button-muted-border)', cursor: 'pointer',
+              }}
+            >
+              ↩ Marchează ca neîncasat
+            </button>
+          )}
+
+          {/* EDIT / DELETE */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit() }}
+              style={{
+                border: '1px solid var(--button-muted-border)', background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)',
+                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              ✏️ Editează
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              style={{
+                border: '1px solid var(--status-danger-border)', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)',
+                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              🗑️ Șterge
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function VanzariPageClient({ initialVanzari = [], clienti: initialClienți = [] }: VanzariPageClientProps) {
   useTrackModuleView('vanzari')
   const router = useRouter()
@@ -108,16 +305,14 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
   const { registerAddAction } = useAddAction()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Vanzare; index: number }>>({})
+  const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
   const [searchTerm, setSearchTerm] = useState('')
   const [temporalFilter, setTemporalFilter] = useState<TemporalFilter>('luna')
-  const [selectedClient, setSelectedClient] = useState<string | null>(null)
-  const [paymentFilter, setPaymentFilter] = useState<'incasate' | 'neincasate' | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [viewingVanzare, setViewingVanzare] = useState<Vanzare | null>(null)
   const [editingVanzare, setEditingVanzare] = useState<Vanzare | null>(null)
   const [deletingVanzare, setDeletingVanzare] = useState<Vanzare | null>(null)
-  const [desktopSelectedVanzareId, setDesktopSelectedVanzareId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const {
     data: vanzari = initialVanzari,
@@ -180,7 +375,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
       delete pendingDeletedItems.current[deletedId]
       trackEvent('delete_item', 'vanzari')
       track('vanzare_delete', { id: deletedId })
-      toast.success('Vânzare stearsa')
+      toast.success('Vânzare ștearsă')
       setDeletingVanzare(null)
     },
     onError: (err: Error, deletedId) => {
@@ -197,24 +392,47 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
         toast.error(result.error)
         return
       }
-
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      toast.success('Vânzare marcată ca plătită ✅')
+      toast.success('✓ Marcat ca încasat')
     },
     onError: (err: Error) => {
       toast.error(err.message)
     },
   })
 
+  const markUnpaidMutation = useMutation({
+    mutationFn: (id: string) => updateVanzare(id, { status_plata: 'restanta' }),
+    onSuccess: (result) => {
+      if (!result.success) {
+        toast.error(result.error)
+        return
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
+      toast.success('Marcat ca neîncasat')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
     return () => {
-      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+      Object.keys(pendingDeleteTimers.current).forEach((id) => {
+        clearTimeout(pendingDeleteTimers.current[id])
+        if (pendingDeletedItems.current[id]) {
+          delete pendingDeletedItems.current[id]
+          deleteMutateRef.current(id)
+        }
+      })
+      pendingDeleteTimers.current = {}
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), '💰 Vanzare directa')
+    const unregister = registerAddAction(() => setAddOpen(true), '💰 Vânzare directă')
     return unregister
   }, [registerAddAction])
 
@@ -244,7 +462,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
     pendingDeleteTimers.current[vanzareId] = timer
 
-    toast('Element sters', {
+    toast('Element șters', {
       duration: 5000,
       action: {
         label: 'Undo',
@@ -271,17 +489,13 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
   const clientMap = useMemo(() => {
     const map: Record<string, string> = {}
-    clienti.forEach((c) => {
-      map[c.id] = c.nume
-    })
+    clienti.forEach((c) => { map[c.id] = c.nume })
     return map
   }, [clienti])
 
   const clientPhoneMap = useMemo(() => {
     const map: Record<string, string | null> = {}
-    clienti.forEach((c) => {
-      map[c.id] = c.telefon
-    })
+    clienti.forEach((c) => { map[c.id] = c.telefon })
     return map
   }, [clienti])
 
@@ -293,8 +507,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
     return map
   }, [comenzi])
 
-  const allVanzari = useMemo(() => {
-    const todayIso = toIsoDate(new Date())
+  const allVanzari = useMemo<EnrichedVanzare[]>(() => {
     return vanzari.map((row) => {
       const fromComanda = row.comanda_id ? comandaMap.get(row.comanda_id) : null
       const fallbackClient = fromComanda?.client_nume || fromComanda?.client_nume_manual || 'Client necunoscut'
@@ -307,22 +520,9 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
         telefon,
         totalRon: Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0),
         incasata: isIncasata(row.status_plata),
-        isNewFromComandaToday: Boolean(row.comanda_id) && toDateOnly(row.created_at) === todayIso,
       }
     })
   }, [vanzari, clientMap, clientPhoneMap, comandaMap])
-
-  const searchedVanzari = useMemo(() => {
-    const term = normalizeText(searchTerm)
-    if (!term) return allVanzari
-    return allVanzari.filter((row) => {
-      return (
-        normalizeText(row.clientNume).includes(term) ||
-        normalizeText(row.status_plata).includes(term) ||
-        normalizeText(row.observatii_ladite).includes(term)
-      )
-    })
-  }, [allVanzari, searchTerm])
 
   const temporalVanzari = useMemo(() => {
     const today = new Date()
@@ -330,336 +530,179 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
     const todayIso = toIsoDate(today)
     const weekStartIso = toIsoDate(getStartOfWeek(today))
     const monthStartIso = toIsoDate(getStartOfMonth(today))
-    const seasonStartIso = toIsoDate(getStartOfSeason(today))
 
-    if (temporalFilter === 'toate') return searchedVanzari
+    if (temporalFilter === 'toate') return allVanzari
 
-    return searchedVanzari.filter((row) => {
+    return allVanzari.filter((row) => {
       const rowDate = toDateOnly(row.data)
-      if (temporalFilter === 'azi') return rowDate === todayIso
       if (temporalFilter === 'sapt') return rowDate >= weekStartIso && rowDate <= todayIso
-      if (temporalFilter === 'luna') return rowDate >= monthStartIso && rowDate <= todayIso
-      return rowDate >= seasonStartIso && rowDate <= todayIso
+      return rowDate >= monthStartIso && rowDate <= todayIso
     })
-  }, [searchedVanzari, temporalFilter])
+  }, [allVanzari, temporalFilter])
 
   const filteredVanzari = useMemo(() => {
-    return temporalVanzari.filter((row) => {
-      if (selectedClient && row.clientNume !== selectedClient) return false
-      if (paymentFilter === 'incasate' && !row.incasata) return false
-      if (paymentFilter === 'neincasate' && row.incasata) return false
-      return true
-    })
-  }, [temporalVanzari, selectedClient, paymentFilter])
+    const term = normalizeText(searchTerm)
+    if (!term) return temporalVanzari
+    return temporalVanzari.filter((row) =>
+      normalizeText(row.clientNume).includes(term) ||
+      normalizeText(row.status_plata).includes(term) ||
+      normalizeText(row.observatii_ladite).includes(term)
+    )
+  }, [temporalVanzari, searchTerm])
 
-  const total = useMemo(() => filteredVanzari.reduce((sum, v) => sum + v.totalRon, 0), [filteredVanzari])
-
-  const dashboardSummary = useMemo(() => {
+  const scoreboard = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayIso = toIsoDate(today)
-    const monthStart = getStartOfMonth(today)
-    const monthStartIso = toIsoDate(monthStart)
+    const monthStartIso = toIsoDate(getStartOfMonth(today))
 
-    const previousMonthStart = new Date(monthStart)
-    previousMonthStart.setMonth(previousMonthStart.getMonth() - 1)
-    const previousMonthStartIso = toIsoDate(previousMonthStart)
-
-    const previousMonthEnd = new Date(monthStart)
-    previousMonthEnd.setDate(previousMonthEnd.getDate() - 1)
-    const previousMonthEndIso = toIsoDate(previousMonthEnd)
-
-    const ronLunaCurenta = allVanzari.reduce((sum, row) => {
-      const rowDate = toDateOnly(row.data)
-      if (rowDate < monthStartIso || rowDate > todayIso) return sum
-      return sum + row.totalRon
-    }, 0)
-
-    const ronLunaTrecuta = allVanzari.reduce((sum, row) => {
-      const rowDate = toDateOnly(row.data)
-      if (rowDate < previousMonthStartIso || rowDate > previousMonthEndIso) return sum
-      return sum + row.totalRon
-    }, 0)
-
-    const kgLunaCurenta = allVanzari.reduce((sum, row) => {
-      const rowDate = toDateOnly(row.data)
-      if (rowDate < monthStartIso || rowDate > todayIso) return sum
-      return sum + Number(row.cantitate_kg || 0)
-    }, 0)
-
-    const kgLunaTrecuta = allVanzari.reduce((sum, row) => {
-      const rowDate = toDateOnly(row.data)
-      if (rowDate < previousMonthStartIso || rowDate > previousMonthEndIso) return sum
-      return sum + Number(row.cantitate_kg || 0)
-    }, 0)
-
-    const vanzariLunaCurenta = allVanzari.filter((row) => {
+    const lunaVanzari = allVanzari.filter((row) => {
       const rowDate = toDateOnly(row.data)
       return rowDate >= monthStartIso && rowDate <= todayIso
-    }).length
-
-    const trendRon = ronLunaTrecuta > 0 ? ((ronLunaCurenta - ronLunaTrecuta) / ronLunaTrecuta) * 100 : ronLunaCurenta > 0 ? 100 : 0
-    const trendKg = kgLunaTrecuta > 0 ? ((kgLunaCurenta - kgLunaTrecuta) / kgLunaTrecuta) * 100 : kgLunaCurenta > 0 ? 100 : 0
-
-    const ronUltimele7Zile = Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(today)
-      day.setDate(today.getDate() - 6 + index)
-      const dayIso = toIsoDate(day)
-      return allVanzari.reduce((sum, row) => {
-        if (toDateOnly(row.data) !== dayIso) return sum
-        return sum + row.totalRon
-      }, 0)
     })
 
-    const kgUltimele7Zile = Array.from({ length: 7 }, (_, index) => {
-      const day = new Date(today)
-      day.setDate(today.getDate() - 6 + index)
-      const dayIso = toIsoDate(day)
-      return allVanzari.reduce((sum, row) => {
-        if (toDateOnly(row.data) !== dayIso) return sum
-        return sum + Number(row.cantitate_kg || 0)
-      }, 0)
-    })
-
-    const incasatRon = allVanzari.reduce((sum, row) => sum + (row.incasata ? row.totalRon : 0), 0)
+    const vanzariLunaRon = lunaVanzari.reduce((sum, row) => sum + row.totalRon, 0)
+    const vanzariLunaKg = lunaVanzari.reduce((sum, row) => sum + Number(row.cantitate_kg || 0), 0)
     const neincasatRon = allVanzari.reduce((sum, row) => sum + (!row.incasata ? row.totalRon : 0), 0)
-    const totalKgAll = allVanzari.reduce((sum, row) => sum + Number(row.cantitate_kg || 0), 0)
-    const totalRonAll = allVanzari.reduce((sum, row) => sum + row.totalRon, 0)
-    const pretMediu = totalKgAll > 0 ? totalRonAll / totalKgAll : 0
 
-    return {
-      ronLunaCurenta,
-      kgLunaCurenta,
-      vanzariLunaCurenta,
-      trendRon,
-      trendKg,
-      ronUltimele7Zile,
-      kgUltimele7Zile,
-      incasatRon,
-      neincasatRon,
-      pretMediu,
-    }
+    return { vanzariLunaRon, vanzariLunaKg, neincasatRon }
   }, [allVanzari])
-
-  const topClienți = useMemo(() => {
-    const grouped = new Map<string, { nume: string; totalRon: number; totalKg: number }>()
-    for (const row of temporalVanzari) {
-      const key = row.clientNume || 'Client necunoscut'
-      const current = grouped.get(key) ?? { nume: key, totalRon: 0, totalKg: 0 }
-      current.totalRon += row.totalRon
-      current.totalKg += Number(row.cantitate_kg || 0)
-      grouped.set(key, current)
-    }
-    return Array.from(grouped.values())
-      .sort((a, b) => b.totalRon - a.totalRon)
-      .slice(0, 5)
-  }, [temporalVanzari])
-
-  const maxTopClientRon = useMemo(() => topClienți.reduce((max, row) => (row.totalRon > max ? row.totalRon : max), 0), [topClienți])
-
-  const activeFilterLabel = useMemo(() => {
-    if (selectedClient) return `👤 ${selectedClient}`
-    if (paymentFilter === 'incasate') return '✅ Încasate'
-    if (paymentFilter === 'neincasate') return '💸 Neîncasate'
-    return null
-  }, [selectedClient, paymentFilter])
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
   }
 
-  const desktopSelectedVanzare =
-    filteredVanzari.find((row) => row.id === desktopSelectedVanzareId) ??
-    filteredVanzari[0] ??
-    null
+  const PILL_FILTERS: { key: TemporalFilter; label: string }[] = [
+    { key: 'luna', label: 'Luna' },
+    { key: 'sapt', label: 'Săpt.' },
+    { key: 'toate', label: 'Toate' },
+  ]
+  const desktopColumns = useMemo<ColumnDef<EnrichedVanzare>[]>(() => [
+    {
+      accessorKey: 'data',
+      header: 'Data',
+      cell: ({ row }) => formatData(row.original.data),
+      meta: {
+        searchValue: (row: EnrichedVanzare) => row.data,
+      },
+    },
+    {
+      accessorKey: 'clientNume',
+      header: 'Client',
+      cell: ({ row }) => <span className="font-medium">{row.original.clientNume}</span>,
+    },
+    {
+      id: 'produse',
+      header: 'Produse',
+      cell: () => '1',
+      meta: {
+        searchValue: () => '1',
+      },
+    },
+    {
+      accessorKey: 'cantitate_kg',
+      header: 'Cantitate',
+      cell: ({ row }) => `${Number(row.original.cantitate_kg || 0).toFixed(1)} kg`,
+      meta: {
+        searchValue: (row: EnrichedVanzare) => row.cantitate_kg,
+      },
+    },
+    {
+      accessorKey: 'totalRon',
+      header: 'Valoare',
+      cell: ({ row }) => `${formatRon(row.original.totalRon)} RON`,
+      meta: {
+        searchValue: (row: EnrichedVanzare) => row.totalRon,
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Acțiuni',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Editează vânzarea"
+            onClick={(event) => {
+              event.stopPropagation()
+              setEditingVanzare(row.original)
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Șterge vânzarea"
+            onClick={(event) => {
+              event.stopPropagation()
+              setDeletingVanzare(row.original)
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+          </Button>
+        </div>
+      ),
+      meta: {
+        searchable: false,
+        sticky: 'right',
+        headerClassName: 'w-[104px] text-right',
+        cellClassName: 'w-[104px] text-right',
+      },
+    },
+  ], [])
 
   return (
     <AppShell
       header={<PageHeader title="Vânzări" subtitle="Registrul livrărilor finalizate" />}
-      bottomBar={
-        <StickyActionBar>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Venit total: {total.toFixed(2)} lei</p>
-          </div>
-        </StickyActionBar>
-      }
+      bottomBar={null}
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4 lg:max-w-7xl">
-        <div className="grid grid-cols-2 gap-3">
-          <div
-            onClick={() => setTemporalFilter('luna')}
-            style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg, minHeight: 110, cursor: 'pointer' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-              <span style={{ fontSize: 16 }}>💰</span>
-              {Math.abs(dashboardSummary.trendRon) > 0.01 ? (
-                <TrendBadge value={Number(Math.abs(dashboardSummary.trendRon).toFixed(0))} positive={dashboardSummary.trendRon >= 0} />
+      <div className="mx-auto mt-3 w-full max-w-4xl py-3 sm:mt-0 sm:py-4 lg:max-w-4xl">
+
+        {/* SCOREBOARD */}
+        {scoreboard.vanzariLunaRon > 0 ? (
+          <div style={{
+            background: 'var(--agri-surface)', borderRadius: 12, padding: '10px 14px',
+            border: '1px solid var(--agri-border)', marginBottom: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span>
+                <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--value-positive)', letterSpacing: '-0.03em' }}>
+                  {formatRon(scoreboard.vanzariLunaRon)}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 4 }}>RON luna</span>
+              </span>
+              {scoreboard.vanzariLunaKg > 0 ? (
+                <span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>
+                    {scoreboard.vanzariLunaKg.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 2 }}>kg</span>
+                </span>
               ) : null}
             </div>
-            <div style={{ fontSize: 10, color: colors.gray }}>Luna asta</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>{dashboardSummary.ronLunaCurenta.toFixed(0)} RON</div>
-            <div style={{ fontSize: 10, color: colors.gray, marginBottom: spacing.xs }}>RON luna asta</div>
-            {dashboardSummary.ronUltimele7Zile.some((value) => value > 0) ? (
-              <Sparkline data={dashboardSummary.ronUltimele7Zile} color={colors.green} width={120} height={26} />
+            {scoreboard.neincasatRon > 0 ? (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>neîncasat</div>
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--status-warning-text)' }}>
+                    {formatRon(scoreboard.neincasatRon)}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--text-hint)', marginLeft: 2 }}>RON</span>
+                </div>
+              </div>
             ) : null}
-          </div>
-
-          <div
-            onClick={() => setTemporalFilter('luna')}
-            style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg, minHeight: 110, cursor: 'pointer' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-              <span style={{ fontSize: 16 }}>📦</span>
-              {Math.abs(dashboardSummary.trendKg) > 0.01 ? (
-                <TrendBadge value={Number(Math.abs(dashboardSummary.trendKg).toFixed(0))} positive={dashboardSummary.trendKg >= 0} />
-              ) : null}
-            </div>
-            <div style={{ fontSize: 10, color: colors.gray }}>Total vandut</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>{dashboardSummary.kgLunaCurenta.toFixed(1)} kg</div>
-            <div style={{ fontSize: 10, color: colors.gray, marginBottom: spacing.xs }}>{dashboardSummary.vanzariLunaCurenta} vânzări</div>
-            {dashboardSummary.kgUltimele7Zile.some((value) => value > 0) ? (
-              <Sparkline data={dashboardSummary.kgUltimele7Zile} color={colors.primary} width={120} height={26} />
-            ) : null}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <AlertCard
-            icon="✅"
-            label="Încasat"
-            value={dashboardSummary.incasatRon.toFixed(0)}
-            sub="RON"
-            variant="success"
-            onClick={() => {
-              setPaymentFilter('incasate')
-              setSelectedClient(null)
-            }}
-          />
-          <AlertCard
-            icon={dashboardSummary.neincasatRon > 0 ? '💸' : '✅'}
-            label={dashboardSummary.neincasatRon > 0 ? 'Neîncasat' : 'Tot încasat'}
-            value={dashboardSummary.neincasatRon.toFixed(0)}
-            sub={dashboardSummary.neincasatRon > 0 ? 'RON de colectat' : '0 RON de colectat'}
-            variant={dashboardSummary.neincasatRon > 0 ? 'warning' : 'success'}
-            onClick={dashboardSummary.neincasatRon > 0 ? () => {
-              setPaymentFilter('neincasate')
-              setSelectedClient(null)
-            } : undefined}
-          />
-          <div className="col-span-2 sm:col-span-1" style={{ background: colors.white, border: `1px solid ${colors.grayLight}`, borderRadius: radius.xl, boxShadow: shadows.card, padding: 14, minHeight: 98 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark, marginBottom: spacing.xs }}>📊 Preț mediu</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: colors.dark }}>{dashboardSummary.pretMediu.toFixed(2)}</div>
-            <div style={{ fontSize: 10, color: colors.gray }}>lei/kg</div>
-          </div>
-        </div>
-
-        <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.lg }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-            <SectionTitle className="flex-1" title="Top clienți" />
-            {selectedClient ? (
-              <button
-                type="button"
-                onClick={() => setSelectedClient(null)}
-                style={{ border: 'none', background: 'transparent', color: colors.coral, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-              >
-                ✕ Reset
-              </button>
-            ) : null}
-          </div>
-
-          {topClienți.length === 0 ? (
-            <p style={{ fontSize: 11, color: colors.gray }}>Nu există vânzări în intervalul selectat.</p>
-          ) : (
-            <div style={{ display: 'grid', gap: spacing.xs }}>
-              {topClienți.map((client, index) => {
-                const selected = selectedClient === client.nume
-                const rankBg = [colors.greenLight, colors.blueLight, colors.yellowLight, colors.coralLight][index % 4]
-                const progress = maxTopClientRon > 0 ? Math.max(6, (client.totalRon / maxTopClientRon) * 100) : 0
-                return (
-                  <button
-                    key={client.nume}
-                    type="button"
-                    onClick={() => {
-                      setSelectedClient((current) => (current === client.nume ? null : client.nume))
-                      setPaymentFilter(null)
-                    }}
-                    style={{
-                      border: 'none',
-                      width: '100%',
-                      textAlign: 'left',
-                      background: selected ? colors.primary : colors.white,
-                      color: selected ? colors.white : colors.dark,
-                      borderRadius: radius.md,
-                      padding: `${spacing.xs + 2}px ${spacing.sm}px`,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                      <div
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: radius.sm,
-                          background: selected ? colors.white : rankBg,
-                          color: selected ? colors.primary : colors.dark,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {index + 1}
-                      </div>
-
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{client.nume}</div>
-                        <div style={{ marginTop: 3, height: 5, borderRadius: radius.full, background: selected ? 'rgba(255,255,255,0.35)' : colors.grayLight, overflow: 'hidden' }}>
-                          <div style={{ width: `${progress}%`, height: '100%', borderRadius: radius.full, background: selected ? colors.white : colors.green }} />
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700 }}>{client.totalRon.toFixed(0)} RON</div>
-                        <div style={{ fontSize: 10, opacity: selected ? 0.9 : 0.8 }}>{client.totalKg.toFixed(1)} kg</div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {activeFilterLabel ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
-            <span style={{ background: colors.blueLight, color: colors.primary, borderRadius: radius.md, padding: '6px 10px', fontSize: 11, fontWeight: 700 }}>
-              {activeFilterLabel}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedClient(null)
-                setPaymentFilter(null)
-                setTemporalFilter('toate')
-                setSearchTerm('')
-              }}
-              style={{ border: 'none', background: colors.coralLight, color: colors.coral, borderRadius: radius.md, padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-            >
-              ✕ Arata toate
-            </button>
           </div>
         ) : null}
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
-          {([
-            ['azi', 'Azi'],
-            ['sapt', 'Sapt.'],
-            ['luna', 'Luna'],
-            ['sezon', 'Sezon'],
-            ['toate', 'Toate'],
-          ] as Array<[TemporalFilter, string]>).map(([key, label]) => {
+        {/* PILLS */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          {PILL_FILTERS.map(({ key, label }) => {
             const active = temporalFilter === key
             return (
               <button
@@ -667,15 +710,10 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
                 type="button"
                 onClick={() => setTemporalFilter(key)}
                 style={{
-                  minHeight: 34,
-                  borderRadius: radius.md,
-                  border: active ? 'none' : `1px solid ${colors.grayLight}`,
-                  background: active ? colors.primary : colors.white,
-                  color: active ? colors.white : colors.gray,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '0 10px',
-                  cursor: 'pointer',
+                  padding: '6px 14px', fontSize: 11, fontWeight: 600,
+                  borderRadius: 20, border: 'none', cursor: 'pointer',
+                  background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+                  color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
                 }}
               >
                 {label}
@@ -684,157 +722,62 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
           })}
         </div>
 
-        <SearchField placeholder="Caută dupa client sau status..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} aria-label="Caută vânzări" />
+        {/* SEARCH */}
+        {allVanzari.length > 5 ? (
+          <div style={{ marginBottom: 10 }}>
+            <SearchField
+              containerClassName="md:hidden"
+              placeholder="Caută după client..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Caută vânzări"
+            />
+          </div>
+        ) : null}
 
         {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={refresh} /> : null}
         {isLoading ? <TableCardsSkeleton /> : null}
 
+        {/* EMPTY STATE */}
         {!isLoading && !isError && filteredVanzari.length === 0 ? (
-          <div style={{ background: colors.white, borderRadius: radius.xl, boxShadow: shadows.card, padding: spacing.xxl, textAlign: 'center' }}>
-            <div style={{ fontSize: 42, marginBottom: spacing.sm }}>💰</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: colors.dark }}>Nicio vânzare încă</h3>
-            <p style={{ fontSize: 12, color: colors.gray, marginTop: spacing.sm }}>
-              Vânzările apar automat când livrezi comenzi. Du-te la Comenzi și apasă LIVRATĂ.
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push('/comenzi')}
-              style={{ marginTop: spacing.lg, border: 'none', borderRadius: radius.lg, background: colors.primary, color: colors.white, fontSize: 14, fontWeight: 700, padding: '12px 14px', cursor: 'pointer' }}
-            >
-              📦 Vezi comenzile
-            </button>
+          <div style={{
+            background: 'var(--agri-surface)', borderRadius: 14, padding: '36px 20px',
+            textAlign: 'center', border: '1px solid var(--agri-border)',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>💰</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 6 }}>Nicio vânzare încă</div>
+            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>
+              Vânzările se creează automat când livrezi o comandă
+            </div>
           </div>
         ) : null}
 
+        {/* LIST */}
         {!isLoading && !isError && filteredVanzari.length > 0 ? (
-          <>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 md:grid-cols-2 lg:hidden">
-              {filteredVanzari.map((vanzare) => (
-                <VanzareCard
-                  key={vanzare.id}
-                  vanzare={vanzare}
-                  clientNume={vanzare.clientNume}
-                  telefon={vanzare.telefon}
-                  incasata={vanzare.incasata}
-                  isNewFromComandaToday={vanzare.isNewFromComandaToday}
-                  onMarkPaid={() => markPaidMutation.mutate(vanzare.id)}
-                  onOpenComanda={() => router.push('/comenzi')}
-                  onView={setViewingVanzare}
-                  onEdit={setEditingVanzare}
-                  onDelete={setDeletingVanzare}
-                />
-              ))}
-            </div>
-
-            <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.9fr)_minmax(340px,1fr)] lg:gap-4">
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Data</th>
-                      <th className="px-4 py-3 font-semibold">Client</th>
-                      <th className="px-4 py-3 font-semibold">Cantitate</th>
-                      <th className="px-4 py-3 font-semibold">Total</th>
-                      <th className="px-4 py-3 font-semibold">Plata</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredVanzari.map((vanzare) => {
-                      const isSelected = desktopSelectedVanzare?.id === vanzare.id
-                      return (
-                        <tr
-                          key={vanzare.id}
-                          className={`cursor-pointer border-t border-gray-100 transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-gray-50'}`}
-                          onClick={() => setDesktopSelectedVanzareId(vanzare.id)}
-                        >
-                          <td className="px-4 py-3 text-gray-700">{new Date(vanzare.data).toLocaleDateString('ro-RO')}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">{vanzare.clientNume}</td>
-                          <td className="px-4 py-3 text-gray-700">{Number(vanzare.cantitate_kg || 0).toFixed(2)} kg</td>
-                          <td className="px-4 py-3 text-gray-900">{vanzare.totalRon.toFixed(2)} lei</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                                vanzare.incasata ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                              }`}
-                            >
-                              {vanzare.incasata ? 'Încasată' : 'Neîncasată'}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Detalii vanzare</h3>
-                {desktopSelectedVanzare ? (
-                  <div className="mt-4 space-y-3 text-sm text-gray-700">
-                    <p><span className="font-medium text-gray-900">Client:</span> {desktopSelectedVanzare.clientNume}</p>
-                    <p><span className="font-medium text-gray-900">Data:</span> {new Date(desktopSelectedVanzare.data).toLocaleDateString('ro-RO')}</p>
-                    <p><span className="font-medium text-gray-900">Cantitate:</span> {Number(desktopSelectedVanzare.cantitate_kg || 0).toFixed(2)} kg</p>
-                    <p><span className="font-medium text-gray-900">Pret:</span> {Number(desktopSelectedVanzare.pret_lei_kg || 0).toFixed(2)} lei/kg</p>
-                    <p><span className="font-medium text-gray-900">Total:</span> {desktopSelectedVanzare.totalRon.toFixed(2)} lei</p>
-                    <p><span className="font-medium text-gray-900">Status plata:</span> {desktopSelectedVanzare.status_plata || '-'}</p>
-                    {desktopSelectedVanzare.observatii_ladite ? (
-                      <p><span className="font-medium text-gray-900">Observatii:</span> {desktopSelectedVanzare.observatii_ladite}</p>
-                    ) : null}
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {!desktopSelectedVanzare.incasata ? (
-                        <button
-                          type="button"
-                          className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-                          onClick={() => markPaidMutation.mutate(desktopSelectedVanzare.id)}
-                        >
-                          Marchează încasată
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800"
-                        onClick={() => setViewingVanzare(desktopSelectedVanzare)}
-                      >
-                        Vezi
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
-                        onClick={() => setEditingVanzare(desktopSelectedVanzare)}
-                      >
-                        Editează
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
-                        onClick={() => setDeletingVanzare(desktopSelectedVanzare)}
-                      >
-                        Șterge
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-gray-600">Selectează o vânzare pentru detalii.</p>
-                )}
-              </aside>
-            </div>
-          </>
+          <ResponsiveDataView
+            columns={desktopColumns}
+            data={filteredVanzari}
+            getRowId={(row) => row.id}
+            searchPlaceholder="Caută în vânzări..."
+            emptyMessage="Nu am găsit vânzări pentru filtrele curente."
+            renderCard={(vanzare) => (
+              <VanzareCardNew
+                vanzare={vanzare}
+                isExpanded={expandedId === vanzare.id}
+                onToggle={() => setExpandedId(expandedId === vanzare.id ? null : vanzare.id)}
+                onMarkPaid={() => markPaidMutation.mutate(vanzare.id)}
+                onMarkUnpaid={() => markUnpaidMutation.mutate(vanzare.id)}
+                onEdit={() => setEditingVanzare(vanzare)}
+                onDelete={() => scheduleDelete(vanzare)}
+                onOpenComanda={() => router.push('/comenzi')}
+              />
+            )}
+          />
         ) : null}
+
       </div>
 
       <AddVanzareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
-
-      <ViewVanzareDialog
-        open={!!viewingVanzare}
-        onOpenChange={(open) => {
-          if (!open) setViewingVanzare(null)
-        }}
-        vanzare={viewingVanzare}
-        clientNume={viewingVanzare?.client_id ? clientMap[viewingVanzare.client_id] : undefined}
-        clientTelefon={viewingVanzare?.client_id ? clientPhoneMap[viewingVanzare.client_id] : null}
-        onEdit={setEditingVanzare}
-        onDelete={setDeletingVanzare}
-      />
 
       <EditVanzareDialog
         vanzare={editingVanzare}
@@ -850,14 +793,11 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
           if (!open) setDeletingVanzare(null)
         }}
         onConfirm={() => {
-          if (!deletingVanzare) return
-          scheduleDelete(deletingVanzare)
-          setDeletingVanzare(null)
+          if (deletingVanzare) deleteMutation.mutate(deletingVanzare.id)
         }}
-        itemName={buildVanzareDeleteLabel(deletingVanzare, deletingVanzare?.client_id ? clientMap[deletingVanzare.client_id] : '')}
-        itemType="Vânzare"
-        description={`Stergi vanzarea din ${deletingVanzare?.data ? new Date(deletingVanzare.data).toLocaleDateString('ro-RO') : 'data necunoscuta'} catre ${deletingVanzare?.client_id ? clientMap[deletingVanzare.client_id] || 'client necunoscut' : 'client necunoscut'}?`}
         loading={deleteMutation.isPending}
+        title="Șterge vânzarea?"
+        description="Această acțiune va șterge vânzarea și va restaura stocul. Nu poate fi anulată."
       />
     </AppShell>
   )

@@ -3,10 +3,12 @@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { getStatusBadgeClass, STATUS_BADGE_LAYOUT_CLASS } from '@/lib/ui/status-badges'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
+import { hapticConfirm } from '@/lib/utils/haptic'
 
 interface ClientDetailsDrawerProps {
   open: boolean
@@ -82,7 +84,7 @@ export function ClientDetailsDrawer({
               <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
                 Client
               </h3>
-              <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-white p-3">
+              <div className="space-y-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-3">
                 <p className="text-base font-semibold text-[var(--agri-text)]">{client.nume_client}</p>
                 <p className="text-sm text-[var(--agri-text-muted)]">Telefon: {client.telefon || '-'}</p>
                 <p className="text-sm text-[var(--agri-text-muted)]">Locație livrare: {client.adresa || '-'}</p>
@@ -103,8 +105,8 @@ export function ClientDetailsDrawer({
                     href={client.telefon ? `tel:${client.telefon}` : undefined}
                     className={`inline-flex h-10 items-center justify-center rounded-xl border text-sm font-medium ${
                       client.telefon
-                        ? 'border-blue-200 bg-blue-50 text-blue-700'
-                        : 'pointer-events-none border-slate-200 bg-slate-100 text-slate-400'
+                        ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
+                        : 'pointer-events-none border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500'
                     }`}
                   >
                     Sună
@@ -119,11 +121,19 @@ export function ClientDetailsDrawer({
               </h3>
 
               {isLoadingComenzi ? (
-                <p className="text-sm text-[var(--agri-text-muted)]">Se încarcă comenzile...</p>
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-3">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="mt-3 h-3 w-24" />
+                      <Skeleton className="mt-2 h-3 w-40" />
+                    </div>
+                  ))}
+                </div>
               ) : null}
 
               {!isLoadingComenzi && comenzi.length === 0 ? (
-                <p className="rounded-xl border border-[var(--agri-border)] bg-white p-3 text-sm text-[var(--agri-text-muted)]">
+                <p className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-3 text-sm text-[var(--agri-text-muted)]">
                   Nu există comenzi asociate pentru acest client.
                 </p>
               ) : null}
@@ -135,7 +145,7 @@ export function ClientDetailsDrawer({
                     const statusClass = statusClassMap[comanda.status] || getStatusBadgeClass(comanda.status)
 
                     return (
-                      <div key={comanda.id} className="rounded-xl border border-[var(--agri-border)] bg-white p-3">
+                      <div key={comanda.id} className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 space-y-1 text-sm">
                             <p className="text-[var(--agri-text-muted)]">
@@ -167,7 +177,10 @@ export function ClientDetailsDrawer({
             <Button
               type="button"
               className="agri-cta h-11 bg-[var(--agri-danger)] text-white hover:bg-red-700"
-              onClick={() => onDelete(client)}
+              onClick={() => {
+                hapticConfirm()
+                onDelete(client)
+              }}
             >
               Șterge
             </Button>

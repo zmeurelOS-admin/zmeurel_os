@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
 
 export const COMENZI_STATUSES = [
@@ -70,10 +70,10 @@ export interface DeliverComandaInput {
 }
 
 interface StockBucket {
-  locatie_id: string
-  produs: string
-  calitate: 'cal1' | 'cal2'
-  depozit: 'fresh' | 'congelat' | 'procesat'
+  locatie_id: string | null
+  produs: string | null
+  calitate: string | null
+  depozit: string | null
   availableKg: number
 }
 
@@ -89,6 +89,21 @@ type DeliverOrderAtomicPayload = {
   vanzare: Vanzare | null
   remaining_order: Record<string, unknown> | null
   deducted_stock_kg: number | null
+}
+
+type ComandaRow = Tables<'comenzi'>
+type ComandaQueryRow = ComandaRow & {
+  clienti?: Pick<Tables<'clienti'>, 'nume_client'> | null
+}
+type StockBucketRow = Pick<
+  Tables<'miscari_stoc'>,
+  'locatie_id' | 'produs' | 'calitate' | 'depozit' | 'tip_miscare' | 'cantitate_kg'
+>
+type ComandaInsertCompat = Omit<TablesInsert<'comenzi'>, 'data_livrare'> & {
+  data_livrare: string | null
+}
+type ComandaUpdateCompat = Omit<TablesUpdate<'comenzi'>, 'data_livrare'> & {
+  data_livrare?: string | null
 }
 
 type ComenziRpcClient = ReturnType<typeof getSupabase> & {
@@ -153,7 +168,7 @@ function ensureStatus(status: string): ComandaStatus {
   return normalized as ComandaStatus
 }
 
-function mapComanda(row: any): Comanda {
+function mapComanda(row: ComandaQueryRow): Comanda {
   return {
     id: row.id,
     tenant_id: row.tenant_id,
@@ -184,7 +199,7 @@ function signedQuantity(tipMiscare: string, cantitateKg: number): number {
 async function getStockBuckets(): Promise<StockBucket[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('miscari_stoc')
     .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg')
     .eq('tenant_id', tenantId)
@@ -192,7 +207,7 @@ async function getStockBuckets(): Promise<StockBucket[]> {
   if (error) throw toReadableError(error, 'Nu am putut incarca stocul disponibil.')
 
   const grouped = new Map<string, StockBucket>()
-  for (const row of data ?? []) {
+  for (const row of (data ?? []) as StockBucketRow[]) {
     const key = `${row.locatie_id}|${row.produs}|${row.calitate}|${row.depozit}`
     const existing = grouped.get(key) ?? {
       locatie_id: row.locatie_id,
@@ -220,7 +235,7 @@ function mapPlataToStatus(plata: ComandaPlata): string {
 export async function getComenzi(): Promise<Comanda[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('comenzi')
     .select(`
       id,
@@ -249,13 +264,13 @@ export async function getComenzi(): Promise<Comanda[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw toReadableError(error, 'Nu am putut incarca comenzile.')
-  return (data ?? []).map(mapComanda)
+  return ((data ?? []) as ComandaQueryRow[]).map(mapComanda)
 }
 
 export async function createComanda(input: CreateComandaInput): Promise<Comanda> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const payload = {
+  const payload: ComandaInsertCompat = {
     tenant_id: tenantId,
     client_id: input.client_id ?? null,
     client_nume_manual: input.client_nume_manual?.trim() || null,
@@ -270,9 +285,9 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     observatii: input.observatii?.trim() || null,
   }
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('comenzi')
-    .insert(payload)
+    .insert(payload as TablesInsert<'comenzi'>)
     .select(`
       id,
       tenant_id,
@@ -298,13 +313,13 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
-  return mapComanda(data)
+  return mapComanda(data as ComandaQueryRow)
 }
 
 export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const payload = {
+  const payload: ComandaUpdateCompat = {
     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
     ...(input.client_nume_manual !== undefined ? { client_nume_manual: input.client_nume_manual?.trim() || null } : {}),
     ...(input.telefon !== undefined ? { telefon: input.telefon?.trim() || null } : {}),
@@ -319,7 +334,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
   }
 
   if (payload.cantitate_kg !== undefined || payload.pret_per_kg !== undefined) {
-    const { data: current, error: currentError } = await (supabase as any)
+    const { data: current, error: currentError } = await supabase
       .from('comenzi')
       .select('cantitate_kg,pret_per_kg')
       .eq('id', id)
@@ -329,12 +344,12 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
 
     const cantitate = round2(payload.cantitate_kg ?? Number(current.cantitate_kg ?? 0))
     const pret = round2(payload.pret_per_kg ?? Number(current.pret_per_kg ?? 0))
-    ;(payload as any).total = round2(cantitate * pret)
+    payload.total = round2(cantitate * pret)
   }
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('comenzi')
-    .update(payload)
+    .update(payload as TablesUpdate<'comenzi'>)
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .select(`
@@ -362,7 +377,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut actualiza comanda.')
-  return mapComanda(data)
+  return mapComanda(data as ComandaQueryRow)
 }
 
 export async function deleteComanda(id: string): Promise<void> {
@@ -415,9 +430,9 @@ export async function deliverComanda(input: DeliverComandaInput): Promise<{
   }
 
   return {
-    deliveredOrder: mapComanda(data.delivered_order),
+    deliveredOrder: mapComanda(data.delivered_order as ComandaQueryRow),
     vanzare: data.vanzare,
-    remainingOrder: data.remaining_order ? mapComanda(data.remaining_order) : null,
+    remainingOrder: data.remaining_order ? mapComanda(data.remaining_order as ComandaQueryRow) : null,
     deductedStockKg: round2(Number(data.deducted_stock_kg ?? 0)),
   }
 }
@@ -444,7 +459,7 @@ export async function reopenComanda(id: string): Promise<Comanda> {
   if (!data) {
     throw new Error('Nu am primit comanda redeschisa de la baza de date.')
   }
-  return mapComanda(data)
+  return mapComanda(data as ComandaQueryRow)
 }
 
 export async function getComenziStockSummaryAzi(): Promise<{

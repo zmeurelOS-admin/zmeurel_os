@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -150,10 +150,10 @@ export function AddVanzareButasiDialog({
 
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
-  const setDialogOpen = (nextOpen: boolean) => {
+  const setDialogOpen = useCallback((nextOpen: boolean) => {
     if (!isControlled) setInternalOpen(nextOpen)
     onOpenChange?.(nextOpen)
-  }
+  }, [isControlled, onOpenChange])
 
   const form = useForm<FormValues, unknown, SubmitValues>({
     resolver: zodResolver(schema),
@@ -300,6 +300,10 @@ export function AddVanzareButasiDialog({
         const savedClient = await createClienți({
           nume_client: manualClientName,
           telefon: manualClientPhone || null,
+        }, {
+          onDuplicateWarning: (existing) => {
+            toast.warning(`Un client cu un nume similar există deja: ${existing.nume_client}. Continui.`)
+          },
         })
         resolvedClientId = savedClient.id
         queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
@@ -352,7 +356,7 @@ export function AddVanzareButasiDialog({
         }
       >
         <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
             <div className="space-y-4">
               {/* Single client combobox — replaces the old mode-toggle + select + manual fields */}
               <div className="space-y-2" ref={comboRef}>
@@ -375,15 +379,15 @@ export function AddVanzareButasiDialog({
                     }}
                   />
                   {comboOpen && (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
                       {comboFiltered.length === 0 ? (
-                        <p className="px-3 py-2 text-sm text-gray-400">Niciun client găsit — completează manual</p>
+                        <p className="px-3 py-2 text-sm text-gray-400 dark:text-zinc-400">Niciun client găsit — completează manual</p>
                       ) : (
                         comboFiltered.map((client) => (
                           <button
                             key={client.id}
                             type="button"
-                            className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50"
+                            className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                             onMouseDown={(e) => {
                               e.preventDefault()
                               setComboInput(client.nume_client)
@@ -398,14 +402,14 @@ export function AddVanzareButasiDialog({
                               }
                             }}
                           >
-                            <span className="font-medium text-gray-900">{client.nume_client}</span>
-                            {client.telefon ? <span className="text-gray-400">— {client.telefon}</span> : null}
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{client.nume_client}</span>
+                            {client.telefon ? <span className="text-gray-400 dark:text-zinc-400">— {client.telefon}</span> : null}
                           </button>
                         ))
                       )}
                       <button
                         type="button"
-                        className="flex w-full items-center gap-1.5 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                        className="flex w-full items-center gap-1.5 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:border-zinc-700 dark:hover:bg-emerald-900/20"
                         onMouseDown={(e) => {
                           e.preventDefault()
                           setComboOpen(false)
@@ -452,7 +456,7 @@ export function AddVanzareButasiDialog({
                     <input
                       id="vb_save_client_to_database"
                       type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-gray-300 dark:border-zinc-600"
                       checked={Boolean(form.watch('save_client_to_database'))}
                       onChange={(event) =>
                         form.setValue('save_client_to_database', event.target.checked, { shouldDirty: true })
@@ -479,8 +483,8 @@ export function AddVanzareButasiDialog({
                         className={cn(
                           'h-8 rounded-full border px-2 text-[11px] font-semibold',
                           isActive && status !== 'anulata' && 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
-                          isActive && status === 'anulata' && 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200',
-                          !isActive && 'bg-white text-slate-600'
+                          isActive && status === 'anulata' && 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 dark:border-red-700 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60',
+                          !isActive && 'bg-white text-slate-600 dark:bg-zinc-900 dark:text-zinc-300'
                         )}
                       >
                         {statusLabels[status]}
@@ -492,7 +496,7 @@ export function AddVanzareButasiDialog({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="vb_data_comanda">Data comandă</Label>
@@ -511,7 +515,7 @@ export function AddVanzareButasiDialog({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="vb_adresa">Adresă livrare</Label>
@@ -548,7 +552,7 @@ export function AddVanzareButasiDialog({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
             <div className="mb-3">
               <h3 className="text-base font-semibold text-[var(--agri-text)]">Produse</h3>
             </div>
@@ -565,7 +569,7 @@ export function AddVanzareButasiDialog({
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="absolute right-2 top-2 h-7 w-7 rounded-full text-red-500 hover:bg-red-100"
+                      className="absolute right-2 top-2 h-7 w-7 rounded-full text-red-500 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
                       onClick={() => {
                         if (fields.length > 1) remove(index)
                       }}
@@ -626,7 +630,7 @@ export function AddVanzareButasiDialog({
 
                       <div className="space-y-2 md:col-span-2">
                         <Label className="text-xs">Subtotal</Label>
-                        <div className="flex h-11 items-center justify-end rounded-xl border border-emerald-100 bg-white px-2 text-sm font-semibold">
+                        <div className="flex h-11 items-center justify-end rounded-xl border border-emerald-100 bg-white px-2 text-sm font-semibold dark:border-emerald-900/50 dark:bg-zinc-900">
                           {formatLei(subtotal || 0)}
                         </div>
                       </div>
@@ -648,7 +652,7 @@ export function AddVanzareButasiDialog({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
             <div className="space-y-3">
               <p className="text-lg font-bold text-[var(--agri-text)]">Total produse: {formatLei(totalProduse || 0)}</p>
 
@@ -670,7 +674,7 @@ export function AddVanzareButasiDialog({
                 </div>
               </div>
 
-              <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+              <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
                 Rest de încasat: {formatLei(restDeIncasat || 0)}
               </div>
             </div>
@@ -680,3 +684,4 @@ export function AddVanzareButasiDialog({
     </>
   )
 }
+

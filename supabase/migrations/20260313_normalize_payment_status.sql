@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al 2026031305_normalize_payment_status.sql (format A)
 update public.vanzari
 set status_plata = case
   when lower(coalesce(status_plata, '')) in ('incasata', 'incasat', 'platit', 'achitata', 'achitat') then 'platit'

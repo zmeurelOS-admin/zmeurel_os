@@ -1,36 +1,60 @@
-export type TipUnitate = 'camp' | 'solar' | 'livada'
+export type TipUnitate = 'camp' | 'solar' | 'livada' | 'cultura_mare'
 
 export interface ActivityOption {
   value: string
   label: string
 }
 
-const DEFAULT_ACTIVITY_OPTIONS: ActivityOption[] = [
-  { value: 'fertilizare_foliara', label: 'Fertilizare foliara' },
-  { value: 'fertirigare', label: 'Fertirigare' },
-  { value: 'fertilizare_baza', label: 'Fertilizare de baza' },
-  { value: 'fungicide_pesticide', label: 'Fungicide/Pesticide' },
-  { value: 'irigatie', label: 'Irigatie' },
-  { value: 'altele', label: 'Altele' },
-]
-
-const SOLAR_ACTIVITY_OPTIONS: ActivityOption[] = [
-  { value: 'plantare', label: 'Plantare' },
-  { value: 'copilit', label: 'Copilit' },
-  { value: 'palisat', label: 'Palisat' },
-  { value: 'defoliere', label: 'Defoliere' },
-  { value: 'fertigare', label: 'Fertigare' },
-  { value: 'irigare', label: 'Irigare' },
-  { value: 'tratament', label: 'Tratament' },
-  { value: 'aerisire_solar', label: 'Aerisire solar' },
-  { value: 'recoltare', label: 'Recoltare' },
-  { value: 'curatare_solar', label: 'Curatare solar' },
-]
-
-const OPTIONS_BY_UNITATE: Record<TipUnitate, ActivityOption[]> = {
-  camp: DEFAULT_ACTIVITY_OPTIONS,
-  livada: DEFAULT_ACTIVITY_OPTIONS,
-  solar: SOLAR_ACTIVITY_OPTIONS,
+export const ACTIVITATI_PER_TIP: Record<TipUnitate, string[]> = {
+  camp: [
+    'Tăiere lăstari',
+    'Palisare',
+    'Fertilizare foliară',
+    'Fertirigare',
+    'Fertilizare de bază',
+    'Fungicide/Pesticide',
+    'Irigație',
+    'Prășit',
+    'Erbicidat',
+    'Mulcire',
+    'Recoltare',
+    'Altele',
+  ],
+  solar: [
+    'Semănat',
+    'Răsădit',
+    'Palisare',
+    'Fertilizare foliară',
+    'Fertirigare',
+    'Fungicide/Pesticide',
+    'Irigație',
+    'Aerisire',
+    'Ciupire/Cârnire',
+    'Recoltare',
+    'Altele',
+  ],
+  livada: [
+    'Tăiere de formare',
+    'Tăiere de fructificare',
+    'Stropire',
+    'Fertilizare',
+    'Erbicidat',
+    'Cosire',
+    'Recoltare',
+    'Altele',
+  ],
+  cultura_mare: [
+    'Arat',
+    'Discuit',
+    'Semănat',
+    'Erbicidat',
+    'Fertilizare',
+    'Tratament fitosanitar',
+    'Irigație',
+    'Recoltare',
+    'Transport',
+    'Altele',
+  ],
 }
 
 function formatActivityLabel(value: string): string {
@@ -43,18 +67,24 @@ export function normalizeTipUnitate(value: string | null | undefined): TipUnitat
   const normalized = (value ?? 'camp').trim().toLowerCase()
   if (normalized === 'solar') return 'solar'
   if (normalized === 'livada') return 'livada'
+  if (normalized === 'cultura_mare') return 'cultura_mare'
   return 'camp'
 }
 
 export function getActivityOptionsForUnitate(tipUnitate: string | null | undefined): ActivityOption[] {
-  return OPTIONS_BY_UNITATE[normalizeTipUnitate(tipUnitate)]
+  return ACTIVITATI_PER_TIP[normalizeTipUnitate(tipUnitate)].map((label) => ({
+    value: label,
+    label,
+  }))
 }
 
-export function withCurrentActivityOption(options: ActivityOption[], currentValue: string | null | undefined): ActivityOption[] {
+export function withCurrentActivityOption(
+  options: ActivityOption[],
+  currentValue: string | null | undefined
+): ActivityOption[] {
   const value = (currentValue ?? '').trim()
   if (!value) return options
   if (options.some((option) => option.value === value)) return options
 
   return [...options, { value, label: formatActivityLabel(value) }]
 }
-

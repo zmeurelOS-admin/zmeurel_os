@@ -63,22 +63,22 @@ export function ConnectionStatus() {
   const config = {
     online: {
       label: 'Online',
-      className: 'border-emerald-300 bg-emerald-100 text-emerald-900',
+      className: 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400',
       icon: Wifi,
     },
     offline: {
       label: 'Offline',
-      className: 'border-slate-400 bg-slate-200 text-slate-900',
+      className: 'border-slate-400 bg-slate-200 text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300',
       icon: CloudOff,
     },
     syncing: {
       label: 'Sincronizare',
-      className: 'border-blue-300 bg-blue-100 text-blue-900',
+      className: 'border-blue-300 bg-blue-100 text-blue-900 dark:border-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
       icon: RefreshCw,
     },
     'sync-error': {
       label: 'Eroare sync',
-      className: 'border-red-300 bg-red-100 text-red-900',
+      className: 'border-red-300 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-900/50 dark:text-red-400',
       icon: AlertTriangle,
     },
   }[state]

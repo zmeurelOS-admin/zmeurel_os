@@ -30,6 +30,16 @@ export async function GET(request: Request) {
       throw error
     }
 
+    const aiConversationRetentionCutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const { error: cleanupError } = await supabase
+      .from('ai_conversations')
+      .delete()
+      .lt('created_at', aiConversationRetentionCutoff)
+
+    if (cleanupError) {
+      throw cleanupError
+    }
+
     return NextResponse.json({ ok: true, metrics: data })
   } catch (error) {
     captureApiError(error, { route: '/api/cron/admin-metrics-daily' })

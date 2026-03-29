@@ -8,25 +8,19 @@ import { getTenantId } from '@/lib/tenant/get-tenant'
 // CONSTANTS
 // ===============================
 
-export const CATEGORII_INVESTITII = [
-  'Butași',
-  'Sistem Irigație',
-  'Solar / Tunel',
-  'Utilaje',
-  'Depozitare',
-  'Ambalaje',
-  'Altele',
-] as const
+export { CATEGORII_INVESTITII } from '@/lib/financial/categories'
 
 // BADGE COLORS (pentru UI)
 export const BADGE_COLORS: Record<string, string> = {
-  'Butași': 'bg-green-100 text-green-700',
-  'Sistem Irigație': 'bg-blue-100 text-blue-700',
-  'Solar / Tunel': 'bg-purple-100 text-purple-700',
-  Utilaje: 'bg-yellow-100 text-yellow-700',
-  Depozitare: 'bg-indigo-100 text-indigo-700',
-  Ambalaje: 'bg-pink-100 text-pink-700',
-  Altele: 'bg-gray-100 text-gray-700',
+  'Material săditor': 'bg-green-100 text-green-700',
+  'Irigații și fertigare': 'bg-blue-100 text-blue-700',
+  'Sisteme de susținere și protecție': 'bg-purple-100 text-purple-700',
+  'Construcții și amenajări': 'bg-orange-100 text-orange-700',
+  'Utilaje și echipamente': 'bg-yellow-100 text-yellow-700',
+  'Depozitare și răcire': 'bg-indigo-100 text-indigo-700',
+  'Infrastructură și utilități': 'bg-cyan-100 text-cyan-700',
+  'IT și automatizări': 'bg-violet-100 text-violet-700',
+  'Alte investiții': 'bg-gray-100 text-gray-700',
 }
 
 // ===============================

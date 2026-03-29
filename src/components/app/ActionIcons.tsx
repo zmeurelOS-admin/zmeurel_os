@@ -3,6 +3,7 @@
 import { Pencil, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { hapticConfirm } from '@/lib/utils/haptic'
 import { cn } from '@/lib/utils'
 
 interface ActionIconsProps {
@@ -17,7 +18,7 @@ export function ActionIcons({ onEdit, onDelete, className }: ActionIconsProps) {
   return (
     <div
       className={cn(
-        'absolute right-3 top-3 z-10 flex items-center gap-1 rounded-xl border border-[var(--agri-border)] bg-white/95 p-1 shadow-sm backdrop-blur',
+        'absolute right-3 top-3 z-10 flex items-center gap-1 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-1 shadow-sm backdrop-blur',
         className
       )}
     >
@@ -26,7 +27,7 @@ export function ActionIcons({ onEdit, onDelete, className }: ActionIconsProps) {
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="h-10 w-10 rounded-lg p-0 text-gray-500 opacity-70 transition hover:bg-amber-50 hover:text-amber-700 hover:opacity-100 lg:h-9 lg:w-9"
+          className="h-10 w-10 rounded-lg p-0 text-[var(--agri-text-muted)] opacity-70 transition hover:bg-[var(--soft-warning-bg)] hover:text-[var(--soft-warning-text)] hover:opacity-100 lg:h-9 lg:w-9"
           onClick={(event) => {
             event.stopPropagation()
             onEdit()
@@ -41,9 +42,10 @@ export function ActionIcons({ onEdit, onDelete, className }: ActionIconsProps) {
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="h-10 w-10 rounded-lg p-0 text-gray-500 opacity-70 transition hover:bg-red-50 hover:text-red-700 hover:opacity-100 lg:h-9 lg:w-9"
+          className="h-10 w-10 rounded-lg p-0 text-[var(--agri-text-muted)] opacity-70 transition hover:bg-[var(--soft-danger-bg)] hover:text-[var(--soft-danger-text)] hover:opacity-100 lg:h-9 lg:w-9"
           onClick={(event) => {
             event.stopPropagation()
+            hapticConfirm()
             onDelete()
           }}
           aria-label="Șterge"

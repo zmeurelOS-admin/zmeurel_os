@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al 2026031306_update_vanzare_with_stock.sql (format A)
 create or replace function public.update_vanzare_with_stock(
   p_vanzare_id uuid,
   p_data date default null,

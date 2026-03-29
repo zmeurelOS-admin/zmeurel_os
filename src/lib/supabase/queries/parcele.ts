@@ -46,7 +46,7 @@ export async function getParcele(): Promise<Parcela[]> {
 
   const { data, error } = await supabase
     .from("parcele")
-    .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,updated_at,tenant_id")
+    .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,created_by,updated_at,updated_by,tenant_id,data_origin,demo_seed_id,stadiu")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
 
@@ -61,7 +61,7 @@ export async function getParcelaById(id: string): Promise<Parcela | null> {
 
   const { data, error } = await supabase
     .from('parcele')
-    .select('id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,updated_at,tenant_id')
+    .select('id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,created_by,updated_at,updated_by,tenant_id,data_origin,demo_seed_id,stadiu')
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .maybeSingle()
@@ -87,7 +87,7 @@ export async function createParcela(
       ...input,
       tenant_id: tenantId,
     })
-    .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,updated_at,tenant_id")
+    .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,created_by,updated_at,updated_by,tenant_id,data_origin,demo_seed_id,stadiu")
     .single()
 
   if (error) throw error
@@ -111,7 +111,7 @@ export async function updateParcela(
     .update(input)
     .eq("id", id)
     .eq("tenant_id", tenantId)
-    .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,updated_at,tenant_id")
+    .select("id,id_parcela,nume_parcela,tip_fruct,soi_plantat,suprafata_m2,nr_plante,an_plantare,status,gps_lat,gps_lng,observatii,tip_unitate,cultura,soi,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,created_at,created_by,updated_at,updated_by,tenant_id,data_origin,demo_seed_id,stadiu")
     .single()
 
   if (error) throw error

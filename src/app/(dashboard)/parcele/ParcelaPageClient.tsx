@@ -65,7 +65,7 @@ export function ParcelaPageClient({
     parcele.find((item) => item.id === desktopSelectedParcelaId) ?? parcele[0] ?? null
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-gray-50">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[var(--agri-bg)]">
       <CompactPageHeader
         title="Terenuri"
         subtitle="Administrare terenuri cultivate"
@@ -74,13 +74,13 @@ export function ParcelaPageClient({
       {/* List */}
       <div className="relative z-10 mt-4 space-y-4 px-4 py-4 sm:mt-0">
         {isLoading && (
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-[var(--agri-text-muted)]">
             Se încarcă...
           </p>
         )}
 
         {!isLoading && parcele.length === 0 && (
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-[var(--agri-text-muted)]">
             Nu exist? terenuri.
           </p>
         )}
@@ -105,9 +105,9 @@ export function ParcelaPageClient({
             </div>
 
             <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)] lg:gap-4">
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
                 <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
+                  <thead className="bg-[var(--agri-surface-muted)] text-xs uppercase tracking-wide text-[var(--agri-text-muted)]">
                     <tr>
                       <th className="px-4 py-3 font-semibold">Teren</th>
                       <th className="px-4 py-3 font-semibold">Tip unitate</th>
@@ -122,15 +122,15 @@ export function ParcelaPageClient({
                       return (
                         <tr
                           key={parcela.id}
-                          className={`cursor-pointer border-t border-gray-100 transition-colors ${isSelected ? 'bg-green-50' : 'hover:bg-gray-50'}`}
+                          className={`cursor-pointer border-t border-[var(--surface-divider)] transition-colors ${isSelected ? 'bg-[var(--soft-success-bg)]' : 'hover:bg-[var(--agri-surface-muted)]'}`}
                           onClick={() => setDesktopSelectedParcelaId(parcela.id)}
                         >
-                          <td className="px-4 py-3 font-medium text-gray-900">{parcela.nume_parcela || '-'}</td>
-                          <td className="px-4 py-3 text-gray-700">{parcela.tip_unitate || '-'}</td>
-                          <td className="px-4 py-3 text-gray-700">{Number(parcela.suprafata_m2 || 0).toFixed(0)} m2</td>
-                          <td className="px-4 py-3 text-gray-700">{Number(parcela.nr_plante || 0)}</td>
+                          <td className="px-4 py-3 font-medium text-[var(--agri-text)]">{parcela.nume_parcela || '-'}</td>
+                          <td className="px-4 py-3 text-[var(--agri-text-muted)]">{parcela.tip_unitate || '-'}</td>
+                          <td className="px-4 py-3 text-[var(--agri-text-muted)]">{Number(parcela.suprafata_m2 || 0).toFixed(0)} m2</td>
+                          <td className="px-4 py-3 text-[var(--agri-text-muted)]">{Number(parcela.nr_plante || 0)}</td>
                           <td className="px-4 py-3">
-                            <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
+                            <span className="rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-xs font-semibold text-[var(--status-success-text)]">
                               {parcela.status || 'activ'}
                             </span>
                           </td>
@@ -141,20 +141,20 @@ export function ParcelaPageClient({
                 </table>
               </div>
 
-              <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Detalii teren</h3>
+              <aside className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Detalii teren</h3>
                 {desktopSelectedParcela ? (
-                  <div className="mt-4 space-y-3 text-sm text-gray-700">
-                    <p><span className="font-medium text-gray-900">Nume:</span> {desktopSelectedParcela.nume_parcela || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Tip unitate:</span> {desktopSelectedParcela.tip_unitate || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Cultura:</span> {desktopSelectedParcela.cultura || desktopSelectedParcela.tip_fruct || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Soi:</span> {desktopSelectedParcela.soi || desktopSelectedParcela.soi_plantat || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Suprafata:</span> {Number(desktopSelectedParcela.suprafata_m2 || 0).toFixed(0)} m2</p>
-                    <p><span className="font-medium text-gray-900">Nr. plante:</span> {Number(desktopSelectedParcela.nr_plante || 0)}</p>
+                  <div className="mt-4 space-y-3 text-sm text-[var(--agri-text-muted)]">
+                    <p><span className="font-medium text-[var(--agri-text)]">Nume:</span> {desktopSelectedParcela.nume_parcela || '-'}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Tip unitate:</span> {desktopSelectedParcela.tip_unitate || '-'}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Cultura:</span> {desktopSelectedParcela.cultura || desktopSelectedParcela.tip_fruct || '-'}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Soi:</span> {desktopSelectedParcela.soi || desktopSelectedParcela.soi_plantat || '-'}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Suprafata:</span> {Number(desktopSelectedParcela.suprafata_m2 || 0).toFixed(0)} m2</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Nr. plante:</span> {Number(desktopSelectedParcela.nr_plante || 0)}</p>
                     <div className="flex gap-2 pt-2">
                       <button
                         type="button"
-                        className="rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800"
+                        className="rounded-md bg-[var(--agri-primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-95"
                         onClick={() => {
                           setSelectedParcela(desktopSelectedParcela)
                           setEditOpen(true)
@@ -164,7 +164,7 @@ export function ParcelaPageClient({
                       </button>
                       <button
                         type="button"
-                        className="rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        className="rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-danger-text)]"
                         onClick={() => {
                           setSelectedParcela(desktopSelectedParcela)
                           setDeleteOpen(true)
@@ -175,7 +175,7 @@ export function ParcelaPageClient({
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-gray-600">Selectează un teren pentru detalii.</p>
+                  <p className="mt-4 text-sm text-[var(--agri-text-muted)]">Selectează un teren pentru detalii.</p>
                 )}
               </aside>
             </div>
@@ -217,21 +217,18 @@ export function ParcelaPageClient({
         itemName={buildParcelaDeleteLabel(selectedParcela)}
         itemType="Teren"
         description={
-          isLoadingDeleteImpact
-            ? 'Se verifică dependențele acestui teren...'
-            : parcelaDeleteImpact && (parcelaDeleteImpact.recoltariCount > 0 || parcelaDeleteImpact.activitatiCount > 0)
-              ? `Terenul nu poate fi șters. Are ${[
-                  parcelaDeleteImpact.recoltariCount > 0 ? `${parcelaDeleteImpact.recoltariCount} recoltări` : null,
-                  parcelaDeleteImpact.activitatiCount > 0 ? `${parcelaDeleteImpact.activitatiCount} activități agricole` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' și ')} asociate.`
-              : `Ștergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`
+          parcelaDeleteImpact && (parcelaDeleteImpact.recoltariCount > 0 || parcelaDeleteImpact.activitatiCount > 0)
+            ? `Terenul nu poate fi șters. Are ${[
+                parcelaDeleteImpact.recoltariCount > 0 ? `${parcelaDeleteImpact.recoltariCount} recoltări` : null,
+                parcelaDeleteImpact.activitatiCount > 0 ? `${parcelaDeleteImpact.activitatiCount} activități agricole` : null,
+              ]
+                .filter(Boolean)
+                .join(' și ')} asociate.`
+            : undefined
         }
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (selectedParcela) {
-            if (isLoadingDeleteImpact) return
             if (parcelaDeleteImpact && (parcelaDeleteImpact.recoltariCount > 0 || parcelaDeleteImpact.activitatiCount > 0)) {
               toast.error('Terenul nu poate fi șters cât timp are recoltări sau activități agricole asociate.')
               return

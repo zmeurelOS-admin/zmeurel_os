@@ -24,7 +24,7 @@ export async function getSolarClimateLogs(unitateId: string, limit = 20): Promis
 
   const { data, error } = await supabase
     .from('solar_climate_logs')
-    .select('id,tenant_id,unitate_id,temperatura,umiditate,observatii,created_at')
+    .select('id,tenant_id,unitate_id,temperatura,umiditate,observatii,created_at,data_origin,demo_seed_id')
     .eq('unitate_id', unitateId)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -40,7 +40,7 @@ export async function getSolarClimateLogsForUnitati(unitateIds: string[], limit 
 
   const { data, error } = await supabase
     .from('solar_climate_logs')
-    .select('id,tenant_id,unitate_id,temperatura,umiditate,observatii,created_at')
+    .select('id,tenant_id,unitate_id,temperatura,umiditate,observatii,created_at,data_origin,demo_seed_id')
     .in('unitate_id', unitateIds)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -62,7 +62,7 @@ export async function createSolarClimateLog(input: CreateSolarClimateLogInput): 
       umiditate: input.umiditate,
       observatii: input.observatii?.trim() || null,
     })
-    .select('id,tenant_id,unitate_id,temperatura,umiditate,observatii,created_at')
+    .select('id,tenant_id,unitate_id,temperatura,umiditate,observatii,created_at,data_origin,demo_seed_id')
     .single()
 
   if (error) throw error
@@ -74,7 +74,7 @@ export async function getCultureStageLogs(unitateId: string, limit = 30): Promis
 
   const { data, error } = await supabase
     .from('culture_stage_logs')
-    .select('id,tenant_id,unitate_id,etapa,data,observatii,created_at')
+    .select('id,tenant_id,unitate_id,cultura_id,etapa,data,observatii,created_at,data_origin,demo_seed_id')
     .eq('unitate_id', unitateId)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })
@@ -91,7 +91,7 @@ export async function getCultureStageLogsForUnitati(unitateIds: string[], limit 
 
   const { data, error } = await supabase
     .from('culture_stage_logs')
-    .select('id,tenant_id,unitate_id,etapa,data,observatii,created_at')
+    .select('id,tenant_id,unitate_id,cultura_id,etapa,data,observatii,created_at,data_origin,demo_seed_id')
     .in('unitate_id', unitateIds)
     .order('data', { ascending: false })
     .order('created_at', { ascending: false })
@@ -114,7 +114,7 @@ export async function createCultureStageLog(input: CreateCultureStageLogInput): 
       data: input.data,
       observatii: input.observatii?.trim() || null,
     })
-    .select('id,tenant_id,unitate_id,etapa,data,observatii,created_at')
+    .select('id,tenant_id,unitate_id,cultura_id,etapa,data,observatii,created_at,data_origin,demo_seed_id')
     .single()
 
   if (error) throw error

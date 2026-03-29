@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm, useWatch } from 'react-hook-form'
@@ -16,13 +16,14 @@ import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { generateClientId } from '@/lib/offline/generateClientId'
 import { getClienți } from '@/lib/supabase/queries/clienti'
-import { createVanzare, STATUS_PLATA } from '@/lib/supabase/queries/vanzari'
+import { CALITATI_VANZARE, createVanzare, STATUS_PLATA } from '@/lib/supabase/queries/vanzari'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
 
 const schema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
   client_id: z.string().optional(),
+  calitate: z.enum(['cal1', 'cal2']),
   cantitate_kg: z
     .string()
     .trim()
@@ -52,6 +53,7 @@ interface AddVanzareDialogProps {
 const defaults = (): VanzareFormData => ({
   data: new Date().toISOString().split('T')[0],
   client_id: '',
+  calitate: 'cal1',
   cantitate_kg: '',
   pret_lei_kg: '',
   status_plata: 'platit',
@@ -70,10 +72,10 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
 
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
-  const setDialogOpen = (nextOpen: boolean) => {
+  const setDialogOpen = useCallback((nextOpen: boolean) => {
     if (!isControlled) setInternalOpen(nextOpen)
     onOpenChange?.(nextOpen)
-  }
+  }, [isControlled, onOpenChange])
 
   const form = useForm<VanzareFormData>({
     resolver: zodResolver(schema),
@@ -123,6 +125,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
       track('vanzare_add', {
         amount: Number(variables.cantitate_kg || 0) * Number(variables.pret_lei_kg || 0),
         client_id: variables.client_id ?? null,
+        calitate: variables.calitate ?? 'cal1',
       })
       hapticSuccess()
       toast.success('Vânzare adaugata')
@@ -157,6 +160,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
       client_sync_id: generateClientId(),
       data: data.data,
       client_id: data.client_id || undefined,
+      calitate: data.calitate,
       cantitate_kg: Number(data.cantitate_kg),
       pret_lei_kg: Number(data.pret_lei_kg),
       status_plata: data.status_plata,
@@ -170,6 +174,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title="Adaugă vânzare"
+        contentClassName="md:max-w-2xl"
         footer={
           <DialogFormActions
             onCancel={() => setDialogOpen(false)}
@@ -180,31 +185,56 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
           />
         }
       >
-        <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="space-y-2">
-            <Label htmlFor="v_data">Data vanzarii</Label>
-            <Input id="v_data" type="date" className="agri-control h-12" {...form.register('data')} />
-            {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
-          </div>
+        <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Client: full-width */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="v_client">Client</Label>
+              <select
+                id="v_client"
+                value={selectedClientId}
+                onChange={(e) => handleClientChange(e.target.value)}
+                className="agri-control h-12 w-full px-3 text-base"
+              >
+                <option value="">Fără client specificat</option>
+                {clienti.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.nume_client}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="v_client">Client</Label>
-            <select
-              id="v_client"
-              value={selectedClientId}
-              onChange={(e) => handleClientChange(e.target.value)}
-              className="agri-control h-12 w-full px-3 text-base"
-            >
-              <option value="">Fără client specificat</option>
-              {clienti.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.nume_client}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Row 1: Data + Status plată */}
+            <div className="space-y-2">
+              <Label htmlFor="v_data">Data vânzării</Label>
+              <Input id="v_data" type="date" className="agri-control h-12" {...form.register('data')} />
+              {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="v_status">Status plată</Label>
+              <select id="v_status" className="agri-control h-12 w-full px-3 text-base" {...form.register('status_plata')}>
+                {STATUS_PLATA.map((status) => (
+                  <option key={status} value={status}>
+                    {formatStatusPlataLabel(status)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Row 2: Calitate + Cantitate */}
+            <div className="space-y-2">
+              <Label htmlFor="v_calitate">Calitate</Label>
+              <select id="v_calitate" className="agri-control h-12 w-full px-3 text-base" {...form.register('calitate')}>
+                {CALITATI_VANZARE.map((calitate) => (
+                  <option key={calitate} value={calitate}>
+                    {calitate === 'cal1' ? 'Calitatea 1' : 'Calitatea 2'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="v_qty">Cantitate (kg)</Label>
               <Input
@@ -219,8 +249,9 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
               {form.formState.errors.cantitate_kg ? <p className="text-xs text-red-600">{form.formState.errors.cantitate_kg.message}</p> : null}
             </div>
 
+            {/* Preț: single column */}
             <div className="space-y-2">
-              <Label htmlFor="v_price">Pret lei/kg</Label>
+              <Label htmlFor="v_price">Preț (lei/kg)</Label>
               <Input
                 id="v_price"
                 type="number"
@@ -232,22 +263,12 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: Ad
               />
               {form.formState.errors.pret_lei_kg ? <p className="text-xs text-red-600">{form.formState.errors.pret_lei_kg.message}</p> : null}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="v_status">Status plata</Label>
-            <select id="v_status" className="agri-control h-12 w-full px-3 text-base" {...form.register('status_plata')}>
-              {STATUS_PLATA.map((status) => (
-                <option key={status} value={status}>
-                  {formatStatusPlataLabel(status)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="v_obs">Observații ladite</Label>
-            <Textarea id="v_obs" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii_ladite')} />
+            {/* Observații: full-width */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="v_obs">Observații lădițe</Label>
+              <Textarea id="v_obs" rows={3} className="agri-control w-full px-3 py-2 text-base" {...form.register('observatii_ladite')} />
+            </div>
           </div>
         </form>
       </AppDrawer>

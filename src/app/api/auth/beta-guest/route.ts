@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 import { ensureTenantForUser } from '@/lib/auth/ensure-tenant'
+import { checkRateLimit } from '@/lib/api/rate-limit'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { captureApiError } from '@/lib/monitoring/sentry'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
@@ -28,6 +29,11 @@ export async function POST(request: Request) {
     const invalidOriginResponse = validateSameOriginMutation(request)
     if (invalidOriginResponse) {
       return invalidOriginResponse
+    }
+
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+    if (!checkRateLimit(ip, 5, 60_000)) {
+      return NextResponse.json({ error: 'Prea multe încercări' }, { status: 429 })
     }
 
     const guest = buildGuestIdentity()

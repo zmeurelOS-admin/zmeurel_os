@@ -29,12 +29,12 @@ interface ParcelaFormProps {
 }
 
 export const IOS_INPUT_CLASS =
-  'h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm transition-all duration-150 focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500'
+  'h-11 w-full rounded-lg border border-[var(--input)] bg-[var(--agri-surface)] px-3 text-sm text-[var(--agri-text)] transition-all duration-150 placeholder:text-[var(--text-hint)] focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500'
 
-export const IOS_LABEL_CLASS = 'text-sm font-medium text-gray-700'
+export const IOS_LABEL_CLASS = 'text-sm font-medium text-[var(--button-muted-text)]'
 
 export const IOS_SELECT_TRIGGER_CLASS =
-  'h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm transition-all duration-150 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
+  'h-11 w-full rounded-lg border border-[var(--input)] bg-[var(--agri-surface)] px-3 text-sm text-[var(--agri-text)] transition-all duration-150 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500'
 
 export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
   const suprafataValue = form.watch('suprafata_m2')
@@ -140,7 +140,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="status" className={IOS_LABEL_CLASS}>
-          Status
+          Status *
         </Label>
         <Select
           value={form.watch('status')}
@@ -164,7 +164,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
         <Textarea
           id="observatii"
           placeholder="Detalii suplimentare..."
-          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition-all duration-150 focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500"
+          className="w-full rounded-lg border border-[var(--input)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text)] transition-all duration-150 placeholder:text-[var(--text-hint)] focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-500"
           {...form.register('observatii')}
         />
       </div>

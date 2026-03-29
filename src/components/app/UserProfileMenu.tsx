@@ -63,7 +63,7 @@ export function UserProfileMenu() {
   }, [])
 
   const itemClassName =
-    'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-gray-50'
+    'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]'
 
   return (
     <div ref={wrapperRef} className="relative hidden md:z-[60] md:flex">
@@ -83,7 +83,7 @@ export function UserProfileMenu() {
 
       {open ? (
         <div
-          className="absolute right-0 top-full z-[70] mt-2 w-64 rounded-xl border border-[var(--agri-border)] bg-white py-2 shadow-lg"
+          className="absolute right-0 top-full z-[70] mt-2 w-64 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] py-2 shadow-lg"
           role="menu"
         >
           <div className="px-3 py-2">
@@ -91,7 +91,7 @@ export function UserProfileMenu() {
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 font-medium text-white">
                 {initials}
               </span>
-              <p className="truncate text-sm font-semibold text-slate-900">{userName}</p>
+              <p className="truncate text-sm font-semibold text-[var(--agri-text)]">{userName}</p>
             </div>
           </div>
 
@@ -121,7 +121,7 @@ export function UserProfileMenu() {
             Plan abonament
           </Link>
 
-          <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
             Ajutor
           </div>
           <Link href="/termeni" onClick={() => setOpen(false)} className={itemClassName}>
@@ -133,7 +133,7 @@ export function UserProfileMenu() {
 
           <LogoutButton
             variant="ghost"
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-gray-50"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-[var(--soft-danger-bg)] dark:text-red-400"
             label="Deconectare"
           />
         </div>

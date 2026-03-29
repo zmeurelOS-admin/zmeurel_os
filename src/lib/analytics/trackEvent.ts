@@ -1,5 +1,6 @@
 'use client'
 
+import { buildAnalyticsPayload } from '@/lib/analytics/schema'
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { getSessionId } from './session'
@@ -60,14 +61,12 @@ function fireInsert(eventName: string, moduleName: string, metadata: EventMetada
         if (!context) return
 
         const supabase = getSupabase()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any).from('analytics_events').insert({
+        await supabase.from('analytics_events').insert({
           tenant_id: context.tenantId,
           user_id: context.userId,
           event_name: eventName,
-          event_type: eventName,
           module: moduleName,
-          metadata: metadata ?? {},
+          event_data: buildAnalyticsPayload(metadata ?? {}),
           session_id: getSessionId(),
           ...(status !== undefined ? { status } : {}),
         })

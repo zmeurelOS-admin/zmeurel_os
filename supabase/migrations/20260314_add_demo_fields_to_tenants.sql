@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al 2026031401_add_demo_fields_to_tenants.sql (format A)
 -- Add is_demo and expires_at columns to tenants for demo lifecycle management
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;

@@ -76,7 +76,7 @@ export function ViewComandaDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="w-[94vw] max-w-[420px] rounded-xl bg-white p-4 shadow-xl"
+        className="w-[94vw] max-w-[420px] rounded-xl bg-[var(--agri-surface)] p-4 shadow-xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
@@ -87,7 +87,7 @@ export function ViewComandaDialog({
             variant="ghost"
             size="icon"
             aria-label="Închide dialog"
-            className="absolute top-3 right-3 h-8 w-8 text-gray-500"
+            className="absolute top-3 right-3 h-8 w-8 text-[var(--agri-text-muted)]"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -96,55 +96,55 @@ export function ViewComandaDialog({
           <div className="flex flex-col gap-2 leading-tight pr-10">
             <section className="space-y-1">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-left text-base font-semibold text-gray-900">{clientName}</p>
+                <p className="text-left text-base font-semibold text-[var(--agri-text)]">{clientName}</p>
               </div>
-              <p className="text-xs text-gray-500">Telefon</p>
-              <p className="text-sm font-medium text-gray-900">{telefon || '-'}</p>
+              <p className="text-xs text-[var(--agri-text-muted)]">Telefon</p>
+              <p className="text-sm font-medium text-[var(--agri-text)]">{telefon || '-'}</p>
             </section>
 
-            <section className="space-y-2 border-t border-gray-100 pt-2">
-              <h3 className="text-sm font-semibold text-gray-900">Detalii comandă</h3>
+            <section className="space-y-2 border-t border-[var(--agri-border)] pt-2">
+              <h3 className="text-sm font-semibold text-[var(--agri-text)]">Detalii comandă</h3>
               <div className="flex flex-col items-center text-center">
-                <p className="text-xs text-gray-500">TOTAL</p>
-                <p className="text-xl font-semibold text-gray-900">{formatLei(total)}</p>
+                <p className="text-xs text-[var(--agri-text-muted)]">TOTAL</p>
+                <p className="text-xl font-semibold text-[var(--agri-text)]">{formatLei(total)}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-2">
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-[var(--agri-surface-muted)] p-2">
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Cantitate</p>
-                  <p className="text-sm font-medium text-gray-900">{formatNumber(cantitate)} kg</p>
+                  <p className="text-xs text-[var(--agri-text-muted)]">Cantitate</p>
+                  <p className="text-sm font-medium text-[var(--agri-text)]">{formatNumber(cantitate)} kg</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-xs text-gray-500">Preț per kg</p>
-                  <p className="text-sm font-medium text-gray-900">{formatNumber(pretKg)} lei/kg</p>
+                  <p className="text-xs text-[var(--agri-text-muted)]">Preț per kg</p>
+                  <p className="text-sm font-medium text-[var(--agri-text)]">{formatNumber(pretKg)} lei/kg</p>
                 </div>
               </div>
             </section>
 
             {hasAvans ? (
-              <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
+              <section className="grid grid-cols-2 gap-2 border-t border-[var(--agri-border)] pt-2">
                 <div className="space-y-1">
-                  <p className="text-xs text-gray-500">Avans</p>
-                  <p className="text-sm font-medium text-gray-900">{formatLei(avans)}</p>
+                  <p className="text-xs text-[var(--agri-text-muted)]">Avans</p>
+                  <p className="text-sm font-medium text-[var(--agri-text)]">{formatLei(avans)}</p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-xs text-gray-500">Rest de încasat</p>
-                  <p className="text-sm font-semibold text-red-600">{formatLei(restDePlata)}</p>
+                  <p className="text-xs text-[var(--agri-text-muted)]">Rest de încasat</p>
+                  <p className="text-sm font-semibold text-[var(--value-negative)]">{formatLei(restDePlata)}</p>
                 </div>
               </section>
             ) : null}
 
-            <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
+            <section className="grid grid-cols-2 gap-2 border-t border-[var(--agri-border)] pt-2">
               <div className="space-y-1">
-                <p className="text-xs text-gray-500">Data comandă</p>
-                <p className="text-sm font-medium text-gray-900">{formatDate(comanda?.data_comanda)}</p>
+                <p className="text-xs text-[var(--agri-text-muted)]">Data comandă</p>
+                <p className="text-sm font-medium text-[var(--agri-text)]">{formatDate(comanda?.data_comanda)}</p>
               </div>
               <div className="space-y-1 text-right">
-                <p className="text-xs text-gray-500">Data scadentă</p>
-                <p className="text-sm font-medium text-gray-900">{formatDate(comanda?.data_livrare)}</p>
+                <p className="text-xs text-[var(--agri-text-muted)]">Data scadentă</p>
+                <p className="text-sm font-medium text-[var(--agri-text)]">{formatDate(comanda?.data_livrare)}</p>
               </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-2">
+            <section className="grid grid-cols-2 gap-2 border-t border-[var(--agri-border)] pt-2">
               <Button
                 type="button"
                 variant="outline"
@@ -187,25 +187,25 @@ export function ViewComandaDialog({
             </section>
 
             {(comanda?.locatie_livrare || comanda?.observatii?.trim()) ? (
-              <section className="space-y-1 border-t border-gray-100 pt-2">
+            <section className="space-y-1 border-t border-[var(--agri-border)] pt-2">
                 {comanda?.locatie_livrare ? (
                   <>
-                    <p className="text-xs text-gray-500">Locație livrare</p>
-                    <p className="text-sm font-medium text-gray-900">{comanda.locatie_livrare}</p>
+                    <p className="text-xs text-[var(--agri-text-muted)]">Locație livrare</p>
+                    <p className="text-sm font-medium text-[var(--agri-text)]">{comanda.locatie_livrare}</p>
                   </>
                 ) : null}
                 {comanda?.observatii?.trim() ? (
                   <>
-                    <p className="text-xs text-gray-500">Observații</p>
-                    <p className="text-sm font-medium text-gray-900">{comanda.observatii}</p>
+                    <p className="text-xs text-[var(--agri-text-muted)]">Observații</p>
+                    <p className="text-sm font-medium text-[var(--agri-text)]">{comanda.observatii}</p>
                   </>
                 ) : null}
               </section>
             ) : null}
 
             {comanda?.status === 'livrata' && comanda?.linked_vanzare_id ? (
-              <section className="border-t border-gray-100 pt-2">
-                <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700">
+              <section className="border-t border-[var(--agri-border)] pt-2">
+                <div className="rounded-lg border border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] p-2 text-sm text-[var(--soft-success-text)]">
                   Livrată pe {formatDate(comanda?.updated_at)}. Vânzare de {formatLei(total)} creată automat.
                 </div>
               </section>
@@ -213,7 +213,7 @@ export function ViewComandaDialog({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-gray-100 px-3 py-3">
+        <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-[var(--agri-border)] px-3 py-3">
           {canDeliver ? (
             <Button
               type="button"
@@ -230,7 +230,7 @@ export function ViewComandaDialog({
           <Button
             type="button"
             variant="outline"
-            className="h-10 min-w-[92px] text-gray-700 lg:hover:opacity-95"
+            className="h-10 min-w-[92px] text-[var(--agri-text)] lg:hover:opacity-95"
             onClick={() => {
               if (!comanda) return
               onOpenChange(false)

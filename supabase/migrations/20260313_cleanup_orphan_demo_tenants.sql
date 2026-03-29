@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al 2026031304_cleanup_orphan_demo_tenants.sql (format A)
 -- Cleanup orphan demo tenants (one-time migration).
 -- Deletes all tenant data + tenant rows for guest users (@demo.zmeurel.local)
 -- EXCEPT the protected superadmin account.

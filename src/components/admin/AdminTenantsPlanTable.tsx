@@ -55,7 +55,7 @@ function normalizePlan(value: string | null | undefined): SubscriptionPlan {
 
 function planBadgeClass(plan: SubscriptionPlan): string {
   if (plan === 'pro') return 'border-emerald-300 bg-emerald-50 text-emerald-800'
-  if (plan === 'enterprise') return 'border-slate-300 bg-slate-100 text-slate-800'
+  if (plan === 'enterprise') return 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100'
   return 'border-amber-300 bg-amber-50 text-amber-800'
 }
 
@@ -137,7 +137,7 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
           Actiunile de schimbare plan sunt protejate prin rolul `is_superadmin`.
         </div>
         {BETA_MODE ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
             Plan management disabled during beta.
           </div>
         ) : null}

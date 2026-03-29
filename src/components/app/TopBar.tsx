@@ -19,7 +19,7 @@ export function TopBar() {
   return (
     <>
       <div
-        className="relative z-40 flex h-[calc(44px+var(--safe-t))] shrink-0 items-end border-b border-[var(--agri-border)] bg-white/95 px-3 pb-2 backdrop-blur sm:px-4"
+        className="relative z-40 flex h-[calc(44px+var(--safe-t))] shrink-0 items-end border-b border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 pb-2 backdrop-blur sm:px-4"
         style={{ paddingTop: 'var(--safe-t)' }}
       >
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between">

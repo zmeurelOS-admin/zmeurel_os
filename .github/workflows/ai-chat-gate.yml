@@ -1,0 +1,49 @@
+name: AI Chat Gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/api/chat/**'
+      - 'src/lib/financial/chat-router.ts'
+      - 'src/components/ai/**'
+      - 'tests/ai-chat-harness.spec.ts'
+      - 'playwright.ai-chat.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'AGENTS.md'
+      - 'docs/ai-chat-widget.md'
+      - '.github/workflows/ai-chat-gate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/app/api/chat/**'
+      - 'src/lib/financial/chat-router.ts'
+      - 'src/components/ai/**'
+      - 'tests/ai-chat-harness.spec.ts'
+      - 'playwright.ai-chat.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'AGENTS.md'
+      - 'docs/ai-chat-widget.md'
+      - '.github/workflows/ai-chat-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  ai-chat-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run AI chat gate
+        run: npm run check:ai-chat

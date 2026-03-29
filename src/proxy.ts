@@ -89,7 +89,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/update-password') ||
     pathname === '/api/auth/beta-signup' ||
     pathname === '/api/auth/beta-guest' ||
-    pathname.startsWith('/api/cron/google-contacts-sync') ||
+    pathname.startsWith('/api/cron/') ||
     isPublicAssetRoute
 
   const isAuthCallbackRoute =

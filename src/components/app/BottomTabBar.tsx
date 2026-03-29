@@ -1,167 +1,162 @@
 'use client'
 
-import { Ellipsis, LayoutDashboard, Leaf, ShoppingBag, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { MoreMenuDrawer } from '@/components/app/MoreMenuDrawer'
-import { useAddAction } from '@/contexts/AddActionContext'
 
-type Tab = {
+type TabDef = {
   label: string
   href: string
-  icon: LucideIcon
+  emoji: string
 }
 
-const DASHBOARD_TAB: Tab = { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }
-const RECOLTARI_TAB: Tab = { label: 'Recoltari', href: '/recoltari', icon: Leaf }
-const COMENZI_TAB: Tab = { label: 'Comenzi', href: '/comenzi', icon: ShoppingBag }
-
-const PRIMARY_HREFS = [DASHBOARD_TAB.href, RECOLTARI_TAB.href, COMENZI_TAB.href]
-
-type RouteAddConfig = {
-  label: string
-  href: string
-}
-
-function getRouteAddConfig(pathname: string): RouteAddConfig {
-  if (pathname === '/dashboard') return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
-  if (pathname === '/recoltari' || pathname.startsWith('/recoltari/')) {
-    return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
-  }
-  if (pathname === '/comenzi' || pathname.startsWith('/comenzi/')) {
-    return { label: 'Adauga comanda', href: '/comenzi?add=1' }
-  }
-  if (pathname === '/parcele' || pathname.startsWith('/parcele/')) {
-    return { label: 'Adauga teren', href: '/parcele' }
-  }
-  if (pathname === '/cheltuieli' || pathname.startsWith('/cheltuieli/')) {
-    return { label: 'Adauga cheltuiala', href: '/cheltuieli?add=1' }
-  }
-  if (pathname === '/activitati-agricole' || pathname.startsWith('/activitati-agricole/')) {
-    return { label: 'Adauga activitate', href: '/activitati-agricole' }
-  }
-  if (pathname === '/vanzari' || pathname.startsWith('/vanzari/')) {
-    return { label: 'Adauga vanzare', href: '/vanzari' }
-  }
-  if (pathname === '/clienti' || pathname.startsWith('/clienti/')) {
-    return { label: 'Adauga client', href: '/clienti' }
-  }
-  if (pathname === '/culegatori' || pathname.startsWith('/culegatori/')) {
-    return { label: 'Adauga culegator', href: '/culegatori' }
-  }
-  if (pathname === '/vanzari-butasi' || pathname.startsWith('/vanzari-butasi/')) {
-    return { label: 'Adauga vanzare', href: '/vanzari-butasi' }
-  }
-
-  return { label: 'Adauga recoltare', href: '/recoltari?add=1' }
-}
-
-function TabLink({
-  tab,
-  active,
-  router,
-}: {
-  tab: Tab
-  active: boolean
-  router: ReturnType<typeof useRouter>
-}) {
-  const Icon = tab.icon
-
-  return (
-    <Link
-      href={tab.href}
-      onTouchStart={() => {
-        router.prefetch(tab.href)
-      }}
-      className="group flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-transform duration-150 active:scale-95"
-      aria-current={active ? 'page' : undefined}
-    >
-      <Icon
-        className="h-5 w-5"
-        strokeWidth={2.2}
-        style={{ opacity: active ? 1 : 0.58, color: active ? '#1f7a4e' : '#8aa096' }}
-      />
-      <span
-        className="text-[10px] font-medium leading-none"
-        style={{ color: active ? '#1f7a4e' : '#8aa096', fontWeight: active ? 700 : 500 }}
-      >
-        {tab.label}
-      </span>
-      <span className={`h-1 rounded-full transition-all ${active ? 'w-4 bg-emerald-700/90' : 'w-1 bg-transparent'}`} />
-    </Link>
-  )
-}
+const TABS: TabDef[] = [
+  { label: 'Acasă', href: '/dashboard', emoji: '🏡' },
+  { label: 'Activități', href: '/activitati-agricole', emoji: '🌱' },
+  { label: 'Recoltări', href: '/recoltari', emoji: '🧺' },
+  { label: 'Comenzi', href: '/comenzi', emoji: '📦' },
+]
 
 export function BottomTabBar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { triggerAddAction } = useAddAction()
   const [moreOpen, setMoreOpen] = useState(false)
-  const routeAddConfig = useMemo(() => getRouteAddConfig(pathname), [pathname])
 
   useEffect(() => {
     router.prefetch('/dashboard')
     router.prefetch('/recoltari')
     router.prefetch('/comenzi')
+    router.prefetch('/activitati-agricole')
   }, [router])
 
-  const handleCenterAction = () => {
-    const triggered = triggerAddAction()
-    if (!triggered) {
-      router.push(routeAddConfig.href)
-    }
-  }
+  // Close more menu when route changes (e.g. browser back, link tap)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (moreOpen) setMoreOpen(false) }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const isTabActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
-  const moreActive = !PRIMARY_HREFS.some((href) => isTabActive(href))
+  // ••• is active only when the menu is explicitly open, not based on pathname
+  const moreActive = moreOpen
 
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-[50] px-4 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-2 lg:hidden"
-        aria-label="Navigare principala"
+        className="border-t border-[var(--agri-border)] bg-[color:rgba(255,255,255,0.9)] shadow-[0_-1px_3px_rgba(0,0,0,0.1)] backdrop-blur-xl dark:bg-[color:rgba(15,23,42,0.9)] md:hidden"
+        aria-label="Navigare principală"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          minHeight: 'calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px))',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          paddingTop: 10,
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          zIndex: 50,
+        }}
       >
-        <div className="mx-auto grid h-[76px] w-full max-w-md grid-cols-5 items-center rounded-[28px] border border-emerald-950/8 bg-white/96 px-2 shadow-[0_-8px_30px_rgba(17,24,39,0.09)] backdrop-blur">
-          <TabLink tab={DASHBOARD_TAB} active={isTabActive(DASHBOARD_TAB.href)} router={router} />
-          <TabLink tab={RECOLTARI_TAB} active={isTabActive(RECOLTARI_TAB.href)} router={router} />
+        <div
+          style={{
+            display: 'flex',
+            width: '100%',
+            maxWidth: 430,
+            margin: '0 auto',
+            justifyContent: 'space-around',
+          }}
+        >
+          {TABS.map((tab) => {
+            const active = isTabActive(tab.href)
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                onTouchStart={() => router.prefetch(tab.href)}
+                aria-current={active ? 'page' : undefined}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 3,
+                  padding: '4px 4px 6px',
+                  textDecoration: 'none',
+                }}
+              >
+                <span style={{ fontSize: 22, opacity: active ? 1 : 0.3, lineHeight: 1.3 }}>
+                  {tab.emoji}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: active ? 'var(--agri-text)' : 'var(--agri-text-muted)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {tab.label}
+                </span>
+                  <div
+                  style={{
+                    width: active ? 16 : 0,
+                    height: 2.5,
+                    background: 'var(--agri-primary)',
+                    borderRadius: 1,
+                    transition: 'width 0.15s ease',
+                  }}
+                />
+              </Link>
+            )
+          })}
 
-          <div className="relative flex h-full items-center justify-center">
-            <button
-              type="button"
-              aria-label={routeAddConfig.label}
-              title={routeAddConfig.label}
-              data-tutorial="quick-add-button"
-              data-mobile-fab="true"
-              className="absolute left-1/2 top-0 z-[100] inline-flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/85 bg-[linear-gradient(180deg,#34b56a_0%,#1f8d4e_100%)] text-white ring-1 ring-emerald-900/8 transition-[opacity,box-shadow,transform] duration-150 active:scale-95"
-              style={{ boxShadow: '0 16px 34px rgba(31,141,78,0.34), 0 0 0 6px rgba(52,181,106,0.10)' }}
-              onClick={handleCenterAction}
-            >
-              <span className="text-[34px] font-semibold leading-none">+</span>
-            </button>
-          </div>
-
-          <TabLink tab={COMENZI_TAB} active={isTabActive(COMENZI_TAB.href)} router={router} />
-
+          {/* Mai mult */}
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className="group flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center transition-transform duration-150 active:scale-95"
             aria-label="Mai mult"
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 3,
+              padding: '4px 4px 6px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
           >
-            <Ellipsis
-              className="h-5 w-5"
-              strokeWidth={2.2}
-              style={{ opacity: moreActive ? 1 : 0.58, color: moreActive ? '#1f7a4e' : '#8aa096' }}
-            />
             <span
-              className="text-[10px] font-medium leading-none"
-              style={{ color: moreActive ? '#1f7a4e' : '#8aa096', fontWeight: moreActive ? 700 : 500 }}
+              style={{
+                fontSize: 16,
+                opacity: moreActive ? 1 : 0.3,
+                lineHeight: 1.3,
+                letterSpacing: 1,
+                color: 'var(--agri-text)',
+              }}
+            >
+              •••
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: moreActive ? 'var(--agri-text)' : 'var(--agri-text-muted)',
+                lineHeight: 1.2,
+              }}
             >
               Mai mult
             </span>
-            <span className={`h-1 rounded-full transition-all ${moreActive ? 'w-4 bg-emerald-700/90' : 'w-1 bg-transparent'}`} />
+            <div
+              style={{
+                width: moreActive ? 16 : 0,
+                height: 2.5,
+                background: 'var(--agri-primary)',
+                borderRadius: 1,
+                transition: 'width 0.15s ease',
+              }}
+            />
           </button>
         </div>
       </nav>

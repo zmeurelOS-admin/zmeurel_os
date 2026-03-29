@@ -1,9 +1,8 @@
 'use client'
 
-import { AlertTriangle } from 'lucide-react'
-
 import { AppDialog } from '@/components/app/AppDialog'
 import { Button } from '@/components/ui/button'
+import { hapticConfirm } from '@/lib/utils/haptic'
 
 interface ConfirmDeleteDialogProps {
   open: boolean
@@ -45,8 +44,11 @@ export function ConfirmDeleteDialog({
           </Button>
           <Button
             type="button"
-            className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
-            onClick={onConfirm}
+            className="agri-cta bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
+            onClick={() => {
+              hapticConfirm()
+              onConfirm()
+            }}
             disabled={loading}
           >
             {loading ? 'Se șterge...' : confirmText}
@@ -54,12 +56,7 @@ export function ConfirmDeleteDialog({
         </div>
       }
     >
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
-          <AlertTriangle className="h-5 w-5" />
-        </span>
-        <p className="pt-1 text-sm font-medium text-[var(--agri-text-muted)]">{bodyText}</p>
-      </div>
+      <p className="text-sm font-medium text-[var(--agri-text-muted)]">{bodyText}</p>
     </AppDialog>
   )
 }

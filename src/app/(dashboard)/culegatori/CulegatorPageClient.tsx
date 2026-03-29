@@ -1,23 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { UserPlus, Users } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/app/ErrorState'
-import { LoadingState } from '@/components/app/LoadingState'
+import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
-import { CulegatorCard } from '@/components/culegatori/CulegatorCard'
 import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
-import MiniCard from '@/components/ui/MiniCard'
+import { Button } from '@/components/ui/button'
+import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { useAddAction } from '@/contexts/AddActionContext'
+import { queryKeys } from '@/lib/query-keys'
 import {
   createCulegator,
   deleteCulegator,
@@ -29,28 +29,32 @@ import {
 } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
-import { useAddAction } from '@/contexts/AddActionContext'
-import { queryKeys } from '@/lib/query-keys'
 
 interface Props {
   initialCulegatori: Culegator[]
 }
-
-type RankingScope = 'today' | 'season'
 
 type WorkerStats = {
   todayKg: number
   todayCount: number
   seasonKg: number
   seasonCount: number
+  seasonDays: number
   totalKg: number
   totalCount: number
-  lastRecoltare: {
-    date: string
-    parcela: string
-    kg: number
-    timestamp: number
-  } | null
+  lastRecoltare: { date: string; parcela: string; kg: number; timestamp: number } | null
+}
+
+type DesktopCulegatorRow = {
+  id: string
+  data: string | null
+  dataSort: number
+  lucrator: string
+  activitate: string
+  cantitateLabel: string
+  cantitateKg: number
+  cost: number
+  raw: Culegator
 }
 
 function toDateOnly(value: string | null | undefined): string {
@@ -65,40 +69,201 @@ function formatKg(value: number, maximumFractionDigits = 1): string {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits }).format(value)
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 }).format(value)
-}
-
 function getRecoltareKg(recoltare: Recoltare): number {
   return Number(recoltare.kg_cal1 ?? 0) + Number(recoltare.kg_cal2 ?? 0)
 }
 
-function getMedal(index: number): string {
-  if (index === 0) return '\u{1F947}'
-  if (index === 1) return '\u{1F948}'
-  if (index === 2) return '\u{1F949}'
-  return `${index + 1}`
+// ─── Inline card component ────────────────────────────────────────────────────
+
+function CulegatorCardNew({
+  culegator,
+  stats,
+  recentRecoltari,
+  parcelaMap,
+  expanded,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  culegator: Culegator
+  stats: WorkerStats | undefined
+  recentRecoltari: Recoltare[]
+  parcelaMap: Record<string, string>
+  expanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const hasPhone = Boolean(culegator.telefon)
+  const phoneClean = (culegator.telefon ?? '').replace(/\s+/g, '')
+  const isActiv = culegator.status_activ !== false
+  const seasonKg = stats?.seasonKg ?? 0
+  const avgKgPerDay = stats && stats.seasonDays > 0 ? seasonKg / stats.seasonDays : 0
+
+  return (
+    <div
+      style={{
+        background: 'var(--agri-surface)',
+        borderRadius: 14,
+        border: '1px solid var(--agri-border)',
+        overflow: 'hidden',
+        marginBottom: 8,
+      }}
+    >
+      {/* Header row */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%', textAlign: 'left', background: 'none', border: 'none',
+          padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}
+      >
+        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>👤</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {culegator.nume_prenume}
+            </span>
+            <span style={{ fontSize: 16, color: 'var(--agri-text-muted)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 3 }}>
+            <span style={{
+              borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 600,
+              background: isActiv ? 'var(--status-success-bg)' : 'var(--status-neutral-bg)',
+              color: isActiv ? 'var(--status-success-text)' : 'var(--status-neutral-text)',
+            }}>
+              {isActiv ? '● Activ' : '○ Inactiv'}
+            </span>
+            {seasonKg > 0 && (
+              <span style={{ fontSize: 12, color: 'var(--value-positive)', fontWeight: 600 }}>{formatKg(seasonKg)} kg sezon</span>
+            )}
+            {culegator.tarif_lei_kg ? (
+              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{culegator.tarif_lei_kg} RON/kg</span>
+            ) : null}
+          </div>
+        </div>
+      </button>
+
+      {/* Expanded section */}
+      {expanded && (
+        <div style={{ padding: '0 14px 14px' }}>
+          {/* Contact actions */}
+          {hasPhone && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <a
+                href={`tel:${phoneClean}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                  background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', textDecoration: 'none',
+                  border: '1px solid var(--button-muted-border)',
+                }}
+              >
+                📞 Sună
+              </a>
+              <a
+                href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                  background: 'var(--status-success-bg)', color: 'var(--status-success-text)', textDecoration: 'none',
+                  border: '1px solid var(--status-success-border)',
+                }}
+              >
+                💬 WhatsApp
+              </a>
+            </div>
+          )}
+
+          {/* Season stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--value-positive)' }}>{formatKg(seasonKg)}</div>
+              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>kg sezon</div>
+            </div>
+            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--agri-text)' }}>{formatKg(avgKgPerDay)}</div>
+              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>kg/zi medie</div>
+            </div>
+            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--agri-text)' }}>{stats?.seasonDays ?? 0}</div>
+              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>zile lucrate</div>
+            </div>
+          </div>
+
+          {/* Last 5 recoltari */}
+          {recentRecoltari.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--agri-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                Ultimele recoltări
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {recentRecoltari.map((r) => {
+                  const kg = getRecoltareKg(r)
+                  const parcelaName = r.parcela_id ? (parcelaMap[r.parcela_id] ?? 'Parcela') : 'Parcela'
+                  return (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text)' }}>
+                      <span>{toDateOnly(r.data)} · {parcelaName}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--value-positive)' }}>{formatKg(kg)} kg</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Edit / Delete */}
+          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid var(--agri-border)', paddingTop: 12 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit() }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: 'var(--button-muted-bg)', border: '1px solid var(--button-muted-border)', color: 'var(--button-muted-text)', cursor: 'pointer',
+              }}
+            >
+              ✏️ Editează
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              style={{
+                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger-border)', color: 'var(--status-danger-text)', cursor: 'pointer',
+              }}
+            >
+              🗑️ Șterge
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
+
+// ─── Page component ───────────────────────────────────────────────────────────
 
 export function CulegatorPageClient({ initialCulegatori }: Props) {
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Culegator; index: number }>>({})
-  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [editCulegator, setEditCulegator] = useState<Culegator | null>(null)
   const [deleting, setDeleting] = useState<Culegator | null>(null)
-  const [rankingScope, setRankingScope] = useState<RankingScope>('today')
-  const [selectedCulegatorId, setSelectedCulegatorId] = useState<string | null>(null)
 
   const {
     data: culegatori = initialCulegatori,
-    isLoading: culegatoriLoading,
-    isError: culegatoriError,
-    error: culegatoriErrorValue,
+    isLoading,
+    isError,
+    error,
   } = useQuery({
     queryKey: queryKeys.culegatori,
     queryFn: getCulegatori,
@@ -178,11 +343,19 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     },
   })
 
+  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
     return () => {
-      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+      Object.keys(pendingDeleteTimers.current).forEach((id) => {
+        clearTimeout(pendingDeleteTimers.current[id])
+        if (pendingDeletedItems.current[id]) {
+          delete pendingDeletedItems.current[id]
+          deleteMutateRef.current(id)
+        }
+      })
+      pendingDeleteTimers.current = {}
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const unregister = registerAddAction(() => setShowAdd(true), 'Adaugă culegător')
@@ -214,17 +387,13 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         onClick: () => {
           const pendingTimer = pendingDeleteTimers.current[culegatorId]
           if (!pendingTimer) return
-
           clearTimeout(pendingTimer)
           delete pendingDeleteTimers.current[culegatorId]
-
           const pendingItem = pendingDeletedItems.current[culegatorId]
           delete pendingDeletedItems.current[culegatorId]
           if (!pendingItem) return
-
           queryClient.setQueryData<Culegator[]>(queryKeys.culegatori, (current = []) => {
             if (current.some((item) => item.id === culegatorId)) return current
-
             const next = [...current]
             const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
             next.splice(insertAt, 0, pendingItem.item)
@@ -235,31 +404,31 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     })
   }
 
+  // ── Computed data ──────────────────────────────────────────────────────────
+
   const today = useMemo(() => {
     const date = new Date()
     date.setHours(0, 0, 0, 0)
     return date
   }, [])
   const todayIso = toIsoDate(today)
+
   const seasonStart = useMemo(() => {
     const start = new Date(today.getFullYear(), 2, 1)
-    if (today < start) {
-      start.setFullYear(today.getFullYear() - 1)
-    }
+    if (today < start) start.setFullYear(today.getFullYear() - 1)
     return start
   }, [today])
   const seasonStartIso = toIsoDate(seasonStart)
 
   const parcelaMap = useMemo(() => {
     const map: Record<string, string> = {}
-    parcele.forEach((parcela) => {
-      map[parcela.id] = parcela.nume_parcela || 'Parcela'
-    })
+    parcele.forEach((p) => { map[p.id] = p.nume_parcela || 'Parcela' })
     return map
   }, [parcele])
 
   const workerStats = useMemo(() => {
     const map = new Map<string, WorkerStats>()
+    const seasonDatesMap = new Map<string, Set<string>>()
 
     recoltari.forEach((recoltare) => {
       if (!recoltare.culegator_id) return
@@ -270,13 +439,8 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       const normalizedStamp = Number.isNaN(stamp) ? new Date(recoltare.data).getTime() : stamp
 
       const current = map.get(workerId) ?? {
-        todayKg: 0,
-        todayCount: 0,
-        seasonKg: 0,
-        seasonCount: 0,
-        totalKg: 0,
-        totalCount: 0,
-        lastRecoltare: null,
+        todayKg: 0, todayCount: 0, seasonKg: 0, seasonCount: 0, seasonDays: 0,
+        totalKg: 0, totalCount: 0, lastRecoltare: null,
       }
 
       if (date === todayIso) {
@@ -286,6 +450,8 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       if (date >= seasonStartIso && date <= todayIso) {
         current.seasonKg += kg
         current.seasonCount += 1
+        if (!seasonDatesMap.has(workerId)) seasonDatesMap.set(workerId, new Set())
+        seasonDatesMap.get(workerId)!.add(date)
       }
 
       current.totalKg += kg
@@ -303,249 +469,211 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       map.set(workerId, current)
     })
 
+    // Assign seasonDays from the sets
+    for (const [workerId, dates] of seasonDatesMap) {
+      const stats = map.get(workerId)
+      if (stats) stats.seasonDays = dates.size
+    }
+
     return map
   }, [recoltari, todayIso, seasonStartIso, parcelaMap])
 
-  const rankingItems = useMemo(() => {
-    return culegatori
-      .map((culegator) => {
-        const stats = workerStats.get(culegator.id)
-        const kg = rankingScope === 'today' ? stats?.todayKg ?? 0 : stats?.seasonKg ?? 0
-        const count = rankingScope === 'today' ? stats?.todayCount ?? 0 : stats?.seasonCount ?? 0
-        return {
-          id: culegator.id,
-          name: culegator.nume_prenume,
-          kg,
-          count,
-        }
-      })
-      .filter((row) => row.kg > 0)
-      .sort((a, b) => b.kg - a.kg)
-  }, [culegatori, workerStats, rankingScope])
+  const activeTodayCount = useMemo(
+    () => Array.from(workerStats.values()).filter((s) => s.todayCount > 0).length,
+    [workerStats]
+  )
 
-  const maxRankingKg = rankingItems[0]?.kg ?? 0
-
-  const activeTodayCount = useMemo(() => {
-    return Array.from(workerStats.values()).filter((stats) => stats.todayCount > 0).length
-  }, [workerStats])
-
-  const totalKgToday = useMemo(() => {
-    return Array.from(workerStats.values()).reduce((sum, stats) => sum + stats.todayKg, 0)
-  }, [workerStats])
-
-  const manoperaAzi = useMemo(() => {
-    const rowsToday = recoltari.filter((recoltare) => toDateOnly(recoltare.data) === todayIso)
-    const hasCosts = rowsToday.some((recoltare) => Number(recoltare.valoare_munca_lei ?? 0) > 0)
-    if (!hasCosts) return null
-    return rowsToday.reduce((sum, recoltare) => sum + Number(recoltare.valoare_munca_lei ?? 0), 0)
-  }, [recoltari, todayIso])
-
-  const averageKgPerWorker = activeTodayCount > 0 ? totalKgToday / activeTodayCount : 0
-  const belowAverageWorker = useMemo(() => {
-    if (averageKgPerWorker <= 0) return null
-    const threshold = averageKgPerWorker * 0.5
-    return rankingItems.find((item) => item.kg > 0 && item.kg < threshold) ?? null
-  }, [averageKgPerWorker, rankingItems])
+  const recoltariByWorker = useMemo(() => {
+    const map: Record<string, Recoltare[]> = {}
+    for (const r of recoltari) {
+      if (!r.culegator_id) continue
+      if (!map[r.culegator_id]) map[r.culegator_id] = []
+      map[r.culegator_id].push(r)
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => b.data.localeCompare(a.data))
+    }
+    return map
+  }, [recoltari])
 
   const filteredCulegatori = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
+    if (!term) return culegatori
+    return culegatori.filter((c) =>
+      c.nume_prenume.toLowerCase().includes(term) ||
+      (c.telefon ?? '').toLowerCase().includes(term)
+    )
+  }, [culegatori, searchTerm])
+  const desktopRows = useMemo<DesktopCulegatorRow[]>(() => {
+    return filteredCulegatori.map((culegator) => {
+      const stats = workerStats.get(culegator.id)
+      const latest = stats?.lastRecoltare
+      const cantitateKg = stats?.todayKg && stats.todayKg > 0 ? stats.todayKg : (stats?.seasonKg ?? 0)
 
-    return culegatori.filter((culegator) => {
-      const searchMatch =
-        !term ||
-        culegator.nume_prenume.toLowerCase().includes(term) ||
-        (culegator.telefon ?? '').toLowerCase().includes(term)
-
-      if (!searchMatch) return false
-      if (selectedCulegatorId && culegator.id !== selectedCulegatorId) return false
-      return true
+      return {
+        id: culegator.id,
+        data: latest?.date ?? null,
+        dataSort: latest?.timestamp ?? 0,
+        lucrator: culegator.nume_prenume,
+        activitate: latest ? `Recoltare • ${latest.parcela}` : 'Fără activitate recentă',
+        cantitateLabel: stats?.todayKg && stats.todayKg > 0 ? `${formatKg(stats.todayKg)} kg azi` : `${formatKg(stats?.seasonKg ?? 0)} kg sezon`,
+        cantitateKg,
+        cost: Number(culegator.tarif_lei_kg ?? 0),
+        raw: culegator,
+      }
     })
-  }, [culegatori, searchTerm, selectedCulegatorId])
+  }, [filteredCulegatori, workerStats])
+  const desktopColumns = useMemo<ColumnDef<DesktopCulegatorRow>[]>(() => [
+    {
+      id: 'data',
+      header: 'Data',
+      accessorFn: (row) => row.dataSort,
+      cell: ({ row }) => row.original.data || '-',
+      meta: {
+        searchValue: (row: DesktopCulegatorRow) => row.data,
+      },
+    },
+    {
+      accessorKey: 'lucrator',
+      header: 'Lucrător',
+      cell: ({ row }) => <span className="font-medium">{row.original.lucrator}</span>,
+    },
+    {
+      accessorKey: 'activitate',
+      header: 'Activitate',
+    },
+    {
+      accessorKey: 'cantitateLabel',
+      header: 'Ore/Cantitate',
+      cell: ({ row }) => row.original.cantitateLabel,
+      meta: {
+        searchValue: (row: DesktopCulegatorRow) => [row.cantitateLabel, row.cantitateKg].join(' '),
+      },
+    },
+    {
+      accessorKey: 'cost',
+      header: 'Cost',
+      cell: ({ row }) => (row.original.cost > 0 ? `${row.original.cost} RON/kg` : '-'),
+      meta: {
+        searchValue: (row: DesktopCulegatorRow) => row.cost,
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Acțiuni',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Editează culegătorul"
+            onClick={(event) => {
+              event.stopPropagation()
+              setEditCulegator(row.original.raw)
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Șterge culegătorul"
+            onClick={(event) => {
+              event.stopPropagation()
+              setDeleting(row.original.raw)
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+          </Button>
+        </div>
+      ),
+      meta: {
+        searchable: false,
+        sticky: 'right',
+        headerClassName: 'w-[104px] text-right',
+        cellClassName: 'w-[104px] text-right',
+      },
+    },
+  ], [])
 
-  useEffect(() => {
-    if (!selectedCulegatorId) return
-    const target = cardRefs.current[selectedCulegatorId]
-    if (!target) return
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [selectedCulegatorId, filteredCulegatori.length])
-
-  const isLoading = culegatoriLoading
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <AppShell
-      header={<PageHeader title="Culegători" subtitle="Evidența echipei de lucru" rightSlot={<Users className="h-5 w-5" />} />}
-      bottomBar={
-        <StickyActionBar>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total culegători: {culegatori.length}</p>
-          </div>
-        </StickyActionBar>
-      }
+      header={<PageHeader title="Culegători" subtitle="Evidența echipei de lucru" rightSlot={<span style={{ fontSize: 22 }}>👤</span>} />}
     >
-      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <MiniCard icon={'\u{1F464}'} value={String(activeTodayCount)} sub="activi azi" label="Activi azi" />
-          <MiniCard icon={'\u{1FAD0}'} value={formatKg(totalKgToday, 1)} sub="kg azi" label="Total recoltat azi" />
-          <MiniCard icon={'\u{1F4B8}'} value={manoperaAzi === null ? '—' : formatCurrency(manoperaAzi)} sub="RON manoperă" label="Cost manoperă azi" />
-        </div>
+      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 py-3 sm:mt-0">
 
-        <div
-          style={{
-            borderRadius: radius.lg,
-            border: `1px solid ${colors.grayLight}`,
-            background: colors.white,
-            boxShadow: shadows.card,
-            padding: spacing.md,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: colors.dark }}>Ranking azi</div>
-            <button
-              type="button"
-              onClick={() => setRankingScope((prev) => (prev === 'today' ? 'season' : 'today'))}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                color: colors.primary,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {rankingScope === 'today' ? 'Sezon →' : 'Azi →'}
-            </button>
-          </div>
-
-          {rankingItems.length === 0 ? (
-            <div style={{ fontSize: 12, color: colors.gray }}>Nicio recoltare înregistrată azi.</div>
-          ) : (
-            <div style={{ display: 'grid', gap: spacing.xs }}>
-              {rankingItems.map((worker, index) => {
-                const progress = maxRankingKg > 0 ? (worker.kg / maxRankingKg) * 100 : 0
-                const selected = selectedCulegatorId === worker.id
-                return (
-                  <button
-                    key={worker.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCulegatorId((prev) => (prev === worker.id ? null : worker.id))
-                    }}
-                    style={{
-                      borderRadius: radius.md,
-                      border: `1px solid ${selected ? colors.primary : colors.grayLight}`,
-                      background: selected ? colors.blueLight : colors.white,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      padding: spacing.sm,
-                    }}
-                  >
-                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: spacing.sm, alignItems: 'center' }}>
-                      <div style={{ minWidth: 24, fontSize: 14, fontWeight: 700, color: colors.dark }}>{getMedal(index)}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {worker.name}
-                        </div>
-                        <div style={{ marginTop: spacing.xs, height: 6, borderRadius: radius.full, background: colors.grayLight, overflow: 'hidden' }}>
-                          <div style={{ width: `${progress}%`, height: '100%', background: colors.green }} />
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: colors.green }}>{formatKg(worker.kg, 1)} kg</div>
-                        <div style={{ fontSize: 10, color: colors.gray }}>{worker.count} recoltări</div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+        {/* Scoreboard compact */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: '4px 14px', alignItems: 'center',
+          padding: '10px 14px', background: 'var(--pill-active-bg)', borderRadius: 14,
+        }}>
+          <span style={{ color: 'var(--pill-active-text)', fontWeight: 700, fontSize: 15 }}>{culegatori.length} culegători</span>
+          {activeTodayCount > 0 && (
+            <>
+              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 25%, transparent)' }}>·</span>
+              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 72%, transparent)', fontSize: 13 }}>{activeTodayCount} activi azi</span>
+            </>
           )}
         </div>
 
-        <div
-          style={{
-            borderRadius: radius.lg,
-            border: `1px solid ${colors.grayLight}`,
-            background: colors.white,
-            boxShadow: shadows.card,
-            padding: spacing.md,
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>
-            Medie: {formatKg(averageKgPerWorker, 1)} kg/culegător
-          </div>
-          {belowAverageWorker ? (
-            <div style={{ marginTop: spacing.xs, fontSize: 12, color: colors.coral }}>
-              {'\u26A0\uFE0F'} {belowAverageWorker.name} sub medie
-            </div>
-          ) : null}
-        </div>
-
+        {/* Search */}
         <SearchField
+          containerClassName="md:hidden"
           placeholder="Caută culegător..."
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
           aria-label="Caută culegători"
         />
 
-        {selectedCulegatorId ? (
-          <button
-            type="button"
-            onClick={() => setSelectedCulegatorId(null)}
-            style={{
-              border: 'none',
-              background: colors.coralLight,
-              color: colors.coral,
-              borderRadius: radius.sm,
-              padding: '6px 10px',
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            {'\u2715'} Arată toți culegătorii
-          </button>
-        ) : null}
-        {culegatoriError ? <ErrorState title="Eroare" message={(culegatoriErrorValue as Error).message} /> : null}
-        {isLoading ? <LoadingState label="Se încarcă culegătorii..." /> : null}
-        {!isLoading && !culegatoriError && filteredCulegatori.length === 0 ? (
-          <EmptyState
-            icon={<UserPlus className="h-16 w-16" />}
-            title="Niciun culegător încă"
-            description="Adaugă primul culegător pentru a începe"
-          />
+        {/* Error */}
+        {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+
+        {/* Loading */}
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <ListSkeletonCard key={i} className="min-h-[72px]" />
+            ))}
+          </div>
         ) : null}
 
-        {!isLoading && !culegatoriError && filteredCulegatori.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {filteredCulegatori.map((culegator) => {
-              const stats = workerStats.get(culegator.id)
-              return (
-                <div key={culegator.id} ref={(node) => { cardRefs.current[culegator.id] = node }}>
-                  <CulegatorCard
-                    culegator={culegator}
-                    highlighted={selectedCulegatorId === culegator.id}
-                    stats={{
-                      totalKgSeason: stats?.seasonKg ?? 0,
-                      totalRecoltari: stats?.totalCount ?? 0,
-                      medieKgPerRecoltare: stats && stats.totalCount > 0 ? stats.totalKg / stats.totalCount : 0,
-                      lastRecoltare: stats?.lastRecoltare
-                        ? {
-                            date: stats.lastRecoltare.date,
-                            parcela: stats.lastRecoltare.parcela,
-                            kg: stats.lastRecoltare.kg,
-                          }
-                        : null,
-                    }}
-                    onEdit={setEditCulegator}
-                    onDelete={(id) => {
-                      const target = culegatori.find((item) => item.id === id) ?? null
-                      setDeleting(target)
-                    }}
-                  />
-                </div>
-              )
-            })}
+        {/* Empty state */}
+        {!isLoading && !isError && filteredCulegatori.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
+            <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--agri-text)', marginBottom: 6 }}>Niciun culegător adăugat</p>
+            <p style={{ fontSize: 13, color: 'var(--agri-text-muted)' }}>Adaugă primul culegător pentru a începe</p>
           </div>
+        ) : null}
+
+        {/* Cards */}
+        {!isLoading && !isError && filteredCulegatori.length > 0 ? (
+          <ResponsiveDataView
+            columns={desktopColumns}
+            data={desktopRows}
+            mobileData={filteredCulegatori}
+            getRowId={(row) => row.id}
+            getMobileRowId={(row) => row.id}
+            searchPlaceholder="Caută în manoperă..."
+            emptyMessage="Nu am găsit culegători pentru filtrele curente."
+            renderCard={(culegator) => (
+              <CulegatorCardNew
+                culegator={culegator}
+                stats={workerStats.get(culegator.id)}
+                recentRecoltari={(recoltariByWorker[culegator.id] ?? []).slice(0, 5)}
+                parcelaMap={parcelaMap}
+                expanded={expandedId === culegator.id}
+                onToggle={() => setExpandedId(expandedId === culegator.id ? null : culegator.id)}
+                onEdit={() => setEditCulegator(culegator)}
+                onDelete={() => setDeleting(culegator)}
+              />
+            )}
+          />
         ) : null}
       </div>
 
@@ -560,9 +688,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       {editCulegator ? (
         <EditCulegatorDialog
           open={!!editCulegator}
-          onOpenChange={(open) => {
-            if (!open) setEditCulegator(null)
-          }}
+          onOpenChange={(open) => { if (!open) setEditCulegator(null) }}
           culegator={editCulegator}
           onSubmit={async (id, formData) => {
             await updateMutation.mutateAsync({ id, formData: formData as unknown as Record<string, unknown> })
@@ -572,9 +698,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
 
       <ConfirmDeleteDialog
         open={!!deleting}
-        onOpenChange={(open) => {
-          if (!open) setDeleting(null)
-        }}
+        onOpenChange={(open) => { if (!open) setDeleting(null) }}
         itemType="Culegător"
         itemName={deleting?.nume_prenume || 'Culegător selectat'}
         description={`Ștergi culegătorul ${deleting?.nume_prenume || 'selectat'}?`}

@@ -11,10 +11,12 @@ import {
   Leaf,
   LogOut,
   MapPin,
+  Package,
   Receipt,
   Settings,
   ShieldCheck,
   ShoppingBag,
+  TrendingUp,
   Users,
   UsersRound,
   type LucideIcon,
@@ -50,10 +52,12 @@ const groups: MenuGroup[] = [
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/activitati-agricole', label: 'Activități agricole', icon: ClipboardList },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
+      { href: '/investitii', label: 'Investiții', icon: TrendingUp },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
       { href: '/vanzari', label: 'Vânzări', icon: BanknoteArrowUp },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
       { href: '/vanzari-butasi', label: 'Material săditor', icon: ShoppingBag },
+      { href: '/produse', label: 'Produse', icon: Package },
     ],
   },
   {
@@ -110,22 +114,22 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   }
 
   return (
-    <AppDrawer open={open} onOpenChange={onOpenChange} title="Mai mult">
-      <div className="space-y-6">
+    <AppDrawer open={open} onOpenChange={onOpenChange} title="Mai mult" disableHistory hideHeader showHandle contentClassName="w-full max-w-full sm:max-w-full">
+      <div className="space-y-4">
         {sections.map((group) => (
-          <section key={group.title} className="space-y-2">
+          <section key={group.title} className="space-y-1.5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">
                 {group.title}
               </h3>
               {'badge' in group ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                <span className="inline-flex items-center gap-1 rounded-full border border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--soft-success-text)]">
                   <ShieldCheck className="h-3 w-3" />
                   {group.badge}
                 </span>
               ) : null}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {group.items.map((item) => {
                 const active = pathname.startsWith(item.href)
                 const Icon = item.icon
@@ -135,8 +139,10 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
                     key={`${group.title}-${item.href}-${item.label}`}
                     type="button"
                     onClick={() => handleNavigate(item.href)}
-                    className={`agri-control flex h-12 w-full items-center gap-3 px-3 text-sm font-semibold ${
-                      active ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'text-[var(--agri-text)]'
+                    className={`agri-control flex h-10 w-full items-center gap-3 px-3 text-sm font-semibold ${
+                      active
+                        ? 'border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] text-[var(--soft-success-text)]'
+                        : 'text-[var(--agri-text)]'
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -148,15 +154,15 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
           </section>
         ))}
 
-        <section className="space-y-2">
+        <section className="space-y-1.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--agri-text-muted)]">
             Cont & Setări
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <button
               type="button"
               onClick={() => handleNavigate('/settings#profil')}
-              className="agri-control flex h-12 w-full items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
+              className="agri-control flex h-10 w-full items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
             >
               <Settings className="h-4 w-4" />
               Profil utilizator
@@ -165,7 +171,7 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
             <button
               type="button"
               onClick={() => handleNavigate('/termeni')}
-              className="agri-control flex h-12 w-full items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
+              className="agri-control flex h-10 w-full items-center gap-3 px-3 text-sm font-semibold text-[var(--agri-text)]"
             >
               <ShieldCheck className="h-4 w-4" />
               Ajutor
@@ -174,7 +180,7 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
             <Button
               type="button"
               variant="outline"
-              className="agri-control h-12 w-full justify-start gap-3 border-red-300 text-sm font-semibold text-red-700 hover:bg-red-50"
+              className="agri-control h-10 w-full justify-start gap-3 border-[var(--soft-danger-border)] text-sm font-semibold text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)]"
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4" />

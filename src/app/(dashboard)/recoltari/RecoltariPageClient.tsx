@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Leaf } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -14,13 +14,8 @@ import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { SectionTitle } from '@/components/dashboard/SectionTitle'
-import { RecoltareCard } from '@/components/recoltari/RecoltareCard'
-import MiniCard from '@/components/ui/MiniCard'
 import { SearchField } from '@/components/ui/SearchField'
 import Sparkline from '@/components/ui/Sparkline'
-import TrendBadge from '@/components/ui/TrendBadge'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -41,10 +36,6 @@ const EditRecoltareDialog = dynamic(
   () => import('@/components/recoltari/EditRecoltareDialog').then((mod) => mod.EditRecoltareDialog),
   { ssr: false }
 )
-const ViewRecoltareDialog = dynamic(
-  () => import('@/components/recoltari/ViewRecoltareDialog').then((mod) => mod.ViewRecoltareDialog),
-  { ssr: false }
-)
 const DeleteConfirmDialog = dynamic(
   () => import('@/components/parcele/DeleteConfirmDialog').then((mod) => mod.DeleteConfirmDialog),
   { ssr: false }
@@ -56,6 +47,26 @@ interface RecoltariPageClientProps {
   initialRecoltari?: Recoltare[]
   parcele?: Parcela[]
   initialError?: string | null
+}
+
+export function hasAiOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
+  return searchParams.get('openForm') === '1'
+}
+
+export function parseAiRecoltarePrefill(searchParams: Pick<URLSearchParams, 'get'>): {
+  parcela_id: string
+  parcela_label: string
+  cantitate_kg: string
+  data: string
+  observatii: string
+} {
+  return {
+    parcela_id: (searchParams.get('parcela_id') ?? '').trim(),
+    parcela_label: (searchParams.get('parcela_label') ?? searchParams.get('parcela') ?? '').trim(),
+    cantitate_kg: (searchParams.get('cantitate_kg') ?? '').trim(),
+    data: (searchParams.get('data') ?? '').trim(),
+    observatii: (searchParams.get('observatii') ?? '').trim(),
+  }
 }
 
 function toDateOnly(value: string | null | undefined): string {
@@ -80,21 +91,129 @@ function formatKg(value: number, digits = 2): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: digits }).format(value)} kg`
 }
 
-function computeTrend(currentValue: number, previousValue: number): { value: number; positive: boolean } | undefined {
-  if (!Number.isFinite(previousValue) || previousValue <= 0) return undefined
-  const change = ((currentValue - previousValue) / previousValue) * 100
-  if (!Number.isFinite(change)) return undefined
-  return {
-    value: Math.round(Math.abs(change)),
-    positive: change >= 0,
-  }
+function formatTimeFromTs(value: string | null | undefined): string {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  return parsed.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
 }
 
-function getMedal(index: number): string {
-  if (index === 0) return '\u{1F947}'
-  if (index === 1) return '\u{1F948}'
-  if (index === 2) return '\u{1F949}'
-  return `${index + 1}.`
+function sanitizeObservatiiForDisplay(value: string | null | undefined): string {
+  return (value ?? '').replace(/\[zmeurel:harvest-crop\][\s\S]*?\[\/zmeurel:harvest-crop\]/g, '').trim()
+}
+
+function RecoltareCardNew({
+  recoltare,
+  parcelaNume,
+  parcelaSoi,
+  culegatorNume,
+  isExpanded,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  recoltare: Recoltare
+  parcelaNume: string | undefined
+  parcelaSoi: string | undefined
+  culegatorNume: string | undefined
+  isExpanded: boolean
+  onToggle: (id: string) => void
+  onEdit: (recoltare: Recoltare) => void
+  onDelete: (recoltare: Recoltare) => void
+}) {
+  const kg = getRecoltareKg(recoltare)
+  const cal1 = Number(recoltare.kg_cal1 ?? 0)
+  const cal2 = Number(recoltare.kg_cal2 ?? 0)
+  const cal1Pct = kg > 0 ? Math.round((cal1 / kg) * 100) : 0
+  const ora = formatTimeFromTs(recoltare.created_at)
+  const observatiiDisplay = sanitizeObservatiiForDisplay(recoltare.observatii)
+
+  return (
+    <div
+      className="w-full"
+      role="button"
+      tabIndex={0}
+      onClick={() => onToggle(recoltare.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(recoltare.id) }
+      }}
+      style={{
+        background: 'var(--agri-surface)',
+        borderRadius: 14,
+        border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
+        boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
+        padding: '11px 14px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      {/* Summary row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)', lineHeight: 1.3 }}>
+            {parcelaNume || 'Parcelă'}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 3 }}>
+            {[parcelaSoi, culegatorNume].filter(Boolean).join(' · ') || '-'}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--agri-text)' }}>
+            {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(kg)}
+          </span>
+          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>kg</span>
+        </div>
+      </div>
+
+      {/* Drag indicator */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+        <div style={{ width: 22, height: 2.5, borderRadius: 2, background: 'var(--text-hint)', opacity: 0.35 }} />
+      </div>
+
+      {/* Expanded section */}
+      {isExpanded ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, marginTop: 10 }}
+        >
+          {/* Details */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cal I: </span><strong style={{ color: 'var(--value-positive)' }}>{cal1.toFixed(2)} kg</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cal II: </span><strong style={{ color: 'var(--status-warning-text)' }}>{cal2.toFixed(2)} kg</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Ora: </span><strong>{ora}</strong></span>
+            {culegatorNume ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Culegător: </span><strong>{culegatorNume}</strong></span> : null}
+            {observatiiDisplay ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Obs: </span><strong>{observatiiDisplay}</strong></span> : null}
+          </div>
+
+          {/* Quality bar */}
+          {kg > 0 ? (
+            <div style={{ display: 'flex', gap: 2, height: 5, borderRadius: 3, overflow: 'hidden', background: 'var(--agri-surface-muted)', marginBottom: 10 }}>
+              <div style={{ width: `${cal1Pct}%`, background: 'var(--value-positive)' }} />
+              <div style={{ width: `${100 - cal1Pct}%`, background: 'var(--status-warning-text)' }} />
+            </div>
+          ) : null}
+
+          {/* Edit / Delete */}
+          <div style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, display: 'flex', justifyContent: 'center', gap: 6 }}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onEdit(recoltare) }}
+              style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
+            >
+              ✏️ Editează
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(recoltare) }}
+              style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 8, cursor: 'pointer' }}
+            >
+              🗑️ Șterge
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function RecoltariPageClient({
@@ -107,13 +226,13 @@ export function RecoltariPageClient({
   const { registerAddAction } = useAddAction()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Recoltare; index: number }>>({})
+  const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
   const [searchTerm, setSearchTerm] = useState('')
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('sezon')
-  const [selectedParcelaId, setSelectedParcelaId] = useState<string | null>(null)
-  const [selectedCulegatorId, setSelectedCulegatorId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [viewingRecoltare, setViewingRecoltare] = useState<Recoltare | null>(null)
+  const [aiPrefill, setAiPrefill] = useState<{ parcela_id: string; parcela_label: string; cantitate_kg: string; data: string; observatii: string } | null>(null)
   const [editingRecoltare, setEditingRecoltare] = useState<Recoltare | null>(null)
   const [deletingRecoltare, setDeletingRecoltare] = useState<Recoltare | null>(null)
 
@@ -121,6 +240,38 @@ export function RecoltariPageClient({
   const router = useRouter()
   const searchParams = useSearchParams()
   const addFromQuery = searchParams.get('add') === '1'
+  const openFormFromQuery = hasAiOpenForm(searchParams)
+
+  const clearRecoltareFormQueryParams = useCallback(() => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('add')
+    nextParams.delete('openForm')
+    nextParams.delete('cantitate_kg')
+    nextParams.delete('parcela')
+    nextParams.delete('parcela_id')
+    nextParams.delete('parcela_label')
+    nextParams.delete('data')
+    nextParams.delete('calitate')
+    nextParams.delete('culegator')
+    nextParams.delete('observatii')
+    const query = nextParams.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+
+    if (typeof window !== 'undefined') {
+      const currentUrl = `${window.location.pathname}${window.location.search}`
+      if (currentUrl !== nextUrl) {
+        window.history.replaceState(window.history.state, '', nextUrl)
+      }
+    }
+
+    router.replace(nextUrl, { scroll: false })
+  }, [pathname, router, searchParams])
+
+  const closeAddDialog = useCallback(() => {
+    setAddOpen(false)
+    setAiPrefill(null)
+    clearRecoltareFormQueryParams()
+  }, [clearRecoltareFormQueryParams])
 
   const today = useMemo(() => {
     const current = new Date()
@@ -128,10 +279,7 @@ export function RecoltariPageClient({
     return current
   }, [])
   const todayIso = toIsoDate(today)
-  const yesterdayIso = toIsoDate(shiftDays(today, -1))
   const last7StartIso = toIsoDate(shiftDays(today, -6))
-  const previous7StartIso = toIsoDate(shiftDays(today, -13))
-  const previous7EndIso = toIsoDate(shiftDays(today, -7))
   const monthStartIso = toIsoDate(new Date(today.getFullYear(), today.getMonth(), 1))
   const seasonStartDate = (() => {
     const seasonStart = new Date(today.getFullYear(), 2, 1)
@@ -162,7 +310,7 @@ export function RecoltariPageClient({
   const { data: parcele = initialParcele } = useQuery({
     queryKey: queryKeys.parcele,
     queryFn: getParcele,
-    initialData: initialParcele,
+    initialData: initialParcele.length > 0 ? initialParcele : undefined,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
@@ -233,19 +381,32 @@ export function RecoltariPageClient({
     },
   })
 
+  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
     return () => {
-      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
+      Object.keys(pendingDeleteTimers.current).forEach((id) => {
+        clearTimeout(pendingDeleteTimers.current[id])
+        if (pendingDeletedItems.current[id]) {
+          delete pendingDeletedItems.current[id]
+          deleteMutateRef.current(id)
+        }
+      })
+      pendingDeleteTimers.current = {}
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!addFromQuery) return
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('add')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [addFromQuery, pathname, router, searchParams])
+    clearRecoltareFormQueryParams()
+    setAddOpen(true)
+  }, [addFromQuery, clearRecoltareFormQueryParams])
+
+  useEffect(() => {
+    if (!openFormFromQuery) return
+    setAiPrefill(parseAiRecoltarePrefill(searchParams))
+    clearRecoltareFormQueryParams()
+    setAddOpen(true)
+  }, [clearRecoltareFormQueryParams, openFormFromQuery, searchParams])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga recoltare')
@@ -332,29 +493,6 @@ export function RecoltariPageClient({
     return map
   }, [culegatori])
 
-  const activeParcele = useMemo(
-    () =>
-      parcele
-        .filter((parcela) => String(parcela.status || '').toLowerCase() !== 'anulat')
-        .map((parcela) => ({
-          id: parcela.id,
-          name: parcela.nume_parcela || 'Parcela',
-          displayName: formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate),
-          tipLabel: getUnitateTipLabel(parcela.tip_unitate),
-          soi: parcela.soi_plantat || parcela.tip_fruct || 'Soi',
-        })),
-    [parcele]
-  )
-
-  const parcelPalette = [colors.greenLight, colors.blueLight, colors.yellowLight]
-  const parcelaColorMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    activeParcele.forEach((parcela, index) => {
-      map[parcela.id] = parcelPalette[index % parcelPalette.length]
-    })
-    return map
-  }, [activeParcele])
-
   const searchFilteredRecoltari = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     if (!term) return recoltari
@@ -376,16 +514,8 @@ export function RecoltariPageClient({
     })
   }, [recoltari, searchTerm, parcelaMap, culegatorMap])
 
-  const entityFilteredRecoltari = useMemo(() => {
-    return searchFilteredRecoltari.filter((recoltare) => {
-      if (selectedParcelaId && recoltare.parcela_id !== selectedParcelaId) return false
-      if (selectedCulegatorId && recoltare.culegator_id !== selectedCulegatorId) return false
-      return true
-    })
-  }, [searchFilteredRecoltari, selectedParcelaId, selectedCulegatorId])
-
   const filteredRecoltari = useMemo(() => {
-    return entityFilteredRecoltari.filter((recoltare) => {
+    return searchFilteredRecoltari.filter((recoltare) => {
       const date = toDateOnly(recoltare.data)
       if (!date) return false
 
@@ -394,7 +524,7 @@ export function RecoltariPageClient({
       if (timeFilter === 'luna') return date >= monthStartIso && date <= todayIso
       return date >= seasonStartIso && date <= todayIso
     })
-  }, [entityFilteredRecoltari, timeFilter, todayIso, last7StartIso, monthStartIso, seasonStartIso])
+  }, [searchFilteredRecoltari, timeFilter, todayIso, last7StartIso, monthStartIso, seasonStartIso])
 
   const totalCantitateKg = useMemo(
     () => filteredRecoltari.reduce((sum, recoltare) => sum + getRecoltareKg(recoltare), 0),
@@ -402,85 +532,32 @@ export function RecoltariPageClient({
   )
 
   const todayRows = useMemo(
-    () => entityFilteredRecoltari.filter((recoltare) => toDateOnly(recoltare.data) === todayIso),
-    [entityFilteredRecoltari, todayIso]
-  )
-
-  const yesterdayRows = useMemo(
-    () => entityFilteredRecoltari.filter((recoltare) => toDateOnly(recoltare.data) === yesterdayIso),
-    [entityFilteredRecoltari, yesterdayIso]
+    () => searchFilteredRecoltari.filter((recoltare) => toDateOnly(recoltare.data) === todayIso),
+    [searchFilteredRecoltari, todayIso]
   )
 
   const last7Rows = useMemo(
     () =>
-      entityFilteredRecoltari.filter((recoltare) => {
+      searchFilteredRecoltari.filter((recoltare) => {
         const date = toDateOnly(recoltare.data)
         return date >= last7StartIso && date <= todayIso
       }),
-    [entityFilteredRecoltari, last7StartIso, todayIso]
-  )
-
-  const previous7Rows = useMemo(
-    () =>
-      entityFilteredRecoltari.filter((recoltare) => {
-        const date = toDateOnly(recoltare.data)
-        return date >= previous7StartIso && date <= previous7EndIso
-      }),
-    [entityFilteredRecoltari, previous7StartIso, previous7EndIso]
+    [searchFilteredRecoltari, last7StartIso, todayIso]
   )
 
   const todayTotalKg = useMemo(() => todayRows.reduce((sum, row) => sum + getRecoltareKg(row), 0), [todayRows])
-  const yesterdayTotalKg = useMemo(() => yesterdayRows.reduce((sum, row) => sum + getRecoltareKg(row), 0), [yesterdayRows])
   const weekTotalKg = useMemo(() => last7Rows.reduce((sum, row) => sum + getRecoltareKg(row), 0), [last7Rows])
-  const previousWeekTotalKg = useMemo(() => previous7Rows.reduce((sum, row) => sum + getRecoltareKg(row), 0), [previous7Rows])
 
   const weekSeries = useMemo(() => {
     return last7DaysIso.map((dayIso) =>
-      entityFilteredRecoltari.reduce((sum, row) => {
+      searchFilteredRecoltari.reduce((sum, row) => {
         if (toDateOnly(row.data) !== dayIso) return sum
         return sum + getRecoltareKg(row)
       }, 0)
     )
-  }, [last7DaysIso, entityFilteredRecoltari])
+  }, [last7DaysIso, searchFilteredRecoltari])
 
   const shouldShowSparkline = weekSeries.filter((value) => value > 0).length >= 2
-  const trendAzi = computeTrend(todayTotalKg, yesterdayTotalKg)
-  const trendSaptamana = computeTrend(weekTotalKg, previousWeekTotalKg)
-
-  const medieZilnica = weekTotalKg / 7
-
-  const rowsForTopWorker = useMemo(() => {
-    return searchFilteredRecoltari.filter((recoltare) => {
-      if (selectedParcelaId && recoltare.parcela_id !== selectedParcelaId) return false
-      return toDateOnly(recoltare.data) === todayIso
-    })
-  }, [searchFilteredRecoltari, selectedParcelaId, todayIso])
-
-  const rankingCulegatoriAzi = useMemo(() => {
-    const byWorker = new Map<string, { id: string; name: string; kg: number }>()
-
-    rowsForTopWorker.forEach((recoltare) => {
-      if (!recoltare.culegator_id) return
-      const workerId = recoltare.culegator_id
-      const workerName = culegatorMap[workerId]?.nume || 'Culegator'
-      const kg = getRecoltareKg(recoltare)
-      const existing = byWorker.get(workerId)
-
-      if (existing) {
-        existing.kg += kg
-      } else {
-        byWorker.set(workerId, {
-          id: workerId,
-          name: workerName,
-          kg,
-        })
-      }
-    })
-
-    return Array.from(byWorker.values()).sort((a, b) => b.kg - a.kg)
-  }, [rowsForTopWorker, culegatorMap])
-
-  const topCulegatorAzi = rankingCulegatoriAzi[0]
 
   const calitatiSummary = useMemo(() => {
     const cal1 = filteredRecoltari.reduce((sum, row) => sum + Number(row.kg_cal1 ?? 0), 0)
@@ -496,51 +573,12 @@ export function RecoltariPageClient({
     }
   }, [filteredRecoltari])
 
-  const rowsForParcelStrip = useMemo(() => {
-    return searchFilteredRecoltari.filter((recoltare) => {
-      if (selectedCulegatorId && recoltare.culegator_id !== selectedCulegatorId) return false
-      return toDateOnly(recoltare.data) === todayIso
-    })
-  }, [searchFilteredRecoltari, selectedCulegatorId, todayIso])
-
-  const todayKgByParcela = useMemo(() => {
-    const map = new Map<string, number>()
-    rowsForParcelStrip.forEach((recoltare) => {
-      if (!recoltare.parcela_id) return
-      map.set(recoltare.parcela_id, (map.get(recoltare.parcela_id) ?? 0) + getRecoltareKg(recoltare))
-    })
-    return map
-  }, [rowsForParcelStrip])
-
-  const toggleParcelaFilter = (parcelaId: string) => {
-    setSelectedParcelaId((previous) => (previous === parcelaId ? null : parcelaId))
-    setSelectedCulegatorId(null)
-  }
-
-  const toggleCulegatorFilter = (culegatorId: string) => {
-    setSelectedCulegatorId((previous) => (previous === culegatorId ? null : culegatorId))
-    setSelectedParcelaId(null)
-  }
-
-  const resetEntityFilters = () => {
-    setSelectedParcelaId(null)
-    setSelectedCulegatorId(null)
-  }
-
-  const activeFilterLabel = selectedParcelaId
-    ? `${'\u{1F4CD}'} ${parcelaMap[selectedParcelaId]?.displayName || 'Parcela'}`
-    : selectedCulegatorId
-      ? `${'\u{1F464}'} ${culegatorMap[selectedCulegatorId]?.nume || 'Culegator'}`
-      : null
-
   const timeFilterOptions: Array<{ key: TimeFilter; label: string }> = [
     { key: 'azi', label: 'Azi' },
-    { key: 'saptamana', label: 'Sapt.' },
-    { key: 'luna', label: 'Luna' },
+    { key: 'saptamana', label: 'Săpt.' },
+    { key: 'luna', label: 'Lună' },
     { key: 'sezon', label: 'Sezon' },
   ]
-
-  const maxRankingKg = rankingCulegatoriAzi[0]?.kg ?? 0
 
   return (
     <AppShell
@@ -553,299 +591,54 @@ export function RecoltariPageClient({
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-4">
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
         {!initialError && !isError ? (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: spacing.sm }}>
-              <button
-                type="button"
-                className="min-h-[110px] sm:min-h-0 flex flex-col justify-between"
-                onClick={() => setTimeFilter('azi')}
-                style={{
-                  border: `1px solid ${colors.grayLight}`,
-                  borderRadius: radius.lg,
-                  background: colors.white,
-                  boxShadow: shadows.card,
-                  padding: spacing.md,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{'\u{1FAD0}'} Azi</span>
-                  {trendAzi ? <TrendBadge value={trendAzi.value} positive={trendAzi.positive} /> : null}
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: colors.dark }}>{formatKg(todayTotalKg, 1)}</div>
-                <div style={{ fontSize: 11, color: colors.gray }}>{todayRows.length} recoltări</div>
-                {shouldShowSparkline ? (
-                  <div style={{ marginTop: spacing.sm }}>
-                    <Sparkline data={weekSeries} color={colors.green} width={88} height={24} />
-                  </div>
-                ) : null}
-              </button>
-
-              <button
-                type="button"
-                className="min-h-[110px] sm:min-h-0 flex flex-col justify-between"
-                onClick={() => setTimeFilter('saptamana')}
-                style={{
-                  border: `1px solid ${colors.grayLight}`,
-                  borderRadius: radius.lg,
-                  background: colors.white,
-                  boxShadow: shadows.card,
-                  padding: spacing.md,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{'\u{1F4C5}'} Săptămâna</span>
-                  {trendSaptamana ? <TrendBadge value={trendSaptamana.value} positive={trendSaptamana.positive} /> : null}
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 700, color: colors.dark }}>{formatKg(weekTotalKg, 1)}</div>
-                <div style={{ fontSize: 11, color: colors.gray }}>{last7Rows.length} recoltări</div>
-                {shouldShowSparkline ? (
-                  <div style={{ marginTop: spacing.sm }}>
-                    <Sparkline data={weekSeries} color={colors.primary} width={88} height={24} />
-                  </div>
-                ) : null}
-              </button>
-            </div>
-
-            <div className="sm:hidden">
+            {/* Scoreboard compact */}
+            {recoltari.length > 0 ? (
               <div
                 style={{
-                  borderRadius: radius.lg,
-                  background: colors.white,
-                  boxShadow: shadows.card,
-                  border: `1px solid ${colors.grayLight}`,
-                  padding: spacing.md,
-                  minHeight: 110,
+                  background: 'var(--agri-surface)',
+                  borderRadius: 12,
+                  padding: '10px 14px',
+                  border: '1px solid var(--agri-border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark, marginBottom: spacing.xs }}>Calitate recoltă</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: colors.dark }}>
-                  <span style={{ color: colors.green }}>{calitatiSummary.cal1Pct}% Cal I</span>
-                  <span style={{ color: colors.gray }}> | </span>
-                  <span style={{ color: colors.coral }}>{calitatiSummary.cal2Pct}% Cal II</span>
-                </div>
-                <div
-                  style={{
-                    marginTop: spacing.sm,
-                    height: 12,
-                    borderRadius: radius.full,
-                    background: colors.grayLight,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${calitatiSummary.cal1Pct}%`,
-                      background: colors.green,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="hidden sm:grid" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: spacing.sm }}>
-              <MiniCard
-                icon={'\u{1F4CA}'}
-                label="Medie/zi"
-                value={new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(medieZilnica)}
-                sub="kg"
-              />
-
-              <div
-                style={{
-                  borderRadius: radius.lg,
-                  border: `2px solid ${selectedCulegatorId && selectedCulegatorId === topCulegatorAzi?.id ? colors.primary : 'transparent'}`,
-                }}
-              >
-                <MiniCard
-                  icon={'\u{1F3C6}'}
-                  label="Top azi"
-                  value={topCulegatorAzi?.name || '-'}
-                  sub={topCulegatorAzi ? `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(topCulegatorAzi.kg)} kg` : 'fără date'}
-                  onClick={topCulegatorAzi ? () => toggleCulegatorFilter(topCulegatorAzi.id) : undefined}
-                />
-              </div>
-
-              <div
-                style={{
-                  borderRadius: radius.lg,
-                  background: colors.white,
-                  boxShadow: shadows.card,
-                  border: `1px solid ${colors.grayLight}`,
-                  padding: spacing.md,
-                }}
-              >
-                <div style={{ fontSize: 10, color: colors.gray, marginBottom: spacing.xs }}>Cal I / II</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: colors.dark }}>
-                  <span style={{ color: colors.green }}>{calitatiSummary.cal1Pct}%</span> / <span style={{ color: colors.coral }}>{calitatiSummary.cal2Pct}%</span>
-                </div>
-                <div
-                  style={{
-                    marginTop: spacing.sm,
-                    height: 8,
-                    borderRadius: radius.full,
-                    background: colors.grayLight,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${calitatiSummary.cal1Pct}%`,
-                      background: colors.green,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: spacing.sm, overflowX: 'auto', paddingBottom: 2 }}>
-              {activeParcele.map((parcela) => {
-                const kgAzi = todayKgByParcela.get(parcela.id) ?? 0
-                const selected = selectedParcelaId === parcela.id
-                return (
-                  <button
-                    key={parcela.id}
-                    type="button"
-                    onClick={() => toggleParcelaFilter(parcela.id)}
-                    style={{
-                      minWidth: 148,
-                      borderRadius: radius.lg,
-                      border: `${selected ? 2 : 1}px solid ${selected ? colors.primary : kgAzi > 0 ? colors.green : colors.grayLight}`,
-                      background: kgAzi > 0 ? colors.greenLight : colors.grayLight,
-                      padding: spacing.sm,
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: colors.dark, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {parcela.name}
-                      </div>
-                      <span
-                        style={{
-                          borderRadius: radius.full,
-                          background: colors.grayLight,
-                          color: colors.gray,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          lineHeight: 1,
-                          padding: '4px 7px',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {parcela.tipLabel}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span>
+                    <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--agri-text)', letterSpacing: '-0.03em' }}>
+                      {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(todayTotalKg)}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-hint)', marginLeft: 4, fontWeight: 500 }}>kg azi</span>
+                  </span>
+                  {weekTotalKg > 0 ? (
+                    <span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--button-muted-text)' }}>
+                        {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(weekTotalKg)}
                       </span>
-                    </div>
-                    <div style={{ fontSize: 9, color: colors.gray, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{parcela.soi}</div>
-                    <div style={{ marginTop: spacing.xs, fontSize: 18, fontWeight: 700, color: kgAzi > 0 ? colors.green : colors.gray }}>
-                      {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(kgAzi)}
-                    </div>
-                    <div style={{ fontSize: 9, color: colors.gray }}>kg</div>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div
-              style={{
-                borderRadius: radius.lg,
-                background: colors.white,
-                boxShadow: shadows.card,
-                border: `1px solid ${colors.grayLight}`,
-                padding: spacing.md,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                <SectionTitle className="flex-1" title="Culegători azi" />
-                {selectedCulegatorId ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCulegatorId(null)}
-                    style={{
-                      border: 'none',
-                      background: colors.coralLight,
-                      color: colors.coral,
-                      borderRadius: radius.sm,
-                      padding: '4px 8px',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {'\u2715'} reset
-                  </button>
+                      <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>săpt</span>
+                    </span>
+                  ) : null}
+                  {calitatiSummary.cal1Pct > 0 ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--value-positive)' }}>
+                      Cal I {calitatiSummary.cal1Pct}%
+                    </span>
+                  ) : null}
+                </div>
+                {shouldShowSparkline ? (
+                  <Sparkline data={weekSeries} color="var(--value-positive)" width={48} height={18} />
                 ) : null}
               </div>
+            ) : null}
 
-              {rankingCulegatoriAzi.length === 0 ? (
-                <div style={{ fontSize: 12, color: colors.gray }}>Nu există recoltări azi.</div>
-              ) : (
-                <div style={{ display: 'grid', gap: spacing.xs }}>
-                  {rankingCulegatoriAzi.map((worker, index) => {
-                    const progress = maxRankingKg > 0 ? (worker.kg / maxRankingKg) * 100 : 0
-                    const selected = selectedCulegatorId === worker.id
-                    return (
-                      <button
-                        key={worker.id}
-                        type="button"
-                        onClick={() => toggleCulegatorFilter(worker.id)}
-                        style={{
-                          border: `1px solid ${selected ? colors.primary : colors.grayLight}`,
-                          background: selected ? colors.blueLight : colors.white,
-                          borderRadius: radius.md,
-                          padding: spacing.sm,
-                          textAlign: 'left',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {getMedal(index)} {worker.name}
-                          </div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>{formatKg(worker.kg, 1)}</div>
-                        </div>
-                        <div
-                          style={{
-                            marginTop: spacing.xs,
-                            height: 6,
-                            borderRadius: radius.full,
-                            background: colors.grayLight,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${progress}%`,
-                              height: '100%',
-                              background: selected ? colors.primary : colors.green,
-                            }}
-                          />
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            <SearchField
-              placeholder="Caută după parcelă, soi, culegător sau observații..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              aria-label="Caută recoltări"
-            />
-
-            <div style={{ display: 'flex', gap: spacing.sm, overflowX: 'auto' }}>
+            {/* Pills time filter */}
+            <div style={{ display: 'flex', gap: 6 }}>
               {timeFilterOptions.map((option) => {
                 const active = timeFilter === option.key
                 return (
@@ -854,15 +647,14 @@ export function RecoltariPageClient({
                     type="button"
                     onClick={() => setTimeFilter(option.key)}
                     style={{
-                      borderRadius: radius.md,
-                      border: `1px solid ${active ? colors.primary : colors.grayLight}`,
-                      background: active ? colors.primary : colors.white,
-                      color: active ? colors.white : colors.gray,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      padding: '8px 10px',
+                      padding: '6px 14px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      borderRadius: 20,
+                      border: `1px solid ${active ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
+                      background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+                      color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
                       cursor: 'pointer',
-                      whiteSpace: 'nowrap',
                     }}
                   >
                     {option.label}
@@ -871,44 +663,19 @@ export function RecoltariPageClient({
               })}
             </div>
 
-            {activeFilterLabel ? (
-              <div
-                style={{
-                  borderRadius: radius.md,
-                  background: colors.blueLight,
-                  border: `1px solid ${colors.blue}`,
-                  padding: `${spacing.sm}px ${spacing.md}px`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: spacing.sm,
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 700, color: colors.dark }}>{activeFilterLabel}</span>
-                <button
-                  type="button"
-                  onClick={resetEntityFilters}
-                  style={{
-                    border: 'none',
-                    background: colors.coral,
-                    color: colors.white,
-                    borderRadius: radius.sm,
-                    padding: '5px 8px',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {'\u2715'} Arata toate
-                </button>
-              </div>
-            ) : null}
+            {/* Search */}
+            <SearchField
+              placeholder="Caută după parcelă, soi, culegător sau observații..."
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              aria-label="Caută recoltări"
+            />
           </>
         ) : null}
 
         {isLoading ? (
           <>
-            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-white sm:hidden">
+            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] sm:hidden">
               {Array.from({ length: 4 }).map((_, index) => (
                 <div key={index} className="border-b border-[var(--agri-border)] last:border-b-0">
                   <ListSkeletonRow />
@@ -924,42 +691,40 @@ export function RecoltariPageClient({
         ) : null}
 
         {!isLoading && !isError && !initialError && recoltari.length === 0 ? (
-          <EmptyState icon={<Leaf className="h-16 w-16" />} title="Nicio recoltare încă" description="Adaugă prima recoltare pentru a începe" />
+          <EmptyState
+            icon={<Leaf className="h-16 w-16" />}
+            title="Nicio recoltare încă"
+            description="Adaugă prima recoltare pentru a începe"
+          />
         ) : null}
 
         {!isLoading && !isError && !initialError && recoltari.length > 0 && filteredRecoltari.length === 0 ? (
-          <div
-            style={{
-              borderRadius: radius.lg,
-              background: colors.white,
-              border: `1px solid ${colors.grayLight}`,
-              boxShadow: shadows.card,
-              padding: spacing.lg,
-              color: colors.gray,
-              fontSize: 13,
-            }}
-          >
-            Nu există recoltări pentru filtrele selectate.
+          <div style={{ borderRadius: 12, background: 'var(--agri-surface)', border: '1px solid var(--agri-border)', padding: '20px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🫐</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 4 }}>
+              {timeFilter === 'azi' ? 'Nicio recoltare azi' : 'Nicio recoltare pentru filtrul selectat'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>
+              {timeFilter === 'azi' ? 'Recoltările de azi vor apărea aici' : 'Modifică filtrul de timp sau căutarea'}
+            </div>
           </div>
         ) : null}
 
         {!isLoading && !isError && !initialError && filteredRecoltari.length > 0 ? (
-          <div style={{ display: 'grid', gap: spacing.sm }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRecoltari.map((recoltare) => {
               const parcelaMeta = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined
               return (
-                <RecoltareCard
+                <RecoltareCardNew
                   key={recoltare.id}
                   recoltare={recoltare}
-                  culegatorNume={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined}
-                  culegatorTarif={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.tarif : undefined}
                   parcelaNume={parcelaMeta?.name}
-                  parcelaTip={parcelaMeta?.tipLabel}
                   parcelaSoi={parcelaMeta?.soi}
-                  iconBackground={recoltare.parcela_id ? parcelaColorMap[recoltare.parcela_id] : colors.grayLight}
-                  onView={setViewingRecoltare}
-                  onDelete={setDeletingRecoltare}
+                  culegatorNume={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined}
+                  isExpanded={expandedId === recoltare.id}
+                  onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
                   onEdit={setEditingRecoltare}
+                  onDelete={setDeletingRecoltare}
                 />
               )
             })}
@@ -967,19 +732,18 @@ export function RecoltariPageClient({
         ) : null}
       </div>
 
-      <AddRecoltareDialog open={addOpen || addFromQuery} onOpenChange={setAddOpen} hideTrigger />
-
-      <ViewRecoltareDialog
-        open={!!viewingRecoltare}
+      <AddRecoltareDialog
+        open={addOpen}
         onOpenChange={(open) => {
-          if (!open) setViewingRecoltare(null)
+          if (!open) {
+            closeAddDialog()
+            return
+          }
+          setAddOpen(true)
         }}
-        recoltare={viewingRecoltare}
-        parcelaNume={viewingRecoltare?.parcela_id ? parcelaMap[viewingRecoltare.parcela_id]?.name : undefined}
-        parcelaTip={viewingRecoltare?.parcela_id ? parcelaMap[viewingRecoltare.parcela_id]?.tipLabel : undefined}
-        culegatorNume={viewingRecoltare?.culegator_id ? culegatorMap[viewingRecoltare.culegator_id]?.nume : undefined}
-        onEdit={setEditingRecoltare}
-        onDelete={setDeletingRecoltare}
+        aiPrefill={aiPrefill}
+        onSuccessfulSave={closeAddDialog}
+        hideTrigger
       />
 
       <EditRecoltareDialog
@@ -997,7 +761,6 @@ export function RecoltariPageClient({
         }}
         onConfirm={() => {
           if (!deletingRecoltare) return
-          if (isLoadingDeleteImpact) return
           if (recoltareDeleteImpact?.hasDownstreamSales) {
             toast.error('Această recoltare are vânzări asociate și nu poate fi ștearsă.')
             return
@@ -1011,15 +774,15 @@ export function RecoltariPageClient({
         )}
         itemType="recoltare"
         description={
-          isLoadingDeleteImpact
-            ? 'Se verifică impactul acestei ștergeri asupra stocului...'
-            : recoltareDeleteImpact?.hasDownstreamSales
-              ? 'Această recoltare are vânzări asociate și nu poate fi ștearsă.'
-              : recoltareDeleteImpact?.hasStock
-                ? `Ștergerea va elimina și ${formatKg(recoltareDeleteImpact.stockToRemoveKg)} din stoc.`
-                : `Stergi recoltarea din ${deletingRecoltare?.data ? new Date(deletingRecoltare.data).toLocaleDateString('ro-RO') : 'data necunoscuta'} - parcelă ${deletingRecoltare?.parcela_id ? parcelaMap[deletingRecoltare.parcela_id]?.name || 'necunoscuta' : 'necunoscuta'}?`
+          recoltareDeleteImpact?.hasDownstreamSales
+            ? 'Această recoltare are vânzări asociate și nu poate fi ștearsă.'
+            : recoltareDeleteImpact?.hasStock
+              ? `Ștergerea va elimina și ${formatKg(recoltareDeleteImpact.stockToRemoveKg)} din stoc.`
+              : undefined
         }
       />
     </AppShell>
   )
 }
+
+

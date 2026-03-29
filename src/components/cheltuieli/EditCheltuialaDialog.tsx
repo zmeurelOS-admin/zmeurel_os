@@ -11,24 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
-
-const CATEGORII_CHELTUIELI = [
-  'Electricitate',
-  'Motorina Transport',
-  'Ambalaje',
-  'Etichete',
-  'Reparatii Utilaje',
-  'Scule',
-  'Fertilizare',
-  'Pesticide',
-  'Intretinere Curenta',
-  'Cules',
-  'Manoperă cules',
-  'Material Saditor',
-  'Sistem Sustinere',
-  'Sistem Irigatie',
-  'Altele',
-]
+import { CATEGORII_CHELTUIELI } from '@/lib/financial/categories'
 
 const cheltuialaSchema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),

@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 
 import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
 import { type VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
@@ -435,3 +435,5 @@ export function VanzareButasiCard({
     </div>
   )
 }
+
+export default memo(VanzareButasiCard)

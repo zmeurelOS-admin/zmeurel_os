@@ -63,6 +63,13 @@ export async function DELETE(request: Request) {
 
     if (analyticsDeleteError) throw analyticsDeleteError
 
+    const { error: aiConversationsDeleteError } = await admin
+      .from('ai_conversations' as unknown as 'alert_dismissals')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (aiConversationsDeleteError) throw aiConversationsDeleteError
+
     const { error: deleteTenantError } = await admin
       .from('tenants')
       .delete()

@@ -37,7 +37,7 @@ export function DashboardCard({
           : undefined
       }
       className={cn(
-        'border-[var(--agri-border)] bg-white duration-150',
+        'border-[var(--agri-border)] bg-[var(--agri-surface)] duration-150',
         interactive ? 'cursor-pointer active:scale-[0.98] md:hover:shadow-md' : '',
         className
       )}

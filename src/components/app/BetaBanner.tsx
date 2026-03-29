@@ -23,7 +23,7 @@ const RATING_OPTIONS = [
 
 export function HeaderBetaBadge() {
   return (
-    <span className="inline-flex h-[22px] items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-2 text-[12px] font-semibold leading-none text-emerald-900">
+    <span className="inline-flex h-[22px] items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-2 text-[12px] font-semibold leading-none text-emerald-900 dark:border-emerald-700/60 dark:bg-emerald-900/30 dark:text-emerald-200">
       BETA
     </span>
   )
@@ -80,7 +80,7 @@ export function HeaderFeedbackButton() {
     <>
       <button
         type="button"
-        className="inline-flex h-[27px] items-center gap-1.5 rounded-full border border-[var(--agri-border)] bg-white/96 px-2.5 text-[12px] font-medium text-[var(--agri-text)] shadow-sm transition hover:bg-[var(--agri-surface-muted)]"
+        className="inline-flex h-[27px] items-center gap-1.5 rounded-full border border-[var(--agri-border)] bg-white/96 px-2.5 text-[12px] font-medium text-[var(--agri-text)] shadow-sm transition hover:bg-[var(--agri-surface-muted)] dark:bg-zinc-900/90"
         onClick={() => {
           track('feedback_header_click', { page: pathname || '/' })
           setFeedbackOpen(true)
@@ -132,8 +132,8 @@ export function HeaderFeedbackButton() {
                     aria-label={`Rating ${option.value}`}
                     className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-xl ${
                       selected
-                        ? 'border-amber-600 bg-amber-100'
-                        : 'border-[var(--agri-border)] bg-white hover:bg-[var(--agri-surface-muted)]'
+                        ? 'border-amber-600 bg-amber-100 dark:border-amber-500 dark:bg-amber-900/40'
+                        : 'border-[var(--agri-border)] bg-white hover:bg-[var(--agri-surface-muted)] dark:bg-zinc-900 dark:hover:bg-zinc-800'
                     }`}
                     onClick={() => setRating(option.value)}
                   >

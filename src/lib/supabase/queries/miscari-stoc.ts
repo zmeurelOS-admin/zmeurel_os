@@ -51,6 +51,7 @@ export interface StocLocationRow {
   stoc_congelat: number
   stoc_procesat: number
   total_kg: number
+  last_updated: string | null
 }
 
 export interface StocGlobal {
@@ -71,6 +72,7 @@ interface MiscareStocWithParcela {
   depozit: DepozitStoc
   tip_miscare: TipMiscareStoc
   cantitate_kg: number
+  data: string | null
   parcele: {
     nume_parcela: string | null
   } | null
@@ -112,30 +114,44 @@ export async function insertMiscareStoc(input: InsertMiscareStocInput): Promise<
   const supabase = getSupabase()
   const tenantId = input.tenant_id ?? (await getTenantId(supabase))
 
-  const qty = round2(Math.max(0, Number(input.cantitate_kg) || 0))
-  const signedQty =
-    input.tip_miscare && qty > 0 ? signedQuantity(input.tip_miscare, qty) : 0
+  const explicitQty = input.cantitate_kg !== undefined ? round2(Math.max(0, Number(input.cantitate_kg) || 0)) : null
+  const provisionalSignedQty =
+    input.tip_miscare && explicitQty != null && explicitQty > 0 ? signedQuantity(input.tip_miscare, explicitQty) : 0
   const derivedCal1 =
     input.cantitate_cal1 !== undefined
       ? round2(Number(input.cantitate_cal1) || 0)
       : input.calitate === 'cal1'
-        ? round2(signedQty)
+        ? round2(provisionalSignedQty)
         : 0
   const derivedCal2 =
     input.cantitate_cal2 !== undefined
       ? round2(Number(input.cantitate_cal2) || 0)
       : input.calitate === 'cal2'
-        ? round2(signedQty)
+        ? round2(provisionalSignedQty)
         : 0
+  const derivedCalitate =
+    input.calitate ??
+    (derivedCal1 !== 0 && derivedCal2 === 0
+      ? 'cal1'
+      : derivedCal2 !== 0 && derivedCal1 === 0
+        ? 'cal2'
+        : undefined)
+  const derivedQty =
+    explicitQty ??
+    (derivedCalitate === 'cal1'
+      ? round2(Math.abs(derivedCal1))
+      : derivedCalitate === 'cal2'
+        ? round2(Math.abs(derivedCal2))
+        : null)
 
   const payload = {
     tenant_id: tenantId,
     locatie_id: input.locatie_id ?? null,
     produs: input.produs ?? null,
-    calitate: input.calitate ?? null,
+    calitate: derivedCalitate ?? null,
     depozit: input.depozit ?? null,
     tip_miscare: input.tip_miscare ?? null,
-    cantitate_kg: input.cantitate_kg !== undefined ? qty : null,
+    cantitate_kg: derivedQty,
     tip: input.tip ?? mapLegacyToGlobalTip(input.tip_miscare),
     cantitate_cal1: derivedCal1,
     cantitate_cal2: derivedCal2,
@@ -214,7 +230,7 @@ export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<St
 
   let query = supabase
     .from('miscari_stoc')
-    .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg,parcele(nume_parcela)')
+    .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg,data,parcele(nume_parcela)')
     .eq('tenant_id', tenantId)
     .not('locatie_id', 'is', null)
     .not('produs', 'is', null)
@@ -249,6 +265,7 @@ export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<St
       stoc_congelat: 0,
       stoc_procesat: 0,
       total_kg: 0,
+      last_updated: row.data ?? null,
     }
 
     const qty = signedQuantity(row.tip_miscare, Number(row.cantitate_kg ?? 0))
@@ -269,6 +286,9 @@ export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<St
     existing.total_kg = round2(
       existing.stoc_fresh_cal1 + existing.stoc_fresh_cal2 + existing.stoc_congelat + existing.stoc_procesat
     )
+    if (row.data && (!existing.last_updated || row.data > existing.last_updated)) {
+      existing.last_updated = row.data
+    }
 
     grouped.set(key, existing)
   })

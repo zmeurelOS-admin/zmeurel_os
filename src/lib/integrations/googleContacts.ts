@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/nextjs'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
+import { buildAnalyticsPayload } from '@/lib/analytics/schema'
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_PEOPLE_API_URL = 'https://people.googleapis.com/v1/people/me/connections'
@@ -122,15 +123,13 @@ async function trackIntegrationEvent(
   }
 ) {
   const { tenantId, userId, event, metadata = {} } = payload
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('analytics_events').insert({
+  await supabase.from('analytics_events').insert({
     tenant_id: tenantId,
     user_id: userId,
     event_name: event,
-    event_type: event,
     module: 'integrations',
-    metadata,
-  } as never)
+    event_data: buildAnalyticsPayload(metadata),
+  })
 }
 
 async function fetchGoogleUserEmail(accessToken: string): Promise<string | null> {

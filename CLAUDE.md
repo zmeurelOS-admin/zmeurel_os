@@ -10,14 +10,14 @@ npm run lint         # ESLint
 npm run typecheck    # tsc --noEmit
 npm run build        # next build --webpack (runs check-env.js first)
 npm run check        # lint + typecheck + build (full CI gate)
-npm test:e2e         # Playwright e2e tests
+npm run test:e2e     # Playwright e2e tests
 ```
 
 CI runs `lint` + `typecheck` on every PR. Always run both before committing. There are no unit tests — only Playwright e2e.
 
 ## Architecture Overview
 
-**Zmeurel OS** is a multi-tenant agricultural SaaS (berry farms, greenhouses). The stack is Next.js 16 App Router, TypeScript, Supabase (PostgreSQL + Auth), TailwindCSS 4, shadcn/ui, TanStack Query v5.
+**Zmeurel OS** is a multi-tenant agricultural SaaS (berry farms, greenhouses). The stack is Next.js 16 App Router, React 19, TypeScript, Supabase (PostgreSQL + Auth), TailwindCSS 4, shadcn/ui, TanStack Query v5, Framer Motion, Sentry, `@ai-sdk/google`, Zustand 5, `next-themes`, and `driver.js`.
 
 ### Route Groups
 
@@ -118,3 +118,40 @@ Migrations live in `supabase/migrations/` as `.sql` files. Run them manually in 
 - After mutations that affect cached data, call the appropriate `queryClient.invalidateQueries({ queryKey: queryKeys.X })`
 - Conflict errors (status 409 / code `23505`) from Supabase are treated as success (idempotent creates)
 - Form dialogs track `open_create_form` → `create_success`/`create_failed`/`form_abandoned` lifecycle using a `submittedRef` + `hasOpenedRef` pattern
+
+## AI Chat Widget
+
+- **Model**: `gemini-2.5-flash` (configurabil via `AI_GEMINI_MODEL` env var) prin `@ai-sdk/google`
+- **Files**: `src/app/api/chat/route.ts`, `src/components/ai/AiBottomSheet.tsx`
+- **New table**: `ai_conversations` — columns: `id uuid PK`, `tenant_id uuid`, `user_id uuid`, `mesaj_user text`, `raspuns_ai text`, `pathname text`, `created_at timestamptz`
+- **Rate limit**: 20 msg/zi pentru utilizatori normali, 60 msg/zi pentru superadmin și contul de test `zmeurel.app@gmail.com`. Configurabil via `AI_CHAT_DAILY_LIMIT`. Contorizarea folosește `profiles.ai_messages_count` + `profiles.last_ai_usage_date` și se resetează zilnic în timezone `Europe/Bucharest`.
+- **Profiles columns required**: `ai_messages_count integer DEFAULT 0`, `last_ai_usage_date date`
+- **Max input**: last 4 messages kept; last user message truncated to 500 chars; system prompt ~300 tokens
+- **Keyword detection**: active — queries `activitati_agricole`, `clienti`, `cheltuieli_diverse`, `recoltari`, `comenzi`, `miscari_stoc` only when message matches relevant keywords
+- **Session memory**: last 3 exchanges loaded from `ai_conversations` table on each request
+- **Proactive alerts**: on first message of session, checks parcele with no activity in last 7 days
+- **Voice input**: Web Speech API `ro-RO` — zero new dependencies; shown only if browser supports it
+- **Logo**: `/public/icons/icon.svg` rendered via `next/image`
+- **Form prefill** (open_form intent): returns non-streaming JSON `{ action: 'open_form', form, message, prefill }` — agent does NOT INSERT data; routes user to `/cheltuieli`, `/recoltari`, or `/activitati-agricole` with URL params
+- **Env vars AI**:
+  - `GOOGLE_GENERATIVE_AI_API_KEY`
+  - `AI_GEMINI_MODEL`
+  - `AI_GEMINI_SIMPLE_MODEL` — model alternativ pentru mesaje scurte `<180` chars
+  - `AI_CHAT_DAILY_LIMIT`
+  - `AI_CHAT_MAX_OUTPUT_TOKENS` — default `220`
+  - `AI_CHAT_USAGE_LOG` — `true/false`, default `false`
+- **Relevant RPCs**:
+  - `check_and_increment_ai_usage` — rate limiting atomic
+  - `resolve_recoltare_stock_identity` — determinare produs din parcelă/cultură
+- See `docs/ai-chat-widget.md` for full documentation
+
+## Known Issues
+
+Fixed in audit sprint:
+
+- Structured extraction din AI chat nu mai sare peste fallback-ul deterministic când `generateObject` eșuează.
+- Voice input oferă acum feedback clar la erori, timeout de 15 secunde și ascunde microfonul pe browsere fără suport.
+- Date sensibile (`telefon`, `pret_negociat_lei_kg`) nu mai sunt trimise către model în canonical candidates.
+- `ai_conversations` are cleanup automat pentru intrările mai vechi de 90 de zile prin cron.
+- `activitati_extended` și `parcele_extended` au fost reîmprospătate pentru a include coloanele noi din schema curentă.
+- Sistemul dual de contabilizare din `miscari_stoc` este documentat, iar ajustările manuale populează coerent atât `cantitate_kg`, cât și `cantitate_cal1` / `cantitate_cal2`.

@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
+import { hapticSuccess } from '@/lib/utils/haptic'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { createRecoltare } from '@/lib/supabase/queries/recoltari'
@@ -89,6 +90,7 @@ export default function NewRecoltarePage() {
       if (result.warning) {
         toast.warning(result.warning)
       } else {
+        hapticSuccess()
         toast.success('Recoltare adaugata')
       }
       router.back()
@@ -116,29 +118,36 @@ export default function NewRecoltarePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-200 bg-white px-4 py-4">
+    <div className="min-h-screen bg-[var(--agri-bg)] text-[var(--agri-text)]">
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-4">
         <button
           onClick={() => router.back()}
-          className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--agri-surface-muted)]"
         >
-          <ArrowLeft className="h-5 w-5 text-gray-700" />
+          <ArrowLeft className="h-5 w-5 text-[var(--agri-text)]" />
         </button>
-        <h1 className="text-xl font-bold text-[#312E3F]">Adaugă Recoltare</h1>
+        <h1 className="text-xl font-bold text-[var(--agri-text)]">Adaugă Recoltare</h1>
       </div>
 
-      <div className="overflow-y-auto px-4 pb-28 pt-4">
+      <div className="overflow-y-auto px-4 pb-[calc(var(--app-nav-clearance)+6rem)] pt-4">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
+          <div className="space-y-4 rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-5 shadow-sm">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Data</label>
-              <input type="date" {...register('data')} className="min-h-12 w-full rounded-xl border border-gray-200 px-4" />
-              {errors.data ? <p className="mt-1 text-xs text-red-500">{errors.data.message}</p> : null}
+              <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Data</label>
+              <input
+                type="date"
+                {...register('data')}
+                className="min-h-12 w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 text-[var(--agri-text)]"
+              />
+              {errors.data ? <p className="mt-1 text-xs text-[var(--soft-danger-text)]">{errors.data.message}</p> : null}
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Culegator</label>
-              <select {...register('culegator_id')} className="min-h-12 w-full rounded-xl border border-gray-200 px-4">
+              <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Culegator</label>
+              <select
+                {...register('culegator_id')}
+                className="min-h-12 w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 text-[var(--agri-text)]"
+              >
                 <option value="">Selectează...</option>
                 {culegatori.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -146,12 +155,15 @@ export default function NewRecoltarePage() {
                   </option>
                 ))}
               </select>
-              {errors.culegator_id ? <p className="mt-1 text-xs text-red-500">{errors.culegator_id.message}</p> : null}
+              {errors.culegator_id ? <p className="mt-1 text-xs text-[var(--soft-danger-text)]">{errors.culegator_id.message}</p> : null}
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Parcelă</label>
-              <select {...register('parcela_id')} className="min-h-12 w-full rounded-xl border border-gray-200 px-4">
+              <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Parcelă</label>
+              <select
+                {...register('parcela_id')}
+                className="min-h-12 w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 text-[var(--agri-text)]"
+              >
                 <option value="">Selectează...</option>
                 {parcele.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -159,58 +171,65 @@ export default function NewRecoltarePage() {
                   </option>
                 ))}
               </select>
-              {errors.parcela_id ? <p className="mt-1 text-xs text-red-500">{errors.parcela_id.message}</p> : null}
+              {errors.parcela_id ? <p className="mt-1 text-xs text-[var(--soft-danger-text)]">{errors.parcela_id.message}</p> : null}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Kg Calitatea 1</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Kg Calitatea 1</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   {...register('kg_cal1', { valueAsNumber: true })}
-                  className="min-h-12 w-full rounded-xl border border-gray-200 px-4"
+                  className="min-h-12 w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 text-[var(--agri-text)]"
                 />
-                {errors.kg_cal1 ? <p className="mt-1 text-xs text-red-500">{errors.kg_cal1.message}</p> : null}
+                {errors.kg_cal1 ? <p className="mt-1 text-xs text-[var(--soft-danger-text)]">{errors.kg_cal1.message}</p> : null}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Kg Calitatea 2</label>
+                <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Kg Calitatea 2</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   {...register('kg_cal2', { valueAsNumber: true })}
-                  className="min-h-12 w-full rounded-xl border border-gray-200 px-4"
+                  className="min-h-12 w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 text-[var(--agri-text)]"
                 />
-                {errors.kg_cal2 ? <p className="mt-1 text-xs text-red-500">{errors.kg_cal2.message}</p> : null}
+                {errors.kg_cal2 ? <p className="mt-1 text-xs text-[var(--soft-danger-text)]">{errors.kg_cal2.message}</p> : null}
               </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Observații</label>
-              <textarea {...register('observatii')} rows={3} className="w-full rounded-xl border border-gray-200 px-4 py-3" />
+              <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Observații</label>
+              <textarea
+                {...register('observatii')}
+                rows={3}
+                className="w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-3 text-[var(--agri-text)]"
+              />
             </div>
 
-            <div className="rounded-xl bg-gray-50 p-4 text-sm">
+            <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-4 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Tarif:</span>
-                <span className="font-semibold text-[#312E3F]">{hasTarif ? `${tarif.toFixed(2)} lei/kg` : '--'}</span>
+                <span className="text-[var(--agri-text-muted)]">Tarif:</span>
+                <span className="font-semibold text-[var(--agri-text)]">{hasTarif ? `${tarif.toFixed(2)} lei/kg` : '--'}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Total kg:</span>
-                <span className="font-semibold text-[#312E3F]">{totalKg.toFixed(2)} kg</span>
+                <span className="text-[var(--agri-text-muted)]">Total kg:</span>
+                <span className="font-semibold text-[var(--agri-text)]">{totalKg.toFixed(2)} kg</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">De plata:</span>
-                <span className="font-semibold text-[#E5484D]">{dePlata !== null ? `${dePlata.toFixed(2)} lei` : '--'}</span>
+                <span className="text-[var(--agri-text-muted)]">De plata:</span>
+                <span className="font-semibold text-[var(--value-negative)]">{dePlata !== null ? `${dePlata.toFixed(2)} lei` : '--'}</span>
               </div>
             </div>
           </div>
         </form>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4">
+      <div
+        className="fixed bottom-0 left-0 right-0 border-t border-[var(--agri-border)] bg-[var(--agri-surface)] p-4"
+        style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         <button
           onClick={handleSubmit(onSubmit)}
           disabled={mutation.isPending}

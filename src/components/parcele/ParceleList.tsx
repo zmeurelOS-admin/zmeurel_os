@@ -91,8 +91,8 @@ export function ParceleList({
             ref={(node) => {
               cardRefs.current[parcela.id] = node
             }}
-            className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-colors ${
-              hasRecentHarvest ? 'border-emerald-200 bg-emerald-50/60' : 'border-[var(--agri-border)]'
+            className={`overflow-hidden rounded-2xl border bg-[var(--agri-surface)] shadow-sm transition-colors ${
+              hasRecentHarvest ? 'border-[var(--soft-success-border)] bg-[var(--soft-success-bg)]' : 'border-[var(--agri-border)]'
             }`}
           >
             <button
@@ -103,7 +103,7 @@ export function ParceleList({
               className="w-full p-4 text-left"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--agri-border)] bg-white text-lg">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-lg">
                   🌿
                 </div>
 
@@ -131,7 +131,7 @@ export function ParceleList({
             </button>
 
             {isExpanded ? (
-              <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-4 py-4">
+              <div className="grid gap-4 border-t border-[var(--surface-divider)] bg-[var(--agri-surface)] px-4 py-4">
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     ['Suprafață', `${area.toFixed(0)} mp`],
@@ -169,7 +169,7 @@ export function ParceleList({
                         event.stopPropagation()
                         onOpen(parcela)
                       }}
-                      className="min-h-11 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
+                      className="min-h-11 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-3 text-sm font-semibold text-[var(--status-info-text)]"
                     >
                       Detalii
                     </button>
@@ -180,7 +180,7 @@ export function ParceleList({
                       event.stopPropagation()
                       onEdit(parcela)
                     }}
-                    className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
+                    className="min-h-11 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-sm font-semibold text-[var(--status-warning-text)]"
                   >
                     Editează
                   </button>
@@ -190,7 +190,7 @@ export function ParceleList({
                       event.stopPropagation()
                       onDelete(parcela)
                     }}
-                    className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
+                    className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-sm font-semibold text-[var(--status-danger-text)]"
                   >
                     Șterge
                   </button>

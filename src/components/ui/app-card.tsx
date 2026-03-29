@@ -3,7 +3,7 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 const appCardBaseClass =
-  'w-full rounded-2xl border border-[var(--agri-border)] bg-white p-5 shadow-sm'
+  'w-full rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-5 shadow-sm'
 
 function AppCard({ className, ...props }: React.ComponentProps<'div'>) {
   return (

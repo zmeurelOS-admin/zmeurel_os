@@ -24,7 +24,7 @@ export function ActivitateAgricolaCard({ activitate, parcelaNume, onEdit, onDele
       borderTone={pauseTone}
       cornerBadge={
         hasActivePause ? (
-          <div className="sm:hidden inline-flex rounded-md border border-red-500 bg-white px-2 py-1 text-xs font-semibold text-red-700">
+          <div className="sm:hidden inline-flex rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-1 text-xs font-semibold text-[var(--status-danger-text)]">
             {remainingDays} zile
           </div>
         ) : null
@@ -41,7 +41,7 @@ export function ActivitateAgricolaCard({ activitate, parcelaNume, onEdit, onDele
               {
                 label: 'Pauză activa',
                 value: (
-                  <Badge className={pauseTone === 'warning' ? 'badge-consistent bg-amber-500 text-white' : 'badge-consistent bg-red-600 text-white'}>
+                  <Badge className={pauseTone === 'warning' ? 'badge-consistent border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]' : 'badge-consistent border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'}>
                     Pauză activa
                   </Badge>
                 ),

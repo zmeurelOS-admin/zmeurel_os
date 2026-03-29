@@ -74,22 +74,22 @@ export function SyncStatusIndicator() {
   const view = {
     synced: {
       label: 'Sincronizate',
-      className: 'border-emerald-300 bg-emerald-100 text-emerald-900',
+      className: 'border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] text-[var(--soft-success-text)]',
       icon: Wifi,
     },
     offline: {
       label: 'Offline',
-      className: 'border-slate-400 bg-slate-200 text-slate-900',
+      className: 'border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]',
       icon: CloudOff,
     },
     syncing: {
       label: 'In curs',
-      className: 'border-blue-300 bg-blue-100 text-blue-900',
+      className: 'border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] text-[var(--soft-info-text)]',
       icon: RefreshCw,
     },
     failed: {
       label: 'Eroare sync',
-      className: 'border-red-300 bg-red-100 text-red-900',
+      className: 'border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] text-[var(--soft-danger-text)]',
       icon: AlertTriangle,
     },
   }[state]
@@ -187,7 +187,7 @@ export function SyncStatusIndicator() {
           type="button"
           size="sm"
           variant="outline"
-          className="hidden h-8 border-emerald-400 bg-white text-emerald-700 hover:bg-emerald-50 sm:inline-flex"
+          className="hidden h-8 border-[var(--soft-success-border)] bg-[var(--agri-surface)] text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)] sm:inline-flex"
           onClick={handleForceSyncNow}
           disabled={forcing || retrying}
         >
@@ -197,7 +197,7 @@ export function SyncStatusIndicator() {
           type="button"
           size="icon"
           variant="outline"
-          className="h-8 w-8 border-emerald-400 bg-white text-emerald-700 hover:bg-emerald-50 sm:hidden"
+          className="h-8 w-8 border-[var(--soft-success-border)] bg-[var(--agri-surface)] text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)] sm:hidden"
           onClick={handleForceSyncNow}
           disabled={forcing || retrying}
           aria-label="Sincronizeaza acum"
@@ -212,7 +212,7 @@ export function SyncStatusIndicator() {
               type="button"
               size="sm"
               variant="outline"
-              className="hidden h-8 border-red-400 bg-white text-red-700 hover:bg-red-50 sm:inline-flex"
+              className="hidden h-8 border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)] sm:inline-flex"
               onClick={handleRetryAll}
               disabled={retrying || forcing}
             >
@@ -222,7 +222,7 @@ export function SyncStatusIndicator() {
               type="button"
               size="icon"
               variant="outline"
-              className="h-8 w-8 border-red-400 bg-white text-red-700 hover:bg-red-50 sm:hidden"
+              className="h-8 w-8 border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)] sm:hidden"
               onClick={handleRetryAll}
               disabled={retrying || forcing}
               aria-label="Retry sync"
@@ -235,20 +235,20 @@ export function SyncStatusIndicator() {
       </div>
 
       {failedItems.length > 0 ? (
-        <div className="w-full max-w-sm rounded-xl border border-red-300 bg-white/95 p-2">
-          <p className="mb-1 text-xs font-semibold text-red-800">Esuate recent</p>
+        <div className="w-full max-w-sm rounded-xl border border-[var(--soft-danger-border)] bg-[var(--agri-surface)] p-2">
+          <p className="mb-1 text-xs font-semibold text-[var(--soft-danger-text)]">Esuate recent</p>
           <ul className="space-y-1">
             {failedItems.map((item) => (
-              <li key={item.id} className="rounded-md bg-red-50 px-2 py-1">
+              <li key={item.id} className="rounded-md bg-[var(--soft-danger-bg)] px-2 py-1">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[11px] font-medium text-red-900">
+                  <span className="truncate text-[11px] font-medium text-[var(--soft-danger-text)]">
                     {item.table} · incercari {item.retries}
                   </span>
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="h-6 px-2 text-[11px] font-semibold text-red-800 hover:bg-red-100"
+                    className="h-6 px-2 text-[11px] font-semibold text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface)]"
                     onClick={() => {
                       void handleRetryOne(item)
                     }}
@@ -259,14 +259,14 @@ export function SyncStatusIndicator() {
                 </div>
 
                 {item.conflict_flag ? (
-                  <div className="mt-1 rounded-md border border-red-300 bg-white px-2 py-1">
-                    <p className="text-[11px] font-semibold text-red-800">Conflict detectat</p>
+                  <div className="mt-1 rounded-md border border-[var(--soft-danger-border)] bg-[var(--agri-surface)] px-2 py-1">
+                    <p className="text-[11px] font-semibold text-[var(--soft-danger-text)]">Conflict detectat</p>
                     <div className="mt-1 flex gap-1">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-6 border-amber-300 px-2 text-[11px] text-amber-800 hover:bg-amber-50"
+                        className="h-6 border-[var(--soft-warning-border)] px-2 text-[11px] text-[var(--soft-warning-text)] hover:bg-[var(--soft-warning-bg)]"
                         onClick={() => {
                           void handleResolveKeepLocal(item)
                         }}
@@ -278,7 +278,7 @@ export function SyncStatusIndicator() {
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-6 border-emerald-300 px-2 text-[11px] text-emerald-800 hover:bg-emerald-50"
+                        className="h-6 border-[var(--soft-success-border)] px-2 text-[11px] text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)]"
                         onClick={() => {
                           void handleResolveKeepServer(item)
                         }}

@@ -1,0 +1,30 @@
+
+> zmeurel@0.1.0 dev
+> next dev --hostname 127.0.0.1 --port 3001
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://127.0.0.1:3001
+- Network:       http://127.0.0.1:3001
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+Creating turbopack project { dir: 'C:\\Users\\Andrei\\Desktop\\zmeurel', testMode: true }
+✓ Ready in 7.9s
+○ Compiling / ...
+ GET / 200 in 10.1s (compile: 2.5s, proxy.ts: 61ms, render: 7.6s)
+ GET /manifest.webmanifest 200 in 1249ms (compile: 1076ms, render: 173ms)
+ GET /parcele 200 in 15.5s (compile: 6.4s, proxy.ts: 4.3s, render: 4.8s)
+ GET /manifest.webmanifest 200 in 37ms (compile: 14ms, render: 24ms)
+ GET /start 200 in 1302ms (compile: 421ms, proxy.ts: 472ms, render: 409ms)
+ GET /manifest.webmanifest 200 in 80ms (compile: 27ms, render: 53ms)
+ GET /dashboard 200 in 882ms (compile: 220ms, proxy.ts: 249ms, render: 413ms)
+ GET /manifest.webmanifest 200 in 35ms (compile: 13ms, render: 21ms)
+ GET /manifest.webmanifest 200 in 244ms (compile: 77ms, render: 167ms)
+ GET /dashboard 200 in 4.6s (compile: 94ms, proxy.ts: 691ms, render: 3.8s)
+ GET /manifest.webmanifest 200 in 288ms (compile: 49ms, render: 239ms)
+ GET /parcele 200 in 1518ms (compile: 14ms, proxy.ts: 317ms, render: 1188ms)
+ GET /parcele 200 in 1224ms (compile: 13ms, proxy.ts: 356ms, render: 854ms)
+ GET /manifest.webmanifest 200 in 89ms (compile: 46ms, render: 44ms)
+[?25h

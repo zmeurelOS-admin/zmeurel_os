@@ -44,7 +44,7 @@ export function VanzareCard({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+      className="overflow-hidden rounded-2xl border bg-[var(--agri-surface)] shadow-sm"
       style={{ borderColor: 'var(--agri-border)', borderLeft: `4px solid ${incasata ? colors.green : colors.yellow}` }}
     >
       <button
@@ -53,7 +53,7 @@ export function VanzareCard({
         className="w-full p-5 text-left"
       >
         {isNewFromComandaToday ? (
-          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+          <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2.5 py-1 text-[10px] font-bold text-[var(--status-success-text)]">
             🆕 Din comandă livrată azi
           </div>
         ) : null}
@@ -91,13 +91,13 @@ export function VanzareCard({
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wide text-[var(--agri-text-muted)]">Total</div>
-            <div className="text-sm font-semibold text-emerald-700">{formatCurrency(totalRon)}</div>
+            <div className="text-sm font-semibold text-[var(--value-positive)]">{formatCurrency(totalRon)}</div>
           </div>
         </div>
       </button>
 
       {expanded ? (
-        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-5 py-5">
+        <div className="grid gap-4 border-t border-[var(--surface-divider)] bg-[var(--agri-surface)] px-5 py-5">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <div className="rounded-xl bg-[var(--agri-surface-muted)] p-3">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Cantitate</div>
@@ -133,7 +133,7 @@ export function VanzareCard({
             <a
               href={telefon ? `tel:${telefon}` : undefined}
               onClick={(event) => event.stopPropagation()}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-3 text-sm font-semibold text-[var(--status-info-text)]"
             >
               📞
             </a>
@@ -145,7 +145,7 @@ export function VanzareCard({
                   event.stopPropagation()
                   onOpenComanda?.()
                 }}
-                className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
+                className="min-h-11 rounded-xl border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-3 text-sm font-semibold text-[var(--status-neutral-text)]"
               >
                 Comandă
               </button>
@@ -157,7 +157,7 @@ export function VanzareCard({
                 event.stopPropagation()
                 onEdit(vanzare)
               }}
-              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
+              className="min-h-11 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-sm font-semibold text-[var(--status-warning-text)]"
             >
               Editează
             </button>
@@ -168,7 +168,7 @@ export function VanzareCard({
                 event.stopPropagation()
                 onDelete(vanzare)
               }}
-              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
+              className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-sm font-semibold text-[var(--status-danger-text)]"
             >
               Șterge
             </button>

@@ -31,7 +31,7 @@ const quickActions = [
 
 export function QuickActionsPanel() {
   return (
-    <ActionCard className="bg-white">
+    <ActionCard>
       <div className="mb-3">
         <h2 className="text-base font-bold text-[var(--agri-text)]">Acțiuni rapide</h2>
         <p className="text-sm text-[var(--agri-text-muted)]">Acces rapid pentru operațiuni din teren</p>

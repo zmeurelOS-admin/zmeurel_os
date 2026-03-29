@@ -1,5 +1,8 @@
 export const queryKeys = {
   activitati: ['activitati'] as const,
+  culturi: (solarId: string) => ['culturi', solarId] as const,
+  culturiCounts: (scope: string) => ['culturi-counts', scope] as const,
+  etapeCultura: (culturaId: string) => ['etape-cultura', culturaId] as const,
   activitatiAgricole: ['activitati'] as const,
   cheltuieli: ['cheltuieli'] as const,
   clienti: ['clienti'] as const,
@@ -24,6 +27,8 @@ export const queryKeys = {
   stocuriLocatiiRoot: ['stocuri-locatii'] as const,
   stocuriLocatii: (filtersKey: unknown) => ['stocuri-locatii', filtersKey] as const,
   subscriptionPlanTenant: ['subscription-plan', 'tenant'] as const,
+  produse: ['produse'] as const,
+  produseActiv: ['produse', 'activ'] as const,
   vanzari: ['vanzari'] as const,
   vanzariButasi: ['vanzari-butasi'] as const,
 }

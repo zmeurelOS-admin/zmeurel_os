@@ -16,18 +16,18 @@ function getUnitateBadge(tipUnitate: string | null | undefined): { label: string
   if (value === 'solar') {
     return {
       label: 'Solar',
-      className: 'border-amber-200 bg-amber-50 text-amber-800',
+      className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-400',
     }
   }
   if (value === 'livada') {
     return {
       label: 'Livada',
-      className: 'border-blue-200 bg-blue-50 text-blue-700',
+      className: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
     }
   }
   return {
     label: 'Camp',
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-green-700 dark:bg-green-900/50 dark:text-green-400',
   }
 }
 

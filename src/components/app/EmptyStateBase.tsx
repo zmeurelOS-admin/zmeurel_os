@@ -29,16 +29,16 @@ export function EmptyStateBase({ title, description, icon, action, variant }: Em
     return (
       <div className="flex min-h-[50vh] w-full items-center justify-center px-4">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-16 w-16 items-center justify-center text-gray-300">
+          <div className="flex h-16 w-16 items-center justify-center text-[var(--agri-text-muted)] opacity-60">
             {icon ? icon : <Inbox className="h-5 w-5" />}
           </div>
-          <h3 className="mt-4 text-lg font-semibold text-gray-700">{title}</h3>
-          {description ? <p className="mt-1 max-w-xs text-center text-sm text-gray-500">{description}</p> : null}
+          <h3 className="mt-4 text-lg font-semibold text-[var(--agri-text)]">{title}</h3>
+          {description ? <p className="mt-1 max-w-xs text-center text-sm text-[var(--agri-text-muted)]">{description}</p> : null}
           {action ? (
             isActionConfig(action) ? (
               <Button
                 type="button"
-                className="mt-4 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 lg:hover:opacity-95"
+                className="mt-4 rounded-lg bg-[var(--agri-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-95"
                 onClick={action.onClick}
               >
                 {action.label}
@@ -62,7 +62,7 @@ export function EmptyStateBase({ title, description, icon, action, variant }: Em
       {action ? (
         <div className="mx-auto mt-4 w-full max-w-xs">
           {isActionConfig(action) ? (
-            <Button type="button" className="agri-cta w-full bg-[var(--agri-primary)] text-white hover:bg-emerald-700 lg:hover:opacity-95" onClick={action.onClick}>
+            <Button type="button" className="agri-cta w-full bg-[var(--agri-primary)] text-white hover:opacity-95" onClick={action.onClick}>
               {action.label}
             </Button>
           ) : (

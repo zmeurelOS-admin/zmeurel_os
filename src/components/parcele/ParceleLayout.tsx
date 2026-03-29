@@ -56,7 +56,7 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
   }
 
   return (
-    <div className="fixed inset-0 flex h-[100dvh] min-h-[100svh] flex-col overflow-hidden bg-slate-50 lg:static lg:h-full lg:min-h-full">
+    <div className="fixed inset-0 flex h-[100dvh] min-h-[100svh] flex-col overflow-hidden bg-[var(--agri-bg)] lg:static lg:h-full lg:min-h-full">
       <CompactPageHeader
         title="Terenuri"
         subtitle="Administrare terenuri cultivate"
@@ -64,10 +64,10 @@ export function ParceleLayout({ initialParcele }: ParceleLayoutProps) {
 
       <main className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[14px] pb-[calc(var(--safe-b)+24px)]">
         <div className="mx-auto w-full max-w-3xl space-y-3 py-3">
-          {isLoading && <p className="text-center text-sm text-slate-600">Se încarcă...</p>}
+          {isLoading && <p className="text-center text-sm text-[var(--agri-text-muted)]">Se încarcă...</p>}
 
           {!isLoading && parcele.length === 0 && (
-            <p className="rounded-2xl bg-white p-5 text-center text-sm text-slate-600 shadow-sm">
+            <p className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-5 text-center text-sm text-[var(--agri-text-muted)] shadow-sm">
               Nu există terenuri.
             </p>
           )}

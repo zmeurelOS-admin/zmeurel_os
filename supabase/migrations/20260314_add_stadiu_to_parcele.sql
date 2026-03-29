@@ -1,3 +1,4 @@
+-- DEPRECATED: Duplicat idempotent al 2026031402_add_stadiu_to_parcele.sql (format A)
 -- Add stadiu (growth stage) column to parcele
 -- Values: 'plantare', 'crestere', 'inflorire', 'cules', 'repaus'
 -- Only parcele with stadiu = 'cules' trigger the "nerecoltat azi" alert

@@ -45,11 +45,11 @@ export function PerformanceTable({ title, rows }: PerformanceTableProps) {
               {sortedRows.map((row, index) => (
                 <tr
                   key={row.id}
-                  className={index === 0 ? 'bg-amber-50' : 'border-t border-[var(--agri-border)]'}
+                  className={index === 0 ? 'bg-[var(--soft-warning-bg)]' : 'border-t border-[var(--agri-border)]'}
                 >
                   <td className="px-3 py-2 font-medium text-[var(--agri-text)]">
                     <div className="inline-flex items-center gap-1.5">
-                      {index === 0 ? <Trophy className="h-4 w-4 text-amber-600" /> : null}
+                      {index === 0 ? <Trophy className="h-4 w-4 text-[var(--soft-warning-text)]" /> : null}
                       {row.name}
                     </div>
                   </td>

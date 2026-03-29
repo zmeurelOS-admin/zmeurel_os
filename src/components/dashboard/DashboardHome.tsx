@@ -218,15 +218,15 @@ function ActivityCard({ activity }: { activity: ActivityItem }) {
   const Icon = iconMap[activity.type];
 
   return (
-    <ListCard className="bg-white flex items-center gap-3">
+    <ListCard className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-xl bg-[#F16B6B]/10 flex items-center justify-center flex-shrink-0">
         <Icon className="w-5 h-5 text-[#F16B6B]" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-[#312E3F] truncate">
+        <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
           {activity.title}
         </div>
-        <div className="text-xs text-slate-600 truncate">
+        <div className="truncate text-xs text-[var(--agri-text-muted)]">
           {activity.subtitle}
         </div>
       </div>
@@ -241,15 +241,15 @@ function ActivityCard({ activity }: { activity: ActivityItem }) {
 
 function KPICard({ label, value, loading }: { label: string; value: string; loading: boolean }) {
   return (
-    <InfoCard className="bg-white flex flex-col items-center">
+    <InfoCard className="flex flex-col items-center">
       {loading ? (
-        <div className="h-10 w-24 bg-slate-200 rounded animate-pulse"></div>
+        <div className="h-10 w-24 animate-pulse rounded bg-[var(--agri-surface-muted)]"></div>
       ) : (
         <div className="text-4xl font-bold text-[#E5484D]">
           {value}
         </div>
       )}
-      <div className="text-xs text-slate-600 mt-2 text-center">
+      <div className="mt-2 text-center text-xs text-[var(--agri-text-muted)]">
         {label}
       </div>
     </InfoCard>
@@ -263,13 +263,13 @@ export function DashboardHome() {
   return (
     <>
       {/* Desktop layout */}
-      <div className="hidden lg:block min-h-screen bg-gray-50 p-6 lg:p-8">
+      <div className="hidden min-h-screen bg-[var(--agri-bg)] p-6 lg:block lg:p-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#312E3F]">
+          <h1 className="text-3xl font-bold text-[var(--agri-text)]">
             Bun venit! 👋
           </h1>
-          <p className="text-gray-500 mt-1 text-base">
+          <p className="mt-1 text-base text-[var(--agri-text-muted)]">
             Selectează un modul pentru a începe
           </p>
         </div>
@@ -279,7 +279,7 @@ export function DashboardHome() {
           {modules.map(({ href, label, description, icon: Icon }) => (
             <Link key={href} href={href} className="group block">
               <ActionCard
-                className="bg-white border-gray-100 p-6 flex flex-col items-center text-center
+                className="border-[var(--agri-border)] p-6 flex flex-col items-center text-center
                   lg:hover:shadow-md hover:-translate-y-1.5 hover:border-[#F16B6B]/20
                   transition-all duration-250 ease-out cursor-pointer"
               >
@@ -294,10 +294,10 @@ export function DashboardHome() {
                 </div>
 
                 {/* Text */}
-                <p className="text-[#312E3F] font-semibold text-sm leading-tight mb-1">
+                <p className="mb-1 text-sm font-semibold leading-tight text-[var(--agri-text)]">
                   {label}
                 </p>
-                <p className="text-gray-400 text-xs leading-snug">
+                <p className="text-xs leading-snug text-[var(--agri-text-muted)]">
                   {description}
                 </p>
               </ActionCard>
@@ -309,10 +309,10 @@ export function DashboardHome() {
       {/* Mobile layout */}
       <div className="lg:hidden space-y-4 pb-24">
         <div className="mb-2">
-          <h1 className="text-2xl font-bold text-[#312E3F]">
+          <h1 className="text-2xl font-bold text-[var(--agri-text)]">
             Bun venit! 👋
           </h1>
-          <p className="text-slate-600 text-sm mt-1">
+          <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
             Selectează un modul pentru a începe
           </p>
         </div>
@@ -333,36 +333,36 @@ export function DashboardHome() {
 
         {/* Activity Feed */}
         <div className="space-y-3">
-          <h2 className="text-base font-semibold text-[#312E3F]">
+          <h2 className="text-base font-semibold text-[var(--agri-text)]">
             Activitate Recentă
           </h2>
           {activitiesLoading ? (
-            <div className="text-sm text-slate-600">Se încarcă...</div>
+            <div className="text-sm text-[var(--agri-text-muted)]">Se încarcă...</div>
           ) : activities.length > 0 ? (
             activities.map((activity) => (
               <ActivityCard key={activity.id} activity={activity} />
             ))
           ) : (
-            <div className="text-sm text-slate-600">Nicio activitate</div>
+            <div className="text-sm text-[var(--agri-text-muted)]">Nicio activitate</div>
           )}
         </div>
 
         {/* Modules */}
         <div className="space-y-3 pt-4">
-          <h2 className="text-base font-semibold text-[#312E3F]">
+          <h2 className="text-base font-semibold text-[var(--agri-text)]">
             Module
           </h2>
           {modules.map(({ href, label, description, icon: Icon }) => (
             <Link key={href} href={href} className="block">
-              <EntityCard className="bg-white flex items-center gap-4 active:scale-[0.98] transition-transform">
+              <EntityCard className="flex items-center gap-4 active:scale-[0.98] transition-transform">
                 <div className="w-12 h-12 rounded-xl bg-[#F16B6B]/10 flex items-center justify-center flex-shrink-0">
                   <Icon className="w-6 h-6 text-[#F16B6B]" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-lg font-bold text-[#312E3F]">
+                  <div className="text-lg font-bold text-[var(--agri-text)]">
                     {label}
                   </div>
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-[var(--agri-text-muted)]">
                     {description}
                   </div>
                 </div>

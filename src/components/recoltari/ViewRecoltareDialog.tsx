@@ -56,14 +56,14 @@ export function ViewRecoltareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="mx-auto max-w-lg rounded-xl bg-white p-0 lg:max-w-2xl xl:max-w-3xl"
+        className="mx-auto max-w-lg rounded-xl bg-[var(--surface-elevated)] p-0 lg:max-w-2xl xl:max-w-3xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
         <div className="max-h-[85dvh] overflow-y-auto p-6">
-          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-gray-100 py-4 text-left lg:gap-3">
-            <DialogTitle className="text-xl font-semibold text-gray-900">{title}</DialogTitle>
+          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[var(--surface-divider)] py-4 text-left lg:gap-3">
+            <DialogTitle className="text-xl font-semibold text-[var(--agri-text)]">{title}</DialogTitle>
             <DialogClose asChild>
               <Button type="button" variant="ghost" size="icon" aria-label="Închide dialog">
                 <X className="h-4 w-4" />
@@ -71,32 +71,32 @@ export function ViewRecoltareDialog({
             </DialogClose>
           </DialogHeader>
 
-          <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Detalii</h3>
+          <section className="border-b border-[var(--surface-divider)] py-4">
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Detalii</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Parcelă</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Parcelă</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-base font-medium text-gray-900">{parcelaNume || 'Nespecificată'}</p>
+                  <p className="text-base font-medium text-[var(--agri-text)]">{parcelaNume || 'Nespecificată'}</p>
                   {parcelaTip ? (
-                    <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                    <span className="rounded-full border border-[var(--pill-inactive-border)] bg-[var(--pill-inactive-bg)] px-2 py-1 text-xs font-semibold text-[var(--pill-inactive-text)]">
                       {parcelaTip}
                     </span>
                   ) : null}
                 </div>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Culegător</p>
-                <p className="text-base font-medium text-gray-900">{culegatorNume || 'Nespecificat'}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Culegător</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{culegatorNume || 'Nespecificat'}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Data</p>
-                <p className="text-base font-medium text-gray-900">{formatDate(recoltare.data)}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Data</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{formatDate(recoltare.data)}</p>
               </div>
               {selectedCrop ? (
                 <div>
-                  <p className="text-sm text-gray-500">Produs recoltat</p>
-                  <p className="text-base font-medium text-gray-900">
+                  <p className="text-sm text-[var(--agri-text-muted)]">Produs recoltat</p>
+                  <p className="text-base font-medium text-[var(--agri-text)]">
                     {[selectedCrop.culture, selectedCrop.variety].filter(Boolean).join(' · ') || 'Nespecificat'}
                   </p>
                 </div>
@@ -104,36 +104,36 @@ export function ViewRecoltareDialog({
             </div>
           </section>
 
-          <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Cantități</h3>
+          <section className="border-b border-[var(--surface-divider)] py-4">
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Cantități</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Cal. 1</p>
-                <p className="text-base font-medium text-gray-900">{formatKg(kgCal1)}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Cal. 1</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{formatKg(kgCal1)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Cal. 2</p>
-                <p className="text-base font-medium text-gray-900">{formatKg(kgCal2)}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Cal. 2</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">{formatKg(kgCal2)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total</p>
-                <p className="text-base font-bold text-gray-900">{formatKg(totalKg)}</p>
+                <p className="text-sm text-[var(--agri-text-muted)]">Total</p>
+                <p className="text-base font-bold text-[var(--agri-text)]">{formatKg(totalKg)}</p>
               </div>
             </div>
           </section>
 
-          <section className="border-b border-gray-100 py-4">
-            <h3 className="mb-3 text-base font-semibold text-gray-900">Financiar</h3>
+          <section className="border-b border-[var(--surface-divider)] py-4">
+            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Financiar</h3>
             <div className="space-y-2">
               <div>
-                <p className="text-sm text-gray-500">Preț/kg</p>
-                <p className="text-base font-medium text-gray-900">
+                <p className="text-sm text-[var(--agri-text-muted)]">Preț/kg</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">
                   {formatLei(Number(recoltare.pret_lei_pe_kg_snapshot || 0))}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Valoare muncă</p>
-                <p className="text-base font-medium text-gray-900">
+                <p className="text-sm text-[var(--agri-text-muted)]">Valoare muncă</p>
+                <p className="text-base font-medium text-[var(--agri-text)]">
                   {formatLei(Number(recoltare.valoare_munca_lei || 0))}
                 </p>
               </div>
@@ -142,13 +142,13 @@ export function ViewRecoltareDialog({
 
           {visibleObservatii.trim() ? (
             <section className="py-4">
-              <h3 className="mb-3 text-base font-semibold text-gray-900">Observații</h3>
-              <p className="text-base font-medium text-gray-900">{visibleObservatii}</p>
+              <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Observații</h3>
+              <p className="text-base font-medium text-[var(--agri-text)]">{visibleObservatii}</p>
             </section>
           ) : null}
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-4 lg:gap-3">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--surface-divider)] px-6 py-4 lg:gap-3">
           <Button
             type="button"
             variant="outline"

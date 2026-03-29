@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { memo, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Trash2 } from 'lucide-react'
 
 import { colors } from '@/lib/design-tokens'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
+import { toWhatsAppLink } from '@/lib/utils/phone'
 
 interface ClientCardProps {
   client: Client
@@ -24,10 +25,7 @@ interface ClientCardProps {
 }
 
 function toWhatsapp(phone: string): string {
-  const digits = phone.replace(/\s+/g, '').replace(/[^\d]/g, '')
-  if (!digits) return ''
-  const noLeadingZero = digits.startsWith('0') ? digits.slice(1) : digits
-  return `https://wa.me/4${noLeadingZero}`
+  return toWhatsAppLink(phone)
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -65,7 +63,7 @@ export function ClientCard({
   const waHref = client.telefon ? toWhatsapp(client.telefon) : ''
 
   return (
-    <div ref={rootRef} className="relative overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-sm">
+    <div ref={rootRef} className="relative overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
       <button type="button" onClick={() => setExpanded((current) => !current)} className="w-full p-4 pr-10 text-left">
         <div className="flex items-start gap-3">
           <div
@@ -93,7 +91,7 @@ export function ClientCard({
               {comenziCount} comenzi · {vanzariCount} vânzări
             </div>
             {unpaidRon > 0 ? (
-              <span className="mt-1 inline-flex rounded-md bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800">
+              <span className="mt-1 inline-flex rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-[10px] font-bold text-[var(--status-warning-text)]">
                 💸 {unpaidRon.toFixed(0)} RON
               </span>
             ) : null}
@@ -104,7 +102,7 @@ export function ClientCard({
       <button
         type="button"
         aria-label={`Șterge ${client.nume_client}`}
-        className="absolute right-2.5 top-2.5 rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-500"
+        className="absolute right-2.5 top-2.5 rounded-lg p-1.5 text-[var(--text-hint)] transition-colors hover:bg-[var(--status-danger-bg)] hover:text-[var(--status-danger-text)]"
         onClick={(e: MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation()
           onDelete(client.id)
@@ -114,7 +112,7 @@ export function ClientCard({
       </button>
 
       {expanded ? (
-        <div className="grid gap-4 border-t border-[var(--agri-border)] bg-white px-4 py-4">
+        <div className="grid gap-4 border-t border-[var(--surface-divider)] bg-[var(--agri-surface)] px-4 py-4">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">
               <div className="text-[10px] text-[var(--agri-text-muted)]">Total cumpărat</div>
@@ -153,7 +151,7 @@ export function ClientCard({
             <a
               href={phoneHref}
               onClick={(event) => event.stopPropagation()}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-semibold text-blue-700"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-3 text-sm font-semibold text-[var(--status-info-text)]"
             >
               Sună
             </a>
@@ -162,7 +160,7 @@ export function ClientCard({
               target="_blank"
               rel="noreferrer"
               onClick={(event) => event.stopPropagation()}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-700"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-sm font-semibold text-[var(--status-success-text)]"
             >
               Mesaj
             </a>
@@ -173,7 +171,7 @@ export function ClientCard({
                 if (!client.telefon) return
                 downloadVCard(client.nume_client, client.telefon)
               }}
-              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
+              className="min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-sm font-semibold text-[var(--button-muted-text)]"
             >
               Contact
             </button>
@@ -183,7 +181,7 @@ export function ClientCard({
                 event.stopPropagation()
                 onOpenDetails?.(client)
               }}
-              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700"
+              className="min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-sm font-semibold text-[var(--button-muted-text)]"
             >
               Detalii
             </button>
@@ -193,7 +191,7 @@ export function ClientCard({
                 event.stopPropagation()
                 onEdit(client)
               }}
-              className="min-h-11 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-semibold text-amber-800"
+              className="min-h-11 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 text-sm font-semibold text-[var(--status-warning-text)]"
             >
               Editează
             </button>
@@ -203,7 +201,7 @@ export function ClientCard({
                 event.stopPropagation()
                 onDelete(client.id)
               }}
-              className="min-h-11 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-semibold text-red-700"
+              className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-sm font-semibold text-[var(--status-danger-text)]"
             >
               Șterge
             </button>
@@ -213,3 +211,5 @@ export function ClientCard({
     </div>
   )
 }
+
+export default memo(ClientCard)

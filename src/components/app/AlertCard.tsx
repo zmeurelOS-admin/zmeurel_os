@@ -15,18 +15,18 @@ export function AlertCard({ alert, onDismiss, dismissing = false }: AlertCardPro
   const config = {
     info: {
       icon: Info,
-      className: 'border-blue-300 bg-blue-50 text-blue-900',
-      iconWrap: 'bg-blue-100 text-blue-800',
+      className: 'border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200',
+      iconWrap: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
     },
     warning: {
       icon: AlertTriangle,
-      className: 'border-amber-300 bg-amber-50 text-amber-900',
-      iconWrap: 'bg-amber-100 text-amber-800',
+      className: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200',
+      iconWrap: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
     },
     danger: {
       icon: OctagonAlert,
-      className: 'border-red-300 bg-red-50 text-red-900',
-      iconWrap: 'bg-red-100 text-red-800',
+      className: 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200',
+      iconWrap: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
     },
   }[alert.severity]
 
@@ -46,7 +46,7 @@ export function AlertCard({ alert, onDismiss, dismissing = false }: AlertCardPro
           <button
             type="button"
             aria-label={`Ascunde alerta ${alert.title} pentru azi`}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/10 bg-white/60 text-[currentColor] transition hover:bg-white disabled:opacity-60"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-black/10 bg-white/60 text-[currentColor] transition hover:bg-white disabled:opacity-60 dark:border-white/15 dark:bg-zinc-900/60 dark:hover:bg-zinc-800"
             onClick={() => onDismiss(alert)}
             disabled={dismissing}
           >

@@ -10,6 +10,7 @@ import {
   type SyncQueueRecord,
 } from '@/lib/offline/db'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import type { Json } from '@/types/supabase'
 
 export interface SyncEngineConfig {
   intervalMs?: number
@@ -148,15 +149,14 @@ export class SyncEngine {
     await markSyncing(item.id)
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (this.supabase as any).rpc('upsert_with_idempotency', {
+      const { data, error } = await this.supabase.rpc('upsert_with_idempotency', {
         table_name: item.table,
-        payload: item.payload,
+        payload: item.payload as Json,
       })
 
       if (!error) {
         if (hasConflictFlag(data)) {
-          await markConflict(item.id, data)
+          await markConflict(item.id, data as Json)
           trackEvent('sync_failed', {
             reason: 'conflict',
             table: item.table,

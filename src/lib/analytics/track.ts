@@ -1,5 +1,6 @@
 'use client'
 
+import { buildAnalyticsPayload } from '@/lib/analytics/schema'
 import { createClient } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { getSessionId } from './session'
@@ -53,12 +54,11 @@ export function track(eventName: string, eventData?: Record<string, unknown>) {
           if (!context) return
 
           const supabase = createClient()
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any).from('analytics_events').insert({
+          await supabase.from('analytics_events').insert({
             tenant_id: context.tenantId,
             user_id: context.userId,
             event_name: eventName,
-            event_data: (eventData ?? {}) as EventData,
+            event_data: buildAnalyticsPayload(eventData ?? {}),
             page_url: window.location.pathname,
             session_id: getSessionId(),
           })

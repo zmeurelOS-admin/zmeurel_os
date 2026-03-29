@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated / third-party files that should not be linted:
+    ".codex-tmp/**",
+    "public/sw.js",
+    "public/workbox-*.js",
+    "scripts/**",
   ]),
 ]);
 

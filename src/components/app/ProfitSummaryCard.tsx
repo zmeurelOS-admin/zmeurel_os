@@ -38,7 +38,9 @@ export function ProfitSummaryCard({
         </div>
         <span
           className={`ml-0 inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl lg:ml-2 ${
-            positive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+            positive
+              ? 'bg-[var(--soft-success-bg)] text-[var(--soft-success-text)]'
+              : 'bg-[var(--soft-danger-bg)] text-[var(--soft-danger-text)]'
           }`}
         >
           {positive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
@@ -54,15 +56,27 @@ export function ProfitSummaryCard({
           <dt className="text-sm text-muted-foreground">Cost</dt>
           <dd className="value-money-negative mt-1 text-base">{formatCurrency(metrics.cost)}</dd>
         </div>
-        <div className={`rounded-xl border p-2.5 ${positive ? 'border-emerald-500 bg-emerald-50' : 'border-red-500 bg-red-50'}`}>
+        <div
+          className={`rounded-xl border p-2.5 ${
+            positive
+              ? 'border-[var(--soft-success-border)] bg-[var(--soft-success-bg)]'
+              : 'border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)]'
+          }`}
+        >
           <dt className="text-sm text-muted-foreground">Profit</dt>
           <dd className={`mt-1 text-base ${positive ? 'value-money-positive' : 'value-money-negative'}`}>
             {formatCurrency(metrics.profit)}
           </dd>
         </div>
-        <div className={`rounded-xl border p-2.5 ${positive ? 'border-emerald-500 bg-emerald-50' : 'border-red-500 bg-red-50'}`}>
+        <div
+          className={`rounded-xl border p-2.5 ${
+            positive
+              ? 'border-[var(--soft-success-border)] bg-[var(--soft-success-bg)]'
+              : 'border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)]'
+          }`}
+        >
           <dt className="text-sm text-muted-foreground">Marja</dt>
-          <dd className={`mt-1 text-base font-semibold ${positive ? 'text-emerald-800' : 'text-red-800'}`}>
+          <dd className={`mt-1 text-base font-semibold ${positive ? 'text-[var(--soft-success-text)]' : 'text-[var(--soft-danger-text)]'}`}>
             {metrics.margin.toFixed(1)}%
           </dd>
         </div>

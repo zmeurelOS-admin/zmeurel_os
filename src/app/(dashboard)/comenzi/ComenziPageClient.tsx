@@ -1,10 +1,11 @@
-﻿
+
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { ClipboardList, Loader2, UserRoundPlus } from 'lucide-react'
+import { ClipboardList, Loader2, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -13,23 +14,21 @@ import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
-import AlertCard from '@/components/ui/AlertCard'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import MiniCard from '@/components/ui/MiniCard'
+import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { track } from '@/lib/analytics/track'
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
-import { createClienți, getClienți, type Client } from '@/lib/supabase/queries/clienti'
+import { colors, radius, spacing } from '@/lib/design-tokens'
+import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
 import {
   COMENZI_STATUSES,
   createComanda,
@@ -56,6 +55,11 @@ type ContactPrompt = {
   phone: string
 }
 
+type CreateClientMutationVariables = {
+  input: Parameters<typeof createClienți>[0]
+  onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
+}
+
 const statusLabelMap: Record<ComandaStatus, string> = {
   noua: 'Nouă',
   confirmata: 'Confirmată',
@@ -65,10 +69,10 @@ const statusLabelMap: Record<ComandaStatus, string> = {
   anulata: 'Anulată',
 }
 
-const statusVariantMap: Record<ComandaStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+const statusVariantMap: Record<ComandaStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'> = {
   noua: 'info',
   confirmata: 'warning',
-  programata: 'neutral',
+  programata: 'purple',
   in_livrare: 'warning',
   livrata: 'success',
   anulata: 'danger',
@@ -118,6 +122,10 @@ function normalize(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+function normalizeForExactHintMatch(value: string): string {
+  return value.trim().toLowerCase()
+}
+
 function canDeliverStatus(status: string): boolean {
   const normalized = normalize(status)
   return ['noua', 'confirmata', 'programata', 'in_livrare'].includes(normalized)
@@ -140,6 +148,44 @@ function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
     status,
     observatii: '',
   }
+}
+
+export function hasAiComandaOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
+  return searchParams.get('openForm') === '1'
+}
+
+export function parseAiComandaPrefill(searchParams: Pick<URLSearchParams, 'get'>): Partial<ComandaFormState> | null {
+  if (!hasAiComandaOpenForm(searchParams)) return null
+
+  const clientId = searchParams.get('client_id')?.trim() ?? ''
+  const numeClient = (searchParams.get('client_label') ?? searchParams.get('nume_client') ?? '').trim()
+  const telefon = searchParams.get('telefon')?.trim() ?? ''
+  const locatieLivrare = searchParams.get('locatie_livrare')?.trim() ?? ''
+  const dataLivrare = searchParams.get('data_livrare')?.trim() ?? ''
+  const cantitateKg = searchParams.get('cantitate_kg')?.trim() ?? ''
+  const pretPerKg = searchParams.get('pret_per_kg')?.trim() ?? ''
+  const observatii = searchParams.get('observatii')?.trim() ?? ''
+
+  return {
+    client_id: clientId,
+    client_nume_manual: numeClient,
+    telefon,
+    locatie_livrare: locatieLivrare,
+    data_livrare: dataLivrare || todayIso(),
+    cantitate_kg: cantitateKg,
+    pret_per_kg: pretPerKg,
+    observatii,
+    status: 'confirmata',
+  }
+}
+
+function resolveClientIdFromHint(hint: string, clienti: Client[]): string | null {
+  const normalizedHint = normalizeForExactHintMatch(hint)
+  if (!normalizedHint) return null
+
+  const exact = clienti.filter((client) => normalizeForExactHintMatch(client.nume_client ?? '') === normalizedHint)
+  if (exact.length === 1) return exact[0].id
+  return null
 }
 
 function getClientName(comanda: Comanda, clientMap: Record<string, Client>): string {
@@ -192,7 +238,7 @@ function getComandaIcon(isDelivered: boolean, isUrgent: boolean, isFuture: boole
   return '📦'
 }
 
-function ComenziTabs({
+function PillTabs({
   value,
   onChange,
   activeCount,
@@ -203,22 +249,14 @@ function ComenziTabs({
   activeCount: number
   livrateCount: number
 }) {
+  const tabs = [
+    { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` (${activeCount})` : ''}` },
+    { key: 'livrate' as const, label: `Livrate${livrateCount > 0 ? ` (${livrateCount})` : ''}` },
+    { key: 'toate' as const, label: 'Toate' },
+  ]
   return (
-    <div
-      style={{
-        background: colors.grayLight,
-        borderRadius: radius.md,
-        padding: 3,
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, minmax(0,1fr))',
-        gap: 3,
-      }}
-    >
-      {[
-        { key: 'de_livrat' as const, label: `De livrat (${activeCount})` },
-        { key: 'livrate' as const, label: `Livrate (${livrateCount})` },
-        { key: 'toate' as const, label: 'Toate' },
-      ].map((tab) => {
+    <div style={{ display: 'flex', gap: 6 }}>
+      {tabs.map((tab) => {
         const isActive = value === tab.key
         return (
           <button
@@ -226,14 +264,13 @@ function ComenziTabs({
             type="button"
             onClick={() => onChange(tab.key)}
             style={{
-              minHeight: 36,
-              borderRadius: radius.md,
-              border: 'none',
-              background: isActive ? colors.white : 'transparent',
-              boxShadow: isActive ? shadows.card : 'none',
-              color: isActive ? colors.dark : colors.gray,
-              fontSize: 12,
-              fontWeight: 700,
+              padding: '6px 14px',
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 20,
+              border: `1px solid ${isActive ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
+              background: isActive ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+              color: isActive ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
               cursor: 'pointer',
             }}
           >
@@ -259,7 +296,6 @@ function ComandaCard({
   onConfirmDeliver,
   onGoToVanzari,
   onReopen,
-  onQuickStatusChange,
 }: {
   comanda: Comanda
   clientName: string
@@ -274,423 +310,193 @@ function ComandaCard({
   onConfirmDeliver: (comanda: Comanda) => void
   onGoToVanzari: () => void
   onReopen: (comanda: Comanda) => void
-  onQuickStatusChange: (comanda: Comanda, status: ComandaStatus) => void
 }) {
-  const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const today = todayIso()
   const delivery = comanda.data_livrare ?? ''
   const isDelivered = comanda.status === 'livrata'
   const isCanceled = comanda.status === 'anulata'
   const isUrgent = !isDelivered && !isCanceled && delivery === today
-  const isFuture = !isDelivered && !isCanceled && Boolean(delivery) && delivery > today
+  const isRestanta = !isDelivered && !isCanceled && Boolean(delivery) && delivery < today
   const canDeliver = canDeliverStatus(comanda.status) && !isCanceled
   const phone = (comanda.telefon || '').trim()
   const hasPhone = phone.length > 0
-  const isNewPhone = !comanda.client_id && hasPhone
-  const icon = getComandaIcon(isDelivered, isUrgent, isFuture)
-  const iconBg = isDelivered ? colors.greenLight : isUrgent ? colors.coralLight : colors.yellowLight
   const whatsappUrl = toWhatsAppUrl(phone)
+  const total = Number(comanda.cantitate_kg || 0) * Number(comanda.pret_per_kg || 0)
+
+  const statusBadge = (() => {
+    switch (comanda.status) {
+      case 'noua': return { color: 'var(--status-info-text)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)', text: 'Nouă' }
+      case 'confirmata': return { color: 'var(--status-warning-text)', bg: 'var(--status-warning-bg)', border: 'var(--status-warning-border)', text: 'Confirmată' }
+      case 'programata': return { color: 'var(--status-purple-text)', bg: 'var(--status-purple-bg)', border: 'var(--status-purple-border)', text: 'Programată' }
+      case 'in_livrare': return { color: 'var(--status-warning-text)', bg: 'var(--status-warning-bg)', border: 'var(--status-warning-border)', text: 'În livrare' }
+      case 'livrata': return { color: 'var(--status-success-text)', bg: 'var(--status-success-bg)', border: 'var(--status-success-border)', text: 'Livrată' }
+      case 'anulata': return { color: 'var(--status-danger-text)', bg: 'var(--status-danger-bg)', border: 'var(--status-danger-border)', text: 'Anulată' }
+      default: return { color: 'var(--status-neutral-text)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)', text: comanda.status }
+    }
+  })()
 
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={() => onToggleExpand(comanda.id)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onToggleExpand(comanda.id)
-        }
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleExpand(comanda.id) }
       }}
       style={{
-        position: 'relative',
-        borderRadius: radius.lg,
-        border: `1px solid ${colors.grayLight}`,
-        borderLeft: isDelivered ? `4px solid ${colors.green}` : undefined,
-        background: colors.white,
-        boxShadow: shadows.card,
-        padding: spacing.md,
+        background: 'var(--agri-surface)',
+        borderRadius: 14,
+        border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
+        borderLeft: isRestanta ? '3px solid var(--status-danger-border)' : undefined,
+        boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
+        padding: '11px 14px',
         cursor: 'pointer',
+        transition: 'all 0.2s ease',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.sm }}>
-        <div
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.md,
-            background: iconBg,
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 18,
-            flexShrink: 0,
-          }}
-        >
-          {icon}
-        </div>
+      {/* Summary row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm }}>
-            <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: colors.dark,
-                  lineHeight: 1.25,
-                }}
-              >
-                {clientName}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                {hasPhone ? (
-                  <a
-                    href={`tel:${phone}`}
-                    onClick={(event) => event.stopPropagation()}
-                    style={{ color: colors.primary, fontSize: 12, fontWeight: 600, textDecoration: 'none' }}
-                  >
-                    {phone}
-                  </a>
-                ) : (
-                  <span style={{ color: colors.gray, fontSize: 12 }}>fără telefon</span>
-                )}
-                {isNewPhone ? <StatusBadge text="NOU" variant="danger" /> : null}
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  setStatusMenuOpen((previous) => !previous)
-                }}
-                style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
-              >
-                <StatusBadge text={statusLabelMap[comanda.status]} variant={statusVariantMap[comanda.status]} />
-              </button>
-              <span style={{ fontSize: 11, color: colors.gray }}>{formatDate(comanda.data_livrare)}</span>
-            </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)', lineHeight: 1.3 }}>
+            {isUrgent ? <span style={{ marginRight: 4 }}>🔥</span> : null}
+            {clientName}
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 3 }}>
+            {formatKg(Number(comanda.cantitate_kg || 0))} · {formatLeiCompact(total)} RON{comanda.data_livrare ? ` · ${formatDate(comanda.data_livrare)}` : ''}
+          </div>
+        </div>
+        <span style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: '3px 8px', background: statusBadge.bg, color: statusBadge.color, border: `1px solid ${statusBadge.border}`, flexShrink: 0 }}>
+          {statusBadge.text}
+        </span>
+      </div>
+
+      {/* Drag indicator */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+        <div style={{ width: 22, height: 2.5, borderRadius: 2, background: 'var(--text-hint)', opacity: 0.35 }} />
+      </div>
+
+      {/* Expanded section */}
+      {isExpanded ? (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, marginTop: 10 }}
+        >
+          {/* Details */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cantitate: </span><strong>{formatKg(Number(comanda.cantitate_kg || 0))}</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Preț: </span><strong>{Number(comanda.pret_per_kg || 0).toFixed(2)} RON/kg</strong></span>
+            <span><span style={{ color: 'var(--agri-text-muted)' }}>Total: </span><strong style={{ color: 'var(--value-positive)' }}>{formatLeiCompact(total)} RON</strong></span>
+            {comanda.data_livrare ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Livrare: </span><strong>{formatDate(comanda.data_livrare)}</strong></span> : null}
+            {hasPhone ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Telefon: </span><strong>{phone}</strong></span> : null}
+            {comanda.locatie_livrare ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Locație: </span><strong>{comanda.locatie_livrare}</strong></span> : null}
+            {comanda.observatii ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Obs: </span><strong>{comanda.observatii}</strong></span> : null}
           </div>
 
-          {statusMenuOpen ? (
-            <div
-              onClick={(event) => event.stopPropagation()}
-              style={{
-                marginTop: spacing.sm,
-                display: 'grid',
-                gap: 6,
-                borderRadius: radius.lg,
-                border: `1px solid ${colors.grayLight}`,
-                background: colors.white,
-                boxShadow: shadows.card,
-                padding: spacing.xs,
-              }}
-            >
-              {COMENZI_STATUSES.map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => {
-                    setStatusMenuOpen(false)
-                    onQuickStatusChange(comanda, status)
-                  }}
-                  style={{
-                    minHeight: 40,
-                    border: 'none',
-                    borderRadius: radius.md,
-                    background: status === comanda.status ? colors.greenLight : colors.grayLight,
-                    color: status === comanda.status ? colors.green : colors.dark,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {statusLabelMap[status]}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div
-            style={{
-              marginTop: spacing.sm,
-              borderTop: `1px solid ${colors.grayLight}`,
-              paddingTop: spacing.sm,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, minmax(0,1fr))',
-              alignItems: 'start',
-              gap: spacing.sm,
-            }}
-          >
-            <div>
-              <div style={{ fontSize: 10, color: colors.gray }}>CANTITATE</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatKg(comanda.cantitate_kg)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: colors.gray }}>PREȚ</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{Number(comanda.pret_per_kg || 0).toFixed(2)} lei/kg</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 10, color: colors.gray }}>TOTAL</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: colors.green }}>{formatLei(comanda.total)}</div>
-            </div>
-            <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
-              <div>
-                <div style={{ fontSize: 10, color: colors.gray }}>LIVRARE</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: colors.dark }}>{formatDate(comanda.data_livrare)}</div>
+          {/* Deliver confirm inline */}
+          {isDeliverConfirmOpen ? (
+            <div style={{ marginBottom: 10, background: 'var(--surface-elevated)', borderRadius: 10, padding: '10px 12px', border: '1px solid var(--soft-success-border)' }}>
+              <div style={{ fontSize: 12, color: 'var(--agri-text)', marginBottom: 8, fontWeight: 600 }}>
+                Confirmi livrarea a {formatKg(Number(comanda.cantitate_kg || 0))}?
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                <div style={{ fontSize: 11, color: colors.gray }}>{comanda.locatie_livrare || 'fără locație'}</div>
-                <span
-                  style={{
-                    fontSize: 16,
-                    color: colors.gray,
-                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s ease',
-                    alignSelf: 'center',
-                  }}
-                >
-                  ▾
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {canDeliver ? (
-            <div style={{ marginTop: spacing.sm }}>
-              {isDeliverConfirmOpen ? (
-                <div
-                  style={{
-                    borderRadius: radius.lg,
-                    background: colors.grayLight,
-                    border: `1px solid ${colors.gray}`,
-                    padding: spacing.sm,
-                  }}
-                >
-                  <div style={{ fontSize: 12, color: colors.dark, marginBottom: spacing.sm }}>
-                    Confirmi livrarea? Se scad {formatKg(comanda.cantitate_kg)} din stoc.
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.sm }}>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onConfirmDeliver(comanda)
-                      }}
-                      disabled={isDelivering}
-                      style={{
-                        minHeight: 48,
-                        border: 'none',
-                        borderRadius: radius.lg,
-                        background: colors.green,
-                        color: colors.white,
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {isDelivering ? 'Se procesează...' : 'Da, livrată!'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onCancelDeliverConfirm()
-                      }}
-                      style={{
-                        minHeight: 48,
-                        border: `1px solid ${colors.gray}`,
-                        borderRadius: radius.lg,
-                        background: colors.white,
-                        color: colors.dark,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Anulează
-                    </button>
-                  </div>
-                </div>
-              ) : (
+              <div style={{ display: 'flex', gap: 6 }}>
                 <button
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onOpenDeliverConfirm(comanda)
-                  }}
-                  style={{
-                    width: '100%',
-                    minHeight: 48,
-                    border: 'none',
-                    borderRadius: radius.lg,
-                    padding: '14px',
-                    fontSize: 15,
-                    letterSpacing: 0.5,
-                    fontWeight: 700,
-                    color: colors.white,
-                    background: `linear-gradient(90deg, ${colors.primary}, ${colors.primaryLight})`,
-                    boxShadow: `0 8px 18px ${colors.primary}66`,
-                    cursor: 'pointer',
-                  }}
+                  disabled={isDelivering}
+                  onClick={(e) => { e.stopPropagation(); onConfirmDeliver(comanda) }}
+                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 700, background: 'var(--pill-active-bg)', color: 'var(--pill-active-text)', border: '1px solid var(--pill-active-border)', borderRadius: 10, cursor: isDelivering ? 'default' : 'pointer', opacity: isDelivering ? 0.7 : 1 }}
                 >
-                  Marchează livrată
+                  {isDelivering ? 'Se procesează...' : 'Da, livrează!'}
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onCancelDeliverConfirm() }}
+                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 10, cursor: 'pointer' }}
+                >
+                  Anulează
+                </button>
+              </div>
             </div>
-          ) : null}
-
-          {isDelivered ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                onGoToVanzari()
-              }}
-              style={{
-                marginTop: spacing.sm,
-                width: '100%',
-                minHeight: 44,
-                border: `1px solid ${colors.green}`,
-                borderRadius: radius.md,
-                background: colors.greenLight,
-                color: colors.green,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Vezi vânzarea
-            </button>
-          ) : null}
-
-          {isExpanded ? (
-            <div style={{ marginTop: spacing.sm, borderTop: `1px solid ${colors.grayLight}`, paddingTop: spacing.sm }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: spacing.sm }}>
+          ) : (
+            /* Primary action buttons */
+            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+              {hasPhone ? (
                 <a
-                  href={hasPhone ? `tel:${phone}` : undefined}
-                  onClick={(event) => event.stopPropagation()}
-                  style={{
-                    minHeight: 48,
-                    borderRadius: radius.md,
-                    border: `1px solid ${colors.grayLight}`,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                    color: colors.dark,
-                    textDecoration: 'none',
-                    background: colors.white,
-                  }}
+                  href={`tel:${phone}`}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 10, textAlign: 'center', textDecoration: 'none', display: 'block' }}
                 >
-                  Sună
+                  📞 Sună
                 </a>
+              ) : (
+                <span style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-neutral-bg)', color: 'var(--text-hint)', border: '1px solid var(--status-neutral-border)', borderRadius: 10, textAlign: 'center', display: 'block' }}>
+                  📞 Sună
+                </span>
+              )}
+              {hasPhone && whatsappUrl ? (
                 <a
-                  href={whatsappUrl || undefined}
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(event) => event.stopPropagation()}
-                  style={{
-                    minHeight: 48,
-                    borderRadius: radius.md,
-                    border: `1px solid ${colors.grayLight}`,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 12,
-                    color: colors.dark,
-                    textDecoration: 'none',
-                    background: colors.white,
-                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-success-bg)', color: 'var(--status-success-text)', border: '1px solid var(--status-success-border)', borderRadius: 10, textAlign: 'center', textDecoration: 'none', display: 'block' }}
                 >
-                  WhatsApp
+                  💬 WhatsApp
                 </a>
+              ) : (
+                <span style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-neutral-bg)', color: 'var(--text-hint)', border: '1px solid var(--status-neutral-border)', borderRadius: 10, textAlign: 'center', display: 'block' }}>
+                  💬 WhatsApp
+                </span>
+              )}
+              {canDeliver ? (
                 <button
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    if (!isDelivered) onEdit(comanda)
-                  }}
-                  style={{
-                    minHeight: 48,
-                    border: `1px solid ${colors.grayLight}`,
-                    borderRadius: radius.md,
-                    background: colors.white,
-                    color: colors.dark,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  onClick={(e) => { e.stopPropagation(); onOpenDeliverConfirm(comanda) }}
+                  style={{ flex: 1.2, padding: '9px 0', fontSize: 11, fontWeight: 700, background: 'var(--pill-active-bg)', color: 'var(--pill-active-text)', border: '1px solid var(--pill-active-border)', borderRadius: 10, cursor: 'pointer' }}
                 >
-                  Editează
+                  🚚 Livrează
                 </button>
-              </div>
-
-              {isDelivered ? (
-                <div
-                  style={{
-                    marginTop: spacing.sm,
-                    borderRadius: radius.md,
-                    background: colors.greenLight,
-                    color: colors.green,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    padding: spacing.sm,
-                  }}
-                >
-                  Livrată și înregistrată în Vânzări
-                </div>
-              ) : null}
-
-              {isDelivered ? (
+              ) : isDelivered ? (
                 <button
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onReopen(comanda)
-                  }}
-                  style={{
-                    marginTop: spacing.sm,
-                    minHeight: 44,
-                    width: '100%',
-                    borderRadius: radius.md,
-                    border: `1px solid ${colors.gray}`,
-                    background: colors.white,
-                    color: colors.dark,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  onClick={(e) => { e.stopPropagation(); onGoToVanzari() }}
+                  style={{ flex: 1.2, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-success-bg)', color: 'var(--status-success-text)', border: '1px solid var(--status-success-border)', borderRadius: 10, cursor: 'pointer' }}
                 >
-                  Redeschide
+                  👁 Vânzare
                 </button>
               ) : null}
+            </div>
+          )}
 
+          {/* Edit / Delete / Reopen */}
+          <div style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, display: 'flex', justifyContent: 'center', gap: 6 }}>
+            {!isDelivered ? (
               <button
                 type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onDelete(comanda)
-                }}
-                style={{
-                  marginTop: spacing.sm,
-                  minHeight: 44,
-                  width: '100%',
-                  borderRadius: radius.md,
-                  border: `1px solid ${colors.coral}`,
-                  background: colors.coralLight,
-                  color: colors.coral,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                onClick={(e) => { e.stopPropagation(); onEdit(comanda) }}
+                style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
               >
-                Șterge
+                ✏️ Editează
               </button>
-            </div>
-          ) : null}
+            ) : null}
+            {isDelivered ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onReopen(comanda) }}
+                style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
+              >
+                🔄 Redeschide
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(comanda) }}
+              style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 8, cursor: 'pointer' }}
+            >
+              🗑️ Șterge
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   )
 }
@@ -703,6 +509,7 @@ function ComandaDialog({
   clienti,
   mode,
   initial,
+  initialCreateValues,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -711,9 +518,15 @@ function ComandaDialog({
   clienti: Client[]
   mode: 'create' | 'edit'
   initial?: Comanda | null
+  initialCreateValues?: Partial<ComandaFormState> | null
 }) {
   const initialFormState = useMemo<ComandaFormState>(() => {
-    if (!initial) return defaultFormState('confirmata')
+    if (!initial) {
+      return {
+        ...defaultFormState('confirmata'),
+        ...(initialCreateValues ?? {}),
+      }
+    }
     return {
       client_id: initial.client_id ?? '',
       client_nume_manual: initial.client_nume_manual ?? '',
@@ -726,7 +539,7 @@ function ComandaDialog({
       status: initial.status,
       observatii: initial.observatii ?? '',
     }
-  }, [initial])
+  }, [initial, initialCreateValues])
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
   const [comboInput, setComboInput] = useState('')
   const [comboOpen, setComboOpen] = useState(false)
@@ -742,15 +555,26 @@ function ComandaDialog({
       setComboOpen(false)
       setForm(initialFormState)
     } else {
-      // Pre-fill combo input when editing an existing comanda
-      if (initialFormState.client_id) {
-        const client = clienti.find((c) => c.id === initialFormState.client_id)
+      let prefillClientId = initialFormState.client_id
+      if (!prefillClientId && mode === 'create' && initialFormState.client_nume_manual) {
+        prefillClientId = resolveClientIdFromHint(initialFormState.client_nume_manual, clienti) ?? ''
+      }
+      if (prefillClientId) {
+        const client = clienti.find((c) => c.id === prefillClientId)
         setComboInput(client?.nume_client ?? '')
+        setForm((prev) => ({
+          ...prev,
+          client_id: prefillClientId,
+          client_nume_manual: '',
+          telefon: client?.telefon || prev.telefon,
+          locatie_livrare: client?.adresa || prev.locatie_livrare,
+        }))
       } else {
         setComboInput(initialFormState.client_nume_manual ?? '')
+        setForm(initialFormState)
       }
     }
-  }, [open, initialFormState, clienti])
+  }, [open, initialFormState, clienti, mode])
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -789,7 +613,7 @@ function ComandaDialog({
           </Button>
           <Button
             type="button"
-            className="agri-cta h-12 min-w-[132px] rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700"
+            className="agri-cta h-12 min-w-[132px] rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
             disabled={saving}
             onClick={async () => {
               await onSave(form)
@@ -827,15 +651,15 @@ function ComandaDialog({
               }}
             />
             {comboOpen && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-lg">
                 {comboFiltered.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-gray-400">Niciun client găsit — completează manual</p>
+                  <p className="px-3 py-2 text-sm text-[var(--agri-text-muted)]">Niciun client găsit — completează manual</p>
                 ) : (
                   comboFiltered.map((client) => (
                     <button
                       key={client.id}
                       type="button"
-                      className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50"
+                      className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
                       onMouseDown={(e) => {
                         e.preventDefault()
                         setComboInput(client.nume_client)
@@ -849,14 +673,14 @@ function ComandaDialog({
                         }))
                       }}
                     >
-                      <span className="font-medium text-gray-900">{client.nume_client}</span>
-                      {client.telefon ? <span className="text-gray-400">— {client.telefon}</span> : null}
+                      <span className="font-medium text-[var(--agri-text)]">{client.nume_client}</span>
+                      {client.telefon ? <span className="text-[var(--agri-text-muted)]">— {client.telefon}</span> : null}
                     </button>
                   ))
                 )}
                 <button
                   type="button"
-                  className="flex w-full items-center gap-1.5 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                  className="flex w-full items-center gap-1.5 border-t border-[var(--agri-border)] px-3 py-2.5 text-left text-sm font-medium text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)]"
                   onMouseDown={(e) => {
                     e.preventDefault()
                     setComboOpen(false)
@@ -985,7 +809,6 @@ export function ComenziPageClient() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Comanda; index: number }>>({})
 
   const [search, setSearch] = useState('')
@@ -1006,6 +829,7 @@ export function ComenziPageClient() {
   const [confirmDeliverId, setConfirmDeliverId] = useState<string | null>(null)
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [createPrefill, setCreatePrefill] = useState<Partial<ComandaFormState> | null>(null)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
@@ -1014,6 +838,36 @@ export function ComenziPageClient() {
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
   const [addClientOpen, setAddClientOpen] = useState(false)
   const addFromQuery = searchParams.get('add') === '1'
+  const openFormFromQuery = hasAiComandaOpenForm(searchParams)
+
+  const clearComandaFormQueryParams = () => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('add')
+    nextParams.delete('openForm')
+    nextParams.delete('edit')
+    nextParams.delete('nume_client')
+    nextParams.delete('client_id')
+    nextParams.delete('client_label')
+    nextParams.delete('telefon')
+    nextParams.delete('cantitate_kg')
+    nextParams.delete('pret_per_kg')
+    nextParams.delete('data_livrare')
+    nextParams.delete('produs')
+    nextParams.delete('observatii')
+    nextParams.delete('locatie_livrare')
+    nextParams.delete('sursa')
+    const query = nextParams.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+
+    if (typeof window !== 'undefined') {
+      const currentUrl = `${window.location.pathname}${window.location.search}`
+      if (currentUrl !== nextUrl) {
+        window.history.replaceState(window.history.state, '', nextUrl)
+      }
+    }
+
+    router.replace(nextUrl, { scroll: false })
+  }
 
   const {
     data: comenzi = [],
@@ -1056,6 +910,7 @@ export function ComenziPageClient() {
   const createMutation = useMutation({
     mutationFn: createComanda,
     onSuccess: (_, variables) => {
+      clearComandaFormQueryParams()
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       track('comanda_add', {
@@ -1077,6 +932,7 @@ export function ComenziPageClient() {
           : undefined,
       })
       setAddOpen(false)
+      setCreatePrefill(null)
     },
     onError: (err: Error) => {
       hapticError()
@@ -1140,7 +996,8 @@ export function ComenziPageClient() {
   })
 
   const createClientMutation = useMutation({
-    mutationFn: createClienți,
+    mutationFn: ({ input, onDuplicateWarning }: CreateClientMutationVariables) =>
+      createClienți(input, { onDuplicateWarning }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
       hapticSuccess()
@@ -1214,21 +1071,24 @@ export function ComenziPageClient() {
   }
 
   useEffect(() => {
-    return () => {
-      Object.values(pendingDeleteTimers.current).forEach((timer) => clearTimeout(timer))
-    }
-  }, [])
-
-  useEffect(() => {
     if (!addFromQuery) return
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('add')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+    setCreatePrefill(null)
+    setAddOpen(true)
+    clearComandaFormQueryParams()
   }, [addFromQuery, pathname, router, searchParams])
 
   useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă comandă')
+    if (!openFormFromQuery) return
+    setCreatePrefill(parseAiComandaPrefill(searchParams))
+    clearComandaFormQueryParams()
+    setAddOpen(true)
+  }, [openFormFromQuery, pathname, router, searchParams])
+
+  useEffect(() => {
+    const unregister = registerAddAction(() => {
+      setCreatePrefill(null)
+      setAddOpen(true)
+    }, 'Adaugă comandă')
     return unregister
   }, [registerAddAction])
 
@@ -1252,40 +1112,7 @@ export function ComenziPageClient() {
     queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current = []) =>
       current.filter((item) => item.id !== comandaId)
     )
-
-    const timer = setTimeout(() => {
-      delete pendingDeleteTimers.current[comandaId]
-      deleteMutation.mutate(comandaId)
-    }, 5000)
-
-    pendingDeleteTimers.current[comandaId] = timer
-
-    toast('Element șters', {
-      duration: 5000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          const pendingTimer = pendingDeleteTimers.current[comandaId]
-          if (!pendingTimer) return
-
-          clearTimeout(pendingTimer)
-          delete pendingDeleteTimers.current[comandaId]
-
-          const pendingItem = pendingDeletedItems.current[comandaId]
-          delete pendingDeletedItems.current[comandaId]
-          if (!pendingItem) return
-
-          queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current = []) => {
-            if (current.some((item) => item.id === comandaId)) return current
-
-            const next = [...current]
-            const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
-            next.splice(insertAt, 0, pendingItem.item)
-            return next
-          })
-        },
-      },
-    })
+    deleteMutation.mutate(comandaId)
   }
 
   const today = todayIso()
@@ -1404,116 +1231,180 @@ export function ComenziPageClient() {
     })
   }
 
-  const handleQuickStatusChange = async (comanda: Comanda, status: ComandaStatus) => {
-    if (status === comanda.status) return
-
-    if (status === 'livrata') {
-      await handleConfirmDeliver(comanda)
-      return
-    }
-
-    if (comanda.status === 'livrata') {
-      await reopenMutation.mutateAsync(comanda.id)
-    }
-
-    await updateMutation.mutateAsync({
-      id: comanda.id,
-      payload: {
-        status,
-      },
-    })
-  }
-
   const desktopSelectedComanda =
     filteredComenzi.find((item) => item.id === desktopSelectedComandaId) ??
     filteredComenzi[0] ??
     null
+  const desktopColumns = useMemo<ColumnDef<Comanda>[]>(() => [
+    {
+      id: 'data',
+      header: 'Data',
+      accessorFn: (row) => row.data_livrare || row.data_comanda,
+      cell: ({ row }) => formatDate(row.original.data_livrare || row.original.data_comanda),
+      meta: {
+        searchValue: (row: Comanda) => row.data_livrare || row.data_comanda,
+      },
+    },
+    {
+      id: 'client',
+      header: 'Client',
+      accessorFn: (row) => getClientName(row, clientMap),
+      cell: ({ row }) => <span className="font-medium">{getClientName(row.original, clientMap)}</span>,
+      meta: {
+        searchValue: (row: Comanda) => getClientName(row, clientMap),
+      },
+    },
+    {
+      id: 'produse',
+      header: 'Produse',
+      accessorFn: () => 1,
+      cell: () => '1',
+      meta: {
+        searchValue: () => '1',
+      },
+    },
+    {
+      accessorKey: 'cantitate_kg',
+      header: 'Cantitate totală',
+      cell: ({ row }) => formatKg(Number(row.original.cantitate_kg || 0)),
+      meta: {
+        searchValue: (row: Comanda) => row.cantitate_kg,
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <StatusBadge
+          text={statusLabelMap[row.original.status] ?? row.original.status}
+          variant={statusVariantMap[row.original.status] ?? 'neutral'}
+        />
+      ),
+      meta: {
+        searchValue: (row: Comanda) => statusLabelMap[row.status] ?? row.status,
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Acțiuni',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Editează comanda"
+            onClick={(event) => {
+              event.stopPropagation()
+              setEditing(row.original)
+            }}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Șterge comanda"
+            onClick={(event) => {
+              event.stopPropagation()
+              setDeleting(row.original)
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+          </Button>
+        </div>
+      ),
+      meta: {
+        searchable: false,
+        sticky: 'right',
+        headerClassName: 'w-[104px] text-right',
+        cellClassName: 'w-[104px] text-right',
+      },
+    },
+  ], [clientMap])
 
   return (
     <AppShell
       header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" />}
-      bottomBar={
-        <StickyActionBar>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Active: {formatKg(totalActiveKg)}</p>
-            <p className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: colors.greenLight, color: colors.green }}>
-              Valoare: {formatLei(totalActiveValue)}
-            </p>
-          </div>
-        </StickyActionBar>
-      }
+      bottomBar={null}
     >
       <div
         className="mx-auto mt-3 w-full max-w-[980px] sm:mt-0 lg:max-w-[1320px]"
         style={{ display: 'flex', flexDirection: 'column', gap: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.md }}
       >
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0 ? (
           <div
-            className="col-span-1"
-            style={{ border: comenziAzi.length > 0 ? `1px solid ${colors.coral}` : `1px solid ${colors.grayLight}`, borderRadius: radius.xl }}
+            style={{
+              background: 'var(--agri-surface)',
+              borderRadius: 12,
+              padding: '10px 14px',
+              border: '1px solid var(--agri-border)',
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 14,
+              flexWrap: 'wrap',
+            }}
           >
-            <MiniCard
-              icon={comenziAzi.length > 0 ? '🚚' : '📦'}
-              value={`${comenziAzi.length}`}
-              sub={`${formatKg(kgAzi)}`}
-              label="de livrat AZI"
-              onClick={() => setFilterAndTab('de_livrat', 'azi')}
-            />
+            {activeComenzi.length > 0 ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setFilterAndTab('de_livrat', 'active')}
+                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active') }}
+                style={{ cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--agri-text)' }}>{activeComenzi.length}</span>
+                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>active</span>
+              </span>
+            ) : null}
+            {comenziAzi.length > 0 ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setFilterAndTab('de_livrat', 'azi')}
+                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi') }}
+                style={{ cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-warning-text)' }}>{comenziAzi.length}</span>
+                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>azi</span>
+              </span>
+            ) : null}
+            {comenziRestante.length > 0 ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setFilterAndTab('de_livrat', 'restante')}
+                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante') }}
+                style={{ cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-danger-text)' }}>{comenziRestante.length}</span>
+                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>restante</span>
+              </span>
+            ) : null}
+            {neincasatRon > 0 ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => setFilterAndTab('livrate', 'neincasat')}
+                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat') }}
+                style={{ cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-warning-text)' }}>{formatLeiCompact(neincasatRon)}</span>
+                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>RON neîncasat</span>
+              </span>
+            ) : null}
+            {totalStocDisponibilKg > 0 ? (
+              <span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--value-positive)' }}>{formatKg(totalStocDisponibilKg)}</span>
+                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>stoc</span>
+              </span>
+            ) : null}
           </div>
-          <MiniCard
-            icon="📋"
-            value={`${activeComenzi.length}`}
-            sub={`${formatKg(totalActiveKg)} total`}
-            label="active total"
-            onClick={() => setFilterAndTab('de_livrat', 'active')}
-          />
-          <MiniCard
-            className="col-span-2 sm:col-span-1"
-            icon="💰"
-            value={`${formatLeiCompact(totalActiveValue)} RON`}
-            sub="valoare totală"
-            label="valoare"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <AlertCard
-            icon="⚠️"
-            label="Restante"
-            value={`${comenziRestante.length}`}
-            sub="comenzi depășite"
-            variant="danger"
-            onClick={() => setFilterAndTab('de_livrat', 'restante')}
-          />
-          <AlertCard
-            icon="💸"
-            label="Neîncasat"
-            value={`${formatLeiCompact(neincasatRon)} RON`}
-            sub="RON de colectat"
-            variant="warning"
-            onClick={() => setFilterAndTab('livrate', 'neincasat')}
-          />
-          <AlertCard
-            className="col-span-2 sm:col-span-1"
-            icon="📦"
-            label="Stoc disp."
-            value={formatKg(totalStocDisponibilKg)}
-            sub="kg disponibil"
-            variant="success"
-          />
-        </div>
-
-        {showStockWarning ? (
-          <AlertCard
-            icon="⚠️"
-            label="Stoc insuficient"
-            value="Stoc insuficient pentru toate comenzile"
-            sub={`Disponibil ${formatKg(totalStocDisponibilKg)} / necesar ${formatKg(totalActiveKg)}`}
-            variant="warning"
-          />
         ) : null}
 
-        <ComenziTabs
+        <PillTabs
           value={activeTab}
           onChange={(value) => {
             setActiveTab(value)
@@ -1525,6 +1416,7 @@ export function ComenziPageClient() {
         />
 
         <SearchField
+          containerClassName="md:hidden"
           placeholder="Caută după client sau telefon..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -1544,77 +1436,47 @@ export function ComenziPageClient() {
 
         {!isLoading && !isError && filteredComenzi.length > 0 ? (
           <>
-            <div className="lg:hidden" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: spacing.sm }}>
-              {filteredComenzi.map((comanda) => (
-                <ComandaCard
-                  key={comanda.id}
-                  comanda={comanda}
-                  clientName={getClientName(comanda, clientMap)}
-                  isExpanded={expandedId === comanda.id}
-                  isDeliverConfirmOpen={confirmDeliverId === comanda.id}
-                  isDelivering={deliveringId === comanda.id}
-                  onToggleExpand={(id) => setExpandedId((current) => (current === id ? null : id))}
-                  onEdit={setEditing}
-                  onDelete={setDeleting}
-                  onOpenDeliverConfirm={(item) => setConfirmDeliverId(item.id)}
-                  onCancelDeliverConfirm={() => setConfirmDeliverId(null)}
-                  onConfirmDeliver={handleConfirmDeliver}
-                  onGoToVanzari={() => router.push('/vanzari')}
-                  onReopen={setReopening}
-                  onQuickStatusChange={handleQuickStatusChange}
-                />
-              ))}
-            </div>
+            <div className="md:grid md:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)] md:gap-4">
+              <ResponsiveDataView
+                columns={desktopColumns}
+                data={filteredComenzi}
+                getRowId={(row) => row.id}
+                searchPlaceholder="Caută în comenzi..."
+                emptyMessage="Nu am găsit comenzi pentru filtrele curente."
+                desktopContainerClassName="md:min-w-0"
+                mobileContainerClassName="grid grid-cols-1 gap-3"
+                onDesktopRowClick={(row) => setDesktopSelectedComandaId(row.id)}
+                isDesktopRowSelected={(row) => desktopSelectedComanda?.id === row.id}
+                renderCard={(comanda) => (
+                  <ComandaCard
+                    comanda={comanda}
+                    clientName={getClientName(comanda, clientMap)}
+                    isExpanded={expandedId === comanda.id}
+                    isDeliverConfirmOpen={confirmDeliverId === comanda.id}
+                    isDelivering={deliveringId === comanda.id}
+                    onToggleExpand={(id) => setExpandedId((current) => (current === id ? null : id))}
+                    onEdit={setEditing}
+                    onDelete={setDeleting}
+                    onOpenDeliverConfirm={(item) => setConfirmDeliverId(item.id)}
+                    onCancelDeliverConfirm={() => setConfirmDeliverId(null)}
+                    onConfirmDeliver={handleConfirmDeliver}
+                    onGoToVanzari={() => router.push('/vanzari')}
+                    onReopen={setReopening}
+                  />
+                )}
+              />
 
-            <div className="hidden lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)] lg:gap-4">
-              <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Data livrare</th>
-                      <th className="px-4 py-3 font-semibold">Client</th>
-                      <th className="px-4 py-3 font-semibold">Cantitate</th>
-                      <th className="px-4 py-3 font-semibold">Valoare</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredComenzi.map((comanda) => {
-                      const isSelected = desktopSelectedComanda?.id === comanda.id
-                      return (
-                        <tr
-                          key={comanda.id}
-                          className={`cursor-pointer border-t border-gray-100 transition-colors ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                          onClick={() => setDesktopSelectedComandaId(comanda.id)}
-                        >
-                          <td className="px-4 py-3 text-gray-700">{formatDate(comanda.data_livrare || comanda.data_comanda)}</td>
-                          <td className="px-4 py-3 font-medium text-gray-900">{getClientName(comanda, clientMap)}</td>
-                          <td className="px-4 py-3 text-gray-700">{formatKg(Number(comanda.cantitate_kg || 0))}</td>
-                          <td className="px-4 py-3 text-gray-900">{formatLei(Number(comanda.total || 0))}</td>
-                          <td className="px-4 py-3">
-                            <StatusBadge
-                              text={statusLabelMap[comanda.status] ?? comanda.status}
-                              variant={statusVariantMap[comanda.status] ?? 'neutral'}
-                            />
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Detalii comandă</h3>
+              <aside className="hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm md:block">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Detalii comandă</h3>
                 {desktopSelectedComanda ? (
-                  <div className="mt-4 space-y-3 text-sm text-gray-700">
-                    <p><span className="font-medium text-gray-900">Client:</span> {getClientName(desktopSelectedComanda, clientMap)}</p>
-                    <p><span className="font-medium text-gray-900">Telefon:</span> {desktopSelectedComanda.telefon || '-'}</p>
-                    <p><span className="font-medium text-gray-900">Data comandă:</span> {formatDate(desktopSelectedComanda.data_comanda)}</p>
-                    <p><span className="font-medium text-gray-900">Data livrare:</span> {formatDate(desktopSelectedComanda.data_livrare)}</p>
-                    <p><span className="font-medium text-gray-900">Cantitate:</span> {formatKg(Number(desktopSelectedComanda.cantitate_kg || 0))}</p>
-                    <p><span className="font-medium text-gray-900">Preț/kg:</span> {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}</p>
-                    <p><span className="font-medium text-gray-900">Total:</span> {formatLei(Number(desktopSelectedComanda.total || 0))}</p>
+                  <div className="mt-4 space-y-3 text-sm text-[var(--agri-text-muted)]">
+                    <p><span className="font-medium text-[var(--agri-text)]">Client:</span> {getClientName(desktopSelectedComanda, clientMap)}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Telefon:</span> {desktopSelectedComanda.telefon || '-'}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Data comandă:</span> {formatDate(desktopSelectedComanda.data_comanda)}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Data livrare:</span> {formatDate(desktopSelectedComanda.data_livrare)}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Cantitate:</span> {formatKg(Number(desktopSelectedComanda.cantitate_kg || 0))}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Preț/kg:</span> {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}</p>
+                    <p><span className="font-medium text-[var(--agri-text)]">Total:</span> {formatLei(Number(desktopSelectedComanda.total || 0))}</p>
                     <div>
                       <StatusBadge
                         text={statusLabelMap[desktopSelectedComanda.status] ?? desktopSelectedComanda.status}
@@ -1625,7 +1487,7 @@ export function ComenziPageClient() {
                       {canDeliverStatus(desktopSelectedComanda.status) && desktopSelectedComanda.status !== 'anulata' ? (
                         <button
                           type="button"
-                          className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                          className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
                           disabled={deliveringId === desktopSelectedComanda.id}
                           onClick={() => {
                             void handleConfirmDeliver(desktopSelectedComanda)
@@ -1645,14 +1507,14 @@ export function ComenziPageClient() {
                       ) : null}
                       <button
                         type="button"
-                        className="rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        className="rounded-md border border-[var(--agri-border)] px-3 py-2 text-xs font-semibold text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
                         onClick={() => setEditing(desktopSelectedComanda)}
                       >
                         Editează
                       </button>
                       <button
                         type="button"
-                        className="rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        className="rounded-md border border-[var(--soft-danger-border)] px-3 py-2 text-xs font-semibold text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)]"
                         onClick={() => setDeleting(desktopSelectedComanda)}
                       >
                         Șterge
@@ -1660,7 +1522,7 @@ export function ComenziPageClient() {
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-gray-600">Selectează o comandă pentru detalii.</p>
+                  <p className="mt-4 text-sm text-[var(--agri-text-muted)]">Selectează o comandă pentru detalii.</p>
                 )}
               </aside>
             </div>
@@ -1669,12 +1531,19 @@ export function ComenziPageClient() {
       </div>
 
       <ComandaDialog
-        key={`create-${addOpen || addFromQuery ? 'open' : 'closed'}`}
-        open={addOpen || addFromQuery}
-        onOpenChange={setAddOpen}
+        key={`create-${addOpen ? 'open' : 'closed'}`}
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open)
+          if (!open) {
+            setCreatePrefill(null)
+            clearComandaFormQueryParams()
+          }
+        }}
         saving={createMutation.isPending}
         clienti={clienti}
         mode="create"
+        initialCreateValues={createPrefill}
         onSave={async (values) => {
           const cantitate = Number(values.cantitate_kg)
           const pret = Number(values.pret_per_kg)
@@ -1768,12 +1637,17 @@ export function ComenziPageClient() {
         }}
         onSubmit={async (data) => {
           await createClientMutation.mutateAsync({
-            nume_client: data.nume_client,
-            telefon: data.telefon || null,
-            email: data.email || null,
-            adresa: data.adresa || null,
-            pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
-            observatii: data.observatii || null,
+            input: {
+              nume_client: data.nume_client,
+              telefon: data.telefon || null,
+              email: data.email || null,
+              adresa: data.adresa || null,
+              pret_negociat_lei_kg: data.pret_negociat_lei_kg ? Number(data.pret_negociat_lei_kg) : null,
+              observatii: data.observatii || null,
+            },
+            onDuplicateWarning: (existing) => {
+              toast.warning(`Un client cu un nume similar există deja: ${existing.nume_client}. Continui.`)
+            },
           })
         }}
       />
@@ -1813,3 +1687,5 @@ export function ComenziPageClient() {
     </AppShell>
   )
 }
+
+

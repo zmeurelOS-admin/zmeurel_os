@@ -1,8 +1,10 @@
 // src/lib/supabase/queries/vanzari.ts
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import type { CalitateStoc } from './miscari-stoc'
 
 export const STATUS_PLATA = ['platit', 'restanta', 'avans'] as const
+export const CALITATI_VANZARE: CalitateStoc[] = ['cal1', 'cal2']
 
 export interface Vanzare {
   id: string
@@ -33,6 +35,7 @@ export interface CreateVanzareInput {
   client_id?: string
   comanda_id?: string | null
   cantitate_kg: number
+  calitate?: CalitateStoc
   pret_lei_kg: number
   status_plata?: string
   observatii_ladite?: string
@@ -73,6 +76,7 @@ type VanzareRpcClient = ReturnType<typeof getSupabase> & {
         p_client_sync_id?: string
         p_sync_status?: string
         p_tenant_id?: string
+        p_calitate?: CalitateStoc
       }
     ): Promise<{ data: Vanzare | null; error: SupabaseLikeError | null }>
     (
@@ -156,6 +160,7 @@ export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare>
     p_client_id: input.client_id || null,
     p_comanda_id: input.comanda_id ?? null,
     p_cantitate_kg: Number(input.cantitate_kg || 0),
+    p_calitate: input.calitate ?? 'cal1',
     p_pret_lei_kg: Number(input.pret_lei_kg || 0),
     p_status_plata: input.status_plata || 'platit',
     p_observatii_ladite: input.observatii_ladite || null,
