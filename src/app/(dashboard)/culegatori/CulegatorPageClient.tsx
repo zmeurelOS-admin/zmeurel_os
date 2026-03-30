@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
 import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
 import { Button } from '@/components/ui/button'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -29,6 +30,7 @@ import {
 } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
+import { cn } from '@/lib/utils'
 
 interface Props {
   initialCulegatori: Culegator[]
@@ -101,146 +103,108 @@ function CulegatorCardNew({
   const avgKgPerDay = stats && stats.seasonDays > 0 ? seasonKg / stats.seasonDays : 0
 
   return (
-    <div
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: '1px solid var(--agri-border)',
-        overflow: 'hidden',
-        marginBottom: 8,
-      }}
+    <MobileEntityCard
+      title={culegator.nume_prenume}
+      value={seasonKg > 0 ? `${formatKg(seasonKg)} kg` : '0 kg'}
+      secondary={
+        [
+          isActiv ? 'Activ' : 'Inactiv',
+          culegator.tarif_lei_kg ? `${culegator.tarif_lei_kg} RON/kg` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || '-'
+      }
+      status={
+        <span
+          className={cn(
+            'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold',
+            isActiv
+              ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+              : 'border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]'
+          )}
+        >
+          {isActiv ? 'Activ' : 'Inactiv'}
+        </span>
+      }
+      onClick={onToggle}
+      isExpanded={expanded}
+      className={cn(!isActiv ? 'opacity-95' : '')}
     >
-      {/* Header row */}
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%', textAlign: 'left', background: 'none', border: 'none',
-          padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>👤</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {culegator.nume_prenume}
-            </span>
-            <span style={{ fontSize: 16, color: 'var(--agri-text-muted)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 3 }}>
-            <span style={{
-              borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 600,
-              background: isActiv ? 'var(--status-success-bg)' : 'var(--status-neutral-bg)',
-              color: isActiv ? 'var(--status-success-text)' : 'var(--status-neutral-text)',
-            }}>
-              {isActiv ? '● Activ' : '○ Inactiv'}
-            </span>
-            {seasonKg > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--value-positive)', fontWeight: 600 }}>{formatKg(seasonKg)} kg sezon</span>
-            )}
-            {culegator.tarif_lei_kg ? (
-              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{culegator.tarif_lei_kg} RON/kg</span>
-            ) : null}
+      {hasPhone ? (
+        <div className="flex gap-2">
+          <a
+            href={`tel:${phoneClean}`}
+            className="flex-1 min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--button-muted-text)]"
+          >
+            Sună
+          </a>
+          <a
+            href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 min-h-11 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--status-success-text)]"
+          >
+            WhatsApp
+          </a>
+        </div>
+      ) : null}
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-center">
+          <div className="text-base font-bold text-[var(--value-positive)]">{formatKg(seasonKg)}</div>
+          <div className="mt-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">kg sezon</div>
+        </div>
+        <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-center">
+          <div className="text-base font-bold text-[var(--agri-text)]">{formatKg(avgKgPerDay)}</div>
+          <div className="mt-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">kg/zi</div>
+        </div>
+        <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-center">
+          <div className="text-base font-bold text-[var(--agri-text)]">{stats?.seasonDays ?? 0}</div>
+          <div className="mt-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">zile</div>
+        </div>
+      </div>
+
+      {recentRecoltari.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ultimele recoltări</p>
+          <div className="mt-2 space-y-1 text-sm text-[var(--agri-text)]">
+            {recentRecoltari.map((r) => {
+              const kg = getRecoltareKg(r)
+              const parcelaName = r.parcela_id ? (parcelaMap[r.parcela_id] ?? 'Parcela') : 'Parcela'
+              return (
+                <div key={r.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{toDateOnly(r.data)} · {parcelaName}</span>
+                  <span className="shrink-0 font-semibold text-[var(--value-positive)]">{formatKg(kg)} kg</span>
+                </div>
+              )
+            })}
           </div>
         </div>
-      </button>
+      ) : null}
 
-      {/* Expanded section */}
-      {expanded && (
-        <div style={{ padding: '0 14px 14px' }}>
-          {/* Contact actions */}
-          {hasPhone && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <a
-                href={`tel:${phoneClean}`}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', textDecoration: 'none',
-                  border: '1px solid var(--button-muted-border)',
-                }}
-              >
-                📞 Sună
-              </a>
-              <a
-                href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  background: 'var(--status-success-bg)', color: 'var(--status-success-text)', textDecoration: 'none',
-                  border: '1px solid var(--status-success-border)',
-                }}
-              >
-                💬 WhatsApp
-              </a>
-            </div>
-          )}
-
-          {/* Season stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
-            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--value-positive)' }}>{formatKg(seasonKg)}</div>
-              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>kg sezon</div>
-            </div>
-            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--agri-text)' }}>{formatKg(avgKgPerDay)}</div>
-              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>kg/zi medie</div>
-            </div>
-            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--agri-text)' }}>{stats?.seasonDays ?? 0}</div>
-              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>zile lucrate</div>
-            </div>
-          </div>
-
-          {/* Last 5 recoltari */}
-          {recentRecoltari.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--agri-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                Ultimele recoltări
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {recentRecoltari.map((r) => {
-                  const kg = getRecoltareKg(r)
-                  const parcelaName = r.parcela_id ? (parcelaMap[r.parcela_id] ?? 'Parcela') : 'Parcela'
-                  return (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text)' }}>
-                      <span>{toDateOnly(r.data)} · {parcelaName}</span>
-                      <span style={{ fontWeight: 600, color: 'var(--value-positive)' }}>{formatKg(kg)} kg</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Edit / Delete */}
-          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid var(--agri-border)', paddingTop: 12 }}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--button-muted-bg)', border: '1px solid var(--button-muted-border)', color: 'var(--button-muted-text)', cursor: 'pointer',
-              }}
-            >
-              ✏️ Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger-border)', color: 'var(--status-danger-text)', cursor: 'pointer',
-              }}
-            >
-              🗑️ Șterge
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit()
+          }}
+          className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+        >
+          Editează
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+        >
+          Șterge
+        </button>
+      </div>
+    </MobileEntityCard>
   )
 }
 

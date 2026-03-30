@@ -20,14 +20,16 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
+import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { track } from '@/lib/analytics/track'
-import { colors, radius, spacing } from '@/lib/design-tokens'
+import { spacing } from '@/lib/design-tokens'
 import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
 import {
   COMENZI_STATUSES,
@@ -238,6 +240,13 @@ function getComandaIcon(isDelivered: boolean, isUrgent: boolean, isFuture: boole
   return '📦'
 }
 
+function statusToneForMobileCard(status: ComandaStatus): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (status === 'anulata') return 'danger'
+  if (status === 'livrata') return 'neutral'
+  if (status === 'programata' || status === 'in_livrare') return 'success'
+  return 'warning'
+}
+
 function PillTabs({
   value,
   onChange,
@@ -285,219 +294,30 @@ function PillTabs({
 function ComandaCard({
   comanda,
   clientName,
-  isExpanded,
-  isDeliverConfirmOpen,
-  isDelivering,
-  onToggleExpand,
-  onEdit,
-  onDelete,
-  onOpenDeliverConfirm,
-  onCancelDeliverConfirm,
-  onConfirmDeliver,
-  onGoToVanzari,
-  onReopen,
+  onOpenDetails,
 }: {
   comanda: Comanda
   clientName: string
-  isExpanded: boolean
-  isDeliverConfirmOpen: boolean
-  isDelivering: boolean
-  onToggleExpand: (id: string) => void
-  onEdit: (comanda: Comanda) => void
-  onDelete: (comanda: Comanda) => void
-  onOpenDeliverConfirm: (comanda: Comanda) => void
-  onCancelDeliverConfirm: () => void
-  onConfirmDeliver: (comanda: Comanda) => void
-  onGoToVanzari: () => void
-  onReopen: (comanda: Comanda) => void
+  onOpenDetails: (comanda: Comanda) => void
 }) {
-  const today = todayIso()
-  const delivery = comanda.data_livrare ?? ''
-  const isDelivered = comanda.status === 'livrata'
-  const isCanceled = comanda.status === 'anulata'
-  const isUrgent = !isDelivered && !isCanceled && delivery === today
-  const isRestanta = !isDelivered && !isCanceled && Boolean(delivery) && delivery < today
-  const canDeliver = canDeliverStatus(comanda.status) && !isCanceled
-  const phone = (comanda.telefon || '').trim()
-  const hasPhone = phone.length > 0
-  const whatsappUrl = toWhatsAppUrl(phone)
-  const total = Number(comanda.cantitate_kg || 0) * Number(comanda.pret_per_kg || 0)
-
-  const statusBadge = (() => {
-    switch (comanda.status) {
-      case 'noua': return { color: 'var(--status-info-text)', bg: 'var(--status-info-bg)', border: 'var(--status-info-border)', text: 'Nouă' }
-      case 'confirmata': return { color: 'var(--status-warning-text)', bg: 'var(--status-warning-bg)', border: 'var(--status-warning-border)', text: 'Confirmată' }
-      case 'programata': return { color: 'var(--status-purple-text)', bg: 'var(--status-purple-bg)', border: 'var(--status-purple-border)', text: 'Programată' }
-      case 'in_livrare': return { color: 'var(--status-warning-text)', bg: 'var(--status-warning-bg)', border: 'var(--status-warning-border)', text: 'În livrare' }
-      case 'livrata': return { color: 'var(--status-success-text)', bg: 'var(--status-success-bg)', border: 'var(--status-success-border)', text: 'Livrată' }
-      case 'anulata': return { color: 'var(--status-danger-text)', bg: 'var(--status-danger-bg)', border: 'var(--status-danger-border)', text: 'Anulată' }
-      default: return { color: 'var(--status-neutral-text)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)', text: comanda.status }
-    }
-  })()
+  const cantitateKg = Number(comanda.cantitate_kg || 0)
+  const total = Number(comanda.total || cantitateKg * Number(comanda.pret_per_kg || 0))
+  const produsDetails = (comanda.observatii ?? '').trim()
+  const subtitle = [formatKg(cantitateKg), produsDetails || null].filter(Boolean).join(' · ') || formatKg(cantitateKg)
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onToggleExpand(comanda.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleExpand(comanda.id) }
-      }}
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
-        borderLeft: isRestanta ? '3px solid var(--status-danger-border)' : undefined,
-        boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
-        padding: '11px 14px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }}
-    >
-      {/* Summary row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)', lineHeight: 1.3 }}>
-            {isUrgent ? <span style={{ marginRight: 4 }}>🔥</span> : null}
-            {clientName}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 3 }}>
-            {formatKg(Number(comanda.cantitate_kg || 0))} · {formatLeiCompact(total)} RON{comanda.data_livrare ? ` · ${formatDate(comanda.data_livrare)}` : ''}
-          </div>
-        </div>
-        <span style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: '3px 8px', background: statusBadge.bg, color: statusBadge.color, border: `1px solid ${statusBadge.border}`, flexShrink: 0 }}>
-          {statusBadge.text}
-        </span>
-      </div>
-
-      {/* Drag indicator */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-        <div style={{ width: 22, height: 2.5, borderRadius: 2, background: 'var(--text-hint)', opacity: 0.35 }} />
-      </div>
-
-      {/* Expanded section */}
-      {isExpanded ? (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, marginTop: 10 }}
-        >
-          {/* Details */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cantitate: </span><strong>{formatKg(Number(comanda.cantitate_kg || 0))}</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Preț: </span><strong>{Number(comanda.pret_per_kg || 0).toFixed(2)} RON/kg</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Total: </span><strong style={{ color: 'var(--value-positive)' }}>{formatLeiCompact(total)} RON</strong></span>
-            {comanda.data_livrare ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Livrare: </span><strong>{formatDate(comanda.data_livrare)}</strong></span> : null}
-            {hasPhone ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Telefon: </span><strong>{phone}</strong></span> : null}
-            {comanda.locatie_livrare ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Locație: </span><strong>{comanda.locatie_livrare}</strong></span> : null}
-            {comanda.observatii ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Obs: </span><strong>{comanda.observatii}</strong></span> : null}
-          </div>
-
-          {/* Deliver confirm inline */}
-          {isDeliverConfirmOpen ? (
-            <div style={{ marginBottom: 10, background: 'var(--surface-elevated)', borderRadius: 10, padding: '10px 12px', border: '1px solid var(--soft-success-border)' }}>
-              <div style={{ fontSize: 12, color: 'var(--agri-text)', marginBottom: 8, fontWeight: 600 }}>
-                Confirmi livrarea a {formatKg(Number(comanda.cantitate_kg || 0))}?
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  type="button"
-                  disabled={isDelivering}
-                  onClick={(e) => { e.stopPropagation(); onConfirmDeliver(comanda) }}
-                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 700, background: 'var(--pill-active-bg)', color: 'var(--pill-active-text)', border: '1px solid var(--pill-active-border)', borderRadius: 10, cursor: isDelivering ? 'default' : 'pointer', opacity: isDelivering ? 0.7 : 1 }}
-                >
-                  {isDelivering ? 'Se procesează...' : 'Da, livrează!'}
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onCancelDeliverConfirm() }}
-                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 10, cursor: 'pointer' }}
-                >
-                  Anulează
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Primary action buttons */
-            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
-              {hasPhone ? (
-                <a
-                  href={`tel:${phone}`}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 10, textAlign: 'center', textDecoration: 'none', display: 'block' }}
-                >
-                  📞 Sună
-                </a>
-              ) : (
-                <span style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-neutral-bg)', color: 'var(--text-hint)', border: '1px solid var(--status-neutral-border)', borderRadius: 10, textAlign: 'center', display: 'block' }}>
-                  📞 Sună
-                </span>
-              )}
-              {hasPhone && whatsappUrl ? (
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-success-bg)', color: 'var(--status-success-text)', border: '1px solid var(--status-success-border)', borderRadius: 10, textAlign: 'center', textDecoration: 'none', display: 'block' }}
-                >
-                  💬 WhatsApp
-                </a>
-              ) : (
-                <span style={{ flex: 1, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-neutral-bg)', color: 'var(--text-hint)', border: '1px solid var(--status-neutral-border)', borderRadius: 10, textAlign: 'center', display: 'block' }}>
-                  💬 WhatsApp
-                </span>
-              )}
-              {canDeliver ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onOpenDeliverConfirm(comanda) }}
-                  style={{ flex: 1.2, padding: '9px 0', fontSize: 11, fontWeight: 700, background: 'var(--pill-active-bg)', color: 'var(--pill-active-text)', border: '1px solid var(--pill-active-border)', borderRadius: 10, cursor: 'pointer' }}
-                >
-                  🚚 Livrează
-                </button>
-              ) : isDelivered ? (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onGoToVanzari() }}
-                  style={{ flex: 1.2, padding: '9px 0', fontSize: 11, fontWeight: 600, background: 'var(--status-success-bg)', color: 'var(--status-success-text)', border: '1px solid var(--status-success-border)', borderRadius: 10, cursor: 'pointer' }}
-                >
-                  👁 Vânzare
-                </button>
-              ) : null}
-            </div>
-          )}
-
-          {/* Edit / Delete / Reopen */}
-          <div style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, display: 'flex', justifyContent: 'center', gap: 6 }}>
-            {!isDelivered ? (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onEdit(comanda) }}
-                style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
-              >
-                ✏️ Editează
-              </button>
-            ) : null}
-            {isDelivered ? (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onReopen(comanda) }}
-                style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
-              >
-                🔄 Redeschide
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete(comanda) }}
-              style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 8, cursor: 'pointer' }}
-            >
-              🗑️ Șterge
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <MobileEntityCard
+      title={clientName}
+      value={`${formatLeiCompact(total)} lei`}
+      secondary={subtitle}
+      status={
+        <StatusBadge
+          text={statusLabelMap[comanda.status] ?? comanda.status}
+          variant={statusVariantMap[comanda.status] ?? 'neutral'}
+        />
+      }
+      onClick={() => onOpenDetails(comanda)}
+    />
   )
 }
 
@@ -825,14 +645,13 @@ export function ComenziPageClient() {
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [confirmDeliverId, setConfirmDeliverId] = useState<string | null>(null)
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [createPrefill, setCreatePrefill] = useState<Partial<ComandaFormState> | null>(null)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
+  const [viewing, setViewing] = useState<Comanda | null>(null)
   const [desktopSelectedComandaId, setDesktopSelectedComandaId] = useState<string | null>(null)
   const [contactPrompt, setContactPrompt] = useState<ContactPrompt | null>(null)
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
@@ -1033,7 +852,7 @@ export function ComenziPageClient() {
         setContactPrompt({ name: deliveredName, phone: deliveredPhone })
       }
 
-      setDeliveringAndConfirm(null, null)
+      setDeliveringAndConfirm(null)
       setActiveTab('livrate')
       setActiveFilter('none')
     },
@@ -1065,9 +884,8 @@ export function ComenziPageClient() {
     },
   })
 
-  function setDeliveringAndConfirm(delivering: string | null, confirm: string | null) {
+  function setDeliveringAndConfirm(delivering: string | null) {
     setDeliveringId(delivering)
-    setConfirmDeliverId(confirm)
   }
 
   useEffect(() => {
@@ -1444,24 +1262,13 @@ export function ComenziPageClient() {
                 searchPlaceholder="Caută în comenzi..."
                 emptyMessage="Nu am găsit comenzi pentru filtrele curente."
                 desktopContainerClassName="md:min-w-0"
-                mobileContainerClassName="grid grid-cols-1 gap-3"
                 onDesktopRowClick={(row) => setDesktopSelectedComandaId(row.id)}
                 isDesktopRowSelected={(row) => desktopSelectedComanda?.id === row.id}
                 renderCard={(comanda) => (
                   <ComandaCard
                     comanda={comanda}
                     clientName={getClientName(comanda, clientMap)}
-                    isExpanded={expandedId === comanda.id}
-                    isDeliverConfirmOpen={confirmDeliverId === comanda.id}
-                    isDelivering={deliveringId === comanda.id}
-                    onToggleExpand={(id) => setExpandedId((current) => (current === id ? null : id))}
-                    onEdit={setEditing}
-                    onDelete={setDeleting}
-                    onOpenDeliverConfirm={(item) => setConfirmDeliverId(item.id)}
-                    onCancelDeliverConfirm={() => setConfirmDeliverId(null)}
-                    onConfirmDeliver={handleConfirmDeliver}
-                    onGoToVanzari={() => router.push('/vanzari')}
-                    onReopen={setReopening}
+                    onOpenDetails={(item) => setViewing(item)}
                   />
                 )}
               />
@@ -1613,6 +1420,29 @@ export function ComenziPageClient() {
               observatii: values.observatii || null,
             },
           })
+        }}
+      />
+
+      <ViewComandaDialog
+        open={!!viewing}
+        onOpenChange={(open) => {
+          if (!open) setViewing(null)
+        }}
+        comanda={viewing}
+        clientName={viewing ? getClientName(viewing, clientMap) : 'Client'}
+        clientTelefon={viewing?.telefon}
+        canDeliver={Boolean(viewing) && canDeliverStatus(viewing!.status) && viewing!.status !== 'anulata'}
+        onDeliver={(comanda) => {
+          setViewing(null)
+          void handleConfirmDeliver(comanda)
+        }}
+        onEdit={(comanda) => {
+          setViewing(null)
+          setEditing(comanda)
+        }}
+        onDelete={(comanda) => {
+          setViewing(null)
+          setDeleting(comanda)
         }}
       />
 

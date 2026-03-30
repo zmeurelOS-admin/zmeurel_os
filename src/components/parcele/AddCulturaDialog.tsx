@@ -65,6 +65,12 @@ const schema = z.object({
     message: 'Data plantării nu este validă',
   }),
   stadiu: z.string(),
+  interval_tratament_zile: z
+    .string()
+    .trim()
+    .refine((v) => !v || Number.isInteger(Number(v)) && Number(v) > 0, {
+      message: 'Intervalul trebuie să fie un număr întreg pozitiv',
+    }),
   observatii: z.string(),
 })
 
@@ -88,6 +94,7 @@ const defaultValues: FormValues = {
   sistem_irigare: '',
   data_plantarii: '',
   stadiu: 'crestere',
+  interval_tratament_zile: '14',
   observatii: '',
 }
 
@@ -126,6 +133,7 @@ export function AddCulturaDialog({
         sistem_irigare: values.sistem_irigare || undefined,
         data_plantarii: values.data_plantarii || undefined,
         stadiu: values.stadiu || 'crestere',
+        interval_tratament_zile: values.interval_tratament_zile ? Number(values.interval_tratament_zile) : undefined,
         observatii: values.observatii || undefined,
       }),
     onSuccess: () => {
@@ -289,6 +297,22 @@ export function AddCulturaDialog({
             />
             {form.formState.errors.data_plantarii ? (
               <p className="text-xs text-red-600">{form.formState.errors.data_plantarii.message}</p>
+            ) : null}
+          </div>
+
+          {/* Interval tratament: full-width */}
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="interval_tratament_zile">Interval tratament recomandat (zile)</Label>
+            <Input
+              id="interval_tratament_zile"
+              type="number"
+              min="1"
+              placeholder="14"
+              className="agri-control h-12 w-full px-3 text-base"
+              {...form.register('interval_tratament_zile')}
+            />
+            {form.formState.errors.interval_tratament_zile ? (
+              <p className="text-xs text-red-600">{form.formState.errors.interval_tratament_zile.message}</p>
             ) : null}
           </div>
 

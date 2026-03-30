@@ -150,9 +150,9 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
 
   return (
     <>
-      <div className={cn('md:hidden', mobileContainerClassName)}>
+      <div className={cn('md:hidden grid grid-cols-2 gap-3', mobileContainerClassName)}>
         {mobileRows.map((item, index) => (
-          <div key={resolveMobileKey(item, index, getMobileRowId)}>
+          <div key={resolveMobileKey(item, index, getMobileRowId)} className="h-full">
             {renderCard(item, index)}
           </div>
         ))}

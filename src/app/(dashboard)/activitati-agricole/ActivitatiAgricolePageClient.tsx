@@ -1,136 +1,67 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, ClipboardList, Droplets, Scissors, Bug, Sprout, ArrowRight } from 'lucide-react'
+import { ClipboardList, Droplets, Scissors, Bug, Sprout } from 'lucide-react'
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
+import { AppShell } from '@/components/app/AppShell'
+import { PageHeader } from '@/components/app/PageHeader'
+import { SearchField } from '@/components/ui/SearchField'
+import { AppCard } from '@/components/ui/app-card'
+import { cn } from '@/lib/utils'
 
 export default function ActivitatiPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [addOpen, setAddOpen] = useState(false)
 
   const categorii = [
-    { name: 'Tratamente', icon: Bug, color: '#EF4444', bg: '#FEF2F2' },
-    { name: 'Irigare', icon: Droplets, color: '#3B82F6', bg: '#EFF6FF' },
-    { name: 'Tăieri', icon: Scissors, color: '#F59E0B', bg: '#FFFBEB' },
-    { name: 'Fertilizare', icon: Sprout, color: '#10B981', bg: '#ECFDF5' },
+    { name: 'Tratamente', icon: Bug, color: 'var(--status-danger-text)' },
+    { name: 'Irigare', icon: Droplets, color: 'var(--status-info-text)' },
+    { name: 'Tăieri', icon: Scissors, color: 'var(--status-warning-text)' },
+    { name: 'Fertilizare', icon: Sprout, color: 'var(--status-success-text)' },
   ]
 
   return (
-    <div
-      style={{
-        backgroundColor: '#F8F9FB',
-        width: '100%',
-        minHeight: '100%',
-        paddingBottom: 20,
-        overflowX: 'hidden',
-        fontFamily: 'inherit',
-      }}
+    <AppShell
+      header={<PageHeader title="Activități" subtitle="Operațiuni agricole" rightSlot={<ClipboardList className="h-5 w-5 text-[var(--agri-text-muted)]" />} />}
     >
-      <div style={{ marginLeft: -16, marginRight: -16 }}>
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #064E3B 0%, #065F46 100%)',
-            padding: '60px 24px 80px 24px',
-            borderBottomLeftRadius: 45,
-            borderBottomRightRadius: 45,
-            boxShadow: '0 10px 30px rgba(6, 78, 59, 0.15)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: 'white' }}>
-                Operațiuni
-              </h1>
-              <p style={{ opacity: 0.8, fontSize: 14, marginTop: 4, color: '#ECFDF5' }}>
-                Planifică și monitorizează cultura.
-              </p>
-            </div>
-            <div style={{ backgroundColor: 'rgba(255,255,255,0.15)', padding: 10, borderRadius: 18 }}>
-              <ClipboardList color="white" size={24} />
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-4">
+        <SearchField
+          placeholder="Caută o intervenție..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Caută activități"
+        />
 
-      <div style={{ padding: '0 20px', marginTop: -30 }}>
-        <div
-          style={{
-            backgroundColor: 'white',
-            borderRadius: 20,
-            display: 'flex',
-            alignItems: 'center',
-            padding: '12px 16px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
-            border: '1px solid #eee',
-          }}
-        >
-          <Search size={18} color="#94a3b8" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Caută o intervenție..."
-            style={{
-              border: 'none',
-              outline: 'none',
-              marginLeft: 12,
-              width: '100%',
-              fontSize: 16,
-              fontFamily: 'inherit',
-            }}
-          />
-        </div>
-      </div>
-
-      <div style={{ padding: '24px 20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 32 }}>
+        <div className="grid grid-cols-2 gap-3">
           {categorii.map((cat) => (
-            <div key={cat.name} style={{ textAlign: 'center' }}>
-              <div
-                style={{
-                  backgroundColor: cat.bg,
-                  width: '100%',
-                  aspectRatio: '1/1',
-                  borderRadius: 20,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 6,
-                }}
-              >
-                <cat.icon size={22} color={cat.color} />
+            <AppCard
+              key={cat.name}
+              className={cn('cursor-pointer p-4', 'active:scale-[0.99] transition-transform duration-120')}
+              onClick={() => setAddOpen(true)}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+                    {cat.name}
+                  </div>
+                  <div className="mt-1 text-lg font-bold text-[var(--agri-text)]">Adaugă</div>
+                  <div className="mt-1 text-xs font-medium text-[var(--agri-text-muted)]">Rapid</div>
+                </div>
+                <cat.icon className="h-5 w-5 shrink-0" style={{ color: cat.color }} />
               </div>
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  color: '#64748b',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {cat.name}
-              </span>
-            </div>
+            </AppCard>
           ))}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>Istoric Lucrări</h2>
-          <ArrowRight size={20} color="#94a3b8" />
-        </div>
-
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: 20,
-            borderRadius: 24,
-            border: '1px solid #eee',
-          }}
-        >
-          Exemplu activitate...
-        </div>
+        <AppCard className="p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Istoric</div>
+          <div className="mt-1 text-sm font-semibold text-[var(--agri-text)]">Ultimele lucrări</div>
+          <div className="mt-1 text-xs font-medium text-[var(--agri-text-muted)]">(în lucru)</div>
+        </AppCard>
       </div>
+
       <AddActivitateAgricolaDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
-    </div>
+    </AppShell>
   )
 }
 

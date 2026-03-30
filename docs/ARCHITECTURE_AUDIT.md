@@ -11,6 +11,7 @@
 - Overall architecture is solid for a small-to-mid multi-tenant SaaS: Supabase Auth, tenant resolution through `profiles.tenant_id`, RLS-backed data access, and service-role usage mostly constrained to server routes, cron jobs, admin tools, demo lifecycle, and repair flows.
 - The strongest part of the design is the auth-to-tenant pipeline: `src/proxy.ts`, `src/app/auth/callback/route.ts`, `src/lib/tenant/get-tenant.ts`, and `src/lib/auth/ensure-tenant.ts` form a coherent request-gating and tenant-repair model.
 - The main architectural weakness is consistency, not raw capability: some modules apply explicit tenant filters while others rely only on RLS, destructive flows have drifted out of sync as new tenant tables were added, and analytics/performance patterns are more client-heavy than the App Router architecture would ideally encourage.
+- Weather delivery now adds a Supabase Edge Function cache layer: dashboard clients call `fetch-meteo`, the function resolves tenant coordinates from `parcele` or `tenant_settings`, reads/writes `meteo_cache`, and only calls OpenWeather when cache entries have expired.
 
 ## Executive Risk Summary
 

@@ -4,6 +4,7 @@ import { type UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 
 import { NumericField } from '@/components/app/NumericField'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -14,12 +15,15 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatM2ToHa, parseLocalizedNumber } from '@/lib/utils/area'
+import { toast } from '@/lib/ui/toast'
 
 export interface ParcelFormValues {
   nume_parcela: string
   tip_unitate: 'camp' | 'solar' | 'livada' | 'cultura_mare'
   tip_fruct: string
   suprafata_m2: string
+  latitudine: string
+  longitudine: string
   soi_plantat: string
   cultura: string
   soi: string
@@ -51,6 +55,18 @@ export const parcelFormSchema = z.object({
     .min(1, 'Suprafața este obligatorie')
     .refine((value) => Number.isFinite(toDecimal(value)) && toDecimal(value) > 0, {
       message: 'Suprafața trebuie să fie un număr valid',
+    }),
+  latitudine: z
+    .string()
+    .trim()
+    .refine((value) => !value || Number.isFinite(Number(value.replace(',', '.'))), {
+      message: 'Latitudinea trebuie să fie un număr valid',
+    }),
+  longitudine: z
+    .string()
+    .trim()
+    .refine((value) => !value || Number.isFinite(Number(value.replace(',', '.'))), {
+      message: 'Longitudinea trebuie să fie un număr valid',
     }),
   soi_plantat: z.string(),
   cultura: z.string(),
@@ -91,6 +107,8 @@ export const getParcelFormDefaults = (): ParcelFormValues => ({
   tip_unitate: 'camp',
   tip_fruct: '',
   suprafata_m2: '',
+  latitudine: '',
+  longitudine: '',
   soi_plantat: '',
   cultura: '',
   soi: '',
@@ -117,6 +135,31 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
   const tipUnitate = form.watch('tip_unitate')
   const suprafataValue = form.watch('suprafata_m2')
+
+  const handleUseCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast.error('Geolocația nu este disponibilă în acest browser')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        form.setValue('latitudine', String(lat), { shouldDirty: true, shouldValidate: true })
+        form.setValue('longitudine', String(lng), { shouldDirty: true, shouldValidate: true })
+        toast.success('Locația curentă a fost completată')
+      },
+      (error) => {
+        const message =
+          error.code === 1
+            ? 'Accesul la locație a fost refuzat'
+            : 'Nu am putut obține locația curentă'
+        toast.error(message)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -161,6 +204,39 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
         error={form.formState.errors.suprafata_m2?.message}
       />
       <p className="text-xs text-muted-foreground">≈ {formatM2ToHa(suprafataValue)}</p>
+
+      <div className="space-y-2">
+        <Label>Locație</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="latitudine">Latitudine</Label>
+            <NumericField
+              id="latitudine"
+              label=""
+              placeholder="47.6514"
+              step="any"
+              {...form.register('latitudine')}
+              error={form.formState.errors.latitudine?.message}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="longitudine">Longitudine</Label>
+            <NumericField
+              id="longitudine"
+              label=""
+              placeholder="26.2553"
+              step="any"
+              {...form.register('longitudine')}
+              error={form.formState.errors.longitudine?.message}
+            />
+          </div>
+        </div>
+
+        <Button type="button" variant="secondary" className="w-full" onClick={handleUseCurrentLocation}>
+          📍 Folosește locația curentă
+        </Button>
+      </div>
 
       <div className="space-y-2">
         <Label>Status *</Label>

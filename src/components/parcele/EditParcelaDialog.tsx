@@ -33,6 +33,7 @@ export function EditParcelaDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nume_parcela: '',
+    rol: 'comercial',
     suprafata_m2: '',
     soi_plantat: '',
     an_plantare: '',
@@ -45,6 +46,7 @@ export function EditParcelaDialog({
     if (!parcela) return;
     setFormData({
       nume_parcela: parcela.nume_parcela,
+      rol: parcela.rol || 'comercial',
       suprafata_m2: parcela.suprafata_m2.toString(),
       soi_plantat: parcela.soi_plantat || '',
       an_plantare: parcela.an_plantare.toString(),
@@ -72,6 +74,7 @@ export function EditParcelaDialog({
 
       const updateData: ParcelaUpdate = {
         nume_parcela: formData.nume_parcela,
+        rol: formData.rol,
         suprafata_m2: parseLocalizedNumber(formData.suprafata_m2),
         soi_plantat: formData.soi_plantat || null,
         an_plantare: parseInt(formData.an_plantare, 10),
@@ -119,6 +122,19 @@ export function EditParcelaDialog({
         <div className="space-y-2">
           <Label htmlFor="nume_parcela">Nume teren *</Label>
           <Input id="nume_parcela" value={formData.nume_parcela} onChange={(e) => handleInputChange('nume_parcela', e.target.value)} required />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="rol">Rol</Label>
+          <Select value={formData.rol} onValueChange={(value) => handleInputChange('rol', value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="comercial">Comercial</SelectItem>
+              <SelectItem value="uz_propriu">Uz propriu</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 
 import {
   getParcele,
@@ -15,12 +16,33 @@ import {
 import { AddParcelaDialog } from '@/components/parcele/AddParcelaDialog'
 import { EditParcelaDialog } from '@/components/parcele/EditParcelaDialog'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
-import { ParcelaCard } from '@/components/parcele/ParcelaCard'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
+import { formatM2ToHa } from '@/lib/utils/area'
+import { cn } from '@/lib/utils'
 
 interface ParcelaPageClientProps {
   initialParcele: Parcela[]
+}
+
+function getUnitateBadge(tipUnitate: string | null | undefined): { label: string; className: string } {
+  const value = (tipUnitate ?? 'camp').toLowerCase()
+  if (value === 'solar') {
+    return {
+      label: 'Solar',
+      className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-400',
+    }
+  }
+  if (value === 'livada') {
+    return {
+      label: 'Livada',
+      className: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
+    }
+  }
+  return {
+    label: 'Camp',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-green-700 dark:bg-green-900/50 dark:text-green-400',
+  }
 }
 
 export function ParcelaPageClient({
@@ -31,6 +53,7 @@ export function ParcelaPageClient({
   const [desktopSelectedParcelaId, setDesktopSelectedParcelaId] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data: parcele = initialParcele, isLoading } = useQuery({
     queryKey: queryKeys.parcele,
@@ -87,20 +110,71 @@ export function ParcelaPageClient({
 
         {!isLoading && parcele.length > 0 ? (
           <>
-            <div className="space-y-4 lg:hidden">
+            <div className="grid grid-cols-2 gap-3 lg:hidden">
               {parcele.map((p) => (
-                <ParcelaCard
+                <MobileEntityCard
                   key={p.id}
-                  parcela={p}
-                  onEdit={() => {
-                    setSelectedParcela(p)
-                    setEditOpen(true)
-                  }}
-                  onDelete={() => {
-                    setSelectedParcela(p)
-                    setDeleteOpen(true)
-                  }}
-                />
+                  title={p.nume_parcela || 'Teren'}
+                  value={formatM2ToHa(p.suprafata_m2)}
+                  secondary={[p.tip_fruct || null, p.soi_plantat || p.soi || null].filter(Boolean).join(' · ') || '-'}
+                  status={
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold',
+                        getUnitateBadge(p.tip_unitate).className
+                      )}
+                    >
+                      {getUnitateBadge(p.tip_unitate).label}
+                    </span>
+                  }
+                  onClick={() => setExpandedId((current) => (current === p.id ? null : p.id))}
+                  isExpanded={expandedId === p.id}
+                  className={cn(expandedId === p.id ? 'border-[var(--soft-success-border)]' : '')}
+                >
+                  <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
+                    <span>
+                      <span className="text-[var(--agri-text-muted)]">An plantare: </span>
+                      <span className="font-semibold">{p.an_plantare || '-'}</span>
+                    </span>
+                    <span>
+                      <span className="text-[var(--agri-text-muted)]">Nr plante: </span>
+                      <span className="font-semibold">{p.nr_plante || '-'}</span>
+                    </span>
+                    <span>
+                      <span className="text-[var(--agri-text-muted)]">Suprafață: </span>
+                      <span className="font-semibold">{formatM2ToHa(p.suprafata_m2)}</span>
+                    </span>
+                    <span>
+                      <span className="text-[var(--agri-text-muted)]">Status REI: </span>
+                      <span className="font-semibold">Date indisponibile</span>
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+                    <button
+                      type="button"
+                      className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedParcela(p)
+                        setEditOpen(true)
+                      }}
+                    >
+                      Editează
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedParcela(p)
+                        setDeleteOpen(true)
+                      }}
+                    >
+                      Șterge
+                    </button>
+                  </div>
+                </MobileEntityCard>
               ))}
             </div>
 

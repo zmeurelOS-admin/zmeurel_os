@@ -14,8 +14,11 @@ import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import Sparkline from '@/components/ui/Sparkline'
+import StatusBadge from '@/components/ui/StatusBadge'
+import { ViewRecoltareDialog } from '@/components/recoltari/ViewRecoltareDialog'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -91,129 +94,11 @@ function formatKg(value: number, digits = 2): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: digits }).format(value)} kg`
 }
 
-function formatTimeFromTs(value: string | null | undefined): string {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '-'
-  return parsed.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
-}
-
-function sanitizeObservatiiForDisplay(value: string | null | undefined): string {
-  return (value ?? '').replace(/\[zmeurel:harvest-crop\][\s\S]*?\[\/zmeurel:harvest-crop\]/g, '').trim()
-}
-
-function RecoltareCardNew({
-  recoltare,
-  parcelaNume,
-  parcelaSoi,
-  culegatorNume,
-  isExpanded,
-  onToggle,
-  onEdit,
-  onDelete,
-}: {
-  recoltare: Recoltare
-  parcelaNume: string | undefined
-  parcelaSoi: string | undefined
-  culegatorNume: string | undefined
-  isExpanded: boolean
-  onToggle: (id: string) => void
-  onEdit: (recoltare: Recoltare) => void
-  onDelete: (recoltare: Recoltare) => void
-}) {
-  const kg = getRecoltareKg(recoltare)
-  const cal1 = Number(recoltare.kg_cal1 ?? 0)
-  const cal2 = Number(recoltare.kg_cal2 ?? 0)
-  const cal1Pct = kg > 0 ? Math.round((cal1 / kg) * 100) : 0
-  const ora = formatTimeFromTs(recoltare.created_at)
-  const observatiiDisplay = sanitizeObservatiiForDisplay(recoltare.observatii)
-
-  return (
-    <div
-      className="w-full"
-      role="button"
-      tabIndex={0}
-      onClick={() => onToggle(recoltare.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(recoltare.id) }
-      }}
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
-        boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
-        padding: '11px 14px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-      }}
-    >
-      {/* Summary row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)', lineHeight: 1.3 }}>
-            {parcelaNume || 'Parcelă'}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 3 }}>
-            {[parcelaSoi, culegatorNume].filter(Boolean).join(' · ') || '-'}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--agri-text)' }}>
-            {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(kg)}
-          </span>
-          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>kg</span>
-        </div>
-      </div>
-
-      {/* Drag indicator */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
-        <div style={{ width: 22, height: 2.5, borderRadius: 2, background: 'var(--text-hint)', opacity: 0.35 }} />
-      </div>
-
-      {/* Expanded section */}
-      {isExpanded ? (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, marginTop: 10 }}
-        >
-          {/* Details */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cal I: </span><strong style={{ color: 'var(--value-positive)' }}>{cal1.toFixed(2)} kg</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cal II: </span><strong style={{ color: 'var(--status-warning-text)' }}>{cal2.toFixed(2)} kg</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Ora: </span><strong>{ora}</strong></span>
-            {culegatorNume ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Culegător: </span><strong>{culegatorNume}</strong></span> : null}
-            {observatiiDisplay ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Obs: </span><strong>{observatiiDisplay}</strong></span> : null}
-          </div>
-
-          {/* Quality bar */}
-          {kg > 0 ? (
-            <div style={{ display: 'flex', gap: 2, height: 5, borderRadius: 3, overflow: 'hidden', background: 'var(--agri-surface-muted)', marginBottom: 10 }}>
-              <div style={{ width: `${cal1Pct}%`, background: 'var(--value-positive)' }} />
-              <div style={{ width: `${100 - cal1Pct}%`, background: 'var(--status-warning-text)' }} />
-            </div>
-          ) : null}
-
-          {/* Edit / Delete */}
-          <div style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, display: 'flex', justifyContent: 'center', gap: 6 }}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit(recoltare) }}
-              style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
-            >
-              ✏️ Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete(recoltare) }}
-              style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 8, cursor: 'pointer' }}
-            >
-              🗑️ Șterge
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
+function relativeHarvestDateLabel(daysAgo: number | null): string {
+  if (daysAgo === null) return '-'
+  if (daysAgo === 0) return 'azi'
+  if (daysAgo === 1) return 'ieri'
+  return `acum ${daysAgo} zile`
 }
 
 export function RecoltariPageClient({
@@ -230,11 +115,11 @@ export function RecoltariPageClient({
 
   const [searchTerm, setSearchTerm] = useState('')
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('sezon')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [aiPrefill, setAiPrefill] = useState<{ parcela_id: string; parcela_label: string; cantitate_kg: string; data: string; observatii: string } | null>(null)
   const [editingRecoltare, setEditingRecoltare] = useState<Recoltare | null>(null)
   const [deletingRecoltare, setDeletingRecoltare] = useState<Recoltare | null>(null)
+  const [viewingRecoltare, setViewingRecoltare] = useState<Recoltare | null>(null)
 
   const pathname = usePathname()
   const router = useRouter()
@@ -711,26 +596,68 @@ export function RecoltariPageClient({
         ) : null}
 
         {!isLoading && !isError && !initialError && filteredRecoltari.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
             {filteredRecoltari.map((recoltare) => {
               const parcelaMeta = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined
+              const parcelaName = parcelaMeta?.name || 'Parcelă'
+              const soiName = parcelaMeta?.soi || 'Soi'
+              const culegatorName = recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined
+              const kg = getRecoltareKg(recoltare)
+              const cal1 = Number(recoltare.kg_cal1 ?? 0)
+              const cal2 = Number(recoltare.kg_cal2 ?? 0)
+              const dateOnly = toDateOnly(recoltare.data)
+              const parsed = dateOnly ? new Date(dateOnly) : null
+              const daysAgo = parsed && !Number.isNaN(parsed.getTime())
+                ? Math.floor((today.getTime() - new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()).getTime()) / (1000 * 60 * 60 * 24))
+                : null
+
+              const secondaryValue = [
+                cal1 > 0 ? `Cal1 ${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(cal1)}` : null,
+                cal2 > 0 ? `Cal2 ${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(cal2)}` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined
+
               return (
-                <RecoltareCardNew
+                <MobileEntityCard
                   key={recoltare.id}
-                  recoltare={recoltare}
-                  parcelaNume={parcelaMeta?.name}
-                  parcelaSoi={parcelaMeta?.soi}
-                  culegatorNume={recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined}
-                  isExpanded={expandedId === recoltare.id}
-                  onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
-                  onEdit={setEditingRecoltare}
-                  onDelete={setDeletingRecoltare}
+                  title={`${soiName} — ${parcelaName}`}
+                  value={`${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(kg)} kg`}
+                  secondary={secondaryValue}
+                  status={
+                    <StatusBadge
+                      text={relativeHarvestDateLabel(daysAgo)}
+                      variant="success"
+                    />
+                  }
+                  onClick={() => setViewingRecoltare(recoltare)}
                 />
               )
             })}
           </div>
         ) : null}
       </div>
+
+      <ViewRecoltareDialog
+        open={Boolean(viewingRecoltare)}
+        onOpenChange={(open) => {
+          if (!open) setViewingRecoltare(null)
+        }}
+        recoltare={viewingRecoltare}
+        parcelaNume={viewingRecoltare?.parcela_id ? parcelaMap[viewingRecoltare.parcela_id]?.name : undefined}
+        parcelaTip={viewingRecoltare?.parcela_id ? parcelaMap[viewingRecoltare.parcela_id]?.tipLabel : undefined}
+        culegatorNume={
+          viewingRecoltare?.culegator_id ? culegatorMap[viewingRecoltare.culegator_id]?.nume : undefined
+        }
+        onEdit={(recoltare) => {
+          setViewingRecoltare(null)
+          setEditingRecoltare(recoltare)
+        }}
+        onDelete={(recoltare) => {
+          setViewingRecoltare(null)
+          setDeletingRecoltare(recoltare)
+        }}
+      />
 
       <AddRecoltareDialog
         open={addOpen}

@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
 import { EditClientDialog } from '@/components/clienti/EditClientDialog'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { toast } from '@/lib/ui/toast'
+import { cn } from '@/lib/utils'
 
 type ComandaItem = Awaited<ReturnType<typeof getComenzi>>[number]
 type VanzareItem = Awaited<ReturnType<typeof getVanzari>>[number]
@@ -311,16 +313,6 @@ async function parseClientFile(file: File): Promise<ImportPreview> {
   return parseClientCsv(content)
 }
 
-// ─── Inline card component ────────────────────────────────────────────────────
-
-const PILL = {
-  base: { borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 600, border: 'none', display: 'inline-flex', alignItems: 'center' },
-  green: { background: 'var(--status-success-bg)', color: 'var(--status-success-text)' },
-  red: { background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)' },
-  gray: { background: 'var(--status-neutral-bg)', color: 'var(--status-neutral-text)' },
-  orange: { background: 'var(--status-warning-bg)', color: 'var(--status-warning-text)' },
-}
-
 function comandaStatusLabel(status: string): string {
   if (status === 'livrata') return '✅ Livrată'
   if (status === 'anulata') return '❌ Anulată'
@@ -355,155 +347,128 @@ function ClientCardNew({
   const hasPhone = Boolean(client.telefon)
   const phoneClean = (client.telefon ?? '').replace(/\s+/g, '')
 
+  const mainValue = metrics.totalRon > 0
+    ? `${metrics.totalRon.toFixed(0)} RON`
+    : `${metrics.comenziCount} comenzi`
+
+  const secondary = [
+    client.telefon ? String(client.telefon) : null,
+    metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null,
+    metrics.vanzariCount > 0 ? `${metrics.vanzariCount} vânzări` : null,
+  ].filter(Boolean).join(' · ')
+
   return (
-    <div
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: '1px solid var(--agri-border)',
-        overflow: 'hidden',
-        marginBottom: 8,
-      }}
+    <MobileEntityCard
+      title={client.nume_client}
+      value={mainValue}
+      secondary={secondary || '-'}
+      status={
+        metrics.unpaidRon > 0 ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-danger-text)]">
+            Neîncasat
+          </span>
+        ) : metrics.totalRon > 0 ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-success-text)]">
+            OK
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-neutral-text)]">
+            Nou
+          </span>
+        )
+      }
+      onClick={onToggle}
+      isExpanded={expanded}
+      className={cn(metrics.unpaidRon > 0 ? 'border-[var(--status-danger-border)]' : '')}
     >
-      {/* Header row — always visible */}
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          textAlign: 'left',
-          background: 'none',
-          border: 'none',
-          padding: '12px 14px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>🤝</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {client.nume_client}
-            </span>
-            <span style={{ fontSize: 16, color: 'var(--agri-text-muted)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 3 }}>
-            {client.telefon && (
-              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{client.telefon}</span>
-            )}
-            {metrics.comenziCount > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{metrics.comenziCount} comenzi</span>
-            )}
-            {metrics.vanzariCount > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--value-positive)', fontWeight: 600 }}>{metrics.totalRon.toFixed(0)} RON</span>
-            )}
-            {metrics.unpaidRon > 0 && (
-              <span style={{ ...PILL.base, ...PILL.red, fontSize: 11 }}>💸 {metrics.unpaidRon.toFixed(0)} RON neîncasat</span>
-            )}
+      {hasPhone ? (
+        <div className="flex gap-2">
+          <a
+            href={`tel:${phoneClean}`}
+            className="flex-1 min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--button-muted-text)]"
+          >
+            Sună
+          </a>
+          <a
+            href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 min-h-11 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--status-success-text)]"
+          >
+            WhatsApp
+          </a>
+        </div>
+      ) : null}
+
+      {clientComenzi.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+            Ultimele comenzi
+          </p>
+          <div className="mt-2 space-y-1 text-sm text-[var(--agri-text)]">
+            {clientComenzi.map((cmd) => (
+              <div key={cmd.id} className="flex items-center justify-between gap-2">
+                <span className="truncate">
+                  {cmd.data_comanda?.slice(0, 10) ?? '—'} · {Number(cmd.cantitate_kg || 0).toFixed(0)} kg
+                </span>
+                <span className="shrink-0 text-xs text-[var(--agri-text-muted)]">{comandaStatusLabel(cmd.status)}</span>
+              </div>
+            ))}
           </div>
         </div>
-      </button>
+      ) : null}
 
-      {/* Expanded section */}
-      {expanded && (
-        <div style={{ padding: '0 14px 14px' }}>
-          {/* Contact actions */}
-          {hasPhone && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-              <a
-                href={`tel:${phoneClean}`}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', textDecoration: 'none',
-                  border: '1px solid var(--button-muted-border)',
-                }}
-              >
-                📞 Sună
-              </a>
-              <a
-                href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  background: 'var(--status-success-bg)', color: 'var(--status-success-text)', textDecoration: 'none',
-                  border: '1px solid var(--status-success-border)',
-                }}
-              >
-                💬 WhatsApp
-              </a>
-            </div>
-          )}
-
-          {/* Last 3 comenzi */}
-          {clientComenzi.length > 0 && (
-            <div style={{ marginBottom: 10 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--agri-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
-                Ultimele comenzi
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {clientComenzi.map((cmd) => (
-                  <div key={cmd.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text)' }}>
-                    <span>{cmd.data_comanda?.slice(0, 10) ?? '—'} · {Number(cmd.cantitate_kg || 0).toFixed(0)} kg</span>
-                    <span style={{ fontSize: 11, color: 'var(--agri-text-muted)' }}>{comandaStatusLabel(cmd.status)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Last 3 vânzări */}
-          {clientVanzari.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--agri-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
-                Ultimele vânzări
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {clientVanzari.map((v) => {
-                  const ron = Number(v.cantitate_kg || 0) * Number(v.pret_lei_kg || 0)
-                  return (
-                    <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text)' }}>
-                      <span>{v.data?.slice(0, 10) ?? '—'} · {Number(v.cantitate_kg || 0).toFixed(0)} kg · {ron.toFixed(0)} RON</span>
-                      <span style={{ fontSize: 11, color: isIncasata(v.status_plata) ? 'var(--status-success-text)' : 'var(--status-danger-text)' }}>
-                        {isIncasata(v.status_plata) ? '✅' : '⏳'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Edit / Delete */}
-          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid var(--agri-border)', paddingTop: 12 }}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--button-muted-bg)', border: '1px solid var(--button-muted-border)', color: 'var(--button-muted-text)', cursor: 'pointer',
-              }}
-            >
-              ✏️ Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--status-danger-bg)', border: '1px solid var(--status-danger-border)', color: 'var(--status-danger-text)', cursor: 'pointer',
-              }}
-            >
-              🗑️ Șterge
-            </button>
+      {clientVanzari.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+            Ultimele vânzări
+          </p>
+          <div className="mt-2 space-y-1 text-sm text-[var(--agri-text)]">
+            {clientVanzari.map((v) => {
+              const ron = Number(v.cantitate_kg || 0) * Number(v.pret_lei_kg || 0)
+              return (
+                <div key={v.id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">
+                    {v.data?.slice(0, 10) ?? '—'} · {Number(v.cantitate_kg || 0).toFixed(0)} kg · {ron.toFixed(0)} RON
+                  </span>
+                  <span
+                    className={cn(
+                      'shrink-0 text-xs font-semibold',
+                      isIncasata(v.status_plata) ? 'text-[var(--status-success-text)]' : 'text-[var(--status-danger-text)]'
+                    )}
+                  >
+                    {isIncasata(v.status_plata) ? '✅' : '⏳'}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
-      )}
-    </div>
+      ) : null}
+
+      <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit()
+          }}
+          className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+        >
+          Editează
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+        >
+          Șterge
+        </button>
+      </div>
+    </MobileEntityCard>
   )
 }
 

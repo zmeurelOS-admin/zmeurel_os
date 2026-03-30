@@ -12,11 +12,13 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { AddInvestitieDialog } from '@/components/investitii/AddInvestitieDialog'
 import { EditInvestitieDialog } from '@/components/investitii/EditInvestitieDialog'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { deleteInvestitie, getInvestitii, type Investitie } from '@/lib/supabase/queries/investitii'
 import { buildInvestitieDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 
 interface Parcela {
   id: string
@@ -70,81 +72,73 @@ function InvestitieCardNew({
   const suma = Number(investitie.suma_lei || 0)
 
   return (
-    <div style={{ background: 'var(--surface-card)', borderRadius: 14, border: '1px solid var(--agri-border)', overflow: 'hidden', marginBottom: 8 }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%', textAlign: 'left', background: 'none', border: 'none',
-          padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>{emoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {investitie.categorie || 'Investiție'}
-            </span>
-            <span style={{ fontSize: 16, color: 'var(--text-hint)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 3 }}>
-            {investitie.data && (
-              <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>{new Date(investitie.data).toLocaleDateString('ro-RO')}</span>
-            )}
-            <span style={{ fontSize: 12, color: 'var(--value-positive)', fontWeight: 600 }}>{suma.toFixed(0)} RON</span>
-            {investitie.furnizor && (
-              <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>{investitie.furnizor}</span>
-            )}
-          </div>
-        </div>
-      </button>
-
-      {expanded && (
-        <div style={{ padding: '0 14px 14px' }}>
+    <MobileEntityCard
+      title={
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden>{emoji}</span>
+          <span>{investitie.categorie || 'Investiție'}</span>
+        </span>
+      }
+      value={`${suma.toFixed(0)} RON`}
+      secondary={
+        [
+          investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : null,
+          investitie.furnizor || null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || '-'
+      }
+      status={
+        parcelaNume ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-1 text-[10px] font-semibold text-[var(--agri-text)]">
+            {parcelaNume}
+          </span>
+        ) : null
+      }
+      onClick={onToggle}
+      isExpanded={expanded}
+      className={cn('border-l-[4px] border-l-[var(--value-positive)]')}
+    >
+      {expanded ? (
+        <>
           {/* Details */}
-          <div style={{ marginBottom: 12 }}>
-            {investitie.descriere && (
-              <p style={{ fontSize: 13, color: 'var(--agri-text-muted)', marginBottom: 6 }}>📝 {investitie.descriere}</p>
-            )}
-            {parcelaNume && (
-              <p style={{ fontSize: 13, color: 'var(--agri-text-muted)', marginBottom: 6 }}>📍 Parcelă: {parcelaNume}</p>
-            )}
-            {investitie.furnizor && (
-              <p style={{ fontSize: 13, color: 'var(--agri-text-muted)', marginBottom: 6 }}>🏪 Furnizor: {investitie.furnizor}</p>
-            )}
+          <div className="space-y-1 text-sm text-[var(--agri-text-muted)]">
+            {investitie.descriere ? <p>📝 {investitie.descriere}</p> : null}
+            {parcelaNume ? <p>📍 Parcelă: {parcelaNume}</p> : null}
+            {investitie.furnizor ? <p>🏪 Furnizor: {investitie.furnizor}</p> : null}
           </div>
 
           {/* Value highlight */}
-          <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, textAlign: 'center' }}>
-            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--value-positive)' }}>{suma.toFixed(2)} RON</span>
+          <div className="mt-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 text-center">
+            <span className="text-xl font-bold text-[var(--value-positive)]">{suma.toFixed(2)} RON</span>
           </div>
 
           {/* Edit / Delete */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--button-muted-bg)', border: '1px solid var(--button-muted-border)', color: 'var(--button-muted-text)', cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
               }}
+              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
             >
               ✏️ Editează
             </button>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--soft-danger-bg)', border: '1px solid var(--soft-danger-border)', color: 'var(--soft-danger-text)', cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
               }}
+              className="min-h-9 rounded-lg border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] px-3 text-[11px] font-semibold text-[var(--soft-danger-text)]"
             >
               🗑️ Șterge
             </button>
           </div>
-        </div>
-      )}
-    </div>
+        </>
+      ) : null}
+    </MobileEntityCard>
   )
 }
 

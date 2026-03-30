@@ -6,15 +6,16 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
-import { EditActivitateAgricolaDialog } from '@/components/activitati-agricole/EditActivitateAgricolaDialog'
+import { ActivityDetailSheet } from '@/components/activitati-agricole/ActivityDetailSheet'
 import { AppShell } from '@/components/app/AppShell'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { SearchField } from '@/components/ui/SearchField'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { computeActivityRemainingDays } from '@/lib/parcele/pauza'
 import { track } from '@/lib/analytics/track'
@@ -22,7 +23,6 @@ import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { deleteActivitateAgricola, getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import { getParcele } from '@/lib/supabase/queries/parcele'
-import { buildActivitateDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
 
 type TipFilter = 'toate' | 'tratamente' | 'fertilizare' | 'taiere' | 'altele'
@@ -53,11 +53,17 @@ function activityKind(tip: string | null | undefined): TipFilter {
 
 function activityEmojiByTip(tip: string | null | undefined): string {
   const t = normalizeText(tip)
-  if (t.includes('irig') || t.includes('udar') || t.includes('fertirig') || t.includes('fertigare')) return '💧'
-  if (t.includes('tratament') || t.includes('fungic') || t.includes('pestic') || t.includes('erbic') || t.includes('insecticid')) return '💊'
-  if (t.includes('plivit') || t.includes('buruien')) return '🌿'
-  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier')) return '✂️'
-  if (t.includes('plantar')) return '🌱'
+  if (
+    t.includes('tratament') ||
+    t.includes('fungic') ||
+    t.includes('pestic') ||
+    t.includes('erbic') ||
+    t.includes('insecticid')
+  )
+    return '💊'
+  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier'))
+    return '✂️'
+  if (t.includes('irig') || t.includes('udar')) return '💧'
   if (t.includes('fert')) return '🌿'
   return '📋'
 }
@@ -74,6 +80,20 @@ function formatDateShort(value: string | null | undefined): string {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return '-'
   return parsed.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
+}
+
+function relativeActivityLabel(daysAgo: number | null): string {
+  if (daysAgo === null) return '-'
+  if (daysAgo === 0) return 'azi'
+  if (daysAgo === 1) return 'ieri'
+  return `acum ${daysAgo} zile`
+}
+
+function statusToneForDaysAgo(daysAgo: number | null): 'success' | 'warning' | 'neutral' {
+  if (daysAgo === null) return 'neutral'
+  if (daysAgo < 3) return 'success'
+  if (daysAgo <= 7) return 'warning'
+  return 'neutral'
 }
 
 function relativeTime(daysAgo: number | null): { text: string; color: string } {
@@ -139,7 +159,6 @@ export default function ActivitatiPage() {
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: ActivitateAgricola; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
-  const activityRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const {
     data: activitati = [],
@@ -165,11 +184,8 @@ export default function ActivitatiPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [tipFilter, setTipFilter] = useState<TipFilter>('toate')
   const [selectedParcelaId, setSelectedParcelaId] = useState<string | null>(null)
-  const [expandedById, setExpandedById] = useState<Record<string, boolean>>({})
-  const [editOpen, setEditOpen] = useState(false)
   const [selected, setSelected] = useState<ActivitateAgricola | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [toDelete, setToDelete] = useState<ActivitateAgricola | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const openFormFromQuery = hasAiActivityOpenForm(searchParams)
 
   const deleteMutation = useMutation({
@@ -362,13 +378,7 @@ export default function ActivitatiPage() {
     })
   }, [activitati, searchQuery, selectedParcelaId, tipFilter])
 
-  const scrollToActivity = (activityId: string) => {
-    setExpandedById((current) => ({ ...current, [activityId]: true }))
-    const target = activityRefs.current[activityId]
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
-
-  void scrollToActivity
+  void selected
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.activitati })
 
@@ -555,126 +565,45 @@ export default function ActivitatiPage() {
         {filteredActivitati.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredActivitati.map((a) => {
-              const kind = activityKind(a.tip_activitate)
-              const remainingDays = kind === 'tratamente' ? computeActivityRemainingDays(a, today) : 0
-              const hasActivePause = remainingDays > 0
-              const isExpanded = !!expandedById[a.id]
-              const expiryDate = hasActivePause
-                ? toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + remainingDays))
-                : null
-              const emoji = activityEmojiByTip(a.tip_activitate)
               const parcelaName = a.parcela_id ? parcelaMap[a.parcela_id] || 'Teren' : 'Teren'
+              const activityDate = a.data_aplicare ? new Date(a.data_aplicare) : null
+              const daysAgo = activityDate && !Number.isNaN(activityDate.getTime())
+                ? Math.floor((today.getTime() - new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate()).getTime()) / (1000 * 60 * 60 * 24))
+                : null
 
               return (
-                <div
-                  className="w-full"
+                <MobileEntityCard
                   key={a.id}
-                  ref={(node) => {
-                    activityRefs.current[a.id] = node
+                  title={`${activityEmojiByTip(a.tip_activitate)} ${a.tip_activitate || 'Activitate'} — ${parcelaName}`}
+                  value={[a.produs_utilizat, a.doza].filter(Boolean).join(' · ') || '-'}
+                  secondary={a.data_aplicare ? formatDateShort(a.data_aplicare) : undefined}
+                  status={
+                    <StatusBadge
+                      text={relativeActivityLabel(daysAgo)}
+                      variant={statusToneForDaysAgo(daysAgo)}
+                    />
+                  }
+                  onClick={() => {
+                    setSelected(a)
+                    setDetailOpen(true)
                   }}
-                  style={{
-                    background: 'var(--agri-surface)',
-                    borderRadius: 14,
-                    border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
-                    boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedById((current) => ({ ...current, [a.id]: !current[a.id] }))}
-                    style={{
-                      width: '100%',
-                      border: 'none',
-                      background: 'transparent',
-                      textAlign: 'left',
-                      padding: '9px 14px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 18, flexShrink: 0 }}>{emoji}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {a.tip_activitate || 'Activitate'} — {parcelaName}
-                        </div>
-                        {(a.produs_utilizat || a.doza) ? (
-                          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 1 }}>
-                            {[a.produs_utilizat, a.doza].filter(Boolean).join(' · ')}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 10, color: 'var(--text-hint)' }}>{formatDateShort(a.data_aplicare)}</div>
-                        {hasActivePause ? (
-                          <span style={{ display: 'inline-block', marginTop: 2, fontSize: 9, fontWeight: 700, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 10, padding: '2px 6px' }}>
-                            ⏳ {remainingDays}z
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    {/* Drag indicator */}
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 6 }}>
-                      <div style={{ width: 22, height: 2.5, borderRadius: 2, background: 'var(--text-hint)', opacity: 0.3 }} />
-                    </div>
-                  </button>
-
-                  {isExpanded ? (
-                    <div
-                      style={{
-                        borderTop: '1px solid var(--surface-divider)',
-                        padding: '10px 14px 12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 10 }}>
-                        <span><span style={{ color: 'var(--agri-text-muted)' }}>Teren: </span><strong>{parcelaName}</strong></span>
-                        <span><span style={{ color: 'var(--agri-text-muted)' }}>Tip: </span><strong>{a.tip_activitate || '-'}</strong></span>
-                        {a.produs_utilizat ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Produs: </span><strong>{a.produs_utilizat}</strong></span> : null}
-                        {a.doza ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Doză: </span><strong>{a.doza}</strong></span> : null}
-                        {a.operator ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Operator: </span><strong>{a.operator}</strong></span> : null}
-                        {a.observatii ? <span><span style={{ color: 'var(--agri-text-muted)' }}>Obs: </span><strong>{a.observatii}</strong></span> : null}
-                        {kind === 'tratamente' && a.timp_pauza_zile ? (
-                          <span>
-                            <span style={{ color: 'var(--agri-text-muted)' }}>Pauză: </span>
-                            <strong style={{ color: hasActivePause ? 'var(--status-warning-text)' : 'var(--value-positive)' }}>
-                              {a.timp_pauza_zile} zile{expiryDate ? ` · exp. ${formatDate(expiryDate)}` : ''}
-                            </strong>
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, display: 'flex', justifyContent: 'center', gap: 6 }}>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setSelected(a)
-                            setEditOpen(true)
-                          }}
-                          style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
-                        >
-                          ✏️ Editează
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            setToDelete(a)
-                            setDeleteOpen(true)
-                          }}
-                          style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 8, cursor: 'pointer' }}
-                        >
-                          🗑️ Șterge
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
+                  className="rounded-[22px] border-0 shadow-sm p-[14px]"
+                />
               )
             })}
           </div>
         ) : null}
       </div>
+
+      <ActivityDetailSheet
+        activitate={selected}
+        parcelaName={selected?.parcela_id ? parcelaMap[selected.parcela_id] || 'Teren' : undefined}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open)
+          if (!open) setSelected(null)
+        }}
+      />
 
       <AddActivitateAgricolaDialog
         open={addOpen}
@@ -686,33 +615,6 @@ export default function ActivitatiPage() {
         }}
         hideTrigger
         aiPrefill={aiPrefill}
-      />
-
-      <EditActivitateAgricolaDialog
-        activitate={selected}
-        open={editOpen}
-        onOpenChange={(open) => {
-          setEditOpen(open)
-          if (!open) setSelected(null)
-        }}
-      />
-
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={(open) => {
-          setDeleteOpen(open)
-          if (!open) setToDelete(null)
-        }}
-        itemType="Activitate"
-        itemName={buildActivitateDeleteLabel(toDelete)}
-        description={`Stergi activitatea ${toDelete?.tip_activitate || 'necunoscuta'} din ${toDelete?.data_aplicare ? new Date(toDelete.data_aplicare).toLocaleDateString('ro-RO') : 'data necunoscuta'} - teren ${toDelete?.parcela_id ? parcelaMap[toDelete.parcela_id] || 'necunoscut' : 'necunoscut'}?`}
-        loading={deleteMutation.isPending}
-        onConfirm={() => {
-          if (!toDelete) return
-          setDeleteOpen(false)
-          scheduleDelete(toDelete)
-          setToDelete(null)
-        }}
       />
     </AppShell>
   )

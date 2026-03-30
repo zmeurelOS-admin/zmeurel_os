@@ -82,14 +82,9 @@ export default function AiFab() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="relative flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-full border border-white/15 bg-[linear-gradient(135deg,#1b3a2a,#2D6A4F)] p-0 shadow-[0_4px_18px_rgba(27,58,42,0.4)] dark:border-slate-600 dark:bg-[linear-gradient(135deg,#1e293b,#334155)] dark:shadow-[0_6px_24px_rgba(2,6,23,0.45)]"
+          className="relative flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--brand-blue)] p-0 shadow-[var(--agri-shadow)] dark:border-[var(--agri-border)] dark:bg-[var(--brand-blue)]"
           aria-label="Asistent AI Zmeurel"
         >
-          <span
-            className="pointer-events-none absolute inset-[-2px] rounded-full border-2 border-emerald-300/40 dark:border-slate-500/70"
-            style={{ animation: 'logoPulse 2.5s ease-in-out infinite' }}
-          />
-
           <Image
             src="/icons/icon.svg"
             alt="Zmeurel AI"

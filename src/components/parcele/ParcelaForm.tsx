@@ -4,7 +4,9 @@ import { UseFormReturn } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { formatM2ToHa } from '@/lib/utils/area'
+import { toast } from '@/lib/ui/toast'
 import {
   Select,
   SelectContent,
@@ -15,12 +17,15 @@ import {
 
 export interface ParcelaFormData {
   nume_parcela: string
+  rol: string
   suprafata_m2: string
-  soi_plantat?: string
+  latitudine: string
+  longitudine: string
+  soi_plantat: string
   an_plantare: string
-  nr_plante?: string
-  status?: string
-  observatii?: string
+  nr_plante: string
+  status: string
+  observatii: string
 }
 
 interface ParcelaFormProps {
@@ -39,6 +44,31 @@ export const IOS_SELECT_TRIGGER_CLASS =
 export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
   const suprafataValue = form.watch('suprafata_m2')
 
+  const handleUseCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast.error('Geolocația nu este disponibilă în acest browser')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        form.setValue('latitudine', String(lat), { shouldDirty: true, shouldValidate: true })
+        form.setValue('longitudine', String(lng), { shouldDirty: true, shouldValidate: true })
+        toast.success('Locația curentă a fost completată')
+      },
+      (error) => {
+        const message =
+          error.code === 1
+            ? 'Accesul la locație a fost refuzat'
+            : 'Nu am putut obține locația curentă'
+        toast.error(message)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -56,6 +86,24 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
             {form.formState.errors.nume_parcela.message}
           </p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="rol" className={IOS_LABEL_CLASS}>
+          Rol
+        </Label>
+        <Select
+          value={form.watch('rol')}
+          onValueChange={(value) => form.setValue('rol', value)}
+        >
+          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="comercial">Comercial</SelectItem>
+            <SelectItem value="uz_propriu">Uz propriu</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">
@@ -78,6 +126,50 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
             {form.formState.errors.suprafata_m2.message}
           </p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label className={IOS_LABEL_CLASS}>Locație</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="latitudine" className={IOS_LABEL_CLASS}>
+              Latitudine
+            </Label>
+            <Input
+              id="latitudine"
+              type="number"
+              inputMode="decimal"
+              step="any"
+              placeholder="47.6514"
+              className={IOS_INPUT_CLASS}
+              {...form.register('latitudine')}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="longitudine" className={IOS_LABEL_CLASS}>
+              Longitudine
+            </Label>
+            <Input
+              id="longitudine"
+              type="number"
+              inputMode="decimal"
+              step="any"
+              placeholder="26.2553"
+              className={IOS_INPUT_CLASS}
+              {...form.register('longitudine')}
+            />
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full"
+          onClick={handleUseCurrentLocation}
+        >
+          📍 Folosește locația curentă
+        </Button>
       </div>
 
       <div className="space-y-2">

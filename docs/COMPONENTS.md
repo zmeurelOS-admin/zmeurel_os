@@ -1,5 +1,5 @@
 # COMPONENTS.md — Componente Zmeurel OS
-_Last updated: 2026-03-20 (session 4)_
+_Last updated: 2026-03-30 (UI System update)_
 
 ---
 
@@ -10,6 +10,84 @@ _Last updated: 2026-03-20 (session 4)_
 - Formulare: `react-hook-form` + shadcn `<Form>`
 - Toasts: `sonner` (via `toast.success` / `toast.error`)
 - Design tokens: `--agri-primary`, `--agri-border`, `--agri-bg`, `--agri-surface-muted`
+
+## UI Design System
+
+### Shadow System
+Cardurile folosesc umbre calde multi-layer în loc de border-uri:
+- `shadow-sm`: "0 1px 2px rgba(120,100,70,0.04), 0 4px 12px rgba(120,100,70,0.06)"
+- `shadow-md`: "0 2px 4px rgba(120,100,70,0.05), 0 8px 24px rgba(120,100,70,0.08)"
+- `shadow-glow` (FAB): "0 4px 20px rgba(13,155,92,0.2), 0 1px 3px rgba(13,155,92,0.15)"
+- Cardurile NU au border - adâncimea vine din umbre
+- Ton umbre: warm (120,100,70), nu rece (0,0,0)
+
+### Press States
+Toate elementele interactive au:
+- `transform: scale(0.985)` la press
+- Shadow redus la press
+- `transition: 0.15s ease`
+
+### Typography Weights
+Se folosesc weights granulare:
+- `750`: titluri principale (h1)
+- `700`: valori numerice, titluri card
+- `650`: labels secțiuni, meta bold
+- `600`: titluri card
+- `550`: labels intermediare
+- `500`: subtitle
+- `450`: body, meta
+- `400`: text secundar
+
+### Icon Containers
+Wrapper-ul icon din MobileEntityCard:
+- Background: gradient subtil "linear-gradient(135deg, #F8F7F5, #F0EFEC)"
+- Inner shadow: "inset 0 1px 2px rgba(0,0,0,0.04)"
+- Size: 42x42px, border-radius: 12px
+
+### Spacing
+Generous spacing system:
+- Gap între secțiuni: 28px
+- Padding card normal: 18px
+- Padding card compact: 14px
+- Border-radius card: 22px (era 16px)
+- Border-radius elemente mici: 12px
+
+### Status Badges
+Au acum border + background:
+- `success`: bg rgba(13,155,92,0.06), border rgba(13,155,92,0.1), color #0D9B5C
+- `warning`: bg rgba(179,90,0,0.06), border rgba(179,90,0,0.1), color #B35A00
+- `danger`: bg rgba(207,34,46,0.05), border rgba(207,34,46,0.1), color #CF222E
+- `neutral`: bg #F0EfEC, color #94A0B0
+
+### Secțiune Labels
+Stil actualizat:
+- fontSize: 14px, fontWeight: 700, color: ink (nu muted)
+- letterSpacing: -0.2
+- Counter badge opțional lângă label
+
+### Glass
+Rămâne strict limitat la bottom nav + FAB:
+- Bottom nav: rgba(255,255,255,0.72), blur(24px), border-top rgba(255,255,255,0.5)
+- FAB: rgba(13,155,92,0.92), blur(12px), border rgba(255,255,255,0.18)
+
+### Color Palette
+Actualizată:
+- `bg`: #F6F5F2 (era #F4F4F2)
+- `ink` (text principal): #0C0F13
+- `sub` (text secundar): #4A5261
+- `muted`: #94A0B0
+- `faint` (chevron, separatori): #C4CCD8
+- `green`: #0D9B5C
+- `red`: #CF222E
+- `orange`: #B35A00
+- `blue`: #1868DB
+
+### Mobile-First Principles
+- No glass pe carduri (doar bottom nav + FAB)
+- Opinionated `MobileEntityCard` - layout fix, props controlate
+- Responsive breakpoints: mobile-first, desktop enhancement
+- Touch-friendly tap targets (min 44px)
+- Generous spacing for thumb navigation
 
 ---
 
@@ -152,6 +230,34 @@ _Last updated: 2026-03-20 (session 4)_
 ### `DashboardCard`
 **Fișier:** `src/components/dashboard/DashboardCard.tsx`
 **Descriere:** Card dashboard cu stil specific.
+
+---
+
+### `MobileEntityCard`
+**Fișier:** `src/components/mobile/MobileEntityCard.tsx`
+**Descriere:** Card mobil standardizat și opininat pentru entități scanabile rapid. Impune layout fix cu icon stânga, title/subtitle central, zonă summary dreapta (`mainValue`, `secondaryValue`, `statusLabel`) plus `meta` și `footer` opționale. Nu acceptă `children` sau `className` pentru container, iar variațiile sunt controlate doar prin `variant`, `density`, `interactive`, `showChevron` și `statusTone`.
+**Props:**
+```ts
+{
+  title: string
+  subtitle?: string
+  icon?: ReactNode
+  mainValue?: string
+  secondaryValue?: string
+  meta?: string
+  footer?: string
+  statusLabel?: string
+  statusTone?: 'neutral' | 'success' | 'warning' | 'danger'
+  variant?: 'default' | 'highlight' | 'muted'
+  density?: 'compact' | 'normal'
+  interactive?: boolean
+  showChevron?: boolean
+  onClick?: () => void
+  ariaLabel?: string
+}
+```
+**Exemple:** `src/components/mobile/MobileEntityCard.examples.tsx`
+**Utilizare recomandată:** Bază vizuală pentru liste/carduri mobile în Activități, Recoltări, Comenzi, Clienți, Culegători, Terenuri, Cheltuieli și alte module noi sau refăcute incremental.
 
 ---
 

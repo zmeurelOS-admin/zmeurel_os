@@ -185,44 +185,6 @@ export type Database = {
           },
         ]
       }
-      ai_conversations: {
-        Row: {
-          created_at: string
-          id: string
-          mesaj_user: string | null
-          pathname: string | null
-          raspuns_ai: string | null
-          tenant_id: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          mesaj_user?: string | null
-          pathname?: string | null
-          raspuns_ai?: string | null
-          tenant_id?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          mesaj_user?: string | null
-          pathname?: string | null
-          raspuns_ai?: string | null
-          tenant_id?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_conversations_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       alert_dismissals: {
         Row: {
           alert_key: string
@@ -359,7 +321,6 @@ export type Database = {
           id: string
           id_cheltuiala: string
           is_auto_generated: boolean | null
-          metoda_plata: string | null
           suma_lei: number
           sync_status: string | null
           tenant_id: string
@@ -381,7 +342,6 @@ export type Database = {
           id?: string
           id_cheltuiala: string
           is_auto_generated?: boolean | null
-          metoda_plata?: string | null
           suma_lei: number
           sync_status?: string | null
           tenant_id?: string
@@ -403,7 +363,6 @@ export type Database = {
           id?: string
           id_cheltuiala?: string
           is_auto_generated?: boolean | null
-          metoda_plata?: string | null
           suma_lei?: number
           sync_status?: string | null
           tenant_id?: string
@@ -879,51 +838,6 @@ export type Database = {
           },
         ]
       }
-      etape_cultura: {
-        Row: {
-          created_at: string
-          cultura_id: string
-          data_etapa: string
-          etapa: string
-          id: string
-          observatii: string | null
-          tenant_id: string
-        }
-        Insert: {
-          created_at?: string
-          cultura_id: string
-          data_etapa?: string
-          etapa: string
-          id?: string
-          observatii?: string | null
-          tenant_id: string
-        }
-        Update: {
-          created_at?: string
-          cultura_id?: string
-          data_etapa?: string
-          etapa?: string
-          id?: string
-          observatii?: string | null
-          tenant_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "etape_cultura_cultura_id_fkey"
-            columns: ["cultura_id"]
-            isOneToOne: false
-            referencedRelation: "culturi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "etape_cultura_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       feedback: {
         Row: {
           created_at: string
@@ -1240,6 +1154,8 @@ export type Database = {
           gps_lng: number | null
           id: string
           id_parcela: string
+          latitudine: number | null
+          longitudine: number | null
           nr_plante: number | null
           nr_randuri: number | null
           nume_parcela: string
@@ -1247,7 +1163,6 @@ export type Database = {
           sistem_irigare: string | null
           soi: string | null
           soi_plantat: string | null
-          stadiu: string
           status: string | null
           suprafata_m2: number
           tenant_id: string
@@ -1269,6 +1184,8 @@ export type Database = {
           gps_lng?: number | null
           id?: string
           id_parcela: string
+          latitudine?: number | null
+          longitudine?: number | null
           nr_plante?: number | null
           nr_randuri?: number | null
           nume_parcela: string
@@ -1276,7 +1193,6 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
-          stadiu?: string
           status?: string | null
           suprafata_m2: number
           tenant_id?: string
@@ -1298,6 +1214,8 @@ export type Database = {
           gps_lng?: number | null
           id?: string
           id_parcela?: string
+          latitudine?: number | null
+          longitudine?: number | null
           nr_plante?: number | null
           nr_randuri?: number | null
           nume_parcela?: string
@@ -1305,7 +1223,6 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
-          stadiu?: string
           status?: string | null
           suprafata_m2?: number
           tenant_id?: string
@@ -1326,38 +1243,26 @@ export type Database = {
       }
       profiles: {
         Row: {
-          ai_messages_count: number
           created_at: string
-          dashboard_layout: Json | null
           hide_onboarding: boolean
           id: string
           is_superadmin: boolean
-          last_ai_usage_date: string | null
-          phone: string | null
           tenant_id: string | null
           updated_at: string
         }
         Insert: {
-          ai_messages_count?: number
           created_at?: string
-          dashboard_layout?: Json | null
           hide_onboarding?: boolean
           id: string
           is_superadmin?: boolean
-          last_ai_usage_date?: string | null
-          phone?: string | null
           tenant_id?: string | null
           updated_at?: string
         }
         Update: {
-          ai_messages_count?: number
           created_at?: string
-          dashboard_layout?: Json | null
           hide_onboarding?: boolean
           id?: string
           is_superadmin?: boolean
-          last_ai_usage_date?: string | null
-          phone?: string | null
           tenant_id?: string | null
           updated_at?: string
         }
@@ -1587,7 +1492,6 @@ export type Database = {
       }
       tenants: {
         Row: {
-          contact_phone: string | null
           created_at: string | null
           demo_seed_id: string | null
           demo_seeded: boolean
@@ -1596,13 +1500,11 @@ export type Database = {
           id: string
           is_demo: boolean
           nume_ferma: string
-          onboarding_shown_at: string | null
           owner_user_id: string | null
           plan: string | null
           updated_at: string | null
         }
         Insert: {
-          contact_phone?: string | null
           created_at?: string | null
           demo_seed_id?: string | null
           demo_seeded?: boolean
@@ -1611,13 +1513,11 @@ export type Database = {
           id?: string
           is_demo?: boolean
           nume_ferma: string
-          onboarding_shown_at?: string | null
           owner_user_id?: string | null
           plan?: string | null
           updated_at?: string | null
         }
         Update: {
-          contact_phone?: string | null
           created_at?: string | null
           demo_seed_id?: string | null
           demo_seeded?: boolean
@@ -1626,7 +1526,6 @@ export type Database = {
           id?: string
           is_demo?: boolean
           nume_ferma?: string
-          onboarding_shown_at?: string | null
           owner_user_id?: string | null
           plan?: string | null
           updated_at?: string | null
@@ -2308,10 +2207,6 @@ export type Database = {
         }[]
       }
       bucharest_today: { Args: never; Returns: string }
-      check_and_increment_ai_usage: {
-        Args: { p_limit: number; p_today: string; p_user_id: string }
-        Returns: Json
-      }
       create_recoltare_with_stock:
         | {
             Args: {
@@ -2396,7 +2291,6 @@ export type Database = {
           }
       create_vanzare_with_stock: {
         Args: {
-          p_calitate?: string
           p_cantitate_kg?: number
           p_client_id?: string
           p_client_sync_id?: string

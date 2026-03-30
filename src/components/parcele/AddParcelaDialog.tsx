@@ -24,6 +24,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 const parcelaSchema = z.object({
   nume_parcela: z.string().min(1, 'Numele parcelei este obligatoriu'),
+  rol: z.string(),
   suprafata_m2: z
     .string()
     .min(1, 'Suprafata este obligatorie')
@@ -33,7 +34,19 @@ const parcelaSchema = z.object({
     .refine((value) => parseLocalizedNumber(value) < MAX_SUPRAFATA_M2, {
       message: 'Suprafata introdusă pare nerealist de mare',
     }),
-  soi_plantat: z.string().optional(),
+  latitudine: z
+    .string()
+    .trim()
+    .refine((value) => !value || Number.isFinite(Number(value.replace(',', '.'))), {
+      message: 'Latitudinea trebuie să fie un număr valid',
+    }),
+  longitudine: z
+    .string()
+    .trim()
+    .refine((value) => !value || Number.isFinite(Number(value.replace(',', '.'))), {
+      message: 'Longitudinea trebuie să fie un număr valid',
+    }),
+  soi_plantat: z.string(),
   an_plantare: z
     .string()
     .min(1, 'Anul plantarii este obligatoriu')
@@ -42,12 +55,11 @@ const parcelaSchema = z.object({
     }),
   nr_plante: z
     .string()
-    .optional()
     .refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= 0), {
       message: 'Numărul de plante trebuie să fie pozitiv sau zero',
     }),
-  status: z.string().default('Activ'),
-  observatii: z.string().optional(),
+  status: z.string(),
+  observatii: z.string(),
 });
 
 interface AddParcelaDialogProps {
@@ -59,11 +71,20 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
+  const toDecimalOrNull = (value?: string) => {
+    if (!value) return null
+    const parsed = Number(value.replace(',', '.').trim())
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
   const form = useForm<ParcelaFormData>({
     resolver: zodResolver(parcelaSchema),
     defaultValues: {
       nume_parcela: '',
+      rol: 'comercial',
       suprafata_m2: '',
+      latitudine: '',
+      longitudine: '',
       soi_plantat: '',
       an_plantare: String(new Date().getFullYear()),
       nr_plante: '',
@@ -78,13 +99,16 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
       const idParcela = await generateBusinessId(supabase, 'PAR');
       return createParcela({
         id_parcela: idParcela,
-        nume_parcela: data.nume_parcela,
+        nume_parcela: data.nume_parcela.trim(),
+        rol: data.rol,
         suprafata_m2: parseLocalizedNumber(data.suprafata_m2),
-        soi_plantat: data.soi_plantat || undefined,
+        latitudine: toDecimalOrNull(data.latitudine) ?? undefined,
+        longitudine: toDecimalOrNull(data.longitudine) ?? undefined,
+        soi_plantat: data.soi_plantat.trim() || undefined,
         an_plantare: Number(data.an_plantare),
         nr_plante: data.nr_plante ? Number(data.nr_plante) : undefined,
         status: data.status,
-        observatii: data.observatii || undefined,
+        observatii: data.observatii.trim() || undefined,
       });
     },
     onSuccess: () => {

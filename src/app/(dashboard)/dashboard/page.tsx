@@ -13,7 +13,9 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState as BaseLoadingState } from '@/components/app/LoadingState'
 import { DashboardSkeleton } from '@/components/app/ModuleSkeletons'
+import { MeteoDashboardCard } from '@/components/dashboard/MeteoDashboardCard'
 import { PageHeader } from '@/components/app/PageHeader'
+import { TaskList, type DashboardTaskItem } from '@/components/dashboard/TaskList'
 import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
 import {
   ActivitatiPlanificateWidget,
@@ -42,6 +44,7 @@ import {
   type DashboardWidgetId,
 } from '@/lib/dashboard/layout'
 import { STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG } from '@/lib/calculations/stock-audit-thresholds'
+import { useMeteo } from '@/hooks/useMeteo'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import { queryKeys } from '@/lib/query-keys'
@@ -58,10 +61,24 @@ import {
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { toast } from '@/lib/ui/toast'
+import { getSupabase } from '@/lib/supabase/client'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const EMPTY_LIST: never[] = []
 const DashboardGridLayout = WidthProvider(GridLayout)
+
+type DashboardParcelaCompat = Awaited<ReturnType<typeof getParcele>>[number] & {
+  rol?: string | null
+  interval_tratament_zile?: number | null
+}
+
+type DashboardCulturaTreatmentInterval = {
+  id: string
+  solar_id: string
+  activa: boolean
+  interval_tratament_zile: number | null
+}
 
 function toDateOnly(value: string | null | undefined): string {
   return (value ?? '').slice(0, 10)
@@ -155,6 +172,20 @@ function getGreeting(): string {
   return 'Bună seara'
 }
 
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function getDaysBetween(nowMs: number, isoDate: string | null | undefined): number | null {
+  const parsed = parseDateOnly(isoDate)
+  if (!parsed) return null
+  return Math.max(0, Math.floor((nowMs - parsed.getTime()) / DAY_MS))
+}
+
 function LoadingState({ label }: { label?: string }) {
   if (label?.toLowerCase().includes('dashboard')) {
     return <DashboardSkeleton />
@@ -181,6 +212,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { userId } = useDashboardAuth()
+  const meteo = useMeteo()
   const [editMode, setEditMode] = useState(false)
   const [addWidgetOpen, setAddWidgetOpen] = useState(false)
   const [draftLayout, setDraftLayout] = useState<DashboardLayoutConfig | null>(null)
@@ -235,6 +267,34 @@ export default function DashboardPage() {
     queryKey: queryKeys.stocuriLocatiiRoot,
     queryFn: () => getStocuriPeLocatii(),
     placeholderData: (previousData) => previousData,
+  })
+
+  const comercialParcelaIds = useMemo(
+    () =>
+      ((parceleQuery.data ?? EMPTY_LIST) as DashboardParcelaCompat[])
+        .filter((parcela) => parcela.rol === 'comercial' && isActiveParcela(parcela.status ?? null))
+        .map((parcela) => parcela.id),
+    [parceleQuery.data]
+  )
+
+  const treatmentIntervalsQuery = useQuery({
+    queryKey: queryKeys.culturiTreatmentIntervals(comercialParcelaIds.join(',')),
+    enabled: comercialParcelaIds.length > 0,
+    queryFn: async (): Promise<DashboardCulturaTreatmentInterval[]> => {
+      const supabase = getSupabase()
+      const tenantId = await getTenantId(supabase)
+      const { data, error } = await (supabase.from('culturi') as any)
+        .select('id,solar_id,activa,interval_tratament_zile')
+        .eq('tenant_id', tenantId)
+        .in('solar_id', comercialParcelaIds)
+
+      if (error) throw error
+
+      return (data ?? []) as DashboardCulturaTreatmentInterval[]
+    },
+    placeholderData: (previousData) => previousData,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   })
 
   const profileQuery = useQuery({
@@ -310,6 +370,7 @@ export default function DashboardPage() {
 
   const recoltari = recoltariQuery.data ?? EMPTY_LIST
   const parcele = parceleQuery.data ?? EMPTY_LIST
+  const parceleCompat = parcele as DashboardParcelaCompat[]
   const activitati = activitatiQuery.data ?? EMPTY_LIST
   const vanzari = vanzariQuery.data ?? EMPTY_LIST
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
@@ -332,7 +393,7 @@ export default function DashboardPage() {
   previousSeasonEndDate.setDate(previousSeasonEndDate.getDate() + seasonElapsedDays)
   const previousSeasonEndIso = toIsoDate(previousSeasonEndDate)
 
-  const activeParcele = useMemo(() => parcele.filter((parcela) => isActiveParcela(parcela.status ?? null)), [parcele])
+  const activeParcele = useMemo(() => parceleCompat.filter((parcela) => isActiveParcela(parcela.status ?? null)), [parceleCompat])
   const parcelaById = useMemo(
     () =>
       new Map(
@@ -598,6 +659,93 @@ export default function DashboardPage() {
     [criticalStocks.length, kpiItems.length, plannedActivities.length, recentHarvests.length, recentOrders.length, revenueSeries, venitSezon]
   )
 
+  const treatmentIntervalByParcela = useMemo(() => {
+    const byParcela = new Map<string, number>()
+
+    for (const cultura of treatmentIntervalsQuery.data ?? EMPTY_LIST) {
+      if (!cultura?.solar_id || cultura.activa === false) continue
+      const interval = Number(cultura.interval_tratament_zile)
+      if (!Number.isFinite(interval) || interval <= 0) continue
+      const previousInterval = byParcela.get(cultura.solar_id)
+      if (!previousInterval || interval < previousInterval) {
+        byParcela.set(cultura.solar_id, interval)
+      }
+    }
+
+    return byParcela
+  }, [treatmentIntervalsQuery.data])
+
+  const dashboardTasks = useMemo<DashboardTaskItem[]>(() => {
+    const tasks: DashboardTaskItem[] = []
+    const nowMs = Date.now()
+    const latestTreatmentByParcela = new Map<string, string>()
+
+    for (const activitate of activitati) {
+      const parcelaId = activitate.parcela_id ?? ''
+      if (!parcelaId) continue
+      if (!normalizeText(activitate.tip_activitate).includes('tratament')) continue
+
+      const currentTime = parseDateOnly(activitate.data_aplicare)?.getTime() ?? 0
+      const previousTime = parseDateOnly(latestTreatmentByParcela.get(parcelaId))?.getTime() ?? 0
+      if (currentTime >= previousTime) {
+        latestTreatmentByParcela.set(parcelaId, activitate.data_aplicare)
+      }
+    }
+
+    for (const parcela of activeParcele) {
+      if (parcela.rol !== 'comercial') continue
+
+      const parcelaIntervalRaw = Number((parcela as { interval_tratament_zile?: number | null }).interval_tratament_zile ?? NaN)
+      const culturaInterval = treatmentIntervalByParcela.get(parcela.id) ?? null
+      const interval = Number.isFinite(parcelaIntervalRaw) && parcelaIntervalRaw > 0
+        ? parcelaIntervalRaw
+        : culturaInterval
+
+      if (!interval) continue
+
+      const latestTreatment = latestTreatmentByParcela.get(parcela.id)
+      const daysSinceTreatment = getDaysBetween(nowMs, latestTreatment)
+      if (daysSinceTreatment === null || daysSinceTreatment <= interval) continue
+
+      tasks.push({
+        id: `tratament:${parcela.id}`,
+        icon: '🧪',
+        text: `Tratament necesar ${formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate)} — ${daysSinceTreatment} zile`,
+        tag: 'URGENT',
+        tone: 'urgent',
+      })
+    }
+
+    const comenziDePregatit = comenzi.filter((row) => {
+      const normalizedStatus = normalizeText(row.status)
+      return normalizedStatus !== 'livrat' && normalizedStatus !== 'livrata' && normalizedStatus !== 'anulat' && normalizedStatus !== 'anulata'
+    }).length
+
+    if (comenziDePregatit > 0) {
+      tasks.push({
+        id: 'comenzi:pregatire',
+        icon: '📦',
+        text: `${comenziDePregatit} ${comenziDePregatit === 1 ? 'comandă de pregătit' : 'comenzi de pregătit'}`,
+        tag: 'AZI',
+        tone: 'warning',
+      })
+    }
+
+    if (criticalStocks.length > 0) {
+      tasks.push({
+        id: 'stoc:scazut',
+        icon: '📉',
+        text: `${criticalStocks.length} ${criticalStocks.length === 1 ? 'produs cu stoc scăzut' : 'produse cu stoc scăzut'}`,
+        tag: 'STOC',
+        tone: 'info',
+      })
+    }
+
+    return tasks
+  }, [activitati, activeParcele, comenzi, criticalStocks, treatmentIntervalByParcela])
+
+  const taskListLoading = isLoading || (comercialParcelaIds.length > 0 && treatmentIntervalsQuery.isLoading && !treatmentIntervalsQuery.data)
+
   const showWelcomeCard = parcele.length === 0 && !hideOnboarding
 
   const renderWidget = useCallback(
@@ -609,7 +757,7 @@ export default function DashboardPage() {
               return {
                 ...base,
                 widgets: base.widgets.map((widget) =>
-                widget.id === widgetId ? { ...widget, active: false } : widget
+                  widget.id === widgetId ? { ...widget, active: false } : widget
                 ),
               }
             })
@@ -820,6 +968,14 @@ export default function DashboardPage() {
                 />
               </div>
             ) : null}
+
+            <div className="mb-5">
+              <MeteoDashboardCard data={meteo.data} loading={meteo.loading} error={meteo.error} />
+            </div>
+
+            <div className="mb-5">
+              <TaskList tasks={dashboardTasks} loading={taskListLoading} title="Todo azi" />
+            </div>
 
             <div className="space-y-4 md:hidden">
               {mobileWidgets.map((widget) => (

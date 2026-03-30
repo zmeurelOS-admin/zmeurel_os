@@ -28,6 +28,12 @@ interface AddParcelDrawerProps {
 }
 
 const toDecimal = (value: string) => parseLocalizedNumber(value)
+const toFloatOrNull = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed.replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
 const generateParcelCode = () => `PAR-${Date.now().toString().slice(-6)}`
 
 export function AddParcelDrawer({
@@ -62,8 +68,11 @@ export function AddParcelDrawer({
       const parcela = await createParcela({
         id_parcela: generateParcelCode(),
         nume_parcela: values.nume_parcela.trim(),
+        rol: 'comercial',
         tip_unitate: values.tip_unitate,
         suprafata_m2: toDecimal(values.suprafata_m2),
+        latitudine: toFloatOrNull(values.latitudine) ?? undefined,
+        longitudine: toFloatOrNull(values.longitudine) ?? undefined,
         an_plantare: new Date().getFullYear(),
         status: values.status,
         observatii: values.observatii?.trim() || undefined,

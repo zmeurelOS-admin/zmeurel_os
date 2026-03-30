@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -13,6 +14,7 @@ import { ErrorState } from '@/components/app/ErrorState'
 import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
 import { Button } from '@/components/ui/button'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
@@ -23,6 +25,7 @@ import { getClienți } from '@/lib/supabase/queries/clienti'
 import { deleteVanzare, getVanzari, updateVanzare, type Vanzare } from '@/lib/supabase/queries/vanzari'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 
 const AddVanzareDialog = dynamic(
   () => import('@/components/vanzari/AddVanzareDialog').then((mod) => mod.AddVanzareDialog),
@@ -117,129 +120,102 @@ function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpai
   const accentColor = vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)'
 
   return (
-    <div
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: '1px solid var(--agri-border)',
-        borderLeft: `4px solid ${accentColor}`,
-        overflow: 'hidden',
-        marginBottom: 8,
-      }}
+    <MobileEntityCard
+      title={
+        <span className="inline-flex items-center gap-2">
+          <span>{vanzare.clientNume}</span>
+          {vanzare.comanda_id ? (
+            <span className="inline-flex items-center rounded-full border border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--soft-info-text)]">
+              Din comandă
+            </span>
+          ) : null}
+        </span>
+      }
+      value={`${formatRon(vanzare.totalRon)} RON`}
+      secondary={`${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg · ${formatData(vanzare.data)}`}
+      status={
+        vanzare.incasata ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-success-text)]">
+            Încasat
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-warning-text)]">
+            Neîncasat
+          </span>
+        )
+      }
+      onClick={onToggle}
+      isExpanded={isExpanded}
+      className={cn('border-l-[4px]', isExpanded ? 'border-[var(--soft-success-border)]' : '')}
+      style={{ borderLeftColor: accentColor } as React.CSSProperties}
     >
-      {/* COLLAPSED ROW */}
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          background: 'none',
-          border: 'none',
-          padding: '11px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>{vanzare.clientNume}</span>
-            {vanzare.comanda_id ? (
-              <span style={{
-                fontSize: 8, fontWeight: 600, color: 'var(--soft-info-text)',
-                background: 'var(--soft-info-bg)', padding: '2px 6px', borderRadius: 10,
-              }}>din comandă</span>
-            ) : null}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>
-            {Number(vanzare.cantitate_kg || 0).toFixed(1)} kg · {formatData(vanzare.data)}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
-          <div>
-            <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--agri-text)' }}>{formatRon(vanzare.totalRon)}</span>
-            <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>RON</span>
-          </div>
-          <div style={{ marginTop: 2 }}>
-            {vanzare.incasata ? (
-              <span style={{ fontSize: 9, color: 'var(--status-success-text)', background: 'var(--status-success-bg)', padding: '2px 6px', borderRadius: 8, fontWeight: 600 }}>Încasat</span>
-            ) : (
-              <span style={{ fontSize: 9, color: 'var(--status-warning-text)', background: 'var(--status-warning-bg)', padding: '2px 6px', borderRadius: 8, fontWeight: 600 }}>Neîncasat</span>
-            )}
-          </div>
-        </div>
-      </button>
-
-      {/* DRAG INDICATOR */}
-      <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isExpanded ? 0 : 4 }}>
-        <div style={{ width: 40, height: 2, borderRadius: 999, background: 'var(--surface-divider)' }} />
-      </div>
-
-      {/* EXPANDED */}
       {isExpanded ? (
-        <div style={{ borderTop: '1px solid var(--agri-border)', padding: '10px 14px 14px' }}>
+        <>
           {/* DETALII */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 8 }}>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Client: </span><strong>{vanzare.clientNume}</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Cantitate: </span><strong>{Number(vanzare.cantitate_kg || 0).toFixed(2)} kg</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Preț: </span><strong>{Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Total: </span><strong style={{ color: 'var(--value-positive)' }}>{formatRon(vanzare.totalRon)} RON</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Data: </span><strong>{new Date(vanzare.data).toLocaleDateString('ro-RO')}</strong></span>
+          <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
             <span>
-              <span style={{ color: 'var(--agri-text-muted)' }}>Încasat: </span>
-              <strong style={{ color: vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)' }}>{vanzare.incasata ? 'Da' : 'Nu'}</strong>
+              <span className="text-[var(--agri-text-muted)]">Cantitate: </span>
+              <span className="font-semibold">{Number(vanzare.cantitate_kg || 0).toFixed(2)} kg</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Preț: </span>
+              <span className="font-semibold">{Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Total: </span>
+              <span className="font-semibold text-[var(--value-positive)]">{formatRon(vanzare.totalRon)} RON</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Data: </span>
+              <span className="font-semibold">{new Date(vanzare.data).toLocaleDateString('ro-RO')}</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Încasat: </span>
+              <span
+                className="font-semibold"
+                style={{
+                  color: vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)',
+                }}
+              >
+                {vanzare.incasata ? 'Da' : 'Nu'}
+              </span>
             </span>
           </div>
 
           {/* LINK COMANDA */}
           {vanzare.comanda_id ? (
-            <div style={{ marginTop: 8 }}>
+            <div className="mt-3">
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onOpenComanda() }}
-                style={{
-                  padding: '7px 12px', fontSize: 10, fontWeight: 600,
-                  background: 'var(--soft-info-bg)', color: 'var(--soft-info-text)', borderRadius: 8,
-                  border: '1px solid var(--soft-info-border)', cursor: 'pointer',
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenComanda()
                 }}
+                className="min-h-9 rounded-lg border border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] px-3 text-[11px] font-semibold text-[var(--soft-info-text)]"
               >
-                📦 Vezi comanda
+                Vezi comanda
               </button>
             </div>
           ) : null}
 
           {/* CONTACT BUTTONS */}
           {vanzare.telefon ? (
-            <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
+            <div className="mt-3 flex gap-2">
               <a
                 href={`tel:${vanzare.telefon}`}
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: 4, padding: '7px 0', fontSize: 10, fontWeight: 600,
-                  background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', borderRadius: 8,
-                  border: '1px solid var(--button-muted-border)',
-                  textDecoration: 'none',
-                }}
+                className="flex-1 min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--button-muted-text)]"
               >
-                📞 Sună
+                Sună
               </a>
               <a
                 href={`https://wa.me/${vanzare.telefon.replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: 4, padding: '7px 0', fontSize: 10, fontWeight: 600,
-                  background: 'var(--status-success-bg)', color: 'var(--status-success-text)', borderRadius: 8,
-                  border: '1px solid var(--status-success-border)',
-                  textDecoration: 'none',
-                }}
+                className="flex-1 min-h-11 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--status-success-text)]"
               >
-                💬 WhatsApp
+                WhatsApp
               </a>
             </div>
           ) : null}
@@ -248,53 +224,53 @@ function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpai
           {!vanzare.incasata ? (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onMarkPaid() }}
-              style={{
-                marginTop: 8, width: '100%', padding: '9px', fontSize: 11, fontWeight: 700,
-                background: 'var(--pill-active-bg)', color: 'var(--pill-active-text)', borderRadius: 10, border: 'none', cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onMarkPaid()
               }}
+              className="mt-3 min-h-11 w-full rounded-xl bg-[var(--brand-blue)] px-3 text-sm font-bold text-white"
             >
-              💰 Marchează ca încasat
+              Marchează ca încasat
             </button>
           ) : (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onMarkUnpaid() }}
-              style={{
-                marginTop: 8, width: '100%', padding: '9px', fontSize: 11, fontWeight: 600,
-                background: 'var(--button-muted-bg)', color: 'var(--agri-text-muted)', borderRadius: 10, border: '1px solid var(--button-muted-border)', cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onMarkUnpaid()
               }}
+              className="mt-3 min-h-11 w-full rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-sm font-semibold text-[var(--agri-text-muted)]"
             >
-              ↩ Marchează ca neîncasat
+              Marchează ca neîncasat
             </button>
           )}
 
           {/* EDIT / DELETE */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 }}>
+          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit() }}
-              style={{
-                border: '1px solid var(--button-muted-border)', background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)',
-                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
               }}
+              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
             >
               ✏️ Editează
             </button>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete() }}
-              style={{
-                border: '1px solid var(--status-danger-border)', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)',
-                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
               }}
+              className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
             >
               🗑️ Șterge
             </button>
           </div>
-        </div>
+        </>
       ) : null}
-    </div>
+    </MobileEntityCard>
   )
 }
 

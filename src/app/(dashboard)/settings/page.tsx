@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { Download, KeyRound, Loader2, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2 } from 'lucide-react'
+import { Download, KeyRound, Loader2, MapPin, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from '@/lib/ui/toast'
 
@@ -140,6 +140,13 @@ export default function SettingsPage() {
   const [farmPhoneError, setFarmPhoneError] = useState('')
   const [isSavingFarmPhone, setIsSavingFarmPhone] = useState(false)
 
+  // Tenant GPS location settings
+  const [latitudineDefault, setLatitudineDefault] = useState('')
+  const [latitudineDefaultDraft, setLatitudineDefaultDraft] = useState('')
+  const [longitudineDefault, setLongitudineDefault] = useState('')
+  const [longitudineDefaultDraft, setLongitudineDefaultDraft] = useState('')
+  const [isSavingLocation, setIsSavingLocation] = useState(false)
+
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -174,12 +181,15 @@ export default function SettingsPage() {
       const supabase = getSupabase()
       const resolvedTenantId = await getTenantIdByUserIdOrNull(supabase, userId)
 
-      const [tenantRow, farmPhoneResult, profileResult] = await Promise.all([
+      const [tenantRow, farmPhoneResult, profileResult, tenantSettingsResult] = await Promise.all([
         getTenantByIdOrNull(supabase, resolvedTenantId),
         resolvedTenantId
           ? supabase.from('tenants').select('contact_phone').eq('id', resolvedTenantId).single()
           : Promise.resolve({ data: null }),
         supabase.from('profiles').select('phone').eq('id', userId).single(),
+        resolvedTenantId
+          ? supabase.from('tenant_settings').select('latitudine_default,longitudine_default').eq('tenant_id', resolvedTenantId).single()
+          : Promise.resolve({ data: null }),
       ])
 
       if (tenantRow?.id) {
@@ -196,6 +206,14 @@ export default function SettingsPage() {
       const pp = profileResult.data?.phone ?? ''
       setProfilePhone(pp)
       setProfilePhoneDraft(pp)
+
+      // Set tenant GPS location defaults
+      const lat = (tenantSettingsResult.data as any)?.latitudine_default ?? ''
+      const lng = (tenantSettingsResult.data as any)?.longitudine_default ?? ''
+      setLatitudineDefault(String(lat))
+      setLatitudineDefaultDraft(String(lat))
+      setLongitudineDefault(String(lng))
+      setLongitudineDefaultDraft(String(lng))
     })()
   }, [userId])
 
@@ -306,6 +324,72 @@ export default function SettingsPage() {
     } finally {
       setIsSavingFarmPhone(false)
     }
+  }
+
+  const handleSaveLocation = async () => {
+    if (!tenantId) return
+    setIsSavingLocation(true)
+    try {
+      const supabase = getSupabase()
+      const lat = latitudineDefaultDraft.trim() ? parseFloat(latitudineDefaultDraft.trim()) : null
+      const lng = longitudineDefaultDraft.trim() ? parseFloat(longitudineDefaultDraft.trim()) : null
+
+      // Validate coordinates if provided
+      if ((lat !== null && (isNaN(lat) || lat < -90 || lat > 90)) ||
+          (lng !== null && (isNaN(lng) || lng < -180 || lng > 180))) {
+        toast.error('Coordonate GPS invalide. Latitudinea trebuie să fie între -90 și 90, longitudinea între -180 și 180.')
+        return
+      }
+
+      // Upsert tenant settings
+      const { error } = await supabase
+        .from('tenant_settings')
+        .upsert({
+          tenant_id: tenantId,
+          latitudine_default: lat,
+          longitudine_default: lng,
+        }, {
+          onConflict: 'tenant_id'
+        })
+
+      if (error) throw error
+
+      setLatitudineDefault(String(lat ?? ''))
+      setLatitudineDefaultDraft(String(lat ?? ''))
+      setLongitudineDefault(String(lng ?? ''))
+      setLongitudineDefaultDraft(String(lng ?? ''))
+      toast.success('Locația fermei a fost actualizată.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? 'Nu am putut salva locația.'
+      toast.error(msg)
+    } finally {
+      setIsSavingLocation(false)
+    }
+  }
+
+  const handleUseCurrentLocation = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      toast.error('Geolocația nu este disponibilă în acest browser')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        setLatitudineDefaultDraft(String(lat))
+        setLongitudineDefaultDraft(String(lng))
+        toast.success('Locația curentă a fost completată')
+      },
+      (error) => {
+        const message =
+          error.code === 1
+            ? 'Accesul la locație a fost refuzat'
+            : 'Nu am putut obține locația curentă'
+        toast.error(message)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
   }
 
   const handleSaveFarmName = async () => {
@@ -726,6 +810,61 @@ export default function SettingsPage() {
               </Button>
             </div>
             {farmPhoneError ? <p className="text-xs text-red-600">{farmPhoneError}</p> : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-[var(--agri-text-muted)]">Locație fermă</Label>
+            <p className="text-xs text-[var(--agri-text-muted)]">
+              Coordonatele GPS sunt folosite pentru prognoza meteo și calcule. Dacă nu sunt specificate, se vor folosi coordonatele parcelelor individuale.
+            </p>
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  type="number"
+                  step="any"
+                  className="agri-control h-11"
+                  value={latitudineDefaultDraft}
+                  onChange={(e) => setLatitudineDefaultDraft(e.target.value)}
+                  placeholder="Latitudine (ex: 44.4397)"
+                />
+                <Input
+                  type="number"
+                  step="any"
+                  className="agri-control h-11"
+                  value={longitudineDefaultDraft}
+                  onChange={(e) => setLongitudineDefaultDraft(e.target.value)}
+                  placeholder="Longitudine (ex: 26.0983)"
+                />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="agri-control h-11 justify-start gap-2"
+                  onClick={handleUseCurrentLocation}
+                >
+                  <MapPin className="h-4 w-4" />
+                  📍 Folosește locația curentă
+                </Button>
+                <Button
+                  type="button"
+                  className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                  disabled={isSavingLocation || 
+                    (latitudineDefaultDraft.trim() === latitudineDefault && 
+                     longitudineDefaultDraft.trim() === longitudineDefault)}
+                  onClick={handleSaveLocation}
+                >
+                  {isSavingLocation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Se salvează...
+                    </>
+                  ) : (
+                    'Salvează'
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-row flex-wrap items-center gap-3">

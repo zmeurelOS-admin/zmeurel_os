@@ -42,7 +42,7 @@ export function BottomTabBar() {
   return (
     <>
       <nav
-        className="border-t border-[var(--agri-border)] bg-[color:rgba(255,255,255,0.9)] shadow-[0_-1px_3px_rgba(0,0,0,0.1)] backdrop-blur-xl dark:bg-[color:rgba(15,23,42,0.9)] md:hidden"
+        className="border-t border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-[0_-1px_3px_rgba(15,23,42,0.08)] dark:bg-[var(--agri-surface)] md:hidden"
         aria-label="Navigare principală"
         style={{
           position: 'fixed',
@@ -50,8 +50,6 @@ export function BottomTabBar() {
           left: 0,
           right: 0,
           minHeight: 'calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px))',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
           paddingTop: 10,
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           zIndex: 50,

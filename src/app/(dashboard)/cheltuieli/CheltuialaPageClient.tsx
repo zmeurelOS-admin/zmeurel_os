@@ -17,6 +17,7 @@ import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog
 import { getCheltuialaCategoryEmoji } from '@/components/cheltuieli/CheltuialaCard'
 import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
 import { Button } from '@/components/ui/button'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
@@ -29,6 +30,7 @@ import { isAutoManoperaCheltuiala } from '@/lib/supabase/queries/manopera-auto'
 import { buildCheltuialaDeleteLabel } from '@/lib/ui/delete-labels'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 
 interface CheltuialaFormData {
   client_sync_id?: string
@@ -123,100 +125,81 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
   const isAuto = isAutoManoperaCheltuiala(cheltuiala)
 
   return (
-    <div
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: '1px solid var(--agri-border)',
-        borderLeft: '4px solid var(--value-negative)',
-        overflow: 'hidden',
-        marginBottom: 8,
-      }}
+    <MobileEntityCard
+      title={
+        <span className="inline-flex items-center gap-2">
+          <span aria-hidden>{emoji}</span>
+          <span>{cheltuiala.descriere || cheltuiala.categorie || 'Cheltuială'}</span>
+        </span>
+      }
+      value={`${formatRon(suma)} RON`}
+      secondary={`${cheltuiala.categorie || 'Altele'} · ${formatData(cheltuiala.data)}`}
+      status={
+        isAuto ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--soft-info-text)]">
+            Auto
+          </span>
+        ) : null
+      }
+      onClick={onToggle}
+      isExpanded={isExpanded}
+      className={cn('border-l-[4px] border-l-[var(--value-negative)]')}
     >
-      {/* COLLAPSED ROW */}
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          background: 'none',
-          border: 'none',
-          padding: '11px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-            <span style={{ fontSize: 14 }}>{emoji}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>
-              {cheltuiala.descriere || cheltuiala.categorie || 'Cheltuială'}
-            </span>
-            {isAuto ? (
-              <span style={{
-                fontSize: 8, fontWeight: 600, color: 'var(--soft-info-text)',
-                background: 'var(--soft-info-bg)', padding: '2px 5px', borderRadius: 8,
-              }}>auto</span>
-            ) : null}
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>
-            {cheltuiala.categorie || 'Altele'} · {formatData(cheltuiala.data)}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--value-negative)' }}>{formatRon(suma)}</span>
-          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>RON</span>
-        </div>
-      </button>
-
-      {/* DRAG INDICATOR */}
-      <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isExpanded ? 0 : 4 }}>
-        <div style={{ width: 40, height: 2, borderRadius: 999, background: 'var(--surface-divider)' }} />
-      </div>
-
       {/* EXPANDED */}
       {isExpanded ? (
-        <div style={{ borderTop: '1px solid var(--agri-border)', padding: '10px 14px 14px' }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, marginBottom: 8 }}>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Categorie: </span><strong>{cheltuiala.categorie || 'Altele'}</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Sumă: </span><strong style={{ color: 'var(--value-negative)' }}>{formatRon(suma)} RON</strong></span>
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Data: </span><strong>{new Date(cheltuiala.data).toLocaleDateString('ro-RO')}</strong></span>
+        <>
+          <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Categorie: </span>
+              <span className="font-semibold">{cheltuiala.categorie || 'Altele'}</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Sumă: </span>
+              <span className="font-semibold text-[var(--value-negative)]">{formatRon(suma)} RON</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Data: </span>
+              <span className="font-semibold">{new Date(cheltuiala.data).toLocaleDateString('ro-RO')}</span>
+            </span>
             {cheltuiala.furnizor ? (
-              <span><span style={{ color: 'var(--agri-text-muted)' }}>Furnizor: </span><strong>{cheltuiala.furnizor}</strong></span>
+              <span>
+                <span className="text-[var(--agri-text-muted)]">Furnizor: </span>
+                <span className="font-semibold">{cheltuiala.furnizor}</span>
+              </span>
             ) : null}
             {cheltuiala.descriere ? (
-              <span><span style={{ color: 'var(--agri-text-muted)' }}>Observații: </span><strong>{cheltuiala.descriere}</strong></span>
+              <span>
+                <span className="text-[var(--agri-text-muted)]">Observații: </span>
+                <span className="font-semibold">{cheltuiala.descriere}</span>
+              </span>
             ) : null}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10 }}>
+          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit() }}
-              style={{
-                border: '1px solid var(--button-muted-border)', background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)',
-                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
               }}
+              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
             >
-              ✏️ Editează
+              Editează
             </button>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete() }}
-              style={{
-                border: '1px solid var(--status-danger-border)', background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)',
-                borderRadius: 8, padding: '6px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
               }}
+              className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
             >
-              🗑️ Șterge
+              Șterge
             </button>
           </div>
-        </div>
+        </>
       ) : null}
-    </div>
+    </MobileEntityCard>
   )
 }
 

@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useQuery } from '@tanstack/react-query'
@@ -8,9 +9,11 @@ import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { getStocuriPeLocatii, type StocFilters } from '@/lib/supabase/queries/miscari-stoc'
 import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 
 interface ParcelaOption {
   id: string
@@ -77,99 +80,72 @@ function LocatieCard({ row, isExpanded, onToggle }: LocatieCardProps) {
   const isLow = total > 0 && total < LOW_STOCK_THRESHOLD
 
   return (
-    <div
-      style={{
-        background: 'var(--agri-surface)',
-        borderRadius: 14,
-        border: '1px solid var(--agri-border)',
-        borderLeft: `4px solid ${stocColor(total)}`,
-        overflow: 'hidden',
-        marginBottom: 8,
-      }}
+    <MobileEntityCard
+      title={row.locatie_nume}
+      value={`${formatKg(total)} kg`}
+      secondary={row.produs || 'Produs necunoscut'}
+      status={
+        isLow ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-danger-text)]">
+            Scăzut
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-neutral-text)]">
+            {formatDate(row.last_updated)}
+          </span>
+        )
+      }
+      onClick={onToggle}
+      isExpanded={isExpanded}
+      className={cn('border-l-[4px]', isExpanded ? 'border-[var(--soft-success-border)]' : '')}
+      style={{ borderLeftColor: stocColor(total) } as React.CSSProperties}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          background: 'none',
-          border: 'none',
-          padding: '11px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>{row.locatie_nume}</span>
-            {isLow ? (
-              <span style={{
-                fontSize: 8, fontWeight: 600, color: 'var(--status-danger-text)',
-                background: 'var(--status-danger-bg)', padding: '2px 5px', borderRadius: 8,
-              }}>scăzut</span>
-            ) : null}
+      {totalFresh > 0 ? (
+        <div>
+          <div className="flex justify-between text-xs">
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Cal I: </span>
+              <span className="font-semibold text-[var(--status-success-text)]">{formatKg(cal1)} kg</span>
+            </span>
+            <span>
+              <span className="text-[var(--agri-text-muted)]">Cal II: </span>
+              <span className="font-semibold text-[var(--status-warning-text)]">{formatKg(cal2)} kg</span>
+            </span>
           </div>
-          <div style={{ fontSize: 10, color: 'var(--agri-text-muted)' }}>{row.produs || 'Produs necunoscut'}</div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 10 }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: stocColor(total) }}>{formatKg(total)}</span>
-          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 2 }}>kg</span>
-        </div>
-      </button>
-
-      <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: isExpanded ? 0 : 4 }}>
-        <div style={{ width: 40, height: 2, borderRadius: 999, background: 'var(--surface-divider)' }} />
-      </div>
-
-      {isExpanded ? (
-        <div style={{ borderTop: '1px solid var(--agri-border)', padding: '10px 14px 14px' }}>
-          {totalFresh > 0 ? (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                <span>
-                  <span style={{ color: 'var(--agri-text-muted)' }}>Cal I: </span>
-                  <strong style={{ color: 'var(--status-success-text)' }}>{formatKg(cal1)} kg</strong>
-                </span>
-                <span>
-                  <span style={{ color: 'var(--agri-text-muted)' }}>Cal II: </span>
-                  <strong style={{ color: 'var(--status-warning-text)' }}>{formatKg(cal2)} kg</strong>
-                </span>
-              </div>
-              <div style={{ height: 6, borderRadius: 4, background: 'var(--agri-surface-muted)', overflow: 'hidden', display: 'flex' }}>
-                <div style={{
-                  width: `${Math.max(0, Math.min(100, cal1Pct))}%`,
-                  height: '100%',
-                  background: 'var(--status-success-text)',
-                  borderRadius: '4px 0 0 4px',
-                }} />
-                <div style={{
-                  width: `${Math.max(0, Math.min(100, 100 - cal1Pct))}%`,
-                  height: '100%',
-                  background: 'var(--status-warning-text)',
-                  borderRadius: '0 4px 4px 0',
-                }} />
-              </div>
-            </div>
-          ) : null}
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11 }}>
-            {totalFresh > 0 ? (
-              <span><span style={{ color: 'var(--agri-text-muted)' }}>Fresh: </span><strong>{formatKg(totalFresh)} kg</strong></span>
-            ) : null}
-            {congelat > 0 ? (
-              <span><span style={{ color: 'var(--agri-text-muted)' }}>Congelat: </span><strong>{formatKg(congelat)} kg</strong></span>
-            ) : null}
-            {procesat > 0 ? (
-              <span><span style={{ color: 'var(--agri-text-muted)' }}>Procesat: </span><strong>{formatKg(procesat)} kg</strong></span>
-            ) : null}
-            <span><span style={{ color: 'var(--agri-text-muted)' }}>Total: </span><strong style={{ color: stocColor(total) }}>{formatKg(total)} kg</strong></span>
+          <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded bg-[var(--agri-surface-muted)]">
+            <div style={{ width: `${Math.max(0, Math.min(100, cal1Pct))}%` }} className="bg-[var(--status-success-text)]" />
+            <div style={{ width: `${Math.max(0, Math.min(100, 100 - cal1Pct))}%` }} className="bg-[var(--status-warning-text)]" />
           </div>
         </div>
       ) : null}
-    </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
+        {totalFresh > 0 ? (
+          <span>
+            <span className="text-[var(--agri-text-muted)]">Fresh: </span>
+            <span className="font-semibold">{formatKg(totalFresh)} kg</span>
+          </span>
+        ) : null}
+        {congelat > 0 ? (
+          <span>
+            <span className="text-[var(--agri-text-muted)]">Congelat: </span>
+            <span className="font-semibold">{formatKg(congelat)} kg</span>
+          </span>
+        ) : null}
+        {procesat > 0 ? (
+          <span>
+            <span className="text-[var(--agri-text-muted)]">Procesat: </span>
+            <span className="font-semibold">{formatKg(procesat)} kg</span>
+          </span>
+        ) : null}
+        <span>
+          <span className="text-[var(--agri-text-muted)]">Total: </span>
+          <span className="font-semibold" style={{ color: stocColor(total) }}>
+            {formatKg(total)} kg
+          </span>
+        </span>
+      </div>
+    </MobileEntityCard>
   )
 }
 

@@ -13,10 +13,12 @@ CREATE TABLE IF NOT EXISTS public.ai_conversations (
 
 ALTER TABLE public.ai_conversations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "ai_conv_select_own" ON public.ai_conversations;
 CREATE POLICY "ai_conv_select_own"
   ON public.ai_conversations FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "ai_conv_insert_own" ON public.ai_conversations;
 CREATE POLICY "ai_conv_insert_own"
   ON public.ai_conversations FOR INSERT
   WITH CHECK (auth.uid() = user_id);

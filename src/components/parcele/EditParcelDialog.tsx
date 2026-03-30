@@ -31,11 +31,19 @@ const toFormValues = (parcela: Parcela): ParcelFormValues => ({
   nume_parcela: parcela.nume_parcela ?? '',
   tip_unitate: (parcela.tip_unitate as 'camp' | 'solar' | 'livada' | 'cultura_mare') ?? 'camp',
   suprafata_m2: String(parcela.suprafata_m2 ?? ''),
+  latitudine: parcela.latitudine == null ? '' : String(parcela.latitudine),
+  longitudine: parcela.longitudine == null ? '' : String(parcela.longitudine),
   status: parcela.status ?? 'Activ',
   observatii: parcela.observatii ?? '',
 })
 
 const toDecimal = (value: string) => Number(value.replace(',', '.').trim())
+const toFloatOrNull = (value: string) => {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed.replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
 
 export function EditParcelDialog({
   open,
@@ -63,6 +71,8 @@ export function EditParcelDialog({
         nume_parcela: values.nume_parcela.trim(),
         tip_unitate: values.tip_unitate,
         suprafata_m2: toDecimal(values.suprafata_m2),
+        latitudine: toFloatOrNull(values.latitudine),
+        longitudine: toFloatOrNull(values.longitudine),
         status: values.status,
         observatii: values.observatii?.trim() || null,
       })
