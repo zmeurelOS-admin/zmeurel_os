@@ -11,6 +11,8 @@ import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { AddProdusDialog } from '@/components/produse/AddProdusDialog'
 import { EditProdusDialog } from '@/components/produse/EditProdusDialog'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import { deleteProdus, getProduse, type Produs } from '@/lib/supabase/queries/produse'
@@ -168,67 +170,27 @@ interface ProdusCardProps {
 }
 
 function ProdusCard({ produs, onEdit, onDelete }: ProdusCardProps) {
-  const primaryPhoto = produs.poza_1_url ?? produs.poza_2_url
+  const title = produs.nume || 'Produs'
+  const subtitle = produs.categorie ? (CATEGORIE_LABELS[produs.categorie] ?? produs.categorie) : produs.unitate_vanzare
+  const pretValue = produs.pret_unitar != null ? `${produs.pret_unitar.toFixed(2)} lei/${produs.unitate_vanzare}` : undefined
 
   return (
-    <div className="agri-card flex flex-col overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white dark:bg-zinc-900">
-      {/* Photo */}
-      <div className="relative h-40 bg-[var(--agri-surface-muted)]">
-        {primaryPhoto ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={primaryPhoto} alt={produs.nume} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full items-center justify-center text-4xl">🛒</div>
-        )}
-        {/* Status badge */}
-        {produs.status === 'inactiv' ? (
-          <span className="absolute left-2 top-2 rounded-full bg-zinc-700/80 px-2 py-0.5 text-[10px] font-semibold text-white">
-            Inactiv
-          </span>
-        ) : null}
-      </div>
-
-      {/* Body */}
-      <div className="flex flex-1 flex-col gap-1.5 p-3">
-        <p className="text-sm font-semibold leading-tight text-[var(--agri-text)]">{produs.nume}</p>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="rounded-md bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--agri-text-muted)]">
-            {CATEGORIE_LABELS[produs.categorie] ?? produs.categorie}
-          </span>
-          <span className="rounded-md bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--agri-text-muted)]">
-            {produs.unitate_vanzare}
-          </span>
-        </div>
-        {produs.pret_unitar != null ? (
-          <p className="text-base font-bold text-[var(--agri-primary)]">
-            {produs.pret_unitar.toFixed(2)} {produs.moneda}
-            <span className="ml-1 text-xs font-normal text-[var(--agri-text-muted)]">/ {produs.unitate_vanzare}</span>
-          </p>
-        ) : null}
-        {produs.descriere ? (
-          <p className="line-clamp-2 text-xs text-[var(--agri-text-muted)]">{produs.descriere}</p>
-        ) : null}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 border-t border-[var(--agri-border)] p-2">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold text-[var(--agri-text)] transition hover:bg-[var(--agri-surface-muted)]"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Editează
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-semibold text-[var(--soft-danger-text)] transition hover:bg-[var(--soft-danger-bg)]"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Șterge
-        </button>
-      </div>
-    </div>
+    <MobileEntityCard
+      title={title}
+      value={pretValue || 'Preț indisponibil'}
+      secondary={subtitle}
+      status={
+        produs.status === 'inactiv' ? (
+          <StatusBadge
+            text="Inactiv"
+            variant="neutral"
+          />
+        ) : null
+      }
+      onClick={() => {
+        // Deschide direct dialogul de editare la click
+        onEdit()
+      }}
+    />
   )
 }

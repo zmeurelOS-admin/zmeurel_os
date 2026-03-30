@@ -10,6 +10,8 @@ import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { SearchField } from '@/components/ui/SearchField'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { AddVanzareButasiDialog } from '@/components/vanzari-butasi/AddVanzareButasiDialog'
 import { EditVanzareButasiDialog } from '@/components/vanzari-butasi/EditVanzareButasiDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -74,170 +76,46 @@ function statusColor(status: string): { bg: string; color: string } {
 function ButasiCardNew({
   vanzare,
   clientNume,
-  clientTelefon,
-  parcelaNume,
-  expanded,
-  onToggle,
   onEdit,
   onDelete,
 }: {
   vanzare: VanzareButasi
   clientNume: string | undefined
-  clientTelefon: string | null | undefined
-  parcelaNume: string | undefined
-  expanded: boolean
-  onToggle: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
-  const hasPhone = Boolean(clientTelefon)
-  const phoneClean = (clientTelefon ?? '').replace(/\s+/g, '')
-  const rest = orderRest(vanzare)
+  const title = clientNume ?? vanzare.client_nume_manual ?? '—'
   const totalButasi = (vanzare.items ?? []).reduce((sum, item) => sum + Number(item.cantitate || 0), 0)
-  const { bg, color } = statusColor(vanzare.status)
+  const firstItem = vanzare.items?.[0]
+  const soi = firstItem?.soi || 'Butași'
+  const subtitle = `${soi} · ${totalButasi} buc`
+  const valoare = Number(vanzare.total_lei || 0)
+  const mainValue = `${valoare.toFixed(0)} lei`
+  
+  // Mapare status la StatusBadge variant
+  const getStatusVariant = (status: string): 'success' | 'warning' | 'danger' | 'neutral' => {
+    if (status === 'livrata') return 'success'
+    if (status === 'anulata') return 'danger'
+    if (status === 'in_curs') return 'warning'
+    return 'neutral'
+  }
 
   return (
-    <div style={{ background: 'var(--surface-card)', borderRadius: 14, border: '1px solid var(--agri-border)', overflow: 'hidden', marginBottom: 8 }}>
-      {/* Header */}
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          width: '100%', textAlign: 'left', background: 'none', border: 'none',
-          padding: '12px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10,
-        }}
-      >
-        <span style={{ fontSize: 22, lineHeight: 1, marginTop: 1 }}>🌿</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--agri-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {clientNume ?? vanzare.client_nume_manual ?? '—'}
-            </span>
-            <span style={{ fontSize: 16, color: 'var(--text-hint)', flexShrink: 0, transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', marginTop: 3 }}>
-            <span style={{ borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 600, background: bg, color }}>
-              {statusLabel(vanzare.status)}
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>
-              {vanzare.data_comanda ? new Date(vanzare.data_comanda).toLocaleDateString('ro-RO') : '—'}
-            </span>
-            {totalButasi > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>{totalButasi} buc</span>
-            )}
-            {Number(vanzare.total_lei || 0) > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--value-positive)', fontWeight: 600 }}>{formatLei(Number(vanzare.total_lei))}</span>
-            )}
-            {rest > 0 && (
-              <span style={{ borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 600, background: 'var(--soft-warning-bg)', color: 'var(--soft-warning-text)' }}>
-                Rest {formatLei(rest)}
-              </span>
-            )}
-          </div>
-        </div>
-      </button>
-
-      {/* Expanded */}
-      {expanded && (
-        <div style={{ padding: '0 14px 14px' }}>
-          {/* Contact */}
-          {hasPhone && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <a
-                href={`tel:${phoneClean}`}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  background: 'var(--soft-success-bg)', color: 'var(--soft-success-text)', textDecoration: 'none',
-                }}
-              >
-                📞 Sună
-              </a>
-              <a
-                href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                  background: 'var(--soft-success-bg)', color: 'var(--soft-success-text)', textDecoration: 'none',
-                }}
-              >
-                💬 WhatsApp
-              </a>
-            </div>
-          )}
-
-          {/* Items */}
-          {(vanzare.items ?? []).length > 0 && (
-            <div style={{ marginBottom: 10 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-hint)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
-                Soiuri
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                {(vanzare.items ?? []).map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--agri-text-muted)' }}>
-                    <span>🌿 {item.soi}</span>
-                    <span style={{ fontWeight: 600 }}>{Number(item.cantitate || 0)} buc</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Financial summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
-            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--value-positive)' }}>{formatLei(Number(vanzare.total_lei || 0))}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-hint)', marginTop: 2 }}>total</div>
-            </div>
-            <div style={{ background: 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--value-positive)' }}>{formatLei(Number(vanzare.avans_suma || 0))}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-hint)', marginTop: 2 }}>avans</div>
-            </div>
-            <div style={{ background: rest > 0 ? 'var(--soft-warning-bg)' : 'var(--agri-surface-muted)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: rest > 0 ? 'var(--soft-warning-text)' : 'var(--text-hint)' }}>{formatLei(Math.max(0, rest))}</div>
-              <div style={{ fontSize: 10, color: 'var(--text-hint)', marginTop: 2 }}>rest</div>
-            </div>
-          </div>
-
-          {/* Extra info */}
-          {parcelaNume && (
-            <p style={{ fontSize: 12, color: 'var(--text-hint)', marginBottom: 8 }}>📍 Parcela sursă: {parcelaNume}</p>
-          )}
-          {vanzare.adresa_livrare && (
-            <p style={{ fontSize: 12, color: 'var(--text-hint)', marginBottom: 8 }}>🚚 Livrare: {vanzare.adresa_livrare}</p>
-          )}
-          {vanzare.data_livrare_estimata && (
-            <p style={{ fontSize: 12, color: 'var(--text-hint)', marginBottom: 8 }}>📅 Livrare estimată: {new Date(vanzare.data_livrare_estimata).toLocaleDateString('ro-RO')}</p>
-          )}
-
-          {/* Edit / Delete */}
-          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid var(--agri-border)', paddingTop: 12 }}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onEdit() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--button-muted-bg)', border: '1px solid var(--button-muted-border)', color: 'var(--button-muted-text)', cursor: 'pointer',
-              }}
-            >
-              ✏️ Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onDelete() }}
-              style={{
-                flex: 1, padding: '8px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                background: 'var(--soft-danger-bg)', border: '1px solid var(--soft-danger-border)', color: 'var(--soft-danger-text)', cursor: 'pointer',
-              }}
-            >
-              🗑️ Șterge
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    <MobileEntityCard
+      title={title}
+      value={mainValue}
+      secondary={subtitle}
+      status={
+        <StatusBadge
+          text={statusLabel(vanzare.status)}
+          variant={getStatusVariant(vanzare.status)}
+        />
+      }
+      onClick={() => {
+        // Deschide direct dialogul de editare la click
+        onEdit()
+      }}
+    />
   )
 }
 
@@ -251,7 +129,6 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
   const pendingDeletedItems = useRef<Record<string, { item: VanzareButasi; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('luna')
   const [addOpen, setAddOpen] = useState(false)
@@ -487,14 +364,6 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
                 key={vanzare.id}
                 vanzare={vanzare}
                 clientNume={vanzare.client_id ? clientMap[vanzare.client_id] : (vanzare.client_nume_manual ?? undefined)}
-                clientTelefon={
-                  vanzare.client_id
-                    ? clientPhoneMap[vanzare.client_id]
-                    : extractManualPhone(vanzare.observatii)
-                }
-                parcelaNume={vanzare.parcela_sursa_id ? parcelaMap[vanzare.parcela_sursa_id] : undefined}
-                expanded={expandedId === vanzare.id}
-                onToggle={() => setExpandedId(expandedId === vanzare.id ? null : vanzare.id)}
                 onEdit={() => setEditingVanzare(vanzare)}
                 onDelete={() => setDeletingVanzare(vanzare)}
               />

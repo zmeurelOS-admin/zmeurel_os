@@ -19,6 +19,7 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { Button } from '@/components/ui/button'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import { getSupabase } from '@/lib/supabase/client'
@@ -323,10 +324,6 @@ function comandaStatusLabel(status: string): string {
 function ClientCardNew({
   client,
   metrics,
-  clientComenzi,
-  clientVanzari,
-  expanded,
-  onToggle,
   onEdit,
   onDelete,
 }: {
@@ -337,138 +334,32 @@ function ClientCardNew({
     unpaidRon: number
     comenziCount: number
   }
-  clientComenzi: ComandaItem[]
-  clientVanzari: VanzareItem[]
-  expanded: boolean
-  onToggle: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
-  const hasPhone = Boolean(client.telefon)
-  const phoneClean = (client.telefon ?? '').replace(/\s+/g, '')
-
-  const mainValue = metrics.totalRon > 0
-    ? `${metrics.totalRon.toFixed(0)} RON`
-    : `${metrics.comenziCount} comenzi`
-
-  const secondary = [
-    client.telefon ? String(client.telefon) : null,
-    metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null,
-    metrics.vanzariCount > 0 ? `${metrics.vanzariCount} vânzări` : null,
-  ].filter(Boolean).join(' · ')
+  const subtitle = client.telefon || client.adresa || '-'
+  const mainValue = metrics.totalRon > 0 ? `${metrics.totalRon.toFixed(0)} lei` : `${metrics.comenziCount} comenzi`
+  const secondaryValue = metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null
+  const isActive = metrics.comenziCount > 0 || metrics.vanzariCount > 0
 
   return (
     <MobileEntityCard
       title={client.nume_client}
       value={mainValue}
-      secondary={secondary || '-'}
+      secondary={secondaryValue || undefined}
       status={
-        metrics.unpaidRon > 0 ? (
-          <span className="inline-flex items-center rounded-full border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-danger-text)]">
-            Neîncasat
-          </span>
-        ) : metrics.totalRon > 0 ? (
-          <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-success-text)]">
-            OK
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-neutral-text)]">
-            Nou
-          </span>
-        )
+        isActive ? (
+          <StatusBadge
+            text="Activ"
+            variant="success"
+          />
+        ) : null
       }
-      onClick={onToggle}
-      isExpanded={expanded}
-      className={cn(metrics.unpaidRon > 0 ? 'border-[var(--status-danger-border)]' : '')}
-    >
-      {hasPhone ? (
-        <div className="flex gap-2">
-          <a
-            href={`tel:${phoneClean}`}
-            className="flex-1 min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--button-muted-text)]"
-          >
-            Sună
-          </a>
-          <a
-            href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 min-h-11 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--status-success-text)]"
-          >
-            WhatsApp
-          </a>
-        </div>
-      ) : null}
-
-      {clientComenzi.length > 0 ? (
-        <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
-            Ultimele comenzi
-          </p>
-          <div className="mt-2 space-y-1 text-sm text-[var(--agri-text)]">
-            {clientComenzi.map((cmd) => (
-              <div key={cmd.id} className="flex items-center justify-between gap-2">
-                <span className="truncate">
-                  {cmd.data_comanda?.slice(0, 10) ?? '—'} · {Number(cmd.cantitate_kg || 0).toFixed(0)} kg
-                </span>
-                <span className="shrink-0 text-xs text-[var(--agri-text-muted)]">{comandaStatusLabel(cmd.status)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {clientVanzari.length > 0 ? (
-        <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
-            Ultimele vânzări
-          </p>
-          <div className="mt-2 space-y-1 text-sm text-[var(--agri-text)]">
-            {clientVanzari.map((v) => {
-              const ron = Number(v.cantitate_kg || 0) * Number(v.pret_lei_kg || 0)
-              return (
-                <div key={v.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate">
-                    {v.data?.slice(0, 10) ?? '—'} · {Number(v.cantitate_kg || 0).toFixed(0)} kg · {ron.toFixed(0)} RON
-                  </span>
-                  <span
-                    className={cn(
-                      'shrink-0 text-xs font-semibold',
-                      isIncasata(v.status_plata) ? 'text-[var(--status-success-text)]' : 'text-[var(--status-danger-text)]'
-                    )}
-                  >
-                    {isIncasata(v.status_plata) ? '✅' : '⏳'}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-          className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-        >
-          Editează
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-        >
-          Șterge
-        </button>
-      </div>
-    </MobileEntityCard>
+      onClick={() => {
+        // Deschide direct dialogul de editare la click
+        onEdit()
+      }}
+    />
   )
 }
 
@@ -481,7 +372,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showOnlyUnpaid, setShowOnlyUnpaid] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -960,39 +850,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     return rows
   }, [clienti, metricsByClient, searchTerm, showOnlyUnpaid])
 
-  const comenziByClient = useMemo(() => {
-    const map: Record<string, ComandaItem[]> = {}
-    for (const cmd of comenzi) {
-      if (!cmd.client_id) continue
-      if (!map[cmd.client_id]) map[cmd.client_id] = []
-      map[cmd.client_id].push(cmd)
-    }
-    for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => {
-        const da = a.data_comanda ?? ''
-        const db = b.data_comanda ?? ''
-        return db > da ? 1 : -1
-      })
-    }
-    return map
-  }, [comenzi])
-
-  const vanzariByClient = useMemo(() => {
-    const map: Record<string, VanzareItem[]> = {}
-    for (const v of vanzari) {
-      if (!v.client_id) continue
-      if (!map[v.client_id]) map[v.client_id] = []
-      map[v.client_id].push(v)
-    }
-    for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => {
-        const da = a.data ?? ''
-        const db = b.data ?? ''
-        return db > da ? 1 : -1
-      })
-    }
-    return map
-  }, [vanzari])
   const desktopColumns = useMemo<ColumnDef<Client>[]>(() => [
     {
       accessorKey: 'nume_client',
@@ -1283,10 +1140,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                     unpaidRon: metrics?.unpaidRon ?? 0,
                     comenziCount: metrics?.comenziCount ?? 0,
                   }}
-                  clientComenzi={(comenziByClient[client.id] ?? []).slice(0, 3)}
-                  clientVanzari={(vanzariByClient[client.id] ?? []).slice(0, 3)}
-                  expanded={expandedId === client.id}
-                  onToggle={() => setExpandedId(expandedId === client.id ? null : client.id)}
                   onEdit={() => {
                     setEditingClient(client)
                     setEditOpen(true)

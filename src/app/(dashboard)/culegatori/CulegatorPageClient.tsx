@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -80,131 +81,29 @@ function getRecoltareKg(recoltare: Recoltare): number {
 function CulegatorCardNew({
   culegator,
   stats,
-  recentRecoltari,
-  parcelaMap,
-  expanded,
-  onToggle,
   onEdit,
   onDelete,
 }: {
   culegator: Culegator
   stats: WorkerStats | undefined
-  recentRecoltari: Recoltare[]
-  parcelaMap: Record<string, string>
-  expanded: boolean
-  onToggle: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
-  const hasPhone = Boolean(culegator.telefon)
-  const phoneClean = (culegator.telefon ?? '').replace(/\s+/g, '')
-  const isActiv = culegator.status_activ !== false
   const seasonKg = stats?.seasonKg ?? 0
-  const avgKgPerDay = stats && stats.seasonDays > 0 ? seasonKg / stats.seasonDays : 0
+  const seasonCount = stats?.seasonCount ?? 0
+  const mainValue = `${seasonKg.toFixed(0)} kg`
+  const secondary = seasonCount > 0 ? `${seasonCount} recoltări${culegator.telefon ? ` · ${culegator.telefon}` : ''}` : culegator.telefon || undefined
 
   return (
     <MobileEntityCard
       title={culegator.nume_prenume}
-      value={seasonKg > 0 ? `${formatKg(seasonKg)} kg` : '0 kg'}
-      secondary={
-        [
-          isActiv ? 'Activ' : 'Inactiv',
-          culegator.tarif_lei_kg ? `${culegator.tarif_lei_kg} RON/kg` : null,
-        ]
-          .filter(Boolean)
-          .join(' · ') || '-'
-      }
-      status={
-        <span
-          className={cn(
-            'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold',
-            isActiv
-              ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-              : 'border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]'
-          )}
-        >
-          {isActiv ? 'Activ' : 'Inactiv'}
-        </span>
-      }
-      onClick={onToggle}
-      isExpanded={expanded}
-      className={cn(!isActiv ? 'opacity-95' : '')}
-    >
-      {hasPhone ? (
-        <div className="flex gap-2">
-          <a
-            href={`tel:${phoneClean}`}
-            className="flex-1 min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--button-muted-text)]"
-          >
-            Sună
-          </a>
-          <a
-            href={`https://wa.me/${phoneClean.replace(/^\+?0/, '40')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 min-h-11 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 text-center text-sm font-semibold leading-[44px] text-[var(--status-success-text)]"
-          >
-            WhatsApp
-          </a>
-        </div>
-      ) : null}
-
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-center">
-          <div className="text-base font-bold text-[var(--value-positive)]">{formatKg(seasonKg)}</div>
-          <div className="mt-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">kg sezon</div>
-        </div>
-        <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-center">
-          <div className="text-base font-bold text-[var(--agri-text)]">{formatKg(avgKgPerDay)}</div>
-          <div className="mt-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">kg/zi</div>
-        </div>
-        <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-center">
-          <div className="text-base font-bold text-[var(--agri-text)]">{stats?.seasonDays ?? 0}</div>
-          <div className="mt-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">zile</div>
-        </div>
-      </div>
-
-      {recentRecoltari.length > 0 ? (
-        <div className="mt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ultimele recoltări</p>
-          <div className="mt-2 space-y-1 text-sm text-[var(--agri-text)]">
-            {recentRecoltari.map((r) => {
-              const kg = getRecoltareKg(r)
-              const parcelaName = r.parcela_id ? (parcelaMap[r.parcela_id] ?? 'Parcela') : 'Parcela'
-              return (
-                <div key={r.id} className="flex items-center justify-between gap-2">
-                  <span className="truncate">{toDateOnly(r.data)} · {parcelaName}</span>
-                  <span className="shrink-0 font-semibold text-[var(--value-positive)]">{formatKg(kg)} kg</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-          className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-        >
-          Editează
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-        >
-          Șterge
-        </button>
-      </div>
-    </MobileEntityCard>
+      value={mainValue}
+      secondary={secondary}
+      onClick={() => {
+        // Deschide direct dialogul de editare la click
+        onEdit()
+      }}
+    />
   )
 }
 
@@ -217,7 +116,6 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
   const pendingDeletedItems = useRef<Record<string, { item: Culegator; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [editCulegator, setEditCulegator] = useState<Culegator | null>(null)
@@ -447,19 +345,6 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     [workerStats]
   )
 
-  const recoltariByWorker = useMemo(() => {
-    const map: Record<string, Recoltare[]> = {}
-    for (const r of recoltari) {
-      if (!r.culegator_id) continue
-      if (!map[r.culegator_id]) map[r.culegator_id] = []
-      map[r.culegator_id].push(r)
-    }
-    for (const key of Object.keys(map)) {
-      map[key].sort((a, b) => b.data.localeCompare(a.data))
-    }
-    return map
-  }, [recoltari])
-
   const filteredCulegatori = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     if (!term) return culegatori
@@ -629,10 +514,6 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
               <CulegatorCardNew
                 culegator={culegator}
                 stats={workerStats.get(culegator.id)}
-                recentRecoltari={(recoltariByWorker[culegator.id] ?? []).slice(0, 5)}
-                parcelaMap={parcelaMap}
-                expanded={expandedId === culegator.id}
-                onToggle={() => setExpandedId(expandedId === culegator.id ? null : culegator.id)}
                 onEdit={() => setEditCulegator(culegator)}
                 onDelete={() => setDeleting(culegator)}
               />

@@ -14,12 +14,12 @@ import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
-import { getCheltuialaCategoryEmoji } from '@/components/cheltuieli/CheltuialaCard'
 import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
 import { Button } from '@/components/ui/button'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -78,6 +78,15 @@ function normalizeText(value: string | null | undefined): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+function cheltuialaCategoryEmoji(category: string | null | undefined): string {
+  const n = normalizeText(category)
+  if (n.includes('combustibil') || n.includes('carburant') || n.includes('motorina') || n.includes('benzina')) return '⛽'
+  if (n.includes('material')) return '🧱'
+  if (n.includes('manopera') || n.includes('munca') || n.includes('forta')) return '👷'
+  if (n.includes('trat') || n.includes('chimic') || n.includes('pesticid') || n.includes('fitosanitar')) return '🧪'
+  return '💸'
+}
+
 function isSchemaCacheError(error: unknown): boolean {
   const message = String((error as { message?: string })?.message ?? '').toLowerCase()
   return message.includes('schema cache') || message.includes('could not find the')
@@ -107,6 +116,23 @@ function formatData(value: string): string {
   return new Date(value).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })
 }
 
+function formatCheltuialaStatusLabel(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'Azi'
+  if (diffDays === 1) return 'Ieri'
+  if (diffDays > 1 && diffDays <= 14) return `Acum ${diffDays} zile`
+
+  return date.toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })
+}
+
 function formatRon(value: number): string {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
 }
@@ -121,25 +147,32 @@ interface CheltuialaCardNewProps {
 
 function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete }: CheltuialaCardNewProps) {
   const suma = Number(cheltuiala.suma_lei || 0)
-  const emoji = getCheltuialaCategoryEmoji(cheltuiala.categorie)
+  const emoji = cheltuialaCategoryEmoji(cheltuiala.categorie)
   const isAuto = isAutoManoperaCheltuiala(cheltuiala)
+
+  const categorie = (cheltuiala.categorie ?? '').trim()
+  const descriere = (cheltuiala.descriere ?? '').trim()
+  const furnizor = (cheltuiala.furnizor ?? '').trim()
+
+  const titleText = descriere && (!categorie || descriere.length >= categorie.length + 4) ? descriere : (categorie || descriere || 'Cheltuială')
+  const subtitleText = furnizor || (titleText !== descriere ? descriere : '') || undefined
+  const statusLabel = cheltuiala.data ? formatCheltuialaStatusLabel(cheltuiala.data) : ''
 
   return (
     <MobileEntityCard
       title={
         <span className="inline-flex items-center gap-2">
           <span aria-hidden>{emoji}</span>
-          <span>{cheltuiala.descriere || cheltuiala.categorie || 'Cheltuială'}</span>
+          <span>{titleText}</span>
         </span>
       }
-      value={`${formatRon(suma)} RON`}
-      secondary={`${cheltuiala.categorie || 'Altele'} · ${formatData(cheltuiala.data)}`}
+      value={<span className="text-[var(--value-negative)]">{formatRon(suma)} lei</span>}
+      secondary={subtitleText}
       status={
-        isAuto ? (
-          <span className="inline-flex items-center rounded-full border border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--soft-info-text)]">
-            Auto
-          </span>
-        ) : null
+        <div className="flex flex-col items-end gap-1">
+          {statusLabel ? <StatusBadge text={statusLabel} variant="neutral" /> : null}
+          {isAuto ? <StatusBadge text="Auto" variant="neutral" /> : null}
+        </div>
       }
       onClick={onToggle}
       isExpanded={isExpanded}
@@ -485,7 +518,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       header: 'Categorie',
       cell: ({ row }) => (
         <span className="inline-flex items-center gap-2 font-medium">
-          <span>{getCheltuialaCategoryEmoji(row.original.categorie)}</span>
+          <span>{cheltuialaCategoryEmoji(row.original.categorie)}</span>
           <span>{row.original.categorie || 'Altele'}</span>
         </span>
       ),

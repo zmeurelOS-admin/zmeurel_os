@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
+import StatusBadge from '@/components/ui/StatusBadge'
 
 import {
   getParcele,
@@ -43,6 +44,30 @@ function getUnitateBadge(tipUnitate: string | null | undefined): { label: string
     label: 'Camp',
     className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-green-700 dark:bg-green-900/50 dark:text-green-400',
   }
+}
+
+function parcelaEmoji(parcela: Parcela): string {
+  const tipUnitate = (parcela.tip_unitate ?? '').toLowerCase()
+  const cultura = (parcela.cultura ?? parcela.tip_fruct ?? '').toLowerCase()
+
+  if (tipUnitate.includes('solar') || tipUnitate.includes('sera')) return '🏠'
+  if (tipUnitate.includes('livada')) return '🌳'
+  if (cultura.includes('zmeur') || cultura.includes('fruct')) return '🫐'
+  return '🌱'
+}
+
+function parcelaRolLabel(rol: string | null | undefined): { label: string; variant: 'success' | 'neutral' } {
+  const v = (rol ?? '').toLowerCase()
+  if (v.includes('comercial')) return { label: 'Comercial', variant: 'success' }
+  if (v.includes('uz') || v.includes('propriu')) return { label: 'Uz propriu', variant: 'neutral' }
+  return { label: 'Uz propriu', variant: 'neutral' }
+}
+
+function parcelaSubtitle(parcela: Parcela): string {
+  const cultura = (parcela.cultura || parcela.tip_fruct || null) as string | null
+  const soi = (parcela.soi || parcela.soi_plantat || null) as string | null
+  const culturaSoi = [cultura, soi].filter(Boolean).join(' · ')
+  return [culturaSoi || null, formatM2ToHa(parcela.suprafata_m2)].filter(Boolean).join(' · ') || '-'
 }
 
 export function ParcelaPageClient({
@@ -110,22 +135,23 @@ export function ParcelaPageClient({
 
         {!isLoading && parcele.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 gap-3 lg:hidden">
+            <div className="space-y-3 lg:hidden">
               {parcele.map((p) => (
                 <MobileEntityCard
                   key={p.id}
-                  title={p.nume_parcela || 'Teren'}
-                  value={formatM2ToHa(p.suprafata_m2)}
-                  secondary={[p.tip_fruct || null, p.soi_plantat || p.soi || null].filter(Boolean).join(' · ') || '-'}
-                  status={
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold',
-                        getUnitateBadge(p.tip_unitate).className
-                      )}
-                    >
-                      {getUnitateBadge(p.tip_unitate).label}
+                  title={
+                    <span className="inline-flex items-center gap-2">
+                      <span aria-hidden>{parcelaEmoji(p)}</span>
+                      <span>{p.nume_parcela || 'Teren'}</span>
                     </span>
+                  }
+                  value={null}
+                  secondary={parcelaSubtitle(p)}
+                  status={
+                    <StatusBadge
+                      text={parcelaRolLabel((p as { rol?: string | null }).rol).label}
+                      variant={parcelaRolLabel((p as { rol?: string | null }).rol).variant}
+                    />
                   }
                   onClick={() => setExpandedId((current) => (current === p.id ? null : p.id))}
                   isExpanded={expandedId === p.id}

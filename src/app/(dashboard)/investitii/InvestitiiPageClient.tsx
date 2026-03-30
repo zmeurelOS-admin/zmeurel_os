@@ -14,6 +14,7 @@ import { AddInvestitieDialog } from '@/components/investitii/AddInvestitieDialog
 import { EditInvestitieDialog } from '@/components/investitii/EditInvestitieDialog'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { deleteInvestitie, getInvestitii, type Investitie } from '@/lib/supabase/queries/investitii'
 import { buildInvestitieDeleteLabel } from '@/lib/ui/delete-labels'
@@ -55,90 +56,37 @@ function categoryEmoji(category: string | null | undefined): string {
 
 function InvestitieCardNew({
   investitie,
-  parcelaNume,
-  expanded,
-  onToggle,
   onEdit,
   onDelete,
 }: {
   investitie: Investitie
-  parcelaNume: string | undefined
-  expanded: boolean
-  onToggle: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
-  const emoji = categoryEmoji(investitie.categorie)
+  const title = investitie.descriere || investitie.categorie || 'Investiție'
+  const subtitle = investitie.furnizor || undefined
   const suma = Number(investitie.suma_lei || 0)
+  const mainValue = `${suma.toFixed(0)} lei`
+  const dataLabel = investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit' }) : undefined
 
   return (
     <MobileEntityCard
-      title={
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden>{emoji}</span>
-          <span>{investitie.categorie || 'Investiție'}</span>
-        </span>
-      }
-      value={`${suma.toFixed(0)} RON`}
-      secondary={
-        [
-          investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : null,
-          investitie.furnizor || null,
-        ]
-          .filter(Boolean)
-          .join(' · ') || '-'
-      }
+      title={title}
+      value={mainValue}
+      secondary={subtitle}
       status={
-        parcelaNume ? (
-          <span className="inline-flex items-center rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-1 text-[10px] font-semibold text-[var(--agri-text)]">
-            {parcelaNume}
-          </span>
+        dataLabel ? (
+          <StatusBadge
+            text={dataLabel}
+            variant="neutral"
+          />
         ) : null
       }
-      onClick={onToggle}
-      isExpanded={expanded}
-      className={cn('border-l-[4px] border-l-[var(--value-positive)]')}
-    >
-      {expanded ? (
-        <>
-          {/* Details */}
-          <div className="space-y-1 text-sm text-[var(--agri-text-muted)]">
-            {investitie.descriere ? <p>📝 {investitie.descriere}</p> : null}
-            {parcelaNume ? <p>📍 Parcelă: {parcelaNume}</p> : null}
-            {investitie.furnizor ? <p>🏪 Furnizor: {investitie.furnizor}</p> : null}
-          </div>
-
-          {/* Value highlight */}
-          <div className="mt-3 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-3 text-center">
-            <span className="text-xl font-bold text-[var(--value-positive)]">{suma.toFixed(2)} RON</span>
-          </div>
-
-          {/* Edit / Delete */}
-          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-            >
-              ✏️ Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className="min-h-9 rounded-lg border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] px-3 text-[11px] font-semibold text-[var(--soft-danger-text)]"
-            >
-              🗑️ Șterge
-            </button>
-          </div>
-        </>
-      ) : null}
-    </MobileEntityCard>
+      onClick={() => {
+        // Deschide direct dialogul de editare la click
+        onEdit()
+      }}
+    />
   )
 }
 
@@ -151,7 +99,6 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
   const pathname = usePathname()
   const router = useRouter()
 
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [addOpen, setAddOpen] = useState(false)
 
@@ -287,9 +234,6 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
               <InvestitieCardNew
                 key={investitie.id}
                 investitie={investitie}
-                parcelaNume={investitie.parcela_id ? parcelaMap[investitie.parcela_id] : undefined}
-                expanded={expandedId === investitie.id}
-                onToggle={() => setExpandedId(expandedId === investitie.id ? null : investitie.id)}
                 onEdit={() => setEditingInvestitie(investitie)}
                 onDelete={() => setDeletingInvestitie(investitie)}
               />
