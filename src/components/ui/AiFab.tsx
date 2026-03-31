@@ -1,9 +1,9 @@
 'use client'
 
-import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AiBottomSheet } from '@/components/ai/AiBottomSheet'
+import { Sparkles } from 'lucide-react'
 
 const AI_FAB_TOOLTIP_SESSION_KEY = 'zmeurel-ai-fab-tooltip-seen'
 
@@ -67,7 +67,12 @@ export default function AiFab() {
     <>
       <div
         className="lg:hidden"
-        style={{ position: 'fixed', bottom: 94, right: 14, zIndex: 42 }}
+        style={{
+          position: 'fixed',
+          bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 10px)',
+          right: 14,
+          zIndex: 42,
+        }}
       >
         {tooltipState !== 'hidden' ? (
           <div
@@ -75,26 +80,18 @@ export default function AiFab() {
               tooltipState === 'visible' ? 'translate-x-0 opacity-100' : '-translate-x-1 opacity-0'
             }`}
           >
-            Întreabă-mă orice 🌱
+            Asistentul Zmeurel
           </div>
         ) : null}
 
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="relative flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--brand-blue)] p-0 shadow-[var(--agri-shadow)] dark:border-[var(--agri-border)] dark:bg-[var(--brand-blue)]"
-          aria-label="Asistent AI Zmeurel"
+          className="relative flex h-14 w-14 cursor-pointer flex-col items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--brand-blue)] p-0 shadow-[var(--agri-shadow)] ring-1 ring-[color-mix(in_srgb,var(--agri-primary)_16%,transparent)] transition-[box-shadow,transform] hover:shadow-[var(--agri-elevated-shadow-hover)] active:scale-[0.98] dark:border-[var(--agri-border)] dark:bg-[var(--brand-blue)]"
+          aria-label="Deschide Asistentul Zmeurel"
         >
-          <Image
-            src="/icons/icon.svg"
-            alt="Zmeurel AI"
-            width={28}
-            height={28}
-            className="rounded-full"
-          />
-          <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-            AI
-          </span>
+          <Sparkles className="h-6 w-6 text-white" aria-hidden />
+          <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-white">AI</span>
         </button>
       </div>
 

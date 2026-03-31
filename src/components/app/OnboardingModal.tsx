@@ -95,9 +95,9 @@ export function OnboardingModal() {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose() }}>
-      <DialogContent className="w-[95%] max-w-sm rounded-2xl border-0 bg-[var(--agri-surface)] p-6 shadow-2xl sm:max-w-md">
+      <DialogContent className="max-w-sm sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-[var(--agri-text)]">
+          <DialogTitle className="text-lg tracking-[-0.02em] [font-weight:650]">
             Bun venit în Zmeurel! 🌿
           </DialogTitle>
           <DialogDescription className="mt-2 text-sm text-[var(--agri-text-muted)]">
@@ -124,11 +124,11 @@ export function OnboardingModal() {
             ) : null}
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-row items-center justify-between gap-3 pt-1">
             <Button
               type="button"
               variant="outline"
-              className="order-2 w-full sm:order-1 sm:w-auto"
+              className="agri-cta shrink-0"
               onClick={handleClose}
               disabled={isSaving}
             >
@@ -136,7 +136,7 @@ export function OnboardingModal() {
             </Button>
             <Button
               type="button"
-              className="order-1 w-full bg-[var(--agri-primary)] text-white hover:bg-emerald-700 sm:order-2 sm:w-auto"
+              className="agri-cta shrink-0 bg-[var(--agri-primary)] text-white hover:opacity-95"
               onClick={handleSavePhone}
               disabled={isSaving}
             >

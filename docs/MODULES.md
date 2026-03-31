@@ -8,17 +8,16 @@ _Last updated: 2026-03-21_
 |------|---------|
 | Route | `/dashboard` |
 | Page file | `src/app/(dashboard)/dashboard/page.tsx` |
-| Client | `src/components/dashboard/DashboardHome.tsx` |
+| Client | `src/app/(dashboard)/dashboard/page.tsx` (`'use client'`, fără wrapper `DashboardHome`) |
 | Tabele Supabase | `recoltari`, `vanzari`, `cheltuieli_diverse`, `investitii`, `parcele`, `culegatori`, `comenzi` |
-| Query keys | `queryKeys.dashboard` |
+| Query keys | `queryKeys.recoltari`, `queryKeys.parcele`, `queryKeys.activitati`, `queryKeys.vanzari`, `queryKeys.cheltuieli`, `queryKeys.comenzi`, `queryKeys.stocuriLocatiiRoot` |
 
 **Componente cheie:**
-- `DashboardHome` — container principal cu toate KPI-urile
-- `FinanciarAziCard` — vânzări & cheltuieli zilnice
-- `ProductieAziCard` — recoltare zilnică kg
-- `RecentActivityCard` — ultimele activități (⚠️ data afișată ca ISO string raw — bug #5)
-- `KpiCard` — card KPI refolosibil (icon, label, value, trend)
-- `WelcomeCard` — salut personalizat cu data fermei
+- `MeteoDashboardCard` — cardul meteo activ al dashboard-ului
+- `TaskList` — lista activă „Todo azi”
+- `DashboardWidgets` — widget-uri configurabile (`KpiSummaryWidget`, `ComenziRecenteWidget`, `ActivitatiPlanificateWidget`, `RecoltariRecenteWidget`, `StocuriCriticeWidget`, `SumarVenituriWidget`)
+- `WelcomeCard` — card onboarding pentru ferme fără parcele
+- `src/lib/dashboard/engine.ts` — layer logic Dashboard 2.0 (`DashboardRawData`, `ParcelDashboardState`, tasks/alerts/summary/weather builders)
 
 ---
 
@@ -27,13 +26,13 @@ _Last updated: 2026-03-21_
 |------|---------|
 | Route | `/parcele`, `/parcele/[id]` |
 | Page file | `src/app/(dashboard)/parcele/page.tsx` |
-| Client | `src/app/(dashboard)/parcele/ParcelaPageClient.tsx` |
+| Client | `src/components/parcele/ParcelePageClient.tsx` |
 | Tabele Supabase | `parcele`, `culturi`, `activitati_agricole` (referințe), `recoltari` (referințe) |
-| Query keys | `queryKeys.parcele`, `queryKeys.parcela(id)` |
+| Query keys | `queryKeys.parcele` (+ chei derivate pentru culturi/counts) |
 
 **Componente cheie:**
 - `ParceleList` — lista de terenuri cu carduri expandabile pe mobil și rânduri full-width expandabile pe desktop; acțiunile de editare/istoric/activitate rămân disponibile, iar detaliile de culturi se deschid inline sub rândul selectat
-- `ParcelePageClient` (din `src/components/parcele/`) — pagina principală terenuri cu `ConfirmDeleteDialog`, `AddActivitateAgricolaDialog` și `AddRecoltareDialog` montate inline; query parcele cu `refetchOnMount: true` pentru corectarea bug-ului de cache
+- `ParcelePageClient` (din `src/components/parcele/`) — pagina principală terenuri cu `ConfirmDeleteDialog`, `AddActivitateAgricolaDialog`, `AddCulturaDialog`, `AddMicroclimatDialog`, `DesfiinteazaCulturaDialog`; query parcele folosește fallback de schemă în `queries/parcele.ts` pentru medii linked rămase în urmă
 - `AddParcelDrawer` — creare teren nou (drawer); formular simplificat cu câmpuri: Tip unitate, Nume teren, Suprafață, Status, Stadiu, Observații. Câmpurile Tip cultură, Soi plantat, An plantare și secțiunea Culturi în solar au fost eliminate.
 - `EditParcelDialog` — editare teren existent; formular simplificat identic cu `AddParcelDrawer`
 - `ParcelaCard` — neutilizat în pagina principală; UI alternativ vechi

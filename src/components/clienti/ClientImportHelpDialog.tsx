@@ -2,6 +2,7 @@
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { Button } from '@/components/ui/button'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 interface ClientImportHelpDialogProps {
   open: boolean
@@ -55,32 +56,35 @@ export function ClientImportHelpDialog({
 
         <div className="space-y-2">
           <p className="font-medium text-[var(--agri-text)]">Exemplu:</p>
-          <div className="overflow-x-auto rounded-lg border border-[var(--agri-border)]">
-            <table className="min-w-full text-xs">
-              <thead className="bg-[var(--agri-surface-muted)]">
-                <tr>
+          <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)]">
+            <Table className="text-xs">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
                   {['Nume client', 'Telefon', 'Email', 'Adresă'].map((header) => (
-                    <th key={header} className="px-3 py-2 text-left font-semibold text-[var(--agri-text)]">
+                    <TableHead
+                      key={header}
+                      className="px-3 py-2 normal-case text-xs font-semibold text-[var(--agri-text)]"
+                    >
                       {header}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--agri-border)]">
-                <tr>
-                  <td className="px-3 py-2">Ion Popescu</td>
-                  <td className="px-3 py-2">0745123456</td>
-                  <td className="px-3 py-2">ion@email.com</td>
-                  <td className="px-3 py-2">Suceava</td>
-                </tr>
-                <tr>
-                  <td className="px-3 py-2">Maria Ionescu</td>
-                  <td className="px-3 py-2">0722334455</td>
-                  <td className="px-3 py-2 text-[var(--agri-text-muted)]">—</td>
-                  <td className="px-3 py-2">Fălticeni</td>
-                </tr>
-              </tbody>
-            </table>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">Ion Popescu</TableCell>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">0745123456</TableCell>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">ion@email.com</TableCell>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">Suceava</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">Maria Ionescu</TableCell>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">0722334455</TableCell>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text-muted)]">—</TableCell>
+                  <TableCell className="px-3 py-2 text-xs text-[var(--agri-text)]">Fălticeni</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
         </div>
 

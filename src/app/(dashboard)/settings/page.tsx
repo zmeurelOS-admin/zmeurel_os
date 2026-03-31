@@ -27,11 +27,19 @@ import {
 } from '@/lib/demo/onboarding-storage'
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantByIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
+import type { Database } from '@/types/supabase'
 import { hapticConfirm } from '@/lib/utils/haptic'
 import { isValidRomanianPhone, normalizePhone } from '@/lib/utils/phone'
 
 type CsvModule = 'activitati' | 'cheltuieli' | 'vanzari' | 'recoltari' | 'clienti' | 'comenzi'
 type DemoAction = 'exit'
+type DemoSeedType = 'berries' | 'solar' | 'orchard' | 'fieldcrop'
+type FarmPhoneRow = Pick<Database['public']['Tables']['tenants']['Row'], 'contact_phone'>
+type ProfilePhoneRow = Pick<Database['public']['Tables']['profiles']['Row'], 'phone'>
+type TenantSettingsRow = Pick<
+  Database['public']['Tables']['tenant_settings']['Row'],
+  'latitudine_default' | 'longitudine_default'
+>
 
 type TenantTable =
   | 'activitati_agricole'
@@ -162,6 +170,7 @@ export default function SettingsPage() {
   const [isExitingDemoMode, setIsExitingDemoMode] = useState(false)
   const [isDeletingFarmData, setIsDeletingFarmData] = useState(false)
   const [demoActionDialog, setDemoActionDialog] = useState<DemoAction | null>(null)
+  const [demoSeedTypeDialogOpen, setDemoSeedTypeDialogOpen] = useState(false)
 
   const [deleteAiConversationsOpen, setDeleteAiConversationsOpen] = useState(false)
   const [isDeletingAiConversations, setIsDeletingAiConversations] = useState(false)
@@ -181,15 +190,39 @@ export default function SettingsPage() {
       const supabase = getSupabase()
       const resolvedTenantId = await getTenantIdByUserIdOrNull(supabase, userId)
 
-      const [tenantRow, farmPhoneResult, profileResult, tenantSettingsResult] = await Promise.all([
+      const [tenantRow, farmPhoneRow, profileRow, tenantSettingsRow] = await Promise.all([
         getTenantByIdOrNull(supabase, resolvedTenantId),
         resolvedTenantId
-          ? supabase.from('tenants').select('contact_phone').eq('id', resolvedTenantId).single()
-          : Promise.resolve({ data: null }),
-        supabase.from('profiles').select('phone').eq('id', userId).single(),
+          ? supabase
+              .from('tenants')
+              .select('contact_phone')
+              .eq('id', resolvedTenantId)
+              .single()
+              .then(({ data, error }) => {
+                if (error) throw error
+                return data satisfies FarmPhoneRow
+              })
+          : Promise.resolve<FarmPhoneRow | null>(null),
+        supabase
+          .from('profiles')
+          .select('phone')
+          .eq('id', userId)
+          .single()
+          .then(({ data, error }) => {
+            if (error) throw error
+            return data satisfies ProfilePhoneRow
+          }),
         resolvedTenantId
-          ? supabase.from('tenant_settings').select('latitudine_default,longitudine_default').eq('tenant_id', resolvedTenantId).single()
-          : Promise.resolve({ data: null }),
+          ? supabase
+              .from('tenant_settings')
+              .select('latitudine_default,longitudine_default')
+              .eq('tenant_id', resolvedTenantId)
+              .single()
+              .then(({ data, error }) => {
+                if (error) throw error
+                return data satisfies TenantSettingsRow
+              })
+          : Promise.resolve<TenantSettingsRow | null>(null),
       ])
 
       if (tenantRow?.id) {
@@ -199,17 +232,17 @@ export default function SettingsPage() {
         setFarmName(tenantRow.nume_ferma)
         setFarmNameDraft(tenantRow.nume_ferma)
       }
-      const cp = farmPhoneResult.data?.contact_phone ?? ''
+      const cp = farmPhoneRow?.contact_phone ?? ''
       setFarmPhone(cp)
       setFarmPhoneDraft(cp)
 
-      const pp = profileResult.data?.phone ?? ''
+      const pp = profileRow.phone ?? ''
       setProfilePhone(pp)
       setProfilePhoneDraft(pp)
 
       // Set tenant GPS location defaults
-      const lat = (tenantSettingsResult.data as any)?.latitudine_default ?? ''
-      const lng = (tenantSettingsResult.data as any)?.longitudine_default ?? ''
+      const lat = tenantSettingsRow?.latitudine_default ?? ''
+      const lng = tenantSettingsRow?.longitudine_default ?? ''
       setLatitudineDefault(String(lat))
       setLatitudineDefaultDraft(String(lat))
       setLongitudineDefault(String(lng))
@@ -312,7 +345,7 @@ export default function SettingsPage() {
       const supabase = getSupabase()
       const { error } = await supabase
         .from('tenants')
-        .update({ contact_phone: normalized || null } as never)
+        .update({ contact_phone: normalized || null })
         .eq('id', tenantId)
       if (error) throw error
       setFarmPhone(normalized)
@@ -604,7 +637,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleReseedDemoData = async () => {
+  const handleReseedDemoData = async (demoType: DemoSeedType) => {
     if (!tenantId) {
       toast.error('Context tenant indisponibil.')
       return
@@ -612,7 +645,11 @@ export default function SettingsPage() {
 
     setIsReseedingDemoData(true)
     try {
-      const response = await fetch('/api/demo/reload', { method: 'POST' })
+      const response = await fetch('/api/demo/reload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ demo_type: demoType }),
+      })
       const payload = (await response.json()) as { ok?: boolean; error?: { message?: string } | string }
       if (!response.ok || payload.ok === false) {
         const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
@@ -621,6 +658,7 @@ export default function SettingsPage() {
 
       enableDemoMode()
       markDemoSeedAttempted()
+      setDemoSeedTypeDialogOpen(false)
       await resetTenantCaches()
       toast.success('Datele demo au fost reîncărcate.')
       router.refresh()
@@ -693,7 +731,7 @@ export default function SettingsPage() {
     try {
       const supabase = getSupabase()
       const { error } = await supabase
-        .from('ai_conversations' as unknown as 'alert_dismissals')
+        .from('ai_conversations')
         .delete()
         .eq('user_id', userId)
 
@@ -993,7 +1031,7 @@ export default function SettingsPage() {
                 className="agri-control h-11 w-full justify-start border-[var(--soft-success-border)] text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)]"
                 disabled={!tenantId || isDemoActionPending}
                 onClick={() => {
-                  void handleReseedDemoData()
+                  setDemoSeedTypeDialogOpen(true)
                 }}
               >
                 {isReseedingDemoData ? 'Se reîncarcă datele demo...' : 'Reîncarcă datele demo'}
@@ -1136,6 +1174,37 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+      <AppDialog
+        open={demoSeedTypeDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDemoActionPending) setDemoSeedTypeDialogOpen(open)
+        }}
+        title="Alege scenariul demo"
+        description="Selectează tipul de fermă pentru reîncărcare."
+      >
+        <div className="grid gap-2 sm:grid-cols-2">
+          {([
+            { id: 'berries', emoji: '🫐', label: 'Fructe de pădure', hint: 'zmeură, mure, afine' },
+            { id: 'solar', emoji: '🏠', label: 'Solarii', hint: 'roșii, castraveți, ardei' },
+            { id: 'orchard', emoji: '🌳', label: 'Livezi', hint: 'meri, pruni, cireși' },
+            { id: 'fieldcrop', emoji: '🌾', label: 'Cultură mare', hint: 'grâu, porumb, floarea-soarelui' },
+          ] as Array<{ id: DemoSeedType; emoji: string; label: string; hint: string }>).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-3 text-left hover:bg-[var(--agri-surface-muted)]"
+              onClick={() => {
+                void handleReseedDemoData(option.id)
+              }}
+              disabled={isDemoActionPending}
+            >
+              <div className="text-lg">{option.emoji}</div>
+              <div className="mt-1 text-sm font-semibold text-[var(--agri-text)]">{option.label}</div>
+              <div className="text-xs text-[var(--agri-text-muted)]">{option.hint}</div>
+            </button>
+          ))}
+        </div>
+      </AppDialog>
       <AppDialog
         open={demoActionDialog === 'exit'}
         onOpenChange={(open) => {

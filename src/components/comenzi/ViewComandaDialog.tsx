@@ -4,6 +4,7 @@ import { MessageCircle, Phone, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DIALOG_DETAIL_FOOTER_CLASS } from '@/lib/ui/modal-overlay-classes'
 import { type Comanda } from '@/lib/supabase/queries/comenzi'
 
 interface ViewComandaDialogProps {
@@ -76,7 +77,7 @@ export function ViewComandaDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="w-[94vw] max-w-[420px] rounded-xl bg-[var(--agri-surface)] p-4 shadow-xl"
+        className="max-h-[85dvh] w-[94vw] max-w-[420px] overflow-hidden p-0 shadow-[var(--agri-elevated-shadow)]"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
@@ -92,7 +93,7 @@ export function ViewComandaDialog({
             <X className="h-4 w-4" />
           </Button>
         </DialogClose>
-        <div className="max-h-[82dvh] overflow-y-auto">
+        <div className="max-h-[82dvh] overflow-y-auto p-5 sm:p-6">
           <div className="flex flex-col gap-2 leading-tight pr-10">
             <section className="space-y-1">
               <div className="flex items-start justify-between gap-2">
@@ -102,7 +103,7 @@ export function ViewComandaDialog({
               <p className="text-sm font-medium text-[var(--agri-text)]">{telefon || '-'}</p>
             </section>
 
-            <section className="space-y-2 border-t border-[var(--agri-border)] pt-2">
+            <section className="space-y-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
               <h3 className="text-sm font-semibold text-[var(--agri-text)]">Detalii comandă</h3>
               <div className="flex flex-col items-center text-center">
                 <p className="text-xs text-[var(--agri-text-muted)]">TOTAL</p>
@@ -121,7 +122,7 @@ export function ViewComandaDialog({
             </section>
 
             {hasAvans ? (
-              <section className="grid grid-cols-2 gap-2 border-t border-[var(--agri-border)] pt-2">
+              <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
                 <div className="space-y-1">
                   <p className="text-xs text-[var(--agri-text-muted)]">Avans</p>
                   <p className="text-sm font-medium text-[var(--agri-text)]">{formatLei(avans)}</p>
@@ -133,7 +134,7 @@ export function ViewComandaDialog({
               </section>
             ) : null}
 
-            <section className="grid grid-cols-2 gap-2 border-t border-[var(--agri-border)] pt-2">
+            <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
               <div className="space-y-1">
                 <p className="text-xs text-[var(--agri-text-muted)]">Data comandă</p>
                 <p className="text-sm font-medium text-[var(--agri-text)]">{formatDate(comanda?.data_comanda)}</p>
@@ -144,7 +145,7 @@ export function ViewComandaDialog({
               </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-2 border-t border-[var(--agri-border)] pt-2">
+            <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
               <Button
                 type="button"
                 variant="outline"
@@ -187,7 +188,7 @@ export function ViewComandaDialog({
             </section>
 
             {(comanda?.locatie_livrare || comanda?.observatii?.trim()) ? (
-            <section className="space-y-1 border-t border-[var(--agri-border)] pt-2">
+            <section className="space-y-1 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
                 {comanda?.locatie_livrare ? (
                   <>
                     <p className="text-xs text-[var(--agri-text-muted)]">Locație livrare</p>
@@ -204,7 +205,7 @@ export function ViewComandaDialog({
             ) : null}
 
             {comanda?.status === 'livrata' && comanda?.linked_vanzare_id ? (
-              <section className="border-t border-[var(--agri-border)] pt-2">
+              <section className="border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
                 <div className="rounded-lg border border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] p-2 text-sm text-[var(--soft-success-text)]">
                   Livrată pe {formatDate(comanda?.updated_at)}. Vânzare de {formatLei(total)} creată automat.
                 </div>
@@ -213,36 +214,38 @@ export function ViewComandaDialog({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap justify-center gap-2 border-t border-[var(--agri-border)] px-3 py-3">
-          {canDeliver ? (
+        <div className={DIALOG_DETAIL_FOOTER_CLASS}>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {canDeliver ? (
+              <Button
+                type="button"
+                className="agri-cta bg-green-600 text-white hover:opacity-95 lg:hover:opacity-95"
+                onClick={() => {
+                  if (!comanda) return
+                  onOpenChange(false)
+                  onDeliver(comanda)
+                }}
+              >
+                LIVRAT!
+              </Button>
+            ) : null}
             <Button
               type="button"
-              className="h-10 min-w-[92px] bg-green-600 text-white hover:bg-green-700 lg:hover:opacity-95"
+              variant="outline"
+              className="agri-cta text-[var(--agri-text)] lg:hover:opacity-95"
               onClick={() => {
                 if (!comanda) return
                 onOpenChange(false)
-                onDeliver(comanda)
+                onEdit(comanda)
               }}
             >
-              LIVRAT!
+              Editează
             </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 min-w-[92px] text-[var(--agri-text)] lg:hover:opacity-95"
-            onClick={() => {
-              if (!comanda) return
-              onOpenChange(false)
-              onEdit(comanda)
-            }}
-          >
-            Editează
-          </Button>
+          </div>
           <Button
             type="button"
             variant="destructive"
-            className="h-10 min-w-[92px] lg:hover:opacity-95"
+            className="agri-cta shrink-0 lg:hover:opacity-95"
             onClick={() => {
               if (!comanda) return
               onOpenChange(false)

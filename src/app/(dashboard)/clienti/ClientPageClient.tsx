@@ -3,14 +3,20 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Users } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { AppShell } from '@/components/app/AppShell'
+import {
+  ModuleEmptyCard,
+  ModulePillFilterButton,
+  ModulePillRow,
+  ModuleScoreboard,
+} from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
-import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
@@ -19,7 +25,7 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { Button } from '@/components/ui/button'
-import StatusBadge from '@/components/ui/StatusBadge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import { getSupabase } from '@/lib/supabase/client'
@@ -35,10 +41,6 @@ import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { toast } from '@/lib/ui/toast'
-import { cn } from '@/lib/utils'
-
-type ComandaItem = Awaited<ReturnType<typeof getComenzi>>[number]
-type VanzareItem = Awaited<ReturnType<typeof getVanzari>>[number]
 type CreateClientMutationVariables = {
   input: Parameters<typeof createClienti>[0]
   onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
@@ -314,18 +316,10 @@ async function parseClientFile(file: File): Promise<ImportPreview> {
   return parseClientCsv(content)
 }
 
-function comandaStatusLabel(status: string): string {
-  if (status === 'livrata') return '✅ Livrată'
-  if (status === 'anulata') return '❌ Anulată'
-  if (status === 'in_procesare') return '🔵 În procesare'
-  return '🟡 Nouă'
-}
-
 function ClientCardNew({
   client,
   metrics,
   onEdit,
-  onDelete,
 }: {
   client: Client
   metrics: {
@@ -335,9 +329,7 @@ function ClientCardNew({
     comenziCount: number
   }
   onEdit: () => void
-  onDelete: () => void
 }) {
-  const subtitle = client.telefon || client.adresa || '-'
   const mainValue = metrics.totalRon > 0 ? `${metrics.totalRon.toFixed(0)} lei` : `${metrics.comenziCount} comenzi`
   const secondaryValue = metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null
   const isActive = metrics.comenziCount > 0 || metrics.vanzariCount > 0
@@ -345,20 +337,11 @@ function ClientCardNew({
   return (
     <MobileEntityCard
       title={client.nume_client}
-      value={mainValue}
-      secondary={secondaryValue || undefined}
-      status={
-        isActive ? (
-          <StatusBadge
-            text="Activ"
-            variant="success"
-          />
-        ) : null
-      }
-      onClick={() => {
-        // Deschide direct dialogul de editare la click
-        onEdit()
-      }}
+      mainValue={mainValue}
+      subtitle={secondaryValue || undefined}
+      statusLabel={isActive ? 'Activ' : undefined}
+      statusTone="success"
+      onClick={onEdit}
     />
   )
 }
@@ -469,19 +452,23 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => {
@@ -873,6 +860,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       cell: ({ row }) => metricsByClient[row.original.id]?.comenziCount ?? 0,
       meta: {
         searchValue: (row: Client) => metricsByClient[row.id]?.comenziCount ?? 0,
+        numeric: true,
       },
     },
     {
@@ -921,33 +909,38 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
 
   return (
     <AppShell
-      header={<PageHeader title="Clienți" subtitle="Administrare clienți" rightSlot={<span style={{ fontSize: 22 }}>🤝</span>} />}
+      header={
+        <PageHeader
+          title="Clienți"
+          subtitle="Administrare clienți"
+          rightSlot={<Users className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
+        />
+      }
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 py-3 sm:mt-0">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3">
         <input ref={csvInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className="hidden" onChange={handleFileSelect} />
 
-        {/* Scoreboard compact */}
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: '4px 14px', alignItems: 'center',
-          padding: '10px 14px', background: 'var(--pill-active-bg)', borderRadius: 14,
-        }}>
-          <span style={{ color: 'var(--pill-active-text)', fontWeight: 700, fontSize: 15 }}>{clienti.length} clienți</span>
-          {totalOpenOrders > 0 && (
+        <ModuleScoreboard tone="tinted" className="gap-x-3.5 gap-y-1">
+          <span className="text-[15px] font-bold text-[var(--pill-active-text)]">{clienti.length} clienți</span>
+          {totalOpenOrders > 0 ? (
             <>
-              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 25%, transparent)' }}>·</span>
-              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 72%, transparent)', fontSize: 13 }}>{totalOpenOrders} comenzi deschise</span>
+              <span className="text-[color-mix(in_srgb,var(--pill-active-text)_25%,transparent)]">·</span>
+              <span className="text-[13px] text-[color-mix(in_srgb,var(--pill-active-text)_72%,transparent)]">
+                {totalOpenOrders} comenzi deschise
+              </span>
             </>
-          )}
-          {totalUnpaidRon > 0 && (
+          ) : null}
+          {totalUnpaidRon > 0 ? (
             <>
-              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 25%, transparent)' }}>·</span>
-              <span style={{ color: 'var(--status-danger-text)', fontSize: 13, fontWeight: 600 }}>{totalUnpaidRon.toFixed(0)} RON neîncasat</span>
+              <span className="text-[color-mix(in_srgb,var(--pill-active-text)_25%,transparent)]">·</span>
+              <span className="text-[13px] font-semibold text-[var(--status-danger-text)]">
+                {totalUnpaidRon.toFixed(0)} RON neîncasat
+              </span>
             </>
-          )}
-        </div>
+          ) : null}
+        </ModuleScoreboard>
 
-        {/* Search + pills */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="flex flex-col gap-2">
           <SearchField
             containerClassName="md:hidden"
             placeholder="Caută după nume, telefon sau email"
@@ -955,32 +948,18 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
             onChange={(event) => setSearchTerm(event.target.value)}
             aria-label="Caută clienți"
           />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => setShowOnlyUnpaid(false)}
-              style={{
-                borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
-                background: !showOnlyUnpaid ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                color: !showOnlyUnpaid ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                border: 'none', cursor: 'pointer',
-              }}
-            >
+          <ModulePillRow className="gap-2">
+            <ModulePillFilterButton active={!showOnlyUnpaid} onClick={() => setShowOnlyUnpaid(false)}>
               Toți
-            </button>
-            <button
-              type="button"
+            </ModulePillFilterButton>
+            <ModulePillFilterButton
+              active={showOnlyUnpaid}
+              activeTone="danger"
               onClick={() => setShowOnlyUnpaid(true)}
-              style={{
-                borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
-                background: showOnlyUnpaid ? 'var(--status-danger-text)' : 'var(--pill-inactive-bg)',
-                color: showOnlyUnpaid ? '#fff' : 'var(--pill-inactive-text)',
-                border: 'none', cursor: 'pointer',
-              }}
             >
               💸 Neîncasat
-            </button>
-          </div>
+            </ModulePillFilterButton>
+          </ModulePillRow>
         </div>
 
         {/* Import buttons */}
@@ -1104,21 +1083,10 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         ) : null}
 
         {/* Loading skeleton */}
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <ListSkeletonCard key={index} className="min-h-[72px]" />
-            ))}
-          </div>
-        ) : null}
+        {isLoading ? <EntityListSkeleton /> : null}
 
-        {/* Empty state */}
         {!isLoading && !isError && filteredClienti.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🤝</div>
-            <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--agri-text)', marginBottom: 6 }}>Niciun client adăugat</p>
-            <p style={{ fontSize: 13, color: 'var(--agri-text-muted)' }}>Adaugă primul client pentru a începe</p>
-          </div>
+          <ModuleEmptyCard emoji="🤝" title="Niciun client adăugat" hint="Adaugă primul client pentru a începe" />
         ) : null}
 
         {/* Cards */}
@@ -1144,7 +1112,6 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                     setEditingClient(client)
                     setEditOpen(true)
                   }}
-                  onDelete={() => setDeletingClient(client)}
                 />
               )
             }}
@@ -1258,30 +1225,30 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           </div>
           <div className="space-y-2">
             <p className="font-medium text-[var(--agri-text)]">Exemplu:</p>
-            <div className="overflow-x-auto rounded-lg border border-[var(--agri-border)]">
-              <table className="min-w-full text-xs">
-                <thead className="bg-[var(--agri-surface-muted)]">
-                  <tr>
+            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)]">
+              <Table className="text-xs">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
                     {['Nume client', 'Telefon', 'Email', 'Adresă'].map((h) => (
-                      <th key={h} className="px-3 py-2 text-left font-semibold text-[var(--agri-text)]">{h}</th>
+                      <TableHead key={h}>{h}</TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--agri-border)]">
-                  <tr>
-                    <td className="px-3 py-2">Ion Popescu</td>
-                    <td className="px-3 py-2">0745123456</td>
-                    <td className="px-3 py-2">ion@email.com</td>
-                    <td className="px-3 py-2">Suceava</td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2">Maria Ionescu</td>
-                    <td className="px-3 py-2">0722334455</td>
-                    <td className="px-3 py-2 text-[var(--agri-text-muted)]">—</td>
-                    <td className="px-3 py-2">Fălticeni</td>
-                  </tr>
-                </tbody>
-              </table>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="text-xs text-[var(--agri-text)]">Ion Popescu</TableCell>
+                    <TableCell className="text-xs text-[var(--agri-text)]">0745123456</TableCell>
+                    <TableCell className="text-xs text-[var(--agri-text)]">ion@email.com</TableCell>
+                    <TableCell className="text-xs text-[var(--agri-text)]">Suceava</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="text-xs text-[var(--agri-text)]">Maria Ionescu</TableCell>
+                    <TableCell className="text-xs text-[var(--agri-text)]">0722334455</TableCell>
+                    <TableCell className="text-xs text-[var(--agri-text-muted)]">—</TableCell>
+                    <TableCell className="text-xs text-[var(--agri-text)]">Fălticeni</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
           </div>
           <p className="rounded-lg bg-[var(--agri-surface-muted)] px-3 py-2 text-xs">

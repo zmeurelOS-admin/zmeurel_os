@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
-import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
@@ -145,12 +145,20 @@ export function AddVanzareButasiDialog({
   onOpenChange,
   hideTrigger = false,
 }: AddVanzareButasiDialogProps) {
+  void hideTrigger
   const queryClient = useQueryClient()
   const [internalOpen, setInternalOpen] = useState(false)
+  const [comboInput, setComboInput] = useState('')
+  const [comboOpen, setComboOpen] = useState(false)
+  const comboRef = useRef<HTMLDivElement>(null)
 
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
   const setDialogOpen = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      setComboInput('')
+      setComboOpen(false)
+    }
     if (!isControlled) setInternalOpen(nextOpen)
     onOpenChange?.(nextOpen)
   }, [isControlled, onOpenChange])
@@ -181,17 +189,6 @@ export function AddVanzareButasiDialog({
     queryFn: getParcele,
   })
 
-  const [comboInput, setComboInput] = useState('')
-  const [comboOpen, setComboOpen] = useState(false)
-  const comboRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!dialogOpen) {
-      setComboInput('')
-      setComboOpen(false)
-    }
-  }, [dialogOpen])
-
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (comboRef.current && !comboRef.current.contains(event.target as Node)) {
@@ -216,16 +213,23 @@ export function AddVanzareButasiDialog({
     })
   }, [comboInput, clienti])
 
-  const watchedItems = form.watch('items')
-  const avans = Number(form.watch('avans_suma') ?? 0)
-  const clientMode = form.watch('client_mode')
+  const watchedItems = useWatch({ control: form.control, name: 'items' })
+  const avansValue = useWatch({ control: form.control, name: 'avans_suma' })
+  const clientMode = useWatch({ control: form.control, name: 'client_mode' }) ?? 'existing'
+  const saveClientToDatabase = useWatch({ control: form.control, name: 'save_client_to_database' }) ?? false
+  const selectedStatus = useWatch({ control: form.control, name: 'status' }) ?? 'noua'
+  const avans = Number(avansValue ?? 0)
 
   const totalProduse = useMemo(
-    () => watchedItems.reduce((sum, item) => sum + Number(item.cantitate || 0) * Number(item.pret_unitar || 0), 0),
+    () =>
+      (watchedItems ?? []).reduce(
+        (sum, item) => sum + Number(item.cantitate || 0) * Number(item.pret_unitar || 0),
+        0
+      ),
     [watchedItems]
   )
 
-  const restDeIncasat = totalProduse - (Number.isFinite(avans) ? avans : 0)
+  const restDeIncasat = Math.max(0, totalProduse - (Number.isFinite(avans) ? avans : 0))
 
   const mutation = useMutation({
     mutationFn: createVanzareButasi,
@@ -457,7 +461,7 @@ export function AddVanzareButasiDialog({
                       id="vb_save_client_to_database"
                       type="checkbox"
                       className="h-4 w-4 rounded border-gray-300 dark:border-zinc-600"
-                      checked={Boolean(form.watch('save_client_to_database'))}
+                      checked={Boolean(saveClientToDatabase)}
                       onChange={(event) =>
                         form.setValue('save_client_to_database', event.target.checked, { shouldDirty: true })
                       }
@@ -473,7 +477,7 @@ export function AddVanzareButasiDialog({
                 <Label>Status</Label>
                 <div className="grid grid-cols-3 gap-2">
                   {VANZARE_BUTASI_STATUSES.map((status) => {
-                    const isActive = form.watch('status') === status
+                    const isActive = selectedStatus === status
                     return (
                       <Button
                         key={status}

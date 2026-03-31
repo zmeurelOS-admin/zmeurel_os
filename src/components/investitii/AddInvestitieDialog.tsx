@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { createInvestitie, CATEGORII_INVESTITII } from '@/lib/supabase/queries/investitii'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
@@ -75,7 +76,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
         ...defaultValues(),
         ...(initialValues?.data ? { data: initialValues.data } : {}),
         ...(initialValues?.suma_lei != null ? { suma_lei: String(initialValues.suma_lei) } : {}),
-        ...(initialValues?.categorie ? { categorie: initialValues.categorie } : {}),
+        ...(initialValues?.categorie ? { categorie: resolveInvestitieCategorie(initialValues.categorie) } : {}),
         ...(initialValues?.descriere ? { descriere: initialValues.descriere } : {}),
       })
     } else {
@@ -111,7 +112,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
     createMutation.mutate({
       data: data.data,
       parcela_id: data.parcela_id || undefined,
-      categorie: data.categorie,
+      categorie: resolveInvestitieCategorie(data.categorie),
       furnizor: data.furnizor || undefined,
       descriere: data.descriere || undefined,
       suma_lei: Number(data.suma_lei),
@@ -131,13 +132,13 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
         onOpenChange={setDialogOpen}
         title="Adaugă investitie (CAPEX)"
         footer={
-          <div className="grid grid-cols-2 gap-3">
-            <Button type="button" variant="outline" className="agri-cta" onClick={() => setDialogOpen(false)}>
+          <div className="flex w-full flex-row items-center justify-between gap-3">
+            <Button type="button" variant="outline" className="agri-cta shrink-0" onClick={() => setDialogOpen(false)}>
               Anulează
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+              className="agri-cta shrink-0 bg-[var(--agri-primary)] text-white hover:opacity-95 dark:hover:opacity-95"
               onClick={form.handleSubmit(onSubmit)}
               disabled={createMutation.isPending || isInitialDataLoading}
             >

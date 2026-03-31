@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DIALOG_DETAIL_FOOTER_CLASS } from '@/lib/ui/modal-overlay-classes'
 import { type Vanzare } from '@/lib/supabase/queries/vanzari'
 
 interface ViewVanzareDialogProps {
@@ -55,14 +56,14 @@ export function ViewVanzareDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="mx-auto max-w-lg rounded-xl bg-[var(--surface-elevated)] p-0 lg:max-w-2xl xl:max-w-3xl"
+        className="max-h-[85dvh] max-w-lg overflow-hidden p-0 lg:max-w-2xl xl:max-w-3xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
         <div className="max-h-[85dvh] overflow-y-auto p-6">
-          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[var(--surface-divider)] py-4 text-left lg:gap-3">
-            <DialogTitle className="text-xl font-semibold text-[var(--agri-text)]">
+          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4 text-left lg:gap-3">
+            <DialogTitle className="text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]">
               Vânzare #{vanzare.id_vanzare || vanzare.id}
             </DialogTitle>
             <DialogClose asChild>
@@ -72,7 +73,7 @@ export function ViewVanzareDialog({
             </DialogClose>
           </DialogHeader>
 
-          <section className="border-b border-[var(--surface-divider)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Client</h3>
             <div className="space-y-2">
               <div>
@@ -88,7 +89,7 @@ export function ViewVanzareDialog({
             </div>
           </section>
 
-          <section className="border-b border-[var(--surface-divider)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Detalii vânzare</h3>
             <div className="space-y-2">
               <div>
@@ -106,7 +107,7 @@ export function ViewVanzareDialog({
             </div>
           </section>
 
-          <section className="border-b border-[var(--surface-divider)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Plată</h3>
             <div className="space-y-2">
               <div>
@@ -137,11 +138,11 @@ export function ViewVanzareDialog({
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-[var(--surface-divider)] px-6 py-4 lg:gap-3">
+        <div className={DIALOG_DETAIL_FOOTER_CLASS}>
           <Button
             type="button"
             variant="outline"
-            className="lg:hover:opacity-95"
+            className="agri-cta lg:hover:opacity-95"
             onClick={() => {
               onOpenChange(false)
               onEdit(vanzare)
@@ -152,7 +153,7 @@ export function ViewVanzareDialog({
           <Button
             type="button"
             variant="destructive"
-            className="lg:hover:opacity-95"
+            className="agri-cta lg:hover:opacity-95"
             onClick={() => {
               onOpenChange(false)
               onDelete(vanzare)

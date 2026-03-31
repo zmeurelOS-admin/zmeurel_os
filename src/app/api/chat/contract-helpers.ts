@@ -2,10 +2,8 @@ import { z } from 'zod'
 
 import { CATEGORII_CHELTUIELI, CATEGORII_INVESTITII } from '@/lib/financial/categories'
 
-const FORM_MESSAGE_FALLBACK = 'Am pregătit formularul. Verifică și salvează!'
+const FORM_MESSAGE_FALLBACK = 'Am înțeles, îți pregătesc asta. Verifică și salvează.'
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const TARGETED_FLOW_KEYS = ['recoltare', 'activitate', 'comanda'] as const
-
 const trimmedString = (max: number) => z.string().trim().min(1).max(max)
 const optionalTrimmedString = (max: number) => trimmedString(max).optional()
 const nullableTrimmedString = (max: number) =>
@@ -342,5 +340,5 @@ export function resolveOpenFormActionFromText(text: string): {
   return { validAction: null, hasInvalidOpenFormPayload: maybeAction?.action === 'open_form' }
 }
 
-export type TargetedFlowKey = (typeof TARGETED_FLOW_KEYS)[number]
+export type TargetedFlowKey = 'recoltare' | 'activitate' | 'comanda'
 export type StructuredTargetedFlowExtraction = z.infer<typeof StructuredTargetedFlowExtractionSchema>

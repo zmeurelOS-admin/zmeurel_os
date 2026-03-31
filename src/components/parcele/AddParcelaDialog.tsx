@@ -18,13 +18,17 @@ import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
 import { parseLocalizedNumber } from '@/lib/utils/area';
 import { ParcelaForm, type ParcelaFormData } from './ParcelaForm';
 import { queryKeys } from '@/lib/query-keys'
+import { PARCELA_SCOPURI, STATUS_OPERATIONAL_VALUES } from '@/lib/parcele/dashboard-relevance'
 
 const MAX_SUPRAFATA_M2 = 100_000_000;
 const CURRENT_YEAR = new Date().getFullYear();
 
 const parcelaSchema = z.object({
   nume_parcela: z.string().min(1, 'Numele parcelei este obligatoriu'),
-  rol: z.string(),
+  rol: z.enum(PARCELA_SCOPURI),
+  apare_in_dashboard: z.boolean(),
+  contribuie_la_productie: z.boolean(),
+  status_operational: z.enum(STATUS_OPERATIONAL_VALUES),
   suprafata_m2: z
     .string()
     .min(1, 'Suprafata este obligatorie')
@@ -82,6 +86,9 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
     defaultValues: {
       nume_parcela: '',
       rol: 'comercial',
+      apare_in_dashboard: true,
+      contribuie_la_productie: true,
+      status_operational: 'activ',
       suprafata_m2: '',
       latitudine: '',
       longitudine: '',
@@ -101,6 +108,9 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
         id_parcela: idParcela,
         nume_parcela: data.nume_parcela.trim(),
         rol: data.rol,
+        apare_in_dashboard: data.apare_in_dashboard,
+        contribuie_la_productie: data.contribuie_la_productie,
+        status_operational: data.status_operational,
         suprafata_m2: parseLocalizedNumber(data.suprafata_m2),
         latitudine: toDecimalOrNull(data.latitudine) ?? undefined,
         longitudine: toDecimalOrNull(data.longitudine) ?? undefined,
@@ -141,6 +151,7 @@ export function AddParcelaDialog({ soiuriDisponibile, onSuccess }: AddParcelaDia
         onOpenChange={setOpen}
         title="Adaugă teren nou"
         description="Completeaza detaliile terenului."
+        contentClassName="sm:max-w-4xl"
         footer={
           <DialogFormActions
             onCancel={() => setOpen(false)}

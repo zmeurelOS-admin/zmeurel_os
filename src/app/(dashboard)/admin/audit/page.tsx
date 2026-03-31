@@ -80,7 +80,7 @@ export default async function AdminAuditPage({
 
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>Data</TableHead>
                     <TableHead>Superadmin</TableHead>
                     <TableHead>Fermă</TableHead>

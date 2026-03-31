@@ -141,14 +141,14 @@ export function ActivityDetailSheet({
           <SheetFooter className="mt-2">
             <Button
               variant="outline"
-              className="flex-1 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+              className="agri-cta min-w-0 flex-1 border-red-200 text-red-700 hover:bg-red-50 sm:flex-none dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
               onClick={() => setDeleteConfirmOpen(true)}
               disabled={deleteMutation.isPending}
             >
               🗑️ Șterge
             </Button>
             <Button
-              className="flex-1 bg-amber-500 text-white hover:bg-amber-600"
+              className="agri-cta min-w-0 flex-1 bg-amber-500 text-white hover:bg-amber-600 sm:flex-none"
               onClick={() => {
                 setEditOpen(true)
               }}
@@ -175,20 +175,20 @@ export function ActivityDetailSheet({
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent className="w-[95%] max-w-md overflow-hidden p-0 sm:max-w-lg">
+        <AlertDialogContent className="max-w-md sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="px-6 pt-6">Ștergi activitatea?</AlertDialogTitle>
-            <AlertDialogDescription className="px-6 pb-2">
+            <AlertDialogTitle>Ștergi activitatea?</AlertDialogTitle>
+            <AlertDialogDescription>
               Activitatea &quot;{activitate.tip_activitate || 'Activitate'}&quot; din{' '}
               {formatDate(activitate.data_aplicare)} va fi ștearsă definitiv. Această acțiune este ireversibilă.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 border-t px-6 py-4">
-            <AlertDialogCancel className="w-full sm:w-auto">Nu, renunț</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Nu, renunț</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 type="button"
-                className="w-full bg-red-600 text-white hover:bg-red-700 sm:w-auto"
+                className="bg-red-600 text-white hover:opacity-95 dark:bg-red-700 dark:hover:opacity-95"
                 disabled={deleteMutation.isPending}
                 onClick={() => {
                   deleteMutation.mutate(activitate.id)

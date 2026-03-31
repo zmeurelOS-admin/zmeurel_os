@@ -38,14 +38,16 @@ export function TaskList({
   tasks,
   loading = false,
   title = 'Task-uri azi',
+  className,
 }: {
   tasks: DashboardTaskItem[]
   loading?: boolean
   title?: string
+  className?: string
 }) {
   if (loading) {
     return (
-      <DashboardCard title={title} className="shadow-sm" contentClassName="space-y-3">
+      <DashboardCard title={title} className={cn('shadow-sm', className)} contentClassName="space-y-3">
         <div className="space-y-3 animate-pulse">
           <div className="h-20 rounded-[22px] bg-[var(--agri-surface-muted)]" />
           <div className="h-20 rounded-[22px] bg-[var(--agri-surface-muted)]" />
@@ -56,10 +58,10 @@ export function TaskList({
 
   if (tasks.length === 0) {
     return (
-      <DashboardCard title={title} className="shadow-sm" contentClassName="space-y-3">
-        <div className="rounded-[22px] border border-[rgba(13,155,92,0.1)] bg-[rgba(13,155,92,0.06)] px-5 py-5 text-[#0D9B5C] shadow-sm">
+      <DashboardCard title={title} className={cn('shadow-sm', className)} contentClassName="space-y-3">
+        <div className="px-1 py-2 text-[#0D9B5C]">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/70 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[rgba(13,155,92,0.12)]">
               <CheckCheck className="h-5 w-5" />
             </div>
             <div>
@@ -73,13 +75,13 @@ export function TaskList({
   }
 
   return (
-    <DashboardCard title={title} className="shadow-sm" contentClassName="space-y-3">
+    <DashboardCard title={title} className={cn('shadow-sm', className)} contentClassName="space-y-3">
       {tasks.map((task) => {
         const tones = toneClasses(task.tone)
         return (
           <div
             key={task.id}
-            className="flex items-center gap-3 rounded-[22px] bg-[var(--agri-surface)] px-4 py-4 shadow-sm transition duration-150 active:scale-[0.985]"
+            className="flex items-center gap-3 border-b border-[var(--agri-border)]/55 px-1 py-3 transition duration-150 active:scale-[0.985] last:border-b-0"
           >
             <div className={cn('flex h-[42px] w-[42px] items-center justify-center rounded-xl text-lg shadow-sm', tones.icon)}>
               <span aria-hidden="true">{task.icon}</span>

@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     "public/sw.js",
     "public/workbox-*.js",
     "scripts/**",
+    "zmeurel-audit-stage-20260330-151422/**",
   ]),
 ]);
 

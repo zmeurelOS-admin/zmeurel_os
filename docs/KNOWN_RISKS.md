@@ -123,8 +123,8 @@ These routes can delete significant amounts of data and use privileged access. T
 
 ### Legacy And Parallel Code Paths
 
-- `src/components/dashboard/DashboardHome.tsx` appears legacy/parallel to the actual dashboard page.
 - `src/app/(dashboard)/activitati-agricole/page.tsx` differs from the common page/page-client split.
+- `src/app/(dashboard)/activitati-agricole/ActivitatiAgricolePageClient.tsx` still exists as marked dead code and can confuse future changes if reused accidentally.
 - `types/database.types.ts` is legacy while `src/types/supabase.ts` is the active generated type source.
 - `src/lib/s/upabase/queries` looks like a stray/empty directory.
 
@@ -183,6 +183,8 @@ These are not immediate bugs, but they raise maintenance risk and can confuse fu
 - The main dashboard route is a large client component with many parallel Supabase reads and heavy derived aggregation.
 - This increases hydration cost and shifts performance pressure to the browser.
 - Route warming is now deferred to idle time and skips constrained networks, but the dashboard remains the main user-facing performance hotspot.
+- Dashboard and Parcele both depend on `getParcele()`; when linked environments lag parcel schema columns (`rol`, `apare_in_dashboard`, `contribuie_la_productie`, `status_operational`), both screens can fail together without compatibility handling.
+- `src/lib/supabase/queries/parcele.ts` now includes a legacy-select fallback with safe defaults for these fields to reduce linked-schema outage risk.
 
 ### Shared Client Bundle Weight
 

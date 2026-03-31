@@ -1,7 +1,6 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -25,7 +24,6 @@ import { getClienți } from '@/lib/supabase/queries/clienti'
 import { deleteVanzare, getVanzari, updateVanzare, type Vanzare } from '@/lib/supabase/queries/vanzari'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
-import { cn } from '@/lib/utils'
 
 const AddVanzareDialog = dynamic(
   () => import('@/components/vanzari/AddVanzareDialog').then((mod) => mod.AddVanzareDialog),
@@ -117,39 +115,16 @@ interface VanzareCardNewProps {
 }
 
 function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpaid, onEdit, onDelete, onOpenComanda }: VanzareCardNewProps) {
-  const accentColor = vanzare.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)'
-
   return (
     <MobileEntityCard
-      title={
-        <span className="inline-flex items-center gap-2">
-          <span>{vanzare.clientNume}</span>
-          {vanzare.comanda_id ? (
-            <span className="inline-flex items-center rounded-full border border-[var(--soft-info-border)] bg-[var(--soft-info-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--soft-info-text)]">
-              Din comandă
-            </span>
-          ) : null}
-        </span>
-      }
-      value={`${formatRon(vanzare.totalRon)} RON`}
-      secondary={`${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg · ${formatData(vanzare.data)}`}
-      status={
-        vanzare.incasata ? (
-          <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-success-text)]">
-            Încasat
-          </span>
-        ) : (
-          <span className="inline-flex items-center rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--status-warning-text)]">
-            Neîncasat
-          </span>
-        )
-      }
+      title={vanzare.clientNume}
+      mainValue={`${formatRon(vanzare.totalRon)} RON`}
+      subtitle={`${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg · ${formatData(vanzare.data)}`}
+      meta={vanzare.comanda_id ? 'Din comandă' : undefined}
+      statusLabel={vanzare.incasata ? 'Încasat' : 'Neîncasat'}
+      statusTone={vanzare.incasata ? 'success' : 'warning'}
       onClick={onToggle}
-      isExpanded={isExpanded}
-      className={cn('border-l-[4px]', isExpanded ? 'border-[var(--soft-success-border)]' : '')}
-      style={{ borderLeftColor: accentColor } as React.CSSProperties}
-    >
-      {isExpanded ? (
+      bottomSlot={isExpanded ? (
         <>
           {/* DETALII */}
           <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
@@ -269,8 +244,8 @@ function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpai
             </button>
           </div>
         </>
-      ) : null}
-    </MobileEntityCard>
+      ) : undefined}
+    />
   )
 }
 
@@ -393,19 +368,23 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setAddOpen(true), '💰 Vânzare directă')
@@ -573,6 +552,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
       cell: () => '1',
       meta: {
         searchValue: () => '1',
+        numeric: true,
       },
     },
     {
@@ -581,6 +561,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
       cell: ({ row }) => `${Number(row.original.cantitate_kg || 0).toFixed(1)} kg`,
       meta: {
         searchValue: (row: EnrichedVanzare) => row.cantitate_kg,
+        numeric: true,
       },
     },
     {
@@ -589,6 +570,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
       cell: ({ row }) => `${formatRon(row.original.totalRon)} RON`,
       meta: {
         searchValue: (row: EnrichedVanzare) => row.totalRon,
+        numeric: true,
       },
     },
     {
@@ -637,7 +619,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
       header={<PageHeader title="Vânzări" subtitle="Registrul livrărilor finalizate" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl py-3 sm:mt-0 sm:py-4 lg:max-w-4xl">
+      <div className="mx-auto mt-2 w-full max-w-4xl py-3 sm:mt-0 sm:py-3 lg:max-w-4xl">
 
         {/* SCOREBOARD */}
         {scoreboard.vanzariLunaRon > 0 ? (

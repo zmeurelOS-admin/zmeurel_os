@@ -37,19 +37,19 @@ export function ResponsiveFormContainer({
       <DialogContent
         aria-describedby={undefined}
         className={cn(
-          "w-[95vw] max-w-lg overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--surface-elevated)] p-0 shadow-2xl",
+          "w-[95vw] max-w-lg overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)]",
           desktopClassName
         )}
       >
         <div className="flex max-h-[min(88dvh,860px)] flex-col">
-          <div className="flex-1 overflow-y-auto p-5 pb-20 sm:p-6 sm:pb-24">
-            <div className="mb-5 flex items-start justify-between gap-3 border-b border-[var(--surface-divider)] pb-4">
-              <div className="space-y-1.5 pr-8">
-                <DialogTitle className="text-left text-lg font-semibold text-[var(--agri-text)]">
+          <div className="flex-1 overflow-y-auto p-6 pb-20 sm:p-7 sm:pb-24">
+            <div className="mb-6 flex items-start justify-between gap-3 border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pb-5">
+              <div className="space-y-2 pr-8">
+                <DialogTitle className="text-left text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)]">
                   {title}
                 </DialogTitle>
                 {description ? (
-                  <DialogDescription className="text-left text-sm text-[var(--agri-text-muted)]">
+                  <DialogDescription className="text-left text-sm leading-relaxed text-[var(--agri-text-muted)]">
                     {description}
                   </DialogDescription>
                 ) : null}

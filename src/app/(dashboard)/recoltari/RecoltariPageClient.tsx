@@ -3,21 +3,24 @@
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Leaf } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
-import { EmptyState } from '@/components/ui/EmptyState'
+import {
+  ModuleEmptyCard,
+  ModulePillFilterButton,
+  ModulePillRow,
+  ModuleScoreboard,
+} from '@/components/app/module-list-chrome'
 import { ErrorState } from '@/components/app/ErrorState'
-import { ListSkeletonCard, ListSkeletonRow } from '@/components/app/ListSkeleton'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import Sparkline from '@/components/ui/Sparkline'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { ViewRecoltareDialog } from '@/components/recoltari/ViewRecoltareDialog'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
@@ -26,7 +29,7 @@ import { formatUnitateDisplayName, getUnitateTipLabel } from '@/lib/parcele/unit
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getRecoltareDeleteImpact } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
-import { deleteRecoltare, getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
+import { deleteRecoltare, getRecoltari, getRecoltareTotalKg, type Recoltare } from '@/lib/supabase/queries/recoltari'
 import { buildRecoltareDeleteLabel } from '@/lib/ui/delete-labels'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
@@ -86,10 +89,6 @@ function shiftDays(base: Date, days: number): Date {
   return date
 }
 
-function getRecoltareKg(recoltare: Recoltare): number {
-  return Number(recoltare.kg_cal1 ?? 0) + Number(recoltare.kg_cal2 ?? 0)
-}
-
 function formatKg(value: number, digits = 2): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: digits }).format(value)} kg`
 }
@@ -102,7 +101,6 @@ function relativeHarvestDateLabel(daysAgo: number | null): string {
 }
 
 export function RecoltariPageClient({
-  initialRecoltari: _initialRecoltari = [],
   parcele: initialParcele = [],
   initialError = null,
 }: RecoltariPageClientProps) {
@@ -126,6 +124,12 @@ export function RecoltariPageClient({
   const searchParams = useSearchParams()
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = hasAiOpenForm(searchParams)
+  const queryAiPrefill = useMemo(
+    () => (openFormFromQuery ? parseAiRecoltarePrefill(searchParams) : null),
+    [openFormFromQuery, searchParams]
+  )
+  const resolvedAiPrefill = openFormFromQuery ? queryAiPrefill : aiPrefill
+  const isAddDialogOpen = addOpen || addFromQuery || openFormFromQuery
 
   const clearRecoltareFormQueryParams = useCallback(() => {
     const nextParams = new URLSearchParams(searchParams.toString())
@@ -207,7 +211,7 @@ export function RecoltariPageClient({
     refetchOnWindowFocus: false,
   })
 
-  const { data: recoltareDeleteImpact, isLoading: isLoadingDeleteImpact } = useQuery({
+  const { data: recoltareDeleteImpact } = useQuery({
     queryKey: ['recoltare-delete-impact', deletingRecoltare?.id ?? null],
     queryFn: () => getRecoltareDeleteImpact(deletingRecoltare!.id),
     enabled: Boolean(deletingRecoltare?.id),
@@ -266,32 +270,23 @@ export function RecoltariPageClient({
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!addFromQuery) return
-    clearRecoltareFormQueryParams()
-    setAddOpen(true)
-  }, [addFromQuery, clearRecoltareFormQueryParams])
-
-  useEffect(() => {
-    if (!openFormFromQuery) return
-    setAiPrefill(parseAiRecoltarePrefill(searchParams))
-    clearRecoltareFormQueryParams()
-    setAddOpen(true)
-  }, [clearRecoltareFormQueryParams, openFormFromQuery, searchParams])
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga recoltare')
@@ -412,7 +407,7 @@ export function RecoltariPageClient({
   }, [searchFilteredRecoltari, timeFilter, todayIso, last7StartIso, monthStartIso, seasonStartIso])
 
   const totalCantitateKg = useMemo(
-    () => filteredRecoltari.reduce((sum, recoltare) => sum + getRecoltareKg(recoltare), 0),
+    () => filteredRecoltari.reduce((sum, recoltare) => sum + getRecoltareTotalKg(recoltare), 0),
     [filteredRecoltari]
   )
 
@@ -430,14 +425,14 @@ export function RecoltariPageClient({
     [searchFilteredRecoltari, last7StartIso, todayIso]
   )
 
-  const todayTotalKg = useMemo(() => todayRows.reduce((sum, row) => sum + getRecoltareKg(row), 0), [todayRows])
-  const weekTotalKg = useMemo(() => last7Rows.reduce((sum, row) => sum + getRecoltareKg(row), 0), [last7Rows])
+  const todayTotalKg = useMemo(() => todayRows.reduce((sum, row) => sum + getRecoltareTotalKg(row), 0), [todayRows])
+  const weekTotalKg = useMemo(() => last7Rows.reduce((sum, row) => sum + getRecoltareTotalKg(row), 0), [last7Rows])
 
   const weekSeries = useMemo(() => {
     return last7DaysIso.map((dayIso) =>
       searchFilteredRecoltari.reduce((sum, row) => {
         if (toDateOnly(row.data) !== dayIso) return sum
-        return sum + getRecoltareKg(row)
+        return sum + getRecoltareTotalKg(row)
       }, 0)
     )
   }, [last7DaysIso, searchFilteredRecoltari])
@@ -476,7 +471,7 @@ export function RecoltariPageClient({
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-2 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
@@ -484,34 +479,24 @@ export function RecoltariPageClient({
           <>
             {/* Scoreboard compact */}
             {recoltari.length > 0 ? (
-              <div
-                style={{
-                  background: 'var(--agri-surface)',
-                  borderRadius: 12,
-                  padding: '10px 14px',
-                  border: '1px solid var(--agri-border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <ModuleScoreboard className="items-center justify-between gap-3">
+                <div className="flex flex-wrap items-baseline gap-2.5">
                   <span>
-                    <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--agri-text)', letterSpacing: '-0.03em' }}>
+                    <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--agri-text)]">
                       {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(todayTotalKg)}
                     </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-hint)', marginLeft: 4, fontWeight: 500 }}>kg azi</span>
+                    <span className="ml-1 text-[11px] font-medium text-[var(--text-hint)]">kg azi</span>
                   </span>
                   {weekTotalKg > 0 ? (
                     <span>
-                      <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--button-muted-text)' }}>
+                      <span className="text-[15px] font-bold text-[var(--button-muted-text)]">
                         {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(weekTotalKg)}
                       </span>
-                      <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>săpt</span>
+                      <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">săpt</span>
                     </span>
                   ) : null}
                   {calitatiSummary.cal1Pct > 0 ? (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--value-positive)' }}>
+                    <span className="text-[11px] font-bold text-[var(--value-positive)]">
                       Cal I {calitatiSummary.cal1Pct}%
                     </span>
                   ) : null}
@@ -519,34 +504,20 @@ export function RecoltariPageClient({
                 {shouldShowSparkline ? (
                   <Sparkline data={weekSeries} color="var(--value-positive)" width={48} height={18} />
                 ) : null}
-              </div>
+              </ModuleScoreboard>
             ) : null}
 
-            {/* Pills time filter */}
-            <div style={{ display: 'flex', gap: 6 }}>
-              {timeFilterOptions.map((option) => {
-                const active = timeFilter === option.key
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => setTimeFilter(option.key)}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      borderRadius: 20,
-                      border: `1px solid ${active ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
-                      background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                      color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                )
-              })}
-            </div>
+            <ModulePillRow>
+              {timeFilterOptions.map((option) => (
+                <ModulePillFilterButton
+                  key={option.key}
+                  active={timeFilter === option.key}
+                  onClick={() => setTimeFilter(option.key)}
+                >
+                  {option.label}
+                </ModulePillFilterButton>
+              ))}
+            </ModulePillRow>
 
             {/* Search */}
             <SearchField
@@ -558,51 +529,31 @@ export function RecoltariPageClient({
           </>
         ) : null}
 
-        {isLoading ? (
-          <>
-            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] sm:hidden">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="border-b border-[var(--agri-border)] last:border-b-0">
-                  <ListSkeletonRow />
-                </div>
-              ))}
-            </div>
-            <div className="hidden grid-cols-1 gap-2.5 sm:grid sm:gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-4 xl:gap-5">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
-              ))}
-            </div>
-          </>
-        ) : null}
+        {isLoading ? <EntityListSkeleton /> : null}
 
         {!isLoading && !isError && !initialError && recoltari.length === 0 ? (
-          <EmptyState
-            icon={<Leaf className="h-16 w-16" />}
+          <ModuleEmptyCard
+            emoji="🌿"
             title="Nicio recoltare încă"
-            description="Adaugă prima recoltare pentru a începe"
+            hint="Adaugă prima recoltare pentru a începe"
           />
         ) : null}
 
         {!isLoading && !isError && !initialError && recoltari.length > 0 && filteredRecoltari.length === 0 ? (
-          <div style={{ borderRadius: 12, background: 'var(--agri-surface)', border: '1px solid var(--agri-border)', padding: '20px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🫐</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 4 }}>
-              {timeFilter === 'azi' ? 'Nicio recoltare azi' : 'Nicio recoltare pentru filtrul selectat'}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>
-              {timeFilter === 'azi' ? 'Recoltările de azi vor apărea aici' : 'Modifică filtrul de timp sau căutarea'}
-            </div>
-          </div>
+          <ModuleEmptyCard
+            emoji="🫐"
+            title={timeFilter === 'azi' ? 'Nicio recoltare azi' : 'Nicio recoltare pentru filtrul selectat'}
+            hint={timeFilter === 'azi' ? 'Recoltările de azi vor apărea aici' : 'Modifică filtrul de timp sau căutarea'}
+          />
         ) : null}
 
         {!isLoading && !isError && !initialError && filteredRecoltari.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
             {filteredRecoltari.map((recoltare) => {
               const parcelaMeta = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined
               const parcelaName = parcelaMeta?.name || 'Parcelă'
               const soiName = parcelaMeta?.soi || 'Soi'
-              const culegatorName = recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined
-              const kg = getRecoltareKg(recoltare)
+              const kg = getRecoltareTotalKg(recoltare)
               const cal1 = Number(recoltare.kg_cal1 ?? 0)
               const cal2 = Number(recoltare.kg_cal2 ?? 0)
               const dateOnly = toDateOnly(recoltare.data)
@@ -622,14 +573,10 @@ export function RecoltariPageClient({
                 <MobileEntityCard
                   key={recoltare.id}
                   title={`${soiName} — ${parcelaName}`}
-                  value={`${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(kg)} kg`}
-                  secondary={secondaryValue}
-                  status={
-                    <StatusBadge
-                      text={relativeHarvestDateLabel(daysAgo)}
-                      variant="success"
-                    />
-                  }
+                  mainValue={`${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(kg)} kg`}
+                  subtitle={secondaryValue}
+                  statusLabel={relativeHarvestDateLabel(daysAgo)}
+                  statusTone="success"
                   onClick={() => setViewingRecoltare(recoltare)}
                 />
               )
@@ -660,7 +607,7 @@ export function RecoltariPageClient({
       />
 
       <AddRecoltareDialog
-        open={addOpen}
+        open={isAddDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
             closeAddDialog()
@@ -668,7 +615,7 @@ export function RecoltariPageClient({
           }
           setAddOpen(true)
         }}
-        aiPrefill={aiPrefill}
+        aiPrefill={resolvedAiPrefill}
         onSuccessfulSave={closeAddDialog}
         hideTrigger
       />

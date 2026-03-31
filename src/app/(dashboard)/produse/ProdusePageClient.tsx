@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -12,7 +11,6 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { AddProdusDialog } from '@/components/produse/AddProdusDialog'
 import { EditProdusDialog } from '@/components/produse/EditProdusDialog'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import { deleteProdus, getProduse, type Produs } from '@/lib/supabase/queries/produse'
@@ -85,7 +83,7 @@ export function ProdusePageClient() {
 
   return (
     <AppShell header={<PageHeader title="Produse" />}>
-      <div className="space-y-4 py-4">
+      <div className="space-y-4 py-3">
         {/* Search + filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
@@ -133,7 +131,6 @@ export function ProdusePageClient() {
                 key={p.id}
                 produs={p}
                 onEdit={() => setEditProdus(p)}
-                onDelete={() => setDeleteProdusItem(p)}
               />
             ))}
           </div>
@@ -166,10 +163,9 @@ export function ProdusePageClient() {
 interface ProdusCardProps {
   produs: Produs
   onEdit: () => void
-  onDelete: () => void
 }
 
-function ProdusCard({ produs, onEdit, onDelete }: ProdusCardProps) {
+function ProdusCard({ produs, onEdit }: ProdusCardProps) {
   const title = produs.nume || 'Produs'
   const subtitle = produs.categorie ? (CATEGORIE_LABELS[produs.categorie] ?? produs.categorie) : produs.unitate_vanzare
   const pretValue = produs.pret_unitar != null ? `${produs.pret_unitar.toFixed(2)} lei/${produs.unitate_vanzare}` : undefined
@@ -177,20 +173,11 @@ function ProdusCard({ produs, onEdit, onDelete }: ProdusCardProps) {
   return (
     <MobileEntityCard
       title={title}
-      value={pretValue || 'Preț indisponibil'}
-      secondary={subtitle}
-      status={
-        produs.status === 'inactiv' ? (
-          <StatusBadge
-            text="Inactiv"
-            variant="neutral"
-          />
-        ) : null
-      }
-      onClick={() => {
-        // Deschide direct dialogul de editare la click
-        onEdit()
-      }}
+      mainValue={pretValue || 'Preț indisponibil'}
+      subtitle={subtitle}
+      statusLabel={produs.status === 'inactiv' ? 'Inactiv' : undefined}
+      statusTone="neutral"
+      onClick={onEdit}
     />
   )
 }

@@ -1,5 +1,7 @@
 'use client'
 
+// NEFOLOSIT în runtime: ruta `activitati-agricole` folosește `page.tsx`.
+
 import { useState } from 'react'
 import { ClipboardList, Droplets, Scissors, Bug, Sprout } from 'lucide-react'
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
@@ -36,6 +38,7 @@ export default function ActivitatiPage() {
           {categorii.map((cat) => (
             <AppCard
               key={cat.name}
+              elevateOnHover
               className={cn('cursor-pointer p-4', 'active:scale-[0.99] transition-transform duration-120')}
               onClick={() => setAddOpen(true)}
             >

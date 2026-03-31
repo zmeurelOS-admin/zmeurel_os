@@ -38,13 +38,13 @@ export function ConfirmDeleteDialog({
       onOpenChange={onOpenChange}
       title={title}
       footer={
-        <div className="flex items-center justify-center gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)} disabled={loading}>
+        <div className="flex w-full flex-row items-center justify-between gap-3">
+          <Button type="button" variant="outline" className="agri-cta shrink-0" onClick={() => onOpenChange(false)} disabled={loading}>
             {cancelText}
           </Button>
           <Button
             type="button"
-            className="agri-cta bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
+            className="agri-cta shrink-0 bg-red-600 text-white hover:opacity-95 dark:bg-red-700 dark:hover:opacity-95"
             onClick={() => {
               hapticConfirm()
               onConfirm()

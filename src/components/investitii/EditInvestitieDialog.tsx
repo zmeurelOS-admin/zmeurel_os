@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 
 import {
   Investitie,
@@ -80,7 +81,7 @@ export function EditInvestitieDialog({
       reset({
         data: investitie.data.split('T')[0],
         parcela_id: investitie.parcela_id ?? '',
-        categorie: investitie.categorie ?? '',
+        categorie: resolveInvestitieCategorie(investitie.categorie),
         furnizor: investitie.furnizor ?? '',
         descriere: investitie.descriere ?? '',
         suma_lei: investitie.suma_lei.toString(),
@@ -124,7 +125,7 @@ export function EditInvestitieDialog({
       data: {
         data: data.data,
         parcela_id: data.parcela_id || undefined,
-        categorie: data.categorie,
+        categorie: resolveInvestitieCategorie(data.categorie),
         furnizor: data.furnizor || undefined,
         descriere: data.descriere || undefined,
         suma_lei: Number(data.suma_lei),

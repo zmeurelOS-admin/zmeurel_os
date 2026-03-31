@@ -50,7 +50,6 @@ const groups: MenuGroup[] = [
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
-      { href: '/activitati-agricole', label: 'Activități agricole', icon: ClipboardList },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
       { href: '/investitii', label: 'Investiții', icon: TrendingUp },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },

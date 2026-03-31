@@ -7,6 +7,21 @@ export interface DashboardProfilePreferences {
   dashboardLayout: Json | null
 }
 
+function serializeDashboardLayout(layout: DashboardLayoutConfig): Json {
+  return {
+    version: layout.version,
+    widgets: layout.widgets.map((widget) => ({
+      id: widget.id,
+      x: widget.x,
+      y: widget.y,
+      w: widget.w,
+      h: widget.h,
+      active: widget.active,
+      ...(widget.static !== undefined ? { static: widget.static } : {}),
+    })),
+  }
+}
+
 export async function getDashboardProfilePreferences(userId: string): Promise<DashboardProfilePreferences> {
   const supabase = getSupabase()
 
@@ -34,7 +49,7 @@ export async function updateDashboardLayout(userId: string, layout: DashboardLay
   const supabase = getSupabase()
   const { error } = await supabase
     .from('profiles')
-    .update({ dashboard_layout: layout as unknown as Json })
+    .update({ dashboard_layout: serializeDashboardLayout(layout) })
     .eq('id', userId)
 
   if (error) throw error

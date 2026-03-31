@@ -79,13 +79,13 @@ export function EditClientDialog({ client, open, onOpenChange, onSubmit }: EditC
       onOpenChange={onOpenChange}
       title="Editează client"
       footer={
-        <div className="grid grid-cols-2 gap-3">
-          <Button type="button" variant="outline" className="agri-cta" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+        <div className="flex w-full flex-row items-center justify-between gap-3">
+          <Button type="button" variant="outline" className="agri-cta shrink-0" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Anulează
           </Button>
           <Button
             type="button"
-            className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+            className="agri-cta shrink-0 bg-[var(--agri-primary)] text-white hover:opacity-95 dark:hover:opacity-95"
             onClick={form.handleSubmit(handleSubmit)}
             disabled={isSubmitting}
           >

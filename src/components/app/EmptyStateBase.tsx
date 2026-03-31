@@ -38,7 +38,7 @@ export function EmptyStateBase({ title, description, icon, action, variant }: Em
             isActionConfig(action) ? (
               <Button
                 type="button"
-                className="mt-4 rounded-lg bg-[var(--agri-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+                className="agri-cta mt-4 bg-[var(--agri-primary)] text-white"
                 onClick={action.onClick}
               >
                 {action.label}
@@ -62,7 +62,7 @@ export function EmptyStateBase({ title, description, icon, action, variant }: Em
       {action ? (
         <div className="mx-auto mt-4 w-full max-w-xs">
           {isActionConfig(action) ? (
-            <Button type="button" className="agri-cta w-full bg-[var(--agri-primary)] text-white hover:opacity-95" onClick={action.onClick}>
+            <Button type="button" className="agri-cta w-full bg-[var(--agri-primary)] text-white" onClick={action.onClick}>
               {action.label}
             </Button>
           ) : (

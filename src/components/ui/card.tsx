@@ -1,12 +1,13 @@
 import * as React from "react"
 
-import { AppCard } from "@/components/ui/app-card"
+import { AppCard, type AppCardProps } from "@/components/ui/app-card"
 import { cn } from "@/lib/utils"
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+function Card({ className, elevateOnHover, ...props }: AppCardProps) {
   return (
     <AppCard
       data-slot="card"
+      elevateOnHover={elevateOnHover}
       className={cn(
         "text-card-foreground flex flex-col gap-4",
         className

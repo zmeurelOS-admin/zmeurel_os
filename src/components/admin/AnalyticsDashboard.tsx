@@ -509,7 +509,7 @@ export async function AnalyticsDashboard({
   ])
 
   // — 7-day events for KPI cards (DAU / WAU / active tenants) —
-  const { data: raw7d, error: err7d } = await admin
+  const { data: raw7d } = await admin
     .from('analytics_events')
     .select('user_id, tenant_id, module, event_name, status, created_at, metadata, page_url')
     .gte('created_at', sevenDaysAgo())
@@ -914,36 +914,36 @@ export async function AnalyticsDashboard({
                 <div className="overflow-x-auto px-4 pb-4 sm:px-6">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                       <TableHead>Data</TableHead>
-                      <TableHead className="text-right">Tenanți activi</TableHead>
-                      <TableHead className="text-right">Recoltări</TableHead>
-                      <TableHead className="text-right">Vânzări</TableHead>
-                      <TableHead className="text-right">Kg Cal1</TableHead>
-                      <TableHead className="text-right">Kg Cal2</TableHead>
-                      <TableHead className="text-right">Venit</TableHead>
+                      <TableHead className="text-right tabular-nums">Tenanți activi</TableHead>
+                      <TableHead className="text-right tabular-nums">Recoltări</TableHead>
+                      <TableHead className="text-right tabular-nums">Vânzări</TableHead>
+                      <TableHead className="text-right tabular-nums">Kg Cal1</TableHead>
+                      <TableHead className="text-right tabular-nums">Kg Cal2</TableHead>
+                      <TableHead className="text-right tabular-nums">Venit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rows.map((row) => (
                       <TableRow key={row.date}>
                         <TableCell>{row.date}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {formatNumber(row.total_tenants)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {formatNumber(row.total_recoltari)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {formatNumber(row.total_vanzari)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {formatNumber(Number(row.total_kg_cal1 || 0))}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {formatNumber(Number(row.total_kg_cal2 || 0))}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right tabular-nums">
                           {formatLei(Number(row.total_revenue_lei || 0))}
                         </TableCell>
                       </TableRow>
@@ -1131,24 +1131,24 @@ export async function AnalyticsDashboard({
                       <div className="overflow-x-auto px-4 pt-1 sm:px-6">
                         <Table>
                           <TableHeader>
-                            <TableRow>
+                            <TableRow className="hover:bg-transparent">
                               <TableHead>Flow</TableHead>
-                              <TableHead className="text-right">Clarificări</TableHead>
-                              <TableHead className="text-right">% clarify</TableHead>
-                              <TableHead className="text-right">Medie lipsuri open</TableHead>
-                              <TableHead className="text-right">Semnal</TableHead>
+                              <TableHead className="text-right tabular-nums">Clarificări</TableHead>
+                              <TableHead className="text-right tabular-nums">% clarify</TableHead>
+                              <TableHead className="text-right tabular-nums">Medie lipsuri open</TableHead>
+                              <TableHead className="text-right tabular-nums">Semnal</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {aiFrictionRows.map((row) => (
                               <TableRow key={row.flow}>
                                 <TableCell className="font-medium">{row.label}</TableCell>
-                                <TableCell className="text-right">{row.clarifications}</TableCell>
-                                <TableCell className="text-right">{formatPercent(row.clarificationRate)}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right tabular-nums">{row.clarifications}</TableCell>
+                                <TableCell className="text-right tabular-nums">{formatPercent(row.clarificationRate)}</TableCell>
+                                <TableCell className="text-right tabular-nums">
                                   {row.clarifications > 0 ? formatDecimal(row.avgMissingRequired) : '—'}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right tabular-nums">
                                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${AI_STATUS_META[aiFrictionStatusByFlow.get(row.flow) ?? 'good'].className}`}>
                                     {AI_STATUS_META[aiFrictionStatusByFlow.get(row.flow) ?? 'good'].label}
                                   </span>
@@ -1188,24 +1188,24 @@ export async function AnalyticsDashboard({
                       <div className="overflow-x-auto px-4 pb-4 sm:px-6">
                         <Table>
                           <TableHeader>
-                            <TableRow>
+                            <TableRow className="hover:bg-transparent">
                               <TableHead>Flow</TableHead>
-                              <TableHead className="text-right">Save hints</TableHead>
-                              <TableHead className="text-right">Rată</TableHead>
-                              <TableHead className="text-right">Medie lipsuri save</TableHead>
-                              <TableHead className="text-right">Semnal</TableHead>
+                              <TableHead className="text-right tabular-nums">Save hints</TableHead>
+                              <TableHead className="text-right tabular-nums">Rată</TableHead>
+                              <TableHead className="text-right tabular-nums">Medie lipsuri save</TableHead>
+                              <TableHead className="text-right tabular-nums">Semnal</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {aiSaveHintRows.map((row) => (
                               <TableRow key={row.flow}>
                                 <TableCell className="font-medium">{row.label}</TableCell>
-                                <TableCell className="text-right">{row.saveHints}</TableCell>
-                                <TableCell className="text-right">{formatPercent(row.saveHintRate)}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right tabular-nums">{row.saveHints}</TableCell>
+                                <TableCell className="text-right tabular-nums">{formatPercent(row.saveHintRate)}</TableCell>
+                                <TableCell className="text-right tabular-nums">
                                   {row.saveHints > 0 ? formatDecimal(row.avgMissingSaveHint) : '—'}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right tabular-nums">
                                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${AI_STATUS_META[aiSaveHintStatusByFlow.get(row.flow) ?? 'good'].className}`}>
                                     {AI_STATUS_META[aiSaveHintStatusByFlow.get(row.flow) ?? 'good'].label}
                                   </span>
@@ -1229,20 +1229,20 @@ export async function AnalyticsDashboard({
                       <div className="overflow-x-auto px-4 pt-1 sm:px-6">
                         <Table>
                           <TableHeader>
-                            <TableRow>
+                            <TableRow className="hover:bg-transparent">
                               <TableHead>Flow</TableHead>
-                              <TableHead className="text-right">LLM</TableHead>
-                              <TableHead className="text-right">Rată</TableHead>
-                              <TableHead className="text-right">Semnal</TableHead>
+                              <TableHead className="text-right tabular-nums">LLM</TableHead>
+                              <TableHead className="text-right tabular-nums">Rată</TableHead>
+                              <TableHead className="text-right tabular-nums">Semnal</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {aiLlmRows.map((row) => (
                               <TableRow key={row.flow}>
                                 <TableCell className="font-medium">{row.label}</TableCell>
-                                <TableCell className="text-right">{row.llmCount}</TableCell>
-                                <TableCell className="text-right">{formatPercent(row.llmRate)}</TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right tabular-nums">{row.llmCount}</TableCell>
+                                <TableCell className="text-right tabular-nums">{formatPercent(row.llmRate)}</TableCell>
+                                <TableCell className="text-right tabular-nums">
                                   <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${AI_STATUS_META[aiLlmStatusByFlow.get(row.flow) ?? 'good'].className}`}>
                                     {AI_STATUS_META[aiLlmStatusByFlow.get(row.flow) ?? 'good'].label}
                                   </span>
@@ -1305,7 +1305,7 @@ export async function AnalyticsDashboard({
                     <div className="overflow-x-auto px-4 pb-4 sm:px-6">
                       <Table>
                         <TableHeader>
-                          <TableRow>
+                          <TableRow className="hover:bg-transparent">
                             <TableHead>Timp</TableHead>
                             <TableHead>Flow</TableHead>
                             <TableHead>Decision mode</TableHead>
@@ -1407,26 +1407,26 @@ export async function AnalyticsDashboard({
               <div className="overflow-x-auto px-4 pb-4 sm:px-6">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                       <TableHead>Modul</TableHead>
-                      <TableHead className="text-right">Începute</TableHead>
-                      <TableHead className="text-right">Finalizate</TableHead>
-                      <TableHead className="text-right">Abandonate</TableHead>
-                      <TableHead className="text-right">Rată %</TableHead>
+                      <TableHead className="text-right tabular-nums">Începute</TableHead>
+                      <TableHead className="text-right tabular-nums">Finalizate</TableHead>
+                      <TableHead className="text-right tabular-nums">Abandonate</TableHead>
+                      <TableHead className="text-right tabular-nums">Rată %</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {funnelData.map((row) => (
                       <TableRow key={row.module}>
                         <TableCell className="font-medium">{row.module}</TableCell>
-                        <TableCell className="text-right">{row.opened}</TableCell>
-                        <TableCell className="text-right text-emerald-600">
+                        <TableCell className="text-right tabular-nums">{row.opened}</TableCell>
+                        <TableCell className="text-right tabular-nums text-emerald-600">
                           {row.succeeded}
                         </TableCell>
-                        <TableCell className="text-right text-amber-600">
+                        <TableCell className="text-right tabular-nums text-amber-600">
                           {row.abandoned}
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="text-right tabular-nums font-medium">
                           {row.opened > 0
                             ? `${Math.round((row.succeeded / row.opened) * 100)}%`
                             : '—'}
@@ -1455,10 +1455,10 @@ export async function AnalyticsDashboard({
               <div className="overflow-x-auto px-4 pb-4 sm:px-6">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                       <TableHead className="text-amber-800">Tenant</TableHead>
-                      <TableHead className="text-right text-amber-800">Ultima activitate</TableHead>
-                      <TableHead className="text-right text-amber-800">Zile inactiv</TableHead>
+                      <TableHead className="text-right text-amber-800 tabular-nums">Ultima activitate</TableHead>
+                      <TableHead className="text-right text-amber-800 tabular-nums">Zile inactiv</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1467,10 +1467,10 @@ export async function AnalyticsDashboard({
                         <TableCell className="font-medium text-amber-900">
                           {t.nume_ferma ?? t.id}
                         </TableCell>
-                        <TableCell className="text-right text-amber-800">
+                        <TableCell className="text-right tabular-nums text-amber-800">
                           {t.lastActivity ? formatDate(t.lastActivity) : '—'}
                         </TableCell>
-                        <TableCell className="text-right font-semibold text-amber-900">
+                        <TableCell className="text-right tabular-nums font-semibold text-amber-900">
                           {t.daysInactive > 30 ? '30+' : t.daysInactive}
                         </TableCell>
                       </TableRow>
@@ -1497,11 +1497,11 @@ export async function AnalyticsDashboard({
               <div className="overflow-x-auto px-4 pb-4 sm:px-6">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                       <TableHead>Modul</TableHead>
                       <TableHead>Eveniment</TableHead>
                       <TableHead>Eroare</TableHead>
-                      <TableHead className="text-right">Count</TableHead>
+                      <TableHead className="text-right tabular-nums">Count</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1512,7 +1512,7 @@ export async function AnalyticsDashboard({
                         <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
                           {row.errorMessage}
                         </TableCell>
-                        <TableCell className="text-right font-semibold text-red-600">
+                        <TableCell className="text-right tabular-nums font-semibold text-red-600">
                           {row.count}
                         </TableCell>
                       </TableRow>

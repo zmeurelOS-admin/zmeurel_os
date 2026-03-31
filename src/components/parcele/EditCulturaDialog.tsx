@@ -99,7 +99,13 @@ export function EditCulturaDialog({
   tipUnitate,
   onSaved,
 }: EditCulturaDialogProps) {
-  const [isCustomTipPlanta, setIsCustomTipPlanta] = useState(false)
+  const [customTipPlantaOverride, setCustomTipPlantaOverride] = useState<{
+    culturaId: string | null
+    enabled: boolean
+  }>({
+    culturaId: null,
+    enabled: false,
+  })
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -118,20 +124,21 @@ export function EditCulturaDialog({
   const tipPlanta = useWatch({ control: form.control, name: 'tip_planta' })
   const stadiu = useWatch({ control: form.control, name: 'stadiu' })
   const tipPlantaOptions = getCulturiOptions(tipUnitate)
+  const currentCulturaId = cultura?.id ?? null
+  const forceCustomTipPlantaInput =
+    customTipPlantaOverride.enabled && customTipPlantaOverride.culturaId === currentCulturaId
+  const resolvedTipPlantaSelectValue = getTipPlantaSelectValue(tipPlanta, tipUnitate)
   const tipPlantaSelectValue =
-    isCustomTipPlanta ? CUSTOM_CULTURA_OPTION : getTipPlantaSelectValue(tipPlanta, tipUnitate)
+    forceCustomTipPlantaInput || resolvedTipPlantaSelectValue === CUSTOM_CULTURA_OPTION
+      ? CUSTOM_CULTURA_OPTION
+      : resolvedTipPlantaSelectValue
   const fieldConfig = getCulturaFieldConfig(tipUnitate)
 
   useEffect(() => {
     if (open && cultura) {
-      const values = toFormValues(cultura)
-      form.reset(values)
-      setIsCustomTipPlanta(getTipPlantaSelectValue(values.tip_planta, tipUnitate) === CUSTOM_CULTURA_OPTION)
+      form.reset(toFormValues(cultura))
     }
-    if (!open) {
-      setIsCustomTipPlanta(false)
-    }
-  }, [open, cultura, form, tipUnitate])
+  }, [open, cultura, form])
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) => {
@@ -153,6 +160,7 @@ export function EditCulturaDialog({
     },
     onSuccess: () => {
       toast.success('Cultură actualizată')
+      setCustomTipPlantaOverride({ culturaId: currentCulturaId, enabled: false })
       onOpenChange(false)
       onSaved()
     },
@@ -166,11 +174,19 @@ export function EditCulturaDialog({
   return (
     <AppDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          setCustomTipPlantaOverride({ culturaId: currentCulturaId, enabled: false })
+        }
+        onOpenChange(nextOpen)
+      }}
       title="Editează cultură"
       footer={
         <DialogFormActions
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => {
+            setCustomTipPlantaOverride({ culturaId: currentCulturaId, enabled: false })
+            onOpenChange(false)
+          }}
           onSave={form.handleSubmit((values) => mutation.mutate(values))}
           saving={mutation.isPending}
           cancelLabel="Anulează"
@@ -188,7 +204,7 @@ export function EditCulturaDialog({
             value={tipPlantaSelectValue || undefined}
             onValueChange={(value) => {
               if (value === CUSTOM_CULTURA_OPTION) {
-                setIsCustomTipPlanta(true)
+                setCustomTipPlantaOverride({ culturaId: currentCulturaId, enabled: true })
                 form.setValue(
                   'tip_planta',
                   tipPlanta && !tipPlantaOptions.includes(tipPlanta) ? tipPlanta : '',
@@ -197,7 +213,7 @@ export function EditCulturaDialog({
                 return
               }
 
-              setIsCustomTipPlanta(false)
+              setCustomTipPlantaOverride({ culturaId: currentCulturaId, enabled: false })
               form.setValue('tip_planta', value, { shouldDirty: true, shouldValidate: true })
             }}
           >

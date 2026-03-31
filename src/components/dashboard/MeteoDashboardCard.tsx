@@ -95,11 +95,10 @@ export function MeteoDashboardCard({
   const [hidePersistentError, setHidePersistentError] = useState(false)
 
   useEffect(() => {
-    if (!error) {
-      setHidePersistentError(false)
-      return
-    }
+    if (!error) return
 
+    // reafișează eroarea la un nou eveniment (fără setState sincron în effect body)
+    window.setTimeout(() => setHidePersistentError(false), 0)
     const timer = window.setTimeout(() => {
       setHidePersistentError(true)
     }, 3000)
@@ -107,7 +106,7 @@ export function MeteoDashboardCard({
     return () => window.clearTimeout(timer)
   }, [error])
 
-  if (hidePersistentError) return null
+  if (hidePersistentError && error) return null
 
   if (loading) {
     return (

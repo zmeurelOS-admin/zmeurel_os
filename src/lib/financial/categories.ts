@@ -60,16 +60,40 @@ export const INVESTITII_LEGACY_MAP: Record<string, string> = {
   Altele: 'Alte investiții',
 }
 
+function normalizeCategoryKey(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+}
+
+const CHELTUIELI_CANONICAL_SET = new Set<string>(CATEGORII_CHELTUIELI)
+const INVESTITII_CANONICAL_SET = new Set<string>(CATEGORII_INVESTITII)
+const CHELTUIELI_LEGACY_MAP_NORMALIZED = new Map(
+  Object.entries(CHELTUIELI_LEGACY_MAP).map(([key, value]) => [normalizeCategoryKey(key), value])
+)
+const INVESTITII_LEGACY_MAP_NORMALIZED = new Map(
+  Object.entries(INVESTITII_LEGACY_MAP).map(([key, value]) => [normalizeCategoryKey(key), value])
+)
+
 // ─── Fallback display — rezolvă categorii vechi din DB ────────────────────────
 
 /** Returnează categoria canonică pentru o cheltuială, inclusiv pentru valori legacy. */
 export function resolveCheltuialaCategorie(raw: string | null | undefined): string {
   if (!raw) return 'Diverse operaționale'
-  return CHELTUIELI_LEGACY_MAP[raw] ?? raw
+  if (CHELTUIELI_CANONICAL_SET.has(raw)) return raw
+  const normalized = normalizeCategoryKey(raw)
+  const mapped = CHELTUIELI_LEGACY_MAP_NORMALIZED.get(normalized)
+  return mapped ?? raw
 }
 
 /** Returnează categoria canonică pentru o investiție, inclusiv pentru valori legacy. */
 export function resolveInvestitieCategorie(raw: string | null | undefined): string {
   if (!raw) return 'Alte investiții'
-  return INVESTITII_LEGACY_MAP[raw] ?? raw
+  if (INVESTITII_CANONICAL_SET.has(raw)) return raw
+  const normalized = normalizeCategoryKey(raw)
+  const mapped = INVESTITII_LEGACY_MAP_NORMALIZED.get(normalized)
+  return mapped ?? raw
 }

@@ -231,11 +231,11 @@ export function AddCulturaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="soi">Soi</Label>
+            <Label htmlFor="soi">Soi / varietate</Label>
             <Input
               id="soi"
               className="agri-control h-12"
-              placeholder={getSoiPlaceholder(tipPlanta)}
+              placeholder={tipPlanta ? getSoiPlaceholder(tipPlanta) : 'Ex: Delniwa, Cherry'}
               {...form.register('soi')}
             />
           </div>

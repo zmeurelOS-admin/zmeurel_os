@@ -13,6 +13,22 @@ export async function POST(request: Request) {
   let tenantIdForSentry: string | null = null
 
   try {
+    const body = (await request.json().catch(() => null)) as { demo_type?: unknown } | null
+    const requestedDemoType = body?.demo_type
+    const demoType =
+      requestedDemoType === undefined || requestedDemoType === 'berries'
+        ? 'berries'
+        : requestedDemoType === 'solar'
+          ? 'solar'
+          : requestedDemoType === 'orchard'
+            ? 'orchard'
+            : requestedDemoType === 'fieldcrop'
+              ? 'fieldcrop'
+              : null
+    if (!demoType) {
+      return apiError(400, 'INVALID_DEMO_TYPE', 'Tip demo invalid.')
+    }
+
     const invalidOriginResponse = validateSameOriginMutation(request)
     if (invalidOriginResponse) {
       return invalidOriginResponse
@@ -35,7 +51,7 @@ export async function POST(request: Request) {
     tenantIdForSentry = tenant.id
 
     const admin = createServiceRoleClient()
-    const result = await reloadDemoDataForTenant(admin, tenant.id)
+    const result = await reloadDemoDataForTenant(admin, tenant.id, demoType)
 
     console.info('[demo-seed] reload success', {
       userId: user.id,
@@ -43,6 +59,7 @@ export async function POST(request: Request) {
       seedId: result.seedId,
       deletedRows: result.deletedRows,
       summary: result.summary,
+      demo_type: demoType,
     })
 
     return NextResponse.json({

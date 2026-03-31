@@ -19,7 +19,7 @@ import { track } from '@/lib/analytics/track'
 
 type PendingAction = 'demo' | 'google' | null
 type AuthState = 'loading' | 'guest' | 'user'
-type DemoType = 'berries' | 'solar'
+type DemoType = 'berries' | 'solar' | 'orchard' | 'fieldcrop'
 type Step = 'auth' | 'farm-type'
 
 const FARM_TYPE_OPTIONS: Array<{
@@ -38,15 +38,29 @@ const FARM_TYPE_OPTIONS: Array<{
   },
   {
     type: 'solar',
-    emoji: '🍅',
+    emoji: '🏠',
     title: 'Solarii',
     description: 'Fermă demo cu sere și solarii. Roșii, castraveți și ardei, cu stoc și comenzi.',
     tags: ['Roșii', 'Castraveți', 'Ardei'],
   },
+  {
+    type: 'orchard',
+    emoji: '🌳',
+    title: 'Livezi',
+    description: 'Model demo de livadă cu meri, pruni și cireși, cu activități sezoniere și vânzări.',
+    tags: ['Meri', 'Pruni', 'Cireși'],
+  },
+  {
+    type: 'fieldcrop',
+    emoji: '🌾',
+    title: 'Cultură mare',
+    description: 'Scenariu de cultură mare cu grâu, porumb și floarea-soarelui, costuri mari și cicluri mecanizate.',
+    tags: ['Grâu', 'Porumb', 'Floarea-soarelui'],
+  },
 ]
 
 const cardClassName =
-  'rounded-2xl border border-black/5 bg-white p-6 shadow-sm sm:p-6'
+  'rounded-2xl border border-border bg-white p-6 shadow-sm dark:bg-slate-800 sm:p-6'
 
 function GoogleMark() {
   return (
@@ -125,6 +139,7 @@ export default function StartOnboardingPage() {
   const handleRetry = () => {
     if (isBusy) return
     setErrorMessage(null)
+    setChosenDemoType(null)
   }
 
   const handleGoogleStart = async () => {
@@ -205,24 +220,72 @@ export default function StartOnboardingPage() {
         body: JSON.stringify({ demo_type: demoType }),
       })
       const payload = (await response.json().catch(() => ({}))) as {
+        success?: boolean
         status?: string
+        inserted?: Record<string, number>
+        errors?: Array<{ table?: string; error?: string; message?: string; details?: string; hint?: string; code?: string }>
         error?: string | { message?: string }
       }
 
-      if (!response.ok) {
-        const message =
-          typeof payload.error === 'string'
-            ? payload.error
-            : payload.error?.message || 'Nu am putut încărca datele demo.'
+      console.info('Demo seed response:', JSON.stringify({
+        status: payload.status,
+        inserted: payload.inserted,
+        errors: payload.errors?.length ?? 0,
+      }))
+
+      if (!response.ok || payload.success === false) {
+        if (payload.errors?.length) {
+          console.error('Demo seed errors:', JSON.stringify(payload.errors))
+        }
+        const tableList =
+          payload.errors
+            ?.map((e) =>
+              [e.table, e.message || e.error].filter(Boolean).join(': ')
+            )
+            .filter(Boolean)
+            .join('; ') ?? ''
+        const firstError = payload.errors?.[0]
+        const message = tableList
+          ? `Eroare seed — tabele: ${tableList}`
+          : firstError?.table && (firstError.error || firstError.message)
+            ? `Eroare seed: ${firstError.table} — ${firstError.error || firstError.message}`
+            : typeof payload.error === 'string'
+              ? payload.error
+              : payload.error?.message || 'Nu am putut încărca datele demo.'
         throw new Error(message)
       }
 
+      if (payload.status !== 'seeded') {
+        throw new Error('Demo-ul nu a fost inițializat complet.')
+      }
+
+      if ((payload.inserted?.parcele ?? 0) <= 0) {
+        console.error('Demo seed inserted zero parcele:', JSON.stringify(payload))
+        throw new Error('Demo-ul a pornit incomplet: nu s-au creat parcelele.')
+      }
+
       if (
-        payload.status !== 'seeded' &&
-        payload.status !== 'already_seeded' &&
-        payload.status !== 'skipped_existing_data'
+        demoType === 'berries' &&
+        (payload.inserted?.parcele ?? 0) < 6
       ) {
-        throw new Error('Răspuns invalid de la seed demo.')
+        console.error('Demo seed inserted fewer berries parcels than expected:', JSON.stringify(payload))
+        throw new Error('Demo-ul berries a pornit incomplet: parcelele lipsesc.')
+      }
+
+      if (
+        demoType === 'berries' &&
+        (payload.inserted?.recoltari ?? 0) < 15
+      ) {
+        console.error('Demo seed inserted fewer berries harvests than expected:', JSON.stringify(payload))
+        throw new Error('Demo-ul berries a pornit incomplet: recoltările lipsesc.')
+      }
+
+      if (
+        demoType === 'berries' &&
+        (payload.inserted?.comenzi ?? 0) < 12
+      ) {
+        console.error('Demo seed inserted fewer berries orders than expected:', JSON.stringify(payload))
+        throw new Error('Demo-ul berries a pornit incomplet: comenzile lipsesc.')
       }
 
       enableDemoMode()
@@ -232,6 +295,7 @@ export default function StartOnboardingPage() {
       router.replace('/dashboard')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Nu am putut încărca datele demo.'
+      setChosenDemoType(null)
       setErrorMessage(message)
       toast.error(message)
       setPendingAction(null)
@@ -268,13 +332,13 @@ export default function StartOnboardingPage() {
                   <button
                     key={option.type}
                     type="button"
-                    disabled={isBusy}
+                    disabled={pendingAction !== null}
                     onClick={() => handleChooseFarmType(option.type)}
-                    className="flex min-h-[260px] flex-col items-start gap-4 rounded-2xl border border-black/5 bg-white p-6 text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 sm:p-8"
+                    className="flex min-h-[260px] flex-col items-start gap-4 rounded-2xl border border-border bg-white p-6 text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:p-8"
                   >
                     <span className="text-5xl">{isLoading ? '⏳' : option.emoji}</span>
                     <div className="space-y-2">
-                      <p className="text-xl font-semibold text-[var(--agri-text)]">
+                      <p className="text-xl font-semibold text-foreground">
                         {isLoading ? (
                           <span className="flex items-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -282,13 +346,13 @@ export default function StartOnboardingPage() {
                           </span>
                         ) : option.title}
                       </p>
-                      <p className="text-base text-[var(--agri-text-muted)]">{option.description}</p>
+                      <p className="text-base text-muted-foreground">{option.description}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {option.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-[var(--agri-surface-muted)] px-3 py-1 text-xs font-medium text-[var(--agri-text-muted)]"
+                          className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
                         >
                           {tag}
                         </span>
@@ -302,7 +366,7 @@ export default function StartOnboardingPage() {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 w-full rounded-xl text-[var(--agri-text-muted)] hover:bg-[var(--agri-surface-muted)]"
+              className="h-10 w-full rounded-xl text-foreground hover:bg-[var(--agri-surface-muted)]"
               disabled={isBusy}
               onClick={() => setStep('auth')}
             >
@@ -347,8 +411,8 @@ export default function StartOnboardingPage() {
 
           <section className={cardClassName}>
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-[var(--agri-text)]">Începe în mai puțin de 5 secunde</h2>
-              <p className="text-sm text-[var(--agri-text-muted)]">
+              <h2 className="text-lg font-semibold text-foreground">Începe în mai puțin de 5 secunde</h2>
+              <p className="text-sm text-muted-foreground">
                 Pentru beta nu cerem confirmare pe email. După autentificare intri direct în dashboard.
               </p>
             </div>
@@ -376,7 +440,7 @@ export default function StartOnboardingPage() {
               <Button
                 asChild
                 variant="outline"
-                className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+                className="h-11 w-full rounded-xl border border-border bg-white text-foreground hover:bg-[var(--agri-surface-muted)] dark:bg-slate-800"
               >
                 <Link href={buildLoginUrl({ mode: 'register', next: '/dashboard' })}>Continuă cu email</Link>
               </Button>
@@ -386,7 +450,7 @@ export default function StartOnboardingPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+                className="h-11 w-full rounded-xl border border-border bg-white text-foreground hover:bg-[var(--agri-surface-muted)] dark:bg-slate-800"
                 onClick={() => {
                   if (authState === 'user') {
                     router.replace('/dashboard')
@@ -400,15 +464,15 @@ export default function StartOnboardingPage() {
                 Continuă fără cont
               </Button>
 
-              <Button asChild variant="ghost" className="h-10 w-full rounded-xl text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]">
+              <Button asChild variant="ghost" className="h-10 w-full rounded-xl text-foreground hover:bg-[var(--agri-surface-muted)]">
                 <Link href={buildLoginUrl({ next: '/dashboard' })}>Am deja cont</Link>
               </Button>
             </div>
           </section>
 
           <section className={cardClassName}>
-            <h2 className="text-sm font-semibold text-[var(--agri-text)]">Ce primești în demo</h2>
-            <p className="mt-2 text-sm text-[var(--agri-text-muted)]">
+            <h2 className="text-sm font-semibold text-foreground">Ce primești în demo</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               Ferma demo pornește cu parcele, recoltări, stoc, vânzări și culegători, într-un tenant separat și resetabil.
             </p>
           </section>

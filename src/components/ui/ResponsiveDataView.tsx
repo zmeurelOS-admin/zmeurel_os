@@ -21,6 +21,8 @@ type ResponsiveColumnMeta<TData> = {
   headerClassName?: string
   cellClassName?: string
   sticky?: 'left' | 'right'
+  /** Right-align cell + header; use for kg, lei, counts */
+  numeric?: boolean
 }
 
 interface ResponsiveDataViewProps<TData, TMobileData = TData> {
@@ -172,11 +174,12 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
 
         <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
           <Table>
-            <TableHeader className="bg-[var(--agri-surface-muted)]">
+            <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => {
                     const meta = getColumnMeta(header.column.columnDef)
+                    const isNumeric = meta.numeric === true
                     const stickyClassName =
                       meta.sticky === 'right'
                         ? 'sticky right-0 z-20 border-l border-[var(--agri-border)] bg-[var(--agri-surface-muted)]'
@@ -190,7 +193,8 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                       <TableHead
                         key={header.id}
                         className={cn(
-                          'h-12 px-4 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]',
+                          'min-h-12',
+                          isNumeric && 'text-right',
                           stickyClassName,
                           meta.headerClassName,
                         )}
@@ -199,7 +203,10 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="flex w-full items-center gap-2 text-left"
+                            className={cn(
+                              'flex w-full items-center gap-2',
+                              isNumeric ? 'justify-end text-right' : 'text-left',
+                            )}
                           >
                             <span className="truncate">
                               {flexRender(header.column.columnDef.header, header.getContext())}
@@ -212,6 +219,10 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                               <ArrowUpDown className="h-4 w-4 shrink-0 opacity-60" />
                             )}
                           </button>
+                        ) : isNumeric ? (
+                          <span className="block w-full text-right">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </span>
                         ) : (
                           flexRender(header.column.columnDef.header, header.getContext())
                         )}
@@ -250,8 +261,8 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                           <TableCell
                             key={cell.id}
                             className={cn(
-                              'px-4 py-3 text-sm text-[var(--agri-text)]',
                               stickyClassName,
+                              meta.numeric ? 'text-right tabular-nums' : '',
                               meta.cellClassName,
                             )}
                           >

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
-import { CATEGORII_CHELTUIELI } from '@/lib/financial/categories'
+import { CATEGORII_CHELTUIELI, resolveCheltuialaCategorie } from '@/lib/financial/categories'
 
 const cheltuialaSchema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
@@ -48,7 +48,7 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
     if (cheltuiala && open) {
       form.reset({
         data: cheltuiala.data,
-        categorie: cheltuiala.categorie ?? '',
+        categorie: resolveCheltuialaCategorie(cheltuiala.categorie),
         suma_lei: String(cheltuiala.suma_lei ?? ''),
         furnizor: cheltuiala.furnizor ?? '',
         descriere: cheltuiala.descriere ?? '',
@@ -66,7 +66,10 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
 
     setIsSubmitting(true)
     try {
-      await onSubmit(cheltuiala.id, data)
+      await onSubmit(cheltuiala.id, {
+        ...data,
+        categorie: resolveCheltuialaCategorie(data.categorie),
+      })
       onOpenChange(false)
     } catch (error) {
       console.error('Error updating cheltuiala:', error)

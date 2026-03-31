@@ -8,18 +8,26 @@ import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
-import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
+import {
+  ModuleEmptyCard,
+  ModulePillFilterButton,
+  ModulePillRow,
+} from '@/components/app/module-list-chrome'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { ResponsiveFormContainer } from '@/components/ui/ResponsiveFormContainer'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
-import { computeActivityRemainingDays } from '@/lib/parcele/pauza'
 import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
+import { buildLatestActivityByParcela, getActivityDaysAgo, getActivityPauseRemainingDays } from '@/lib/activitati/timeline'
 import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+import { getSolarClimateLogs } from '@/lib/supabase/queries/solar-tracking'
 import {
   createEtapaCultura,
   deleteEtapaCultura,
@@ -32,6 +40,14 @@ import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { toast } from '@/lib/ui/toast'
+import {
+  coerceParcelaScopFromDb,
+  coerceStatusOperationalFromDb,
+  SCOP_LABELS,
+  STATUS_OPERATIONAL_LABELS,
+  type ParcelaScop,
+  type StatusOperational,
+} from '@/lib/parcele/dashboard-relevance'
 
 const AddParcelDrawer = dynamic(
   () => import('@/components/parcele/AddParcelDrawer').then((mod) => mod.AddParcelDrawer),
@@ -117,14 +133,25 @@ function unitIcon(tipUnitate: string | null | undefined): { emoji: string; bg: s
   return { emoji: '🌿', bg: 'linear-gradient(135deg, #e3f2e8, #c8e6cf)' }
 }
 
-function statusBadge(status: string | null | undefined): { text: string; color: string; bg: string } {
-  const s = (status ?? '').toLowerCase().trim()
-  if (!s || s === 'activ') return { text: 'Activ', color: 'var(--status-success-text)', bg: 'var(--status-success-bg)' }
-  if (s.includes('vegetativ')) return { text: 'Vegetativ', color: 'var(--status-warning-text)', bg: 'var(--status-warning-bg)' }
-  if (s.includes('recolt')) return { text: 'Recoltare', color: 'var(--status-success-text)', bg: 'var(--status-success-bg)' }
-  if (s.includes('repaus') || s.includes('repaos')) return { text: 'Repaus', color: 'var(--status-neutral-text)', bg: 'var(--status-neutral-bg)' }
-  if (s.includes('inactiv')) return { text: 'Inactiv', color: 'var(--status-danger-text)', bg: 'var(--status-danger-bg)' }
-  return { text: s.charAt(0).toUpperCase() + s.slice(1), color: 'var(--status-success-text)', bg: 'var(--status-success-bg)' }
+function operationalBadge(statusOperational: StatusOperational): { text: string; color: string; bg: string } {
+  const label = STATUS_OPERATIONAL_LABELS[statusOperational]
+  if (statusOperational === 'activ') {
+    return { text: label, color: 'var(--status-success-text)', bg: 'var(--status-success-bg)' }
+  }
+  if (statusOperational === 'in_pauza' || statusOperational === 'infiintare') {
+    return { text: label, color: 'var(--status-warning-text)', bg: 'var(--status-warning-bg)' }
+  }
+  if (statusOperational === 'neproductiv' || statusOperational === 'arhivat') {
+    return { text: label, color: 'var(--status-danger-text)', bg: 'var(--status-danger-bg)' }
+  }
+  return { text: label, color: 'var(--status-neutral-text)', bg: 'var(--status-neutral-bg)' }
+}
+
+function operationalToneForCard(statusOperational: StatusOperational): 'neutral' | 'success' | 'warning' | 'danger' {
+  if (statusOperational === 'activ') return 'success'
+  if (statusOperational === 'in_pauza' || statusOperational === 'infiintare') return 'warning'
+  if (statusOperational === 'neproductiv' || statusOperational === 'arhivat') return 'danger'
+  return 'neutral'
 }
 
 function stadiuBadge(stadiu: string | null | undefined): { text: string; emoji: string; color: string } {
@@ -149,10 +176,8 @@ function etapaDotColor(etapa: string): string {
 }
 
 function activityRelativeTime(dateStr: string | null | undefined, today: Date): string {
-  if (!dateStr) return 'Nicio activitate'
-  const d = new Date(dateStr)
-  if (Number.isNaN(d.getTime())) return '-'
-  const days = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+  const days = getActivityDaysAgo({ data_aplicare: dateStr }, today)
+  if (days === null) return 'Nicio activitate'
   if (days === 0) return 'azi'
   if (days === 1) return 'ieri'
   if (days < 0) return 'în viitor'
@@ -198,10 +223,12 @@ function formatActivityDateShort(dateStr: string | null | undefined): string | n
 }
 
 function buildParcelaDesktopMeta(parcela: Parcela): string {
+  const scop: ParcelaScop = coerceParcelaScopFromDb(parcela.rol)
   const meta = [
     unitTypeLabel(parcela.tip_unitate),
     parcela.soi_plantat?.trim() || parcela.soi?.trim() || parcela.cultura?.trim() || parcela.tip_fruct?.trim(),
     formatSuprafata(parcela.suprafata_m2),
+    SCOP_LABELS[scop],
   ].filter(Boolean)
 
   return meta.join(' · ')
@@ -213,6 +240,7 @@ function getCulturiCountLabel(count: number, withActiveSuffix = false): string {
 }
 
 function buildParcelaSummaryLine(parcela: Parcela, activeCulturiCount: number): string {
+  const agronomicStatus = (parcela.status ?? '').trim()
   const summary = [
     parcela.soi_plantat?.trim() ||
       parcela.soi?.trim() ||
@@ -221,6 +249,7 @@ function buildParcelaSummaryLine(parcela: Parcela, activeCulturiCount: number): 
       unitTypeLabel(parcela.tip_unitate),
     formatSuprafata(parcela.suprafata_m2),
     activeCulturiCount > 0 ? getCulturiCountLabel(activeCulturiCount) : null,
+    agronomicStatus && agronomicStatus.toLowerCase() !== 'activ' ? `Status cultură: ${agronomicStatus}` : null,
   ].filter(Boolean)
 
   return summary.join(' · ')
@@ -577,7 +606,7 @@ function CulturaCard({
           ) : null}
 
           {/* Desființă button */}
-          {isActive ? (
+  {isActive ? (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onDesfiintaCultura(cultura) }}
@@ -593,7 +622,7 @@ function CulturaCard({
                 cursor: 'pointer',
               }}
             >
-              Desființă cultură
+              Desființează cultura
             </button>
           ) : null}
         </div>
@@ -622,6 +651,14 @@ function SolarCulturiSection({
     queryFn: () => getCulturiForSolar(solarId),
     staleTime: 30000,
     refetchOnWindowFocus: false,
+  })
+
+  const { data: microclimatLogs = [], isLoading: microLoading } = useQuery({
+    queryKey: ['solar_climate_logs', solarId],
+    queryFn: () => getSolarClimateLogs(solarId, 5),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(solarId),
   })
 
   const activeCulturi = culturi.filter((c) => c.activa !== false)
@@ -702,6 +739,22 @@ function SolarCulturiSection({
           Nicio cultură înregistrată
         </div>
       ) : (
+        <>
+        {microclimatLogs.length > 0 ? (
+          <div style={{ marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid var(--agri-border)', background: 'var(--agri-surface-muted)' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>🌡️ Microclimat</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {microclimatLogs.map((log) => (
+                <div key={log.id} style={{ fontSize: 12, color: 'var(--agri-text)' }}>
+                  <div style={{ fontWeight: 700 }}>{new Date(log.created_at).toLocaleString('ro-RO')}</div>
+                  <div style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>
+                    T: {log.temperatura}°C · U: {log.umiditate}%{log.observatii ? ' · ' + log.observatii : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activeCulturi.map((c) => (
             <CulturaCard
@@ -723,6 +776,7 @@ function SolarCulturiSection({
             />
           ))}
         </div>
+        </>
       )}
     </div>
   )
@@ -759,90 +813,143 @@ function TerenCard({
   today.setHours(0, 0, 0, 0)
 
   const { emoji, bg } = unitIcon(parcela.tip_unitate)
-  const badge = statusBadge(parcela.status)
+  const operational = coerceStatusOperationalFromDb(parcela.status_operational)
+  const badge = operationalBadge(operational)
   const hasPause = Boolean(latestActivity?.pauseUntil)
   const relTime = activityRelativeTime(latestActivity?.date, today)
   const activityDateLabel = formatActivityDateShort(latestActivity?.date)
   const metaLine = buildParcelaDesktopMeta(parcela)
   const summaryLine = buildParcelaSummaryLine(parcela, activeCulturiCount)
   const culturiLabel = activeCulturiCount > 0 ? getCulturiCountLabel(activeCulturiCount, true) : null
-  const latestActivitySummary = latestActivity
-    ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''} · ${relTime}`
-    : 'Nicio activitate'
-
   const remainingDays = latestActivity?.pauseUntil
     ? Math.ceil((new Date(latestActivity.pauseUntil).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     : 0
 
-  return (
-    <div
-      className="w-full overflow-hidden rounded-[14px] bg-[var(--agri-surface)] transition-all duration-200 md:rounded-2xl md:hover:bg-gray-50 md:dark:hover:bg-zinc-800/50"
-      role="button"
-      tabIndex={0}
-      aria-expanded={isExpanded}
-      onClick={() => onToggle(parcela.id)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(parcela.id) }
-      }}
-      style={{
-        border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
-        boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
-        padding: '11px 14px',
-        cursor: 'pointer',
-      }}
-    >
-      <div className="md:hidden">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+  const mobileExpanded = (
+    <>
+      <div className="border-t border-[var(--surface-divider)] pt-3">
+        <div className={hasPause ? 'mb-2' : 'mb-2.5'}>
+          <div className="mb-1 text-[11px] text-[var(--agri-text-muted)]">Ultima activitate</div>
           <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: bg,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 15,
-              flexShrink: 0,
-            }}
+            className={cn(
+              'rounded-lg px-2.5 py-1.5 text-xs font-medium',
+              latestActivity ? 'bg-[var(--agri-surface-muted)] text-[var(--agri-text)]' : 'text-[var(--text-hint)]',
+            )}
           >
-            {emoji}
+            {latestActivity
+              ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''} — ${relTime}`
+              : 'Nicio activitate înregistrată'}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)', lineHeight: 1.3 }}>
-              {parcela.nume_parcela || 'Teren'}
-              {hasPause ? <span style={{ marginLeft: 5, fontSize: 10 }}>⚠️</span> : null}
-            </div>
-            {summaryLine ? (
-              <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 2 }}>{summaryLine}</div>
-            ) : null}
-            <div
-              style={{
-                fontSize: 10,
-                color: latestActivity ? 'var(--agri-text)' : 'var(--text-hint)',
-                marginTop: 4,
-              }}
-            >
-              Ultima: {latestActivitySummary}
-            </div>
+        </div>
+
+        {hasPause ? (
+          <div className="mb-2.5 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--status-danger-text)]">
+            {remainingDays <= 1
+              ? '⚠️ Pauză tratament expiră mâine'
+              : `⚠️ Pauză activă: încă ${remainingDays} zile`}
           </div>
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              borderRadius: 20,
-              padding: '3px 8px',
-              background: badge.bg,
-              color: badge.color,
-              border: `1px solid ${badge.color}`,
-              flexShrink: 0,
+        ) : null}
+
+        <div className="mb-2.5 flex gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onAddActivity(parcela.id)
             }}
+            className="min-h-9 flex-1 rounded-[10px] border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-[11px] font-semibold text-[var(--pill-active-text)]"
           >
-            {badge.text}
-          </span>
+            + Activitate
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onHistoric()
+            }}
+            className="min-h-9 flex-1 rounded-[10px] border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-[11px] font-semibold text-[var(--button-muted-text)]"
+          >
+            Istoric
+          </button>
+        </div>
+
+        <SolarCulturiSection
+          solarId={parcela.id}
+          tipUnitate={parcela.tip_unitate}
+          onAddCultura={onAddCultura}
+          onAddMicroclimat={onAddMicroclimat}
+          onDesfiintaCultura={onDesfiintaCultura}
+        />
+
+        <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(parcela)
+            }}
+            className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+          >
+            ✏️ Editează
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(parcela)
+            }}
+            className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+          >
+            🗑️ Șterge
+          </button>
         </div>
       </div>
+    </>
+  )
 
+  return (
+    <>
+      <div className="md:hidden">
+        <MobileEntityCard
+          variant={isExpanded ? 'highlight' : 'default'}
+          icon={<span aria-hidden>{emoji}</span>}
+          title={hasPause ? `${parcela.nume_parcela || 'Teren'} ⚠️` : parcela.nume_parcela || 'Teren'}
+          subtitle={summaryLine || undefined}
+          mainValue={latestActivity ? relTime : '—'}
+          secondaryValue={
+            latestActivity
+              ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
+              : 'Nicio activitate'
+          }
+          statusLabel={badge.text}
+          statusTone={operationalToneForCard(operational)}
+          showChevron
+          bottomSlotAlign="full"
+          ariaLabel={`${parcela.nume_parcela || 'Teren'}${isExpanded ? ', detalii deschise' : ''}`}
+          onClick={() => onToggle(parcela.id)}
+          bottomSlot={isExpanded ? mobileExpanded : undefined}
+        />
+      </div>
+
+      <div
+        className="hidden w-full overflow-hidden rounded-2xl bg-[var(--agri-surface)] shadow-[var(--agri-shadow)] transition-all duration-200 md:block md:hover:bg-[color-mix(in_srgb,var(--agri-surface-muted)_35%,var(--agri-surface))] dark:md:hover:bg-zinc-800/40"
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        onClick={() => onToggle(parcela.id)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onToggle(parcela.id)
+          }
+        }}
+        style={{
+          border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
+          boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
+          padding: '14px 18px',
+          cursor: 'pointer',
+        }}
+      >
       <div className="hidden md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center md:gap-6">
         <div className="flex min-w-0 items-center gap-4">
           <div
@@ -887,36 +994,6 @@ function TerenCard({
             <div className="mt-1 text-sm text-[var(--agri-text-muted)] dark:text-zinc-400">{culturiLabel}</div>
           ) : null}
 
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => onAddActivity(parcela.id)}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-3 text-xs font-semibold text-[var(--pill-active-text)] transition-colors hover:opacity-90 dark:hover:opacity-100"
-            >
-              + Activitate
-            </button>
-            <button
-              type="button"
-              onClick={onHistoric}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-              Istoric
-            </button>
-            <button
-              type="button"
-              onClick={() => onEdit(parcela)}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
-            >
-              Editează
-            </button>
-            <button
-              type="button"
-              onClick={() => onDelete(parcela)}
-              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-xs font-semibold text-[var(--status-danger-text)] transition-colors hover:opacity-90 dark:hover:opacity-100"
-            >
-              Șterge
-            </button>
-          </div>
         </div>
 
         <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -925,116 +1002,41 @@ function TerenCard({
       </div>
 
       {isExpanded ? (
-        <>
           <div
-            className="md:hidden"
+            className="mt-4 hidden border-t border-[var(--surface-divider)] pt-4 md:block"
             onClick={(e) => e.stopPropagation()}
-            style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, marginTop: 10 }}
           >
-            <div style={{ marginBottom: hasPause ? 8 : 10 }}>
-              <div style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginBottom: 4 }}>Ultima activitate</div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: latestActivity ? 'var(--agri-text)' : 'var(--text-hint)',
-                  background: 'var(--agri-surface-muted)',
-                  padding: '7px 10px',
-                  borderRadius: 8,
-                }}
-              >
-                {latestActivity
-                  ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''} — ${relTime}`
-                  : 'Nicio activitate înregistrată'}
-              </div>
-            </div>
-
-            {hasPause ? (
-              <div
-                style={{
-                  marginBottom: 10,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: 'var(--status-danger-text)',
-                  background: 'var(--status-danger-bg)',
-                  border: '1px solid var(--status-danger-border)',
-                  padding: '6px 10px',
-                  borderRadius: 8,
-                }}
-              >
-                {remainingDays <= 1
-                  ? '⚠️ Pauză tratament expiră mâine'
-                  : `⚠️ Pauză activă: încă ${remainingDays} zile`}
-              </div>
-            ) : null}
-
-            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+            <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onAddActivity(parcela.id) }}
-                style={{
-                  flex: 1,
-                  padding: '8px 0',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  background: 'var(--pill-active-bg)',
-                  color: 'var(--pill-active-text)',
-                  border: '1px solid var(--pill-active-border)',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                }}
+                onClick={() => onAddActivity(parcela.id)}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-3 text-xs font-semibold text-[var(--pill-active-text)] transition-colors hover:opacity-90 dark:hover:opacity-100"
               >
                 + Activitate
               </button>
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onHistoric() }}
-                style={{
-                  flex: 1,
-                  padding: '8px 0',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  background: 'var(--button-muted-bg)',
-                  color: 'var(--button-muted-text)',
-                  border: '1px solid var(--button-muted-border)',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                }}
+                onClick={onHistoric}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
               >
                 Istoric
               </button>
-            </div>
-
-            <SolarCulturiSection
-              solarId={parcela.id}
-              tipUnitate={parcela.tip_unitate}
-              onAddCultura={onAddCultura}
-              onAddMicroclimat={onAddMicroclimat}
-              onDesfiintaCultura={onDesfiintaCultura}
-            />
-
-            <div style={{ borderTop: '1px solid var(--surface-divider)', paddingTop: 10, marginTop: 10, display: 'flex', justifyContent: 'center', gap: 6 }}>
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onEdit(parcela) }}
-                style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--button-muted-bg)', color: 'var(--button-muted-text)', border: '1px solid var(--button-muted-border)', borderRadius: 8, cursor: 'pointer' }}
+                onClick={() => onEdit(parcela)}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
               >
-                ✏️ Editează
+                Editează
               </button>
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onDelete(parcela) }}
-                style={{ padding: '6px 14px', fontSize: 10, fontWeight: 600, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 8, cursor: 'pointer' }}
+                onClick={() => onDelete(parcela)}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-xs font-semibold text-[var(--status-danger-text)] transition-colors hover:opacity-90 dark:hover:opacity-100"
               >
-                🗑️ Șterge
+                Șterge
               </button>
             </div>
-          </div>
 
-          <div
-            className="mt-4 hidden border-t border-[var(--surface-divider)] pt-4 md:block"
-            onClick={(e) => e.stopPropagation()}
-          >
             {hasPause ? (
               <div className="mb-4 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-danger-text)]">
                 {remainingDays <= 1
@@ -1052,9 +1054,9 @@ function TerenCard({
               withTopBorder={false}
             />
           </div>
-        </>
       ) : null}
     </div>
+    </>
   )
 }
 
@@ -1077,6 +1079,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [unitFilter, setUnitFilter] = useState<UnitFilter>(() => resolveUnitFilterParam(searchParams))
+  const [isDesktop, setIsDesktop] = useState(false)
 
   const [addCulturaParcelaId, setAddCulturaParcelaId] = useState<string | null>(null)
   const [addMicroclimatParcelaId, setAddMicroclimatParcelaId] = useState<string | null>(null)
@@ -1121,19 +1124,23 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
   const resolvedError = initialError || (isError ? (error as Error).message : null)
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă teren')
@@ -1192,19 +1199,21 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
   const latestActivityByParcela = useMemo(() => {
     const map = new Map<string, { date: string; type: string; product: string; pauseUntil?: string | null }>()
-    for (const row of activitati) {
-      if (!row.parcela_id) continue
-      const current = map.get(row.parcela_id)
+    const latestByParcela = buildLatestActivityByParcela(activitati)
+    for (const [parcelaId, row] of latestByParcela.entries()) {
       const tip = row.tip_activitate || 'Activitate'
       const produs = row.produs_utilizat || ''
-      const remaining = computeActivityRemainingDays(row, today)
-      const isTreatment = (row.tip_activitate || '').toLowerCase().includes('tratament')
+      const remaining = getActivityPauseRemainingDays(row, today)
       const pauseUntil =
-        remaining > 0 && isTreatment
+        remaining > 0
           ? toIsoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + remaining))
           : null
-      const next = { date: row.data_aplicare, type: tip, product: produs, pauseUntil }
-      if (!current || next.date > current.date) map.set(row.parcela_id, next)
+      map.set(parcelaId, {
+        date: row.data_aplicare || '',
+        type: tip,
+        product: produs,
+        pauseUntil,
+      })
     }
     return map
   }, [activitati, today])
@@ -1223,6 +1232,27 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     }
     return base
   }, [parcele, unitFilter, search])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(min-width: 768px)')
+    const sync = () => setIsDesktop(media.matches)
+    sync()
+    media.addEventListener('change', sync)
+    return () => media.removeEventListener('change', sync)
+  }, [])
+
+  useEffect(() => {
+    if (!isDesktop) return
+    if (filteredParcele.length === 1) {
+      const id = filteredParcele[0].id
+      window.setTimeout(() => setExpandedId(id), 0)
+      return
+    }
+    if (expandedId && !filteredParcele.some((parcela) => parcela.id === expandedId)) {
+      window.setTimeout(() => setExpandedId(null), 0)
+    }
+  }, [expandedId, filteredParcele, isDesktop])
 
   const filteredParcelaIds = useMemo(
     () => filteredParcele.map((parcela) => parcela.id).sort(),
@@ -1264,7 +1294,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       header={<PageHeader title="Terenuri" subtitle="Administrare terenuri cultivate" rightSlot={<MapIcon className="h-5 w-5" />} />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-3 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-2 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
         {resolvedError ? (
           <ErrorState
             title="Eroare la încărcare"
@@ -1273,32 +1303,19 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
           />
         ) : null}
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <ListSkeletonCard key={index} className="min-h-[80px]" />
-            ))}
-          </div>
-        ) : null}
+        {isLoading ? <EntityListSkeleton /> : null}
 
         {!isLoading && !resolvedError && parcele.length === 0 ? (
-          <div style={{ borderRadius: 12, background: 'var(--agri-surface)', border: '1px solid var(--agri-border)', padding: '28px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🌿</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 4 }}>Niciun teren adăugat</div>
-            <div style={{ fontSize: 12, color: 'var(--text-hint)', marginBottom: 16 }}>Adaugă primul teren cu butonul +</div>
+          <div className="flex flex-col items-center gap-4">
+            <ModuleEmptyCard
+              emoji="🌿"
+              title="Niciun teren adăugat"
+              hint="Adaugă primul teren cu butonul +"
+            />
             <button
               type="button"
               onClick={() => setAddOpen(true)}
-              style={{
-                border: '1px solid var(--pill-active-border)',
-                borderRadius: 12,
-                background: 'var(--pill-active-bg)',
-                color: 'var(--pill-active-text)',
-                fontWeight: 700,
-                fontSize: 13,
-                padding: '10px 20px',
-                cursor: 'pointer',
-              }}
+              className="rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-5 py-2.5 text-[13px] font-bold text-[var(--pill-active-text)] transition-opacity hover:opacity-95"
             >
               🌿 Adaugă primul teren
             </button>
@@ -1308,30 +1325,17 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         {!isLoading && !resolvedError && parcele.length > 0 ? (
           <>
             {/* Pills filtrare */}
-            <div style={{ display: 'flex', gap: 6 }}>
-              {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => {
-                const active = unitFilter === f.key
-                return (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => setUnitFilter(f.key)}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      borderRadius: 20,
-                      border: `1px solid ${active ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
-                      background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                      color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                )
-              })}
-            </div>
+            <ModulePillRow>
+              {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => (
+                <ModulePillFilterButton
+                  key={f.key}
+                  active={unitFilter === f.key}
+                  onClick={() => setUnitFilter(f.key)}
+                >
+                  {f.label}
+                </ModulePillFilterButton>
+              ))}
+            </ModulePillRow>
 
             {/* Search (doar dacă > 5 terenuri) */}
             {parcele.length > 5 ? (
@@ -1345,19 +1349,21 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
             {/* Lista carduri */}
             {filteredParcele.length === 0 ? (
-              <div style={{ borderRadius: 12, background: 'var(--agri-surface)', border: '1px solid var(--agri-border)', padding: '20px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: 36, marginBottom: 8 }}>
-                  {unitFilter === 'solar' ? '🏡' : unitFilter === 'livada' ? '🍎' : unitFilter === 'cultura_mare' ? '🚜' : '🌿'}
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 4 }}>
-                  {unitFilter === 'solar' ? 'Niciun solar adăugat' : unitFilter === 'livada' ? 'Nicio livadă adăugată' : unitFilter === 'cultura_mare' ? 'Nicio cultură mare adăugată' : 'Niciun teren găsit'}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>
-                  {unitFilter === 'solar' ? 'Solariile vor apărea aici' : 'Modifică filtrul sau căutarea'}
-                </div>
-              </div>
+              <ModuleEmptyCard
+                emoji={unitFilter === 'solar' ? '🏡' : unitFilter === 'livada' ? '🍎' : unitFilter === 'cultura_mare' ? '🚜' : '🌿'}
+                title={
+                  unitFilter === 'solar'
+                    ? 'Niciun solar adăugat'
+                    : unitFilter === 'livada'
+                      ? 'Nicio livadă adăugată'
+                      : unitFilter === 'cultura_mare'
+                        ? 'Nicio cultură mare adăugată'
+                        : 'Niciun teren găsit'
+                }
+                hint={unitFilter === 'solar' ? 'Solariile vor apărea aici' : 'Modifică filtrul sau căutarea'}
+              />
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {filteredParcele.map((parcela) => {
                   const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
                   return (

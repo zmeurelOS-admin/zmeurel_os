@@ -65,6 +65,7 @@ function formatStatusPlataLabel(status: string): string {
 }
 
 export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false }: AddVanzareDialogProps) {
+  void hideTrigger
   const queryClient = useQueryClient()
   const [internalOpen, setInternalOpen] = useState(false)
   const submittedRef = useRef(false)

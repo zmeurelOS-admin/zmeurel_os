@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
-import { ActivityDetailSheet } from '@/components/activitati-agricole/ActivityDetailSheet'
+import { EditActivitateAgricolaDialog } from '@/components/activitati-agricole/EditActivitateAgricolaDialog'
 import { AppShell } from '@/components/app/AppShell'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/app/ErrorState'
@@ -14,26 +14,18 @@ import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { SearchField } from '@/components/ui/SearchField'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
-import { computeActivityRemainingDays } from '@/lib/parcele/pauza'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import {
+  buildLatestActivityByParcela,
+} from '@/lib/activitati/timeline'
 import { deleteActivitateAgricola, getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { queryKeys } from '@/lib/query-keys'
 
 type TipFilter = 'toate' | 'tratamente' | 'fertilizare' | 'taiere' | 'altele'
-
-function toDateOnly(value: string | null | undefined): string {
-  return (value ?? '').slice(0, 10)
-}
-
-function toIsoDate(value: Date): string {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
-}
 
 function normalizeText(value: string | null | undefined): string {
   return (value ?? '')
@@ -53,26 +45,89 @@ function activityKind(tip: string | null | undefined): TipFilter {
 
 function activityEmojiByTip(tip: string | null | undefined): string {
   const t = normalizeText(tip)
-  if (
-    t.includes('tratament') ||
-    t.includes('fungic') ||
-    t.includes('pestic') ||
-    t.includes('erbic') ||
-    t.includes('insecticid')
-  )
-    return '💊'
-  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier'))
-    return '✂️'
-  if (t.includes('irig') || t.includes('udar')) return '💧'
-  if (t.includes('fert')) return '🌿'
-  return '📋'
+  if (t.includes('fungic') || t.includes('pestic') || t.includes('erbic') || t.includes('insecticid') || t.includes('tratament')) return '🧪'
+  if (t.includes('fertirig') || (t.includes('irig') && t.includes('fert'))) return '💧'
+  if (t.includes('fertiliz') || t.includes('foliar')) return '🌿'
+  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier')) return '✂️'
+  return '🔧'
 }
 
-function formatDate(value: string | null | undefined): string {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '-'
-  return parsed.toLocaleDateString('ro-RO')
+function activityDisplayLabel(tip: string | null | undefined): string {
+  const t = normalizeText(tip)
+  if (t.includes('fungic') || t.includes('pestic') || t.includes('erbic') || t.includes('insecticid') || t.includes('tratament')) return 'Fungicide/Pesticide'
+  if (t.includes('fertirig') || (t.includes('irig') && t.includes('fert'))) return 'Fertirigare'
+  if (t.includes('fertiliz') || t.includes('foliar')) return 'Fertilizare foliară'
+  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier')) return 'Tăiere'
+  return 'Altele'
+}
+
+type TemporalBadge = {
+  label: string
+  className: string
+}
+
+function toStartOfDay(value: Date): Date {
+  const copy = new Date(value)
+  copy.setHours(0, 0, 0, 0)
+  return copy
+}
+
+function getDaysFromActivity(dataAplicare: string | null | undefined, today: Date): number | null {
+  if (!dataAplicare) return null
+  const parsed = new Date(dataAplicare)
+  if (Number.isNaN(parsed.getTime())) return null
+  const activityDay = toStartOfDay(parsed)
+  const diff = today.getTime() - activityDay.getTime()
+  return Math.max(0, Math.floor(diff / (24 * 60 * 60 * 1000)))
+}
+
+function temporalBadgeForActivity(activity: ActivitateAgricola, today: Date): TemporalBadge {
+  const daysSince = getDaysFromActivity(activity.data_aplicare, today)
+  const pauseInterval = Number(activity.timp_pauza_zile ?? 0)
+
+  if (pauseInterval > 0 && daysSince !== null) {
+    const remaining = pauseInterval - daysSince
+    if (remaining > 2) {
+      return {
+        label: `⏳ Pauză ${remaining} zile`,
+        className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      }
+    }
+    if (remaining >= 1 && remaining <= 2) {
+      return {
+        label: `⚠️ Încă ${remaining} zile`,
+        className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+      }
+    }
+    return {
+      label: '✅ Sigur de cules',
+      className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+    }
+  }
+
+  if (daysSince === 0) {
+    return {
+      label: 'azi',
+      className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    }
+  }
+  if (daysSince === 1) {
+    return {
+      label: 'ieri',
+      className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    }
+  }
+  if (daysSince !== null) {
+    return {
+      label: `acum ${daysSince} zile`,
+      className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    }
+  }
+
+  return {
+    label: 'fără dată',
+    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+  }
 }
 
 function formatDateShort(value: string | null | undefined): string {
@@ -80,29 +135,6 @@ function formatDateShort(value: string | null | undefined): string {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return '-'
   return parsed.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
-}
-
-function relativeActivityLabel(daysAgo: number | null): string {
-  if (daysAgo === null) return '-'
-  if (daysAgo === 0) return 'azi'
-  if (daysAgo === 1) return 'ieri'
-  return `acum ${daysAgo} zile`
-}
-
-function statusToneForDaysAgo(daysAgo: number | null): 'success' | 'warning' | 'neutral' {
-  if (daysAgo === null) return 'neutral'
-  if (daysAgo < 3) return 'success'
-  if (daysAgo <= 7) return 'warning'
-  return 'neutral'
-}
-
-function relativeTime(daysAgo: number | null): { text: string; color: string } {
-  if (daysAgo === null) return { text: 'Nicio activitate', color: '#ccc' }
-  if (daysAgo === 0) return { text: 'azi', color: 'var(--value-positive)' }
-  if (daysAgo === 1) return { text: 'ieri', color: 'var(--value-positive)' }
-  if (daysAgo < 3) return { text: `acum ${daysAgo} zile`, color: 'var(--value-positive)' }
-  if (daysAgo <= 5) return { text: `acum ${daysAgo} zile`, color: 'var(--status-warning-text)' }
-  return { text: `acum ${daysAgo} zile`, color: 'var(--status-danger-text)' }
 }
 
 const QUICK_ADD_PILLS = [
@@ -184,9 +216,30 @@ export default function ActivitatiPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [tipFilter, setTipFilter] = useState<TipFilter>('toate')
   const [selectedParcelaId, setSelectedParcelaId] = useState<string | null>(null)
-  const [selected, setSelected] = useState<ActivitateAgricola | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [editingActivity, setEditingActivity] = useState<ActivitateAgricola | null>(null)
   const openFormFromQuery = hasAiActivityOpenForm(searchParams)
+  const queryAiPrefill = useMemo(
+    () => (openFormFromQuery ? parseAiActivitatePrefill(searchParams) : null),
+    [openFormFromQuery, searchParams]
+  )
+  const resolvedAiPrefill = openFormFromQuery ? queryAiPrefill : aiPrefill
+  const isAddDialogOpen = addOpen || openFormFromQuery
+
+  const clearActivitateFormQueryParams = useCallback(() => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('openForm')
+    nextParams.delete('tip')
+    nextParams.delete('parcela')
+    nextParams.delete('parcela_id')
+    nextParams.delete('parcela_label')
+    nextParams.delete('produs')
+    nextParams.delete('doza')
+    nextParams.delete('data')
+    nextParams.delete('observatii')
+    const query = nextParams.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
 
   const deleteMutation = useMutation({
     mutationFn: deleteActivitateAgricola,
@@ -202,19 +255,23 @@ export default function ActivitatiPage() {
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => {
@@ -225,25 +282,6 @@ export default function ActivitatiPage() {
   }, [registerAddAction])
 
   useEffect(() => {
-    if (!openFormFromQuery) return
-    setAiPrefill(parseAiActivitatePrefill(searchParams))
-    setAddOpen(true)
-
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('openForm')
-    nextParams.delete('tip')
-    nextParams.delete('parcela')
-    nextParams.delete('parcela_id')
-    nextParams.delete('parcela_label')
-    nextParams.delete('produs')
-    nextParams.delete('doza')
-    nextParams.delete('data')
-    nextParams.delete('observatii')
-    const query = nextParams.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [openFormFromQuery, pathname, router, searchParams])
-
-  useEffect(() => {
     const query = searchQuery.trim()
     if (!query) return
     const timer = setTimeout(() => {
@@ -251,49 +289,6 @@ export default function ActivitatiPage() {
     }, 500)
     return () => clearTimeout(timer)
   }, [searchQuery])
-
-  const scheduleDelete = (activitate: ActivitateAgricola) => {
-    const activitateId = activitate.id
-    const currentItems = queryClient.getQueryData<ActivitateAgricola[]>(queryKeys.activitati) ?? []
-    const deleteIndex = currentItems.findIndex((item) => item.id === activitateId)
-
-    pendingDeletedItems.current[activitateId] = { item: activitate, index: deleteIndex }
-    queryClient.setQueryData<ActivitateAgricola[]>(queryKeys.activitati, (current = []) =>
-      current.filter((item) => item.id !== activitateId)
-    )
-
-    const timer = setTimeout(() => {
-      delete pendingDeleteTimers.current[activitateId]
-      delete pendingDeletedItems.current[activitateId]
-      deleteMutation.mutate(activitateId)
-    }, 5000)
-
-    pendingDeleteTimers.current[activitateId] = timer
-
-    toast('Element sters', {
-      duration: 5000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          const pendingTimer = pendingDeleteTimers.current[activitateId]
-          if (!pendingTimer) return
-          clearTimeout(pendingTimer)
-          delete pendingDeleteTimers.current[activitateId]
-          const pendingItem = pendingDeletedItems.current[activitateId]
-          delete pendingDeletedItems.current[activitateId]
-          if (!pendingItem) return
-
-          queryClient.setQueryData<ActivitateAgricola[]>(queryKeys.activitati, (current = []) => {
-            if (current.some((item) => item.id === activitateId)) return current
-            const next = [...current]
-            const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
-            next.splice(insertAt, 0, pendingItem.item)
-            return next
-          })
-        },
-      },
-    })
-  }
 
   const parcelaMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -303,36 +298,11 @@ export default function ActivitatiPage() {
     return map
   }, [parcele])
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayIso = toIsoDate(today)
-
-  const activePauseActivities = useMemo(() => {
-    return activitati
-      .map((row) => {
-        const kind = activityKind(row.tip_activitate)
-        const remaining = computeActivityRemainingDays(row, today)
-        if (kind !== 'tratamente' || remaining <= 0) return null
-        const expiry = new Date(today.getFullYear(), today.getMonth(), today.getDate() + remaining)
-        return {
-          activity: row,
-          remainingDays: remaining,
-          expiryDate: toIsoDate(expiry),
-        }
-      })
-      .filter((item): item is { activity: ActivitateAgricola; remainingDays: number; expiryDate: string } => Boolean(item))
-  }, [activitati, today])
-
-  const activePauseByParcelaId = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const item of activePauseActivities) {
-      if (item.activity.parcela_id) {
-        const existing = map.get(item.activity.parcela_id) ?? 0
-        map.set(item.activity.parcela_id, Math.max(existing, item.remainingDays))
-      }
-    }
-    return map
-  }, [activePauseActivities])
+  const today = useMemo(() => {
+    const date = new Date()
+    date.setHours(0, 0, 0, 0)
+    return date
+  }, [])
 
   const stareParceleRows = useMemo(() => {
     const activeParcele = parcele.filter((item) => {
@@ -341,11 +311,10 @@ export default function ActivitatiPage() {
       return !status.includes('inactiv')
     })
 
+    const latestByParcela = buildLatestActivityByParcela(activitati)
+
     return activeParcele.map((parcela) => {
-      const rows = activitati
-        .filter((act) => act.parcela_id === parcela.id)
-        .sort((a, b) => (b.data_aplicare || '').localeCompare(a.data_aplicare || ''))
-      const latest = rows[0]
+      const latest = latestByParcela.get(parcela.id) ?? null
       if (!latest) {
         return {
           parcela,
@@ -353,9 +322,7 @@ export default function ActivitatiPage() {
           daysAgo: null as number | null,
         }
       }
-      const activityDate = new Date(latest.data_aplicare)
-      const daysAgo = Number.isNaN(activityDate.getTime()) ? null : Math.floor((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24))
-      return { parcela, latest, daysAgo }
+      return { parcela, latest }
     })
   }, [activitati, parcele, today])
 
@@ -378,8 +345,6 @@ export default function ActivitatiPage() {
     })
   }, [activitati, searchQuery, selectedParcelaId, tipFilter])
 
-  void selected
-
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.activitati })
 
   return (
@@ -393,54 +358,52 @@ export default function ActivitatiPage() {
         </StickyActionBar>
       }
     >
-      <div className="mx-auto mt-4 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-4">
+      <div className="mx-auto mt-2 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
 
         {/* STARE TERENURI */}
         {stareParceleRows.length > 0 ? (
           <div>
             <span style={SECTION_LABEL_STYLE}>Stare terenuri</span>
             <div style={{ background: 'var(--agri-surface)', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--agri-border)' }}>
-              {stareParceleRows.map((row, idx) => {
-                const rel = relativeTime(row.daysAgo)
+              {stareParceleRows.map((row) => {
+                const badge = row.latest ? temporalBadgeForActivity(row.latest, today) : null
                 const emoji = activityEmojiByTip(row.latest?.tip_activitate)
-                const pausaZile = row.parcela.id ? (activePauseByParcelaId.get(row.parcela.id) ?? 0) : 0
                 return (
                   <button
                     key={row.parcela.id}
                     type="button"
                     onClick={() => setSelectedParcelaId((prev) => (prev === row.parcela.id ? null : row.parcela.id))}
+                    className="w-full cursor-pointer border-b border-[var(--surface-divider)] px-3 py-2.5 text-left last:border-b-0 dark:border-slate-700/80"
                     style={{
                       width: '100%',
                       textAlign: 'left',
                       border: 'none',
-                      background: selectedParcelaId === row.parcela.id ? 'var(--soft-success-bg)' : 'transparent',
+                      background: selectedParcelaId === row.parcela.id ? 'var(--soft-success-bg)' : undefined,
                       padding: '10px 14px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
                       cursor: 'pointer',
-                      borderBottom: idx < stareParceleRows.length - 1 ? '1px solid var(--surface-divider)' : 'none',
                     }}
                   >
                     <span style={{ fontSize: 15, flexShrink: 0 }}>{row.latest ? emoji : '📋'}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--agri-text)' }}>
                         {row.parcela.nume_parcela || 'Teren'}
-                        {pausaZile > 0 ? (
-                          <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: 'var(--status-danger-bg)', color: 'var(--status-danger-text)', border: '1px solid var(--status-danger-border)', borderRadius: 10, padding: '2px 6px' }}>
-                            ⏳ Pauză {pausaZile}z
-                          </span>
-                        ) : null}
                       </div>
                       <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 1 }}>
                         {row.latest
-                          ? [row.latest.tip_activitate, row.latest.produs_utilizat].filter(Boolean).join(' · ')
+                          ? `${activityDisplayLabel(row.latest.tip_activitate)} · ${formatDateShort(row.latest.data_aplicare)}`
                           : 'Nicio activitate'}
                       </div>
                     </div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: rel.color, flexShrink: 0, textAlign: 'right' }}>
-                      {rel.text}
-                    </div>
+                    {badge ? (
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                        Nicio activitate
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -448,8 +411,8 @@ export default function ActivitatiPage() {
           </div>
         ) : null}
 
-        {/* ADAUGĂ RAPID */}
-        <div>
+        {/* ADAUGĂ RAPID — ascuns pe mobil (FAB / flux principal rămân) */}
+        <div className="hidden md:block">
           <span style={{ ...SECTION_LABEL_STYLE, marginTop: 6 }}>Adaugă rapid</span>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {QUICK_ADD_PILLS.map((pill) => (
@@ -566,56 +529,101 @@ export default function ActivitatiPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredActivitati.map((a) => {
               const parcelaName = a.parcela_id ? parcelaMap[a.parcela_id] || 'Teren' : 'Teren'
-              const activityDate = a.data_aplicare ? new Date(a.data_aplicare) : null
-              const daysAgo = activityDate && !Number.isNaN(activityDate.getTime())
-                ? Math.floor((today.getTime() - new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate()).getTime()) / (1000 * 60 * 60 * 24))
-                : null
+              const badge = temporalBadgeForActivity(a, today)
+              const isExpanded = expandedCardId === a.id
 
               return (
-                <MobileEntityCard
-                  key={a.id}
-                  title={`${activityEmojiByTip(a.tip_activitate)} ${a.tip_activitate || 'Activitate'} — ${parcelaName}`}
-                  value={[a.produs_utilizat, a.doza].filter(Boolean).join(' · ') || '-'}
-                  secondary={a.data_aplicare ? formatDateShort(a.data_aplicare) : undefined}
-                  status={
-                    <StatusBadge
-                      text={relativeActivityLabel(daysAgo)}
-                      variant={statusToneForDaysAgo(daysAgo)}
-                    />
-                  }
-                  onClick={() => {
-                    setSelected(a)
-                    setDetailOpen(true)
-                  }}
-                  className="rounded-[22px] border-0 shadow-sm p-[14px]"
-                />
+                <div key={a.id} className="rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-3.5 shadow-[var(--agri-shadow)] dark:bg-slate-800">
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => setExpandedCardId((prev) => (prev === a.id ? null : a.id))}
+                    aria-expanded={isExpanded}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 text-sm font-semibold text-[var(--agri-text)]">
+                        {activityEmojiByTip(a.tip_activitate)} {activityDisplayLabel(a.tip_activitate)}
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      <p className="truncate text-xs text-[var(--agri-text-muted)]">
+                        {[a.produs_utilizat, a.doza].filter(Boolean).join(' · ') || 'Fără produs/doză'}
+                      </p>
+                      <p className="truncate text-xs text-[var(--agri-text-muted)]">{parcelaName}</p>
+                    </div>
+                  </button>
+
+                  {isExpanded ? (
+                    <div className="mt-3 space-y-2 border-t border-[var(--agri-border)] pt-3 dark:border-slate-700">
+                      <p className="text-xs text-[var(--agri-text-muted)]">
+                        <span className="font-semibold text-[var(--agri-text)]">Data:</span>{' '}
+                        {a.data_aplicare ? new Date(a.data_aplicare).toLocaleDateString('ro-RO') : '-'}
+                      </p>
+                      <p className="text-xs text-[var(--agri-text-muted)]">
+                        <span className="font-semibold text-[var(--agri-text)]">Parcelă:</span> {parcelaName}
+                      </p>
+                      <p className="text-xs text-[var(--agri-text-muted)]">
+                        <span className="font-semibold text-[var(--agri-text)]">Observații:</span> {a.observatii?.trim() || '—'}
+                      </p>
+
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          className="flex-1 rounded-lg border border-amber-200 bg-amber-100/70 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-900/25 dark:text-amber-300"
+                          onClick={() => setEditingActivity(a)}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 rounded-lg border border-red-200 bg-red-100/70 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-900/25 dark:text-red-300"
+                          onClick={() => {
+                            const confirmed = window.confirm('Ștergi această activitate?')
+                            if (confirmed) deleteMutation.mutate(a.id)
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               )
             })}
           </div>
         ) : null}
       </div>
 
-      <ActivityDetailSheet
-        activitate={selected}
-        parcelaName={selected?.parcela_id ? parcelaMap[selected.parcela_id] || 'Teren' : undefined}
-        open={detailOpen}
-        onOpenChange={(open) => {
-          setDetailOpen(open)
-          if (!open) setSelected(null)
-        }}
-      />
-
       <AddActivitateAgricolaDialog
-        open={addOpen}
+        open={isAddDialogOpen}
         onOpenChange={(open) => {
-          setAddOpen(open)
           if (!open) {
+            setAddOpen(false)
             setAiPrefill(null)
+            clearActivitateFormQueryParams()
+            return
           }
+          setAddOpen(true)
         }}
         hideTrigger
-        aiPrefill={aiPrefill}
+        aiPrefill={resolvedAiPrefill}
       />
+
+      {editingActivity ? (
+        <EditActivitateAgricolaDialog
+          activitate={editingActivity}
+          open={Boolean(editingActivity)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingActivity(null)
+              queryClient.invalidateQueries({ queryKey: queryKeys.activitati })
+            }
+          }}
+        />
+      ) : null}
     </AppShell>
   )
 }

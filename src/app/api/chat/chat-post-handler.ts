@@ -2332,7 +2332,8 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
 
         if (!likelyProviderOptionIssue) throw firstErr
 
-        const { providerOptions: _providerOptions, ...fallbackOptions } = requestOptions
+        const fallbackOptions = { ...requestOptions }
+        delete fallbackOptions.providerOptions
         result = await deps.generateText(fallbackOptions)
       }
 
@@ -2356,7 +2357,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[chat] generateText error:', msg)
       return jsonAnswerTracked(
-        'Eroare de la modelul AI. Încearcă din nou.',
+        'Eroare la răspuns. Încearcă din nou.',
         {
           decisionMode: 'llm_fallback',
           clarificationKind: 'generic_fallback',

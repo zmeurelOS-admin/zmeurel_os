@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Download, FileText } from 'lucide-react'
+import { BarChart3, Download, FileText } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -131,11 +131,6 @@ function downloadFile(filename: string, content: string, mimeType: string) {
   URL.revokeObjectURL(url)
 }
 
-function trendPercent(current: number, previous: number): number {
-  if (previous > 0) return ((current - previous) / previous) * 100
-  return current > 0 ? 100 : 0
-}
-
 export function RapoartePageClient({
   initialRecoltari,
   initialVanzari,
@@ -209,7 +204,7 @@ export function RapoartePageClient({
     const start = new Date(today.getFullYear(), 0, 1)
     start.setHours(0, 0, 0, 0)
     return { start, end }
-  }, [periodType, seasonStart, today])
+  }, [periodType, today])
 
   const filteredRecoltari = useMemo(() => {
     return initialRecoltari.filter((r) => {
@@ -243,45 +238,6 @@ export function RapoartePageClient({
     })
   }, [initialCheltuieli, range.end, range.start])
 
-  const previousRange = useMemo(() => {
-    const lengthMs = Math.max(24 * 60 * 60 * 1000, range.end.getTime() - range.start.getTime() + 1)
-    const prevEnd = new Date(range.start.getTime() - 1)
-    const prevStart = new Date(prevEnd.getTime() - lengthMs + 1)
-    return { start: prevStart, end: prevEnd }
-  }, [range.end, range.start])
-
-  const previousFilteredRecoltari = useMemo(() => {
-    return initialRecoltari.filter((r) => {
-      const date = new Date(r.data)
-      const inRange = date >= previousRange.start && date <= previousRange.end
-      if (!inRange) return false
-
-      if (selectedParcelaId !== 'all' && r.parcela_id !== selectedParcelaId) return false
-
-      if (selectedCultura !== 'all') {
-        const parcela = r.parcela_id ? parcelaMap[r.parcela_id] : null
-        const cultura = parcela?.soi_plantat?.trim() || ''
-        if (cultura !== selectedCultura) return false
-      }
-
-      return true
-    })
-  }, [initialRecoltari, parcelaMap, previousRange.end, previousRange.start, selectedCultura, selectedParcelaId])
-
-  const previousFilteredVanzari = useMemo(() => {
-    return initialVanzari.filter((v) => {
-      const date = new Date(v.data)
-      return date >= previousRange.start && date <= previousRange.end
-    })
-  }, [initialVanzari, previousRange.end, previousRange.start])
-
-  const previousFilteredCheltuieli = useMemo(() => {
-    return initialCheltuieli.filter((c) => {
-      const date = new Date(c.data)
-      return date >= previousRange.start && date <= previousRange.end
-    })
-  }, [initialCheltuieli, previousRange.end, previousRange.start])
-
   const kpi = useMemo(() => {
     const productieKg = filteredRecoltari.reduce((sum, row) => sum + recoltareTotalKg(row), 0)
     const venitLei = filteredVanzari.reduce(
@@ -294,30 +250,6 @@ export function RapoartePageClient({
       ...calculateProfit(venitLei, costLei),
     }
   }, [filteredCheltuieli, filteredRecoltari, filteredVanzari])
-
-  const previousKpi = useMemo(() => {
-    const productieKg = previousFilteredRecoltari.reduce((sum, row) => sum + recoltareTotalKg(row), 0)
-    const venitLei = previousFilteredVanzari.reduce(
-      (sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0),
-      0
-    )
-    const costLei = previousFilteredCheltuieli.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
-    return {
-      productieKg,
-      revenue: venitLei,
-      cost: costLei,
-      profit: venitLei - costLei,
-    }
-  }, [previousFilteredCheltuieli, previousFilteredRecoltari, previousFilteredVanzari])
-
-  const kpiTrend = useMemo(
-    () => ({
-      venit: trendPercent(kpi.revenue, previousKpi.revenue),
-      cheltuieli: trendPercent(kpi.cost, previousKpi.cost),
-      productie: trendPercent(kpi.productieKg, previousKpi.productieKg),
-    }),
-    [kpi.cost, kpi.productieKg, kpi.revenue, previousKpi.cost, previousKpi.productieKg, previousKpi.revenue]
-  )
 
   const monthlyFinancialRows = useMemo(() => {
     const grouped = new Map<string, { venit: number; cheltuieli: number }>()
@@ -751,7 +683,13 @@ export function RapoartePageClient({
 
   return (
     <AppShell
-      header={<PageHeader title="Rapoarte" subtitle="Analiză comercială și operațională" rightSlot={<span style={{ fontSize: 22 }}>📊</span>} />}
+      header={
+        <PageHeader
+          title="Rapoarte"
+          subtitle="Analiză comercială și operațională"
+          rightSlot={<BarChart3 className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
+        />
+      }
     >
       <div className="mx-auto mt-3 w-full max-w-5xl space-y-3 py-3 sm:mt-0">
 
@@ -911,20 +849,20 @@ export function RapoartePageClient({
                 ))}
               </div>
 
-              <div className="rounded-2xl border border-[var(--agri-border)]">
+              <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                       <TableHead>Indicator</TableHead>
-                      <TableHead className="text-right">Valoare</TableHead>
+                      <TableHead className="text-right tabular-nums">Valoare</TableHead>
                       <TableHead className="text-right">Unitate</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {reportRows.map((row) => (
                       <TableRow key={`${row.label}-${row.value}`}>
-                        <TableCell className="font-medium text-[var(--agri-text)]">{row.label}</TableCell>
-                        <TableCell className="text-right font-semibold text-[var(--agri-text)]">
+                        <TableCell className="font-medium">{row.label}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
                           {numberFormatter.format(row.value)}
                         </TableCell>
                         <TableCell className="text-right text-[var(--agri-text-muted)]">

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -90,7 +90,7 @@ export function AddStadiuDialog({
     onError: (err: Error) => toast.error(err.message),
   })
 
-  const stadiuValue = form.watch('stadiu')
+  const stadiuValue = useWatch({ control: form.control, name: 'stadiu' }) || ''
 
   return (
     <AppDialog

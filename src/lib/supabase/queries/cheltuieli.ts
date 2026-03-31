@@ -1,6 +1,7 @@
 // src/lib/supabase/queries/cheltuieli.ts
 import { getSupabase } from '../client';
 import { generateBusinessId } from '@/lib/supabase/business-ids';
+import { resolveCheltuialaCategorie } from '@/lib/financial/categories';
 import { getTenantId } from '@/lib/tenant/get-tenant';
 
 export interface Cheltuiala {
@@ -117,7 +118,7 @@ function normalizeCheltuialaRow(row: Record<string, unknown>): Cheltuiala {
     id_cheltuiala: String(row.id_cheltuiala ?? ''),
     client_sync_id: String(row.client_sync_id ?? row.id ?? crypto.randomUUID()),
     data: String(row.data ?? ''),
-    categorie: (row.categorie as string | null) ?? null,
+    categorie: resolveCheltuialaCategorie((row.categorie as string | null) ?? null),
     descriere: (row.descriere as string | null) ?? null,
     suma_lei: Number(row.suma_lei ?? 0),
     furnizor: (row.furnizor as string | null) ?? null,
@@ -189,7 +190,7 @@ export async function createCheltuiala(
         client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
         id_cheltuiala: nextId,
         data: input.data,
-        categorie: input.categorie || null,
+        categorie: input.categorie ? resolveCheltuialaCategorie(input.categorie) : null,
         descriere: input.descriere || null,
         suma_lei: input.suma_lei,
         furnizor: input.furnizor || null,
@@ -212,7 +213,7 @@ export async function createCheltuiala(
     const payloadLegacy = {
       id_cheltuiala: nextId,
       data: input.data,
-      categorie: input.categorie || null,
+      categorie: input.categorie ? resolveCheltuialaCategorie(input.categorie) : null,
       descriere: input.descriere || null,
       suma_lei: input.suma_lei,
       furnizor: input.furnizor || null,
@@ -258,6 +259,9 @@ export async function updateCheltuiala(
     .from('cheltuieli_diverse')
     .update({
       ...input,
+      ...(input.categorie !== undefined
+        ? { categorie: input.categorie ? resolveCheltuialaCategorie(input.categorie) : null }
+        : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

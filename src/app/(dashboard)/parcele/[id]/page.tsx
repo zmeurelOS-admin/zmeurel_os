@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import dynamic from 'next/dynamic'
 import { Droplets, Leaf, ListChecks, Plus, Thermometer } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -211,7 +211,7 @@ export default function ParcelaDetailPage() {
   const conditiiLabelLower = getConditiiMediuLabelLower(parcela?.tip_unitate)
   const latestClimate = climateQuery.data?.[0] ?? null
   const sincePlanting = daysSincePlanting(parcela?.data_plantarii)
-  const selectedStageOption = stageForm.watch('etapa')
+  const selectedStageOption = useWatch({ control: stageForm.control, name: 'etapa' }) ?? 'plantare'
   const requiresCustomStage = selectedStageOption === '__custom__'
 
   const sectionClasses = useMemo(

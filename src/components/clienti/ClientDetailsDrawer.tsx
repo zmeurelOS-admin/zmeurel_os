@@ -9,6 +9,7 @@ import type { Client } from '@/lib/supabase/queries/clienti'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticConfirm } from '@/lib/utils/haptic'
+import { DIALOG_DETAIL_FOOTER_CLASS } from '@/lib/ui/modal-overlay-classes'
 
 interface ClientDetailsDrawerProps {
   open: boolean
@@ -68,15 +69,15 @@ export function ClientDetailsDrawer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         aria-describedby={undefined}
-        className="max-h-[85dvh] rounded-t-2xl rounded-b-none p-0 sm:max-h-[80vh] sm:rounded-2xl sm:p-0"
+        className="max-h-[85dvh] overflow-hidden rounded-t-[var(--agri-radius-lg)] rounded-b-none border-[var(--agri-border-card)] p-0 sm:max-h-[80vh] sm:rounded-[var(--agri-radius-lg)] sm:p-0"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Detalii client</DialogTitle>
         </DialogHeader>
         <div className="flex max-h-[85dvh] flex-col sm:max-h-[80vh]">
-          <DialogHeader className="border-b border-[var(--agri-border)] px-4 py-4 text-left">
-            <DialogTitle>Detalii client</DialogTitle>
-            <DialogDescription>Informații de contact și comenzi asociate</DialogDescription>
+          <DialogHeader className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] px-4 py-4 text-left sm:px-5">
+            <DialogTitle className="text-lg tracking-[-0.02em] [font-weight:650]">Detalii client</DialogTitle>
+            <DialogDescription className="leading-relaxed">Informații de contact și comenzi asociate</DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
@@ -170,13 +171,13 @@ export function ClientDetailsDrawer({
             </section>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 border-t border-[var(--agri-border)] p-4">
-            <Button type="button" variant="outline" className="agri-cta h-11" onClick={() => onEdit(client)}>
+          <div className={DIALOG_DETAIL_FOOTER_CLASS}>
+            <Button type="button" variant="outline" className="agri-cta h-11 shrink-0" onClick={() => onEdit(client)}>
               Editează
             </Button>
             <Button
               type="button"
-              className="agri-cta h-11 bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              className="agri-cta h-11 shrink-0 bg-[var(--agri-danger)] text-white hover:opacity-95"
               onClick={() => {
                 hapticConfirm()
                 onDelete(client)

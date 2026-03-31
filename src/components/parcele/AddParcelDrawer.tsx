@@ -68,7 +68,10 @@ export function AddParcelDrawer({
       const parcela = await createParcela({
         id_parcela: generateParcelCode(),
         nume_parcela: values.nume_parcela.trim(),
-        rol: 'comercial',
+        rol: values.rol,
+        apare_in_dashboard: values.apare_in_dashboard,
+        contribuie_la_productie: values.contribuie_la_productie,
+        status_operational: values.status_operational,
         tip_unitate: values.tip_unitate,
         suprafata_m2: toDecimal(values.suprafata_m2),
         latitudine: toFloatOrNull(values.latitudine) ?? undefined,
@@ -104,6 +107,7 @@ export function AddParcelDrawer({
       open={open}
       onOpenChange={onOpenChange}
       title="Adaugă teren"
+      contentClassName="sm:max-w-4xl"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}

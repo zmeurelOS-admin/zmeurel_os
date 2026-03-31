@@ -5,7 +5,7 @@ import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
-import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
@@ -140,28 +140,28 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     queryFn: getParcele,
   })
 
-  const [comboInput, setComboInput] = useState('')
+  const selectedClientName = vanzare?.client_id
+    ? clienti.find((client) => client.id === vanzare.client_id)?.nume_client ?? ''
+    : ''
+
+  const [comboInputOverride, setComboInputOverride] = useState<string | null>(null)
   const [comboOpen, setComboOpen] = useState(false)
   const comboRef = useRef<HTMLDivElement>(null)
+  const comboInput = comboInputOverride ?? selectedClientName
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      setComboInputOverride(null)
+      setComboOpen(false)
+    }
+    onOpenChange(nextOpen)
+  }
 
   useEffect(() => {
     if (vanzare && open) {
       form.reset(getDefaultValues(vanzare))
-      if (vanzare.client_id) {
-        const client = clienti.find((c) => c.id === vanzare.client_id)
-        setComboInput(client?.nume_client ?? '')
-      } else {
-        setComboInput('')
-      }
     }
-  }, [vanzare, open, form, clienti])
-
-  useEffect(() => {
-    if (!open) {
-      setComboInput('')
-      setComboOpen(false)
-    }
-  }, [open])
+  }, [vanzare, open, form])
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -187,17 +187,18 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     })
   }, [comboInput, clienti])
 
-  const watchedItems = form.watch('items')
-  const status = form.watch('status')
+  const watchedItems = useWatch({ control: form.control, name: 'items' })
+  const status = useWatch({ control: form.control, name: 'status' }) ?? 'noua'
   const isProductsReadonly = status === 'anulata'
 
   const totalProduse = useMemo(
-    () => watchedItems.reduce((sum, item) => sum + Number(item.cantitate || 0) * Number(item.pret_unitar || 0), 0),
+    () => (watchedItems ?? []).reduce((sum, item) => sum + Number(item.cantitate || 0) * Number(item.pret_unitar || 0), 0),
     [watchedItems]
   )
 
-  const avans = Number(form.watch('avans_suma') ?? 0)
-  const restDeIncasat = totalProduse - (Number.isFinite(avans) ? avans : 0)
+  const avansValue = useWatch({ control: form.control, name: 'avans_suma' })
+  const avans = Number(avansValue ?? 0)
+  const restDeIncasat = Math.max(0, totalProduse - (Number.isFinite(avans) ? avans : 0))
 
   const updateMutation = useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateVanzareButasiInput }) => updateVanzareButasi(id, input),
@@ -235,7 +236,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
 
       hapticSuccess()
       toast.success('Comandă actualizată')
-      onOpenChange(false)
+      handleOpenChange(false)
     },
     onError: (error: Error) => {
       hapticError()
@@ -272,11 +273,11 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
   return (
     <AppDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title="Editează vânzarea de material săditor"
       footer={
         <DialogFormActions
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => handleOpenChange(false)}
           onSave={form.handleSubmit(onSubmit)}
           saving={updateMutation.isPending}
           cancelLabel="Anulează"
@@ -299,7 +300,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                   onFocus={() => setComboOpen(true)}
                   onChange={(e) => {
                     const val = e.target.value
-                    setComboInput(val)
+                    setComboInputOverride(val)
                     setComboOpen(true)
                     form.setValue('client_id', '', { shouldDirty: true })
                   }}
@@ -311,7 +312,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                       className="flex w-full items-center gap-1.5 border-b border-gray-100 px-3 py-2.5 text-left text-sm text-gray-500 hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                       onMouseDown={(e) => {
                         e.preventDefault()
-                        setComboInput('')
+                        setComboInputOverride('')
                         setComboOpen(false)
                         form.setValue('client_id', '', { shouldDirty: true })
                       }}
@@ -328,7 +329,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                           className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                           onMouseDown={(e) => {
                             e.preventDefault()
-                            setComboInput(client.nume_client)
+                            setComboInputOverride(client.nume_client)
                             setComboOpen(false)
                             form.setValue('client_id', client.id, { shouldDirty: true })
                           }}

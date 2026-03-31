@@ -124,9 +124,9 @@ export function getFlowFriendlyMessage(form: FlowKey, prefill: Record<string, un
             : ''
 
     if (REQUIRED_FIELDS_FOR_SAVE_HINT.recoltare.includes('culegator_id')) {
-      return `Am pregătit formularul de recoltare${context}. Mai trebuie doar să alegi culegătorul înainte de salvare.`
+      return `Am înțeles, îți pregătesc formularul de recoltare${context}. Mai trebuie doar să alegi culegătorul înainte de salvare.`
     }
-    return `Am pregătit formularul de recoltare${context}. Verifică și salvează!`
+    return `Am înțeles, îți pregătesc formularul de recoltare${context}. Verifică și salvează.`
   }
 
   if (form === 'comanda') {
@@ -138,15 +138,15 @@ export function getFlowFriendlyMessage(form: FlowKey, prefill: Record<string, un
           : ''
     const client = clientLabel ? ` pentru ${clientLabel}` : ''
     if (REQUIRED_FIELDS_FOR_SAVE_HINT.comanda.includes('pret_per_kg') && !isPositiveNumber(prefill.pret_per_kg)) {
-      return `Am pregătit formularul de comandă${client}. Mai completează prețul/kg înainte de salvare.`
+      return `Am înțeles, îți pregătesc formularul de comandă${client}. Mai completează prețul/kg înainte de salvare.`
     }
-    return `Am pregătit formularul de comandă${client}. Verifică și salvează!`
+    return `Am înțeles, îți pregătesc formularul de comandă${client}. Verifică și salvează.`
   }
 
-  if (form === 'activitate') return 'Am pregătit formularul de activitate agricolă. Verifică și salvează!'
-  if (form === 'cheltuiala') return 'Am pregătit formularul de cheltuială. Verifică și salvează!'
-  if (form === 'investitie') return 'Am pregătit formularul de investiție. Verifică și salvează!'
-  return 'Am pregătit formularul de client. Verifică și salvează!'
+  if (form === 'activitate') return 'Am înțeles, îți pregătesc formularul de activitate agricolă. Verifică și salvează.'
+  if (form === 'cheltuiala') return 'Am înțeles, îți pregătesc formularul de cheltuială. Verifică și salvează.'
+  if (form === 'investitie') return 'Am înțeles, îți pregătesc formularul de investiție. Verifică și salvează.'
+  return 'Am înțeles, îți pregătesc formularul de client. Verifică și salvează.'
 }
 
 export function resolveCanonicalValue(

@@ -52,12 +52,13 @@ export function ClientCard({
 }: ClientCardProps) {
   const [expanded, setExpanded] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const isFocused = focusKey > 0
+  const isExpanded = isFocused || expanded
 
   useEffect(() => {
-    if (!focusKey) return
-    setExpanded(true)
+    if (!isFocused) return
     rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [focusKey])
+  }, [isFocused])
 
   const phoneHref = client.telefon ? `tel:${client.telefon}` : undefined
   const waHref = client.telefon ? toWhatsapp(client.telefon) : ''
@@ -111,7 +112,7 @@ export function ClientCard({
         <Trash2 className="h-3.5 w-3.5" />
       </button>
 
-      {expanded ? (
+      {isExpanded ? (
         <div className="grid gap-4 border-t border-[var(--surface-divider)] bg-[var(--agri-surface)] px-4 py-4">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2">

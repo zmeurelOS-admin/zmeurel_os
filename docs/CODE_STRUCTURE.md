@@ -210,7 +210,12 @@ Implementation note:
 ## Structural Notes And Anomalies
 
 - `src/app/(dashboard)/dashboard/page.tsx` is the active dashboard implementation.
-- `src/components/dashboard/DashboardHome.tsx` appears legacy/parallel and should be validated before reuse.
+- `src/lib/dashboard/engine.ts` is the Dashboard 2.0 logic layer (raw data model + parcel evaluator + rule builders for tasks/alerts/summary/weather window).
+- The active dashboard UI is composed around `MeteoDashboardCard`, `TaskList`, `WelcomeCard`, and the widget exports from `src/components/dashboard/DashboardWidgets.tsx`, while gradually consuming engine outputs.
+- `src/components/ui/MobileEntityCard.tsx` is the canonical shared mobile entity card used by module pages.
+- `src/lib/supabase/queries/parcele.ts` has a schema-compat select fallback for linked environments missing newer dashboard relevance columns.
+- Recoltare totals must use `getRecoltareTotalKg(...)` (`kg_cal1 + kg_cal2`) as the single runtime rule used by dashboard/KPI/reporting.
+- AI chat keeps a strict contract split between `open_form` handoff and optional direct confirm-save paths; do not collapse these flows into one behavior.
 - `src/app/(dashboard)/activitati-agricole/page.tsx` is intentionally a full client page instead of the usual split route/client pattern.
 - `src/lib/s/upabase/queries` exists as an empty/stray path and looks accidental or legacy.
 - Some historical docs in root are outdated relative to the current repository state.

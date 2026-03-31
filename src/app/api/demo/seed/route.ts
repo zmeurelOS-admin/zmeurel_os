@@ -26,6 +26,10 @@ export async function POST(request: Request) {
         ? 'berries'
         : requestedDemoType === 'solar'
           ? 'solar'
+          : requestedDemoType === 'orchard'
+            ? 'orchard'
+            : requestedDemoType === 'fieldcrop'
+              ? 'fieldcrop'
           : null
 
     if (!demoType) {
@@ -61,11 +65,52 @@ export async function POST(request: Request) {
     const admin = createServiceRoleClient()
     const result = await seedDemoDataForTenant(admin, tenant.id, demoType)
 
+    console.info('[demo-seed] seed result', {
+      userId: user.id,
+      tenantId: tenant.id,
+      status: result.status,
+      demo_type: demoType,
+      seedId: result.seedId,
+      summary: result.summary,
+      errors: result.errors.length,
+    })
+
+    if (result.status === 'skipped_existing_data') {
+      return NextResponse.json(
+        {
+          success: false,
+          status: result.status,
+          demo_type: demoType,
+          demo_seed_id: result.seedId,
+          inserted: result.summary,
+          errors: result.errors,
+          error: 'Tenantul conține deja date și demo seed-ul nu a rulat.',
+        },
+        { status: 409 }
+      )
+    }
+
+    if (result.status === 'failed') {
+      return NextResponse.json(
+        {
+          success: false,
+          status: result.status,
+          demo_type: demoType,
+          demo_seed_id: result.seedId,
+          inserted: result.summary,
+          errors: result.errors,
+        },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
       success: true,
       status: result.status,
       demo_type: demoType,
       demo_seed_id: result.seedId,
+      inserted: result.summary,
+      errors: result.errors,
     })
   } catch (error) {
     captureApiError(error, {

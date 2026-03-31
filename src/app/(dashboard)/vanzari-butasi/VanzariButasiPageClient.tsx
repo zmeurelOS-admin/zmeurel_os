@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Sprout } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 
@@ -11,7 +12,6 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { SearchField } from '@/components/ui/SearchField'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { AddVanzareButasiDialog } from '@/components/vanzari-butasi/AddVanzareButasiDialog'
 import { EditVanzareButasiDialog } from '@/components/vanzari-butasi/EditVanzareButasiDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -41,34 +41,14 @@ interface VanzariButasiPageClientProps {
   parcele: Parcela[]
 }
 
-function orderRest(order: VanzareButasi): number {
-  return Number(order.total_lei || 0) - Number(order.avans_suma || 0)
-}
-
-function extractManualPhone(observatii: string | null | undefined): string | null {
-  if (!observatii) return null
-  const match = observatii.match(/\((\+?[0-9\s-]{7,})\)/)
-  return match?.[1] ?? null
-}
-
-function formatLei(value: number): string {
-  return `${new Intl.NumberFormat('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)} RON`
-}
-
 type PeriodFilter = 'luna' | 'toate'
 
 function statusLabel(status: string): string {
-  if (status === 'livrata') return '✅ Livrată'
-  if (status === 'anulata') return '❌ Anulată'
-  if (status === 'in_curs') return '🔵 În curs'
+  const normalized = status.toLowerCase()
+  if (normalized === 'livrata') return '✅ Livrată'
+  if (normalized === 'anulata') return '❌ Anulată'
+  if (normalized === 'confirmata' || normalized === 'pregatita') return '🔵 În curs'
   return '🟡 Nouă'
-}
-
-function statusColor(status: string): { bg: string; color: string } {
-  if (status === 'livrata') return { bg: 'var(--soft-success-bg)', color: 'var(--soft-success-text)' }
-  if (status === 'anulata') return { bg: 'var(--agri-surface-muted)', color: 'var(--text-hint)' }
-  if (status === 'in_curs') return { bg: 'var(--soft-info-bg)', color: 'var(--soft-info-text)' }
-  return { bg: 'var(--soft-warning-bg)', color: 'var(--soft-warning-text)' }
 }
 
 // ─── Inline card component ────────────────────────────────────────────────────
@@ -77,12 +57,10 @@ function ButasiCardNew({
   vanzare,
   clientNume,
   onEdit,
-  onDelete,
 }: {
   vanzare: VanzareButasi
   clientNume: string | undefined
   onEdit: () => void
-  onDelete: () => void
 }) {
   const title = clientNume ?? vanzare.client_nume_manual ?? '—'
   const totalButasi = (vanzare.items ?? []).reduce((sum, item) => sum + Number(item.cantitate || 0), 0)
@@ -94,34 +72,28 @@ function ButasiCardNew({
   
   // Mapare status la StatusBadge variant
   const getStatusVariant = (status: string): 'success' | 'warning' | 'danger' | 'neutral' => {
-    if (status === 'livrata') return 'success'
-    if (status === 'anulata') return 'danger'
-    if (status === 'in_curs') return 'warning'
+    const normalized = status.toLowerCase()
+    if (normalized === 'livrata') return 'success'
+    if (normalized === 'anulata') return 'danger'
+    if (normalized === 'confirmata' || normalized === 'pregatita') return 'warning'
     return 'neutral'
   }
 
   return (
     <MobileEntityCard
       title={title}
-      value={mainValue}
-      secondary={subtitle}
-      status={
-        <StatusBadge
-          text={statusLabel(vanzare.status)}
-          variant={getStatusVariant(vanzare.status)}
-        />
-      }
-      onClick={() => {
-        // Deschide direct dialogul de editare la click
-        onEdit()
-      }}
+      mainValue={mainValue}
+      subtitle={subtitle}
+      statusLabel={statusLabel(vanzare.status)}
+      statusTone={getStatusVariant(vanzare.status)}
+      onClick={onEdit}
     />
   )
 }
 
 // ─── Page component ───────────────────────────────────────────────────────────
 
-export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: VanzariButasiPageClientProps) {
+export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButasiPageClientProps) {
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
 
@@ -158,19 +130,23 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă vânzare material săditor')
@@ -233,18 +209,6 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
     return map
   }, [clientiData])
 
-  const clientPhoneMap = useMemo(() => {
-    const map: Record<string, string | null> = {}
-    clientiData.forEach((c) => { map[c.id] = c.telefon })
-    return map
-  }, [clientiData])
-
-  const parcelaMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    parcele.forEach((p) => { map[p.id] = p.nume_parcela || 'Parcela' })
-    return map
-  }, [parcele])
-
   // ── Computed ───────────────────────────────────────────────────────────────
 
   const currentMonth = useMemo(() => {
@@ -289,9 +253,15 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
 
   return (
     <AppShell
-      header={<PageHeader title="Material săditor" subtitle="Comenzi material săditor" rightSlot={<span style={{ fontSize: 22 }}>🌿</span>} />}
+      header={
+        <PageHeader
+          title="Material săditor"
+          subtitle="Comenzi material săditor"
+          rightSlot={<Sprout className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
+        />
+      }
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
 
         {/* Scoreboard */}
         <div style={{
@@ -365,7 +335,6 @@ export function VanzariButasiPageClient({ initialVanzari, clienti, parcele }: Va
                 vanzare={vanzare}
                 clientNume={vanzare.client_id ? clientMap[vanzare.client_id] : (vanzare.client_nume_manual ?? undefined)}
                 onEdit={() => setEditingVanzare(vanzare)}
-                onDelete={() => setDeletingVanzare(vanzare)}
               />
             ))}
           </div>

@@ -210,7 +210,7 @@ Actualizată:
   className?: string
 }
 ```
-**Utilizat în:** `DashboardHome`, pagini module
+**Utilizat în:** widget-uri dashboard, pagini module
 
 ---
 
@@ -234,8 +234,8 @@ Actualizată:
 ---
 
 ### `MobileEntityCard`
-**Fișier:** `src/components/mobile/MobileEntityCard.tsx`
-**Descriere:** Card mobil standardizat și opininat pentru entități scanabile rapid. Impune layout fix cu icon stânga, title/subtitle central, zonă summary dreapta (`mainValue`, `secondaryValue`, `statusLabel`) plus `meta` și `footer` opționale. Nu acceptă `children` sau `className` pentru container, iar variațiile sunt controlate doar prin `variant`, `density`, `interactive`, `showChevron` și `statusTone`.
+**Fișier:** `src/components/ui/MobileEntityCard.tsx`
+**Descriere:** Card mobil standardizat și opininat pentru entități scanabile rapid. Impune layout fix cu icon stânga, title/subtitle central, zonă summary dreapta (`mainValue`, `secondaryValue`, `statusLabel`) plus `meta` și `bottomSlot` opționale. Nu acceptă `children`, iar variațiile sunt controlate prin `variant`, `density`, `interactive`, `showChevron` și `statusTone`.
 **Props:**
 ```ts
 {
@@ -245,19 +245,19 @@ Actualizată:
   mainValue?: string
   secondaryValue?: string
   meta?: string
-  footer?: string
   statusLabel?: string
   statusTone?: 'neutral' | 'success' | 'warning' | 'danger'
   variant?: 'default' | 'highlight' | 'muted'
   density?: 'compact' | 'normal'
   interactive?: boolean
   showChevron?: boolean
+  bottomSlotAlign?: 'indented' | 'full'
+  bottomSlot?: ReactNode
   onClick?: () => void
   ariaLabel?: string
 }
 ```
-**Exemple:** `src/components/mobile/MobileEntityCard.examples.tsx`
-**Utilizare recomandată:** Bază vizuală pentru liste/carduri mobile în Activități, Recoltări, Comenzi, Clienți, Culegători, Terenuri, Cheltuieli și alte module noi sau refăcute incremental.
+**Utilizare recomandată:** Bază vizuală pentru liste/carduri mobile în Activități, Recoltări, Comenzi, Clienți, Culegători, Terenuri, Cheltuieli, Investiții, Produse, Stocuri și alte module noi sau refăcute incremental.
 
 ---
 
@@ -797,15 +797,27 @@ export interface BetaUserContactRow {
 
 ## Dashboard Components (detalii)
 
-### `DashboardHome`
-**Fișier:** `src/components/dashboard/DashboardHome.tsx`
-**Descriere:** Componenta principală dashboard. Orchestrează toate KPI-urile, activitatea recentă și unitățile active.
-**Utilizat în:** `src/app/(dashboard)/dashboard/page.tsx`
+### `MeteoDashboardCard`
+**Fișier:** `src/components/dashboard/MeteoDashboardCard.tsx`
+**Descriere:** Cardul meteo activ din dashboard. Primește `data`, `loading` și `error` din `useMeteo()` și afișează meteo curent, prognoza pentru mâine și recomandarea de stropire.
 
-### `RecentActivityCard`
-**Fișier:** `src/components/dashboard/RecentActivityCard.tsx`
-**Descriere:** Card cu ultimele activități/recoltări/vânzări. Nefolosit — dashboard real este în `dashboard/page.tsx`.
-**Notă:** `formatDateLabel()` în `dashboard/page.tsx` acum include anul (ex: "17 mar 2026") — fix #5 aplicat.
+### `TaskList`
+**Fișier:** `src/components/dashboard/TaskList.tsx`
+**Descriere:** Lista activă „Todo azi” din dashboard. Folosește `DashboardCard` ca wrapper și afișează task-uri operaționale derivate din datele dashboard-ului.
+
+### `DashboardWidgets`
+**Fișier:** `src/components/dashboard/DashboardWidgets.tsx`
+**Descriere:** Setul activ de widget-uri configurabile pentru dashboard: `KpiSummaryWidget`, `ComenziRecenteWidget`, `ActivitatiPlanificateWidget`, `RecoltariRecenteWidget`, `StocuriCriticeWidget`, `SumarVenituriWidget`.
+
+### `Dashboard 2.0 Engine (logic layer)`
+**Fișier:** `src/lib/dashboard/engine.ts`
+**Descriere:** Layer logic fără UI pentru Dashboard 2.0. Expune modele și builders pentru:
+- `DashboardRawData`
+- `ParcelDashboardState`
+- `buildDashboardTasks(...)`
+- `buildDashboardAlerts(...)`
+- `buildDailySummary(...)`
+- `buildWeatherWindow(...)`
 
 ### `FinanciarAziCard`
 **Fișier:** `src/components/dashboard/FinanciarAziCard.tsx`
@@ -825,4 +837,4 @@ export interface BetaUserContactRow {
 
 ### `WelcomeCard`
 **Fișier:** `src/components/dashboard/WelcomeCard.tsx`
-**Descriere:** Card bun venit cu numele fermei și data curentă.
+**Descriere:** Card onboarding afișat când utilizatorul nu are încă parcele; invită la adăugarea primului teren și permite dismiss.

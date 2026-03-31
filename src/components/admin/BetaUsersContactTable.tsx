@@ -55,7 +55,7 @@ export function BetaUsersContactTable({ rows }: BetaUsersContactTableProps) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableHead>Nume fermă</TableHead>
                   <TableHead>Email utilizator</TableHead>
                   <TableHead>Telefon contact</TableHead>

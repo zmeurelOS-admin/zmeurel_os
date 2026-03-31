@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
@@ -146,8 +146,8 @@ export function AddActivitateAgricolaDialog({
 
   const isInitialDataLoading = dialogOpen && isLoadingParcele && parcele.length === 0
 
-  const selectedParcelaId = form.watch('parcela_id') || ''
-  const selectedTip = form.watch('tip_activitate') || ''
+  const selectedParcelaId = useWatch({ control: form.control, name: 'parcela_id' }) || ''
+  const selectedTip = useWatch({ control: form.control, name: 'tip_activitate' }) || ''
   const selectedParcela = useMemo(
     () => parcele.find((parcela) => parcela.id === selectedParcelaId),
     [parcele, selectedParcelaId]

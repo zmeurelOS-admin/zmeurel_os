@@ -2,6 +2,7 @@
 
 import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
 // ===============================
@@ -58,6 +59,21 @@ export interface UpdateInvestitieInput {
   suma_lei?: number
 }
 
+function normalizeInvestitieRow(row: Record<string, unknown>): Investitie {
+  return {
+    id: String(row.id ?? ''),
+    id_investitie: String(row.id_investitie ?? ''),
+    data: String(row.data ?? ''),
+    parcela_id: (row.parcela_id as string | null) ?? null,
+    categorie: resolveInvestitieCategorie((row.categorie as string | null) ?? null),
+    furnizor: (row.furnizor as string | null) ?? null,
+    descriere: (row.descriere as string | null) ?? null,
+    suma_lei: Number(row.suma_lei ?? 0),
+    created_at: String(row.created_at ?? ''),
+    updated_at: String(row.updated_at ?? ''),
+  }
+}
+
 // ===============================
 // INTERNAL ID GENERATOR
 // ===============================
@@ -76,7 +92,7 @@ export async function getInvestitii(): Promise<Investitie[]> {
 
   if (error) throw error
 
-  return (data ?? []) as unknown as Investitie[]
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(normalizeInvestitieRow)
 }
 
 /**
@@ -128,7 +144,7 @@ export async function createInvestitie(
       id_investitie: nextId,
       data: input.data,
       parcela_id: input.parcela_id ?? null,
-      categorie: input.categorie,
+      categorie: resolveInvestitieCategorie(input.categorie),
       furnizor: input.furnizor ?? null,
       descriere: input.descriere ?? null,
       suma_lei: input.suma_lei,
@@ -138,7 +154,7 @@ export async function createInvestitie(
 
   if (error) throw error
 
-  return data as unknown as Investitie
+  return normalizeInvestitieRow(data as unknown as Record<string, unknown>)
 }
 
 export async function updateInvestitie(
@@ -151,6 +167,9 @@ export async function updateInvestitie(
     .from('investitii')
     .update({
       ...input,
+      ...(input.categorie !== undefined
+        ? { categorie: input.categorie ? resolveInvestitieCategorie(input.categorie) : null }
+        : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -159,7 +178,7 @@ export async function updateInvestitie(
 
   if (error) throw error
 
-  return data as unknown as Investitie
+  return normalizeInvestitieRow(data as unknown as Record<string, unknown>)
 }
 
 export async function deleteInvestitie(id: string): Promise<void> {

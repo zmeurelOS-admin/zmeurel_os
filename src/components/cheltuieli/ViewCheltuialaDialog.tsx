@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
+import { DIALOG_DETAIL_FOOTER_CLASS } from '@/lib/ui/modal-overlay-classes'
 
 interface ViewCheltuialaDialogProps {
   open: boolean
@@ -42,14 +43,16 @@ export function ViewCheltuialaDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="mx-auto max-w-lg rounded-xl bg-[var(--agri-surface)] p-0 lg:max-w-2xl xl:max-w-3xl"
+        className="max-h-[85dvh] max-w-lg overflow-hidden p-0 lg:max-w-2xl xl:max-w-3xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
         <div className="max-h-[85dvh] overflow-y-auto p-6">
-          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[var(--agri-border)] py-4 text-left lg:gap-3">
-            <DialogTitle className="text-xl font-semibold text-[var(--agri-text)]">Cheltuială</DialogTitle>
+          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4 text-left lg:gap-3">
+            <DialogTitle className="text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]">
+              Cheltuială
+            </DialogTitle>
             <DialogClose asChild>
               <Button type="button" variant="ghost" size="icon" aria-label="Închide dialog">
                 <X className="h-4 w-4" />
@@ -57,7 +60,7 @@ export function ViewCheltuialaDialog({
             </DialogClose>
           </DialogHeader>
 
-          <section className="border-b border-[var(--agri-border)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Detalii</h3>
             <div className="space-y-2">
               <div>
@@ -75,7 +78,7 @@ export function ViewCheltuialaDialog({
             </div>
           </section>
 
-          <section className="border-b border-[var(--agri-border)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Financiar</h3>
             <div className="space-y-2">
               <div>
@@ -89,7 +92,7 @@ export function ViewCheltuialaDialog({
             </div>
           </section>
 
-          <section className="border-b border-[var(--agri-border)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Date</h3>
             <div>
               <p className="text-sm text-[var(--agri-text-muted)]">Data</p>
@@ -114,11 +117,11 @@ export function ViewCheltuialaDialog({
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-[var(--agri-border)] px-6 py-4">
+        <div className={DIALOG_DETAIL_FOOTER_CLASS}>
           <Button
             type="button"
             variant="outline"
-            className="h-10 min-w-[100px]"
+            className="agri-cta h-10 min-w-[100px]"
             onClick={() => {
               onOpenChange(false)
               onEdit(cheltuiala)
@@ -129,7 +132,7 @@ export function ViewCheltuialaDialog({
           <Button
             type="button"
             variant="destructive"
-            className="h-10 min-w-[100px]"
+            className="agri-cta h-10 min-w-[100px]"
             onClick={() => {
               onOpenChange(false)
               onDelete(cheltuiala)

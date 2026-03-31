@@ -1,23 +1,28 @@
 
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { ClipboardList, Loader2, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
+import { Loader2, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { AppShell } from '@/components/app/AppShell'
+import {
+  ModuleEmptyCard,
+  ModulePillFilterButton,
+  ModulePillRow,
+  ModuleScoreboard,
+} from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
-import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
 import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
@@ -152,6 +157,55 @@ function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
   }
 }
 
+function buildComandaDialogInitialFormState(params: {
+  initial?: Comanda | null
+  initialCreateValues?: Partial<ComandaFormState> | null
+  clienti: Client[]
+  mode: 'create' | 'edit'
+}): ComandaFormState {
+  const { initial, initialCreateValues, clienti, mode } = params
+  const baseForm: ComandaFormState = initial
+    ? {
+        client_id: initial.client_id ?? '',
+        client_nume_manual: initial.client_nume_manual ?? '',
+        telefon: initial.telefon ?? '',
+        locatie_livrare: initial.locatie_livrare ?? '',
+        data_comanda: initial.data_comanda ?? todayIso(),
+        data_livrare: initial.data_livrare ?? todayIso(),
+        cantitate_kg: String(initial.cantitate_kg ?? ''),
+        pret_per_kg: String(initial.pret_per_kg ?? ''),
+        status: initial.status,
+        observatii: initial.observatii ?? '',
+      }
+    : {
+        ...defaultFormState('confirmata'),
+        ...(initialCreateValues ?? {}),
+      }
+
+  let prefillClientId = baseForm.client_id
+  if (!prefillClientId && mode === 'create' && baseForm.client_nume_manual) {
+    prefillClientId = resolveClientIdFromHint(baseForm.client_nume_manual, clienti) ?? ''
+  }
+
+  const client = prefillClientId ? clienti.find((item) => item.id === prefillClientId) : undefined
+
+  return {
+    ...baseForm,
+    client_id: prefillClientId,
+    client_nume_manual: prefillClientId ? '' : baseForm.client_nume_manual,
+    telefon: client?.telefon || baseForm.telefon,
+    locatie_livrare: client?.adresa || baseForm.locatie_livrare,
+  }
+}
+
+function buildComandaDialogInitialComboInput(form: ComandaFormState, clienti: Client[]): string {
+  if (form.client_id) {
+    return clienti.find((client) => client.id === form.client_id)?.nume_client ?? ''
+  }
+
+  return form.client_nume_manual ?? ''
+}
+
 export function hasAiComandaOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
   return searchParams.get('openForm') === '1'
 }
@@ -216,28 +270,9 @@ function saveContactAsVCard(name: string, phone: string) {
   downloadVCard(trimmedName, trimmedPhone)
 }
 
-function toPhoneDigits(value: string | null | undefined): string {
-  return String(value ?? '').replace(/\s+/g, '').replace(/[^\d]/g, '')
-}
-
-function toWhatsAppUrl(phone: string | null | undefined): string {
-  const digits = toPhoneDigits(phone)
-  if (!digits) return ''
-  if (digits.startsWith('40')) return `https://wa.me/${digits}`
-  if (digits.startsWith('0')) return `https://wa.me/40${digits.slice(1)}`
-  return `https://wa.me/4${digits}`
-}
-
 function isPaidStatus(status: string | null | undefined): boolean {
   const value = normalize(String(status ?? ''))
   return value.includes('platit') || value.includes('incasat')
-}
-
-function getComandaIcon(isDelivered: boolean, isUrgent: boolean, isFuture: boolean): string {
-  if (isDelivered) return '✅'
-  if (isUrgent) return '🚚'
-  if (isFuture) return '🗓️'
-  return '📦'
 }
 
 function statusToneForMobileCard(status: ComandaStatus): 'success' | 'warning' | 'danger' | 'neutral' {
@@ -264,30 +299,17 @@ function PillTabs({
     { key: 'toate' as const, label: 'Toate' },
   ]
   return (
-    <div style={{ display: 'flex', gap: 6 }}>
-      {tabs.map((tab) => {
-        const isActive = value === tab.key
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            style={{
-              padding: '6px 14px',
-              fontSize: 11,
-              fontWeight: 600,
-              borderRadius: 20,
-              border: `1px solid ${isActive ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
-              background: isActive ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-              color: isActive ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-              cursor: 'pointer',
-            }}
-          >
-            {tab.label}
-          </button>
-        )
-      })}
-    </div>
+    <ModulePillRow>
+      {tabs.map((tab) => (
+        <ModulePillFilterButton
+          key={tab.key}
+          active={value === tab.key}
+          onClick={() => onChange(tab.key)}
+        >
+          {tab.label}
+        </ModulePillFilterButton>
+      ))}
+    </ModulePillRow>
   )
 }
 
@@ -308,14 +330,10 @@ function ComandaCard({
   return (
     <MobileEntityCard
       title={clientName}
-      value={`${formatLeiCompact(total)} lei`}
-      secondary={subtitle}
-      status={
-        <StatusBadge
-          text={statusLabelMap[comanda.status] ?? comanda.status}
-          variant={statusVariantMap[comanda.status] ?? 'neutral'}
-        />
-      }
+      mainValue={`${formatLeiCompact(total)} lei`}
+      subtitle={subtitle}
+      statusLabel={statusLabelMap[comanda.status] ?? comanda.status}
+      statusTone={statusToneForMobileCard(comanda.status)}
       onClick={() => onOpenDetails(comanda)}
     />
   )
@@ -340,61 +358,32 @@ function ComandaDialog({
   initial?: Comanda | null
   initialCreateValues?: Partial<ComandaFormState> | null
 }) {
-  const initialFormState = useMemo<ComandaFormState>(() => {
-    if (!initial) {
-      return {
-        ...defaultFormState('confirmata'),
-        ...(initialCreateValues ?? {}),
-      }
-    }
-    return {
-      client_id: initial.client_id ?? '',
-      client_nume_manual: initial.client_nume_manual ?? '',
-      telefon: initial.telefon ?? '',
-      locatie_livrare: initial.locatie_livrare ?? '',
-      data_comanda: initial.data_comanda ?? todayIso(),
-      data_livrare: initial.data_livrare ?? todayIso(),
-      cantitate_kg: String(initial.cantitate_kg ?? ''),
-      pret_per_kg: String(initial.pret_per_kg ?? ''),
-      status: initial.status,
-      observatii: initial.observatii ?? '',
-    }
-  }, [initial, initialCreateValues])
+  const initialFormState = useMemo(
+    () =>
+      buildComandaDialogInitialFormState({
+        initial,
+        initialCreateValues,
+        clienti,
+        mode,
+      }),
+    [clienti, initial, initialCreateValues, mode]
+  )
+  const initialComboInput = useMemo(
+    () => buildComandaDialogInitialComboInput(initialFormState, clienti),
+    [clienti, initialFormState]
+  )
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
-  const [comboInput, setComboInput] = useState('')
+  const [comboInput, setComboInput] = useState(initialComboInput)
   const [comboOpen, setComboOpen] = useState(false)
   const comboRef = useRef<HTMLDivElement>(null)
 
   const selectedClient = clienti.find((client) => client.id === form.client_id)
-  const suggestedClientName = form.client_nume_manual.trim() || selectedClient?.nume_client || 'Client'
-  const canSaveContact = suggestedClientName.trim().length > 0 && form.telefon.trim().length > 0
-
-  useEffect(() => {
-    if (!open) {
-      setComboInput('')
-      setComboOpen(false)
-      setForm(initialFormState)
-    } else {
-      let prefillClientId = initialFormState.client_id
-      if (!prefillClientId && mode === 'create' && initialFormState.client_nume_manual) {
-        prefillClientId = resolveClientIdFromHint(initialFormState.client_nume_manual, clienti) ?? ''
-      }
-      if (prefillClientId) {
-        const client = clienti.find((c) => c.id === prefillClientId)
-        setComboInput(client?.nume_client ?? '')
-        setForm((prev) => ({
-          ...prev,
-          client_id: prefillClientId,
-          client_nume_manual: '',
-          telefon: client?.telefon || prev.telefon,
-          locatie_livrare: client?.adresa || prev.locatie_livrare,
-        }))
-      } else {
-        setComboInput(initialFormState.client_nume_manual ?? '')
-        setForm(initialFormState)
-      }
-    }
-  }, [open, initialFormState, clienti, mode])
+  const displayedComboInput = comboInput || (form.client_id ? selectedClient?.nume_client ?? '' : '')
+  const resolvedPhone = form.telefon || selectedClient?.telefon || ''
+  const resolvedLocation = form.locatie_livrare || selectedClient?.adresa || ''
+  const suggestedClientName =
+    form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
+  const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -433,10 +422,14 @@ function ComandaDialog({
           </Button>
           <Button
             type="button"
-            className="agri-cta h-12 min-w-[132px] rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+            className="agri-cta h-12 min-w-[132px] rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:opacity-90"
             disabled={saving}
             onClick={async () => {
-              await onSave(form)
+              await onSave({
+                ...form,
+                telefon: resolvedPhone,
+                locatie_livrare: resolvedLocation,
+              })
             }}
           >
             {saving ? (
@@ -461,7 +454,7 @@ function ComandaDialog({
               className="agri-control h-12"
               placeholder="Caută după nume sau telefon..."
               autoComplete="off"
-              value={comboInput}
+              value={displayedComboInput}
               onFocus={() => setComboOpen(true)}
               onChange={(e) => {
                 const val = e.target.value
@@ -517,13 +510,13 @@ function ComandaDialog({
         <div className="space-y-1.5">
           <Label>Telefon</Label>
           <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Input className="agri-control h-12" value={form.telefon} onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))} />
+            <Input className="agri-control h-12" value={resolvedPhone} onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))} />
             <Button
               type="button"
               variant="outline"
               className="h-12 whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm"
               disabled={!canSaveContact}
-              onClick={() => saveContactAsVCard(suggestedClientName, form.telefon)}
+              onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
             >
               <UserRoundPlus className="h-4 w-4" />
               Salvează contact
@@ -533,7 +526,7 @@ function ComandaDialog({
 
         <div className="space-y-1.5">
           <Label>Locație livrare</Label>
-          <Input className="agri-control h-12" value={form.locatie_livrare} onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))} />
+          <Input className="agri-control h-12" value={resolvedLocation} onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -647,7 +640,6 @@ export function ComenziPageClient() {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [createPrefill, setCreatePrefill] = useState<Partial<ComandaFormState> | null>(null)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
@@ -658,8 +650,13 @@ export function ComenziPageClient() {
   const [addClientOpen, setAddClientOpen] = useState(false)
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = hasAiComandaOpenForm(searchParams)
+  const queryCreatePrefill = useMemo(
+    () => (openFormFromQuery ? parseAiComandaPrefill(searchParams) : null),
+    [openFormFromQuery, searchParams]
+  )
+  const isCreateDialogOpen = addOpen || addFromQuery || openFormFromQuery
 
-  const clearComandaFormQueryParams = () => {
+  const clearComandaFormQueryParams = useCallback(() => {
     const nextParams = new URLSearchParams(searchParams.toString())
     nextParams.delete('add')
     nextParams.delete('openForm')
@@ -686,7 +683,7 @@ export function ComenziPageClient() {
     }
 
     router.replace(nextUrl, { scroll: false })
-  }
+  }, [pathname, router, searchParams])
 
   const {
     data: comenzi = [],
@@ -751,7 +748,6 @@ export function ComenziPageClient() {
           : undefined,
       })
       setAddOpen(false)
-      setCreatePrefill(null)
     },
     onError: (err: Error) => {
       hapticError()
@@ -889,22 +885,7 @@ export function ComenziPageClient() {
   }
 
   useEffect(() => {
-    if (!addFromQuery) return
-    setCreatePrefill(null)
-    setAddOpen(true)
-    clearComandaFormQueryParams()
-  }, [addFromQuery, pathname, router, searchParams])
-
-  useEffect(() => {
-    if (!openFormFromQuery) return
-    setCreatePrefill(parseAiComandaPrefill(searchParams))
-    clearComandaFormQueryParams()
-    setAddOpen(true)
-  }, [openFormFromQuery, pathname, router, searchParams])
-
-  useEffect(() => {
     const unregister = registerAddAction(() => {
-      setCreatePrefill(null)
       setAddOpen(true)
     }, 'Adaugă comandă')
     return unregister
@@ -976,22 +957,12 @@ export function ComenziPageClient() {
     () => activeComenzi.filter((item) => item.data_livrare === today),
     [activeComenzi, today]
   )
-  const comenziViitoare = useMemo(
-    () => activeComenzi.filter((item) => Boolean(item.data_livrare) && item.data_livrare! > today),
-    [activeComenzi, today]
-  )
   const comenziRestante = useMemo(
     () => activeComenzi.filter((item) => Boolean(item.data_livrare) && item.data_livrare! < today),
     [activeComenzi, today]
   )
 
-  const kgAzi = comenziAzi.reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0)
-  const kgViitoare = comenziViitoare.reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0)
-  const totalActiveKg = activeComenzi.reduce((sum, item) => sum + Number(item.cantitate_kg || 0), 0)
-  const totalActiveValue = activeComenzi.reduce((sum, item) => sum + Number(item.total || 0), 0)
-
   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
-  const showStockWarning = totalStocDisponibilKg < totalActiveKg
 
   const listSource = useMemo(() => {
     if (activeTab === 'de_livrat') return activeComenzi
@@ -1015,14 +986,6 @@ export function ComenziPageClient() {
       return clientName.includes(term) || phone.includes(term)
     })
   }, [activeFilter, clientMap, listSource, neincasatComandaIds, search, today])
-
-  const comenziLoadingSkeleton = (
-    <div className="grid grid-cols-1 gap-3 lg:gap-4 xl:gap-5">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <ListSkeletonCard key={index} className="min-h-[146px] sm:min-h-[208px]" />
-      ))}
-    </div>
-  )
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
@@ -1079,6 +1042,7 @@ export function ComenziPageClient() {
       cell: () => '1',
       meta: {
         searchValue: () => '1',
+        numeric: true,
       },
     },
     {
@@ -1087,6 +1051,7 @@ export function ComenziPageClient() {
       cell: ({ row }) => formatKg(Number(row.original.cantitate_kg || 0)),
       meta: {
         searchValue: (row: Comanda) => row.cantitate_kg,
+        numeric: true,
       },
     },
     {
@@ -1148,78 +1113,72 @@ export function ComenziPageClient() {
       header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" />}
       bottomBar={null}
     >
-      <div
-        className="mx-auto mt-3 w-full max-w-[980px] sm:mt-0 lg:max-w-[1320px]"
-        style={{ display: 'flex', flexDirection: 'column', gap: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.md }}
-      >
+      <div className="mx-auto mt-2 flex w-full max-w-[980px] flex-col gap-3 py-3 sm:mt-0 sm:py-3 lg:max-w-[1320px]">
         {activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0 ? (
-          <div
-            style={{
-              background: 'var(--agri-surface)',
-              borderRadius: 12,
-              padding: '10px 14px',
-              border: '1px solid var(--agri-border)',
-              display: 'flex',
-              alignItems: 'baseline',
-              gap: 14,
-              flexWrap: 'wrap',
-            }}
-          >
+          <ModuleScoreboard className="gap-x-3.5 gap-y-2">
             {activeComenzi.length > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
+                className="cursor-pointer"
                 onClick={() => setFilterAndTab('de_livrat', 'active')}
-                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active') }}
-                style={{ cursor: 'pointer' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
+                }}
               >
-                <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--agri-text)' }}>{activeComenzi.length}</span>
-                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>active</span>
+                <span className="text-lg font-extrabold text-[var(--agri-text)]">{activeComenzi.length}</span>
+                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
               </span>
             ) : null}
             {comenziAzi.length > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
+                className="cursor-pointer"
                 onClick={() => setFilterAndTab('de_livrat', 'azi')}
-                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi') }}
-                style={{ cursor: 'pointer' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi')
+                }}
               >
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-warning-text)' }}>{comenziAzi.length}</span>
-                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>azi</span>
+                <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAzi.length}</span>
+                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">azi</span>
               </span>
             ) : null}
             {comenziRestante.length > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
+                className="cursor-pointer"
                 onClick={() => setFilterAndTab('de_livrat', 'restante')}
-                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante') }}
-                style={{ cursor: 'pointer' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante')
+                }}
               >
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-danger-text)' }}>{comenziRestante.length}</span>
-                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>restante</span>
+                <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestante.length}</span>
+                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">restante</span>
               </span>
             ) : null}
             {neincasatRon > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
+                className="cursor-pointer"
                 onClick={() => setFilterAndTab('livrate', 'neincasat')}
-                onKeyDown={(e) => { if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat') }}
-                style={{ cursor: 'pointer' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat')
+                }}
               >
-                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--status-warning-text)' }}>{formatLeiCompact(neincasatRon)}</span>
-                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>RON neîncasat</span>
+                <span className="text-base font-bold text-[var(--status-warning-text)]">{formatLeiCompact(neincasatRon)}</span>
+                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">RON neîncasat</span>
               </span>
             ) : null}
             {totalStocDisponibilKg > 0 ? (
               <span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--value-positive)' }}>{formatKg(totalStocDisponibilKg)}</span>
-                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 3 }}>stoc</span>
+                <span className="text-sm font-semibold text-[var(--value-positive)]">{formatKg(totalStocDisponibilKg)}</span>
+                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">stoc</span>
               </span>
             ) : null}
-          </div>
+          </ModuleScoreboard>
         ) : null}
 
         <PillTabs
@@ -1242,13 +1201,13 @@ export function ComenziPageClient() {
         />
 
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
-        {isLoading ? comenziLoadingSkeleton : null}
+        {isLoading ? <EntityListSkeleton /> : null}
 
         {!isLoading && !isError && filteredComenzi.length === 0 ? (
-          <EmptyState
-            icon={<ClipboardList className="h-16 w-16" />}
+          <ModuleEmptyCard
+            emoji="📋"
             title="Nicio comandă încă"
-            description="Adaugă prima comandă pentru a începe"
+            hint="Adaugă prima comandă pentru a începe"
           />
         ) : null}
 
@@ -1294,7 +1253,7 @@ export function ComenziPageClient() {
                       {canDeliverStatus(desktopSelectedComanda.status) && desktopSelectedComanda.status !== 'anulata' ? (
                         <button
                           type="button"
-                          className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                          className="rounded-lg bg-[var(--agri-primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
                           disabled={deliveringId === desktopSelectedComanda.id}
                           onClick={() => {
                             void handleConfirmDeliver(desktopSelectedComanda)
@@ -1306,7 +1265,7 @@ export function ComenziPageClient() {
                       {desktopSelectedComanda.status === 'livrata' ? (
                         <button
                           type="button"
-                          className="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                          className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-warning-text)] hover:opacity-90"
                           onClick={() => setReopening(desktopSelectedComanda)}
                         >
                           Redeschide
@@ -1338,19 +1297,20 @@ export function ComenziPageClient() {
       </div>
 
       <ComandaDialog
-        key={`create-${addOpen ? 'open' : 'closed'}`}
-        open={addOpen}
+        key={`create-${isCreateDialogOpen ? 'open' : 'closed'}`}
+        open={isCreateDialogOpen}
         onOpenChange={(open) => {
-          setAddOpen(open)
           if (!open) {
-            setCreatePrefill(null)
+            setAddOpen(false)
             clearComandaFormQueryParams()
+            return
           }
+          setAddOpen(true)
         }}
         saving={createMutation.isPending}
         clienti={clienti}
         mode="create"
-        initialCreateValues={createPrefill}
+        initialCreateValues={queryCreatePrefill}
         onSave={async (values) => {
           const cantitate = Number(values.cantitate_kg)
           const pret = Number(values.pret_per_kg)

@@ -25,11 +25,11 @@ export function DialogFormActions({
   className,
 }: DialogFormActionsProps) {
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', className)}>
+    <div className={cn('flex w-full flex-row items-center justify-between gap-3 sm:gap-4', className)}>
       <Button
         type="button"
         variant="outline"
-        className="agri-cta h-11 rounded-xl text-sm sm:h-12"
+        className="agri-cta min-h-11 shrink-0 rounded-xl text-sm sm:min-h-12"
         onClick={onCancel}
         disabled={disabled || saving}
       >
@@ -37,7 +37,7 @@ export function DialogFormActions({
       </Button>
       <Button
         type="button"
-        className="agri-cta h-11 rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600 sm:h-12"
+        className="agri-cta min-h-11 shrink-0 rounded-xl bg-[var(--agri-primary)] text-sm text-white sm:min-h-12"
         onClick={onSave}
         disabled={disabled || saving}
       >

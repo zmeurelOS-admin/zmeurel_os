@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -53,7 +53,7 @@ export default function NewRecoltarePage() {
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,10 +64,10 @@ export default function NewRecoltarePage() {
     },
   })
 
-  const kgCal1 = Number(watch('kg_cal1') || 0)
-  const kgCal2 = Number(watch('kg_cal2') || 0)
+  const kgCal1 = Number(useWatch({ control, name: 'kg_cal1' }) || 0)
+  const kgCal2 = Number(useWatch({ control, name: 'kg_cal2' }) || 0)
   const totalKg = kgCal1 + kgCal2
-  const culegatorId = watch('culegator_id')
+  const culegatorId = useWatch({ control, name: 'culegator_id' })
   const culegator = culegatori.find((c) => c.id === culegatorId)
   const tarif = Number(culegator?.tarif_lei_kg ?? 0)
   const hasTarif = Number.isFinite(tarif) && tarif > 0

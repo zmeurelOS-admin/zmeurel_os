@@ -1,6 +1,9 @@
 'use client'
 
-import { colors, radius, shadows, spacing } from '@/lib/design-tokens'
+import { X } from 'lucide-react'
+
+import { AppCard } from '@/components/ui/app-card'
+import { Button } from '@/components/ui/button'
 
 interface WelcomeCardProps {
   onAddTerrain: () => void
@@ -9,82 +12,42 @@ interface WelcomeCardProps {
 
 export function WelcomeCard({ onAddTerrain, onDismiss }: WelcomeCardProps) {
   return (
-    <div
-      style={{
-        position: 'relative',
-        background: 'var(--surface-elevated)',
-        borderRadius: radius.xl,
-        boxShadow: shadows.card,
-        border: '1px solid var(--agri-border)',
-        padding: spacing.xxl,
-        textAlign: 'center',
-      }}
-    >
-      <button
+    <AppCard className="relative px-5 py-6 text-center sm:px-6 sm:py-7">
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="absolute right-2 top-2 text-[var(--agri-text-muted)] sm:right-3 sm:top-3"
         aria-label="Închide ghidul"
         onClick={onDismiss}
-        style={{
-          position: 'absolute',
-          top: 12,
-          right: 12,
-          border: 'none',
-          background: 'transparent',
-          color: 'var(--agri-text-muted)',
-          fontSize: 18,
-          lineHeight: 1,
-          cursor: 'pointer',
-          padding: '4px 8px',
-          borderRadius: radius.sm,
-        }}
       >
-        ✕
-      </button>
+        <X className="h-4 w-4" />
+      </Button>
 
-      <div style={{ fontSize: 40, lineHeight: 1, marginBottom: spacing.md }}>🌱</div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, margin: 0, color: 'var(--agri-text)' }}>
-        Bine ai venit! Începe prin a adăuga primul teren.
+      <div className="mb-4 text-[2.5rem] leading-none" aria-hidden>
+        🌱
+      </div>
+      <h2 className="text-lg font-semibold leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650] sm:text-xl">
+        Adaugă sau marchează un teren pentru producție comercială.
       </h2>
-      <button
+      <Button
         type="button"
+        className="agri-cta mt-6 w-full min-h-12 bg-[var(--agri-primary)] text-white"
         onClick={onAddTerrain}
-        style={{
-          display: 'block',
-          width: '100%',
-          marginTop: spacing.lg,
-          border: 'none',
-          borderRadius: radius.lg,
-          background: colors.primary,
-          color: colors.white,
-          fontWeight: 700,
-          fontSize: 14,
-          padding: '14px',
-          minHeight: 48,
-          cursor: 'pointer',
-        }}
       >
-        Adaugă teren
-      </button>
-      <p style={{ marginTop: spacing.sm, color: 'var(--agri-text-muted)', fontSize: 12 }}>
-        După ce adaugi terenul, poți nota activități agricole, cheltuieli, recoltări, comenzi și vânzări din meniul aplicației.
+        Configurează terenurile
+      </Button>
+      <p className="mt-3 text-xs leading-relaxed text-[var(--agri-text-muted)]">
+        Dashboard-ul principal arată implicit doar terenurile comerciale relevante pentru producție și vânzări.
       </p>
-      <button
+      <Button
         type="button"
+        variant="link"
+        className="mt-2 h-auto min-h-0 p-0 text-xs font-medium text-[var(--agri-text-muted)]"
         onClick={onDismiss}
-        style={{
-          display: 'inline-block',
-          marginTop: spacing.xs,
-          border: 'none',
-          background: 'transparent',
-          color: 'var(--agri-text-muted)',
-          fontSize: 11,
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          padding: 0,
-        }}
       >
         Nu am nevoie de ghid
-      </button>
-    </div>
+      </Button>
+    </AppCard>
   )
 }

@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { MODAL_OVERLAY_CLASSES } from "@/lib/ui/modal-overlay-classes"
 
 const Sheet = DialogPrimitive.Root
 const SheetTrigger = DialogPrimitive.Trigger
@@ -17,10 +18,7 @@ const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
+    className={cn(MODAL_OVERLAY_CLASSES, className)}
     {...props}
   />
 ))
@@ -36,13 +34,13 @@ const SheetContent = React.forwardRef<
 >(({ side = "bottom", className, children, ...props }, ref) => {
   const sideClasses: Record<NonNullable<SheetContentProps["side"]>, string> = {
     bottom:
-      "fixed bottom-0 left-0 right-0 z-50 mt-24 rounded-t-2xl border border-[var(--agri-border)] bg-[var(--surface-elevated)] text-[var(--agri-text)] shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom max-h-[90svh] overflow-y-auto",
+      "fixed bottom-0 left-0 right-0 z-[1001] mt-24 rounded-t-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom max-h-[90svh] overflow-y-auto",
     top:
-      "fixed top-0 left-0 right-0 z-50 rounded-b-2xl border border-[var(--agri-border)] bg-[var(--surface-elevated)] text-[var(--agri-text)] shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top max-h-[90svh] overflow-y-auto",
+      "fixed top-0 left-0 right-0 z-[1001] rounded-b-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top max-h-[90svh] overflow-y-auto",
     left:
-      "fixed left-0 top-0 bottom-0 z-50 w-3/4 border border-[var(--agri-border)] bg-[var(--surface-elevated)] text-[var(--agri-text)] shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left max-w-sm",
+      "fixed left-0 top-0 bottom-0 z-[1001] w-3/4 border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left max-w-sm",
     right:
-      "fixed right-0 top-0 bottom-0 z-50 w-3/4 border border-[var(--agri-border)] bg-[var(--surface-elevated)] text-[var(--agri-text)] shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right max-w-sm",
+      "fixed right-0 top-0 bottom-0 z-[1001] w-3/4 border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right max-w-sm",
   }
 
   return (
@@ -65,12 +63,18 @@ const SheetContent = React.forwardRef<
 SheetContent.displayName = DialogPrimitive.Content.displayName
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col gap-1.5 px-4 pb-3 pt-5", className)} {...props} />
+  <div className={cn("flex flex-col gap-2 px-4 pb-3 pt-5 text-left sm:px-5", className)} {...props} />
 )
 SheetHeader.displayName = "SheetHeader"
 
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse gap-2 px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] pt-3 sm:flex-row sm:justify-end", className)} {...props} />
+  <div
+    className={cn(
+      "flex flex-row flex-wrap items-center justify-between gap-3 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--agri-surface-muted)_35%,var(--agri-surface))] px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-4",
+      className
+    )}
+    {...props}
+  />
 )
 SheetFooter.displayName = "SheetFooter"
 
@@ -80,7 +84,10 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-base font-semibold leading-none tracking-tight text-[var(--agri-text)]", className)}
+    className={cn(
+      "text-lg font-semibold leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]",
+      className
+    )}
     {...props}
   />
 ))
@@ -92,7 +99,7 @@ const SheetDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-[var(--agri-text-muted)]", className)}
+    className={cn("text-sm leading-relaxed text-[var(--agri-text-muted)]", className)}
     {...props}
   />
 ))

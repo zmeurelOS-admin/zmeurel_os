@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { generateClientId } from '@/lib/offline/generateClientId'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { hapticError } from '@/lib/utils/haptic'
-import { CATEGORII_CHELTUIELI } from '@/lib/financial/categories'
+import { CATEGORII_CHELTUIELI, resolveCheltuialaCategorie } from '@/lib/financial/categories'
 
 const cheltuialaSchema = z.object({
   client_sync_id: z.string().optional(),
@@ -66,7 +66,7 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
         ...defaultValues(),
         ...(initialValues?.data ? { data: initialValues.data } : {}),
         ...(initialValues?.suma_lei != null ? { suma_lei: String(initialValues.suma_lei) } : {}),
-        ...(initialValues?.categorie ? { categorie: initialValues.categorie } : {}),
+        ...(initialValues?.categorie ? { categorie: resolveCheltuialaCategorie(initialValues.categorie) } : {}),
         ...(initialValues?.furnizor ? { furnizor: initialValues.furnizor } : {}),
         ...(initialValues?.descriere ? { descriere: initialValues.descriere } : {}),
       })
@@ -88,6 +88,7 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
     try {
       await onSubmit({
         ...data,
+        categorie: resolveCheltuialaCategorie(data.categorie),
         client_sync_id: data.client_sync_id ?? generateClientId(),
       })
       submittedRef.current = true

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { GenerateObjectResult } from 'ai'
 
 import { createChatPostHandler } from '@/app/api/chat/chat-post-handler'
 import { getShiftedDayInBucharest, getTodayInBucharest } from '@/app/api/chat/date-helpers'
@@ -7,6 +8,7 @@ const TODAY = getTodayInBucharest()
 const YESTERDAY = getShiftedDayInBucharest(-1)
 const DAY_BEFORE_YESTERDAY = getShiftedDayInBucharest(-2)
 const TOMORROW = getShiftedDayInBucharest(1)
+type GenerateObjectFn = typeof import('ai')['generateObject']
 
 type MockQueryResult = {
   data?: unknown
@@ -105,6 +107,43 @@ function createSupabaseMock(options?: {
     },
   }
 }
+
+function buildGenerateObjectResult<OBJECT>(object: OBJECT): GenerateObjectResult<OBJECT> {
+  return {
+    object,
+    finishReason: 'stop',
+    usage: {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    },
+    warnings: undefined,
+    request: {},
+    response: {
+      id: 'test-response',
+      timestamp: new Date('2026-03-30T00:00:00.000Z'),
+      modelId: 'test-model',
+    },
+    logprobs: undefined,
+    providerMetadata: undefined,
+    experimental_providerMetadata: undefined,
+    toJsonResponse(init?: ResponseInit) {
+      return Response.json(object, init)
+    },
+  }
+}
+
+const generateComandaStructuredResultMock = (async () =>
+  buildGenerateObjectResult({
+    flow_key: 'comanda',
+    intent: 'new_flow',
+    missing_fields: [],
+    needs_clarification: false,
+    confidence: 0.94,
+    client_id: 'client-1',
+    cantitate_kg: 4,
+    data_livrare: TOMORROW,
+  })) as unknown as GenerateObjectFn
 
 test.describe('ai chat route integration', () => {
   test('fallback-ul deterministic de recoltare ramane activ cand structured extraction esueaza', async () => {
@@ -226,20 +265,7 @@ test.describe('ai chat route integration', () => {
         async getTenantIdOrNull() {
           return 'tenant-1'
         },
-        async generateObject() {
-          return {
-            object: {
-              flow_key: 'comanda',
-              intent: 'new_flow',
-              missing_fields: [],
-              needs_clarification: false,
-              confidence: 0.94,
-              client_id: 'client-1',
-              cantitate_kg: 4,
-              data_livrare: TOMORROW,
-            },
-          } as any
-        },
+        generateObject: generateComandaStructuredResultMock,
         async generateText() {
           throw new Error('generateText should not be called in this scenario')
         },

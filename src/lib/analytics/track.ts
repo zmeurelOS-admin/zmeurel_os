@@ -5,8 +5,6 @@ import { createClient } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { getSessionId } from './session'
 
-type EventData = Record<string, unknown>
-
 type AnalyticsContext = {
   userId: string
   tenantId: string

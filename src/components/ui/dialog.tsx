@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { MODAL_OVERLAY_CLASSES } from "@/lib/ui/modal-overlay-classes"
 import { useDocumentModalState } from "@/components/ui/modal-layer"
 
 type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root> & {
@@ -70,10 +71,7 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn(
-      "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className
-    )}
+    className={cn(MODAL_OVERLAY_CLASSES, className)}
     {...props}
   />
 ))
@@ -86,15 +84,12 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, showCloseButton = true, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay
-      className="fixed inset-0 z-[1000] bg-black/40 backdrop-blur-sm"
-      style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
-    />
+    <DialogOverlay />
     <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "relative grid max-h-[calc(100dvh-2rem)] w-[92vw] max-w-sm gap-4 overflow-y-auto rounded-2xl border border-[var(--agri-border)] bg-[var(--surface-elevated)] p-6 text-[var(--agri-text)] shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "relative grid max-h-[88dvh] w-[min(96vw,720px)] max-w-sm gap-5 overflow-y-auto rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-5 text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] outline-none duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-lg sm:p-6",
           className
         )}
         {...props}
@@ -102,8 +97,7 @@ const DialogContent = React.forwardRef<
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
-            style={{ backgroundColor: 'transparent' }}
-            className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-[var(--agri-surface-muted)] data-[state=open]:text-[var(--agri-text-muted)]"
+            className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-transparent opacity-80 transition-[transform,opacity] duration-150 ease-out hover:opacity-100 active:scale-[0.97] focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--agri-primary)_28%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--agri-surface)] disabled:pointer-events-none data-[state=open]:bg-[var(--agri-surface-muted)] data-[state=open]:text-[var(--agri-text-muted)] sm:right-4 sm:top-4"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
@@ -121,7 +115,10 @@ const DialogHeader = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
+      "flex flex-col space-y-2 text-left",
+      className?.includes("sr-only")
+        ? null
+        : "sticky top-0 z-10 bg-[var(--agri-surface)]/95 backdrop-blur-sm",
       className
     )}
     {...props}
@@ -131,16 +128,29 @@ DialogHeader.displayName = "DialogHeader"
 
 const DialogFooter = ({
   className,
+  children,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "flex flex-col-reverse gap-3 pb-[env(safe-area-inset-bottom,0px)] sm:flex-row sm:justify-end sm:gap-2",
-      className
-    )}
-    {...props}
-  />
-)
+}: React.HTMLAttributes<HTMLDivElement>) => {
+  const items = React.Children.toArray(children).filter(
+    (child) => child !== null && child !== undefined && typeof child !== "boolean"
+  )
+  const multi = items.length > 1
+  return (
+    <div
+      className={cn(
+        "flex w-full flex-row flex-wrap items-center gap-3 pb-[env(safe-area-inset-bottom,0px)]",
+        className?.includes("sr-only")
+          ? null
+          : "sticky bottom-0 z-10 bg-[color:color-mix(in_srgb,var(--agri-surface-muted)_40%,var(--agri-surface))] backdrop-blur-sm",
+        multi ? "justify-between" : "justify-end",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
 DialogFooter.displayName = "DialogFooter"
 
 const DialogTitle = React.forwardRef<
@@ -150,7 +160,7 @@ const DialogTitle = React.forwardRef<
   <DialogPrimitive.Title
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
+      "text-lg font-semibold leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]",
       className
     )}
     {...props}
@@ -164,7 +174,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-[var(--agri-text-muted)]", className)}
+    className={cn("text-sm leading-relaxed text-[var(--agri-text-muted)]", className)}
     {...props}
   />
 ))

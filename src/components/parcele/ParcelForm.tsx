@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { NumericField } from '@/components/app/NumericField'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { useState } from 'react'
 import {
   Select,
   SelectContent,
@@ -15,7 +16,16 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatM2ToHa, parseLocalizedNumber } from '@/lib/utils/area'
+import { ParcelUsageFields, applyScopDefaults } from '@/components/parcele/ParcelUsageFields'
 import { toast } from '@/lib/ui/toast'
+import {
+  PARCELA_SCOPURI,
+  SCOP_LABELS,
+  STATUS_OPERATIONAL_LABELS,
+  STATUS_OPERATIONAL_VALUES,
+  type ParcelaScop,
+  type StatusOperational,
+} from '@/lib/parcele/dashboard-relevance'
 
 export interface ParcelFormValues {
   nume_parcela: string
@@ -39,6 +49,10 @@ export interface ParcelFormValues {
   distanta_intre_randuri: string
   sistem_irigare: string
   data_plantarii: string
+  rol: ParcelaScop
+  apare_in_dashboard: boolean
+  contribuie_la_productie: boolean
+  status_operational: StatusOperational
   status: string
   observatii: string
 }
@@ -98,6 +112,10 @@ export const parcelFormSchema = z.object({
   data_plantarii: z.string().trim().refine((value) => !value || !Number.isNaN(Date.parse(value)), {
     message: 'Data plantării nu este validă',
   }),
+  rol: z.enum(PARCELA_SCOPURI),
+  apare_in_dashboard: z.boolean(),
+  contribuie_la_productie: z.boolean(),
+  status_operational: z.enum(STATUS_OPERATIONAL_VALUES),
   status: z.string().trim().min(1, 'Statusul este obligatoriu'),
   observatii: z.string(),
 })
@@ -119,6 +137,10 @@ export const getParcelFormDefaults = (): ParcelFormValues => ({
   distanta_intre_randuri: '',
   sistem_irigare: '',
   data_plantarii: '',
+  rol: 'comercial',
+  apare_in_dashboard: true,
+  contribuie_la_productie: true,
+  status_operational: 'activ',
   status: 'Activ',
   observatii: '',
 })
@@ -135,79 +157,202 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
 
   const tipUnitate = form.watch('tip_unitate')
   const suprafataValue = form.watch('suprafata_m2')
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoStatus, setGeoStatus] = useState<{ state: 'idle' | 'denied' | 'error' | 'success' | 'unsupported'; message?: string }>({
+    state: 'idle',
+  })
 
   const handleUseCurrentLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      toast.error('Geolocația nu este disponibilă în acest browser')
+      setGeoStatus({
+        state: 'unsupported',
+        message: 'Poți adăuga manual coordonatele.',
+      })
+      toast.error('Browserul nu suportă geolocalizare')
       return
     }
 
+    setGeoLoading(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude
         const lng = position.coords.longitude
         form.setValue('latitudine', String(lat), { shouldDirty: true, shouldValidate: true })
         form.setValue('longitudine', String(lng), { shouldDirty: true, shouldValidate: true })
-        toast.success('Locația curentă a fost completată')
+        setGeoLoading(false)
+        setGeoStatus({ state: 'success', message: 'Locația curentă a fost completată' })
+        toast.success('Locație detectată')
       },
       (error) => {
-        const message =
-          error.code === 1
-            ? 'Accesul la locație a fost refuzat'
-            : 'Nu am putut obține locația curentă'
-        toast.error(message)
+        setGeoLoading(false)
+        console.error('[ParcelForm] geolocation error', {
+          code: error.code,
+          message: error.message,
+        })
+        if (error.code === 1) {
+          // Permission denied: gentle UX — don't block saving
+          setGeoStatus({
+            state: 'denied',
+            message: 'Locația nu e disponibilă. Poți adăuga coordonatele manual mai târziu.',
+          })
+          toast.error('Permite accesul la locație din setările browserului')
+          return
+        }
+        setGeoStatus({ state: 'error', message: 'Nu s-a putut determina locația. Încearcă din nou.' })
+        toast.error(error.code === 3 ? 'Timeout. Încearcă din nou.' : 'Locația nu e disponibilă. Adaugă manual coordonatele.')
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Tip unitate *</Label>
-        <Select
-          value={tipUnitate}
-          onValueChange={(value: 'camp' | 'solar' | 'livada' | 'cultura_mare') =>
-            form.setValue('tip_unitate', value, { shouldDirty: true, shouldValidate: true })
-          }
-        >
-          <SelectTrigger className={selectTriggerClass}>
-            <SelectValue placeholder="Alege tipul unității" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="camp">Câmp</SelectItem>
-            <SelectItem value="cultura_mare">Cultură mare</SelectItem>
-            <SelectItem value="solar">Solar</SelectItem>
-            <SelectItem value="livada">Livadă</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="nume_parcela">Nume teren *</Label>
+          <input
+            id="nume_parcela"
+            className="agri-control h-12 w-full px-3 text-base"
+            placeholder="Teren Nord"
+            {...form.register('nume_parcela')}
+          />
+          {form.formState.errors.nume_parcela ? (
+            <p className="text-xs text-red-600">{form.formState.errors.nume_parcela.message}</p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Tip *</Label>
+          <Select
+            value={tipUnitate}
+            onValueChange={(value: 'camp' | 'solar' | 'livada' | 'cultura_mare') =>
+              form.setValue('tip_unitate', value, { shouldDirty: true, shouldValidate: true })
+            }
+          >
+            <SelectTrigger className={selectTriggerClass}>
+              <SelectValue placeholder="Alege tipul unității" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="camp">Câmp</SelectItem>
+              <SelectItem value="solar">Solar</SelectItem>
+              <SelectItem value="livada">Livadă</SelectItem>
+              <SelectItem value="cultura_mare">Cultură mare</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="soi_plantat">Soi / cultură</Label>
+          <input
+            id="soi_plantat"
+            className="agri-control h-12 w-full px-3 text-base"
+            placeholder="Ex: Delniwa, Solar roșii"
+            {...form.register('soi_plantat')}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <NumericField
+            id="suprafata_m2"
+            label="Suprafață (m²) *"
+            placeholder="1200"
+            {...form.register('suprafata_m2')}
+            error={form.formState.errors.suprafata_m2?.message}
+          />
+          <p className="text-xs text-muted-foreground">≈ {formatM2ToHa(suprafataValue)}</p>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="nume_parcela">Nume teren *</Label>
-        <input
-          id="nume_parcela"
-          className="agri-control h-12 w-full px-3 text-base"
-          placeholder="Teren Nord"
-          {...form.register('nume_parcela')}
-        />
-        {form.formState.errors.nume_parcela ? (
-          <p className="text-xs text-red-600">{form.formState.errors.nume_parcela.message}</p>
-        ) : null}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Label>Scop</Label>
+            <span
+              className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] text-muted-foreground"
+              title="Alege cum este folosit terenul în fermă."
+            >
+              ?
+            </span>
+          </div>
+          <Select
+            value={form.watch('rol')}
+            onValueChange={(value) => {
+              const next = value as ParcelaScop
+              form.setValue('rol', next, { shouldDirty: true, shouldValidate: true })
+              const defs = applyScopDefaults(next)
+              form.setValue('apare_in_dashboard', defs.apare_in_dashboard, { shouldDirty: true })
+              form.setValue('contribuie_la_productie', defs.contribuie_la_productie, { shouldDirty: true })
+            }}
+          >
+            <SelectTrigger className={selectTriggerClass}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PARCELA_SCOPURI.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {SCOP_LABELS[key]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Situație operațională</Label>
+          <Select
+            value={form.watch('status_operational')}
+            onValueChange={(value) =>
+              form.setValue('status_operational', value as StatusOperational, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+          >
+            <SelectTrigger className={selectTriggerClass}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPERATIONAL_VALUES.map((key) => (
+                <SelectItem key={key} value={key}>
+                  {STATUS_OPERATIONAL_LABELS[key]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Status *</Label>
+          <Select
+            value={form.watch('status')}
+            onValueChange={(value) => form.setValue('status', value, { shouldDirty: true })}
+          >
+            <SelectTrigger className={selectTriggerClass}>
+              <SelectValue placeholder="Alege statusul" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Activ">Activ</SelectItem>
+              <SelectItem value="Inactiv">Inactiv</SelectItem>
+              <SelectItem value="In Pregatire">În pregătire</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="observatii">Observații</Label>
+          <Textarea
+            id="observatii"
+            rows={5}
+            placeholder="Detalii suplimentare"
+            className="agri-control w-full px-3 py-2 text-base"
+            {...form.register('observatii')}
+          />
+        </div>
       </div>
 
-      <NumericField
-        id="suprafata_m2"
-        label="Suprafață (m²) *"
-        placeholder="1200"
-        {...form.register('suprafata_m2')}
-        error={form.formState.errors.suprafata_m2?.message}
-      />
-      <p className="text-xs text-muted-foreground">≈ {formatM2ToHa(suprafataValue)}</p>
-
-      <div className="space-y-2">
+      <div className="space-y-2 md:col-span-2">
         <Label>Locație</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
           <div className="space-y-2">
             <Label htmlFor="latitudine">Latitudine</Label>
             <NumericField
@@ -231,40 +376,41 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
               error={form.formState.errors.longitudine?.message}
             />
           </div>
+
+          <div
+            className="md:pb-[2px]"
+            title={geoStatus.state === 'denied' ? 'Permite accesul la locație' : undefined}
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full md:w-auto"
+              onClick={handleUseCurrentLocation}
+              disabled={geoStatus.state === 'denied' || geoLoading}
+            >
+              {geoLoading ? 'Se detectează...' : 'Folosește locația curentă'}
+            </Button>
+          </div>
         </div>
-
-        <Button type="button" variant="secondary" className="w-full" onClick={handleUseCurrentLocation}>
-          📍 Folosește locația curentă
-        </Button>
+        {geoStatus.state === 'denied' ? (
+          <p className="text-xs text-muted-foreground">Locația nu e disponibilă. Poți adăuga coordonatele manual mai târziu.</p>
+        ) : geoStatus.state === 'unsupported' ? (
+          <p className="text-xs text-muted-foreground">Poți adăuga manual coordonatele.</p>
+        ) : geoStatus.state === 'error' ? (
+          <p className="text-xs text-muted-foreground">{geoStatus.message}</p>
+        ) : null}
       </div>
 
-      <div className="space-y-2">
-        <Label>Status *</Label>
-        <Select
-          value={form.watch('status')}
-          onValueChange={(value) => form.setValue('status', value, { shouldDirty: true })}
-        >
-          <SelectTrigger className={selectTriggerClass}>
-            <SelectValue placeholder="Alege statusul" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Activ">Activ</SelectItem>
-            <SelectItem value="Inactiv">Inactiv</SelectItem>
-            <SelectItem value="In Pregatire">În pregătire</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="observatii">Observații</Label>
-        <Textarea
-          id="observatii"
-          rows={4}
-          placeholder="Detalii suplimentare"
-          className="agri-control w-full px-3 py-2 text-base"
-          {...form.register('observatii')}
-        />
-      </div>
+      <ParcelUsageFields
+        className="md:col-span-2"
+        scop={form.watch('rol')}
+        apareInDashboard={form.watch('apare_in_dashboard')}
+        contribuieLaProductie={form.watch('contribuie_la_productie')}
+        disableCommercialToggles
+        onApareChange={(v) => form.setValue('apare_in_dashboard', v, { shouldDirty: true })}
+        onContribuieChange={(v) => form.setValue('contribuie_la_productie', v, { shouldDirty: true })}
+      />
     </div>
   )
 }

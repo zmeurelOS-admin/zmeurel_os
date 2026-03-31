@@ -1,6 +1,7 @@
 'use client'
 
 import { UseFormReturn } from 'react-hook-form'
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -14,10 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ParcelUsageFields, applyScopDefaults } from '@/components/parcele/ParcelUsageFields'
+import type { ParcelaScop, StatusOperational } from '@/lib/parcele/dashboard-relevance'
 
 export interface ParcelaFormData {
   nume_parcela: string
-  rol: string
+  rol: ParcelaScop
+  apare_in_dashboard: boolean
+  contribuie_la_productie: boolean
+  status_operational: StatusOperational
   suprafata_m2: string
   latitudine: string
   longitudine: string
@@ -43,34 +49,49 @@ export const IOS_SELECT_TRIGGER_CLASS =
 
 export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
   const suprafataValue = form.watch('suprafata_m2')
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoStatus, setGeoStatus] = useState<{ state: 'idle' | 'denied' | 'error' | 'unsupported'; message?: string }>({
+    state: 'idle',
+  })
 
   const handleUseCurrentLocation = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      toast.error('Geolocația nu este disponibilă în acest browser')
+      setGeoStatus({ state: 'unsupported', message: 'Poți adăuga manual coordonatele.' })
+      toast.error('Browserul nu suportă geolocalizare')
       return
     }
 
+    setGeoLoading(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const lat = position.coords.latitude
         const lng = position.coords.longitude
         form.setValue('latitudine', String(lat), { shouldDirty: true, shouldValidate: true })
         form.setValue('longitudine', String(lng), { shouldDirty: true, shouldValidate: true })
-        toast.success('Locația curentă a fost completată')
+        setGeoLoading(false)
+        setGeoStatus({ state: 'idle' })
+        toast.success('Locație detectată')
       },
       (error) => {
-        const message =
-          error.code === 1
-            ? 'Accesul la locație a fost refuzat'
-            : 'Nu am putut obține locația curentă'
-        toast.error(message)
+        setGeoLoading(false)
+        console.error('[ParcelaForm] geolocation error', {
+          code: error.code,
+          message: error.message,
+        })
+        if (error.code === 1) {
+          setGeoStatus({ state: 'denied', message: 'Locația nu e disponibilă. Poți adăuga coordonatele manual mai târziu.' })
+          toast.error('Permite accesul la locație din setările browserului')
+          return
+        }
+        setGeoStatus({ state: 'error', message: 'Nu s-a putut determina locația. Încearcă din nou.' })
+        toast.error(error.code === 3 ? 'Timeout. Încearcă din nou.' : 'Locația nu e disponibilă. Adaugă manual coordonatele.')
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor="nume_parcela" className={IOS_LABEL_CLASS}>
           Nume Parcelă *
@@ -86,24 +107,6 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
             {form.formState.errors.nume_parcela.message}
           </p>
         )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="rol" className={IOS_LABEL_CLASS}>
-          Rol
-        </Label>
-        <Select
-          value={form.watch('rol')}
-          onValueChange={(value) => form.setValue('rol', value)}
-        >
-          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="comercial">Comercial</SelectItem>
-            <SelectItem value="uz_propriu">Uz propriu</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="space-y-2">
@@ -129,8 +132,72 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
       </div>
 
       <div className="space-y-2">
+        <Label className={IOS_LABEL_CLASS}>Scop</Label>
+        <Select
+          value={form.watch('rol')}
+          onValueChange={(value) => {
+            const next = value as Parameters<typeof applyScopDefaults>[0]
+            form.setValue('rol', next, { shouldDirty: true })
+            const defs = applyScopDefaults(next)
+            form.setValue('apare_in_dashboard', defs.apare_in_dashboard, { shouldDirty: true })
+            form.setValue('contribuie_la_productie', defs.contribuie_la_productie, { shouldDirty: true })
+          }}
+        >
+          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="comercial">Producție comercială</SelectItem>
+            <SelectItem value="personal">Uz personal</SelectItem>
+            <SelectItem value="experimental">Experimental</SelectItem>
+            <SelectItem value="inactiv">Inactiv</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="soi_plantat" className={IOS_LABEL_CLASS}>
+          Soi / cultură
+        </Label>
+        <Select
+          value={form.watch('soi_plantat')}
+          onValueChange={(value) => form.setValue('soi_plantat', value)}
+        >
+          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
+            <SelectValue placeholder="Selectează soi..." />
+          </SelectTrigger>
+          <SelectContent>
+            {soiuriDisponibile.map((soi) => (
+              <SelectItem key={soi} value={soi}>
+                {soi}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label className={IOS_LABEL_CLASS}>Situație operațională</Label>
+        <Select
+          value={form.watch('status_operational')}
+          onValueChange={(value) => form.setValue('status_operational', value as ParcelaFormData['status_operational'])}
+        >
+          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="activ">Activ</SelectItem>
+            <SelectItem value="in_pauza">În pauză</SelectItem>
+            <SelectItem value="neproductiv">Neproductiv</SelectItem>
+            <SelectItem value="infiintare">În înființare</SelectItem>
+            <SelectItem value="arhivat">Arhivat</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2 md:col-span-2">
         <Label className={IOS_LABEL_CLASS}>Locație</Label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
           <div className="space-y-2">
             <Label htmlFor="latitudine" className={IOS_LABEL_CLASS}>
               Latitudine
@@ -160,37 +227,21 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
               {...form.register('longitudine')}
             />
           </div>
+          <div className="md:pb-[2px]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full md:w-auto"
+              onClick={handleUseCurrentLocation}
+              disabled={geoStatus.state === 'denied' || geoLoading}
+              title={geoStatus.state === 'denied' ? 'Permite accesul la locație' : undefined}
+            >
+              {geoLoading ? 'Se detectează...' : 'Folosește locația curentă'}
+            </Button>
+          </div>
         </div>
-
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full"
-          onClick={handleUseCurrentLocation}
-        >
-          📍 Folosește locația curentă
-        </Button>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="soi_plantat" className={IOS_LABEL_CLASS}>
-          Soi Plantat
-        </Label>
-        <Select
-          value={form.watch('soi_plantat')}
-          onValueChange={(value) => form.setValue('soi_plantat', value)}
-        >
-          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue placeholder="Selectează soi..." />
-          </SelectTrigger>
-          <SelectContent>
-            {soiuriDisponibile.map((soi) => (
-              <SelectItem key={soi} value={soi}>
-                {soi}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {geoStatus.message ? <p className="text-xs text-muted-foreground">{geoStatus.message}</p> : null}
       </div>
 
       <div className="space-y-2">
@@ -216,21 +267,6 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="nr_plante" className={IOS_LABEL_CLASS}>
-          Numar Plante
-        </Label>
-        <Input
-          id="nr_plante"
-          type="number"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          placeholder="0"
-          className={IOS_INPUT_CLASS}
-          {...form.register('nr_plante')}
-        />
-      </div>
-
-      <div className="space-y-2">
         <Label htmlFor="status" className={IOS_LABEL_CLASS}>
           Status *
         </Label>
@@ -250,6 +286,21 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="nr_plante" className={IOS_LABEL_CLASS}>
+          Numar Plante
+        </Label>
+        <Input
+          id="nr_plante"
+          type="number"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="0"
+          className={IOS_INPUT_CLASS}
+          {...form.register('nr_plante')}
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="observatii" className={IOS_LABEL_CLASS}>
           Observații
         </Label>
@@ -260,6 +311,16 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
           {...form.register('observatii')}
         />
       </div>
+
+      <ParcelUsageFields
+        className="md:col-span-2"
+        scop={form.watch('rol')}
+        apareInDashboard={form.watch('apare_in_dashboard')}
+        contribuieLaProductie={form.watch('contribuie_la_productie')}
+        disableCommercialToggles
+        onApareChange={(v) => form.setValue('apare_in_dashboard', v, { shouldDirty: true })}
+        onContribuieChange={(v) => form.setValue('contribuie_la_productie', v, { shouldDirty: true })}
+      />
     </div>
   )
 }

@@ -25,7 +25,7 @@ function SkeletonContent() {
 
 export function ListSkeletonCard({ className }: ListSkeletonProps) {
   return (
-    <ListCard className={cn('border-[var(--agri-border)] bg-[var(--agri-surface)] hover:shadow-sm', className)}>
+    <ListCard className={cn('border-[var(--agri-border)] bg-[var(--agri-surface)]', className)}>
       <SkeletonContent />
     </ListCard>
   )
@@ -35,6 +35,17 @@ export function ListSkeletonRow({ className }: ListSkeletonProps) {
   return (
     <div className={cn('px-4 py-3', className)}>
       <SkeletonContent />
+    </div>
+  )
+}
+
+/** Loading listă entități (module dashboard) — același ritm ca MobileEntityCard. */
+export function EntityListSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: count }).map((_, index) => (
+        <ListSkeletonCard key={index} className="min-h-[88px]" />
+      ))}
     </div>
   )
 }

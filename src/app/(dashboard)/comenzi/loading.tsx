@@ -1,9 +1,9 @@
-import { OrderCardsSkeleton } from '@/components/app/ModuleSkeletons'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-[980px] p-4 sm:px-3 lg:max-w-[1320px]">
-      <OrderCardsSkeleton />
+    <div className="mx-auto w-full max-w-[980px] px-4 py-3 sm:px-3 sm:py-4 lg:max-w-[1320px]">
+      <EntityListSkeleton />
     </div>
   )
 }

@@ -33,10 +33,7 @@ export function TopBar() {
       </div>
 
       <Dialog open={isSuperAdminUser && farmDialogOpen} onOpenChange={setFarmDialogOpen}>
-        <DialogContent aria-describedby={undefined} className="w-[92%] max-w-md rounded-2xl p-4 sm:p-5">
-          <DialogHeader>
-            <DialogTitle className="sr-only">Dialog</DialogTitle>
-          </DialogHeader>
+        <DialogContent aria-describedby={undefined} className="max-w-md">
           <DialogHeader>
             <DialogTitle>Schimbă fermă</DialogTitle>
           </DialogHeader>

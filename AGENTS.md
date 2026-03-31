@@ -121,7 +121,8 @@ Actualizată:
 
 - Use `@/*` imports mapped to `src/*`.
 - User-facing copy is in Romanian.
-- For new standardized mobile entity lists/cards, prefer `src/components/mobile/MobileEntityCard.tsx`; keep page-level consumers data-driven and do not push layout or container styling decisions into module pages.
+- For new standardized mobile entity lists/cards, prefer `src/components/ui/MobileEntityCard.tsx`; keep page-level consumers data-driven and use the supported summary props (`mainValue`, `secondaryValue`, `statusLabel`, `meta`, `bottomSlot`) instead of ad-hoc children or container styling.
+- Dashboard 2.0 logic is centralized in `src/lib/dashboard/engine.ts` and currently exposes `DashboardRawData`, `ParcelDashboardState`, `buildDashboardTasks`, `buildDashboardAlerts`, `buildDailySummary`, and `buildWeatherWindow` for gradual UI adoption.
 - Client modules commonly use a React Query page-client pattern.
 - Shared query keys live in `src/lib/query-keys.ts`.
 - Browser Supabase access should go through `getSupabase()` in `src/lib/supabase/client.ts`.
@@ -164,6 +165,7 @@ Actualizată:
 
 - The project depends on many Supabase SQL migrations, including RLS normalization, business ID generation, stock-safe RPCs, demo seeding, analytics, solar/culturi support, and tenant repair logic.
 - Some query modules intentionally include compatibility fallbacks for partially migrated environments. Do not remove those without verifying schema parity in production.
+- `src/lib/supabase/queries/parcele.ts` now includes a schema-compat select fallback (legacy columns + safe defaults for `rol`, `apare_in_dashboard`, `contribuie_la_productie`, `status_operational`) to keep `/dashboard` and `/parcele` usable when linked environments lag migrations.
 - When adding new migrations, use a unique numeric timestamp prefix that matches Supabase CLI expectations exactly; avoid duplicate short versions like multiple `20260313_*` files.
 - Deprecated duplicate migration files that intentionally preserve old SQL should be archived outside `supabase/migrations/` (for example in `supabase/migrations_archive/`) so the active migration chain contains exactly one file per version.
 - For critical RPC/function migrations that have to be pushed to linked environments, prefer smaller files with one major function/grant unit instead of bundling several `create or replace function` definitions into one pending migration.

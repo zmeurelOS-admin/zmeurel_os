@@ -116,6 +116,14 @@ export function toUserFacingErrorMessage(
   if (isNetworkError(candidate, normalizedMessage)) return NETWORK_MESSAGE
   if (isValidationMessage(normalizedMessage)) return rawMessage
   if (looksTechnical(normalizedMessage)) return fallbackMessage
+  if (
+    normalizedMessage.includes('seed') ||
+    normalizedMessage.includes('tabele:') ||
+    normalizedMessage.includes('negative_stock') ||
+    normalizedMessage.includes('stocul ar deveni')
+  ) {
+    return rawMessage
+  }
   if (normalizedMessage.startsWith('error') || normalizedMessage.startsWith('eroare')) {
     return fallbackMessage
   }

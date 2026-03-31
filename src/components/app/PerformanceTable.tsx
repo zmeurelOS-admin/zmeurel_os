@@ -2,7 +2,10 @@
 
 import { Trophy } from 'lucide-react'
 
-interface PerformanceRow {
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
+
+export interface PerformanceRow {
   id: string
   name: string
   kgTotal: number
@@ -31,41 +34,42 @@ export function PerformanceTable({ title, rows }: PerformanceTableProps) {
       {sortedRows.length === 0 ? (
         <p className="text-sm font-medium text-[var(--agri-text-muted)]">Nu există date pentru perioada selectată.</p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-[var(--agri-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--agri-surface-muted)]">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold text-[var(--agri-text-muted)]">Performer</th>
-                <th className="px-3 py-2 text-right font-semibold text-[var(--agri-text-muted)]">Kg total</th>
-                <th className="px-3 py-2 text-right font-semibold text-[var(--agri-text-muted)]">Kg / zi</th>
-                <th className="px-3 py-2 text-right font-semibold text-[var(--agri-text-muted)]">Kg / ora</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="overflow-x-auto rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Performer</TableHead>
+                <TableHead className="text-right tabular-nums">Kg total</TableHead>
+                <TableHead className="text-right tabular-nums">Kg / zi</TableHead>
+                <TableHead className="text-right tabular-nums">Kg / ora</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {sortedRows.map((row, index) => (
-                <tr
+                <TableRow
                   key={row.id}
-                  className={index === 0 ? 'bg-[var(--soft-warning-bg)]' : 'border-t border-[var(--agri-border)]'}
+                  className={cn(
+                    index === 0 &&
+                      'bg-[var(--soft-warning-bg)] hover:bg-[var(--soft-warning-bg)]',
+                  )}
                 >
-                  <td className="px-3 py-2 font-medium text-[var(--agri-text)]">
-                    <div className="inline-flex items-center gap-1.5">
-                      {index === 0 ? <Trophy className="h-4 w-4 text-[var(--soft-warning-text)]" /> : null}
+                  <TableCell>
+                    <div className="inline-flex items-center gap-1.5 font-medium">
+                      {index === 0 ? <Trophy className="h-4 w-4 text-[var(--soft-warning-text)]" aria-hidden /> : null}
                       {row.name}
                     </div>
-                  </td>
-                  <td className="px-3 py-2 text-right font-semibold text-[var(--agri-text)]">{formatNumber(row.kgTotal)}</td>
-                  <td className="px-3 py-2 text-right text-[var(--agri-text)]">{formatNumber(row.kgPerDay)}</td>
-                  <td className="px-3 py-2 text-right text-[var(--agri-text)]">
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{formatNumber(row.kgTotal)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNumber(row.kgPerDay)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-[var(--agri-text-muted)]">
                     {row.kgPerHour && Number.isFinite(row.kgPerHour) ? formatNumber(row.kgPerHour) : '-'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </section>
   )
 }
-
-export type { PerformanceRow }

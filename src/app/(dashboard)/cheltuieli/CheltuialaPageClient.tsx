@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -8,9 +8,15 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import {
+  ModuleEmptyCard,
+  ModulePillFilterButton,
+  ModulePillRow,
+  ModuleScoreboard,
+} from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
-import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
@@ -19,7 +25,6 @@ import { Button } from '@/components/ui/button'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -30,7 +35,6 @@ import { isAutoManoperaCheltuiala } from '@/lib/supabase/queries/manopera-auto'
 import { buildCheltuialaDeleteLabel } from '@/lib/ui/delete-labels'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
-import { cn } from '@/lib/utils'
 
 interface CheltuialaFormData {
   client_sync_id?: string
@@ -154,32 +158,22 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
   const descriere = (cheltuiala.descriere ?? '').trim()
   const furnizor = (cheltuiala.furnizor ?? '').trim()
 
-  const titleText = descriere && (!categorie || descriere.length >= categorie.length + 4) ? descriere : (categorie || descriere || 'Cheltuială')
-  const subtitleText = furnizor || (titleText !== descriere ? descriere : '') || undefined
-  const statusLabel = cheltuiala.data ? formatCheltuialaStatusLabel(cheltuiala.data) : ''
+  const titleText = categorie || 'Altele'
+  const subtitleText = furnizor || descriere || undefined
+  const dateLabel = cheltuiala.data ? formatCheltuialaStatusLabel(cheltuiala.data) : undefined
+  const autoLabel = isAuto ? 'Auto' : undefined
 
   return (
     <MobileEntityCard
-      title={
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden>{emoji}</span>
-          <span>{titleText}</span>
-        </span>
-      }
-      value={<span className="text-[var(--value-negative)]">{formatRon(suma)} lei</span>}
-      secondary={subtitleText}
-      status={
-        <div className="flex flex-col items-end gap-1">
-          {statusLabel ? <StatusBadge text={statusLabel} variant="neutral" /> : null}
-          {isAuto ? <StatusBadge text="Auto" variant="neutral" /> : null}
-        </div>
-      }
+      title={titleText}
+      icon={<span aria-hidden>{emoji}</span>}
+      mainValue={`${formatRon(suma)} lei`}
+      subtitle={subtitleText}
+      secondaryValue={dateLabel}
+      statusLabel={autoLabel}
+      statusTone="neutral"
       onClick={onToggle}
-      isExpanded={isExpanded}
-      className={cn('border-l-[4px] border-l-[var(--value-negative)]')}
-    >
-      {/* EXPANDED */}
-      {isExpanded ? (
+      bottomSlot={isExpanded ? (
         <>
           <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
             <span>
@@ -231,8 +225,8 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
             </button>
           </div>
         </>
-      ) : null}
-    </MobileEntityCard>
+      ) : undefined}
+    />
   )
 }
 
@@ -257,12 +251,13 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
 
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = searchParams.get('openForm') === '1'
+  const isAddDialogOpen = addOpen || addFromQuery || openFormFromQuery
   const prefillSuma = searchParams.get('suma') ?? undefined
   const prefillData = searchParams.get('data') ?? undefined
   const prefillDescriereRaw = searchParams.get('descriere') ?? undefined
   const prefillCategorie = searchParams.get('categorie') ?? undefined
 
-  const clearCheltuialaFormQueryParams = () => {
+  const clearCheltuialaFormQueryParams = useCallback(() => {
     const nextParams = new URLSearchParams(searchParams.toString())
     nextParams.delete('add')
     nextParams.delete('openForm')
@@ -282,7 +277,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
     }
 
     router.replace(nextUrl, { scroll: false })
-  }
+  }, [pathname, router, searchParams])
 
   const {
     data: cheltuieli = initialCheltuieli,
@@ -365,31 +360,23 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!addFromQuery) return
-    setAddOpen(true)
-    clearCheltuialaFormQueryParams()
-  }, [addFromQuery, pathname, router, searchParams])
-
-  useEffect(() => {
-    if (!openFormFromQuery) return
-    clearCheltuialaFormQueryParams()
-    setAddOpen(true)
-  }, [openFormFromQuery, pathname, router, searchParams])
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă cheltuială')
@@ -537,6 +524,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       cell: ({ row }) => `${formatRon(Number(row.original.suma_lei || 0))} RON`,
       meta: {
         searchValue: (row: Cheltuiala) => row.suma_lei,
+        numeric: true,
       },
     },
     {
@@ -591,51 +579,37 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       header={<PageHeader title="Cheltuieli" subtitle="Monitorizare costuri operaționale" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl py-3 sm:mt-0 sm:py-4">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3">
 
         {/* SCOREBOARD */}
         {scoreboard.totalLuna > 0 ? (
-          <div style={{
-            background: 'var(--agri-surface)', borderRadius: 12, padding: '10px 14px',
-            border: '1px solid var(--agri-border)', marginBottom: 8,
-            display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
-          }}>
+          <ModuleScoreboard className="mb-2">
             <span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--value-negative)', letterSpacing: '-0.03em' }}>
+              <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--value-negative)]">
                 {formatRon(scoreboard.totalLuna)}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 4 }}>RON</span>
+              <span className="ml-1 text-[10px] font-medium text-[var(--text-hint)]">RON</span>
             </span>
             {scoreboard.topCategorie ? (
-              <span style={{ fontSize: 11 }}>
-                <span style={{ color: 'var(--agri-text-muted)' }}>Top: </span>
-                <strong style={{ color: 'var(--agri-text)' }}>{scoreboard.topCategorie}</strong>
+              <span className="text-[11px]">
+                <span className="text-[var(--agri-text-muted)]">Top: </span>
+                <strong className="text-[var(--agri-text)]">{scoreboard.topCategorie}</strong>
               </span>
             ) : null}
-          </div>
+          </ModuleScoreboard>
         ) : null}
 
-        {/* PILLS */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-          {PILL_FILTERS.map(({ key, label }) => {
-            const active = temporalFilter === key
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTemporalFilter(key)}
-                style={{
-                  padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                  borderRadius: 20, border: 'none', cursor: 'pointer',
-                  background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                  color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                }}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
+        <ModulePillRow className="mb-2.5">
+          {PILL_FILTERS.map(({ key, label }) => (
+            <ModulePillFilterButton
+              key={key}
+              active={temporalFilter === key}
+              onClick={() => setTemporalFilter(key)}
+            >
+              {label}
+            </ModulePillFilterButton>
+          ))}
+        </ModulePillRow>
 
         {/* SEARCH */}
         {cheltuieli.length > 5 ? (
@@ -651,18 +625,15 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         ) : null}
 
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
-        {isLoading ? <TableCardsSkeleton /> : null}
+        {isLoading ? <EntityListSkeleton /> : null}
 
         {/* EMPTY STATE */}
         {!isLoading && !isError && filtered.length === 0 ? (
-          <div style={{
-            background: 'var(--agri-surface)', borderRadius: 14, padding: '36px 20px',
-            textAlign: 'center', border: '1px solid var(--agri-border)',
-          }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>📉</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 6 }}>Nicio cheltuială înregistrată</div>
-            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>Adaugă prima cheltuială cu butonul +</div>
-          </div>
+          <ModuleEmptyCard
+            emoji="📉"
+            title="Nicio cheltuială înregistrată"
+            hint="Adaugă prima cheltuială cu butonul +"
+          />
         ) : null}
 
         {/* LIST */}
@@ -671,6 +642,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
             columns={desktopColumns}
             data={filtered}
             getRowId={(row) => row.id}
+            mobileContainerClassName="grid-cols-1"
             searchPlaceholder="Caută în cheltuieli..."
             emptyMessage="Nu am găsit cheltuieli pentru filtrele curente."
             renderCard={(cheltuiala) => (
@@ -691,12 +663,14 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       </div>
 
       <AddCheltuialaDialog
-        open={addOpen}
+        open={isAddDialogOpen}
         onOpenChange={(open) => {
-          setAddOpen(open)
           if (!open) {
+            setAddOpen(false)
             clearCheltuialaFormQueryParams()
+            return
           }
+          setAddOpen(true)
         }}
         initialValues={{
           suma_lei: prefillSuma,

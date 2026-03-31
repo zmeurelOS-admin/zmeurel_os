@@ -16,10 +16,12 @@ export function dispatchDemoBannerDismissed() {
 export function useDemoBannerVisible(): boolean {
   const { email } = useDashboardAuth()
   const isDemo = email?.includes('@demo.zmeurel.local') ?? false
-  const [dismissed, setDismissed] = useState(true) // start true to avoid flash
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return sessionStorage.getItem(DISMISSED_KEY) === '1'
+  })
 
   useEffect(() => {
-    setDismissed(sessionStorage.getItem(DISMISSED_KEY) === '1')
     const handler = () => setDismissed(true)
     window.addEventListener(DISMISS_EVENT, handler)
     return () => window.removeEventListener(DISMISS_EVENT, handler)

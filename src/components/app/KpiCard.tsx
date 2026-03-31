@@ -49,10 +49,10 @@ export function KpiCard({
     <InfoCard className={cn('min-h-[196px] lg:min-h-[110px]', className)}>
       <div className="flex justify-between items-start gap-3 lg:gap-3">
         <div className="min-w-0 space-y-3 lg:flex lg:flex-col lg:gap-1 lg:space-y-0">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[13px] font-semibold leading-snug tracking-[-0.01em] text-[var(--agri-text-muted)]">
             {title}
           </p>
-          <p className="text-base font-medium leading-none text-[var(--agri-text)] sm:text-2xl lg:text-xl lg:font-semibold">
+          <p className="text-base font-semibold leading-none tracking-[-0.02em] text-[var(--agri-text)] sm:text-2xl lg:text-xl lg:[font-weight:750]">
             {value}
           </p>
           <span

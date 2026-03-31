@@ -16,6 +16,7 @@ import {
   ParcelForm,
   type ParcelFormValues,
 } from '@/components/parcele/ParcelForm'
+import { parseParcelaScop, coerceParcelaScopFromDb, coerceStatusOperationalFromDb } from '@/lib/parcele/dashboard-relevance'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
 interface EditParcelDialogProps {
@@ -33,6 +34,11 @@ const toFormValues = (parcela: Parcela): ParcelFormValues => ({
   suprafata_m2: String(parcela.suprafata_m2 ?? ''),
   latitudine: parcela.latitudine == null ? '' : String(parcela.latitudine),
   longitudine: parcela.longitudine == null ? '' : String(parcela.longitudine),
+  // If legacy rows have null rol, prefer 'comercial' as sensible default for edits.
+  rol: (parseParcelaScop(parcela.rol) ?? 'comercial'),
+  apare_in_dashboard: parcela.apare_in_dashboard ?? true,
+  contribuie_la_productie: parcela.contribuie_la_productie ?? true,
+  status_operational: coerceStatusOperationalFromDb(parcela.status_operational),
   status: parcela.status ?? 'Activ',
   observatii: parcela.observatii ?? '',
 })
@@ -73,6 +79,10 @@ export function EditParcelDialog({
         suprafata_m2: toDecimal(values.suprafata_m2),
         latitudine: toFloatOrNull(values.latitudine),
         longitudine: toFloatOrNull(values.longitudine),
+        rol: values.rol,
+        apare_in_dashboard: values.apare_in_dashboard,
+        contribuie_la_productie: values.contribuie_la_productie,
+        status_operational: values.status_operational,
         status: values.status,
         observatii: values.observatii?.trim() || null,
       })
@@ -88,6 +98,14 @@ export function EditParcelDialog({
     },
     onError: (error: Error) => {
       hapticError()
+      const dbError = error as Error & { details?: string; hint?: string; code?: string }
+      // eslint-disable-next-line no-console
+      console.error('[EditParcelDialog] updateParcela error:', {
+        message: dbError.message,
+        details: dbError.details,
+        hint: dbError.hint,
+        code: dbError.code,
+      })
       toast.error(error.message)
     },
   })
@@ -99,6 +117,7 @@ export function EditParcelDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Editează teren"
+      contentClassName="sm:max-w-4xl"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 
@@ -26,7 +27,9 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 }
 
 const cardClassName =
-  'rounded-2xl border border-black/5 bg-white p-6 shadow-sm sm:p-6'
+  'rounded-2xl border border-border bg-white p-6 shadow-sm dark:bg-slate-800 sm:p-6'
+const authInputClassName =
+  'h-11 rounded-xl border border-border bg-white text-foreground placeholder:text-muted-foreground dark:bg-slate-800'
 
 function GoogleMark() {
   return (
@@ -245,12 +248,10 @@ export default function LoginPageClient() {
 
   return (
     <main className="min-h-screen bg-[var(--agri-bg)] px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-[420px] items-center">
-        <div className="w-full space-y-4">
+      <div className="mx-auto flex min-h-[calc(100vh-3rem)] w-full max-w-3xl items-center">
+        <div className="mx-auto w-full max-w-[420px] space-y-4">
           <div className="space-y-2 text-center">
-            <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-lg font-semibold text-[var(--agri-primary)] shadow-sm">
-              Z
-            </div>
+            <Image src="/icons/icon.svg" alt="Zmeurel OS" width={48} height={48} className="mx-auto" />
             <div>
               <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-[var(--agri-text)]">Zmeurel OS</h1>
               <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
@@ -295,7 +296,7 @@ export default function LoginPageClient() {
                       value={loginEmail}
                       onChange={(event) => setLoginEmail(event.target.value)}
                       required
-                      className="h-11 rounded-xl"
+                      className={authInputClassName}
                     />
                   </div>
 
@@ -309,7 +310,7 @@ export default function LoginPageClient() {
                       value={loginPassword}
                       onChange={(event) => setLoginPassword(event.target.value)}
                       required
-                      className="h-11 rounded-xl"
+                      className={authInputClassName}
                     />
                   </div>
 
@@ -342,7 +343,7 @@ export default function LoginPageClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+                    className="h-11 w-full rounded-xl border border-border bg-white text-foreground hover:bg-[var(--agri-surface-muted)] dark:bg-slate-800"
                     onClick={handleGoogleSignIn}
                     disabled={googleLoading}
                   >
@@ -364,7 +365,7 @@ export default function LoginPageClient() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('register')}
-                      className="font-medium text-[var(--agri-primary)]"
+                      className="font-medium text-primary"
                     >
                       Creeaza unul
                     </button>
@@ -384,7 +385,7 @@ export default function LoginPageClient() {
                       value={registerEmail}
                       onChange={(event) => setRegisterEmail(event.target.value)}
                       required
-                      className="h-11 rounded-xl"
+                      className={authInputClassName}
                     />
                   </div>
 
@@ -396,7 +397,7 @@ export default function LoginPageClient() {
                       placeholder="Ferma mea"
                       value={farmName}
                       onChange={(event) => setFarmName(event.target.value)}
-                      className="h-11 rounded-xl"
+                      className={authInputClassName}
                     />
                   </div>
 
@@ -410,7 +411,7 @@ export default function LoginPageClient() {
                       value={registerPassword}
                       onChange={(event) => setRegisterPassword(event.target.value)}
                       required
-                      className="h-11 rounded-xl"
+                      className={authInputClassName}
                     />
                   </div>
 
@@ -424,7 +425,7 @@ export default function LoginPageClient() {
                       value={registerConfirmPassword}
                       onChange={(event) => setRegisterConfirmPassword(event.target.value)}
                       required
-                      className="h-11 rounded-xl"
+                      className={authInputClassName}
                     />
                   </div>
 
@@ -448,7 +449,7 @@ export default function LoginPageClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 w-full rounded-xl border-[var(--agri-border)] bg-white text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+                    className="h-11 w-full rounded-xl border border-border bg-white text-foreground hover:bg-[var(--agri-surface-muted)] dark:bg-slate-800"
                     onClick={handleGoogleSignIn}
                     disabled={googleLoading}
                   >
@@ -476,7 +477,7 @@ export default function LoginPageClient() {
                     <button
                       type="button"
                       onClick={() => setActiveTab('login')}
-                      className="font-medium text-[var(--agri-primary)]"
+                      className="font-medium text-primary"
                     >
                       Autentifica-te
                     </button>

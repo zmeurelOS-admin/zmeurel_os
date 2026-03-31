@@ -15,8 +15,6 @@ const navItems = [
   { href: '#demo', label: 'Demo' },
 ]
 
-const farmTags = ['fructe de pădure', 'solarii', 'livezi']
-
 export default function Hero() {
   return (
     <section className="relative">

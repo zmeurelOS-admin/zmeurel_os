@@ -44,7 +44,8 @@ _Last updated: 2026-03-20 (session 4)_
 |--------|-----------|
 | `src/app/(dashboard)/layout.tsx` ⭐ | Layout dashboard: citește headerele injectate de middleware, furnizează DashboardAuthContext |
 | `src/app/(dashboard)/error.tsx` | Error boundary pentru dashboard |
-| `src/app/(dashboard)/dashboard/page.tsx` ⭐ | Dashboard home (KPI-uri, activitate recentă) |
+| `src/app/(dashboard)/dashboard/page.tsx` ⭐ | Dashboard activ: compoziție UI peste engine-ul logic 2.0 |
+| `src/lib/dashboard/engine.ts` ⭐ | Engine logic Dashboard 2.0: raw data, parcel states, tasks/alerts/summary/weather builders |
 | `src/app/(dashboard)/dashboard/loading.tsx` | Skeleton pentru dashboard |
 | `src/app/(dashboard)/dashboard/error.tsx` | Error state dashboard |
 | `src/app/(dashboard)/activitati-agricole/page.tsx` ⭐ | Pagina activități agricole — IMPLEMENTAREA REALĂ (client complet cu useQuery) |
@@ -214,15 +215,15 @@ _Last updated: 2026-03-20 (session 4)_
 |--------|-----------|
 | `src/components/dashboard/DashboardCard.tsx` | Card dashboard generic |
 | `src/components/dashboard/DashboardGrid.tsx` | Grid layout dashboard |
-| `src/components/dashboard/DashboardHome.tsx` ⭐ | Pagina dashboard principală cu toate KPI-urile |
 | `src/components/dashboard/DashboardWidgets.tsx` ⭐ | Setul de widget-uri configurabile pentru dashboard (KPI, comenzi, activități, recoltări, stocuri, venituri) |
 | `src/components/dashboard/FinanciarAziCard.tsx` | KPI financial zilnic |
+| `src/components/dashboard/MeteoDashboardCard.tsx` ⭐ | Cardul meteo activ din dashboard |
 | `src/components/dashboard/ProductieAziCard.tsx` | KPI producție zilnică |
-| `src/components/dashboard/RecentActivityCard.tsx` ⭐ | Card activitate recentă |
 | `src/components/dashboard/SectionTitle.tsx` | Titlu secțiune dashboard |
 | `src/components/dashboard/Sparkline.tsx` | Grafic sparkline mini |
 | `src/components/dashboard/StatRow.tsx` | Rând statistici |
-| `src/components/dashboard/WelcomeCard.tsx` | Card bun venit |
+| `src/components/dashboard/TaskList.tsx` ⭐ | Lista activă „Todo azi” din dashboard |
+| `src/components/dashboard/WelcomeCard.tsx` | Card onboarding pentru ferme fără parcele |
 | `src/components/dashboard/index.ts` | Export barrel |
 
 ### Module-specific components
@@ -326,6 +327,7 @@ _Last updated: 2026-03-20 (session 4)_
 | `src/components/ui/input.tsx` | Input shadcn |
 | `src/components/ui/label.tsx` | Label shadcn |
 | `src/components/ui/ManualAddFab.tsx` | FAB manual pentru acțiunea de adăugare contextuală |
+| `src/components/ui/MobileEntityCard.tsx` ⭐ | Card mobil standardizat pentru listele modulelor dashboard |
 | `src/components/ui/MiniCard.tsx` | Card mini compact |
 | `src/components/ui/ResponsiveDataView.tsx` | Switch reutilizabil mobil carduri / desktop DataTable cu sortare și search |
 | `src/components/ui/SearchField.tsx` | Câmp căutare cu icon |
@@ -355,7 +357,7 @@ _Last updated: 2026-03-20 (session 4)_
 | Fișier | Descriere |
 |--------|-----------|
 | `src/lib/supabase/queries/activitati-agricole.ts` ⭐ | CRUD activități agricole + calcul pauze |
-| `src/lib/supabase/queries/parcele.ts` ⭐ | CRUD parcele + impact check referențial |
+| `src/lib/supabase/queries/parcele.ts` ⭐ | CRUD parcele + impact check referențial + fallback compat schema pentru coloane dashboard relevance |
 | `src/lib/supabase/queries/recoltari.ts` ⭐ | CRUD recoltări via RPC (cu stock management) |
 | `src/lib/supabase/queries/vanzari.ts` ⭐ | CRUD vânzări via RPC (cu stock management) |
 | `src/lib/supabase/queries/comenzi.ts` ⭐ | CRUD comenzi + livrare + stock management |

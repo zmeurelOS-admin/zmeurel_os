@@ -89,6 +89,7 @@ export function CompactListCard({
 
   return (
     <ListCard
+      elevateOnHover={Boolean(onClick)}
       className={cn(
         'relative min-h-[124px] sm:min-h-[208px] lg:min-h-[208px] lg:text-left',
         onClick && 'transition-transform duration-120 active:scale-[0.98]',

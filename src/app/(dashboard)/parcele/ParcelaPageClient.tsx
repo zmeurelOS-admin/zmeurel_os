@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import StatusBadge from '@/components/ui/StatusBadge'
 
 import {
   getParcele,
@@ -21,29 +20,11 @@ import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
 import { formatM2ToHa } from '@/lib/utils/area'
 import { cn } from '@/lib/utils'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import StatusBadge from '@/components/ui/StatusBadge'
 
 interface ParcelaPageClientProps {
   initialParcele: Parcela[]
-}
-
-function getUnitateBadge(tipUnitate: string | null | undefined): { label: string; className: string } {
-  const value = (tipUnitate ?? 'camp').toLowerCase()
-  if (value === 'solar') {
-    return {
-      label: 'Solar',
-      className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/50 dark:text-amber-400',
-    }
-  }
-  if (value === 'livada') {
-    return {
-      label: 'Livada',
-      className: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
-    }
-  }
-  return {
-    label: 'Camp',
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-green-700 dark:bg-green-900/50 dark:text-green-400',
-  }
 }
 
 function parcelaEmoji(parcela: Parcela): string {
@@ -59,8 +40,11 @@ function parcelaEmoji(parcela: Parcela): string {
 function parcelaRolLabel(rol: string | null | undefined): { label: string; variant: 'success' | 'neutral' } {
   const v = (rol ?? '').toLowerCase()
   if (v.includes('comercial')) return { label: 'Comercial', variant: 'success' }
-  if (v.includes('uz') || v.includes('propriu')) return { label: 'Uz propriu', variant: 'neutral' }
-  return { label: 'Uz propriu', variant: 'neutral' }
+  if (v === 'personal' || v.includes('uz_propriu') || (v.includes('uz') && v.includes('propriu')))
+    return { label: 'Personal', variant: 'neutral' }
+  if (v.includes('experimental')) return { label: 'Experimental', variant: 'neutral' }
+  if (v.includes('inactiv')) return { label: 'Inactiv', variant: 'neutral' }
+  return { label: 'Personal', variant: 'neutral' }
 }
 
 function parcelaSubtitle(parcela: Parcela): string {
@@ -88,7 +72,7 @@ export function ParcelaPageClient({
     refetchOnWindowFocus: false,
   })
 
-  const { data: parcelaDeleteImpact, isLoading: isLoadingDeleteImpact } = useQuery({
+  const { data: parcelaDeleteImpact } = useQuery({
     queryKey: ['parcela-delete-impact', selectedParcela?.id ?? null],
     queryFn: () => getParcelaDeleteImpact(selectedParcela!.id),
     enabled: deleteOpen && Boolean(selectedParcela?.id),
@@ -139,106 +123,103 @@ export function ParcelaPageClient({
               {parcele.map((p) => (
                 <MobileEntityCard
                   key={p.id}
-                  title={
-                    <span className="inline-flex items-center gap-2">
-                      <span aria-hidden>{parcelaEmoji(p)}</span>
-                      <span>{p.nume_parcela || 'Teren'}</span>
-                    </span>
-                  }
-                  value={null}
-                  secondary={parcelaSubtitle(p)}
-                  status={
-                    <StatusBadge
-                      text={parcelaRolLabel((p as { rol?: string | null }).rol).label}
-                      variant={parcelaRolLabel((p as { rol?: string | null }).rol).variant}
-                    />
-                  }
+                  icon={<span aria-hidden>{parcelaEmoji(p)}</span>}
+                  title={p.nume_parcela || 'Teren'}
+                  subtitle={parcelaSubtitle(p)}
+                  statusLabel={parcelaRolLabel((p as { rol?: string | null }).rol).label}
+                  statusTone={parcelaRolLabel((p as { rol?: string | null }).rol).variant}
                   onClick={() => setExpandedId((current) => (current === p.id ? null : p.id))}
-                  isExpanded={expandedId === p.id}
-                  className={cn(expandedId === p.id ? 'border-[var(--soft-success-border)]' : '')}
-                >
-                  <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
-                    <span>
-                      <span className="text-[var(--agri-text-muted)]">An plantare: </span>
-                      <span className="font-semibold">{p.an_plantare || '-'}</span>
-                    </span>
-                    <span>
-                      <span className="text-[var(--agri-text-muted)]">Nr plante: </span>
-                      <span className="font-semibold">{p.nr_plante || '-'}</span>
-                    </span>
-                    <span>
-                      <span className="text-[var(--agri-text-muted)]">Suprafață: </span>
-                      <span className="font-semibold">{formatM2ToHa(p.suprafata_m2)}</span>
-                    </span>
-                    <span>
-                      <span className="text-[var(--agri-text-muted)]">Status REI: </span>
-                      <span className="font-semibold">Date indisponibile</span>
-                    </span>
-                  </div>
+                  bottomSlot={expandedId === p.id ? (
+                    <>
+                      <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
+                        <span>
+                          <span className="text-[var(--agri-text-muted)]">An plantare: </span>
+                          <span className="font-semibold">{p.an_plantare || '-'}</span>
+                        </span>
+                        <span>
+                          <span className="text-[var(--agri-text-muted)]">Nr plante: </span>
+                          <span className="font-semibold">{p.nr_plante || '-'}</span>
+                        </span>
+                        <span>
+                          <span className="text-[var(--agri-text-muted)]">Suprafață: </span>
+                          <span className="font-semibold">{formatM2ToHa(p.suprafata_m2)}</span>
+                        </span>
+                        <span>
+                          <span className="text-[var(--agri-text-muted)]">Status REI: </span>
+                          <span className="font-semibold">Date indisponibile</span>
+                        </span>
+                      </div>
 
-                  <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
-                    <button
-                      type="button"
-                      className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedParcela(p)
-                        setEditOpen(true)
-                      }}
-                    >
-                      Editează
-                    </button>
-                    <button
-                      type="button"
-                      className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setSelectedParcela(p)
-                        setDeleteOpen(true)
-                      }}
-                    >
-                      Șterge
-                    </button>
-                  </div>
-                </MobileEntityCard>
+                      <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+                        <button
+                          type="button"
+                          className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedParcela(p)
+                            setEditOpen(true)
+                          }}
+                        >
+                          Editează
+                        </button>
+                        <button
+                          type="button"
+                          className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedParcela(p)
+                            setDeleteOpen(true)
+                          }}
+                        >
+                          Șterge
+                        </button>
+                      </div>
+                    </>
+                  ) : undefined}
+                />
               ))}
             </div>
 
             <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)] lg:gap-4">
               <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-[var(--agri-surface-muted)] text-xs uppercase tracking-wide text-[var(--agri-text-muted)]">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Teren</th>
-                      <th className="px-4 py-3 font-semibold">Tip unitate</th>
-                      <th className="px-4 py-3 font-semibold">Suprafata</th>
-                      <th className="px-4 py-3 font-semibold">Plante</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Teren</TableHead>
+                      <TableHead>Tip unitate</TableHead>
+                      <TableHead className="text-right tabular-nums">Suprafata</TableHead>
+                      <TableHead className="text-right tabular-nums">Plante</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {parcele.map((parcela) => {
                       const isSelected = desktopSelectedParcela?.id === parcela.id
                       return (
-                        <tr
+                        <TableRow
                           key={parcela.id}
-                          className={`cursor-pointer border-t border-[var(--surface-divider)] transition-colors ${isSelected ? 'bg-[var(--soft-success-bg)]' : 'hover:bg-[var(--agri-surface-muted)]'}`}
+                          className={cn(
+                            'cursor-pointer',
+                            isSelected && 'bg-[var(--soft-success-bg)] hover:bg-[var(--soft-success-bg)]',
+                          )}
                           onClick={() => setDesktopSelectedParcelaId(parcela.id)}
                         >
-                          <td className="px-4 py-3 font-medium text-[var(--agri-text)]">{parcela.nume_parcela || '-'}</td>
-                          <td className="px-4 py-3 text-[var(--agri-text-muted)]">{parcela.tip_unitate || '-'}</td>
-                          <td className="px-4 py-3 text-[var(--agri-text-muted)]">{Number(parcela.suprafata_m2 || 0).toFixed(0)} m2</td>
-                          <td className="px-4 py-3 text-[var(--agri-text-muted)]">{Number(parcela.nr_plante || 0)}</td>
-                          <td className="px-4 py-3">
-                            <span className="rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-1 text-xs font-semibold text-[var(--status-success-text)]">
-                              {parcela.status || 'activ'}
-                            </span>
-                          </td>
-                        </tr>
+                          <TableCell className="font-medium">{parcela.nume_parcela || '-'}</TableCell>
+                          <TableCell className="text-[var(--agri-text-muted)]">{parcela.tip_unitate || '-'}</TableCell>
+                          <TableCell className="text-right tabular-nums text-[var(--agri-text-muted)]">
+                            {Number(parcela.suprafata_m2 || 0).toFixed(0)} m2
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums text-[var(--agri-text-muted)]">
+                            {Number(parcela.nr_plante || 0)}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge text={parcela.status || 'activ'} variant="success" />
+                          </TableCell>
+                        </TableRow>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
 
               <aside className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">

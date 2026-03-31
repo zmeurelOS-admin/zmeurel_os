@@ -93,6 +93,8 @@ const SUGGESTIONS: Record<string, string[]> = {
   '/dashboard': ['Ce trebuie să fac azi?', 'Sumar fermă', 'Alerte active?'],
 }
 
+const ASSISTANT_NAME = 'Asistentul Zmeurel'
+
 function getSuggestions(pathname: string): string[] {
   for (const [key, pills] of Object.entries(SUGGESTIONS)) {
     if (pathname.includes(key)) return pills
@@ -462,7 +464,7 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
         }
 
         if (data.type === 'form' && data.form) {
-          const aiMessage = data.message ?? 'Am pregătit formularul. Verifică și salvează!'
+          const aiMessage = data.message ?? 'Am înțeles, îți pregătesc asta. Verifică și salvează.'
           historyHintRef.current = { previousUserMessage: msg, previousAiMessage: aiMessage }
           setFormData({
             form: data.form,
@@ -564,12 +566,17 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
       const today = new Date().toISOString().split('T')[0]
 
       if (form === 'cheltuiala') {
-        const suma = Number(prefillData.suma)
-        if (!suma) { toast.error('Suma lipsă. Deschide formularul.'); handleNavigateToForm(); return }
+        const suma = toPositiveNumber(prefillData.suma ?? prefillData.suma_lei)
+        const categorie = prefillData.categorie ? String(prefillData.categorie) : ''
+        if (!suma || !categorie) {
+          toast.error('Date incomplete pentru cheltuială. Deschid formularul.')
+          handleNavigateToForm()
+          return
+        }
         await createCheltuiala({
           data: prefillData.data ? String(prefillData.data) : today,
           suma_lei: suma,
-          categorie: prefillData.categorie ? String(prefillData.categorie) : undefined,
+          categorie,
           descriere: prefillData.descriere ? String(prefillData.descriere) : undefined,
         })
         queryClient.invalidateQueries({ queryKey: queryKeys.cheltuieli })
@@ -577,12 +584,17 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
         toast.success('Cheltuiala a fost salvată!')
 
       } else if (form === 'investitie') {
-        const suma = Number(prefillData.suma)
-        if (!suma || !prefillData.categorie) { toast.error('Date incomplete. Deschide formularul.'); handleNavigateToForm(); return }
+        const suma = toPositiveNumber(prefillData.suma ?? prefillData.suma_lei)
+        const categorie = prefillData.categorie ? String(prefillData.categorie) : ''
+        if (!suma || !categorie) {
+          toast.error('Date incomplete pentru investiție. Deschid formularul.')
+          handleNavigateToForm()
+          return
+        }
         await createInvestitie({
           data: prefillData.data ? String(prefillData.data) : today,
           suma_lei: suma,
-          categorie: String(prefillData.categorie),
+          categorie,
           descriere: prefillData.descriere ? String(prefillData.descriere) : undefined,
         })
         queryClient.invalidateQueries({ queryKey: queryKeys.investitii })
@@ -756,8 +768,8 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px 8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20 }}>🤖</span>
-            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--agri-text)' }}>Zmeurel AI</span>
+            <span style={{ fontSize: 20 }}>🌿</span>
+            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--agri-text)' }}>{ASSISTANT_NAME}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: counterTextColor }}>
@@ -786,7 +798,12 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
           {/* Idle: suggestions */}
           {state === 'idle' && (
             <div>
-              <p style={{ fontSize: 13, color: 'var(--ai-sheet-subtle-text)', marginBottom: 10 }}>Sugestii rapide:</p>
+              <p style={{ fontSize: 13, color: 'var(--ai-sheet-subtle-text)', marginBottom: 6 }}>
+                Spune-mi ce vrei să faci în fermă.
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--ai-sheet-subtle-text)', marginBottom: 10 }}>
+                Poți scrie direct: „5 kg zmeură azi” sau „comandă pentru Maria”.
+              </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {suggestions.map((s) => (
                   <button
@@ -873,7 +890,7 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
                   color: 'var(--ai-sheet-accent-text)', fontSize: 13, cursor: 'pointer', fontWeight: 500,
                 }}
               >
-                ← Altă întrebare
+                ← Spune altceva
               </button>
             </div>
           )}
@@ -987,7 +1004,7 @@ export function AiBottomSheet({ open, onClose, variant = 'sheet' }: AiBottomShee
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Întreabă sau dictează..."
+              placeholder="Spune ce vrei să faci în fermă…"
               maxLength={500}
               style={{
                 flex: 1, padding: '10px 14px', borderRadius: 24,

@@ -41,7 +41,6 @@ const GROUPS: Group[] = [
     items: [
       { href: "/parcele", label: "Parcele", emoji: "🌿" },
       { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
-      { href: "/activitati-agricole", label: "Activități Agricole", emoji: "🚜" },
       { href: "/culegatori", label: "Culegători", emoji: "👷" },
     ],
   },
@@ -268,7 +267,7 @@ function SidebarAiButton({
     <button
       type="button"
       onClick={openAiPanel}
-      aria-label="Deschide Zmeurel AI"
+      aria-label="Deschide Asistentul Zmeurel"
       className={cn(
         "group flex w-full items-center rounded-2xl transition-all duration-200",
         collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-3",
@@ -288,7 +287,7 @@ function SidebarAiButton({
       </span>
       {!collapsed ? (
         <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate font-semibold">Zmeurel AI</span>
+          <span className="truncate font-semibold">Asistentul Zmeurel</span>
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
         </span>
       ) : null}
@@ -301,7 +300,7 @@ function SidebarAiButton({
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="right" sideOffset={12}>
-        Zmeurel AI
+        Asistentul Zmeurel
       </TooltipContent>
     </Tooltip>
   )

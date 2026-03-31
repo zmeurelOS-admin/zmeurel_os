@@ -10,7 +10,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { getStatusBadgeClass, STATUS_BADGE_LAYOUT_CLASS } from '@/lib/ui/status-badges'
+import { DIALOG_DETAIL_FOOTER_CLASS } from '@/lib/ui/modal-overlay-classes'
 import { type VanzareButasi, type VanzareButasiStatus } from '@/lib/supabase/queries/vanzari-butasi'
 
 interface ViewVanzareButasiDialogProps {
@@ -65,7 +67,7 @@ export function ViewVanzareButasiDialog({
   const totalCantitate = items.reduce((sum, item) => sum + Number(item.cantitate), 0)
   const totalLei = Number(vanzare.total_lei)
   const avans = Number(vanzare.avans_suma || 0)
-  const restDePlata = totalLei - avans
+  const restDePlata = Math.max(0, totalLei - avans)
   const resolvedClient = clientNume || vanzare.client_nume_manual || 'Client necunoscut'
 
   return (
@@ -73,15 +75,15 @@ export function ViewVanzareButasiDialog({
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="mx-auto max-w-lg rounded-xl bg-[var(--agri-surface)] p-0 lg:max-w-2xl xl:max-w-3xl"
+        className="max-h-[85dvh] max-w-lg overflow-hidden p-0 lg:max-w-2xl xl:max-w-3xl"
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Dialog</DialogTitle>
         </DialogHeader>
         <div className="max-h-[85dvh] overflow-y-auto p-6">
-          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[var(--agri-border)] py-4 text-left lg:gap-3">
+          <DialogHeader className="mb-4 flex-row items-start justify-between gap-2 space-y-0 border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4 text-left lg:gap-3">
             <div className="space-y-2">
-              <DialogTitle className="text-xl font-semibold text-[var(--agri-text)]">
+              <DialogTitle className="text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]">
                 Comandă material saditor #{vanzare.id_vanzare_butasi}
               </DialogTitle>
               <Badge className={`badge-consistent ${STATUS_BADGE_LAYOUT_CLASS} ${statusClasses[vanzare.status]}`}>
@@ -95,7 +97,7 @@ export function ViewVanzareButasiDialog({
             </DialogClose>
           </DialogHeader>
 
-          <section className="border-b border-[var(--agri-border)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Client</h3>
             <div className="space-y-2">
               <div>
@@ -117,43 +119,59 @@ export function ViewVanzareButasiDialog({
             </div>
           </section>
 
-          <section className="border-b border-[var(--agri-border)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Articole</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-sm text-[var(--agri-text-muted)]">
-                    <th className="px-2 py-2 font-medium">Soi</th>
-                    <th className="px-2 py-2 font-medium">Cantitate</th>
-                    <th className="px-2 py-2 font-medium">Preț unitar</th>
-                    <th className="px-2 py-2 font-medium">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="whitespace-normal text-left text-sm font-medium normal-case tracking-normal text-[var(--agri-text-muted)]">
+                      Soi
+                    </TableHead>
+                    <TableHead className="whitespace-normal text-right text-sm font-medium normal-case tracking-normal text-[var(--agri-text-muted)]">
+                      Cantitate
+                    </TableHead>
+                    <TableHead className="whitespace-normal text-right text-sm font-medium normal-case tracking-normal text-[var(--agri-text-muted)]">
+                      Preț unitar
+                    </TableHead>
+                    <TableHead className="whitespace-normal text-right text-sm font-medium normal-case tracking-normal text-[var(--agri-text-muted)]">
+                      Subtotal
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {items.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-[var(--agri-surface-muted)]' : ''}>
-                      <td className="px-2 py-2 text-base font-medium text-[var(--agri-text)]">{item.soi}</td>
-                      <td className="px-2 py-2 text-base font-medium text-[var(--agri-text)]">{Number(item.cantitate)} buc</td>
-                      <td className="px-2 py-2 text-base font-medium text-[var(--agri-text)]">
+                    <TableRow key={item.id} className={index % 2 === 0 ? 'bg-[var(--agri-surface-muted)]' : undefined}>
+                      <TableCell className="whitespace-normal text-base font-medium text-[var(--agri-text)]">
+                        {item.soi}
+                      </TableCell>
+                      <TableCell className="text-right text-base font-medium tabular-nums text-[var(--agri-text)]">
+                        {Number(item.cantitate)} buc
+                      </TableCell>
+                      <TableCell className="text-right text-base font-medium tabular-nums text-[var(--agri-text)]">
                         {Number(item.pret_unitar).toFixed(2)} lei/buc
-                      </td>
-                      <td className="px-2 py-2 text-base font-medium text-[var(--agri-text)]">
+                      </TableCell>
+                      <TableCell className="text-right text-base font-medium tabular-nums text-[var(--agri-text)]">
                         {Number(item.subtotal).toFixed(2)} lei
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                  <tr className="bg-[var(--agri-surface-muted)]">
-                    <td className="px-2 py-2 text-base font-semibold text-[var(--agri-text)]">TOTAL</td>
-                    <td className="px-2 py-2 text-base font-semibold text-[var(--agri-text)]">{totalCantitate} buc</td>
-                    <td className="px-2 py-2 text-base font-semibold text-[var(--agri-text)]">-</td>
-                    <td className="px-2 py-2 text-base font-bold text-[var(--agri-text)]">{formatLei(totalLei)}</td>
-                  </tr>
-                </tbody>
-              </table>
+                  <TableRow className="bg-[var(--agri-surface-muted)] hover:bg-[var(--agri-surface-muted)] active:bg-[var(--agri-surface-muted)]">
+                    <TableCell className="text-base font-semibold text-[var(--agri-text)]">TOTAL</TableCell>
+                    <TableCell className="text-right text-base font-semibold tabular-nums text-[var(--agri-text)]">
+                      {totalCantitate} buc
+                    </TableCell>
+                    <TableCell className="text-right text-base font-semibold tabular-nums text-[var(--agri-text)]">-</TableCell>
+                    <TableCell className="text-right text-base font-bold tabular-nums text-[var(--agri-text)]">
+                      {formatLei(totalLei)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
           </section>
 
-          <section className="border-b border-[var(--agri-border)] py-4">
+          <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
             <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Financiar</h3>
             <div className="space-y-2">
               <div>
@@ -203,11 +221,11 @@ export function ViewVanzareButasiDialog({
           </section>
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-[var(--agri-border)] px-6 py-4 lg:gap-3">
+        <div className={DIALOG_DETAIL_FOOTER_CLASS}>
           <Button
             type="button"
             variant="outline"
-            className="lg:hover:opacity-95"
+            className="agri-cta"
             onClick={() => {
               onOpenChange(false)
               onEdit(vanzare)
@@ -218,7 +236,7 @@ export function ViewVanzareButasiDialog({
           <Button
             type="button"
             variant="destructive"
-            className="lg:hover:opacity-95"
+            className="agri-cta"
             onClick={() => {
               onOpenChange(false)
               onDelete(vanzare)

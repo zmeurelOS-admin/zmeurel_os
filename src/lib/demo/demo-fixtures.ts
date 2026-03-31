@@ -2,6 +2,7 @@ import type { TablesInsert } from '@/types/supabase'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+/** Folosit doar pentru detectarea rândurilor vechi la cleanup; nu în date noi de seed. */
 export const DEMO_FIXTURE_TAG = '[DEMO_FIXTURE_V2]'
 
 export function buildDemoDates() {
@@ -117,7 +118,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           nr_plante: 900,
           an_plantare: nowYear - 2,
           status: 'Activ',
-          observatii: `${DEMO_FIXTURE_TAG} Parcela demo MARAVILLA`,
+          observatii: 'Teren plan, sol argilos; irigație disponibilă.',
         },
       },
       {
@@ -131,7 +132,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           nr_plante: 750,
           an_plantare: nowYear - 1,
           status: 'Activ',
-          observatii: `${DEMO_FIXTURE_TAG} Parcela demo DELNIWA`,
+          observatii: 'Teren plan, sol argilos; irigație disponibilă.',
         },
       },
     ],
@@ -143,7 +144,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           nume_client: 'Client Demo Fresh',
           telefon: '0740000001',
           adresa: 'Suceava',
-          observatii: `${DEMO_FIXTURE_TAG} Client demo`,
+          observatii: 'Livrare în Suceava și împrejurimi.',
         },
       },
       {
@@ -153,7 +154,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           nume_client: 'Client Demo Market',
           telefon: '0740000002',
           adresa: 'Falticeni',
-          observatii: `${DEMO_FIXTURE_TAG} Client demo`,
+          observatii: 'Livrare în Suceava și împrejurimi.',
         },
       },
     ],
@@ -168,7 +169,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           cantitate_kg: 8,
           pret_lei_pe_kg_snapshot: 0,
           valoare_munca_lei: 0,
-          observatii: `${DEMO_FIXTURE_TAG} Recoltare demo`,
+          observatii: 'Recoltare dimineață, calitate bună.',
         },
       },
       {
@@ -181,7 +182,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           cantitate_kg: 12,
           pret_lei_pe_kg_snapshot: 0,
           valoare_munca_lei: 0,
-          observatii: `${DEMO_FIXTURE_TAG} Recoltare demo`,
+          observatii: 'Recoltare dimineață, calitate bună.',
         },
       },
       {
@@ -194,7 +195,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           cantitate_kg: 15,
           pret_lei_pe_kg_snapshot: 0,
           valoare_munca_lei: 0,
-          observatii: `${DEMO_FIXTURE_TAG} Recoltare demo`,
+          observatii: 'Recoltare dimineață, calitate bună.',
         },
       },
     ],
@@ -208,7 +209,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           pret_per_kg: 35,
           total: 350,
           status: 'programata',
-          observatii: `${DEMO_FIXTURE_TAG} Comanda demo`,
+          observatii: 'Livrare cu mașina fermei.',
           client_nume_manual: null,
           locatie_livrare: 'Suceava',
           telefon: '0740000001',
@@ -223,7 +224,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           pret_per_kg: 32,
           total: 640,
           status: 'noua',
-          observatii: `${DEMO_FIXTURE_TAG} Comanda demo`,
+          observatii: 'Livrare cu mașina fermei.',
           client_nume_manual: null,
           locatie_livrare: 'Falticeni',
           telefon: '0740000002',
@@ -239,7 +240,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           cantitate_kg: 8,
           pret_lei_kg: 35,
           status_plata: 'platit',
-          observatii_ladite: `${DEMO_FIXTURE_TAG} Vanzare demo`,
+          observatii_ladite: 'Lădițe standard, paletizat.',
         },
       },
       {
@@ -250,7 +251,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           cantitate_kg: 12,
           pret_lei_kg: 34,
           status_plata: 'platit',
-          observatii_ladite: `${DEMO_FIXTURE_TAG} Vanzare demo`,
+          observatii_ladite: 'Lădițe standard, paletizat.',
         },
       },
     ],
@@ -259,7 +260,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
         id_cheltuiala: 'DEMO-CH-001',
         data: minus4DaysIso,
         categorie: 'motorina',
-        descriere: `${DEMO_FIXTURE_TAG} Motorina utilaj`,
+        descriere: 'Motorină pentru tractor și utilaje',
         suma_lei: 120,
         furnizor: 'Statie carburanti',
       },
@@ -267,7 +268,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
         id_cheltuiala: 'DEMO-CH-002',
         data: yesterdayIso,
         categorie: 'ambalaje',
-        descriere: `${DEMO_FIXTURE_TAG} Ambalaje`,
+        descriere: 'Ambalaje pentru livrări',
         suma_lei: 85,
         furnizor: 'Depozit ambalaje',
       },
@@ -283,7 +284,7 @@ export function buildDemoFixture(referenceDate = new Date()): DemoFixtureData {
           doza: '2 l/ha',
           timp_pauza_zile: 0,
           operator: 'Operator demo',
-          observatii: `${DEMO_FIXTURE_TAG} Activitate demo`,
+          observatii: 'Aplicat pe timp uscat, fără vânt.',
         },
       },
     ],

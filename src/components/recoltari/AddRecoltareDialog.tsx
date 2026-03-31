@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
@@ -26,9 +26,10 @@ import { trackEvent } from '@/lib/analytics/trackEvent'
 import { buildHarvestObservatii, getParcelaCropRows, type ParcelCropRow } from '@/lib/parcele/crop-config'
 import { formatUnitateDisplayName, getUnitateTipLabel } from '@/lib/parcele/unitate'
 import { queryKeys } from '@/lib/query-keys'
+import { resolveRecoltareParcelaId } from '@/lib/recoltari/parcela-link'
 import { calculatePauseStatus, getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
-import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
+import { getParcele } from '@/lib/supabase/queries/parcele'
 import { createRecoltare } from '@/lib/supabase/queries/recoltari'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
@@ -94,52 +95,6 @@ function toNumber(value: string | undefined): number {
 function formatCropOptionLabel(crop: ParcelCropRow): string {
   const parts = [crop.culture, crop.variety].filter(Boolean)
   return parts.length > 0 ? parts.join(' · ') : 'Cultură nespecificată'
-}
-
-function normalizeForExactMatch(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function getParcelaHintCandidates(parcela: Parcela): string[] {
-  return [
-    parcela.nume_parcela,
-    formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate, ''),
-    parcela.soi_plantat,
-    parcela.soi,
-    parcela.tip_fruct,
-    parcela.cultura,
-  ]
-    .map((candidate) => normalizeForExactMatch(candidate ?? ''))
-    .filter(Boolean)
-}
-
-function resolveParcelaIdFromHint(hint: string, parcele: Parcela[]): string | null {
-  const normalizedHint = normalizeForExactMatch(hint)
-  if (!normalizedHint) return null
-
-  const exactIds = Array.from(new Set(
-    parcele
-      .filter((parcela) => getParcelaHintCandidates(parcela).some((candidate) => candidate === normalizedHint))
-      .map((parcela) => parcela.id)
-  ))
-  if (exactIds.length === 1) return exactIds[0]
-
-  const containsIds = Array.from(new Set(
-    parcele
-      .filter((parcela) =>
-        getParcelaHintCandidates(parcela).some(
-          (candidate) => candidate.includes(normalizedHint) || normalizedHint.includes(candidate)
-        )
-      )
-      .map((parcela) => parcela.id)
-  ))
-  return containsIds.length === 1 ? containsIds[0] : null
 }
 
 export function AddRecoltareDialog({
@@ -256,18 +211,24 @@ export function AddRecoltareDialog({
     },
   })
 
-  const selectedParcelaId = form.watch('parcela_id')
-  const selectedCulegatorId = form.watch('culegator_id')
-  const selectedCropId = form.watch('harvest_crop_id')
-  const kgCal1 = toNumber(form.watch('kg_cal1'))
-  const kgCal2 = toNumber(form.watch('kg_cal2'))
+  const selectedParcelaId = useWatch({ control: form.control, name: 'parcela_id' }) || ''
+  const selectedCulegatorId = useWatch({ control: form.control, name: 'culegator_id' }) || ''
+  const selectedCropId = useWatch({ control: form.control, name: 'harvest_crop_id' }) || ''
+  const kgCal1 = toNumber(useWatch({ control: form.control, name: 'kg_cal1' }) || '')
+  const kgCal2 = toNumber(useWatch({ control: form.control, name: 'kg_cal2' }) || '')
   const totalKg = kgCal1 + kgCal2
-  const selectedParcela = parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null
+  const selectedParcela = useMemo(
+    () => parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null,
+    [parcele, selectedParcelaId]
+  )
   const parcelCropOptions = useMemo(() => getParcelaCropRows(selectedParcela), [selectedParcela])
   const selectedCrop =
     parcelCropOptions.find((crop) => crop.id === selectedCropId) ??
     (parcelCropOptions.length === 1 ? parcelCropOptions[0] : null)
-  const selectedCulegator = culegatori.find((culegator) => culegator.id === selectedCulegatorId)
+  const selectedCulegator = useMemo(
+    () => culegatori.find((culegator) => culegator.id === selectedCulegatorId),
+    [culegatori, selectedCulegatorId]
+  )
   const tarifLeiKg = Number(selectedCulegator?.tarif_lei_kg ?? 0)
   const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
   const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
@@ -291,7 +252,7 @@ export function AddRecoltareDialog({
     form.setValue('harvest_crop_id', '', { shouldDirty: false, shouldValidate: false })
   }, [form, parcelCropOptions, selectedCropId, selectedParcela])
 
-  const activePauseWarning = useMemo(() => {
+  const activePauseWarning = (() => {
     if (!selectedParcelaId) return null
 
     const parcelaActivitati = activitati.filter((act) => act.parcela_id === selectedParcelaId)
@@ -319,7 +280,7 @@ export function AddRecoltareDialog({
     }
 
     return null
-  }, [activitati, selectedParcela, selectedParcelaId])
+  })()
 
   useEffect(() => {
     if (!dialogOpen || !aiPrefill) return
@@ -341,13 +302,21 @@ export function AddRecoltareDialog({
       }
     }
 
-    if (aiPrefill.parcela_id) {
-      form.setValue('parcela_id', aiPrefill.parcela_id, { shouldDirty: false, shouldValidate: false })
+    const resolvedParcelaId = resolveRecoltareParcelaId({
+      parcelaId: aiPrefill.parcela_id,
+      parcelaLabel: aiPrefill.parcela_label,
+      parcele,
+    })
+    if (resolvedParcelaId) {
+      form.setValue('parcela_id', resolvedParcelaId, { shouldDirty: false, shouldValidate: false })
+    } else if (aiPrefill.parcela_id) {
+      // Invalid legacy id hint should not force a wrong association.
+      form.setValue('parcela_id', '', { shouldDirty: false, shouldValidate: false })
     }
     if (aiPrefill.observatii) {
       form.setValue('observatii', aiPrefill.observatii, { shouldDirty: false, shouldValidate: false })
     }
-  }, [aiPrefill, dialogOpen, form])
+  }, [aiPrefill, dialogOpen, form, parcele])
 
   useEffect(() => {
     if (!dialogOpen || !aiPrefill?.parcela_label || aiPrefill.parcela_id) return
@@ -356,7 +325,10 @@ export function AddRecoltareDialog({
     if (appliedAiParcelaHintRef.current === signature) return
     if (parcele.length === 0) return
 
-    const parcelaId = resolveParcelaIdFromHint(aiPrefill.parcela_label, parcele)
+    const parcelaId = resolveRecoltareParcelaId({
+      parcelaLabel: aiPrefill.parcela_label,
+      parcele,
+    })
     if (parcelaId) {
       form.setValue('parcela_id', parcelaId, { shouldDirty: false, shouldValidate: false })
     }
@@ -430,7 +402,7 @@ export function AddRecoltareDialog({
           <div className="space-y-2">
             <Label htmlFor="recoltare_parcela">Parcelă</Label>
             <Select
-              value={form.watch('parcela_id') || '__none'}
+              value={selectedParcelaId || '__none'}
               onValueChange={(value) =>
                 form.setValue('parcela_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })
               }
@@ -463,7 +435,7 @@ export function AddRecoltareDialog({
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="recoltare_culegator">Culegător</Label>
             <Select
-              value={form.watch('culegator_id') || '__none'}
+              value={selectedCulegatorId || '__none'}
               onValueChange={(value) =>
                 form.setValue('culegator_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })
               }

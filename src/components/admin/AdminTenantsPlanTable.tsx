@@ -150,7 +150,7 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Fermă</TableHead>
                 <TableHead>Owner</TableHead>
                 <TableHead>Plan</TableHead>
@@ -216,21 +216,21 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
       </CardContent>
 
       <AlertDialog open={Boolean(pendingChange)} onOpenChange={(open) => (!open ? setPendingChange(null) : null)}>
-        <AlertDialogContent className="w-[95%] max-w-md overflow-hidden p-0 sm:max-w-lg">
+        <AlertDialogContent className="max-w-md sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="px-6 pt-6">Confirmi schimbarea planului?</AlertDialogTitle>
-            <AlertDialogDescription className="px-6 pb-2">
+            <AlertDialogTitle>Confirmi schimbarea planului?</AlertDialogTitle>
+            <AlertDialogDescription>
               {pendingChange
                 ? `Ferma ${pendingChange.tenantName} va fi schimbata din ${pendingChange.currentPlan} in ${pendingChange.nextPlan}.`
                 : 'Selecteaza un plan pentru confirmare.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 border-t px-6 py-4">
-            <AlertDialogCancel className="w-full sm:w-auto">Anulează</AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anulează</AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button
                 type="button"
-                className="w-full bg-[var(--agri-primary)] text-white hover:bg-emerald-700 sm:w-auto"
+                className="bg-[var(--agri-primary)] text-white hover:opacity-95"
                 disabled={!pendingChange || updatePlanMutation.isPending}
                 onClick={() => {
                   if (!pendingChange) return

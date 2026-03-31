@@ -1,4 +1,17 @@
 declare module 'npm:@supabase/supabase-js@2' {
+  type SupabaseDenoError = { message: string } | null
+
+  type SupabaseDenoQueryBuilder<T = Record<string, unknown>> = {
+    data: T[] | null
+    error: SupabaseDenoError
+    eq(column: string, value: unknown): SupabaseDenoQueryBuilder<T>
+    maybeSingle(): Promise<{ data: T | null; error: SupabaseDenoError }>
+    limit(count: number): SupabaseDenoQueryBuilder<T>
+    order(column: string, options?: { ascending?: boolean }): SupabaseDenoQueryBuilder<T>
+    gt(column: string, value: string): SupabaseDenoQueryBuilder<T>
+    not(column: string, operator: string, value: null): SupabaseDenoQueryBuilder<T>
+  }
+
   export function createClient(...args: unknown[]): {
     auth: {
       getUser(accessToken: string): Promise<{
@@ -7,17 +20,10 @@ declare module 'npm:@supabase/supabase-js@2' {
       }>
     }
     from(table: string): {
-      select(columns: string): {
-        eq(column: string, value: unknown): any
-        maybeSingle(): Promise<{ data: any; error: { message: string } | null }>
-        limit(count: number): any
-        order(column: string, options?: { ascending?: boolean }): any
-        gt(column: string, value: string): any
-        not(column: string, operator: string, value: null): any
-      }
+      select(columns: string): SupabaseDenoQueryBuilder<Record<string, unknown>>
       insert(values: Record<string, unknown>): {
         select(columns: string): {
-          limit(count: number): Promise<{ data: any[] | null; error: { message: string } | null }>
+          limit(count: number): Promise<{ data: unknown[] | null; error: SupabaseDenoError }>
         }
       }
     }

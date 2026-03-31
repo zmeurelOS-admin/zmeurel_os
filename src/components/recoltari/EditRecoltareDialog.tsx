@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
@@ -160,18 +160,24 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
     },
   })
 
-  const selectedParcelaId = form.watch('parcela_id')
-  const selectedCulegatorId = form.watch('culegator_id')
-  const selectedCropId = form.watch('harvest_crop_id')
-  const kgCal1 = toNumber(form.watch('kg_cal1'))
-  const kgCal2 = toNumber(form.watch('kg_cal2'))
+  const selectedParcelaId = useWatch({ control: form.control, name: 'parcela_id' }) || ''
+  const selectedCulegatorId = useWatch({ control: form.control, name: 'culegator_id' }) || ''
+  const selectedCropId = useWatch({ control: form.control, name: 'harvest_crop_id' }) || ''
+  const kgCal1 = toNumber(useWatch({ control: form.control, name: 'kg_cal1' }) || '')
+  const kgCal2 = toNumber(useWatch({ control: form.control, name: 'kg_cal2' }) || '')
   const totalKg = kgCal1 + kgCal2
-  const selectedParcela = parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null
+  const selectedParcela = useMemo(
+    () => parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null,
+    [parcele, selectedParcelaId]
+  )
   const parcelCropOptions = useMemo(() => getParcelaCropRows(selectedParcela), [selectedParcela])
   const selectedCrop =
     parcelCropOptions.find((crop) => crop.id === selectedCropId) ??
     (parcelCropOptions.length === 1 ? parcelCropOptions[0] : null)
-  const selectedCulegator = culegatori.find((culegator) => culegator.id === selectedCulegatorId)
+  const selectedCulegator = useMemo(
+    () => culegatori.find((culegator) => culegator.id === selectedCulegatorId),
+    [culegatori, selectedCulegatorId]
+  )
   const tarifLeiKg = Number(selectedCulegator?.tarif_lei_kg ?? 0)
   const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
   const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
@@ -204,7 +210,7 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
     form.setValue('harvest_crop_id', '', { shouldDirty: false, shouldValidate: false })
   }, [form, open, parcelCropOptions, recoltare, selectedCropId, selectedParcela])
 
-  const activePauseWarning = useMemo(() => {
+  const activePauseWarning = (() => {
     if (!selectedParcelaId) return null
 
     const parcelaActivitati = activitati.filter((act) => act.parcela_id === selectedParcelaId)
@@ -232,7 +238,7 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
     }
 
     return null
-  }, [activitati, selectedParcela, selectedParcelaId])
+  })()
 
   const onSubmit = (data: EditFormData) => {
     if (!recoltare || mutation.isPending) return
@@ -302,7 +308,7 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
           <div className="space-y-2">
             <Label htmlFor="edit_recoltare_parcela">Parcelă</Label>
             <Select
-              value={form.watch('parcela_id') || '__none'}
+              value={selectedParcelaId || '__none'}
               onValueChange={(value) =>
                 form.setValue('parcela_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })
               }
@@ -332,7 +338,7 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="edit_recoltare_culegator">Culegător</Label>
             <Select
-              value={form.watch('culegator_id') || '__none'}
+              value={selectedCulegatorId || '__none'}
               onValueChange={(value) =>
                 form.setValue('culegator_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })
               }

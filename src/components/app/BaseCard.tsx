@@ -12,6 +12,7 @@ interface BaseCardProps {
 export function BaseCard({ children, className, onClick }: BaseCardProps) {
   return (
     <EntityCard
+      elevateOnHover={Boolean(onClick)}
       className={cn(
         'relative min-h-[168px] overflow-hidden rounded-2xl sm:min-h-[188px]',
         onClick ? 'cursor-pointer' : '',

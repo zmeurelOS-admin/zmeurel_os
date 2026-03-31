@@ -115,6 +115,11 @@ function computeKg(input: { kg_cal1?: number; kg_cal2?: number }) {
   }
 }
 
+/** Total recoltă folosit în UI/KPI/rapoarte: suma cal.1 + cal.2. */
+export function getRecoltareTotalKg(row: { kg_cal1?: number | null; kg_cal2?: number | null }): number {
+  return round2(normalizeKg(row.kg_cal1) + normalizeKg(row.kg_cal2))
+}
+
 function mapRecoltare(row: {
   id: string
   id_recoltare: string

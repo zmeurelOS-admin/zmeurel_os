@@ -12,6 +12,17 @@ import { updateParcela } from '@/lib/supabase/queries/parcele';
 import type { Parcela } from '@/lib/supabase/queries/parcele';
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
 import { formatM2ToHa, parseLocalizedNumber } from '@/lib/utils/area';
+import { ParcelUsageFields, applyScopDefaults } from '@/components/parcele/ParcelUsageFields';
+import {
+  PARCELA_SCOPURI,
+  SCOP_LABELS,
+  STATUS_OPERATIONAL_LABELS,
+  STATUS_OPERATIONAL_VALUES,
+  coerceParcelaScopFromDb,
+  coerceStatusOperationalFromDb,
+  type ParcelaScop,
+  type StatusOperational,
+} from '@/lib/parcele/dashboard-relevance';
 
 type ParcelaUpdate = Partial<Omit<Parcela, 'id' | 'tenant_id' | 'id_parcela' | 'created_at' | 'updated_at'>>;
 
@@ -33,7 +44,10 @@ export function EditParcelaDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nume_parcela: '',
-    rol: 'comercial',
+    rol: 'comercial' as ParcelaScop,
+    apare_in_dashboard: true,
+    contribuie_la_productie: true,
+    status_operational: 'activ' as StatusOperational,
     suprafata_m2: '',
     soi_plantat: '',
     an_plantare: '',
@@ -46,7 +60,10 @@ export function EditParcelaDialog({
     if (!parcela) return;
     setFormData({
       nume_parcela: parcela.nume_parcela,
-      rol: parcela.rol || 'comercial',
+      rol: coerceParcelaScopFromDb(parcela.rol),
+      apare_in_dashboard: parcela.apare_in_dashboard ?? true,
+      contribuie_la_productie: parcela.contribuie_la_productie ?? true,
+      status_operational: coerceStatusOperationalFromDb(parcela.status_operational),
       suprafata_m2: parcela.suprafata_m2.toString(),
       soi_plantat: parcela.soi_plantat || '',
       an_plantare: parcela.an_plantare.toString(),
@@ -75,6 +92,9 @@ export function EditParcelaDialog({
       const updateData: ParcelaUpdate = {
         nume_parcela: formData.nume_parcela,
         rol: formData.rol,
+        apare_in_dashboard: formData.apare_in_dashboard,
+        contribuie_la_productie: formData.contribuie_la_productie,
+        status_operational: formData.status_operational,
         suprafata_m2: parseLocalizedNumber(formData.suprafata_m2),
         soi_plantat: formData.soi_plantat || null,
         an_plantare: parseInt(formData.an_plantare, 10),
@@ -105,6 +125,7 @@ export function EditParcelaDialog({
       onOpenChange={onOpenChange}
       title={`Editează teren ${parcela.nume_parcela}`}
       description={`Modifica detaliile pentru terenul ${parcela.nume_parcela}.`}
+      contentClassName="sm:max-w-4xl"
       footer={
         <DialogFormActions
           onCancel={() => onOpenChange(false)}
@@ -124,18 +145,65 @@ export function EditParcelaDialog({
           <Input id="nume_parcela" value={formData.nume_parcela} onChange={(e) => handleInputChange('nume_parcela', e.target.value)} required />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="rol">Rol</Label>
-          <Select value={formData.rol} onValueChange={(value) => handleInputChange('rol', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="comercial">Comercial</SelectItem>
-              <SelectItem value="uz_propriu">Uz propriu</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Scop</Label>
+            <Select
+              value={formData.rol}
+              onValueChange={(value) => {
+                const next = value as ParcelaScop
+                const defs = applyScopDefaults(next)
+                setFormData((prev) => ({
+                  ...prev,
+                  rol: next,
+                  apare_in_dashboard: defs.apare_in_dashboard,
+                  contribuie_la_productie: defs.contribuie_la_productie,
+                }))
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PARCELA_SCOPURI.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {SCOP_LABELS[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Situație operațională</Label>
+            <Select
+              value={formData.status_operational}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, status_operational: value as StatusOperational }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPERATIONAL_VALUES.map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {STATUS_OPERATIONAL_LABELS[key]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        <ParcelUsageFields
+          scop={formData.rol}
+          apareInDashboard={formData.apare_in_dashboard}
+          contribuieLaProductie={formData.contribuie_la_productie}
+          disableCommercialToggles
+          onApareChange={(v) => setFormData((prev) => ({ ...prev, apare_in_dashboard: v }))}
+          onContribuieChange={(v) => setFormData((prev) => ({ ...prev, contribuie_la_productie: v }))}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="suprafata_m2">Suprafață (m2) *</Label>

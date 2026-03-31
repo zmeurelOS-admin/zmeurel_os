@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, UserRound } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { ModuleEmptyCard, ModuleScoreboard } from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
-import { ListSkeletonCard } from '@/components/app/ListSkeleton'
+import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
 import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
@@ -17,7 +18,6 @@ import { Button } from '@/components/ui/button'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -31,7 +31,6 @@ import {
 } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
-import { cn } from '@/lib/utils'
 
 interface Props {
   initialCulegatori: Culegator[]
@@ -82,12 +81,10 @@ function CulegatorCardNew({
   culegator,
   stats,
   onEdit,
-  onDelete,
 }: {
   culegator: Culegator
   stats: WorkerStats | undefined
   onEdit: () => void
-  onDelete: () => void
 }) {
   const seasonKg = stats?.seasonKg ?? 0
   const seasonCount = stats?.seasonCount ?? 0
@@ -97,12 +94,9 @@ function CulegatorCardNew({
   return (
     <MobileEntityCard
       title={culegator.nume_prenume}
-      value={mainValue}
-      secondary={secondary}
-      onClick={() => {
-        // Deschide direct dialogul de editare la click
-        onEdit()
-      }}
+      mainValue={mainValue}
+      subtitle={secondary}
+      onClick={onEdit}
     />
   )
 }
@@ -205,19 +199,23 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
     },
   })
 
-  useEffect(() => { deleteMutateRef.current = (id) => deleteMutation.mutate(id) })
   useEffect(() => {
+    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
+  }, [deleteMutation])
+  useEffect(() => {
+    const pendingTimersRef = pendingDeleteTimers
+    const pendingItemsRef = pendingDeletedItems
     return () => {
-      Object.keys(pendingDeleteTimers.current).forEach((id) => {
-        clearTimeout(pendingDeleteTimers.current[id])
-        if (pendingDeletedItems.current[id]) {
-          delete pendingDeletedItems.current[id]
+      Object.keys(pendingTimersRef.current).forEach((id) => {
+        clearTimeout(pendingTimersRef.current[id])
+        if (pendingItemsRef.current[id]) {
+          delete pendingItemsRef.current[id]
           deleteMutateRef.current(id)
         }
       })
-      pendingDeleteTimers.current = {}
+      pendingTimersRef.current = {}
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const unregister = registerAddAction(() => setShowAdd(true), 'Adaugă culegător')
@@ -405,6 +403,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       cell: ({ row }) => (row.original.cost > 0 ? `${row.original.cost} RON/kg` : '-'),
       meta: {
         searchValue: (row: DesktopCulegatorRow) => row.cost,
+        numeric: true,
       },
     },
     {
@@ -452,23 +451,28 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
 
   return (
     <AppShell
-      header={<PageHeader title="Culegători" subtitle="Evidența echipei de lucru" rightSlot={<span style={{ fontSize: 22 }}>👤</span>} />}
+      header={
+        <PageHeader
+          title="Culegători"
+          subtitle="Evidența echipei de lucru"
+          rightSlot={<UserRound className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
+        />
+      }
     >
-      <div className="mx-auto mt-3 w-full max-w-4xl space-y-3 py-3 sm:mt-0">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3">
 
         {/* Scoreboard compact */}
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: '4px 14px', alignItems: 'center',
-          padding: '10px 14px', background: 'var(--pill-active-bg)', borderRadius: 14,
-        }}>
-          <span style={{ color: 'var(--pill-active-text)', fontWeight: 700, fontSize: 15 }}>{culegatori.length} culegători</span>
-          {activeTodayCount > 0 && (
+        <ModuleScoreboard tone="tinted" className="gap-x-3.5 gap-y-1">
+          <span className="text-[15px] font-bold text-[var(--pill-active-text)]">{culegatori.length} culegători</span>
+          {activeTodayCount > 0 ? (
             <>
-              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 25%, transparent)' }}>·</span>
-              <span style={{ color: 'color-mix(in srgb, var(--pill-active-text) 72%, transparent)', fontSize: 13 }}>{activeTodayCount} activi azi</span>
+              <span className="text-[var(--pill-active-text)]/25">·</span>
+              <span className="text-[13px] text-[color-mix(in_srgb,var(--pill-active-text)_72%,transparent)]">
+                {activeTodayCount} activi azi
+              </span>
             </>
-          )}
-        </div>
+          ) : null}
+        </ModuleScoreboard>
 
         {/* Search */}
         <SearchField
@@ -483,21 +487,15 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
         {/* Loading */}
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <ListSkeletonCard key={i} className="min-h-[72px]" />
-            ))}
-          </div>
-        ) : null}
+        {isLoading ? <EntityListSkeleton count={4} /> : null}
 
         {/* Empty state */}
         {!isLoading && !isError && filteredCulegatori.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
-            <p style={{ fontWeight: 700, fontSize: 16, color: 'var(--agri-text)', marginBottom: 6 }}>Niciun culegător adăugat</p>
-            <p style={{ fontSize: 13, color: 'var(--agri-text-muted)' }}>Adaugă primul culegător pentru a începe</p>
-          </div>
+          <ModuleEmptyCard
+            emoji="👤"
+            title="Niciun culegător adăugat"
+            hint="Adaugă primul culegător pentru a începe"
+          />
         ) : null}
 
         {/* Cards */}
@@ -515,7 +513,6 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
                 culegator={culegator}
                 stats={workerStats.get(culegator.id)}
                 onEdit={() => setEditCulegator(culegator)}
-                onDelete={() => setDeleting(culegator)}
               />
             )}
           />

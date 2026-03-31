@@ -48,13 +48,13 @@ function WidgetFrame({
   return (
     <AppCard
       className={cn(
-        'flex h-full flex-col overflow-hidden p-0 shadow-[0_10px_24px_rgba(16,32,21,0.06)]',
+        'dashboard-widget-frame flex h-full flex-col overflow-hidden p-0 shadow-[0_10px_24px_rgba(16,32,21,0.06)]',
         editMode ? 'border-dashed border-[var(--agri-primary)]/45 bg-[var(--agri-surface)]' : '',
         className
       )}
     >
       {!hideHeader ? (
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--agri-border)]/70 px-4 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--agri-border)]/60 px-[18px] py-3.5">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               {editMode && handleEnabled ? (
@@ -62,9 +62,17 @@ function WidgetFrame({
                   <GripVertical className="h-3.5 w-3.5" />
                 </span>
               ) : null}
-              {title ? <h3 className="truncate text-sm font-semibold text-[var(--agri-text)]">{title}</h3> : null}
+              {title ? (
+                <h3 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]">
+                  {title}
+                </h3>
+              ) : null}
             </div>
-            {description ? <p className="mt-1 text-xs leading-5 text-[var(--agri-text-muted)]">{description}</p> : null}
+            {description ? (
+              <p className="mt-1 text-xs font-normal leading-5 tracking-[-0.01em] text-[var(--agri-text-muted)]">
+                {description}
+              </p>
+            ) : null}
           </div>
           {editMode && onDisable ? (
             <Button
@@ -81,11 +89,11 @@ function WidgetFrame({
         </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col px-4 py-4">
+      <div className="flex flex-1 flex-col px-[18px] py-4">
         {placeholder ? <WidgetPlaceholder /> : children}
       </div>
 
-      {footer ? <div className="border-t border-[var(--agri-border)]/70 px-4 py-3">{footer}</div> : null}
+      {footer ? <div className="border-t border-[var(--agri-border)]/60 px-[18px] py-3">{footer}</div> : null}
     </AppCard>
   )
 }
@@ -112,10 +120,10 @@ export function KpiSummaryWidget({
       handleEnabled={false}
       hideHeader
       placeholder={items.length === 0}
-      className="bg-[linear-gradient(180deg,rgba(45,106,79,0.06),rgba(255,255,255,0))]"
+      className="dashboard-kpi-summary-widget bg-[linear-gradient(180deg,rgba(45,106,79,0.06),rgba(255,255,255,0))]"
     >
       {items.length === 1 ? (
-        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-6 py-5">
+        <div className="dashboard-kpi-tile px-2 py-1">
           <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
             {items[0].label}
           </div>
@@ -141,7 +149,7 @@ export function KpiSummaryWidget({
           {items.map((item) => (
             <div
               key={item.id}
-              className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-4"
+              className="dashboard-kpi-tile px-2 py-1"
             >
               <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
                 {item.label}

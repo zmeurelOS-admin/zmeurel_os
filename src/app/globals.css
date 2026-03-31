@@ -136,8 +136,23 @@
   --agri-danger: #c63b3b;
 
   --agri-radius: 16px;
-  --agri-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  /* Carduri / suprafețe ridicate — aceleași principii ca dashboard (umbre calde, colțuri mari) */
+  --agri-radius-lg: 22px;
+  --agri-border-card: color-mix(in srgb, var(--agri-border) 68%, transparent);
+  --agri-shadow: 0 1px 2px rgba(120, 100, 70, 0.05), 0 8px 22px rgba(120, 100, 70, 0.08);
+  --agri-elevated-shadow: 0 1px 2px rgba(120, 100, 70, 0.05), 0 12px 32px rgba(120, 100, 70, 0.09);
+  /* Hover pe carduri / suprafețe ridicate — aceeași familie de umbre, puțin mai adâncă */
+  --agri-elevated-shadow-hover: 0 2px 4px rgba(120, 100, 70, 0.07), 0 16px 40px rgba(120, 100, 70, 0.12);
+  /* CTA / butoane pline — lift neutru, fără schimbare de layout */
+  --agri-button-hover-shadow: 0 2px 6px rgba(16, 32, 21, 0.09), 0 4px 14px rgba(16, 32, 21, 0.06);
   --agri-focus-ring: 0 0 0 3px rgba(31, 143, 74, 0.35);
+  --shell-content-px: clamp(14px, 4vw, 18px);
+
+  /* Câmpuri formular — aliniat la carduri / dialog */
+  --agri-field-h: 2.75rem;
+  --agri-field-idle-shadow: 0 1px 2px rgba(120, 100, 70, 0.05);
+  --agri-field-focus-ring: 0 0 0 3px color-mix(in srgb, var(--agri-primary) 22%, transparent);
+  --agri-field-error-ring: 0 0 0 3px color-mix(in srgb, var(--destructive) 16%, transparent);
 
   --touch-control-h: 48px;
   --touch-control-h-lg: 56px;
@@ -267,8 +282,15 @@
   --agri-primary: var(--primary);
   --agri-primary-contrast: #052e16;
   --agri-danger: #f87171;
-  --agri-shadow: 0 1px 3px rgba(2, 6, 23, 0.35);
+  --agri-border-card: color-mix(in srgb, var(--agri-border) 82%, transparent);
+  --agri-shadow: 0 1px 3px rgba(0, 0, 0, 0.22), 0 8px 24px rgba(0, 0, 0, 0.28);
+  --agri-elevated-shadow: 0 2px 4px rgba(0, 0, 0, 0.24), 0 14px 38px rgba(0, 0, 0, 0.34);
+  --agri-elevated-shadow-hover: 0 3px 6px rgba(0, 0, 0, 0.32), 0 18px 46px rgba(0, 0, 0, 0.44);
+  --agri-button-hover-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.22);
   --agri-focus-ring: 0 0 0 3px rgba(74, 222, 128, 0.35);
+  --agri-field-idle-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  --agri-field-focus-ring: 0 0 0 3px color-mix(in srgb, var(--agri-primary) 32%, transparent);
+  --agri-field-error-ring: 0 0 0 3px color-mix(in srgb, var(--destructive) 22%, transparent);
 }
 
 @theme inline {
@@ -313,6 +335,12 @@ body {
   margin: 0;
   padding: 0;
   overscroll-behavior: none;
+}
+
+/* Checkbox / radio nativ — accent coerent, fără componentă nouă */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--agri-primary);
 }
 
 .value-kg {
@@ -419,16 +447,24 @@ html[data-modal-open='true'] [data-mobile-fab='true'] {
 
 .agri-control {
   min-height: var(--touch-control-h);
-  border-radius: 16px;
-  border: var(--agri-border-w) solid var(--agri-border);
+  border-radius: var(--agri-radius);
+  border: 1px solid var(--agri-border-card);
   background: var(--agri-surface);
   color: var(--agri-text);
-  box-shadow: var(--agri-shadow);
+  box-shadow: var(--agri-field-idle-shadow);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.agri-control:hover:not(:disabled):not([aria-disabled='true']) {
+  border-color: color-mix(in srgb, var(--agri-primary) 28%, var(--agri-border));
 }
 
 .agri-control:focus-visible {
   outline: none;
-  box-shadow: var(--agri-focus-ring);
+  border-color: color-mix(in srgb, var(--agri-primary) 45%, var(--agri-border));
+  box-shadow: var(--agri-field-focus-ring);
 }
 
 .agri-cta {
@@ -455,7 +491,9 @@ html.high-visibility-mode {
   --agri-text: #0a1a10;
   --agri-text-muted: #1f3226;
   --agri-border: #5d7364;
+  --agri-border-card: var(--agri-border);
   --agri-border-w: 2px;
+  --agri-radius-lg: 20px;
   --agri-focus-ring: 0 0 0 4px rgba(255, 193, 7, 0.6);
   --touch-control-h: 52px;
   --touch-control-h-lg: 60px;
@@ -469,7 +507,10 @@ html[data-density='compact'] {
   --touch-control-h: 44px;
   --touch-control-h-lg: 50px;
   --agri-radius: 14px;
+  --agri-radius-lg: 18px;
+  --agri-field-h: 2.5rem;
   --agri-shadow: 0 6px 16px rgba(16, 32, 21, 0.1);
+  --agri-elevated-shadow: 0 6px 16px rgba(16, 32, 21, 0.1);
 }
 
 html[data-density='compact'] .agri-card {
@@ -566,4 +607,171 @@ html[data-density='compact'] [data-slot='table-cell'] {
   height: 11px;
   border-right: 2px solid rgba(45, 106, 79, 0.55);
   border-bottom: 2px solid rgba(45, 106, 79, 0.55);
+}
+
+/* Dashboard comercial: spațiere, suprafețe premium, fără redesign global */
+.dashboard-premium-scope {
+  --dashboard-stack-gap: clamp(1rem, 3vw, 1.35rem);
+  --dashboard-radius-lg: clamp(1.25rem, 4vw, 1.65rem);
+  --dashboard-shadow-card: 0 2px 4px rgba(8, 18, 14, 0.06), 0 14px 36px rgba(18, 42, 32, 0.1);
+  --dashboard-shadow-soft: 0 1px 2px rgba(8, 18, 14, 0.05), 0 8px 22px rgba(18, 42, 32, 0.08);
+}
+
+.dashboard-premium-scope .mb-5 {
+  margin-bottom: var(--dashboard-stack-gap);
+}
+
+.dashboard-premium-scope .dashboard-stack-welcome,
+.dashboard-premium-scope .dashboard-stack-meteo,
+.dashboard-premium-scope .dashboard-stack-kpi,
+.dashboard-premium-scope .dashboard-stack-pulse,
+.dashboard-premium-scope .dashboard-stack-tasks {
+  margin-bottom: var(--dashboard-stack-gap);
+}
+
+@media (max-width: 1023px) {
+  .dashboard-premium-scope {
+    --dashboard-stack-gap: clamp(0.65rem, 2.2vw, 1rem);
+  }
+
+  .dashboard-premium-header {
+    padding-bottom: 0.15rem;
+  }
+
+  .dashboard-premium-header .mt-2.lg\:mt-3 {
+    margin-top: 0.375rem;
+  }
+
+  .dashboard-premium-header > div.absolute.inset-0.lg\:hidden {
+    background: color-mix(in srgb, #0a1014 94%, transparent) !important;
+    backdrop-filter: saturate(150%) blur(22px);
+    -webkit-backdrop-filter: saturate(150%) blur(22px);
+  }
+
+  .dashboard-premium-header .lg\:hidden h1 {
+    color: #f4f6f8;
+    letter-spacing: -0.03em;
+    font-size: 1.25rem;
+    line-height: 1.15;
+  }
+
+  .dashboard-premium-header .lg\:hidden p {
+    color: rgba(226, 232, 240, 0.78);
+  }
+}
+
+.dark .dashboard-premium-scope {
+  --dashboard-shadow-card: 0 2px 6px rgba(0, 0, 0, 0.28), 0 16px 40px rgba(0, 0, 0, 0.38);
+  --dashboard-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.22), 0 10px 28px rgba(0, 0, 0, 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dashboard-premium-scope {
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Meteo: card primar, glass discret (contract date neschimbat) */
+.dashboard-premium-scope .dashboard-meteo-hero {
+  border-radius: var(--dashboard-radius-lg);
+  border-color: color-mix(in srgb, var(--agri-border) 65%, transparent);
+  box-shadow: var(--dashboard-shadow-card);
+  background: color-mix(in srgb, var(--agri-surface) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.dark .dashboard-premium-scope .dashboard-meteo-hero {
+  background: color-mix(in srgb, var(--agri-surface) 82%, transparent);
+  border-color: color-mix(in srgb, var(--agri-primary) 18%, var(--agri-border));
+}
+
+/* Zonă operațională: grup clar fără date noi */
+.dashboard-premium-scope .dashboard-op-zone {
+  margin-bottom: var(--dashboard-stack-gap);
+  border-radius: var(--dashboard-radius-lg);
+  padding: clamp(0.85rem, 3vw, 1.1rem);
+  border: 1px solid color-mix(in srgb, var(--agri-border) 72%, transparent);
+  background: color-mix(in srgb, var(--agri-surface-muted) 45%, var(--agri-surface));
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.dashboard-premium-scope .dashboard-section-head {
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-premium-scope .dashboard-section-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--agri-text-muted);
+}
+
+.dashboard-premium-scope .dashboard-section-title {
+  margin: 0.2rem 0 0;
+  font-size: clamp(1.05rem, 3.5vw, 1.2rem);
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  color: var(--agri-text);
+}
+
+.dashboard-premium-scope .dashboard-op-zone-hint {
+  margin: 0.4rem 0 0;
+  max-width: 42ch;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 450;
+  color: color-mix(in srgb, var(--agri-text-muted) 88%, var(--agri-text));
+}
+
+.dashboard-premium-scope .dashboard-op-zone-inner > * {
+  margin-bottom: 0;
+}
+
+/* Widget-uri dashboard: suprafață și rază aliniate cu scope-ul premium */
+.dashboard-premium-scope .dashboard-widget-frame {
+  border-radius: var(--dashboard-radius-lg);
+  border-color: color-mix(in srgb, var(--agri-border) 78%, transparent);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.dark .dashboard-premium-scope .dashboard-widget-frame {
+  border-color: color-mix(in srgb, var(--agri-border) 90%, transparent);
+}
+
+.dashboard-premium-scope .dashboard-kpi-tile {
+  box-shadow:
+    0 1px 2px rgba(8, 18, 14, 0.04),
+    0 5px 16px rgba(18, 42, 32, 0.06);
+}
+
+.dark .dashboard-premium-scope .dashboard-kpi-tile {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.22),
+    0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+/* KPI block: cifre mai mari pe mobil */
+.dashboard-premium-scope .dashboard-stack-kpi .dashboard-kpi-summary-widget .font-bold.leading-none {
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 767px) {
+  .dashboard-premium-scope .dashboard-stack-kpi .dashboard-kpi-summary-widget .grid.grid-cols-2 {
+    gap: 0.65rem;
+  }
+}
+
+/* Task list: aceeași logică, relief premium */
+.dashboard-premium-scope .dashboard-task-list {
+  border-radius: var(--dashboard-radius-lg);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.dashboard-scope-footnote {
+  font-weight: 450;
+  letter-spacing: 0.012em;
 }
