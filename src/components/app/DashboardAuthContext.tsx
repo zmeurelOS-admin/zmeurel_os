@@ -6,12 +6,15 @@ export interface DashboardAuthValue {
   userId: string | null
   email: string | null
   isSuperAdmin: boolean
+  /** Din proxy (`x-zmeurel-tenant-id`); folosit la invoke edge (ex. meteo). */
+  tenantId: string | null
 }
 
 const DashboardAuthContext = createContext<DashboardAuthValue>({
   userId: null,
   email: null,
   isSuperAdmin: false,
+  tenantId: null,
 })
 
 export function DashboardAuthProvider({

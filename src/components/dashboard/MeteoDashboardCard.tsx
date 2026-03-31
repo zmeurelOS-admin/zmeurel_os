@@ -1,9 +1,14 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 import { DashboardCard } from '@/components/dashboard/DashboardCard'
+import { cn } from '@/lib/utils'
 
 type MeteoData = {
   available: boolean
+  error?: string
   source?: 'cache' | 'fresh'
   current?: {
     temp: number | null
@@ -80,14 +85,33 @@ export function MeteoDashboardCard({
   data,
   loading,
   error,
+  className,
 }: {
   data: MeteoData | null
   loading: boolean
   error: string | null
+  className?: string
 }) {
+  const [hidePersistentError, setHidePersistentError] = useState(false)
+
+  useEffect(() => {
+    if (!error) {
+      setHidePersistentError(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setHidePersistentError(true)
+    }, 3000)
+
+    return () => window.clearTimeout(timer)
+  }, [error])
+
+  if (hidePersistentError) return null
+
   if (loading) {
     return (
-      <DashboardCard title="Meteo azi" className="overflow-hidden">
+      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', className)}>
         <div className="space-y-3 animate-pulse">
           <div className="h-6 w-28 rounded-full bg-[var(--agri-surface-muted)]" />
           <div className="h-12 w-40 rounded-2xl bg-[var(--agri-surface-muted)]" />
@@ -102,31 +126,43 @@ export function MeteoDashboardCard({
 
   if (error) {
     return (
-      <DashboardCard title="Meteo azi" className="overflow-hidden">
-        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/50 px-4 py-4 text-sm text-[var(--agri-text-muted)]">
-          {error}
-        </div>
-        <div className="pt-2 text-[10px] text-[var(--agri-text-muted)]">
-          Date meteo:{' '}
-          <Link href="https://openweathermap.org" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-            OpenWeather
-          </Link>
+      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', className)}>
+        <div className="flex items-center rounded-xl bg-[var(--agri-surface-muted)]/45 px-3 py-2 text-sm text-[var(--muted-foreground)]">
+          ☁️ Meteo indisponibil · Verifică mai târziu
         </div>
       </DashboardCard>
     )
   }
 
   if (!data?.available) {
+    const edgeError = (data?.error ?? '').trim()
+    const isLikelyCoordsHint =
+      !edgeError ||
+      edgeError.toLowerCase().includes('tenant invalid') ||
+      edgeError.toLowerCase().includes('coord')
+
     return (
-      <DashboardCard title="Meteo azi" className="overflow-hidden">
+      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', className)}>
         <div className="rounded-2xl border border-dashed border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/50 px-4 py-4 text-sm text-[var(--agri-text-muted)]">
-          Adaugă coordonate pe o parcelă comercială sau în Setări pentru a vedea meteo pe dashboard.
-        </div>
-        <div className="pt-2 text-[10px] text-[var(--agri-text-muted)]">
-          Date meteo:{' '}
-          <Link href="https://openweathermap.org" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-            OpenWeather
-          </Link>
+          {edgeError && !isLikelyCoordsHint ? (
+            <>
+              Meteo nu s-a putut încărca: {edgeError}
+              <span className="mt-2 block text-xs text-[var(--agri-text-muted)]">
+                Dacă mesajul menționează serviciul meteo sau API key: verifică secretul{' '}
+                <code className="rounded bg-[var(--agri-surface-muted)] px-1">OPENWEATHERMAP_API_KEY</code> pe Supabase
+                și că ai rulat{' '}
+                <code className="rounded bg-[var(--agri-surface-muted)] px-1">
+                  supabase functions deploy fetch-meteo get-meteo
+                </code>{' '}
+                pe același proiect ca <code className="rounded bg-[var(--agri-surface-muted)] px-1">NEXT_PUBLIC_SUPABASE_URL</code>.
+              </span>
+            </>
+          ) : (
+            <>
+              Adaugă coordonate pe un teren cu producție comercială (vizibil în dashboard) sau în Setări pentru a
+              vedea meteo aici.
+            </>
+          )}
         </div>
       </DashboardCard>
     )
@@ -144,7 +180,7 @@ export function MeteoDashboardCard({
           {data.source === 'cache' ? 'Cache 3h' : 'Actualizat'}
         </span>
       }
-      className="overflow-hidden"
+      className={cn('overflow-hidden', className)}
       contentClassName="space-y-4"
     >
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -168,13 +204,13 @@ export function MeteoDashboardCard({
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-4 py-3">
+        <div className="px-1 py-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">Vânt</div>
           <div className="mt-2 text-lg font-bold text-[var(--agri-text)]">{formatNumber(data.current?.windSpeed, 1)} km/h</div>
           <div className="mt-1 text-xs text-[var(--agri-text-muted)]">Umiditate {formatNumber(data.current?.humidity, 0)}%</div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-4 py-3">
+        <div className="px-1 py-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">Mâine</div>
           <div className="mt-2 flex items-center gap-2 text-lg font-bold text-[var(--agri-text)]">
             <span>{iconToEmoji(data.forecastTomorrow?.icon)}</span>
@@ -183,7 +219,7 @@ export function MeteoDashboardCard({
           <div className="mt-1 text-xs text-[var(--agri-text-muted)]">Ploaie {formatPercent(data.forecastTomorrow?.pop)}</div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-4 py-3">
+        <div className="px-1 py-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">Recomandare</div>
           <div className="mt-2 text-lg font-bold text-[var(--agri-text)]">{data.spray?.canSpray ? 'Condiții bune' : 'Atenție'}</div>
           <div className="mt-1 text-xs text-[var(--agri-text-muted)]">{data.spray?.reason ?? 'Ploaie redusă, vânt mic și temperatură potrivită.'}</div>

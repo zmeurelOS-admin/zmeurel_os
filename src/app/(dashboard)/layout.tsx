@@ -16,6 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const headerStore = await headers()
   const userIdFromProxy = headerStore.get('x-zmeurel-user-id')
   const emailFromProxy = headerStore.get('x-zmeurel-user-email')
+  const tenantIdFromProxy = headerStore.get('x-zmeurel-tenant-id')
 
   const {
     data: { user },
@@ -31,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     userId: user.id,
     email: user.email ?? null,
     isSuperAdmin: await isSuperAdmin(supabase, user.id),
+    tenantId: typeof tenantIdFromProxy === 'string' && tenantIdFromProxy ? tenantIdFromProxy : null,
   }
 
   return (
