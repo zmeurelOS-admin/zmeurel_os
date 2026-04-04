@@ -30,7 +30,7 @@ export function ConfirmDeleteDialog({
   loading = false,
 }: ConfirmDeleteDialogProps) {
   const label = itemName ? `${itemType} ${itemName}` : itemType
-  const bodyText = description ?? `Urmeaza sa stergi ${label}.`
+  const bodyText = description ?? `Urmează să ștergi ${label}.`
 
   return (
     <AppDialog
@@ -39,12 +39,12 @@ export function ConfirmDeleteDialog({
       title={title}
       footer={
         <div className="flex w-full flex-row items-center justify-between gap-3">
-          <Button type="button" variant="outline" className="agri-cta shrink-0" onClick={() => onOpenChange(false)} disabled={loading}>
+          <Button type="button" variant="outline" className="agri-cta min-h-11 shrink-0" onClick={() => onOpenChange(false)} disabled={loading}>
             {cancelText}
           </Button>
           <Button
             type="button"
-            className="agri-cta shrink-0 bg-red-600 text-white hover:opacity-95 dark:bg-red-700 dark:hover:opacity-95"
+            className="agri-cta min-h-11 shrink-0 bg-red-600 text-white hover:opacity-95 dark:bg-red-700 dark:hover:opacity-95"
             onClick={() => {
               hapticConfirm()
               onConfirm()
@@ -56,7 +56,7 @@ export function ConfirmDeleteDialog({
         </div>
       }
     >
-      <p className="text-sm font-medium text-[var(--agri-text-muted)]">{bodyText}</p>
+      <p className="text-sm leading-relaxed text-[var(--agri-text-muted)]">{bodyText}</p>
     </AppDialog>
   )
 }

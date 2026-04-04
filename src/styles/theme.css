@@ -1,0 +1,169 @@
+:root {
+  /* Single source of truth pentru semantic tokens light/dark (consumat de toate componentele UI). */
+  /* Semantic surfaces */
+  --surface-page: #ffffff;
+  --surface-card: #ffffff;
+  --surface-card-muted: #ededeb;
+  --surface-card-elevated: #ffffff;
+
+  /* Semantic text */
+  --text-primary: #102015;
+  --text-secondary: #526057;
+  --text-tertiary: #64748b;
+  --text-on-accent: #ffffff;
+
+  /* Semantic borders/dividers */
+  --border-default: #d7e2d9;
+  --border-strong: #c8d4cb;
+  --divider: rgba(16, 32, 21, 0.08);
+
+  /* Semantic input/focus */
+  --input-bg: #ffffff;
+  --input-border: #d7e2d9;
+  --input-placeholder: #64748b;
+  --focus-ring: #2d6a4f;
+
+  /* Semantic status tones */
+  --success-bg: #ecfdf3;
+  --success-text: #15803d;
+  --success-border: #86efac;
+  --warning-bg: #fffbeb;
+  --warning-text: #b45309;
+  --warning-border: #fde68a;
+  --danger-bg: #fef2f2;
+  --danger-text: #dc2626;
+  --danger-border: #fecaca;
+  --info-bg: #eff6ff;
+  --info-text: #2563eb;
+  --info-border: #bfdbfe;
+  --neutral-bg: #f8fafc;
+  --neutral-text: #475569;
+  --neutral-border: #e2e8f0;
+
+  /* Semantic shadows */
+  --shadow-soft: 0 1px 3px rgba(16, 32, 21, 0.06);
+  --shadow-elevated: 0 6px 18px rgba(16, 32, 21, 0.1);
+
+  /*
+   * Compatibility aliases (Step 1):
+   * keep existing primitives/pages visually stable while migrating to semantic tokens.
+   */
+  --bg-primary: var(--surface-page);
+  --bg-secondary: #f7f8fa;
+  --bg-card: var(--surface-card);
+
+  --status-success-bg: var(--success-bg);
+  --status-success-text: var(--success-text);
+  --status-success-border: var(--success-border);
+  --status-warning-bg: var(--warning-bg);
+  --status-warning-text: var(--warning-text);
+  --status-warning-border: var(--warning-border);
+  --status-danger-bg: var(--danger-bg);
+  --status-danger-text: var(--danger-text);
+  --status-danger-border: var(--danger-border);
+  --status-info-bg: var(--info-bg);
+  --status-info-text: var(--info-text);
+  --status-info-border: var(--info-border);
+  --status-neutral-bg: var(--neutral-bg);
+  --status-neutral-text: var(--neutral-text);
+  --status-neutral-border: var(--neutral-border);
+
+  --surface-elevated: var(--surface-card-elevated);
+  --surface-elevated-hover: #f8fafc;
+  --surface-divider: var(--divider);
+  --shadow-card-soft: var(--shadow-soft);
+  --shadow-card-raised: var(--shadow-elevated);
+
+  --agri-bg: #f5f5f3;
+  --agri-surface: var(--surface-card);
+  --agri-surface-muted: var(--surface-card-muted);
+  --agri-text: var(--text-primary);
+  --agri-text-muted: #3d4a41;
+  --agri-border: var(--border-strong);
+  --agri-primary-contrast: var(--text-on-accent);
+  --agri-focus-ring: 0 0 0 3px rgba(31, 143, 74, 0.35);
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Semantic surfaces */
+  --surface-page: #0f172a;
+  --surface-card: #1e293b;
+  --surface-card-muted: #24324a;
+  --surface-card-elevated: #334155;
+
+  /* Semantic text */
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-on-accent: #052e16;
+
+  /* Semantic borders/dividers */
+  --border-default: #334155;
+  --border-strong: #475569;
+  --divider: rgba(51, 65, 85, 0.65);
+
+  /* Semantic input/focus */
+  --input-bg: #334155;
+  --input-border: #475569;
+  --input-placeholder: #64748b;
+  --focus-ring: #4ade80;
+
+  /* Semantic status tones */
+  --success-bg: rgba(22, 101, 52, 0.5);
+  --success-text: #4ade80;
+  --success-border: #15803d;
+  --warning-bg: rgba(120, 53, 15, 0.5);
+  --warning-text: #fbbf24;
+  --warning-border: #b45309;
+  --danger-bg: rgba(127, 29, 29, 0.5);
+  --danger-text: #f87171;
+  --danger-border: #b91c1c;
+  --info-bg: rgba(30, 58, 138, 0.5);
+  --info-text: #60a5fa;
+  --info-border: #1d4ed8;
+  --neutral-bg: #334155;
+  --neutral-text: #cbd5e1;
+  --neutral-border: #475569;
+
+  /* Semantic shadows */
+  --shadow-soft: 0 1px 3px rgba(2, 6, 23, 0.3);
+  --shadow-elevated: 0 8px 20px rgba(2, 6, 23, 0.35);
+
+  /* Compatibility aliases (Step 1) */
+  --bg-primary: var(--surface-page);
+  --bg-secondary: #1e293b;
+  --bg-card: var(--surface-card);
+
+  --status-success-bg: var(--success-bg);
+  --status-success-text: var(--success-text);
+  --status-success-border: var(--success-border);
+  --status-warning-bg: var(--warning-bg);
+  --status-warning-text: var(--warning-text);
+  --status-warning-border: var(--warning-border);
+  --status-danger-bg: var(--danger-bg);
+  --status-danger-text: var(--danger-text);
+  --status-danger-border: var(--danger-border);
+  --status-info-bg: var(--info-bg);
+  --status-info-text: var(--info-text);
+  --status-info-border: var(--info-border);
+  --status-neutral-bg: var(--neutral-bg);
+  --status-neutral-text: var(--neutral-text);
+  --status-neutral-border: var(--neutral-border);
+
+  --surface-elevated: var(--surface-card-elevated);
+  --surface-elevated-hover: #475569;
+  --surface-divider: var(--divider);
+  --shadow-card-soft: var(--shadow-soft);
+  --shadow-card-raised: var(--shadow-elevated);
+
+  --agri-bg: #0f172a;
+  --agri-surface: #1a2538;
+  --agri-surface-muted: var(--surface-card-muted);
+  --agri-text: var(--text-primary);
+  --agri-text-muted: var(--text-secondary);
+  --agri-border: var(--border-default);
+  --agri-primary-contrast: var(--text-on-accent);
+  --agri-focus-ring: 0 0 0 3px rgba(74, 222, 128, 0.35);
+}

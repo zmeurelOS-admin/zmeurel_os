@@ -27,7 +27,7 @@ export function WelcomeCard({ onAddTerrain, onDismiss }: WelcomeCardProps) {
       <div className="mb-4 text-[2.5rem] leading-none" aria-hidden>
         🌱
       </div>
-      <h2 className="text-lg font-semibold leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650] sm:text-xl">
+      <h2 className="text-lg leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650] sm:text-xl">
         Adaugă sau marchează un teren pentru producție comercială.
       </h2>
       <Button

@@ -63,7 +63,7 @@ export default async function AdminAuditPage({
         {(logsError || countError) ? (
           <Card className="rounded-2xl border-red-200 bg-red-50">
             <CardContent className="p-4 text-sm text-red-800">
-              Eroare la înc?rcare audit logs: {logsError?.message ?? countError?.message}
+              Eroare la încărcare audit logs: {logsError?.message ?? countError?.message}
             </CardContent>
           </Card>
         ) : (

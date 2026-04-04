@@ -81,16 +81,57 @@ function capitalize(value: string | null | undefined): string {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
 }
 
+function sprayTone(value: MeteoData['spray']) {
+  const reason = (value?.reason ?? '').toLowerCase()
+  if (value?.canSpray) {
+    return {
+      label: 'Stropire: condiții bune acum.',
+      className: 'text-[var(--success-text)]',
+    }
+  }
+
+  const severe =
+    reason.includes('vânt') ||
+    reason.includes('furtun') ||
+    reason.includes('ploi') ||
+    reason.includes('ploaie putern') ||
+    reason.includes('îngheț')
+
+  if (severe) {
+    return {
+      label: `Stropire: ${value?.reason ?? 'Condițiile sunt nefavorabile acum.'}`,
+      className: 'text-[var(--status-danger-text)]',
+    }
+  }
+
+  return {
+    label: `Stropire: ${value?.reason ?? 'Condițiile nu sunt ideale acum.'}`,
+    className: 'text-[var(--status-warning-text)]',
+  }
+}
+
 export function MeteoDashboardCard({
   data,
   loading,
   error,
+  primaryContext = 'camp',
+  microclimate,
   className,
+  compact = false,
 }: {
   data: MeteoData | null
   loading: boolean
   error: string | null
+  primaryContext?: 'solar' | 'camp' | 'mixed'
+  microclimate?: {
+    hasData: boolean
+    isRecent: boolean
+    temperature: number | null
+    humidity: number | null
+  } | null
   className?: string
+  /** Pe desktop: card mai dens, fără lățime „hero”. */
+  compact?: boolean
 }) {
   const [hidePersistentError, setHidePersistentError] = useState(false)
 
@@ -110,13 +151,13 @@ export function MeteoDashboardCard({
 
   if (loading) {
     return (
-      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', className)}>
+      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', compact && 'dashboard-meteo-compact', className)}>
         <div className="space-y-3 animate-pulse">
-          <div className="h-6 w-28 rounded-full bg-[var(--agri-surface-muted)]" />
-          <div className="h-12 w-40 rounded-2xl bg-[var(--agri-surface-muted)]" />
+          <div className="h-6 w-28 rounded-full bg-[var(--surface-card-muted)]" />
+          <div className="h-12 w-40 rounded-xl bg-[var(--surface-card-muted)]" />
           <div className="grid grid-cols-2 gap-3">
-            <div className="h-20 rounded-2xl bg-[var(--agri-surface-muted)]" />
-            <div className="h-20 rounded-2xl bg-[var(--agri-surface-muted)]" />
+            <div className="h-16 rounded-xl bg-[var(--surface-card-muted)]" />
+            <div className="h-16 rounded-xl bg-[var(--surface-card-muted)]" />
           </div>
         </div>
       </DashboardCard>
@@ -125,10 +166,8 @@ export function MeteoDashboardCard({
 
   if (error) {
     return (
-      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', className)}>
-        <div className="flex items-center rounded-xl bg-[var(--agri-surface-muted)]/45 px-3 py-2 text-sm text-[var(--muted-foreground)]">
-          ☁️ Meteo indisponibil · Verifică mai târziu
-        </div>
+      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', compact && 'dashboard-meteo-compact', className)}>
+        <p className="text-sm text-[var(--text-secondary)]">Meteo indisponibil. Verifică mai târziu.</p>
       </DashboardCard>
     )
   }
@@ -141,96 +180,135 @@ export function MeteoDashboardCard({
       edgeError.toLowerCase().includes('coord')
 
     return (
-      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', className)}>
-        <div className="rounded-2xl border border-dashed border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/50 px-4 py-4 text-sm text-[var(--agri-text-muted)]">
+      <DashboardCard title="Meteo azi" className={cn('overflow-hidden', compact && 'dashboard-meteo-compact', className)}>
+        <div className="space-y-2 text-sm text-[var(--text-secondary)]">
           {edgeError && !isLikelyCoordsHint ? (
             <>
-              Meteo nu s-a putut încărca: {edgeError}
-              <span className="mt-2 block text-xs text-[var(--agri-text-muted)]">
-                Dacă mesajul menționează serviciul meteo sau API key: verifică secretul{' '}
-                <code className="rounded bg-[var(--agri-surface-muted)] px-1">OPENWEATHERMAP_API_KEY</code> pe Supabase
-                și că ai rulat{' '}
-                <code className="rounded bg-[var(--agri-surface-muted)] px-1">
-                  supabase functions deploy fetch-meteo get-meteo
-                </code>{' '}
-                pe același proiect ca <code className="rounded bg-[var(--agri-surface-muted)] px-1">NEXT_PUBLIC_SUPABASE_URL</code>.
-              </span>
+              <p>Meteo nu s-a putut încărca: {edgeError}</p>
+              <p className="text-xs">
+                Dacă mesajul menționează serviciul meteo sau cheia API, verifică `OPENWEATHERMAP_API_KEY` și deploy-ul
+                funcțiilor `fetch-meteo` / `get-meteo`.
+              </p>
             </>
           ) : (
-            <>
-              Adaugă coordonate pe un teren cu producție comercială (vizibil în dashboard) sau în Setări pentru a
-              vedea meteo aici.
-            </>
+            <p>Adaugă coordonate pe un teren comercial sau în Setări pentru a vedea meteo aici.</p>
           )}
         </div>
       </DashboardCard>
     )
   }
 
-  const sprayTone = data.spray?.canSpray
-    ? 'border-[rgba(13,155,92,0.1)] bg-[rgba(13,155,92,0.06)] text-[#0D9B5C]'
-    : 'border-[rgba(207,34,46,0.1)] bg-[rgba(207,34,46,0.05)] text-[#CF222E]'
+  const sprayStatus = sprayTone(data.spray)
+  const isSolarContext = primaryContext === 'solar'
+  const usesMicroclimate = isSolarContext && Boolean(microclimate?.isRecent)
+  const currentTemp = usesMicroclimate ? microclimate?.temperature : data.current?.temp
+  const currentHumidity = usesMicroclimate ? microclimate?.humidity : data.current?.humidity
+  const solarHighTemp = typeof currentTemp === 'number' && currentTemp >= 28
+  const solarHighHumidity = typeof currentHumidity === 'number' && currentHumidity > 80
 
   return (
     <DashboardCard
       title="Meteo azi"
       rightSlot={
-        <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2.5 py-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
           {data.source === 'cache' ? 'Cache 3h' : 'Actualizat'}
         </span>
       }
-      className={cn('overflow-hidden', className)}
-      contentClassName="space-y-4"
+      className={cn('overflow-hidden', compact && 'dashboard-meteo-compact', className)}
+      contentClassName={cn('space-y-2.5', compact && 'space-y-2')}
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--agri-surface-muted)] text-2xl shadow-sm">
+          <div className={cn('flex items-center', compact ? 'gap-2' : 'gap-3')}>
+            <div className={cn(compact ? 'text-xl' : 'text-2xl')} aria-hidden="true">
               {iconToEmoji(data.current?.icon)}
             </div>
             <div>
-              <div className="text-3xl font-bold leading-none text-[var(--agri-text)]">
-                {formatNumber(data.current?.temp, 1)}°C
+              <div
+                className={cn(
+                  'font-bold leading-none tracking-[-0.04em] text-[var(--text-primary)]',
+                  compact ? 'text-[1.35rem]' : 'text-[1.75rem]',
+                )}
+              >
+                {formatNumber(currentTemp, 1)}°C
               </div>
-              <div className="mt-1 text-sm text-[var(--agri-text-muted)]">{capitalize(data.current?.description)}</div>
+              <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                {capitalize(data.current?.description)}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${sprayTone}`}>
-          {data.spray?.canSpray ? 'Poți stropi' : data.spray?.reason ?? 'Nu poți stropi'}
+        <div className="max-w-[9rem] text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+          {isSolarContext
+            ? 'Context solar'
+            : data.spray?.canSpray
+              ? 'Poți stropi'
+              : 'Atenție la stropire'}
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="px-1 py-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">Vânt</div>
-          <div className="mt-2 text-lg font-bold text-[var(--agri-text)]">{formatNumber(data.current?.windSpeed, 1)} km/h</div>
-          <div className="mt-1 text-xs text-[var(--agri-text-muted)]">Umiditate {formatNumber(data.current?.humidity, 0)}%</div>
-        </div>
-
-        <div className="px-1 py-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">Mâine</div>
-          <div className="mt-2 flex items-center gap-2 text-lg font-bold text-[var(--agri-text)]">
-            <span>{iconToEmoji(data.forecastTomorrow?.icon)}</span>
-            <span>{formatNumber(data.forecastTomorrow?.tempMin, 1)}° / {formatNumber(data.forecastTomorrow?.tempMax, 1)}°</span>
-          </div>
-          <div className="mt-1 text-xs text-[var(--agri-text-muted)]">Ploaie {formatPercent(data.forecastTomorrow?.pop)}</div>
-        </div>
-
-        <div className="px-1 py-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">Recomandare</div>
-          <div className="mt-2 text-lg font-bold text-[var(--agri-text)]">{data.spray?.canSpray ? 'Condiții bune' : 'Atenție'}</div>
-          <div className="mt-1 text-xs text-[var(--agri-text-muted)]">{data.spray?.reason ?? 'Ploaie redusă, vânt mic și temperatură potrivită.'}</div>
-        </div>
+      <div className={cn('text-[13px] leading-5 text-[var(--text-secondary)]', compact && 'text-[12px]')}>
+        {isSolarContext
+          ? `Temperatură ${formatNumber(currentTemp, 1)}°C • Umiditate ${formatNumber(currentHumidity, 0)}%`
+          : `Vânt ${formatNumber(data.current?.windSpeed, 1)} km/h • Umiditate ${formatNumber(currentHumidity, 0)}%`}
       </div>
 
-      <div className="text-[10px] text-[var(--agri-text-muted)]">
-        Date meteo:{' '}
-        <Link href="https://openweathermap.org" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-          OpenWeather
-        </Link>
-      </div>
+      {isSolarContext ? (
+        <div className="space-y-1">
+          {solarHighTemp ? (
+            <div className="text-[13px] leading-5 [font-weight:650] text-[var(--status-warning-text)]">
+              Aerisește solarul — temperatura este ridicată.
+            </div>
+          ) : null}
+          {solarHighHumidity ? (
+            <div className="text-[13px] leading-5 [font-weight:650] text-[var(--status-danger-text)]">
+              Risc de boli — urmărește umiditatea în solar.
+            </div>
+          ) : null}
+          {!solarHighTemp && !solarHighHumidity ? (
+            <div className="text-[13px] leading-5 [font-weight:650] text-[var(--success-text)]">
+              Parametri buni în solar pentru lucru curent.
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className={cn('text-[13px] leading-5 [font-weight:650]', sprayStatus.className)}>
+          {sprayStatus.label}
+        </div>
+      )}
+
+      {data.forecastTomorrow && !isSolarContext ? (
+        <div className={cn('text-[12px] leading-5 text-[var(--text-secondary)]', compact && 'hidden')}>
+          Mâine: {formatNumber(data.forecastTomorrow.tempMin, 1)}° / {formatNumber(data.forecastTomorrow.tempMax, 1)}°
+          {' • '}Ploaie {formatPercent(data.forecastTomorrow.pop)}
+        </div>
+      ) : null}
+
+      {data.forecastTomorrow && isSolarContext ? (
+        <div className="text-[11px] leading-5 text-[var(--text-secondary)]">
+          Meteo exterior: vânt {formatNumber(data.current?.windSpeed, 1)} km/h • ploaie mâine {formatPercent(data.forecastTomorrow.pop)}
+        </div>
+      ) : null}
+
+      {isSolarContext ? (
+        <div className="text-[11px] leading-5 text-[var(--text-secondary)]">
+          {usesMicroclimate
+            ? 'Pe baza datelor introduse în solar'
+            : microclimate?.hasData
+              ? 'Nu există date recente din solar'
+              : 'Pe baza vremii exterioare'}
+        </div>
+      ) : null}
+
+      {compact ? null : (
+        <div className="text-[11px] leading-snug text-[var(--text-secondary)]">
+          Sursă meteo:{' '}
+          <Link href="https://openweathermap.org" target="_blank" rel="noreferrer" className="underline underline-offset-2">
+            OpenWeather
+          </Link>
+        </div>
+      )}
     </DashboardCard>
   )
 }

@@ -34,9 +34,9 @@ export default function CheltuialaPage() {
 
 ## 2. Auth & Multi-tenancy
 
-### Middleware (proxy.ts)
+### Proxy (Next.js 16)
 
-`src/proxy.ts` (exportat ca `middleware.ts`) rulează pe fiecare request:
+`src/proxy.ts` (singur fișier; Next 16 nu folosește `middleware.ts` lângă el) rulează pe fiecare request:
 1. Validează cookie sesiune Supabase
 2. Rezolvă `tenant_id` din tabelul `profiles`
 3. Injectează headere în request:

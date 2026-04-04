@@ -6,14 +6,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
-import { Loader2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
-import {
-  AppDialog,
-} from '@/components/app/AppDialog'
+import { AppDialog } from '@/components/app/AppDialog'
 import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
-import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -72,8 +70,17 @@ export function EditInvestitieDialog({
     register,
     handleSubmit,
     reset,
+    formState: { errors },
   } = useForm<InvestitieFormData>({
     resolver: zodResolver(investitieSchema),
+    defaultValues: {
+      data: '',
+      parcela_id: '',
+      categorie: '',
+      furnizor: '',
+      descriere: '',
+      suma_lei: '',
+    },
   })
 
   useEffect(() => {
@@ -117,6 +124,11 @@ export function EditInvestitieDialog({
     },
   })
 
+  const handleClose = () => {
+    if (updateMutation.isPending) return
+    onOpenChange(false)
+  }
+
   const onSubmit = (data: InvestitieFormData) => {
     if (!investitie) return
 
@@ -140,87 +152,115 @@ export function EditInvestitieDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Editează investitie"
+      desktopFormWide
       footer={
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Anulează
-          </Button>
-          <Button
-            type="submit"
-            form="edit-investitie-form"
-            disabled={updateMutation.isPending || isInitialDataLoading}
-            className="bg-[#F16B6B] hover:bg-[#E05A5A]"
-          >
-            {updateMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Se salvează...
-              </>
-            ) : (
-              'Salvează'
-            )}
-          </Button>
-        </>
+        <DialogFormActions
+          className="w-full"
+          onCancel={handleClose}
+          onSave={handleSubmit(onSubmit)}
+          saving={updateMutation.isPending}
+          disabled={isInitialDataLoading}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
-        {isInitialDataLoading ? <DialogInitialDataSkeleton compact /> : (
-        <form id="edit-investitie-form" onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div>
-            <Label>Data</Label>
-            <Input type="date" {...register('data')} />
-          </div>
+      {isInitialDataLoading ? (
+        <DialogInitialDataSkeleton compact />
+      ) : (
+        <form className="space-y-0" onSubmit={handleSubmit(onSubmit)}>
+          <div className="space-y-6 md:space-y-8">
+            <FormDialogSection label="Înregistrare">
+              <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_inv_data">Data</Label>
+                  <Input
+                    id="edit_inv_data"
+                    type="date"
+                    className="agri-control h-12 md:h-11"
+                    {...register('data')}
+                  />
+                  {errors.data ? <p className="text-xs text-red-600">{errors.data.message}</p> : null}
+                </div>
 
-          <div>
-            <Label>Categorie</Label>
-            <select
-              {...register('categorie')}
-              className="agri-control h-10 w-full px-3 py-2 text-sm"
-            >
-              <option value="">Selectează categoria...</option>
-              {CATEGORII_INVESTITII.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_inv_categorie">Categorie</Label>
+                  <select
+                    id="edit_inv_categorie"
+                    className="agri-control h-12 w-full px-3 text-base md:h-11"
+                    {...register('categorie')}
+                  >
+                    <option value="">Selectează categoria</option>
+                    {CATEGORII_INVESTITII.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.categorie ? (
+                    <p className="text-xs text-red-600">{errors.categorie.message}</p>
+                  ) : null}
+                </div>
 
-          <div>
-            <Label>Parcelă</Label>
-            <select
-              {...register('parcela_id')}
-              className="agri-control h-10 w-full px-3 py-2 text-sm"
-            >
-              <option value="">Fără legătură cu parcelă</option>
-              {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
-                <option key={parcela.id} value={parcela.id}>
-                  {parcela.nume_parcela || 'Parcela'}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_inv_parcela">Parcelă</Label>
+                  <select
+                    id="edit_inv_parcela"
+                    className="agri-control h-12 w-full px-3 text-base md:h-11"
+                    {...register('parcela_id')}
+                  >
+                    <option value="">Fără legătură cu parcelă</option>
+                    {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
+                      <option key={parcela.id} value={parcela.id}>
+                        {parcela.nume_parcela || 'Parcela'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          <div>
-            <Label>Sumă (lei)</Label>
-            <Input type="number" step="0.01" {...register('suma_lei')} />
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_inv_suma">Suma investită (lei)</Label>
+                  <Input
+                    id="edit_inv_suma"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    className="agri-control h-12 md:h-11"
+                    placeholder="Ex: 1500.00"
+                    {...register('suma_lei')}
+                  />
+                  {errors.suma_lei ? (
+                    <p className="text-xs text-red-600">{errors.suma_lei.message}</p>
+                  ) : null}
+                </div>
 
-          <div>
-            <Label>Furnizor</Label>
-            <Input type="text" {...register('furnizor')} />
-          </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="edit_inv_furnizor">Furnizor</Label>
+                  <Input
+                    id="edit_inv_furnizor"
+                    type="text"
+                    className="agri-control h-12 md:h-11"
+                    {...register('furnizor')}
+                  />
+                </div>
+              </div>
+            </FormDialogSection>
 
-          <div>
-            <Label>Descriere</Label>
-            <Textarea rows={2} {...register('descriere')} />
+            <FormDialogSection label="Detalii">
+              <div className="space-y-2">
+                <Label htmlFor="edit_inv_descriere">Descriere</Label>
+                <Textarea
+                  id="edit_inv_descriere"
+                  rows={4}
+                  className="agri-control w-full px-3 py-2 text-base md:min-h-[7.5rem]"
+                  {...register('descriere')}
+                />
+              </div>
+            </FormDialogSection>
           </div>
-
         </form>
-        )}
+      )}
     </AppDialog>
   )
 }

@@ -10,6 +10,7 @@ import * as z from 'zod'
 import { AppDialog } from '@/components/app/AppDialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -163,6 +164,8 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
   const selectedParcelaId = useWatch({ control: form.control, name: 'parcela_id' }) || ''
   const selectedCulegatorId = useWatch({ control: form.control, name: 'culegator_id' }) || ''
   const selectedCropId = useWatch({ control: form.control, name: 'harvest_crop_id' }) || ''
+  const formDataValue = useWatch({ control: form.control, name: 'data' }) || ''
+  const formObservatii = useWatch({ control: form.control, name: 'observatii' }) || ''
   const kgCal1 = toNumber(useWatch({ control: form.control, name: 'kg_cal1' }) || '')
   const kgCal2 = toNumber(useWatch({ control: form.control, name: 'kg_cal2' }) || '')
   const totalKg = kgCal1 + kgCal2
@@ -181,6 +184,14 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
   const tarifLeiKg = Number(selectedCulegator?.tarif_lei_kg ?? 0)
   const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
   const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
+  const pctCal1 = totalKg > 0 ? Math.round((kgCal1 / totalKg) * 100) : 0
+  const pctCal2 = totalKg > 0 ? Math.round((kgCal2 / totalKg) * 100) : 0
+  const parcelaAsideLabel = selectedParcela
+    ? formatUnitateDisplayName(selectedParcela.nume_parcela, selectedParcela.tip_unitate, 'Parcelă')
+    : '—'
+  const dataAsideLabel = formDataValue
+    ? new Date(formDataValue + 'T12:00:00').toLocaleDateString('ro-RO')
+    : '—'
 
   useEffect(() => {
     if (!selectedParcela) {
@@ -280,15 +291,22 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
 
   if (!recoltare) return null
 
+  const handleClose = () => {
+    if (mutation.isPending) return
+    onOpenChange(false)
+  }
+
   return (
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Editează recoltare"
-      contentClassName="md:max-w-2xl"
+      desktopFormWide
+      contentClassName="lg:max-w-[min(94vw,72rem)] xl:max-w-[min(92vw,76rem)]"
       footer={
         <DialogFormActions
-          onCancel={() => onOpenChange(false)}
+          className="w-full"
+          onCancel={handleClose}
           onSave={form.handleSubmit(onSubmit)}
           saving={mutation.isPending}
           cancelLabel="Anulează"
@@ -297,184 +315,290 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Row 1: Data + Parcelă */}
-          <div className="space-y-2">
-            <Label htmlFor="edit_recoltare_data">Data</Label>
-            <Input id="edit_recoltare_data" type="date" className="agri-control h-12" {...form.register('data')} />
-            {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="edit_recoltare_parcela">Parcelă</Label>
-            <Select
-              value={selectedParcelaId || '__none'}
-              onValueChange={(value) =>
-                form.setValue('parcela_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })
-              }
-            >
-              <SelectTrigger id="edit_recoltare_parcela" className="agri-control h-12">
-                <SelectValue placeholder="Selectează parcelă" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">Selectează parcelă</SelectItem>
-                {parcele.map((parcela) => (
-                  <SelectItem key={parcela.id} value={parcela.id}>
-                    {parcela.nume_parcela || 'Parcela'} ({getUnitateTipLabel(parcela.tip_unitate)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.parcela_id ? <p className="text-xs text-red-600">{form.formState.errors.parcela_id.message}</p> : null}
-          </div>
-
-          {activePauseWarning ? (
-            <div className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-sm text-[var(--status-warning-text)] md:col-span-2">
-              {activePauseWarning.message}
-            </div>
-          ) : null}
-
-          {/* Culegător: full-width */}
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="edit_recoltare_culegator">Culegător</Label>
-            <Select
-              value={selectedCulegatorId || '__none'}
-              onValueChange={(value) =>
-                form.setValue('culegator_id', value === '__none' ? '' : value, { shouldDirty: true, shouldValidate: true })
-              }
-            >
-              <SelectTrigger id="edit_recoltare_culegator" className="agri-control h-12">
-                <SelectValue placeholder="Selectează culegător" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">Selectează culegător</SelectItem>
-                {culegatori.map((culegator) => (
-                  <SelectItem key={culegator.id} value={culegator.id}>
-                    {culegator.nume_prenume || 'Culegător'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.culegator_id ? <p className="text-xs text-red-600">{form.formState.errors.culegator_id.message}</p> : null}
-          </div>
-
-          {/* Detected crop card: full-width */}
-          {selectedParcela ? (
-            <Card className="rounded-2xl border border-[var(--surface-divider)] shadow-sm md:col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Produs detectat din parcelă</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                {parcelCropOptions.length > 1 ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_recoltare_harvest_crop">Cultură recoltată</Label>
-                    <Select
-                      value={selectedCropId || '__none'}
-                      onValueChange={(value) =>
-                        form.setValue('harvest_crop_id', value === '__none' ? '' : value, {
-                          shouldDirty: true,
-                          shouldValidate: false,
-                        })
-                      }
-                    >
-                      <SelectTrigger id="edit_recoltare_harvest_crop" className="agri-control h-11">
-                        <SelectValue placeholder="Selectează cultura recoltată" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none">Selectează cultura recoltată</SelectItem>
-                        {parcelCropOptions.map((crop) => (
-                          <SelectItem key={crop.id} value={crop.id}>
-                            {formatCropOptionLabel(crop)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(272px,32%)] md:items-start md:gap-6 lg:gap-8">
+          <div className="min-w-0 space-y-4 md:space-y-6">
+            <FormDialogSection label="Context">
+              <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_recoltare_parcela">Parcelă</Label>
+                  <Select
+                    value={selectedParcelaId || '__none'}
+                    onValueChange={(value) =>
+                      form.setValue('parcela_id', value === '__none' ? '' : value, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                  >
+                    <SelectTrigger id="edit_recoltare_parcela" className="agri-control h-12 md:h-11">
+                      <SelectValue placeholder="Selectează parcelă" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Selectează parcelă</SelectItem>
+                      {parcele.map((parcela) => (
+                        <SelectItem key={parcela.id} value={parcela.id}>
+                          {parcela.nume_parcela || 'Parcela'} ({getUnitateTipLabel(parcela.tip_unitate)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.parcela_id ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.parcela_id.message}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_recoltare_data">Data</Label>
+                  <Input
+                    id="edit_recoltare_data"
+                    type="date"
+                    className="agri-control h-12 md:h-11"
+                    {...form.register('data')}
+                  />
+                  {form.formState.errors.data ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
+                  ) : null}
+                </div>
+              </div>
+              {activePauseWarning ? (
+                <div className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-sm text-[var(--status-warning-text)]">
+                  {activePauseWarning.message}
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <Label htmlFor="edit_recoltare_culegator">Culegător</Label>
+                <Select
+                  value={selectedCulegatorId || '__none'}
+                  onValueChange={(value) =>
+                    form.setValue('culegator_id', value === '__none' ? '' : value, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
+                >
+                  <SelectTrigger id="edit_recoltare_culegator" className="agri-control h-12 md:h-11">
+                    <SelectValue placeholder="Selectează culegător" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Selectează culegător</SelectItem>
+                    {culegatori.map((culegator) => (
+                      <SelectItem key={culegator.id} value={culegator.id}>
+                        {culegator.nume_prenume || 'Culegător'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.formState.errors.culegator_id ? (
+                  <p className="text-xs text-red-600">{form.formState.errors.culegator_id.message}</p>
                 ) : null}
+              </div>
+            </FormDialogSection>
 
-                <p>
-                  Produs: <span className="font-semibold">{selectedCrop?.culture || 'Nespecificat'}</span>
-                </p>
-                <p>
-                  Soi: <span className="font-semibold">{selectedCrop?.variety || 'Nespecificat'}</span>
-                </p>
-                <p className="text-xs text-[var(--agri-text-muted)]">
-                  La salvare, mișcarea de stoc va păstra automat produsul și soiul alese din unitatea selectată.
-                </p>
-              </CardContent>
-            </Card>
-          ) : null}
+            <FormDialogSection label="Recoltare">
+              {selectedParcela ? (
+                <Card className="rounded-2xl border border-[var(--surface-divider)] shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Produs detectat din parcelă</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    {parcelCropOptions.length > 1 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_recoltare_harvest_crop">Cultură recoltată</Label>
+                        <Select
+                          value={selectedCropId || '__none'}
+                          onValueChange={(value) =>
+                            form.setValue('harvest_crop_id', value === '__none' ? '' : value, {
+                              shouldDirty: true,
+                              shouldValidate: false,
+                            })
+                          }
+                        >
+                          <SelectTrigger id="edit_recoltare_harvest_crop" className="agri-control h-11 md:h-10">
+                            <SelectValue placeholder="Selectează cultura recoltată" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">Selectează cultura recoltată</SelectItem>
+                            {parcelCropOptions.map((crop) => (
+                              <SelectItem key={crop.id} value={crop.id}>
+                                {formatCropOptionLabel(crop)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
 
-          {/* Kg Cal1 + Kg Cal2 */}
-          <div className="space-y-2">
-            <Label htmlFor="edit_recoltare_kg_cal1">Kg Calitatea 1</Label>
-            <Input
-              id="edit_recoltare_kg_cal1"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              className="agri-control h-12"
-              {...form.register('kg_cal1')}
-            />
-            {form.formState.errors.kg_cal1 ? <p className="text-xs text-red-600">{form.formState.errors.kg_cal1.message}</p> : null}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit_recoltare_kg_cal2">Kg Calitatea 2</Label>
-            <Input
-              id="edit_recoltare_kg_cal2"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              className="agri-control h-12"
-              {...form.register('kg_cal2')}
-            />
-            {form.formState.errors.kg_cal2 ? <p className="text-xs text-red-600">{form.formState.errors.kg_cal2.message}</p> : null}
-          </div>
+                    <p>
+                      Produs:{' '}
+                      <span className="font-semibold">{selectedCrop?.culture || 'Nespecificat'}</span>
+                    </p>
+                    <p>
+                      Soi: <span className="font-semibold">{selectedCrop?.variety || 'Nespecificat'}</span>
+                    </p>
+                    <p className="text-xs text-[var(--agri-text-muted)]">
+                      La salvare, mișcarea de stoc va păstra automat produsul și soiul alese din unitatea selectată.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : null}
+              <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit_recoltare_kg_cal1">Kg Calitatea 1</Label>
+                  <Input
+                    id="edit_recoltare_kg_cal1"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    className="agri-control h-12 md:h-11"
+                    {...form.register('kg_cal1')}
+                  />
+                  {form.formState.errors.kg_cal1 ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.kg_cal1.message}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit_recoltare_kg_cal2">Kg Calitatea 2</Label>
+                  <Input
+                    id="edit_recoltare_kg_cal2"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    className="agri-control h-12 md:h-11"
+                    {...form.register('kg_cal2')}
+                  />
+                  {form.formState.errors.kg_cal2 ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.kg_cal2.message}</p>
+                  ) : null}
+                </div>
+              </div>
+            </FormDialogSection>
 
-          {/* Rezumat plată: full-width */}
-          <Card className="rounded-2xl border border-[var(--surface-divider)] shadow-sm md:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Rezumat plată</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <p>Total kg: <span className="font-semibold">{totalKg.toFixed(2)} kg</span></p>
-              {selectedCulegator ? (
-                <>
+            <div className="md:hidden">
+              <Card className="rounded-2xl border border-[var(--surface-divider)] shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Rezumat plată</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm">
                   <p>
-                    Tarif:{' '}
-                    <span className="font-semibold">
-                      {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '--'}
-                    </span>{' '}
-                    <span className="text-xs text-[var(--agri-text-muted)]">(din profil culegător)</span>
+                    Total kg: <span className="font-semibold">{totalKg.toFixed(2)} kg</span>
                   </p>
-                  <p>
-                    De plată:{' '}
-                    <span className="font-semibold">
-                      {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '--'}
-                    </span>
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-[var(--agri-text-muted)]">Selectează culegătorul ca să calculez plata</p>
-                  <p>De plată: <span className="font-semibold">--</span></p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                  {selectedCulegator ? (
+                    <>
+                      <p>
+                        Tarif:{' '}
+                        <span className="font-semibold">
+                          {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '—'}
+                        </span>{' '}
+                        <span className="text-xs text-[var(--agri-text-muted)]">(din profil culegător)</span>
+                      </p>
+                      <p>
+                        De plată:{' '}
+                        <span className="font-semibold">
+                          {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '—'}
+                        </span>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[var(--agri-text-muted)]">
+                        Selectează culegătorul ca să calculez plata
+                      </p>
+                      <p>
+                        De plată: <span className="font-semibold">—</span>
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Observații: full-width */}
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="edit_recoltare_observatii">Observații</Label>
-            <Textarea
-              id="edit_recoltare_observatii"
-              rows={3}
-              className="agri-control w-full px-3 py-2 text-base"
-              {...form.register('observatii')}
-            />
+            <FormDialogSection label="Observații">
+              <Textarea
+                id="edit_recoltare_observatii"
+                rows={3}
+                className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6rem]"
+                {...form.register('observatii')}
+              />
+            </FormDialogSection>
           </div>
+
+          <aside className="hidden md:block md:sticky md:top-2 md:self-start">
+            <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
+                  Rezumat live
+                </p>
+                <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                  {parcelaAsideLabel}
+                </p>
+              </div>
+              <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
+                <div>
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data recoltării</dt>
+                  <dd className="mt-0.5 text-[var(--text-primary)]">{dataAsideLabel}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Culegător</dt>
+                  <dd className="mt-0.5 text-[var(--text-primary)]">
+                    {selectedCulegator?.nume_prenume?.trim() || '—'}
+                  </dd>
+                </div>
+                <div className="border-t border-[var(--divider)] pt-3">
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cultură / soi</dt>
+                  <dd className="mt-0.5 text-[var(--text-primary)]">
+                    {selectedCrop
+                      ? `${selectedCrop.culture || '—'} · ${selectedCrop.variety || '—'}`
+                      : '—'}
+                  </dd>
+                </div>
+                <div className="border-t border-[var(--divider)] pt-3">
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total recoltat</dt>
+                  <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+                    {totalKg.toFixed(2)} kg
+                  </dd>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[var(--text-tertiary)]">Cal I</span>
+                    <p className="font-medium tabular-nums text-[var(--text-primary)]">
+                      {kgCal1.toFixed(2)} kg
+                      {totalKg > 0 ? ` (${pctCal1}%)` : ''}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[var(--text-tertiary)]">Cal II</span>
+                    <p className="font-medium tabular-nums text-[var(--text-primary)]">
+                      {kgCal2.toFixed(2)} kg
+                      {totalKg > 0 ? ` (${pctCal2}%)` : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="border-t border-[var(--divider)] pt-3">
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Tarif (profil)</dt>
+                  <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
+                    {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">De plată (estim.)</dt>
+                  <dd className="mt-1 text-base font-semibold tabular-nums text-[var(--text-primary)]">
+                    {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '—'}
+                  </dd>
+                </div>
+              </dl>
+              {String(formObservatii).trim() ? (
+                <div className="border-t border-[var(--divider)] pt-3">
+                  <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
+                  <p className="mt-1 max-h-24 overflow-y-auto text-xs leading-relaxed text-[var(--text-secondary)]">
+                    {String(formObservatii).trim().length > 200
+                      ? `${String(formObservatii).trim().slice(0, 200)}…`
+                      : String(formObservatii).trim()}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </aside>
         </div>
       </form>
     </AppDialog>

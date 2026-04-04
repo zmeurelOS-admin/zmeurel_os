@@ -14,12 +14,34 @@ interface AppDrawerProps {
   disableHistory?: boolean
   hideHeader?: boolean
   showHandle?: boolean
+  /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
+  desktopFormWide?: boolean
 }
 
-export function AppDrawer({ open, onOpenChange, title, description, children, footer, contentClassName, disableHistory, hideHeader, showHandle }: AppDrawerProps) {
+export function AppDrawer({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  contentClassName,
+  disableHistory,
+  hideHeader,
+  showHandle,
+  desktopFormWide,
+}: AppDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange} disableHistory={disableHistory}>
-      <FormDialogLayout title={title} description={description} footer={footer} contentClassName={contentClassName} hideHeader={hideHeader} showHandle={showHandle}>
+      <FormDialogLayout
+        title={title}
+        description={description}
+        footer={footer}
+        contentClassName={contentClassName}
+        hideHeader={hideHeader}
+        showHandle={showHandle}
+        desktopFormWide={desktopFormWide}
+      >
         {children}
       </FormDialogLayout>
     </Dialog>

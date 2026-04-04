@@ -106,6 +106,30 @@ function toFullDateTimeLabel(value: string | null | undefined): string {
   })
 }
 
+function toDateOnlyKey(value: string | null | undefined): string {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
+}
+
+function formatEtapaLabel(value: string | null | undefined): string {
+  const normalized = (value ?? '').trim()
+  if (!normalized) return 'Plantare'
+  const withSpaces = normalized.replaceAll('_', ' ')
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1)
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string' && error.trim()) return error
+  if (typeof error === 'object' && error !== null) {
+    const maybeMessage = (error as { message?: unknown }).message
+    if (typeof maybeMessage === 'string' && maybeMessage.trim()) return maybeMessage
+  }
+  return 'A apărut o eroare neașteptată.'
+}
+
 function daysSincePlanting(plantingDate: string | null | undefined): number | null {
   if (!plantingDate) return null
   const start = new Date(plantingDate)
@@ -124,6 +148,7 @@ export default function ParcelaDetailPage() {
 
   const parcelaId = Array.isArray(params.id) ? params.id[0] : params.id
   const [climateOpen, setClimateOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [stageOpen, setStageOpen] = useState(false)
   const [addCulturaOpen, setAddCulturaOpen] = useState(false)
 
@@ -177,13 +202,13 @@ export default function ParcelaDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.parcelaSolarClimate(parcelaId) })
       toast.success(
-        isSolar ? 'Înregistrarea de microclimat a fost salvată.' : 'Condițiile de mediu au fost salvate.'
+        isSolar ? 'Date actualizate — recomandările sunt mai precise' : 'Condițiile de mediu au fost salvate.'
       )
       setClimateOpen(false)
       climateForm.reset({ temperatura: '', umiditate: '', observatii: '' })
     },
-    onError: (error: Error) => {
-      toast.error(error.message)
+    onError: (error: unknown) => {
+      toast.error(toErrorMessage(error))
     },
   })
 
@@ -200,8 +225,8 @@ export default function ParcelaDetailPage() {
         observatii: '',
       })
     },
-    onError: (error: Error) => {
-      toast.error(error.message)
+    onError: (error: unknown) => {
+      toast.error(toErrorMessage(error))
     },
   })
 
@@ -210,9 +235,20 @@ export default function ParcelaDetailPage() {
   const conditiiLabel = getConditiiMediuLabel(parcela?.tip_unitate)
   const conditiiLabelLower = getConditiiMediuLabelLower(parcela?.tip_unitate)
   const latestClimate = climateQuery.data?.[0] ?? null
+  const now = new Date()
+  const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const hasClimateToday = toDateOnlyKey(latestClimate?.created_at) === todayDateKey
   const sincePlanting = daysSincePlanting(parcela?.data_plantarii)
   const selectedStageOption = useWatch({ control: stageForm.control, name: 'etapa' }) ?? 'plantare'
   const requiresCustomStage = selectedStageOption === '__custom__'
+  const latestStageByCulturaId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const stage of stageQuery.data ?? []) {
+      if (!stage.cultura_id || map.has(stage.cultura_id)) continue
+      map.set(stage.cultura_id, formatEtapaLabel(stage.etapa))
+    }
+    return map
+  }, [stageQuery.data])
 
   const sectionClasses = useMemo(
     () => ({
@@ -266,7 +302,7 @@ export default function ParcelaDetailPage() {
         <div className="mt-4">
           <ErrorState
             title="Nu am putut încărca terenul."
-            message={(parcelaQuery.error as Error).message}
+            message={toErrorMessage(parcelaQuery.error)}
             onRetry={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcela(parcelaId) })}
           />
         </div>
@@ -370,15 +406,14 @@ export default function ParcelaDetailPage() {
                         <p className={`${sectionClasses.label} mt-0.5`}>Nr. plante: {cultura.nr_plante}</p>
                       ) : null}
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        cultura.activa
-                          ? 'border border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-                          : 'border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)]'
-                      }`}
-                    >
-                      {cultura.activa ? 'Activă' : 'Desființată'}
-                    </span>
+                    <div className="shrink-0 text-right">
+                      <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--agri-text)]">
+                        {latestStageByCulturaId.get(cultura.id) ?? 'Plantare'}
+                      </span>
+                      <p className="mt-1 text-[10px] text-[var(--agri-text-muted)]">
+                        {cultura.activa ? 'Activă' : 'Desființată'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -390,6 +425,16 @@ export default function ParcelaDetailPage() {
             <div className={sectionClasses.base}>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h2 className={sectionClasses.title}>{conditiiLabel} și observații</h2>
+              <div className="flex items-center gap-2">
+                {(climateQuery.data?.length ?? 0) > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(true)}
+                    className="inline-flex h-9 items-center rounded-xl border border-[var(--agri-border)] px-3 text-xs font-semibold text-[var(--agri-text)]"
+                  >
+                    Istoric microclimat
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setClimateOpen(true)}
@@ -398,6 +443,19 @@ export default function ParcelaDetailPage() {
                   {`Adaugă ${conditiiLabelLower}`}
                 </button>
               </div>
+              </div>
+              {isSolar && !hasClimateToday ? (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[var(--agri-border)]/70 bg-[var(--agri-surface-muted)]/45 px-3 py-2">
+                  <p className="text-[12px] leading-5 text-[var(--agri-text-muted)]">Nu ai introdus date din solar azi</p>
+                  <button
+                    type="button"
+                    onClick={() => setClimateOpen(true)}
+                    className="shrink-0 text-[12px] font-semibold text-[var(--agri-primary)]"
+                  >
+                    Adaugă temperatură și umiditate
+                  </button>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                 <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
@@ -422,33 +480,6 @@ export default function ParcelaDetailPage() {
                   <p className={sectionClasses.label}>Ultima actualizare</p>
                   <p className={sectionClasses.value}>{toCompactDateTimeLabel(latestClimate?.created_at)}</p>
                 </div>
-              </div>
-            </div>
-
-            <div className={sectionClasses.base}>
-              <h2 className={sectionClasses.title}>{`Istoric ${conditiiLabelLower}`}</h2>
-              {climateQuery.isLoading ? (
-                <p className={sectionClasses.label}>{`Se încarcă istoricul de ${conditiiLabelLower}...`}</p>
-              ) : null}
-              {!climateQuery.isLoading && (climateQuery.data?.length ?? 0) === 0 ? (
-                <p className={sectionClasses.label}>{`Nu există încă înregistrări de ${conditiiLabelLower}.`}</p>
-              ) : null}
-              <div className="space-y-2">
-                {(climateQuery.data ?? []).map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className={sectionClasses.value}>{toFullDateTimeLabel(entry.created_at)}</p>
-                        <p className={`${sectionClasses.label} mt-1`}>
-                          {Number(entry.temperatura).toFixed(1)}°C · {Number(entry.umiditate).toFixed(0)}%
-                        </p>
-                      </div>
-                    </div>
-                    {entry.observatii ? (
-                      <p className="mt-2 text-xs text-[var(--agri-text-muted)]">{entry.observatii}</p>
-                    ) : null}
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -486,6 +517,32 @@ export default function ParcelaDetailPage() {
             </div>
           </>
       </div>
+
+      <AppDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        title={`Istoric ${conditiiLabelLower}`}
+      >
+        <div className="space-y-2">
+          {climateQuery.isLoading ? (
+            <p className="text-xs text-[var(--agri-text-muted)]">{`Se încarcă istoricul de ${conditiiLabelLower}...`}</p>
+          ) : null}
+          {!climateQuery.isLoading && (climateQuery.data?.length ?? 0) === 0 ? (
+            <p className="text-xs text-[var(--agri-text-muted)]">{`Nu există încă înregistrări de ${conditiiLabelLower}.`}</p>
+          ) : null}
+          {(climateQuery.data ?? []).map((entry) => (
+            <div key={entry.id} className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
+              <p className="text-sm font-medium text-[var(--agri-text)]">{toFullDateTimeLabel(entry.created_at)}</p>
+              <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
+                {Number(entry.temperatura).toFixed(1)}°C · {Number(entry.umiditate).toFixed(0)}%
+              </p>
+              {entry.observatii ? (
+                <p className="mt-2 text-xs text-[var(--agri-text-muted)]">{entry.observatii}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </AppDialog>
 
       <AppDialog
         open={climateOpen}

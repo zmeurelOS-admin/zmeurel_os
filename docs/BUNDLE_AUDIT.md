@@ -25,7 +25,7 @@ This report focuses on the client bundle, especially:
 ## 2026-03-18 Sentry Follow-Up
 
 - Applied changes:
-  - removed the static `@sentry/nextjs` import from both `instrumentation-client.ts` entry files
+  - removed the static `@sentry/nextjs` import from `src/instrumentation-client.ts`
   - kept client error monitoring init, but reduced it to a minimal static `init(...)` path
   - moved route-transition capture behind a dynamic import
   - made Replay opt-in with `NEXT_PUBLIC_SENTRY_REPLAY_ENABLED=true`

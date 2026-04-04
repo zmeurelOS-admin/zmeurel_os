@@ -87,6 +87,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/update-password') ||
+    pathname.startsWith('/magazin') ||
+    pathname.startsWith('/api/shop') ||
     pathname === '/api/auth/beta-signup' ||
     pathname === '/api/auth/beta-guest' ||
     pathname.startsWith('/api/cron/') ||
@@ -191,6 +193,10 @@ export async function proxy(request: NextRequest) {
   return supabaseResponse
 }
 
+/**
+ * Matcher static, definit aici — Next.js 16 folosește `proxy.ts` (nu `middleware.ts`).
+ * Nu re-exporta `config` din alt fișier; trebuie să fie analizabil la build.
+ */
 export const config = {
   matcher: [
     /*

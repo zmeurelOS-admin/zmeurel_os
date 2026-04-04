@@ -2,22 +2,30 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
+import { getStatusToneTokens } from "@/lib/ui/theme"
 import { cn } from "@/lib/utils"
 
+// Badge map-eaza status semantic -> token-uri centralizate.
+// Evitam culorile hardcodate pentru a pastra consistenta light/dark.
+function getToneBadgeClasses(tone: "success" | "warning" | "danger" | "info" | "neutral") {
+  const tokens = getStatusToneTokens(tone)
+  return `border-[var(${tokens.border})] bg-[var(${tokens.bg})] text-[var(${tokens.text})]`
+}
+
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-full border border-transparent px-2.5 py-0.5 text-[11px] font-semibold leading-tight tracking-wide w-fit whitespace-nowrap shrink-0 outline-none [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--agri-primary)_28%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--agri-surface)] aria-invalid:ring-destructive/25 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden shadow-[0_1px_2px_rgba(16,32,21,0.05)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.2)]",
+  "inline-flex w-fit shrink-0 items-center justify-center gap-1 whitespace-nowrap overflow-hidden rounded-md border px-2 py-0.5 text-[10px] font-semibold leading-tight tracking-wide outline-none [&>svg]:pointer-events-none [&>svg]:size-3 focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--focus-ring)_24%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-card)] aria-invalid:border-destructive aria-invalid:ring-destructive/25 dark:aria-invalid:ring-destructive/40 transition-colors",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-none [a&]:hover:bg-primary/90",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-none [a&]:hover:bg-secondary/90",
-        destructive:
-          "bg-destructive text-white shadow-none [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/30 dark:focus-visible:ring-destructive/35 dark:bg-destructive/60",
+        default: `${getToneBadgeClasses("success")} [a&]:hover:brightness-[0.98]`,
+        secondary: `${getToneBadgeClasses("neutral")} [a&]:hover:bg-[color:color-mix(in_srgb,var(--neutral-bg)_90%,var(--surface-card))]`,
+        destructive: `${getToneBadgeClasses("danger")} focus-visible:ring-destructive/30 dark:focus-visible:ring-destructive/35 [a&]:hover:brightness-[0.98]`,
+        warning: `${getToneBadgeClasses("warning")} [a&]:hover:brightness-[0.98]`,
+        info: `${getToneBadgeClasses("info")} [a&]:hover:brightness-[0.98]`,
         outline:
-          "border-[var(--agri-border-card)] bg-[var(--agri-surface-muted)]/55 text-[var(--agri-text)] shadow-[0_1px_2px_rgba(16,32,21,0.04)] [a&]:hover:bg-[var(--agri-surface-muted)] dark:bg-[var(--agri-surface-muted)]/35 dark:shadow-[0_1px_2px_rgba(0,0,0,0.15)] [a&]:hover:text-[var(--agri-text)]",
-        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 [a&]:hover:underline",
+          "border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)] [a&]:hover:bg-[color:color-mix(in_srgb,var(--surface-card-muted)_88%,var(--surface-card))] [a&]:hover:text-[var(--text-primary)]",
+        ghost: "border-transparent bg-transparent text-[var(--text-secondary)] [a&]:hover:bg-[var(--surface-card-muted)] [a&]:hover:text-[var(--text-primary)]",
+        link: "border-transparent bg-transparent text-[var(--text-primary)] underline-offset-4 [a&]:hover:underline",
       },
     },
     defaultVariants: {

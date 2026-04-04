@@ -16,16 +16,21 @@ export function dispatchDemoBannerDismissed() {
 export function useDemoBannerVisible(): boolean {
   const { email } = useDashboardAuth()
   const isDemo = email?.includes('@demo.zmeurel.local') ?? false
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return sessionStorage.getItem(DISMISSED_KEY) === '1'
-  })
+  const [mounted, setMounted] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
+    const syncTimer = window.setTimeout(() => {
+      setMounted(true)
+      setDismissed(sessionStorage.getItem(DISMISSED_KEY) === '1')
+    }, 0)
     const handler = () => setDismissed(true)
     window.addEventListener(DISMISS_EVENT, handler)
-    return () => window.removeEventListener(DISMISS_EVENT, handler)
+    return () => {
+      window.clearTimeout(syncTimer)
+      window.removeEventListener(DISMISS_EVENT, handler)
+    }
   }, [])
 
-  return isDemo && !dismissed
+  return mounted && isDemo && !dismissed
 }

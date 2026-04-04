@@ -3,14 +3,16 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { AssociationContextSwitcher } from "@/components/association/AssociationContextSwitcher"
+import { AssociationSidebar } from "@/components/association/AssociationSidebar"
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { useDemoBannerVisible } from "@/hooks/useDemoBannerVisible"
-import { useAiPanel } from "@/contexts/AiPanelContext"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "sidebar-collapsed"
@@ -20,11 +22,17 @@ const DEMO_BANNER_HEIGHT = 48
 
 type GroupKey = "ferma" | "comercial" | "finante"
 
-type NavItem = {
+type SidebarAccordionKey = GroupKey | "admin"
+
+export type SidebarNavItem = {
   href: string
   label: string
   emoji: string
+  /** Dacă true, ruta e activă doar la potrivire exactă (ex. hub /admin fără sub-rute). */
+  exact?: boolean
 }
+
+type NavItem = SidebarNavItem
 
 type Group = {
   key: GroupKey
@@ -41,6 +49,7 @@ const GROUPS: Group[] = [
     items: [
       { href: "/parcele", label: "Parcele", emoji: "🌿" },
       { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
+      { href: "/activitati-agricole", label: "Activități agricole", emoji: "🌱" },
       { href: "/culegatori", label: "Culegători", emoji: "👷" },
     ],
   },
@@ -65,9 +74,13 @@ const GROUPS: Group[] = [
   },
 ]
 
-const FOOTER_ITEMS: NavItem[] = [
-  { href: "/settings", label: "Setări", emoji: "⚙️" },
-  { href: "/settings#profil", label: "Profil", emoji: "👤" },
+const FOOTER_ITEMS: NavItem[] = [{ href: "/settings", label: "Setări", emoji: "⚙️" }]
+
+/** Zonă superadmin — același guard ca `admin/layout.tsx` (`useDashboardAuth().isSuperAdmin`). */
+const ADMIN_DESKTOP_NAV: NavItem[] = [
+  { href: "/admin", label: "Panou admin", emoji: "🛡️", exact: true },
+  { href: "/admin/analytics", label: "Analytics", emoji: "📈" },
+  { href: "/admin/audit", label: "Audit", emoji: "📜" },
 ]
 
 function stripHashAndSearch(href: string) {
@@ -84,6 +97,11 @@ function getSearchString(href: string) {
 function getHashValue(href: string) {
   const hashIndex = href.indexOf("#")
   return hashIndex === -1 ? "" : href.slice(hashIndex)
+}
+
+function deriveOpenSectionFromPath(pathname: string, isSuperAdmin: boolean): SidebarAccordionKey | null {
+  if (isSuperAdmin && pathname.startsWith("/admin")) return "admin"
+  return getGroupForPath(pathname)
 }
 
 function getGroupForPath(pathname: string): GroupKey | null {
@@ -117,9 +135,11 @@ type SidebarLinkProps = {
   collapsed: boolean
   active: boolean
   onNavigate?: () => void
+  /** Badge opțional (ex. număr oferte în așteptare). */
+  badge?: ReactNode
 }
 
-function SidebarLink({ href, label, emoji, collapsed, active, onNavigate }: SidebarLinkProps) {
+export function SidebarLink({ href, label, emoji, collapsed, active, onNavigate, badge }: SidebarLinkProps) {
   const link = (
     <Link
       href={href}
@@ -130,8 +150,8 @@ function SidebarLink({ href, label, emoji, collapsed, active, onNavigate }: Side
         "group flex items-center rounded-2xl text-sm font-semibold transition-all duration-200",
         collapsed ? "justify-center px-2 py-[10px]" : "gap-3 px-3 py-[11px]",
         active
-          ? "bg-green-50 text-[#2D6A4F] dark:bg-green-900/20 dark:text-emerald-400"
-          : "text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)] dark:text-zinc-200 dark:hover:bg-zinc-800"
+          ? "bg-[var(--success-bg)] text-[var(--success-text)]"
+          : "text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
       )}
     >
       <span
@@ -139,13 +159,18 @@ function SidebarLink({ href, label, emoji, collapsed, active, onNavigate }: Side
           "flex h-10 w-10 items-center justify-center rounded-xl text-[22px] transition-transform duration-200",
           collapsed ? "h-10 w-10" : "h-10 w-10",
           active
-            ? "bg-[rgba(45,106,79,0.10)]"
-            : "bg-transparent group-hover:bg-[rgba(45,106,79,0.08)] dark:group-hover:bg-zinc-800"
+            ? "bg-[color:color-mix(in_srgb,var(--success-bg)_86%,var(--surface-card))]"
+            : "bg-transparent group-hover:bg-[var(--surface-card-muted)]"
         )}
       >
         {emoji}
       </span>
-      {!collapsed ? <span className="truncate">{label}</span> : null}
+      {!collapsed ? (
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="truncate">{label}</span>
+          {badge ? <span className="shrink-0">{badge}</span> : null}
+        </span>
+      ) : null}
       <span className="sr-only">{label}</span>
     </Link>
   )
@@ -195,7 +220,7 @@ function SidebarGroup({
             label={item.label}
             emoji={item.emoji}
             collapsed
-            active={isActiveHref(item.href, pathname, searchString, hash)}
+            active={isNavItemActive(item, pathname, searchString, hash)}
             onNavigate={onNavigate}
           />
         ))}
@@ -204,21 +229,21 @@ function SidebarGroup({
   }
 
   return (
-    <Collapsible open={group.key === activeGroup ? true : open} onOpenChange={onOpenChange}>
+    <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className="space-y-1">
         <CollapsibleTrigger asChild>
           <button
             type="button"
             className={cn(
-              "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--agri-text-muted)] transition-colors hover:bg-[var(--agri-surface-muted)] hover:text-[var(--agri-text)] dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100",
-              group.key === activeGroup ? "text-[#2D6A4F] dark:text-emerald-300" : ""
+              "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--agri-text-muted)] transition-colors hover:bg-[var(--agri-surface-muted)] hover:text-[var(--agri-text)]",
+              group.key === activeGroup ? "text-[var(--success-text)]" : ""
             )}
           >
             <span>{group.label}</span>
             <ChevronDown
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                group.key === activeGroup || open ? "rotate-180" : "rotate-0"
+                open ? "rotate-180" : "rotate-0"
               )}
             />
           </button>
@@ -233,7 +258,7 @@ function SidebarGroup({
                 label={item.label}
                 emoji={item.emoji}
                 collapsed={false}
-                active={isActiveHref(item.href, pathname, searchString, hash)}
+                active={isNavItemActive(item, pathname, searchString, hash)}
                 onNavigate={onNavigate}
               />
             ))}
@@ -244,90 +269,122 @@ function SidebarGroup({
   )
 }
 
-function isActiveHref(href: string, pathname: string, searchString: string, hash: string) {
+function isActiveHref(
+  href: string,
+  pathname: string,
+  searchString: string,
+  hash: string,
+  exactPath = false
+) {
   const base = stripHashAndSearch(href)
   const expectedSearch = getSearchString(href)
   const expectedHash = getHashValue(href)
 
-  if (!pathname.startsWith(base)) return false
+  const pathNorm = (pathname.replace(/\/$/, "") || "/") as string
+  const baseNorm = (base.replace(/\/$/, "") || "/") as string
+  if (exactPath) {
+    if (pathNorm !== baseNorm) return false
+  } else if (!pathname.startsWith(base)) {
+    return false
+  }
   if (expectedSearch && expectedSearch !== searchString) return false
   if (expectedHash && expectedHash !== hash) return false
-  if (base === "/settings" && !expectedHash) return hash !== "#profil"
   return true
 }
 
-function SidebarAiButton({
-  collapsed,
-}: {
+export function isNavItemActive(item: NavItem, pathname: string, searchString: string, hash: string) {
+  return isActiveHref(item.href, pathname, searchString, hash, item.exact === true)
+}
+
+type AdminDesktopNavProps = {
   collapsed: boolean
-}) {
-  const { isAiPanelOpen, openAiPanel } = useAiPanel()
+  pathname: string
+  searchString: string
+  hash: string
+}
 
-  const button = (
-    <button
-      type="button"
-      onClick={openAiPanel}
-      aria-label="Deschide Asistentul Zmeurel"
-      className={cn(
-        "group flex w-full items-center rounded-2xl transition-all duration-200",
-        collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-3",
-        isAiPanelOpen
-          ? "bg-green-50 text-[#2D6A4F] dark:bg-green-900/20 dark:text-emerald-400"
-          : "text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)] dark:text-zinc-200 dark:hover:bg-zinc-800"
-      )}
-    >
-      <span
-        className={cn(
-          "relative flex h-10 w-10 items-center justify-center rounded-xl bg-[rgba(45,106,79,0.08)] text-[22px]",
-          isAiPanelOpen ? "shadow-[0_0_0_4px_rgba(45,106,79,0.10)]" : ""
-        )}
-      >
-        🤖
-        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_0_rgba(16,185,129,0.55)] animate-pulse" />
-      </span>
-      {!collapsed ? (
-        <span className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="truncate font-semibold">Asistentul Zmeurel</span>
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-        </span>
-      ) : null}
-    </button>
-  )
+function AdminDesktopNav({
+  collapsed,
+  pathname,
+  searchString,
+  hash,
+  open,
+  onOpenChange,
+}: AdminDesktopNavProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+  if (collapsed) {
+    return (
+      <div className="space-y-1">
+        {ADMIN_DESKTOP_NAV.map((item) => (
+          <SidebarLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            emoji={item.emoji}
+            collapsed
+            active={isNavItemActive(item, pathname, searchString, hash)}
+          />
+        ))}
+      </div>
+    )
+  }
 
-  if (!collapsed) return button
+  const inAdminZone = pathname.startsWith("/admin")
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" sideOffset={12}>
-        Asistentul Zmeurel
-      </TooltipContent>
-    </Tooltip>
+    <Collapsible open={open} onOpenChange={onOpenChange}>
+      <div className="space-y-1">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--agri-text-muted)] transition-colors hover:bg-[var(--agri-surface-muted)] hover:text-[var(--agri-text)] data-[state=open]:[&>svg]:rotate-180",
+              inAdminZone ? "text-[var(--success-text)]" : ""
+            )}
+          >
+            <span>Administrare</span>
+            <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-1">
+          {ADMIN_DESKTOP_NAV.map((item) => (
+            <SidebarLink
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              emoji={item.emoji}
+              collapsed={false}
+              active={isNavItemActive(item, pathname, searchString, hash)}
+            />
+          ))}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   )
 }
 
 export function Sidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { isSuperAdmin: isSuperAdminUser, associationRole } = useDashboardAuth()
   const bannerVisible = useDemoBannerVisible()
-  const [collapsed, setCollapsed] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false
-
-    try {
-      return window.localStorage.getItem(STORAGE_KEY) === "1"
-    } catch {
-      return false
-    }
-  })
+  const [collapsed, setCollapsed] = useState<boolean>(false)
   const [hash, setHash] = useState("")
-  const [groupOpen, setGroupOpen] = useState<Record<GroupKey, boolean>>({
-    ferma: false,
-    comercial: false,
-    finante: false,
-  })
+  const [openSection, setOpenSection] = useState<SidebarAccordionKey | null>(null)
 
   const currentGroup = useMemo(() => getGroupForPath(pathname), [pathname])
   const searchString = searchParams.toString()
+  const inAssociationWorkspace = pathname.startsWith("/asociatie")
+
+  useEffect(() => {
+    const syncTimer = window.setTimeout(() => {
+      try {
+        setCollapsed(window.localStorage.getItem(STORAGE_KEY) === "1")
+      } catch {
+        setCollapsed(false)
+      }
+    }, 0)
+    return () => window.clearTimeout(syncTimer)
+  }, [])
 
   useEffect(() => {
     try {
@@ -349,12 +406,17 @@ export function Sidebar() {
     return () => window.removeEventListener("hashchange", updateHash)
   }, [])
 
+  useEffect(() => {
+    if (collapsed || inAssociationWorkspace) return
+    setOpenSection(deriveOpenSectionFromPath(pathname, isSuperAdminUser))
+  }, [pathname, collapsed, isSuperAdminUser, inAssociationWorkspace])
+
   const bannerOffset = bannerVisible ? DEMO_BANNER_HEIGHT : 0
 
   return (
     <>
       <aside
-        className="fixed left-0 top-0 z-40 hidden border-r border-[var(--agri-border)] bg-white text-[var(--agri-text)] shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-[width] duration-300 ease-in-out dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 md:flex"
+        className="fixed left-0 top-0 z-40 hidden border-r border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[var(--shadow-elevated)] transition-[width] duration-300 ease-in-out md:flex"
         style={{
           top: bannerOffset,
           height: `calc(100vh - ${bannerOffset}px)`,
@@ -368,27 +430,27 @@ export function Sidebar() {
               type="button"
               aria-label={collapsed ? "Extinde sidebar" : "Restrânge sidebar"}
               onClick={() => setCollapsed((current) => !current)}
-              className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--agri-border)] bg-white text-[var(--agri-text)] shadow-sm transition-colors hover:bg-[var(--agri-surface-muted)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
 
             <div
               className={cn(
-                "border-b border-[var(--agri-border)] px-3 pb-4 pt-4 dark:border-zinc-800",
+                "border-b border-[var(--border-default)] px-3 pb-4 pt-4",
                 collapsed ? "px-2" : "pr-12"
               )}
             >
               <Link href="/dashboard" className="flex items-center gap-3 rounded-2xl px-2 py-1.5">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[rgba(45,106,79,0.10)] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:bg-[rgba(74,222,128,0.12)]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_85%,var(--surface-card))] shadow-[inset_0_1px_0_color:color-mix(in_srgb,var(--surface-card)_70%,transparent)]">
                   <Image src="/icons/icon.svg" alt="Zmeurel" width={28} height={28} className="h-7 w-7" />
                 </span>
                 {!collapsed ? (
                   <span className="min-w-0">
-                    <span className="block text-sm font-extrabold tracking-wide text-[var(--agri-text)] dark:text-zinc-100">
+                    <span className="block text-sm font-extrabold tracking-wide text-[var(--text-primary)]">
                       Zmeurel
                     </span>
-                    <span className="block text-xs font-medium uppercase tracking-[0.24em] text-[var(--agri-text-muted)] dark:text-zinc-400">
+                    <span className="block text-xs font-medium uppercase tracking-[0.24em] text-[var(--text-secondary)]">
                       OS
                     </span>
                   </span>
@@ -396,43 +458,93 @@ export function Sidebar() {
               </Link>
             </div>
 
-            <nav className="flex-1 space-y-3 overflow-y-auto px-2 py-3">
-              <SidebarLink
-                href={TOP_ITEM.href}
-                label={TOP_ITEM.label}
-                emoji={TOP_ITEM.emoji}
-                collapsed={collapsed}
-                active={isActiveHref(TOP_ITEM.href, pathname, searchString, hash)}
-              />
+            {associationRole ? (
+              <div
+                className={cn(
+                  "border-b border-[var(--border-default)] px-2 pb-3",
+                  collapsed ? "px-1.5" : ""
+                )}
+              >
+                <AssociationContextSwitcher collapsed={collapsed} />
+              </div>
+            ) : null}
 
-              <div className="space-y-2 pt-1">
-                {GROUPS.map((group) => (
-                  <SidebarGroup
-                    key={group.key}
-                    group={group}
+            <nav className="flex-1 space-y-3 overflow-y-auto px-2 py-3">
+              {inAssociationWorkspace ? (
+                <AssociationSidebar
+                  collapsed={collapsed}
+                  pathname={pathname}
+                  searchString={searchString}
+                  hash={hash}
+                />
+              ) : (
+                <>
+                  <SidebarLink
+                    href={TOP_ITEM.href}
+                    label={TOP_ITEM.label}
+                    emoji={TOP_ITEM.emoji}
                     collapsed={collapsed}
-                    activeGroup={currentGroup}
-                    open={groupOpen[group.key]}
-                    onOpenChange={(open) =>
-                      setGroupOpen((current) => ({
-                        ...current,
-                        [group.key]: open,
-                      }))
-                    }
+                    active={isNavItemActive(TOP_ITEM, pathname, searchString, hash)}
+                  />
+
+                  <div className="space-y-2 pt-1">
+                    {GROUPS.map((group) => (
+                      <SidebarGroup
+                        key={group.key}
+                        group={group}
+                        collapsed={collapsed}
+                        activeGroup={currentGroup}
+                        open={openSection === group.key}
+                        onOpenChange={(next) => {
+                          if (next) setOpenSection(group.key)
+                          else setOpenSection(null)
+                        }}
+                        pathname={pathname}
+                        searchString={searchString}
+                        hash={hash}
+                      />
+                    ))}
+                  </div>
+
+                  {isSuperAdminUser ? (
+                    <div className="space-y-2 pt-1">
+                      <AdminDesktopNav
+                        collapsed={collapsed}
+                        pathname={pathname}
+                        searchString={searchString}
+                        hash={hash}
+                        open={openSection === "admin"}
+                        onOpenChange={(next) => {
+                          if (next) setOpenSection("admin")
+                          else setOpenSection(null)
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              )}
+
+              {inAssociationWorkspace && isSuperAdminUser ? (
+                <div className="space-y-2 pt-1">
+                  <AdminDesktopNav
+                    collapsed={collapsed}
                     pathname={pathname}
                     searchString={searchString}
                     hash={hash}
+                    open={openSection === "admin"}
+                    onOpenChange={(next) => {
+                      if (next) setOpenSection("admin")
+                      else setOpenSection(null)
+                    }}
                   />
-                ))}
-              </div>
+                </div>
+              ) : null}
 
               <div className="pt-2">
                 <Separator />
               </div>
 
               <div className="space-y-2 pt-2">
-                <SidebarAiButton collapsed={collapsed} />
-                {!collapsed ? <Separator className="my-2" /> : null}
                 {FOOTER_ITEMS.map((item) => (
                   <SidebarLink
                     key={item.href}
@@ -440,7 +552,7 @@ export function Sidebar() {
                     label={item.label}
                     emoji={item.emoji}
                     collapsed={collapsed}
-                    active={isActiveHref(item.href, pathname, searchString, hash)}
+                    active={isNavItemActive(item, pathname, searchString, hash)}
                   />
                 ))}
               </div>

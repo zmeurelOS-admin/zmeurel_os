@@ -23,6 +23,21 @@ import {
   StocuriCriticeWidget,
   SumarVenituriWidget,
 } from '@/components/dashboard/DashboardWidgets'
+import {
+  DASHBOARD_PRIMARY_QUICK_ACTIONS,
+  DashboardAttentionCard,
+  DashboardComenziSnapshotCard,
+  DashboardCommercialSnapshotCard,
+  DashboardFarmPulseCard,
+  DashboardQuickActionsCard,
+  DashboardRecommendationsCard,
+  DashboardTodayCard,
+  DashboardUnifiedFinancialCard,
+  type DashboardAttentionItem,
+  type DashboardQuickActionItem,
+  type DashboardRecommendationItem,
+  type DashboardTodayStatItem,
+} from '@/components/dashboard/DashboardV2Sections'
 import { MeteoDashboardCard } from '@/components/dashboard/MeteoDashboardCard'
 import { TaskList, type DashboardTaskItem } from '@/components/dashboard/TaskList'
 import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
@@ -51,16 +66,21 @@ import {
   type DashboardAlert,
   type DashboardRawData,
 } from '@/lib/dashboard/engine'
+import { buildAttentionNowItems } from '@/lib/dashboard/attention'
+import { detectFarmContext } from '@/lib/dashboard/context'
+import { buildDashboardRecommendations } from '@/lib/dashboard/recommendations'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG } from '@/lib/calculations/stock-audit-thresholds'
 import { useMeteo } from '@/hooks/useMeteo'
 import { queryKeys } from '@/lib/query-keys'
 import { getSupabase } from '@/lib/supabase/client'
+import { resolveDashboardMicroclimate } from '@/lib/dashboard/microclimate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getStocuriPeLocatii } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import { getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
 import {
   dismissDashboardOnboarding,
   getDashboardProfilePreferences,
@@ -78,22 +98,6 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const EMPTY_LIST: never[] = []
 const DashboardGridLayout = WidthProvider(GridLayout)
 
-/** Ordinea comercială pe mobil (desktop rămâne grid + persistență). */
-const MOBILE_COMMERCIAL_WIDGET_ORDER: DashboardWidgetId[] = [
-  'kpi-summary',
-  'comenzi-recente',
-  'recoltari-recente',
-  'stocuri-critice',
-  'sumar-venituri',
-  'activitati-planificate',
-]
-
-const MOBILE_OPERATIONAL_WIDGET_IDS: DashboardWidgetId[] = [
-  'comenzi-recente',
-  'recoltari-recente',
-  'stocuri-critice',
-]
-
 const DASHBOARD_SCOPE_FOOTNOTE =
   'Pe parcelele tale comerciale din dashboard apar recolta și ce ține de teren. Comenzi, stoc și sumarul financiar arată întreaga fermă.'
 
@@ -103,7 +107,6 @@ type DashboardCulturaTreatmentInterval = Pick<
   'id' | 'solar_id' | 'activa' | 'interval_tratament_zile'
 >
 type SmartAction = { id: string; label: string; hint: string; href: string }
-type AlertConcern = DashboardAlert['category'] | 'tratamente' | 'parcele'
 
 function toDateOnly(value: string | null | undefined): string {
   return (value ?? '').slice(0, 10)
@@ -185,18 +188,6 @@ function getGreeting(value: Date): string {
   return 'Bună seara'
 }
 
-function severityTone(alert: DashboardAlert): string {
-  if (alert.severity === 'critical') return 'border-[rgba(207,34,46,0.22)] bg-[rgba(207,34,46,0.08)] text-[#8f1d26]'
-  if (alert.severity === 'warning') return 'border-[rgba(179,90,0,0.24)] bg-[rgba(179,90,0,0.08)] text-[#8a4500]'
-  return 'border-[rgba(24,104,219,0.2)] bg-[rgba(24,104,219,0.08)] text-[#1852a8]'
-}
-
-function severityLabel(alert: DashboardAlert): string {
-  if (alert.severity === 'critical') return 'Critică'
-  if (alert.severity === 'warning') return 'Atenție'
-  return 'De urmărit'
-}
-
 function parcelAttentionScore(flags: string[], status: string | null): number {
   let score = 0
   if (flags.includes('treatment_overdue')) score += 4
@@ -205,48 +196,6 @@ function parcelAttentionScore(flags: string[], status: string | null): number {
   if (flags.includes('no_recent_activity')) score += 1
   if (status && status !== 'activ') score += 1
   return score
-}
-
-function primaryParcelAttentionReason(parcel: {
-  attentionFlags: string[]
-  status_operational: string | null
-}): string {
-  if (parcel.attentionFlags.includes('treatment_overdue')) return 'Tratament depășit'
-  if (parcel.attentionFlags.includes('treatment_due_soon')) return 'Tratament scadent curând'
-  if (parcel.attentionFlags.includes('pause_active')) return 'Pauză de tratament activă'
-  if (parcel.attentionFlags.includes('no_recent_activity')) return 'Fără activitate recentă'
-  return parcel.status_operational && parcel.status_operational !== 'activ'
-    ? 'Status operațional de urmărit'
-    : 'Necesită verificare'
-}
-
-function mapTaskToConcerns(taskId: string): AlertConcern[] {
-  if (taskId.startsWith('comenzi:')) return ['comenzi']
-  if (taskId.startsWith('stoc:')) return ['stoc']
-  if (taskId.startsWith('tratament:')) return ['tratamente']
-  if (taskId === 'pauza:activa') return ['parcele', 'tratamente']
-  if (taskId === 'parcele:fara-activitate') return ['parcele']
-  return []
-}
-
-function buildVisibleAlerts(
-  alerts: DashboardAlert[],
-  tasks: DashboardTaskItem[],
-): DashboardAlert[] {
-  const concernSet = new Set<AlertConcern>()
-  for (const task of tasks) {
-    for (const concern of mapTaskToConcerns(task.id)) {
-      concernSet.add(concern)
-    }
-  }
-
-  return alerts
-    .filter((alert) => {
-      // Keep meteo alerts visible: they are informational context, not operational tasks.
-      if (alert.category === 'meteo') return true
-      return !concernSet.has(alert.category)
-    })
-    .slice(0, 4)
 }
 
 function buildSmartActions(params: {
@@ -330,7 +279,7 @@ function getComparableLayoutJson(layout: DashboardLayoutConfig): string {
 export default function DashboardPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { userId } = useDashboardAuth()
+  const { userId, tenantId, associationShopApproved } = useDashboardAuth()
   const meteo = useMeteo()
   const [editMode, setEditMode] = useState(false)
   const [addWidgetOpen, setAddWidgetOpen] = useState(false)
@@ -347,9 +296,29 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
-    ;['/parcele', '/activitati-agricole', '/recoltari', '/vanzari', '/comenzi', '/stocuri'].forEach((href) => {
-      router.prefetch(href)
-    })
+    const routesToPrefetch = ['/parcele', '/activitati-agricole', '/recoltari', '/vanzari', '/comenzi', '/stocuri']
+    const runPrefetch = () => {
+      routesToPrefetch.forEach((href) => {
+        router.prefetch(href)
+      })
+    }
+    const requestIdle = (window as unknown as {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }).requestIdleCallback
+    const cancelIdle = (window as unknown as {
+      cancelIdleCallback?: (id: number) => void
+    }).cancelIdleCallback
+
+    // Avoid competing with initial dashboard queries on mobile;
+    // defer navigation warming until the browser is idle.
+    if (requestIdle && cancelIdle) {
+      const idleId = requestIdle(() => runPrefetch(), { timeout: 2500 })
+      return () => cancelIdle(idleId)
+    }
+
+    const timeoutId = window.setTimeout(runPrefetch, 1200)
+    return () => window.clearTimeout(timeoutId)
   }, [router])
 
   const recoltariQuery = useQuery({
@@ -401,6 +370,21 @@ export default function DashboardPage() {
         .map((parcela) => parcela.id),
     [parceleQuery.data]
   )
+
+  const solarParcelaIds = useMemo(
+    () =>
+      (parceleQuery.data ?? EMPTY_LIST)
+        .filter((parcela) => isParcelaDashboardRelevant(parcela) && parcela.tip_unitate === 'solar')
+        .map((parcela) => parcela.id),
+    [parceleQuery.data],
+  )
+
+  const microclimateQuery = useQuery({
+    queryKey: queryKeys.solarClimate(solarParcelaIds.join(',')),
+    enabled: solarParcelaIds.length > 0,
+    queryFn: () => getSolarClimateLogsForUnitati(solarParcelaIds, 120),
+    placeholderData: (previousData) => previousData,
+  })
 
   const treatmentIntervalsQuery = useQuery({
     queryKey: queryKeys.culturiTreatmentIntervals(dashboardParcelaIds.join(',')),
@@ -506,6 +490,12 @@ export default function DashboardPage() {
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
   const comenzi = comenziQuery.data ?? EMPTY_LIST
   const stocuri = stocuriQuery.data ?? EMPTY_LIST
+  const solarClimateLogs = microclimateQuery.data ?? EMPTY_LIST
+
+  const dashboardMicroclimate = useMemo(
+    () => resolveDashboardMicroclimate(solarClimateLogs, currentDateTime),
+    [currentDateTime, solarClimateLogs],
+  )
 
   const hideOnboarding = profileQuery.data?.hideOnboarding === true
 
@@ -525,6 +515,10 @@ export default function DashboardPage() {
   const dashboardRelevantParcele = useMemo<DashboardParcela[]>(
     () => parcele.filter((parcela) => isParcelaDashboardRelevant(parcela)),
     [parcele]
+  )
+  const farmContext = useMemo(
+    () => detectFarmContext(parcele, dashboardRelevantParcele),
+    [dashboardRelevantParcele, parcele],
   )
   const dashboardParcelaIdSet = useMemo(
     () => new Set(dashboardRelevantParcele.map((p) => p.id)),
@@ -865,11 +859,6 @@ export default function DashboardPage() {
     [dashboardRawData, parcelStates],
   )
 
-  const visibleAlerts = useMemo(
-    () => buildVisibleAlerts(dashboardAlerts, dashboardTasks),
-    [dashboardAlerts, dashboardTasks],
-  )
-
   const parcelAttentionItems = useMemo(
     () => parcelStates
       .filter((parcel) => parcel.attentionFlags.length > 0 || parcel.status_operational !== 'activ')
@@ -892,6 +881,169 @@ export default function DashboardPage() {
       comenziActiveCount: comenziActive.length,
     })
   }, [comenziActive.length, dashboardAlerts, parcelStates])
+
+  const ordersTodayCount = useMemo(
+    () =>
+      comenzi.filter((row) => {
+        const deliveryDate = toDateOnly(row.data_livrare)
+        return deliveryDate === todayIso && row.status !== 'livrata' && row.status !== 'anulata'
+      }).length,
+    [comenzi, todayIso],
+  )
+
+  const recommendationItems = useMemo<DashboardRecommendationItem[]>(
+    () =>
+      buildDashboardRecommendations({
+        meteo: meteo.data,
+        tasks: dashboardTasks,
+        alerts: dashboardAlerts,
+        primaryContext: farmContext.primaryContext,
+        microclimate: dashboardMicroclimate,
+        parcelAttentionItems: parcelAttentionItems.map((p) => ({
+          displayName: p.displayName,
+          attentionFlags: p.attentionFlags,
+        })),
+        plannedActivitiesCount: plannedActivities.length,
+        criticalStockCount: criticalStocks.length,
+      }),
+    [
+      criticalStocks.length,
+      dashboardAlerts,
+      dashboardTasks,
+      dashboardMicroclimate,
+      farmContext.primaryContext,
+      meteo.data,
+      parcelAttentionItems,
+      plannedActivities.length,
+    ],
+  )
+
+  const recommendationIds = useMemo(
+    () => new Set(recommendationItems.map((item) => item.id)),
+    [recommendationItems],
+  )
+
+  const attentionNowItems = useMemo<DashboardAttentionItem[]>(
+    () =>
+      buildAttentionNowItems({
+        alerts: dashboardAlerts,
+        tasks: dashboardTasks,
+        parcelAttentionItems: parcelAttentionItems.map((p) => ({
+          parcelaId: p.parcelaId,
+          displayName: p.displayName,
+          attentionFlags: p.attentionFlags,
+        })),
+        recommendationIds,
+      }),
+    [dashboardAlerts, dashboardTasks, parcelAttentionItems, recommendationIds],
+  )
+
+  const recommendationsConfidenceHint = useMemo(() => {
+    if (farmContext.primaryContext !== 'solar') return null
+    if (dashboardMicroclimate.isRecent) return 'Date actualizate — recomandările sunt precise'
+    return 'Recomandările sunt estimate — nu există date din solar'
+  }, [dashboardMicroclimate.isRecent, farmContext.primaryContext])
+
+  const recommendationsBoostHint = useMemo(() => {
+    if (farmContext.primaryContext !== 'solar') return null
+    if (dashboardMicroclimate.isRecent) return null
+    return 'Pentru recomandări mai precise, introdu date din teren'
+  }, [dashboardMicroclimate.isRecent, farmContext.primaryContext])
+
+  const contextualQuickActions = useMemo<DashboardQuickActionItem[]>(() => {
+    const primaryActionHrefs = new Set(DASHBOARD_PRIMARY_QUICK_ACTIONS.map((action) => action.href))
+
+    return smartActions
+      .filter((action) => !primaryActionHrefs.has(action.href))
+      .map((action) => ({
+        id: action.id,
+        label: action.label,
+        hint: action.hint,
+        href: action.href,
+      }))
+      .slice(0, 2)
+  }, [smartActions])
+
+  const todayOverviewStats = useMemo<DashboardTodayStatItem[]>(
+    () => [
+      {
+        id: 'today-orders',
+        label: 'Livrări',
+        value: String(ordersTodayCount),
+        meta: ordersTodayCount === 1 ? '1 pentru azi' : 'Programate pentru azi',
+      },
+      {
+        id: 'today-activities',
+        label: 'Activități',
+        value: String(activitatiAziCount),
+        meta: 'Lucrări pe teren',
+      },
+      {
+        id: 'today-harvest',
+        label: 'Recoltat',
+        value: `${formatNumber(totalKgAzi)} kg`,
+        meta: recoltariAzi.length > 0 ? `${recoltariAzi.length} înregistrări azi` : 'Fără intrări azi',
+      },
+    ],
+    [activitatiAziCount, ordersTodayCount, recoltariAzi.length, totalKgAzi],
+  )
+
+  const todayFocusItems = useMemo<DashboardAttentionItem[]>(
+    () =>
+      dashboardTasks.slice(0, 3).map((task) => ({
+        id: task.id,
+        label: task.text,
+        detail: undefined,
+        tone:
+          task.tone === 'urgent' ? 'critical' : task.tone === 'warning' ? 'warning' : 'info',
+        badge: task.tag,
+      })),
+    [dashboardTasks],
+  )
+
+  const farmPulseSections = useMemo(
+    () => [
+      {
+        id: 'orders',
+        title: 'Comenzi recente',
+        href: '/comenzi',
+        emptyLabel: 'Nu există comenzi recente în datele curente.',
+        items: recentOrders.slice(0, 3).map((item) => ({
+          id: item.id,
+          title: item.client,
+          meta: item.deliveryDate,
+          value: item.quantity,
+        })),
+      },
+      {
+        id: 'harvests',
+        title: 'Recoltări recente',
+        href: '/recoltari',
+        emptyLabel: 'Nu există recoltări recente în datele curente.',
+        items: recentHarvests.slice(0, 3).map((item) => ({
+          id: item.id,
+          title: item.parcela,
+          meta: item.timestamp,
+          value: item.quantity,
+          tone: 'success' as const,
+        })),
+      },
+      {
+        id: 'stocks',
+        title: 'Stoc critic',
+        href: '/stocuri',
+        emptyLabel: 'Nu există produse sub pragul critic configurat.',
+        items: criticalStocks.slice(0, 3).map((item) => ({
+          id: item.id,
+          title: item.produs,
+          meta: item.locatie,
+          value: item.quantity,
+          tone: item.severity,
+        })),
+      },
+    ],
+    [criticalStocks, recentHarvests, recentOrders],
+  )
 
   const widgetEmptyState = useMemo<Record<DashboardWidgetId, boolean>>(
     () => ({
@@ -1065,28 +1217,13 @@ export default function DashboardPage() {
     () => activeWidgets.filter((widget) => editMode || !widgetEmptyState[widget.id]),
     [activeWidgets, editMode, widgetEmptyState]
   )
-  const mobileWidgets = useMemo(
-    () => activeWidgets.filter((widget) => !widgetEmptyState[widget.id]),
-    [activeWidgets, widgetEmptyState]
+  const desktopGridWidgets = useMemo(
+    () =>
+      editMode
+        ? desktopWidgets
+        : desktopWidgets.filter((widget) => widget.id !== 'kpi-summary' && widget.id !== 'sumar-venituri'),
+    [desktopWidgets, editMode]
   )
-  const mobileWidgetIdSet = useMemo(() => new Set(mobileWidgets.map((w) => w.id)), [mobileWidgets])
-  const mobileWidgetsCommercialOrder = useMemo(
-    () => MOBILE_COMMERCIAL_WIDGET_ORDER.filter((id) => mobileWidgetIdSet.has(id)),
-    [mobileWidgetIdSet]
-  )
-  const mobileOperationalWidgets = useMemo(
-    () => MOBILE_OPERATIONAL_WIDGET_IDS.filter((id) => mobileWidgetIdSet.has(id)),
-    [mobileWidgetIdSet]
-  )
-  const mobilePulseWidgets = useMemo(
-    () => mobileWidgetsCommercialOrder.filter((id) => id === 'sumar-venituri'),
-    [mobileWidgetsCommercialOrder]
-  )
-  const mobileSecondaryWidgets = useMemo(
-    () => mobileWidgetsCommercialOrder.filter((id) => id === 'activitati-planificate'),
-    [mobileWidgetsCommercialOrder]
-  )
-  const showMobileKpi = mobileWidgetIdSet.has('kpi-summary')
   const inactiveWidgets = useMemo(
     () => currentLayout.widgets.filter((widget) => !widget.active && DASHBOARD_WIDGET_META[widget.id].removable),
     [currentLayout.widgets]
@@ -1151,7 +1288,7 @@ export default function DashboardPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 shrink-0 rounded-xl border-white/40 bg-white/10 px-2.5 text-xs font-semibold text-white shadow-[0_2px_12px_rgba(0,0,0,0.12)] backdrop-blur-sm hover:bg-white/20 sm:px-3 sm:text-sm"
+                  className="h-8 shrink-0 rounded-xl border-[color:color-mix(in_srgb,var(--text-on-accent)_30%,transparent)] bg-[color:color-mix(in_srgb,var(--text-on-accent)_12%,transparent)] px-2.5 text-xs font-semibold text-[var(--text-on-accent)] shadow-[var(--shadow-soft)] backdrop-blur-sm hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_20%,transparent)] sm:px-3 sm:text-sm"
                   onClick={() => {
                     setDraftLayout(savedLayout)
                     setEditMode(true)
@@ -1166,7 +1303,7 @@ export default function DashboardPage() {
                     variant="outline"
                     size="sm"
                     aria-label="Adaugă widget"
-                    className="h-8 shrink-0 gap-1 rounded-xl border-white/40 bg-white/10 px-2.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-white/20 sm:px-3 sm:text-sm"
+                    className="h-8 shrink-0 gap-1 rounded-xl border-[color:color-mix(in_srgb,var(--text-on-accent)_30%,transparent)] bg-[color:color-mix(in_srgb,var(--text-on-accent)_12%,transparent)] px-2.5 text-xs font-semibold text-[var(--text-on-accent)] backdrop-blur-sm hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_20%,transparent)] sm:px-3 sm:text-sm"
                     onClick={() => setAddWidgetOpen(true)}
                   >
                     <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -1175,7 +1312,7 @@ export default function DashboardPage() {
                   <Button
                     type="button"
                     size="sm"
-                    className="h-8 shrink-0 rounded-xl border border-white/30 bg-white px-2.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-50 sm:px-3 sm:text-sm"
+                    className="h-8 shrink-0 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-2.5 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)] sm:px-3 sm:text-sm"
                     onClick={() => saveLayoutMutation.mutate()}
                     disabled={!hasUnsavedChanges || saveLayoutMutation.isPending}
                   >
@@ -1185,7 +1322,7 @@ export default function DashboardPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 shrink-0 rounded-xl border-white/40 bg-white/10 px-2.5 text-xs font-semibold text-white backdrop-blur-sm hover:bg-white/20 sm:px-3 sm:text-sm"
+                    className="h-8 shrink-0 rounded-xl border-[color:color-mix(in_srgb,var(--text-on-accent)_30%,transparent)] bg-[color:color-mix(in_srgb,var(--text-on-accent)_12%,transparent)] px-2.5 text-xs font-semibold text-[var(--text-on-accent)] backdrop-blur-sm hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_20%,transparent)] sm:px-3 sm:text-sm"
                     onClick={() => {
                       setDraftLayout(null)
                       setEditMode(false)
@@ -1200,7 +1337,7 @@ export default function DashboardPage() {
         />
       }
     >
-      <div className="dashboard-premium-scope mx-auto max-w-7xl px-1 pb-24 pt-0 sm:px-0 sm:pt-1">
+      <div className="dashboard-premium-scope mx-auto max-w-7xl px-1 pb-32 pt-0 sm:px-0 sm:pb-28 sm:pt-1 md:pb-24">
         {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
         {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
 
@@ -1215,192 +1352,123 @@ export default function DashboardPage() {
               </div>
             ) : null}
 
-            <div className="dashboard-stack-meteo">
+            <div className="dashboard-stack-meteo md:hidden">
               <MeteoDashboardCard
                 data={meteo.data}
                 loading={meteo.loading}
                 error={meteo.error}
+                primaryContext={farmContext.primaryContext}
+                microclimate={dashboardMicroclimate}
                 className="dashboard-meteo-hero"
               />
             </div>
 
-            {visibleAlerts.length > 0 ? (
-              <div className="mb-3">
-                <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-3 shadow-[var(--agri-shadow)]">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">
-                    Ce cere atenție acum
-                  </div>
-                  <div className="space-y-2">
-                    {visibleAlerts.map((alert) => (
-                      <div
-                        key={alert.id}
-                        className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs ${severityTone(alert)}`}
-                      >
-                        <span className="font-medium">{alert.message}</span>
-                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.06em]">
-                          {severityLabel(alert)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+            <div className="mb-[var(--dashboard-stack-gap)] hidden md:block md:space-y-[var(--dashboard-stack-gap)]">
+              <div className="grid gap-4 xl:grid-cols-12">
+                <div className="xl:col-span-5">
+                  <TaskList
+                    tasks={dashboardTasks}
+                    loading={taskListLoading}
+                    title="Ce ai de făcut azi"
+                    className="dashboard-task-list"
+                  />
+                </div>
+                <div className="xl:col-span-3">
+                  <MeteoDashboardCard
+                    compact
+                    data={meteo.data}
+                    loading={meteo.loading}
+                    error={meteo.error}
+                    primaryContext={farmContext.primaryContext}
+                    microclimate={dashboardMicroclimate}
+                    className="dashboard-meteo-hero h-full"
+                  />
+                </div>
+                <div className="xl:col-span-4">
+                  {attentionNowItems.length > 0 ? (
+                    <DashboardAttentionCard items={attentionNowItems} />
+                  ) : (
+                    <DashboardRecommendationsCard
+                      items={recommendationItems}
+                      helperText={recommendationsConfidenceHint ?? undefined}
+                      boostText={recommendationsBoostHint ?? undefined}
+                    />
+                  )}
                 </div>
               </div>
-            ) : null}
 
-            {smartActions.length > 0 ? (
-              <section className="mb-3 rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-3 shadow-[var(--agri-shadow)] md:hidden">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">
-                  Poți face acum
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {smartActions.map((action) => (
-                    <button
-                      key={action.id}
-                      type="button"
-                      onClick={() => router.push(action.href)}
-                      className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-3 py-2 text-left transition hover:border-[var(--agri-primary)]/40 hover:bg-[var(--agri-surface-muted)]"
-                    >
-                      <p className="text-xs font-semibold text-[var(--agri-text)]">{action.label}</p>
-                      <p className="mt-1 text-[11px] text-[var(--agri-text-muted)]">{action.hint}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <DashboardComenziSnapshotCard
+                  activeCount={comenziActive.length}
+                  kgInCursLabel={`${formatNumber(kgComenziActive)} kg în curs`}
+                  previewClient={recentOrders[0]?.client}
+                  previewMeta={recentOrders[0]?.deliveryDate}
+                />
+                <DashboardCommercialSnapshotCard
+                  mode={associationShopApproved ? 'association' : 'farmer'}
+                  href={
+                    associationShopApproved
+                      ? '/magazin/asociatie'
+                      : tenantId
+                        ? `/magazin/${tenantId}`
+                        : '/magazin'
+                  }
+                />
+              </div>
 
-            <div className="space-y-3 md:hidden">
-              {showMobileKpi ? <div className="dashboard-stack-kpi">{renderWidget('kpi-summary', false)}</div> : null}
+              <div className="grid gap-4 lg:grid-cols-2">
+                <DashboardFarmPulseCard sections={farmPulseSections} footnote={DASHBOARD_SCOPE_FOOTNOTE} />
+                <DashboardQuickActionsCard
+                  primaryActions={DASHBOARD_PRIMARY_QUICK_ACTIONS}
+                  contextualActions={contextualQuickActions}
+                />
+              </div>
 
-              <TaskList
-                tasks={dashboardTasks}
-                loading={taskListLoading}
-                title="Ce ai de făcut azi"
-                className="dashboard-task-list"
-              />
-
-              {parcelAttentionItems.length > 0 ? (
-                <section className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-3 shadow-[var(--agri-shadow)]">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">
-                    Terenuri de urmărit
-                  </div>
-                  <div className="space-y-2">
-                    {parcelAttentionItems.map((parcel) => (
-                      <div
-                        key={parcel.parcelaId}
-                        className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-semibold text-[var(--agri-text)]">{parcel.displayName}</p>
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--agri-text-muted)]">
-                            {parcel.status_operational}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
-                          {primaryParcelAttentionReason(parcel)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+              {!editMode ? (
+                <DashboardUnifiedFinancialCard
+                  kpiItems={kpiItems}
+                  empty={widgetEmptyState['kpi-summary'] && widgetEmptyState['sumar-venituri']}
+                  total={`${formatMoney(venitSezon)} RON`}
+                  previous={`${formatMoney(venitSezonAnterior)} RON`}
+                  periodLabel="Sezon curent"
+                  trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
+                  series={revenueSeries}
+                />
               ) : null}
-
-              {mobileOperationalWidgets.length > 0 ? (
-                <section className="dashboard-op-zone" aria-label="Zonă operațională">
-                  <div className="dashboard-section-head">
-                    <span className="dashboard-section-eyebrow">În fermă și pe teren</span>
-                    <h2 className="dashboard-section-title">Comenzi, recoltă recentă, stoc</h2>
-                    <p className="dashboard-op-zone-hint">
-                      Recolta afișată urmărește parcelele comerciale din dashboard; comenzile și stocul cuprind întreaga
-                      fermă.
-                    </p>
-                  </div>
-                  <div className="dashboard-op-zone-inner space-y-3">
-                    {mobileOperationalWidgets.map((widgetId) => (
-                      <div key={widgetId}>{renderWidget(widgetId, false)}</div>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
-
-              {mobilePulseWidgets.map((widgetId) => (
-                <div key={widgetId} className="dashboard-stack-pulse">
-                  {renderWidget(widgetId, false)}
-                </div>
-              ))}
-
-              {mobileSecondaryWidgets.map((widgetId) => (
-                <div key={widgetId}>{renderWidget(widgetId, false)}</div>
-              ))}
-
-              <p className="dashboard-scope-footnote rounded-2xl border border-[var(--agri-border)]/60 bg-[var(--agri-surface-muted)]/25 px-3 py-2 text-[11px] leading-snug text-[var(--agri-text-muted)] md:hidden">
-                {DASHBOARD_SCOPE_FOOTNOTE}
-              </p>
             </div>
 
-            <div className="dashboard-stack-tasks hidden md:block">
-              <TaskList
-                tasks={dashboardTasks}
-                loading={taskListLoading}
-                title="Ce ai de făcut azi"
-                className="dashboard-task-list"
+            <div className="mb-[var(--dashboard-stack-gap)] grid gap-4 md:hidden">
+              {attentionNowItems.length > 0 ? (
+                <DashboardAttentionCard items={attentionNowItems} />
+              ) : null}
+              <DashboardRecommendationsCard
+                items={recommendationItems}
+                helperText={recommendationsConfidenceHint ?? undefined}
+                boostText={recommendationsBoostHint ?? undefined}
               />
+              <DashboardTodayCard stats={todayOverviewStats} focusItems={todayFocusItems} />
+              <DashboardFarmPulseCard sections={farmPulseSections} footnote={DASHBOARD_SCOPE_FOOTNOTE} />
+              <DashboardQuickActionsCard
+                primaryActions={DASHBOARD_PRIMARY_QUICK_ACTIONS}
+                contextualActions={contextualQuickActions}
+              />
+              {!editMode ? (
+                <DashboardUnifiedFinancialCard
+                  kpiItems={kpiItems}
+                  empty={widgetEmptyState['kpi-summary'] && widgetEmptyState['sumar-venituri']}
+                  total={`${formatMoney(venitSezon)} RON`}
+                  previous={`${formatMoney(venitSezonAnterior)} RON`}
+                  periodLabel="Sezon curent"
+                  trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
+                  series={revenueSeries}
+                />
+              ) : null}
             </div>
-
-            {smartActions.length > 0 ? (
-              <section className="mb-4 hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-3 shadow-[var(--agri-shadow)] md:block">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">
-                  Poți face acum
-                </div>
-                <div className="grid gap-2 md:grid-cols-3">
-                  {smartActions.map((action) => (
-                    <button
-                      key={action.id}
-                      type="button"
-                      onClick={() => router.push(action.href)}
-                      className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-3 py-2 text-left transition hover:border-[var(--agri-primary)]/40 hover:bg-[var(--agri-surface-muted)]"
-                    >
-                      <p className="text-xs font-semibold text-[var(--agri-text)]">{action.label}</p>
-                      <p className="mt-1 text-[11px] text-[var(--agri-text-muted)]">{action.hint}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {parcelAttentionItems.length > 0 ? (
-              <section className="mb-4 hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-3 shadow-[var(--agri-shadow)] md:block">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">
-                  Terenuri de urmărit
-                </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {parcelAttentionItems.map((parcel) => (
-                    <div
-                      key={parcel.parcelaId}
-                      className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-[var(--agri-text)]">{parcel.displayName}</p>
-                        <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--agri-text-muted)]">
-                          {parcel.status_operational}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
-                        {primaryParcelAttentionReason(parcel)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <p className="dashboard-scope-footnote mb-4 hidden rounded-2xl border border-[var(--agri-border)]/60 bg-[var(--agri-surface-muted)]/25 px-4 py-3 text-xs leading-snug text-[var(--agri-text-muted)] md:block lg:mb-5">
-              {DASHBOARD_SCOPE_FOOTNOTE}
-            </p>
 
             <div className="hidden md:block">
               <DashboardGridLayout
                 className="dashboard-grid-layout"
-                layout={toReactGridLayout(desktopWidgets)}
+                layout={toReactGridLayout(desktopGridWidgets)}
                 cols={12}
                 rowHeight={84}
                 margin={[24, 24]}
@@ -1412,7 +1480,7 @@ export default function DashboardPage() {
                 draggableHandle=".dashboard-widget-handle"
                 onLayoutChange={handleLayoutChange}
               >
-                {desktopWidgets.map((widget) => (
+                {desktopGridWidgets.map((widget) => (
                   <div key={widget.id} className="h-full">
                     {renderWidget(widget.id, editMode)}
                   </div>
@@ -1438,19 +1506,19 @@ export default function DashboardPage() {
                   key={widget.id}
                   type="button"
                   onClick={() => addWidget(widget.id)}
-                  className="flex w-full items-start justify-between gap-4 rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 py-4 text-left transition hover:border-[var(--agri-primary)]/40 hover:bg-[var(--agri-surface-muted)]"
+                  className="flex w-full items-start justify-between gap-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-4 text-left transition hover:border-[color:color-mix(in_srgb,var(--focus-ring)_35%,var(--border-default))] hover:bg-[var(--surface-card-muted)]"
                 >
                   <div>
-                    <div className="text-sm font-semibold text-[var(--agri-text)]">{DASHBOARD_WIDGET_META[widget.id].title}</div>
-                    <div className="mt-1 text-xs leading-5 text-[var(--agri-text-muted)]">{DASHBOARD_WIDGET_META[widget.id].description}</div>
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">{DASHBOARD_WIDGET_META[widget.id].title}</div>
+                    <div className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{DASHBOARD_WIDGET_META[widget.id].description}</div>
                   </div>
-                  <span className="rounded-full bg-[rgba(45,106,79,0.08)] px-2.5 py-1 text-xs font-semibold text-[var(--agri-primary)]">
+                  <span className="rounded-full border border-[var(--info-border)] bg-[var(--info-bg)] px-2.5 py-1 text-xs font-semibold text-[var(--info-text)]">
                     Activează
                   </span>
                 </button>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/60 px-4 py-8 text-center text-sm text-[var(--agri-text-muted)]">
+              <div className="rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
                 Toate widget-urile disponibile sunt deja active.
               </div>
             )}

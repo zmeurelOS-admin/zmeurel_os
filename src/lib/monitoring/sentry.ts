@@ -1,3 +1,8 @@
+/**
+ * Captură manuală + context tenant pe scope-uri Sentry.
+ * User id/email pe client: `useSentryUser` (MonitoringInit). În căile care folosesc doar acești helperi fără
+ * parametri `userId`/`tenantId`, contextul poate fi incomplet — pasați mereu tenant când îl cunoașteți.
+ */
 import * as Sentry from '@sentry/nextjs'
 
 type SentryErrorContext = {

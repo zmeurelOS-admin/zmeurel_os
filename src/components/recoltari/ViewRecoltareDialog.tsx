@@ -73,7 +73,7 @@ export function ViewRecoltareDialog({
           </DialogHeader>
 
           <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
-            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Detalii</h3>
+            <h3 className="mb-3 text-sm text-[var(--agri-text)] [font-weight:650]">Detalii</h3>
             <div className="space-y-2">
               <div>
                 <p className="text-sm text-[var(--agri-text-muted)]">Parcelă</p>
@@ -106,7 +106,7 @@ export function ViewRecoltareDialog({
           </section>
 
           <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
-            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Cantități</h3>
+            <h3 className="mb-3 text-sm text-[var(--agri-text)] [font-weight:650]">Cantități</h3>
             <div className="space-y-2">
               <div>
                 <p className="text-sm text-[var(--agri-text-muted)]">Cal. 1</p>
@@ -124,7 +124,7 @@ export function ViewRecoltareDialog({
           </section>
 
           <section className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] py-4">
-            <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Financiar</h3>
+            <h3 className="mb-3 text-sm text-[var(--agri-text)] [font-weight:650]">Financiar</h3>
             <div className="space-y-2">
               <div>
                 <p className="text-sm text-[var(--agri-text-muted)]">Preț/kg</p>
@@ -143,8 +143,8 @@ export function ViewRecoltareDialog({
 
           {visibleObservatii.trim() ? (
             <section className="py-4">
-              <h3 className="mb-3 text-base font-semibold text-[var(--agri-text)]">Observații</h3>
-              <p className="text-base font-medium text-[var(--agri-text)]">{visibleObservatii}</p>
+              <h3 className="mb-2 text-sm text-[var(--agri-text)] [font-weight:650]">Observații</h3>
+              <p className="text-sm leading-relaxed text-[var(--agri-text)]">{visibleObservatii}</p>
             </section>
           ) : null}
         </div>

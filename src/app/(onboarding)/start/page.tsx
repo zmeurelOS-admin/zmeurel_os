@@ -99,7 +99,6 @@ export default function StartOnboardingPage() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabase(), [])
   const [authState, setAuthState] = useState<AuthState>('loading')
-  const [redirectAuthenticatedUser, setRedirectAuthenticatedUser] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [step, setStep] = useState<Step>('auth')
@@ -114,7 +113,6 @@ export default function StartOnboardingPage() {
       if (!mounted) return
       const hasSession = Boolean(data.session)
       setAuthState(hasSession ? 'user' : 'guest')
-      setRedirectAuthenticatedUser(hasSession)
     })
 
     const {
@@ -131,10 +129,10 @@ export default function StartOnboardingPage() {
   }, [supabase])
 
   useEffect(() => {
-    if (redirectAuthenticatedUser && authState === 'user' && pendingAction === null) {
-      router.replace('/dashboard')
-    }
-  }, [authState, pendingAction, redirectAuthenticatedUser, router])
+    if (authState !== 'user') return
+    if (pendingAction !== null) return
+    router.replace('/dashboard')
+  }, [authState, pendingAction, router])
 
   const handleRetry = () => {
     if (isBusy) return

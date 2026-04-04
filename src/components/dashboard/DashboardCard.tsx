@@ -43,12 +43,12 @@ export function DashboardCard({
       )}
     >
       {title || rightSlot ? (
-        <AppCardHeader className="mb-2">
-          <h3 className="text-[var(--agri-text-muted)]">{title}</h3>
+        <AppCardHeader className="mb-3 [&_h3]:text-[1.02rem] [&_h3]:leading-tight [&_h3]:tracking-[-0.03em] [&_h3]:text-[var(--agri-text)] [&_h3]:[font-weight:750]">
+          <h3>{title}</h3>
           {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
         </AppCardHeader>
       ) : null}
-      <AppCardContent className={cn('space-y-1.5', contentClassName)}>{children}</AppCardContent>
+      <AppCardContent className={cn('space-y-1.5 text-sm', contentClassName)}>{children}</AppCardContent>
     </InfoCard>
   )
 }

@@ -9,6 +9,7 @@ import { Loader2, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { AppShell } from '@/components/app/AppShell'
 import {
   ModuleEmptyCard,
@@ -22,11 +23,18 @@ import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
+import {
+  DesktopInspectorPanel,
+  DesktopInspectorSection,
+  DesktopSplitPane,
+  DesktopToolbar,
+} from '@/components/ui/desktop'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -53,9 +61,17 @@ import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  getMagazinGroupOrders,
+  isMagazinPublicOrder,
+  magazinDesktopRowClassName,
+  magazinGroupKey,
+  sortComenziForMagazinGrouping,
+} from '@/lib/comenzi/magazin-groups'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
+type OriginFilter = 'all' | 'magazin' | 'manual'
 
 type ContactPrompt = {
   name: string
@@ -77,9 +93,9 @@ const statusLabelMap: Record<ComandaStatus, string> = {
 }
 
 const statusVariantMap: Record<ComandaStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple'> = {
-  noua: 'info',
+  noua: 'neutral',
   confirmata: 'warning',
-  programata: 'purple',
+  programata: 'warning',
   in_livrare: 'warning',
   livrata: 'success',
   anulata: 'danger',
@@ -272,14 +288,14 @@ function saveContactAsVCard(name: string, phone: string) {
 
 function isPaidStatus(status: string | null | undefined): boolean {
   const value = normalize(String(status ?? ''))
-  return value.includes('platit') || value.includes('incasat')
+  return value.includes('platit') || value.includes('incasat') || value.includes('achitat')
 }
 
 function statusToneForMobileCard(status: ComandaStatus): 'success' | 'warning' | 'danger' | 'neutral' {
   if (status === 'anulata') return 'danger'
-  if (status === 'livrata') return 'neutral'
-  if (status === 'programata' || status === 'in_livrare') return 'success'
-  return 'warning'
+  if (status === 'livrata') return 'success'
+  if (status === 'confirmata' || status === 'programata' || status === 'in_livrare') return 'warning'
+  return 'neutral'
 }
 
 function PillTabs({
@@ -325,15 +341,29 @@ function ComandaCard({
   const cantitateKg = Number(comanda.cantitate_kg || 0)
   const total = Number(comanda.total || cantitateKg * Number(comanda.pret_per_kg || 0))
   const produsDetails = (comanda.observatii ?? '').trim()
-  const subtitle = [formatKg(cantitateKg), produsDetails || null].filter(Boolean).join(' · ') || formatKg(cantitateKg)
+  const subtitle = comanda.data_livrare
+    ? `Livrare ${formatDate(comanda.data_livrare)}`
+    : `Comandă ${formatDate(comanda.data_comanda)}`
+  const detailMeta =
+    produsDetails.length > 0 ? `${produsDetails.slice(0, 64)}${produsDetails.length > 64 ? '…' : ''}` : undefined
 
   return (
     <MobileEntityCard
       title={clientName}
-      mainValue={`${formatLeiCompact(total)} lei`}
+      mainValue={`${formatLeiCompact(total)} RON`}
       subtitle={subtitle}
+      secondaryValue={formatKg(cantitateKg)}
+      meta={detailMeta}
       statusLabel={statusLabelMap[comanda.status] ?? comanda.status}
       statusTone={statusToneForMobileCard(comanda.status)}
+      showChevron
+      bottomSlot={
+        isMagazinPublicOrder(comanda) ? (
+          <Badge variant="info" className="text-[10px] font-semibold">
+            Magazin
+          </Badge>
+        ) : null
+      }
       onClick={() => onOpenDetails(comanda)}
     />
   )
@@ -384,6 +414,9 @@ function ComandaDialog({
   const suggestedClientName =
     form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
+  const previewKg = Number(form.cantitate_kg || 0)
+  const previewPret = Number(form.pret_per_kg || 0)
+  const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -409,8 +442,10 @@ function ComandaDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={mode === 'create' ? 'Adaugă comanda' : 'Editează comanda'}
+      desktopFormWide
+      contentClassName="lg:max-w-[min(94vw,72rem)] xl:max-w-[min(92vw,76rem)]"
       footer={
-        <div className="flex justify-center gap-3">
+        <div className="flex w-full flex-wrap justify-center gap-3 md:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -422,7 +457,7 @@ function ComandaDialog({
           </Button>
           <Button
             type="button"
-            className="agri-cta h-12 min-w-[132px] rounded-xl bg-[var(--agri-primary)] text-sm text-white hover:opacity-90"
+            className="agri-cta h-12 min-w-[132px] rounded-xl border border-[var(--info-border)] bg-[var(--info-bg)] text-sm text-[var(--info-text)] hover:brightness-[0.98]"
             disabled={saving}
             onClick={async () => {
               await onSave({
@@ -444,133 +479,246 @@ function ComandaDialog({
         </div>
       }
     >
-      <div className="space-y-3">
-        {/* Single client combobox — replaces the old search + select + manual-name triple */}
-        <div className="space-y-1.5" ref={comboRef}>
-          <Label htmlFor="comanda_client_combo">Client</Label>
-          <div className="relative">
-            <Input
-              id="comanda_client_combo"
-              className="agri-control h-12"
-              placeholder="Caută după nume sau telefon..."
-              autoComplete="off"
-              value={displayedComboInput}
-              onFocus={() => setComboOpen(true)}
-              onChange={(e) => {
-                const val = e.target.value
-                setComboInput(val)
-                setComboOpen(true)
-                setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: val }))
-              }}
-            />
-            {comboOpen && (
-              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-lg">
-                {comboFiltered.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-[var(--agri-text-muted)]">Niciun client găsit — completează manual</p>
-                ) : (
-                  comboFiltered.map((client) => (
+      <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(272px,32%)] md:items-start md:gap-6 lg:gap-8">
+        <div className="min-w-0 space-y-4 md:space-y-6">
+          <FormDialogSection label="Client" className="space-y-2 md:space-y-3">
+            <div ref={comboRef}>
+              <Label htmlFor="comanda_client_combo" className="sr-only">
+                Client
+              </Label>
+              <div className="relative">
+                <Input
+                  id="comanda_client_combo"
+                  className="agri-control h-12 md:h-11"
+                  placeholder="Caută după nume sau telefon..."
+                  autoComplete="off"
+                  value={displayedComboInput}
+                  onFocus={() => setComboOpen(true)}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setComboInput(val)
+                    setComboOpen(true)
+                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: val }))
+                  }}
+                />
+                {comboOpen && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
+                    {comboFiltered.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                        Niciun client găsit — completează manual
+                      </p>
+                    ) : (
+                      comboFiltered.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            setComboInput(client.nume_client)
+                            setComboOpen(false)
+                            setForm((prev) => ({
+                              ...prev,
+                              client_id: client.id,
+                              client_nume_manual: '',
+                              telefon: client.telefon || prev.telefon,
+                              locatie_livrare: client.adresa || prev.locatie_livrare,
+                            }))
+                          }}
+                        >
+                          <span className="font-medium text-[var(--text-primary)]">{client.nume_client}</span>
+                          {client.telefon ? (
+                            <span className="text-[var(--text-secondary)]">— {client.telefon}</span>
+                          ) : null}
+                        </button>
+                      ))
+                    )}
                     <button
-                      key={client.id}
                       type="button"
-                      className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
+                      className="flex w-full items-center gap-1.5 border-t border-[var(--divider)] px-3 py-2.5 text-left text-sm font-medium text-[var(--success-text)] hover:bg-[var(--success-bg)]"
                       onMouseDown={(e) => {
                         e.preventDefault()
-                        setComboInput(client.nume_client)
                         setComboOpen(false)
-                        setForm((prev) => ({
-                          ...prev,
-                          client_id: client.id,
-                          client_nume_manual: '',
-                          telefon: client.telefon || prev.telefon,
-                          locatie_livrare: client.adresa || prev.locatie_livrare,
-                        }))
+                        setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: comboInput }))
                       }}
                     >
-                      <span className="font-medium text-[var(--agri-text)]">{client.nume_client}</span>
-                      {client.telefon ? <span className="text-[var(--agri-text-muted)]">— {client.telefon}</span> : null}
+                      ➕ Client nou — completează manual
                     </button>
-                  ))
+                  </div>
                 )}
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-1.5 border-t border-[var(--agri-border)] px-3 py-2.5 text-left text-sm font-medium text-[var(--soft-success-text)] hover:bg-[var(--soft-success-bg)]"
-                  onMouseDown={(e) => {
-                    e.preventDefault()
-                    setComboOpen(false)
-                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: comboInput }))
-                  }}
-                >
-                  ➕ Client nou — completează manual
-                </button>
               </div>
-            )}
-          </div>
+            </div>
+          </FormDialogSection>
+
+          <FormDialogSection label="Contact și livrare" className="space-y-3 md:space-y-4">
+            <div className="space-y-1.5 md:space-y-2">
+              <Label>Telefon</Label>
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <Input
+                  className="agri-control h-12 md:h-11"
+                  value={resolvedPhone}
+                  onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-11"
+                  disabled={!canSaveContact}
+                  onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
+                >
+                  <UserRoundPlus className="h-4 w-4" />
+                  Salvează contact
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1.5 md:space-y-2">
+              <Label>Locație livrare</Label>
+              <Input
+                className="agri-control h-12 md:h-11"
+                value={resolvedLocation}
+                onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
+              />
+            </div>
+          </FormDialogSection>
+
+          <FormDialogSection label="Comandă" className="space-y-3 md:space-y-4">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="space-y-1.5 md:space-y-2">
+                <Label>Data comandă</Label>
+                <Input
+                  type="date"
+                  className="agri-control h-12 md:h-11"
+                  value={form.data_comanda}
+                  onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5 md:space-y-2">
+                <Label>Data livrare</Label>
+                <Input
+                  type="date"
+                  className="agri-control h-12 md:h-11"
+                  value={form.data_livrare}
+                  onChange={(e) => setForm((prev) => ({ ...prev, data_livrare: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5 md:space-y-2">
+                <Label>Cantitate (kg)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="agri-control h-12 md:h-11"
+                  value={form.cantitate_kg}
+                  onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5 md:space-y-2">
+                <Label>Preț per kg</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="agri-control h-12 md:h-11"
+                  value={form.pret_per_kg}
+                  onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
+                />
+              </div>
+            </div>
+          </FormDialogSection>
+
+          <FormDialogSection label="Status și observații" className="space-y-3 md:space-y-4">
+            <div className="space-y-1.5 md:space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
+              >
+                <SelectTrigger className="agri-control h-12 md:h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMENZI_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {statusLabelMap[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 md:space-y-2">
+              <Label>Observații</Label>
+              <Textarea
+                className="agri-control min-h-[5rem] md:min-h-[6.5rem]"
+                value={form.observatii}
+                onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
+              />
+            </div>
+          </FormDialogSection>
         </div>
 
-        <div className="space-y-1.5">
-          <Label>Telefon</Label>
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <Input className="agri-control h-12" value={resolvedPhone} onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))} />
-            <Button
-              type="button"
-              variant="outline"
-              className="h-12 whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm"
-              disabled={!canSaveContact}
-              onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
-            >
-              <UserRoundPlus className="h-4 w-4" />
-              Salvează contact
-            </Button>
+        <aside className="hidden md:block md:sticky md:top-2 md:self-start">
+          <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
+                Rezumat live
+              </p>
+              <p className="mt-2 text-base font-semibold leading-snug text-[var(--text-primary)]">
+                {suggestedClientName}
+              </p>
+            </div>
+            <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
+              <div>
+                <dt className="text-xs font-medium text-[var(--text-tertiary)]">Telefon</dt>
+                <dd className="mt-0.5 text-[var(--text-primary)]">{resolvedPhone.trim() || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-[var(--text-tertiary)]">Locație livrare</dt>
+                <dd className="mt-0.5 break-words text-[var(--text-primary)]">
+                  {resolvedLocation.trim() || '—'}
+                </dd>
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-[var(--divider)] pt-3">
+                <div>
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cantitate</dt>
+                  <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
+                    {Number.isFinite(previewKg) ? formatKg(previewKg) : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Preț / kg</dt>
+                  <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
+                    {Number.isFinite(previewPret) ? formatLei(previewPret) : '—'}
+                  </dd>
+                </div>
+              </div>
+              <div className="border-t border-[var(--divider)] pt-3">
+                <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total estimat</dt>
+                <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+                  {formatLei(previewTotal)}
+                </dd>
+              </div>
+            </dl>
+            <div className="border-t border-[var(--divider)] pt-3">
+              <p className="text-xs font-medium text-[var(--text-tertiary)]">Status</p>
+              <div className="mt-2">
+                <StatusBadge
+                  text={statusLabelMap[form.status]}
+                  variant={statusVariantMap[form.status]}
+                />
+              </div>
+            </div>
+            {form.observatii.trim() ? (
+              <div className="border-t border-[var(--divider)] pt-3">
+                <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
+                <p className="mt-1 max-h-24 overflow-y-auto text-xs leading-relaxed text-[var(--text-secondary)]">
+                  {form.observatii.trim().length > 220
+                    ? `${form.observatii.trim().slice(0, 220)}…`
+                    : form.observatii.trim()}
+                </p>
+              </div>
+            ) : null}
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Locație livrare</Label>
-          <Input className="agri-control h-12" value={resolvedLocation} onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Data comandă</Label>
-            <Input type="date" className="agri-control h-12" value={form.data_comanda} onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Data livrare</Label>
-            <Input type="date" className="agri-control h-12" value={form.data_livrare} onChange={(e) => setForm((prev) => ({ ...prev, data_livrare: e.target.value }))} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label>Cantitate (kg)</Label>
-            <Input type="number" min="0" step="0.01" className="agri-control h-12" value={form.cantitate_kg} onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Preț per kg</Label>
-            <Input type="number" min="0" step="0.01" className="agri-control h-12" value={form.pret_per_kg} onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))} />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Status</Label>
-          <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}>
-            <SelectTrigger className="agri-control h-12">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COMENZI_STATUSES.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {statusLabelMap[status]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Observații</Label>
-          <Textarea className="agri-control" value={form.observatii} onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))} />
-        </div>
+        </aside>
       </div>
     </AppDialog>
   )
@@ -637,6 +785,7 @@ export function ComenziPageClient() {
   }, [])
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
+  const [originFilter, setOriginFilter] = useState<OriginFilter>('all')
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -974,6 +1123,8 @@ export function ComenziPageClient() {
     const term = normalize(search)
 
     return listSource.filter((item) => {
+      if (originFilter === 'magazin' && !isMagazinPublicOrder(item)) return false
+      if (originFilter === 'manual' && isMagazinPublicOrder(item)) return false
       if (activeFilter === 'azi' && !(isOpenStatus(item.status) && item.data_livrare === today)) return false
       if (activeFilter === 'active' && !isOpenStatus(item.status)) return false
       if (activeFilter === 'restante' && !(isOpenStatus(item.status) && Boolean(item.data_livrare) && item.data_livrare! < today)) return false
@@ -985,7 +1136,22 @@ export function ComenziPageClient() {
       const phone = normalize(item.telefon || '')
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, clientMap, listSource, neincasatComandaIds, search, today])
+  }, [activeFilter, clientMap, listSource, neincasatComandaIds, originFilter, search, today])
+
+  const sortedComenziForView = useMemo(
+    () => sortComenziForMagazinGrouping(filteredComenzi),
+    [filteredComenzi],
+  )
+
+  const magazinGroupSizes = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of comenzi) {
+      const k = magazinGroupKey(c)
+      if (!k) continue
+      m.set(k, (m.get(k) ?? 0) + 1)
+    }
+    return m
+  }, [comenzi])
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
@@ -1013,9 +1179,30 @@ export function ComenziPageClient() {
   }
 
   const desktopSelectedComanda =
-    filteredComenzi.find((item) => item.id === desktopSelectedComandaId) ??
-    filteredComenzi[0] ??
+    sortedComenziForView.find((item) => item.id === desktopSelectedComandaId) ??
+    sortedComenziForView[0] ??
     null
+
+  const magazinGroupForInspector = useMemo(() => {
+    if (!desktopSelectedComanda) return []
+    return getMagazinGroupOrders(comenzi, desktopSelectedComanda)
+  }, [comenzi, desktopSelectedComanda])
+
+  const magazinGroupTotal = useMemo(
+    () => magazinGroupForInspector.reduce((s, l) => s + Number(l.total || 0), 0),
+    [magazinGroupForInspector],
+  )
+
+  const magazinGroupForViewDialog = useMemo(() => {
+    if (!viewing) return []
+    return getMagazinGroupOrders(comenzi, viewing)
+  }, [comenzi, viewing])
+
+  const magazinGroupTotalViewDialog = useMemo(
+    () => magazinGroupForViewDialog.reduce((s, l) => s + Number(l.total || 0), 0),
+    [magazinGroupForViewDialog],
+  )
+
   const desktopColumns = useMemo<ColumnDef<Comanda>[]>(() => [
     {
       id: 'data',
@@ -1024,6 +1211,24 @@ export function ComenziPageClient() {
       cell: ({ row }) => formatDate(row.original.data_livrare || row.original.data_comanda),
       meta: {
         searchValue: (row: Comanda) => row.data_livrare || row.data_comanda,
+      },
+    },
+    {
+      id: 'origine',
+      header: '',
+      accessorFn: () => '',
+      cell: ({ row }) =>
+        isMagazinPublicOrder(row.original) ? (
+          <Badge variant="info" className="text-[10px] font-semibold">
+            Magazin
+          </Badge>
+        ) : (
+          <span className="text-[var(--text-tertiary)]">—</span>
+        ),
+      meta: {
+        searchable: false,
+        headerClassName: 'w-[88px]',
+        cellClassName: 'w-[88px]',
       },
     },
     {
@@ -1037,11 +1242,29 @@ export function ComenziPageClient() {
     },
     {
       id: 'produse',
-      header: 'Produse',
-      accessorFn: () => 1,
-      cell: () => '1',
+      header: 'Linii',
+      accessorFn: (row) => {
+        const k = magazinGroupKey(row)
+        if (!k) return 1
+        return magazinGroupSizes.get(k) ?? 1
+      },
+      cell: ({ row }) => {
+        const k = magazinGroupKey(row.original)
+        const n = k ? magazinGroupSizes.get(k) ?? 1 : 1
+        return (
+          <span className="tabular-nums">
+            {n}
+            {isMagazinPublicOrder(row.original) ? (
+              <span className="ml-1 text-[10px] text-[var(--text-tertiary)]">grup</span>
+            ) : null}
+          </span>
+        )
+      },
       meta: {
-        searchValue: () => '1',
+        searchValue: (row: Comanda) => {
+          const k = magazinGroupKey(row)
+          return k ? magazinGroupSizes.get(k) ?? 1 : 1
+        },
         numeric: true,
       },
     },
@@ -1106,7 +1329,7 @@ export function ComenziPageClient() {
         cellClassName: 'w-[104px] text-right',
       },
     },
-  ], [clientMap])
+  ], [clientMap, magazinGroupSizes])
 
   return (
     <AppShell
@@ -1174,7 +1397,7 @@ export function ComenziPageClient() {
             ) : null}
             {totalStocDisponibilKg > 0 ? (
               <span>
-                <span className="text-sm font-semibold text-[var(--value-positive)]">{formatKg(totalStocDisponibilKg)}</span>
+                <span className="text-sm font-semibold text-[var(--success-text)]">{formatKg(totalStocDisponibilKg)}</span>
                 <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">stoc</span>
               </span>
             ) : null}
@@ -1200,10 +1423,49 @@ export function ComenziPageClient() {
           aria-label="Caută comenzi"
         />
 
+        <DesktopToolbar
+          className="hidden md:flex"
+          trailing={
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-[var(--text-tertiary)]">Origine</span>
+              <ModulePillFilterButton active={originFilter === 'all'} onClick={() => setOriginFilter('all')}>
+                Toate
+              </ModulePillFilterButton>
+              <ModulePillFilterButton active={originFilter === 'magazin'} onClick={() => setOriginFilter('magazin')}>
+                Din magazin
+              </ModulePillFilterButton>
+              <ModulePillFilterButton active={originFilter === 'manual'} onClick={() => setOriginFilter('manual')}>
+                Manuale
+              </ModulePillFilterButton>
+            </div>
+          }
+        >
+          <SearchField
+            containerClassName="w-full max-w-md min-w-[200px]"
+            placeholder="Caută după client sau telefon..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Caută comenzi (desktop)"
+          />
+        </DesktopToolbar>
+
+        <div className="flex flex-wrap items-center gap-2 md:hidden">
+          <span className="text-xs font-semibold text-[var(--text-tertiary)]">Origine</span>
+          <ModulePillFilterButton active={originFilter === 'all'} onClick={() => setOriginFilter('all')}>
+            Toate
+          </ModulePillFilterButton>
+          <ModulePillFilterButton active={originFilter === 'magazin'} onClick={() => setOriginFilter('magazin')}>
+            Din magazin
+          </ModulePillFilterButton>
+          <ModulePillFilterButton active={originFilter === 'manual'} onClick={() => setOriginFilter('manual')}>
+            Manuale
+          </ModulePillFilterButton>
+        </div>
+
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
         {isLoading ? <EntityListSkeleton /> : null}
 
-        {!isLoading && !isError && filteredComenzi.length === 0 ? (
+        {!isLoading && !isError && sortedComenziForView.length === 0 ? (
           <ModuleEmptyCard
             emoji="📋"
             title="Nicio comandă încă"
@@ -1211,87 +1473,220 @@ export function ComenziPageClient() {
           />
         ) : null}
 
-        {!isLoading && !isError && filteredComenzi.length > 0 ? (
+        {!isLoading && !isError && sortedComenziForView.length > 0 ? (
           <>
-            <div className="md:grid md:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)] md:gap-4">
-              <ResponsiveDataView
-                columns={desktopColumns}
-                data={filteredComenzi}
-                getRowId={(row) => row.id}
-                searchPlaceholder="Caută în comenzi..."
-                emptyMessage="Nu am găsit comenzi pentru filtrele curente."
-                desktopContainerClassName="md:min-w-0"
-                onDesktopRowClick={(row) => setDesktopSelectedComandaId(row.id)}
-                isDesktopRowSelected={(row) => desktopSelectedComanda?.id === row.id}
-                renderCard={(comanda) => (
-                  <ComandaCard
-                    comanda={comanda}
-                    clientName={getClientName(comanda, clientMap)}
-                    onOpenDetails={(item) => setViewing(item)}
-                  />
-                )}
-              />
-
-              <aside className="hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm md:block">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Detalii comandă</h3>
-                {desktopSelectedComanda ? (
-                  <div className="mt-4 space-y-3 text-sm text-[var(--agri-text-muted)]">
-                    <p><span className="font-medium text-[var(--agri-text)]">Client:</span> {getClientName(desktopSelectedComanda, clientMap)}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Telefon:</span> {desktopSelectedComanda.telefon || '-'}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Data comandă:</span> {formatDate(desktopSelectedComanda.data_comanda)}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Data livrare:</span> {formatDate(desktopSelectedComanda.data_livrare)}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Cantitate:</span> {formatKg(Number(desktopSelectedComanda.cantitate_kg || 0))}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Preț/kg:</span> {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Total:</span> {formatLei(Number(desktopSelectedComanda.total || 0))}</p>
-                    <div>
-                      <StatusBadge
-                        text={statusLabelMap[desktopSelectedComanda.status] ?? desktopSelectedComanda.status}
-                        variant={statusVariantMap[desktopSelectedComanda.status] ?? 'neutral'}
-                      />
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      {canDeliverStatus(desktopSelectedComanda.status) && desktopSelectedComanda.status !== 'anulata' ? (
+            <DesktopSplitPane
+              master={
+                <ResponsiveDataView
+                  columns={desktopColumns}
+                  data={sortedComenziForView}
+                  mobileContainerClassName="grid-cols-1"
+                  getRowId={(row) => row.id}
+                  searchPlaceholder="Caută în comenzi..."
+                  emptyMessage="Nu am găsit comenzi pentru filtrele curente."
+                  desktopContainerClassName="md:min-w-0"
+                  skipDesktopDataFilter
+                  hideDesktopSearchRow
+                  getDesktopRowClassName={(row, index, rows) => magazinDesktopRowClassName(row, index, rows)}
+                  onDesktopRowClick={(row) => setDesktopSelectedComandaId(row.id)}
+                  isDesktopRowSelected={(row) => desktopSelectedComanda?.id === row.id}
+                  renderCard={(comanda) => (
+                    <ComandaCard
+                      comanda={comanda}
+                      clientName={getClientName(comanda, clientMap)}
+                      onOpenDetails={(item) => setViewing(item)}
+                    />
+                  )}
+                />
+              }
+              detail={
+                <DesktopInspectorPanel
+                  title="Detalii comandă"
+                  description={
+                    desktopSelectedComanda
+                      ? getClientName(desktopSelectedComanda, clientMap)
+                      : undefined
+                  }
+                  footer={
+                    desktopSelectedComanda ? (
+                      <div className="flex flex-wrap gap-2">
+                        {canDeliverStatus(desktopSelectedComanda.status) &&
+                        desktopSelectedComanda.status !== 'anulata' ? (
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[var(--info-border)] bg-[var(--info-bg)] px-3 py-2 text-xs font-semibold text-[var(--info-text)] hover:brightness-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                            disabled={deliveringId === desktopSelectedComanda.id}
+                            onClick={() => {
+                              void handleConfirmDeliver(desktopSelectedComanda)
+                            }}
+                          >
+                            {deliveringId === desktopSelectedComanda.id
+                              ? 'Se livrează...'
+                              : 'Marchează livrată'}
+                          </button>
+                        ) : null}
+                        {desktopSelectedComanda.status === 'livrata' ? (
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-warning-text)] hover:opacity-90"
+                            onClick={() => setReopening(desktopSelectedComanda)}
+                          >
+                            Redeschide
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          className="rounded-lg bg-[var(--agri-primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
-                          disabled={deliveringId === desktopSelectedComanda.id}
-                          onClick={() => {
-                            void handleConfirmDeliver(desktopSelectedComanda)
-                          }}
+                          className="rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]"
+                          onClick={() => setEditing(desktopSelectedComanda)}
                         >
-                          {deliveringId === desktopSelectedComanda.id ? 'Se livrează...' : 'Marchează livrată'}
+                          Editează
                         </button>
-                      ) : null}
-                      {desktopSelectedComanda.status === 'livrata' ? (
                         <button
                           type="button"
-                          className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-warning-text)] hover:opacity-90"
-                          onClick={() => setReopening(desktopSelectedComanda)}
+                          className="rounded-md border border-[var(--soft-danger-border)] px-3 py-2 text-xs font-semibold text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)]"
+                          onClick={() => setDeleting(desktopSelectedComanda)}
                         >
-                          Redeschide
+                          Șterge
                         </button>
+                      </div>
+                    ) : null
+                  }
+                >
+                  {desktopSelectedComanda ? (
+                    <>
+                      {isMagazinPublicOrder(desktopSelectedComanda) ? (
+                        <>
+                          <DesktopInspectorSection label="Origine">
+                            <p className="text-sm font-medium text-[var(--text-primary)]">
+                              Origine:{' '}
+                              <span className="text-[var(--text-secondary)]">Magazin</span>
+                            </p>
+                            <Badge variant="info" className="mt-2 text-[10px] font-semibold">
+                              Magazin
+                            </Badge>
+                          </DesktopInspectorSection>
+                          <DesktopInspectorSection label="Comandă din magazin">
+                            <p className="mb-2 text-xs font-semibold text-[var(--text-primary)]">
+                              {magazinGroupForInspector.length}{' '}
+                              {magazinGroupForInspector.length === 1 ? 'linie' : 'linii'} în grup
+                            </p>
+                            {magazinGroupForInspector.length > 1 ? (
+                              <p className="mb-2 text-xs text-[var(--text-tertiary)]">
+                                Aceeași solicitare (telefon + zi calendaristică).
+                              </p>
+                            ) : (
+                              <p className="mb-2 text-xs text-[var(--text-tertiary)]">
+                                Comandă plasată din magazinul public.
+                              </p>
+                            )}
+                            <ul className="space-y-2">
+                              {magazinGroupForInspector.map((line) => (
+                                <li
+                                  key={line.id}
+                                  className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2 text-sm"
+                                >
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-[var(--text-secondary)]">
+                                      {formatKg(Number(line.cantitate_kg || 0))} ·{' '}
+                                      {formatLei(Number(line.pret_per_kg || 0))}/kg
+                                    </span>
+                                    <span className="shrink-0 font-semibold tabular-nums text-[var(--text-primary)]">
+                                      {formatLei(Number(line.total || 0))}
+                                    </span>
+                                  </div>
+                                  {line.observatii ? (
+                                    <p className="mt-1 line-clamp-3 text-xs text-[var(--text-tertiary)]">
+                                      {line.observatii}
+                                    </p>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                            <p className="mt-3 text-sm font-semibold text-[var(--text-primary)]">
+                              Total estimat (grup): {formatLei(magazinGroupTotal)}
+                            </p>
+                          </DesktopInspectorSection>
+                        </>
                       ) : null}
-                      <button
-                        type="button"
-                        className="rounded-md border border-[var(--agri-border)] px-3 py-2 text-xs font-semibold text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
-                        onClick={() => setEditing(desktopSelectedComanda)}
-                      >
-                        Editează
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md border border-[var(--soft-danger-border)] px-3 py-2 text-xs font-semibold text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)]"
-                        onClick={() => setDeleting(desktopSelectedComanda)}
-                      >
-                        Șterge
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-sm text-[var(--agri-text-muted)]">Selectează o comandă pentru detalii.</p>
-                )}
-              </aside>
-            </div>
+                      <DesktopInspectorSection label="Sumar">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge
+                            text={
+                              statusLabelMap[desktopSelectedComanda.status] ??
+                              desktopSelectedComanda.status
+                            }
+                            variant={
+                              statusVariantMap[desktopSelectedComanda.status] ?? 'neutral'
+                            }
+                          />
+                          <span className="text-xs text-[var(--text-tertiary)]">
+                            Livrare:{' '}
+                            {formatDate(
+                              desktopSelectedComanda.data_livrare ||
+                                desktopSelectedComanda.data_comanda,
+                            )}
+                          </span>
+                        </div>
+                      </DesktopInspectorSection>
+                      <DesktopInspectorSection label="Client și livrare">
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">Client: </span>
+                          {getClientName(desktopSelectedComanda, clientMap)}
+                        </p>
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">Telefon: </span>
+                          {desktopSelectedComanda.telefon || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">
+                            Locație livrare:{' '}
+                          </span>
+                          {desktopSelectedComanda.locatie_livrare || '—'}
+                        </p>
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">
+                            Data comandă:{' '}
+                          </span>
+                          {formatDate(desktopSelectedComanda.data_comanda)}
+                        </p>
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">
+                            Data livrare:{' '}
+                          </span>
+                          {formatDate(desktopSelectedComanda.data_livrare)}
+                        </p>
+                        {desktopSelectedComanda.observatii ? (
+                          <p className="pt-1 text-xs leading-relaxed text-[var(--text-tertiary)]">
+                            <span className="font-medium text-[var(--text-secondary)]">
+                              Observații:{' '}
+                            </span>
+                            {desktopSelectedComanda.observatii}
+                          </p>
+                        ) : null}
+                      </DesktopInspectorSection>
+                      <DesktopInspectorSection label="Comandă și total">
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">Cantitate: </span>
+                          {formatKg(Number(desktopSelectedComanda.cantitate_kg || 0))}
+                        </p>
+                        <p>
+                          <span className="font-medium text-[var(--text-primary)]">Preț/kg: </span>
+                          {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}
+                        </p>
+                        <p className="text-base font-semibold text-[var(--text-primary)]">
+                          <span className="font-medium">Total: </span>
+                          {formatLei(Number(desktopSelectedComanda.total || 0))}
+                        </p>
+                      </DesktopInspectorSection>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Selectează o comandă din listă pentru a vedea detaliile.
+                    </p>
+                  )}
+                </DesktopInspectorPanel>
+              }
+            />
           </>
         ) : null}
       </div>
@@ -1391,6 +1786,12 @@ export function ComenziPageClient() {
         comanda={viewing}
         clientName={viewing ? getClientName(viewing, clientMap) : 'Client'}
         clientTelefon={viewing?.telefon}
+        magazinGroupLines={viewing && isMagazinPublicOrder(viewing) ? magazinGroupForViewDialog : undefined}
+        magazinGroupTotal={
+          viewing && isMagazinPublicOrder(viewing) && magazinGroupForViewDialog.length > 0
+            ? magazinGroupTotalViewDialog
+            : undefined
+        }
         canDeliver={Boolean(viewing) && canDeliverStatus(viewing!.status) && viewing!.status !== 'anulata'}
         onDeliver={(comanda) => {
           setViewing(null)

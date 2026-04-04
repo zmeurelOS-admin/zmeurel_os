@@ -1,0 +1,258 @@
+{
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "baseUrl": "http://localhost:3000",
+  "routes": [
+    {
+      "route": "/dashboard",
+      "wallTimeMs": 6502,
+      "requestCount": 108,
+      "dataRequestCount": 13,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/cheltuieli_diverse?select=id%2Cid_cheltuiala%2Cclient_sync_id%2Cdata%2Ccategorie%2Cdescriere%2Csuma_lei%2Cfurnizor%2Cdocument_url%2Csync_status%2Cconflict_flag%2Ccreated_by%2Cupdated_by%2Ccreated_at%2Cupdated_at%2Ctenant_id&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/activitati_agricole?select=id%2Cid_activitate%2Cdata_aplicare%2Cparcela_id%2Ctip_activitate%2Cprodus_utilizat%2Cdoza%2Ctimp_pauza_zile%2Coperator%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&order=data_aplicare.desc%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=hide_onboarding%2Cdashboard_layout&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/recoltari?select=id%2Cid_recoltare%2Cdata%2Cparcela_id%2Cculegator_id%2Ckg_cal1%2Ckg_cal2%2Cpret_lei_pe_kg_snapshot%2Cvaloare_munca_lei%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/comenzi?select=id%2Ctenant_id%2Cclient_id%2Cclient_nume_manual%2Ctelefon%2Clocatie_livrare%2Cdata_comanda%2Cdata_livrare%2Ccantitate_kg%2Cpret_per_kg%2Ctotal%2Cstatus%2Cobservatii%2Clinked_vanzare_id%2Cparent_comanda_id%2Ccreated_at%2Cupdated_at%2Cclienti%28nume_client%29&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=data_livrare.asc.nullslast%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/parcele?select=id%2Cid_parcela%2Cnume_parcela%2Ctip_fruct%2Csoi_plantat%2Csuprafata_m2%2Cnr_plante%2Can_plantare%2Cstatus%2Cgps_lat%2Cgps_lng%2Clatitudine%2Clongitudine%2Cobservatii%2Ctip_unitate%2Ccultura%2Csoi%2Cnr_randuri%2Cdistanta_intre_randuri%2Csistem_irigare%2Cdata_plantarii%2Ccreated_at%2Ccreated_by%2Cupdated_at%2Cupdated_by%2Ctenant_id%2Cdata_origin%2Cdemo_seed_id%2Cstadiu%2Crol%2Capare_in_dashboard%2Ccontribuie_la_productie%2Cstatus_operational&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/vanzari?select=id%2Cid_vanzare%2Cdata%2Cclient_id%2Ccomanda_id%2Ccantitate_kg%2Cpret_lei_kg%2Cstatus_plata%2Cobservatii_ladite%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/miscari_stoc?select=locatie_id%2Cprodus%2Ccalitate%2Cdepozit%2Ctip_miscare%2Ccantitate_kg%2Cdata%2Cparcele%28nume_parcela%29&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&locatie_id=not.is.null&produs=not.is.null&calitate=not.is.null&depozit=not.is.null&tip_miscare=not.is.null&cantitate_kg=not.is.null&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/functions/v1/fetch-meteo",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/culturi?select=id%2Csolar_id%2Cactiva%2Cinterval_tratament_zile&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&solar_id=in.%2814b50a60-9052-4ad8-b572-e3c201c24d9c%2C4e0d89b8-4d19-48f8-99cf-e06579b7eb81%2C046e1455-864f-4421-b4cc-2e147772e3f4%2Cc1b18bdd-a2e5-4e52-9a98-3ea8c5491795%29"
+      ],
+      "requestTypeCounts": {
+        "fetch": 61,
+        "font": 3,
+        "stylesheet": 2,
+        "document": 1,
+        "script": 41
+      },
+      "requestDomainCounts": {
+        "ilybohhdeplwcrbpblqw.supabase.co": 61,
+        "localhost:3000": 47
+      },
+      "domNodes": 1079,
+      "hasSkeleton": true,
+      "fpMs": 1996,
+      "fcpMs": 1996,
+      "domContentLoadedMs": 1982.5999999940395,
+      "loadEventMs": 2334
+    },
+    {
+      "route": "/comenzi",
+      "wallTimeMs": 5381,
+      "requestCount": 68,
+      "dataRequestCount": 7,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/comenzi?select=id%2Ctenant_id%2Cclient_id%2Cclient_nume_manual%2Ctelefon%2Clocatie_livrare%2Cdata_comanda%2Cdata_livrare%2Ccantitate_kg%2Cpret_per_kg%2Ctotal%2Cstatus%2Cobservatii%2Clinked_vanzare_id%2Cparent_comanda_id%2Ccreated_at%2Cupdated_at%2Cclienti%28nume_client%29&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=data_livrare.asc.nullslast%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/clienti?select=id%2Cid_client%2Cnume_client%2Ctelefon%2Cemail%2Cadresa%2Cpret_negociat_lei_kg%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=nume_client.asc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/vanzari?select=id%2Cid_vanzare%2Cdata%2Cclient_id%2Ccomanda_id%2Ccantitate_kg%2Cpret_lei_kg%2Cstatus_plata%2Cobservatii_ladite%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/miscari_stoc?select=calitate%2Ctip_miscare%2Ccantitate_kg&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&calitate=not.is.null&tip_miscare=not.is.null&cantitate_kg=not.is.null"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 43,
+        "document": 1,
+        "stylesheet": 1,
+        "fetch": 20
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 48,
+        "ilybohhdeplwcrbpblqw.supabase.co": 20
+      },
+      "domNodes": 908,
+      "hasSkeleton": true,
+      "fpMs": 1064,
+      "fcpMs": 1064,
+      "domContentLoadedMs": 1051.5,
+      "loadEventMs": 1384.5
+    },
+    {
+      "route": "/recoltari",
+      "wallTimeMs": 4706,
+      "requestCount": 75,
+      "dataRequestCount": 7,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/culegatori?select=id%2Cid_culegator%2Cnume_prenume%2Ctarif_lei_kg%2Cdata_angajare%2Cstatus_activ%2Ctelefon%2Ctip_angajare%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/activitati_agricole?select=id%2Cid_activitate%2Cdata_aplicare%2Cparcela_id%2Ctip_activitate%2Cprodus_utilizat%2Cdoza%2Ctimp_pauza_zile%2Coperator%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&order=data_aplicare.desc%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/recoltari?select=id%2Cid_recoltare%2Cdata%2Cparcela_id%2Cculegator_id%2Ckg_cal1%2Ckg_cal2%2Cpret_lei_pe_kg_snapshot%2Cvaloare_munca_lei%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/parcele?select=id%2Cid_parcela%2Cnume_parcela%2Ctip_fruct%2Csoi_plantat%2Csuprafata_m2%2Cnr_plante%2Can_plantare%2Cstatus%2Cgps_lat%2Cgps_lng%2Clatitudine%2Clongitudine%2Cobservatii%2Ctip_unitate%2Ccultura%2Csoi%2Cnr_randuri%2Cdistanta_intre_randuri%2Csistem_irigare%2Cdata_plantarii%2Ccreated_at%2Ccreated_by%2Cupdated_at%2Cupdated_by%2Ctenant_id%2Cdata_origin%2Cdemo_seed_id%2Cstadiu%2Crol%2Capare_in_dashboard%2Ccontribuie_la_productie%2Cstatus_operational&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 49,
+        "document": 1,
+        "stylesheet": 1,
+        "fetch": 21
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 54,
+        "ilybohhdeplwcrbpblqw.supabase.co": 21
+      },
+      "domNodes": 561,
+      "hasSkeleton": true,
+      "fpMs": 952,
+      "fcpMs": 952,
+      "domContentLoadedMs": 921.2000000178814,
+      "loadEventMs": 1543
+    },
+    {
+      "route": "/parcele",
+      "wallTimeMs": 4739,
+      "requestCount": 85,
+      "dataRequestCount": 6,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/activitati_agricole?select=id%2Cid_activitate%2Cdata_aplicare%2Cparcela_id%2Ctip_activitate%2Cprodus_utilizat%2Cdoza%2Ctimp_pauza_zile%2Coperator%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&order=data_aplicare.desc%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/parcele?select=id%2Cid_parcela%2Cnume_parcela%2Ctip_fruct%2Csoi_plantat%2Csuprafata_m2%2Cnr_plante%2Can_plantare%2Cstatus%2Cgps_lat%2Cgps_lng%2Clatitudine%2Clongitudine%2Cobservatii%2Ctip_unitate%2Ccultura%2Csoi%2Cnr_randuri%2Cdistanta_intre_randuri%2Csistem_irigare%2Cdata_plantarii%2Ccreated_at%2Ccreated_by%2Cupdated_at%2Cupdated_by%2Ctenant_id%2Cdata_origin%2Cdemo_seed_id%2Cstadiu%2Crol%2Capare_in_dashboard%2Ccontribuie_la_productie%2Cstatus_operational&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/culturi?select=solar_id%2Cactiva&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&solar_id=in.%28046e1455-864f-4421-b4cc-2e147772e3f4%2C14b50a60-9052-4ad8-b572-e3c201c24d9c%2C3e4d799b-5529-40c1-9224-05d51aa8d35b%2C4e0d89b8-4d19-48f8-99cf-e06579b7eb81%2Cc1b18bdd-a2e5-4e52-9a98-3ea8c5491795%2Ce3d8b598-67bb-4bd1-a005-a4911d831d7a%29"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 60,
+        "stylesheet": 1,
+        "document": 1,
+        "fetch": 20
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 65,
+        "ilybohhdeplwcrbpblqw.supabase.co": 20
+      },
+      "domNodes": 697,
+      "hasSkeleton": true,
+      "fpMs": 896,
+      "fcpMs": 896,
+      "domContentLoadedMs": 879.9000000059605,
+      "loadEventMs": 1255.9000000059605
+    },
+    {
+      "route": "/activitati-agricole",
+      "wallTimeMs": 4262,
+      "requestCount": 61,
+      "dataRequestCount": 5,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/activitati_agricole?select=id%2Cid_activitate%2Cdata_aplicare%2Cparcela_id%2Ctip_activitate%2Cprodus_utilizat%2Cdoza%2Ctimp_pauza_zile%2Coperator%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&order=data_aplicare.desc%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/parcele?select=id%2Cid_parcela%2Cnume_parcela%2Ctip_fruct%2Csoi_plantat%2Csuprafata_m2%2Cnr_plante%2Can_plantare%2Cstatus%2Cgps_lat%2Cgps_lng%2Clatitudine%2Clongitudine%2Cobservatii%2Ctip_unitate%2Ccultura%2Csoi%2Cnr_randuri%2Cdistanta_intre_randuri%2Csistem_irigare%2Cdata_plantarii%2Ccreated_at%2Ccreated_by%2Cupdated_at%2Cupdated_by%2Ctenant_id%2Cdata_origin%2Cdemo_seed_id%2Cstadiu%2Crol%2Capare_in_dashboard%2Ccontribuie_la_productie%2Cstatus_operational&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 39,
+        "stylesheet": 1,
+        "document": 1,
+        "fetch": 17
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 44,
+        "ilybohhdeplwcrbpblqw.supabase.co": 17
+      },
+      "domNodes": 623,
+      "hasSkeleton": true,
+      "fpMs": 996,
+      "fcpMs": 996,
+      "domContentLoadedMs": 968.2999999821186,
+      "loadEventMs": 1211.9000000059605
+    },
+    {
+      "route": "/stocuri",
+      "wallTimeMs": 3989,
+      "requestCount": 57,
+      "dataRequestCount": 4,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/miscari_stoc?select=locatie_id%2Cprodus%2Ccalitate%2Cdepozit%2Ctip_miscare%2Ccantitate_kg%2Cdata%2Cparcele%28nume_parcela%29&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&locatie_id=not.is.null&produs=not.is.null&calitate=not.is.null&depozit=not.is.null&tip_miscare=not.is.null&cantitate_kg=not.is.null&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 41,
+        "stylesheet": 1,
+        "document": 1,
+        "fetch": 11
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 46,
+        "ilybohhdeplwcrbpblqw.supabase.co": 11
+      },
+      "domNodes": 609,
+      "hasSkeleton": true,
+      "fpMs": 1036,
+      "fcpMs": 1036,
+      "domContentLoadedMs": 1035.5,
+      "loadEventMs": 1432.699999988079
+    },
+    {
+      "route": "/cheltuieli",
+      "wallTimeMs": 4070,
+      "requestCount": 59,
+      "dataRequestCount": 3,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 41,
+        "stylesheet": 1,
+        "document": 1,
+        "fetch": 13
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 46,
+        "ilybohhdeplwcrbpblqw.supabase.co": 13
+      },
+      "domNodes": 1563,
+      "hasSkeleton": true,
+      "fpMs": 844,
+      "fcpMs": 844,
+      "domContentLoadedMs": 828.4000000059605,
+      "loadEventMs": 1276
+    },
+    {
+      "route": "/investitii",
+      "wallTimeMs": 5229,
+      "requestCount": 55,
+      "dataRequestCount": 4,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.b050e73d-0266-45e4-8b6d-1a0960a78759",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/parcele?select=id%2Cid_parcela%2Cnume_parcela%2Ctip_fruct%2Csoi_plantat%2Csuprafata_m2%2Cnr_plante%2Can_plantare%2Cstatus%2Cgps_lat%2Cgps_lng%2Clatitudine%2Clongitudine%2Cobservatii%2Ctip_unitate%2Ccultura%2Csoi%2Cnr_randuri%2Cdistanta_intre_randuri%2Csistem_irigare%2Cdata_plantarii%2Ccreated_at%2Ccreated_by%2Cupdated_at%2Cupdated_by%2Ctenant_id%2Cdata_origin%2Cdemo_seed_id%2Cstadiu%2Crol%2Capare_in_dashboard%2Ccontribuie_la_productie%2Cstatus_operational&tenant_id=eq.1c6ee716-ecfd-42c4-accf-1334606ca9e0&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "requestTypeCounts": {
+        "font": 3,
+        "script": 39,
+        "stylesheet": 1,
+        "document": 1,
+        "fetch": 11
+      },
+      "requestDomainCounts": {
+        "localhost:3000": 44,
+        "ilybohhdeplwcrbpblqw.supabase.co": 11
+      },
+      "domNodes": 1211,
+      "hasSkeleton": true,
+      "fpMs": 1348,
+      "fcpMs": 1348,
+      "domContentLoadedMs": 1323.5999999940395,
+      "loadEventMs": 1727
+    }
+  ]
+}

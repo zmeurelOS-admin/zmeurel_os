@@ -16,11 +16,13 @@ const variantClass: Record<StatusVariant, string> = {
     "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
   danger:
     "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
-  info: "border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  // Keep API compatibility: info is rendered as neutral informational tone.
+  info: "border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
   neutral:
     "border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
+  // Keep API compatibility: purple is rendered as warning/attention tone.
   purple:
-    "border-[var(--status-purple-border)] bg-[var(--status-purple-bg)] text-[var(--status-purple-text)]",
+    "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
 };
 
 export default function StatusBadge({ text, variant }: StatusBadgeProps) {

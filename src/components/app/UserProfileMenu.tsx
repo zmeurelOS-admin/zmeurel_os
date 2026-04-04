@@ -2,15 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ChevronDown,
-  CircleHelp,
-  Download,
-  House,
-  Settings,
-  ShieldCheck,
-  UserCircle2,
-} from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, Settings, ShieldCheck } from 'lucide-react'
 
 import LogoutButton from '@/components/LogoutButton'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -63,18 +55,18 @@ export function UserProfileMenu() {
   }, [])
 
   const itemClassName =
-    'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]'
+    'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]'
 
   return (
     <div ref={wrapperRef} className="relative hidden md:z-[60] md:flex">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="cursor-pointer items-center gap-2 rounded-xl border border-white/40 bg-white/20 px-2.5 py-1.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/30 md:inline-flex"
+        className="cursor-pointer items-center gap-2 rounded-xl border border-[color:color-mix(in_srgb,var(--text-on-accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--text-on-accent)_16%,transparent)] px-2.5 py-1.5 text-sm font-semibold text-[var(--text-on-accent)] backdrop-blur transition-colors hover:bg-[color:color-mix(in_srgb,var(--text-on-accent)_24%,transparent)] md:inline-flex"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 font-medium text-white">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--success-border)] bg-[var(--success-bg)] font-medium text-[var(--success-text)]">
           {initials}
         </span>
         <span className="max-w-[160px] truncate">{userName}</span>
@@ -83,45 +75,37 @@ export function UserProfileMenu() {
 
       {open ? (
         <div
-          className="absolute right-0 top-full z-[70] mt-2 w-64 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] py-2 shadow-lg"
+          className="absolute right-0 top-full z-[70] mt-2 w-64 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] py-2 shadow-[var(--shadow-elevated)]"
           role="menu"
         >
           <div className="px-3 py-2">
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 font-medium text-white">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--success-border)] bg-[var(--success-bg)] font-medium text-[var(--success-text)]">
                 {initials}
               </span>
-              <p className="truncate text-sm font-semibold text-[var(--agri-text)]">{userName}</p>
+              <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{userName}</p>
             </div>
           </div>
 
-          <div className="my-1 h-px bg-[var(--agri-border)]" />
+          <div className="my-1 h-px bg-[var(--divider)]" />
 
-          <Link href="/settings#profil" onClick={() => setOpen(false)} className={itemClassName}>
-            <UserCircle2 className="h-4 w-4" />
-            Profil
-          </Link>
-          <Link href="/settings#password" onClick={() => setOpen(false)} className={itemClassName}>
+          <Link href="/settings" onClick={() => setOpen(false)} className={itemClassName}>
             <Settings className="h-4 w-4" />
-            Setări cont
-          </Link>
-          <Link href="/settings#ferma" onClick={() => setOpen(false)} className={itemClassName}>
-            <House className="h-4 w-4" />
-            Setări fermă
+            Setări
           </Link>
           <Link href="/settings#gdpr" onClick={() => setOpen(false)} className={itemClassName}>
             <Download className="h-4 w-4" />
             Export date
           </Link>
 
-          <div className="my-1 h-px bg-[var(--agri-border)]" />
+          <div className="my-1 h-px bg-[var(--divider)]" />
 
           <Link href="/planuri" onClick={() => setOpen(false)} className={itemClassName}>
             <ShieldCheck className="h-4 w-4" />
             Plan abonament
           </Link>
 
-          <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+          <div className="px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
             Ajutor
           </div>
           <Link href="/termeni" onClick={() => setOpen(false)} className={itemClassName}>
@@ -129,11 +113,11 @@ export function UserProfileMenu() {
             Ajutor
           </Link>
 
-          <div className="my-1 h-px bg-[var(--agri-border)]" />
+          <div className="my-1 h-px bg-[var(--divider)]" />
 
           <LogoutButton
             variant="ghost"
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-[var(--soft-danger-bg)] dark:text-red-400"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--danger-text)] hover:bg-[var(--danger-bg)]"
             label="Deconectare"
           />
         </div>

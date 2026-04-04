@@ -42,7 +42,7 @@ _Last updated: 2026-03-20 (session 4)_
 ### (dashboard) — pagini protejate
 | Fișier | Descriere |
 |--------|-----------|
-| `src/app/(dashboard)/layout.tsx` ⭐ | Layout dashboard: citește headerele injectate de middleware, furnizează DashboardAuthContext |
+| `src/app/(dashboard)/layout.tsx` ⭐ | Layout dashboard: citește headerele injectate de `src/proxy.ts`, furnizează DashboardAuthContext |
 | `src/app/(dashboard)/error.tsx` | Error boundary pentru dashboard |
 | `src/app/(dashboard)/dashboard/page.tsx` ⭐ | Dashboard activ: compoziție UI peste engine-ul logic 2.0 |
 | `src/lib/dashboard/engine.ts` ⭐ | Engine logic Dashboard 2.0: raw data, parcel states, tasks/alerts/summary/weather builders |
@@ -96,8 +96,9 @@ _Last updated: 2026-03-20 (session 4)_
 | `src/app/(dashboard)/ui-template-demo/page.tsx` | Showcase componente UI |
 | `src/app/(dashboard)/admin/layout.tsx` ⭐ | Enforce isSuperAdmin înainte de orice pagină admin |
 | `src/app/(dashboard)/admin/page.tsx` | Superadmin dashboard |
-| `src/app/(dashboard)/admin/analytics/page.tsx` | Analytics admin — server component |
-| `src/app/(dashboard)/admin/analytics/AnalyticsAdminClient.tsx` ⭐ | Dashboard analytics complet cu grafice |
+| `src/app/(dashboard)/admin/analytics/page.tsx` | Analytics admin — server component, filtre URL |
+| `src/components/admin/analytics/AdminAnalyticsDashboardView.tsx` ⭐ | Dashboard analytics desktop (overview, funnel, module, operational, AI, Tech Health/Sentry) |
+| `src/lib/admin/analytics-dashboard-data.ts` ⭐ | Încărcare metrici admin (events, tenants, cohortă) |
 | `src/app/(dashboard)/admin/audit/page.tsx` | Audit logs superadmin |
 
 ### api/
@@ -196,7 +197,7 @@ _Last updated: 2026-03-20 (session 4)_
 |--------|-----------|
 | `src/components/layout/BetaBanner.tsx` | Banner beta (versiune layout/) |
 | `src/components/layout/CompactPageHeader.tsx` | Header pagină compact |
-| `src/components/layout/Sidebar.tsx` ⭐ | Sidebar desktop `hidden md:flex`, collapsible, cu state salvat în `localStorage` |
+| `src/components/layout/Sidebar.tsx` ⭐ | Sidebar desktop `hidden md:flex`, collapsible, cu state salvat în `localStorage`; secțiune **Administrare** (superadmin) cu `/admin`, `/admin/analytics`, `/admin/audit` |
 
 ### contexts/
 | Fișier | Descriere |

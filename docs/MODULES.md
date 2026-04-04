@@ -242,7 +242,7 @@ _Last updated: 2026-03-21_
 | Tabele Supabase | `analytics_events` (service role), `tenant_metrics_daily`, `tenants`, `profiles` |
 
 **Componente cheie:**
-- `AnalyticsAdminClient` — dashboard analytics complet
+- `AdminAnalyticsDashboardView` + `loadAnalyticsDashboardData` — dashboard analytics desktop (`src/components/admin/analytics/`, `src/lib/admin/analytics-dashboard-data.ts`); Tech Health: `AdminAnalyticsSentrySection` + `getSentryTechHealth()` (snapshot config, fără API Sentry)
 - `AdminTenantsPlanTable` — gestionare planuri tenants
 
 ---

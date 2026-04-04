@@ -285,8 +285,8 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
         />
       }
     >
-      <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
+      <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4">
           <div className="space-y-4">
             <div className="space-y-2" ref={comboRef}>
               <Label htmlFor="edit_vb_client_combo">Client</Label>
@@ -349,6 +349,14 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
               <div className="grid grid-cols-2 gap-1.5 min-[380px]:grid-cols-3 sm:grid-cols-3">
                 {VANZARE_BUTASI_STATUSES.map((option) => {
                   const isActive = status === option
+                  const optionToneClass =
+                    option === 'livrata'
+                      ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                      : option === 'anulata'
+                        ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
+                        : option === 'confirmata' || option === 'pregatita'
+                          ? 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+                          : 'border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]'
                   return (
                     <Button
                       key={option}
@@ -357,9 +365,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                       onClick={() => form.setValue('status', option, { shouldDirty: true })}
                       className={cn(
                         'h-8 rounded-full border px-2 text-[11px] font-semibold',
-                        isActive && option !== 'anulata' && 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
-                        isActive && option === 'anulata' && 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 dark:border-red-700 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60',
-                        !isActive && 'bg-white text-slate-600 dark:bg-zinc-900 dark:text-zinc-300'
+                        isActive ? optionToneClass : 'bg-[var(--agri-surface)] text-[var(--agri-text-muted)]'
                       )}
                     >
                       {statusLabels[option]}
@@ -371,7 +377,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
           </div>
         </div>
 
-        <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
+        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4">
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="edit_vb_data_comanda">Data comandă</Label>
@@ -390,7 +396,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
           </div>
         </div>
 
-        <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
+        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4">
           <div className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="edit_vb_adresa">Adresă livrare</Label>
@@ -427,13 +433,13 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
           </div>
         </div>
 
-        <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
+        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4">
           <div className="mb-3">
             <h3 className="text-base font-semibold text-[var(--agri-text)]">Produse</h3>
           </div>
 
           {isProductsReadonly ? (
-            <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300">
+            <div className="mb-3 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-medium text-[var(--status-danger-text)]">
               Comandă anulată: produsele sunt doar în citire.
             </div>
           ) : null}
@@ -445,7 +451,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
               const subtotal = cantitate * pret
 
               return (
-                <div key={field.id} className="relative rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
+                <div key={field.id} className="relative rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/45 p-3">
                   <Button
                     type="button"
                     size="icon"
@@ -515,7 +521,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
 
                     <div className="space-y-2 md:col-span-2">
                       <Label className="text-xs">Subtotal</Label>
-                      <div className="flex h-11 items-center justify-end rounded-xl border border-emerald-100 bg-white px-2 text-sm font-semibold dark:border-emerald-900/50 dark:bg-zinc-900">
+                      <div className="flex h-11 items-center justify-end rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2 text-sm font-semibold">
                         {formatLei(subtotal || 0)}
                       </div>
                     </div>
@@ -538,7 +544,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
           </div>
         </div>
 
-        <div className="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
+        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4">
           <div className="space-y-3">
             <p className="text-lg font-bold text-[var(--agri-text)]">Total produse: {formatLei(totalProduse || 0)}</p>
 
@@ -560,7 +566,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
               </div>
             </div>
 
-            <div className="inline-flex rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            <div className="inline-flex rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-1 text-sm font-semibold text-[var(--status-warning-text)]">
               Rest de încasat: {formatLei(restDeIncasat || 0)}
             </div>
           </div>

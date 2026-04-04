@@ -3,18 +3,7 @@
 import { X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { getSupabase } from '@/lib/supabase/client'
 import { dispatchDemoBannerDismissed, useDemoBannerVisible } from '@/hooks/useDemoBannerVisible'
-
-async function handleCreateFarm() {
-  const supabase = getSupabase()
-  try {
-    await supabase.auth.signOut()
-  } catch (error) {
-    console.error('Sign out failed:', error)
-  }
-  window.location.href = '/start'
-}
 
 export function DemoBanner() {
   const isVisible = useDemoBannerVisible()
@@ -28,14 +17,16 @@ export function DemoBanner() {
           🌱 Ești în modul demo. Datele vor fi șterse. Când ești gata, creează-ți ferma ta.
         </p>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            className="h-8 rounded-full bg-[var(--agri-surface)] px-4 text-sm font-semibold text-emerald-700 hover:bg-[var(--soft-success-bg)]"
-            onClick={handleCreateFarm}
-          >
-            Creează-ți ferma →
-          </Button>
+          <form action="/api/auth/leave-demo" method="POST">
+            <Button
+              type="submit"
+              data-testid="demo-banner-create-farm"
+              size="sm"
+              className="h-8 rounded-full bg-[var(--agri-surface)] px-4 text-sm font-semibold text-emerald-700 hover:bg-[var(--soft-success-bg)]"
+            >
+              Creează-ți ferma →
+            </Button>
+          </form>
           <button
             type="button"
             aria-label="Închide"

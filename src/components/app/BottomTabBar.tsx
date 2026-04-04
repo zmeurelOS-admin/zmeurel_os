@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { MoreMenuDrawer } from '@/components/app/MoreMenuDrawer'
 
 type TabDef = {
@@ -19,21 +20,46 @@ const TABS: TabDef[] = [
   { label: 'Comenzi', href: '/comenzi', emoji: '📦' },
 ]
 
+/** Fermieri și Setări sunt în „Mai mult” — 4 taburi egale pe mobil. */
+const ASOCIATIE_TABS: TabDef[] = [
+  { label: 'Panou', href: '/asociatie', emoji: '🏛' },
+  { label: 'Produse', href: '/asociatie/produse', emoji: '🛒' },
+  { label: 'Comenzi', href: '/asociatie/comenzi', emoji: '📋' },
+]
+
 export function BottomTabBar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { associationRole } = useDashboardAuth()
   const [moreOpen, setMoreOpen] = useState(false)
+  const prevPathnameRef = useRef(pathname)
+
+  const inAssociationWorkspace = pathname.startsWith('/asociatie')
+  const tabs = useMemo(() => {
+    if (associationRole && inAssociationWorkspace) {
+      return ASOCIATIE_TABS
+    }
+    return TABS
+  }, [associationRole, inAssociationWorkspace])
 
   useEffect(() => {
     router.prefetch('/dashboard')
     router.prefetch('/recoltari')
     router.prefetch('/comenzi')
     router.prefetch('/activitati-agricole')
+    router.prefetch('/asociatie')
+    router.prefetch('/asociatie/produse')
+    router.prefetch('/asociatie/comenzi')
+    router.prefetch('/asociatie/producatori')
+    router.prefetch('/asociatie/setari')
   }, [router])
 
-  // Close more menu when route changes (e.g. browser back, link tap)
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { if (moreOpen) setMoreOpen(false) }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Închide meniul doar la schimbare reală de rută (nu la re-randări cu același pathname)
+  useEffect(() => {
+    if (prevPathnameRef.current === pathname) return
+    prevPathnameRef.current = pathname
+    setMoreOpen(false)
+  }, [pathname])
 
   const isTabActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
   // ••• is active only when the menu is explicitly open, not based on pathname
@@ -64,7 +90,7 @@ export function BottomTabBar() {
             justifyContent: 'space-around',
           }}
         >
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const active = isTabActive(tab.href)
             return (
               <Link

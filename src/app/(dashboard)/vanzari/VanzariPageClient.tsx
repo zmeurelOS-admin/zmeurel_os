@@ -115,14 +115,20 @@ interface VanzareCardNewProps {
 }
 
 function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpaid, onEdit, onDelete, onOpenComanda }: VanzareCardNewProps) {
+  const subtitle = new Date(vanzare.data).toLocaleDateString('ro-RO')
+  const secondaryValue = `${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg • ${Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg`
+  const meta = vanzare.comanda_id ? 'Din comandă' : undefined
+
   return (
     <MobileEntityCard
       title={vanzare.clientNume}
       mainValue={`${formatRon(vanzare.totalRon)} RON`}
-      subtitle={`${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg · ${formatData(vanzare.data)}`}
-      meta={vanzare.comanda_id ? 'Din comandă' : undefined}
+      subtitle={subtitle}
+      secondaryValue={secondaryValue}
+      meta={meta}
       statusLabel={vanzare.incasata ? 'Încasat' : 'Neîncasat'}
       statusTone={vanzare.incasata ? 'success' : 'warning'}
+      showChevron
       onClick={onToggle}
       bottomSlot={isExpanded ? (
         <>
@@ -715,6 +721,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
           <ResponsiveDataView
             columns={desktopColumns}
             data={filteredVanzari}
+            mobileContainerClassName="grid-cols-1"
             getRowId={(row) => row.id}
             searchPlaceholder="Caută în vânzări..."
             emptyMessage="Nu am găsit vânzări pentru filtrele curente."
@@ -735,11 +742,12 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
       </div>
 
-      <AddVanzareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+      <AddVanzareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger tenantVanzari={vanzari} />
 
       <EditVanzareDialog
         vanzare={editingVanzare}
         open={!!editingVanzare}
+        tenantVanzari={vanzari}
         onOpenChange={(open) => {
           if (!open) setEditingVanzare(null)
         }}

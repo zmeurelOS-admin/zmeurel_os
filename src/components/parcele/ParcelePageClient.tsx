@@ -154,25 +154,28 @@ function operationalToneForCard(statusOperational: StatusOperational): 'neutral'
   return 'neutral'
 }
 
-function stadiuBadge(stadiu: string | null | undefined): { text: string; emoji: string; color: string } {
-  const s = (stadiu ?? '').toLowerCase().trim()
-  if (s === 'incoltit') return { text: 'Încolțit', emoji: '🌱', color: '#27AE60' }
-  if (s === 'vegetativ') return { text: 'Vegetativ', emoji: '🌿', color: '#2D6A4F' }
-  if (s === 'inflorit' || s === 'inflorire') return { text: 'Înflorit', emoji: '🌸', color: '#e06fa4' }
-  if (s === 'fructificare') return { text: 'Fructificare', emoji: '🍅', color: '#e07330' }
-  if (s === 'recoltare' || s === 'cules') return { text: 'Recoltare', emoji: '🫐', color: '#6b48d6' }
-  if (s === 'seceta') return { text: 'Secetă', emoji: '☀️', color: '#e6a817' }
-  if (s === 'daunator') return { text: 'Dăunător', emoji: '🐛', color: '#e85d5d' }
-  if (s === 'repaus' || s === 'plantare') return { text: stadiu ?? s, emoji: '❄️', color: '#888' }
-  if (!s) return { text: '—', emoji: '', color: '#bbb' }
-  return { text: s.charAt(0).toUpperCase() + s.slice(1), emoji: '📝', color: '#555' }
-}
-
 function etapaDotColor(etapa: string): string {
   const e = etapa.toLowerCase()
   if (e.includes('plantare') || e.includes('flori') || e.includes('fructif') || e.includes('cules')) return '#2D6A4F'
   if (e.includes('seceta') || e.includes('daun') || e.includes('problem') || e.includes('desfiin')) return '#e85d5d'
   return '#95b8a0'
+}
+
+function formatEtapaLabel(value: string | null | undefined): string {
+  const raw = (value ?? '').trim()
+  if (!raw) return 'Plantare'
+  const normalized = raw.replaceAll('_', ' ').trim()
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string' && error.trim()) return error
+  if (typeof error === 'object' && error !== null) {
+    const maybeMessage = (error as { message?: unknown }).message
+    if (typeof maybeMessage === 'string' && maybeMessage.trim()) return maybeMessage
+  }
+  return 'A apărut o eroare neașteptată.'
 }
 
 function activityRelativeTime(dateStr: string | null | undefined, today: Date): string {
@@ -270,17 +273,22 @@ function CulturaCard({
   const [observatii, setObservatii] = useState('')
   const [dataEtapa, setDataEtapa] = useState(new Date().toISOString().slice(0, 10))
 
-  const badge = stadiuBadge(cultura.stadiu)
+  const fallbackStage = (() => {
+    const normalized = normalizeStr(cultura.stadiu)
+    if (!normalized || normalized === 'crestere' || normalized === 'creștere') return 'Plantare'
+    return formatEtapaLabel(cultura.stadiu)
+  })()
   const name = [cultura.tip_planta, cultura.soi].filter(Boolean).join(' · ')
   const isActive = cultura.activa !== false
 
   const { data: etape = [], isLoading: etapeLoading } = useQuery({
     queryKey: queryKeys.etapeCultura(cultura.id),
     queryFn: () => getEtapeCulturaById(cultura.id),
-    enabled: expanded,
+    enabled: true,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
+  const latestStageLabel = formatEtapaLabel(etape[0]?.etapa ?? fallbackStage)
 
   const addMutation = useMutation({
     mutationFn: () => {
@@ -302,7 +310,7 @@ function CulturaCard({
       setObservatii('')
       setDataEtapa(new Date().toISOString().slice(0, 10))
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(toErrorMessage(err)),
   })
 
   const deleteMutation = useMutation({
@@ -310,7 +318,7 @@ function CulturaCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.etapeCultura(cultura.id) })
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(toErrorMessage(err)),
   })
 
   return (
@@ -342,22 +350,20 @@ function CulturaCard({
             </div>
           ) : null}
         </div>
-        {badge.text !== '—' ? (
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              borderRadius: 20,
-              padding: '2px 7px',
-              background: `${badge.color}15`,
-              color: badge.color,
-              border: `1px solid ${badge.color}`,
-              flexShrink: 0,
-            }}
-          >
-            {badge.emoji} {badge.text}
-          </span>
-        ) : null}
+        <span
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            borderRadius: 20,
+            padding: '2px 7px',
+            background: 'var(--agri-surface-muted)',
+            color: 'var(--agri-text)',
+            border: '1px solid var(--agri-border)',
+            flexShrink: 0,
+          }}
+        >
+          {latestStageLabel}
+        </span>
         <span style={{ fontSize: 10, color: 'var(--text-hint)', flexShrink: 0 }}>{expanded ? '▲' : '▼'}</span>
       </div>
 
@@ -646,6 +652,7 @@ function SolarCulturiSection({
   onDesfiintaCultura: (c: Cultura) => void
   withTopBorder?: boolean
 }) {
+  const [showMicroHistory, setShowMicroHistory] = useState(false)
   const { data: culturi = [], isLoading } = useQuery({
     queryKey: queryKeys.culturi(solarId),
     queryFn: () => getCulturiForSolar(solarId),
@@ -664,6 +671,7 @@ function SolarCulturiSection({
   const activeCulturi = culturi.filter((c) => c.activa !== false)
   const inactiveCulturi = culturi.filter((c) => c.activa === false)
   const conditiiLabel = getConditiiMediuLabel(tipUnitate)
+  const latestMicroclimat = microclimatLogs[0]
 
   return (
     <div style={withTopBorder ? { marginTop: 10, borderTop: '1px solid var(--surface-divider)', paddingTop: 10 } : undefined}>
@@ -740,21 +748,46 @@ function SolarCulturiSection({
         </div>
       ) : (
         <>
-        {microclimatLogs.length > 0 ? (
-          <div style={{ marginBottom: 8, padding: 8, borderRadius: 8, border: '1px solid var(--agri-border)', background: 'var(--agri-surface-muted)' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>🌡️ Microclimat</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {microclimatLogs.map((log) => (
-                <div key={log.id} style={{ fontSize: 12, color: 'var(--agri-text)' }}>
-                  <div style={{ fontWeight: 700 }}>{new Date(log.created_at).toLocaleString('ro-RO')}</div>
-                  <div style={{ fontSize: 12, color: 'var(--agri-text-muted)' }}>
-                    T: {log.temperatura}°C · U: {log.umiditate}%{log.observatii ? ' · ' + log.observatii : ''}
-                  </div>
+        <div style={{ marginBottom: 8, borderRadius: 8, border: '1px solid var(--agri-border)', background: 'var(--agri-surface-muted)', padding: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--agri-text)' }}>🌡️ Microclimat</div>
+            {microclimatLogs.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => setShowMicroHistory((v) => !v)}
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'var(--agri-primary)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                {showMicroHistory ? 'Ascunde istoric' : `Istoric microclimat (${microclimatLogs.length})`}
+              </button>
+            ) : null}
+          </div>
+          {microLoading ? (
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-hint)' }}>Se încarcă...</div>
+          ) : latestMicroclimat ? (
+            <div style={{ marginTop: 6, fontSize: 12, color: 'var(--agri-text-muted)' }}>
+              Ultima înregistrare: {new Date(latestMicroclimat.created_at).toLocaleString('ro-RO')} · T: {latestMicroclimat.temperatura}°C · U: {latestMicroclimat.umiditate}%
+            </div>
+          ) : (
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-hint)' }}>Nu există încă înregistrări de microclimat.</div>
+          )}
+          {showMicroHistory && microclimatLogs.length > 1 ? (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {microclimatLogs.slice(0, 8).map((log) => (
+                <div key={log.id} style={{ fontSize: 11, color: 'var(--agri-text-muted)' }}>
+                  {new Date(log.created_at).toLocaleString('ro-RO')} · {log.temperatura}°C · {log.umiditate}%
                 </div>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activeCulturi.map((c) => (
             <CulturaCard
@@ -932,7 +965,7 @@ function TerenCard({
       </div>
 
       <div
-        className="hidden w-full overflow-hidden rounded-2xl bg-[var(--agri-surface)] shadow-[var(--agri-shadow)] transition-all duration-200 md:block md:hover:bg-[color-mix(in_srgb,var(--agri-surface-muted)_35%,var(--agri-surface))] dark:md:hover:bg-zinc-800/40"
+        className="hidden w-full overflow-hidden rounded-2xl bg-[var(--agri-surface)] shadow-[var(--agri-shadow)] transition-all duration-200 md:block md:hover:bg-[color:color-mix(in_srgb,var(--agri-surface-muted)_35%,var(--agri-surface))]"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -975,28 +1008,24 @@ function TerenCard({
                 {badge.text}
               </span>
             </div>
-            {metaLine ? (
-              <div className="mt-1 truncate text-sm text-[var(--agri-text-muted)] dark:text-zinc-400">{metaLine}</div>
-            ) : null}
+            {metaLine ? <div className="mt-1 truncate text-sm text-[var(--agri-text-muted)]">{metaLine}</div> : null}
           </div>
         </div>
 
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--agri-text)] dark:text-zinc-100">
+          <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
             {latestActivity ? `Ultima activitate: ${activityDateLabel ?? relTime}` : 'Nicio activitate'}
           </div>
-          <div className="mt-1 truncate text-sm text-[var(--agri-text-muted)] dark:text-zinc-400">
+          <div className="mt-1 truncate text-sm text-[var(--agri-text-muted)]">
             {latestActivity
               ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
               : 'Nicio activitate înregistrată'}
           </div>
-          {culturiLabel ? (
-            <div className="mt-1 text-sm text-[var(--agri-text-muted)] dark:text-zinc-400">{culturiLabel}</div>
-          ) : null}
+          {culturiLabel ? <div className="mt-1 text-sm text-[var(--agri-text-muted)]">{culturiLabel}</div> : null}
 
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)]">
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </div>
       </div>
@@ -1017,14 +1046,14 @@ function TerenCard({
               <button
                 type="button"
                 onClick={onHistoric}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-[var(--button-muted-hover-bg)]"
               >
                 Istoric
               </button>
               <button
                 type="button"
                 onClick={() => onEdit(parcela)}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-[var(--button-muted-hover-bg)]"
               >
                 Editează
               </button>

@@ -17,6 +17,9 @@ The product also includes:
 
 ### 1. Authentication And Tenant Entry
 
+- Public **magazin fermier** (catalog pentru clientul final, fără cont): `/magazin` și `/magazin/[tenantId]` (UUID tenant), coș în browser + trimitere comandă prin `POST /api/shop/order` în `comenzi` (fără plată online); notificare email opțională către proprietar (Resend, vezi `AGENTS.md`); nu este modul ERP.
+- Public **magazin asociație** (multi-fermier, branding separat „Gustă din Bucovina”): `/magazin/asociatie` — catalog agregat pentru `tenants.is_association_approved` (control din `/admin`, superadmin) plus fallback temporar pe allowlist env (`load-association-catalog.ts`), același endpoint de comandă per fermă; UI în `AssociationShopClient` + `components/shop/association/*` (fără AppShell); nu este modul ERP.
+- Workspace-ul **Asociație** include acum și editarea profilului public al producătorilor direct din `/asociatie/producatori`: adminii/moderatorii pot actualiza `descriere_publica`, `specialitate`, `localitate` și `poze_ferma` pentru fermierii deja aprobați, iar pozele sunt urcate în Storage.
 - Public entry is `/` and `/start`.
 - Users can log in with email/password or Google.
 - Beta signup can create a user and tenant immediately.
@@ -75,6 +78,7 @@ The app is primarily a client-driven dashboard over Supabase, but critical write
 - Supabase RPC functions
 - service-role admin clients
 - RLS and tenant-aware queries
+- storage-backed association settings (`association-config/settings.json`) for public branding/schedule copy
 
 Notable API packaging detail:
 

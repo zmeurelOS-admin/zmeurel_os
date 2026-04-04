@@ -2,6 +2,7 @@
 
 import { MessageCircle, Phone, X } from 'lucide-react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DIALOG_DETAIL_FOOTER_CLASS } from '@/lib/ui/modal-overlay-classes'
@@ -17,6 +18,11 @@ interface ViewComandaDialogProps {
   onDeliver: (comanda: Comanda) => void
   onEdit: (comanda: Comanda) => void
   onDelete: (comanda: Comanda) => void
+  /** Linii din același checkout magazin (heuristic pe telefon + zi). */
+  magazinGroupLines?: Comanda[]
+  magazinGroupTotal?: number
+  /** ERP asociație: doar detalii, fără livrare/editare/ștergere fermă. */
+  associationReadOnly?: boolean
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -47,6 +53,9 @@ export function ViewComandaDialog({
   onDeliver,
   onEdit,
   onDelete,
+  magazinGroupLines,
+  magazinGroupTotal,
+  associationReadOnly = false,
 }: ViewComandaDialogProps) {
   const total = Number(comanda?.total || 0)
   const cantitate = Number(comanda?.cantitate_kg || 0)
@@ -94,22 +103,60 @@ export function ViewComandaDialog({
           </Button>
         </DialogClose>
         <div className="max-h-[82dvh] overflow-y-auto p-5 sm:p-6">
-          <div className="flex flex-col gap-2 leading-tight pr-10">
-            <section className="space-y-1">
+          <div className="flex flex-col gap-4 leading-tight pr-10">
+            <section className="space-y-2">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-left text-base font-semibold text-[var(--agri-text)]">{clientName}</p>
+                <p className="text-left text-[1.02rem] leading-tight text-[var(--agri-text)] [font-weight:650]">{clientName}</p>
               </div>
               <p className="text-xs text-[var(--agri-text-muted)]">Telefon</p>
               <p className="text-sm font-medium text-[var(--agri-text)]">{telefon || '-'}</p>
             </section>
 
-            <section className="space-y-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
-              <h3 className="text-sm font-semibold text-[var(--agri-text)]">Detalii comandă</h3>
+            {magazinGroupLines && magazinGroupLines.length > 0 ? (
+              <section className="space-y-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
+                <p className="text-sm font-medium text-[var(--agri-text)]">Origine: Magazin</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm text-[var(--agri-text)] [font-weight:650]">Comandă din magazin</h3>
+                  <Badge variant="info" className="text-[10px] font-semibold">
+                    Magazin
+                  </Badge>
+                </div>
+                <p className="text-xs text-[var(--agri-text-muted)]">
+                  {magazinGroupLines.length}{' '}
+                  {magazinGroupLines.length === 1 ? 'linie în grup' : 'linii în grup'} (aceeași solicitare).
+                </p>
+                <ul className="space-y-2">
+                  {magazinGroupLines.map((line) => (
+                    <li
+                      key={line.id}
+                      className="rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] p-2 text-sm"
+                    >
+                      <div className="flex justify-between gap-2">
+                        <span className="text-[var(--agri-text-muted)]">
+                          {formatNumber(Number(line.cantitate_kg || 0))} kg
+                        </span>
+                        <span className="font-semibold tabular-nums text-[var(--agri-text)]">
+                          {formatLei(Number(line.total || 0))}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {typeof magazinGroupTotal === 'number' ? (
+                  <p className="text-sm font-semibold text-[var(--agri-text)]">
+                    Total estimat grup: {formatLei(magazinGroupTotal)}
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="space-y-3 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
+              <h3 className="text-sm text-[var(--agri-text)] [font-weight:650]">Detalii comandă</h3>
               <div className="flex flex-col items-center text-center">
                 <p className="text-xs text-[var(--agri-text-muted)]">TOTAL</p>
                 <p className="text-xl font-semibold text-[var(--agri-text)]">{formatLei(total)}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 rounded-lg bg-[var(--agri-surface-muted)] p-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <p className="text-xs text-[var(--agri-text-muted)]">Cantitate</p>
                   <p className="text-sm font-medium text-[var(--agri-text)]">{formatNumber(cantitate)} kg</p>
@@ -122,7 +169,7 @@ export function ViewComandaDialog({
             </section>
 
             {hasAvans ? (
-              <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
+              <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
                 <div className="space-y-1">
                   <p className="text-xs text-[var(--agri-text-muted)]">Avans</p>
                   <p className="text-sm font-medium text-[var(--agri-text)]">{formatLei(avans)}</p>
@@ -134,7 +181,7 @@ export function ViewComandaDialog({
               </section>
             ) : null}
 
-            <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
+            <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
               <div className="space-y-1">
                 <p className="text-xs text-[var(--agri-text-muted)]">Data comandă</p>
                 <p className="text-sm font-medium text-[var(--agri-text)]">{formatDate(comanda?.data_comanda)}</p>
@@ -145,7 +192,7 @@ export function ViewComandaDialog({
               </div>
             </section>
 
-            <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
+            <section className="grid grid-cols-2 gap-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
               <Button
                 type="button"
                 variant="outline"
@@ -188,7 +235,7 @@ export function ViewComandaDialog({
             </section>
 
             {(comanda?.locatie_livrare || comanda?.observatii?.trim()) ? (
-            <section className="space-y-1 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
+            <section className="space-y-2 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
                 {comanda?.locatie_livrare ? (
                   <>
                     <p className="text-xs text-[var(--agri-text-muted)]">Locație livrare</p>
@@ -205,7 +252,7 @@ export function ViewComandaDialog({
             ) : null}
 
             {comanda?.status === 'livrata' && comanda?.linked_vanzare_id ? (
-              <section className="border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-2">
+              <section className="border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] pt-3">
                 <div className="rounded-lg border border-[var(--soft-success-border)] bg-[var(--soft-success-bg)] p-2 text-sm text-[var(--soft-success-text)]">
                   Livrată pe {formatDate(comanda?.updated_at)}. Vânzare de {formatLei(total)} creată automat.
                 </div>
@@ -215,45 +262,53 @@ export function ViewComandaDialog({
         </div>
 
         <div className={DIALOG_DETAIL_FOOTER_CLASS}>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {canDeliver ? (
+          {associationReadOnly ? (
+            <Button type="button" variant="outline" className="agri-cta w-full" onClick={() => onOpenChange(false)}>
+              Închide
+            </Button>
+          ) : (
+            <>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                {canDeliver ? (
+                  <Button
+                    type="button"
+                    className="agri-cta bg-green-600 text-white hover:opacity-95 lg:hover:opacity-95"
+                    onClick={() => {
+                      if (!comanda) return
+                      onOpenChange(false)
+                      onDeliver(comanda)
+                    }}
+                  >
+                    Marchează livrată
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="agri-cta text-[var(--agri-text)] lg:hover:opacity-95"
+                  onClick={() => {
+                    if (!comanda) return
+                    onOpenChange(false)
+                    onEdit(comanda)
+                  }}
+                >
+                  Editează
+                </Button>
+              </div>
               <Button
                 type="button"
-                className="agri-cta bg-green-600 text-white hover:opacity-95 lg:hover:opacity-95"
+                variant="destructive"
+                className="agri-cta shrink-0 lg:hover:opacity-95"
                 onClick={() => {
                   if (!comanda) return
                   onOpenChange(false)
-                  onDeliver(comanda)
+                  onDelete(comanda)
                 }}
               >
-                LIVRAT!
+                Șterge
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="agri-cta text-[var(--agri-text)] lg:hover:opacity-95"
-              onClick={() => {
-                if (!comanda) return
-                onOpenChange(false)
-                onEdit(comanda)
-              }}
-            >
-              Editează
-            </Button>
-          </div>
-          <Button
-            type="button"
-            variant="destructive"
-            className="agri-cta shrink-0 lg:hover:opacity-95"
-            onClick={() => {
-              if (!comanda) return
-              onOpenChange(false)
-              onDelete(comanda)
-            }}
-          >
-            Șterge
-          </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

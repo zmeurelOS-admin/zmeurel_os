@@ -14,12 +14,14 @@
 - `profiles.tenant_id` is the backbone of tenant resolution.
 - Query helpers and RLS policies are both part of the safety model.
 - Never weaken filters or privileged fallbacks without auditing cross-tenant impact.
+- `tenants` now has an association-staff update path restricted to public-profile fields only; changes to `association_staff_update_tenant_profile` or `enforce_tenants_assoc_admin_updates()` can accidentally reopen cross-tenant or over-broad writes.
 
 ### Service-Role Usage
 
 - `src/lib/supabase/admin.ts` bypasses RLS.
 - It is used by demo flows, cron jobs, GDPR/account deletion, and admin operations.
 - Any expansion of service-role usage increases blast radius.
+- Association settings persistence now uses service-role Storage access for `association-config/settings.json`; avoid moving that flow client-side without recreating explicit storage policies.
 
 ### Database Schema Drift
 
@@ -27,6 +29,7 @@
 - This is helpful operationally but means the codebase tolerates multiple schema states.
 - Refactors that remove fallbacks can break production or partially migrated environments.
 - Cheltuieli now also tolerates linked environments where `metoda_plata` is not migrated yet, so temporary client-side 400/column-missing fallbacks are still possible until linked schema catch-up is complete.
+- Public producer profiles depend on `tenants.descriere_publica`, `specialitate`, `localitate`, and `poze_ferma`; if linked environments miss these columns or the new Storage bucket, admin editing and public profile rendering degrade.
 
 ### Stock-Affecting RPCs
 

@@ -10,6 +10,7 @@ import {
 import { NavigationPerfLogger } from '@/components/app/NavigationPerfLogger'
 import { PageViewTracker } from '@/components/app/PageViewTracker'
 import { RouteTransitionIndicator } from '@/components/app/RouteTransitionIndicator'
+import { NotificationToastProvider } from '@/components/notifications/NotificationToastProvider'
 import { AddActionProvider } from '@/contexts/AddActionContext'
 
 export function Providers({
@@ -41,6 +42,7 @@ export function Providers({
       <DashboardAuthProvider value={initialAuth}>
         <AddActionProvider>
             <DensityProvider>
+              <NotificationToastProvider />
               <RouteTransitionIndicator />
               <NavigationPerfLogger />
               <PageViewTracker />

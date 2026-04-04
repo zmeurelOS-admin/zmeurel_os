@@ -76,6 +76,11 @@ export function validateSameOriginMutation(
   const referer = getOrigin(request.headers.get('referer'))
 
   if (!origin && !referer) {
+    // Unele browsere mobile / WebView trimit POST same-origin fără Origin/Referer; Sec-Fetch-Site e setat de browser.
+    const secFetchSite = request.headers.get('sec-fetch-site')
+    if (secFetchSite === 'same-origin') {
+      return null
+    }
     return apiError(403, 'MISSING_ORIGIN', 'Request-ul necesită header Origin sau Referer.', options)
   }
 

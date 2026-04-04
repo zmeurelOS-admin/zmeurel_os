@@ -21,8 +21,16 @@ import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { AddInvestitieDialog } from '@/components/investitii/AddInvestitieDialog'
 import { EditInvestitieDialog } from '@/components/investitii/EditInvestitieDialog'
 import { Button } from '@/components/ui/button'
+import {
+  DesktopInspectorPanel,
+  DesktopInspectorSection,
+  DesktopSplitPane,
+  DesktopToolbar,
+} from '@/components/ui/desktop'
+import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { deleteInvestitie, getInvestitii, type Investitie } from '@/lib/supabase/queries/investitii'
 import { buildInvestitieDeleteLabel } from '@/lib/ui/delete-labels'
@@ -58,18 +66,18 @@ function formatRon(value: number): string {
 function investitieCategoryIcon(category: string | null | undefined): { emoji: string; className: string } {
   const value = normalizeText(category)
   if (value.includes('utilaj') || value.includes('echip')) {
-    return { emoji: '🔧', className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' }
+    return { emoji: '🔧', className: 'border border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning-text)]' }
   }
   if (value.includes('saditor') || value.includes('butas')) {
-    return { emoji: '🌱', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' }
+    return { emoji: '🌱', className: 'border border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success-text)]' }
   }
   if (value.includes('infra') || value.includes('construct') || value.includes('depoz') || value.includes('sustinere') || value.includes('utilitat')) {
-    return { emoji: '🏗️', className: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' }
+    return { emoji: '🏗️', className: 'border border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning-text)]' }
   }
   if (value.includes('it') || value.includes('automatiz') || value.includes('tech')) {
-    return { emoji: '💻', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' }
+    return { emoji: '💻', className: 'border border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)]' }
   }
-  return { emoji: '📦', className: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' }
+  return { emoji: '📦', className: 'border border-[var(--neutral-border)] bg-[var(--neutral-bg)] text-[var(--neutral-text)]' }
 }
 
 function InvestitieCardNew({
@@ -90,40 +98,32 @@ function InvestitieCardNew({
   const suma = Number(investitie.suma_lei || 0)
   const icon = investitieCategoryIcon(investitie.categorie)
   const title = investitie.categorie || 'Alte investiții'
-  const subtitle = investitie.furnizor || investitie.descriere || undefined
-  const dateLabel = investitie.data
-    ? formatData(investitie.data)
-    : '-'
+  const subtitle = investitie.furnizor || 'Furnizor nespecificat'
+  const dateLabel = investitie.data ? formatData(investitie.data) : '-'
+  const descriere = (investitie.descriere ?? '').trim()
+  const parcelaLabel = parcelaName || 'Fără parcelă'
+  const yearLabel = investitie.data ? String(new Date(investitie.data).getFullYear()) : '—'
 
   return (
-    <div className="rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-3.5 shadow-[var(--agri-shadow)] dark:bg-slate-800">
-      <button type="button" onClick={onToggle} className="w-full text-left" aria-expanded={isExpanded}>
-        <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${icon.className}`}>
-            <span aria-hidden>{icon.emoji}</span>
+    <MobileEntityCard
+      title={title}
+      icon={<span aria-hidden>{icon.emoji}</span>}
+      subtitle={subtitle}
+      mainValue={`${formatRon(suma)} RON`}
+      secondaryValue={`${dateLabel} · ${parcelaLabel}`}
+      meta={descriere.length > 0 ? `${descriere.slice(0, 84)}${descriere.length > 84 ? '…' : ''}` : undefined}
+      statusLabel={yearLabel}
+      statusTone="neutral"
+      showChevron
+      onClick={onToggle}
+      bottomSlot={isExpanded ? (
+        <div className="mt-1">
+          <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text-muted)]">
+            <span><span className="text-[var(--agri-text)] font-semibold">Furnizor:</span> {investitie.furnizor || '—'}</span>
+            <span><span className="text-[var(--agri-text)] font-semibold">Parcelă:</span> {parcelaLabel}</span>
+            <span><span className="text-[var(--agri-text)] font-semibold">Dată:</span> {investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '-'}</span>
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{title}</div>
-            <div className="truncate text-xs text-[var(--agri-text-muted)]">{subtitle || 'Fără detalii'}</div>
-          </div>
-          <div className="shrink-0 text-right">
-            <div className="text-base font-bold text-[var(--agri-text)]">{Math.round(suma)} lei</div>
-            <div className="text-[10px] text-[var(--agri-text-muted)]">{dateLabel}</div>
-          </div>
-        </div>
-      </button>
-
-      {isExpanded ? (
-        <div className="mt-3 space-y-2 border-t border-[var(--surface-divider)] pt-3 text-xs text-[var(--agri-text-muted)] dark:border-slate-700">
-          <p><span className="font-semibold text-[var(--agri-text)]">Descriere completă:</span> {investitie.descriere || '—'}</p>
-          <p><span className="font-semibold text-[var(--agri-text)]">Furnizor:</span> {investitie.furnizor || '—'}</p>
-          <p><span className="font-semibold text-[var(--agri-text)]">Sumă:</span> {Math.round(suma)} RON</p>
-          <p><span className="font-semibold text-[var(--agri-text)]">Dată:</span> {investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '-'}</p>
-          <p><span className="font-semibold text-[var(--agri-text)]">Categorie:</span> {investitie.categorie || 'Alte investiții'}</p>
-          <p><span className="font-semibold text-[var(--agri-text)]">Parcelă:</span> {parcelaName}</p>
-          <p><span className="font-semibold text-[var(--agri-text)]">Observații:</span> {investitie.descriere || '—'}</p>
-
-          <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3 dark:border-slate-700">
+          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
             <button
               type="button"
               onClick={(event) => {
@@ -146,8 +146,8 @@ function InvestitieCardNew({
             </button>
           </div>
         </div>
-      ) : null}
-    </div>
+      ) : undefined}
+    />
   )
 }
 
@@ -172,6 +172,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
   const prefillDescriere = searchParams.get('descriere') ?? undefined
   const [editingInvestitie, setEditingInvestitie] = useState<Investitie | null>(null)
   const [deletingInvestitie, setDeletingInvestitie] = useState<Investitie | null>(null)
+  const [desktopSelectedInvestitieId, setDesktopSelectedInvestitieId] = useState<string | null>(null)
 
   const {
     data: investitii = initialInvestitii,
@@ -231,6 +232,14 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
         return (Number.isNaN(dateB) ? 0 : dateB) - (Number.isNaN(dateA) ? 0 : dateA)
       }),
     [filteredInvestitii]
+  )
+
+  const desktopSelectedInvestitie =
+    desktopData.find((row) => row.id === desktopSelectedInvestitieId) ?? desktopData[0] ?? null
+
+  const filteredTotalRon = useMemo(
+    () => filteredInvestitii.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0),
+    [filteredInvestitii],
   )
 
   const categoryPills = useMemo(() => {
@@ -360,21 +369,19 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
         />
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 md:max-w-7xl">
 
         <ModuleScoreboard className="mb-2">
+          <span className="text-[11px] text-[var(--agri-text-muted)]">Total investit</span>
           <span>
             <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--agri-text)]">
-              {Math.round(stats.totalInvestit)}
+              {formatRon(stats.totalInvestit)}
             </span>
-            <span className="ml-1 text-[10px] font-medium text-[var(--text-hint)]">RON</span>
+            <span className="ml-1 text-[10px] font-medium text-[var(--text-secondary)]">RON</span>
           </span>
-          <span className="text-[11px] text-[var(--agri-text-muted)]">total investit</span>
-          {stats.totalAnulAsta > 0 ? (
-            <span className="text-[11px] text-[var(--agri-text-muted)]">
-              · {Math.round(stats.totalAnulAsta)} RON în {yearNow}
-            </span>
-          ) : null}
+          <span className="text-[11px] text-[var(--agri-text-muted)]">
+            {formatRon(stats.totalAnulAsta)} RON în {yearNow} · {stats.count} investiții
+          </span>
         </ModuleScoreboard>
 
         <ModulePillRow className="mb-2.5">
@@ -389,7 +396,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
           ))}
         </ModulePillRow>
 
-        {/* Search */}
+        {/* Search mobil */}
         <SearchField
           containerClassName="md:hidden"
           placeholder="Caută investiție..."
@@ -397,6 +404,33 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
           onChange={(e) => setSearchTerm(e.target.value)}
           aria-label="Caută investiții"
         />
+
+        {!isLoading && !isError && investitii.length > 0 ? (
+          <DesktopToolbar
+            className="hidden md:flex"
+            trailing={
+              <div className="flex flex-wrap items-center justify-end gap-x-2 text-sm text-[var(--text-secondary)]">
+                <span>
+                  <span className="font-semibold text-[var(--agri-text)]">{formatRon(filteredTotalRon)}</span>
+                  <span className="ml-1 text-xs text-[var(--text-tertiary)]">RON în filtru</span>
+                </span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span>
+                  {filteredInvestitii.length}{' '}
+                  {filteredInvestitii.length === 1 ? 'înregistrare' : 'înregistrări'}
+                </span>
+              </div>
+            }
+          >
+            <SearchField
+              containerClassName="w-full max-w-md min-w-[200px]"
+              placeholder="Caută categorie, furnizor, descriere..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Caută investiții (desktop)"
+            />
+          </DesktopToolbar>
+        ) : null}
 
         {/* Error */}
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
@@ -419,25 +453,138 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
           />
         ) : null}
 
-        {/* Cards */}
+        {/* Listă + inspector desktop / carduri mobil */}
         {!isLoading && !isError && filteredInvestitii.length > 0 ? (
-          <ResponsiveDataView
-            columns={desktopColumns}
-            data={desktopData}
-            getRowId={(row) => row.id}
-            mobileContainerClassName="grid-cols-1"
-            searchPlaceholder="Caută în investiții..."
-            emptyMessage="Nu am găsit investiții pentru filtrele curente."
-            renderCard={(investitie) => (
-              <InvestitieCardNew
-                investitie={investitie}
-                parcelaName={investitie.parcela_id ? (parcelaMap[investitie.parcela_id] || 'Parcela') : 'Parcela'}
-                isExpanded={expandedId === investitie.id}
-                onToggle={() => setExpandedId(expandedId === investitie.id ? null : investitie.id)}
-                onEdit={() => setEditingInvestitie(investitie)}
-                onDelete={() => setDeletingInvestitie(investitie)}
+          <DesktopSplitPane
+            master={
+              <ResponsiveDataView
+                columns={desktopColumns}
+                data={desktopData}
+                getRowId={(row) => row.id}
+                mobileContainerClassName="grid-cols-1"
+                searchPlaceholder="Caută în investiții..."
+                emptyMessage="Nu am găsit investiții pentru filtrele curente."
+                desktopContainerClassName="md:min-w-0"
+                skipDesktopDataFilter
+                hideDesktopSearchRow
+                onDesktopRowClick={(row) => setDesktopSelectedInvestitieId(row.id)}
+                isDesktopRowSelected={(row) => desktopSelectedInvestitie?.id === row.id}
+                renderCard={(investitie) => (
+                  <InvestitieCardNew
+                    investitie={investitie}
+                    parcelaName={
+                      investitie.parcela_id ? parcelaMap[investitie.parcela_id] || 'Parcela' : 'Parcela'
+                    }
+                    isExpanded={expandedId === investitie.id}
+                    onToggle={() => setExpandedId(expandedId === investitie.id ? null : investitie.id)}
+                    onEdit={() => setEditingInvestitie(investitie)}
+                    onDelete={() => setDeletingInvestitie(investitie)}
+                  />
+                )}
               />
-            )}
+            }
+            detail={
+              <DesktopInspectorPanel
+                title="Detalii investiție"
+                description={
+                  desktopSelectedInvestitie
+                    ? `${desktopSelectedInvestitie.id_investitie || desktopSelectedInvestitie.id.slice(0, 8)}`
+                    : undefined
+                }
+                footer={
+                  desktopSelectedInvestitie ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="agri-cta"
+                        onClick={() => setEditingInvestitie(desktopSelectedInvestitie)}
+                      >
+                        Editează
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="agri-cta"
+                        onClick={() => setDeletingInvestitie(desktopSelectedInvestitie)}
+                      >
+                        Șterge
+                      </Button>
+                    </div>
+                  ) : null
+                }
+              >
+                {desktopSelectedInvestitie ? (
+                  (() => {
+                    const inv = desktopSelectedInvestitie
+                    const suma = Number(inv.suma_lei || 0)
+                    const icon = investitieCategoryIcon(inv.categorie)
+                    const parcelaLabel = inv.parcela_id ? parcelaMap[inv.parcela_id] || 'Parcelă' : '—'
+
+                    return (
+                      <>
+                        <DesktopInspectorSection label="Sumar">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-lg" aria-hidden>
+                              {icon.emoji}
+                            </span>
+                            <span className="text-lg font-bold text-[var(--agri-text)]">
+                              {formatRon(suma)} RON
+                            </span>
+                            <StatusBadge text="CAPEX" variant="info" />
+                          </div>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Categorie / dată / context">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Categorie: </span>
+                            {inv.categorie || 'Alte investiții'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Data: </span>
+                            {inv.data
+                              ? new Date(inv.data).toLocaleDateString('ro-RO', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })
+                              : '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Parcelă: </span>
+                            {parcelaLabel}
+                          </p>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Furnizor / descriere">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Furnizor: </span>
+                            {inv.furnizor?.trim() || '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Descriere / note: </span>
+                            {inv.descriere?.trim() || '—'}
+                          </p>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Valoare / context">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Sumă: </span>
+                            {formatRon(suma)} RON
+                          </p>
+                          {inv.data ? (
+                            <p className="text-xs text-[var(--text-tertiary)]">
+                              An calendaristic: {new Date(inv.data).getFullYear()}
+                            </p>
+                          ) : null}
+                        </DesktopInspectorSection>
+                      </>
+                    )
+                  })()
+                ) : (
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Selectează o investiție din tabel pentru a vedea detaliile.
+                  </p>
+                )}
+              </DesktopInspectorPanel>
+            }
           />
         ) : null}
       </div>

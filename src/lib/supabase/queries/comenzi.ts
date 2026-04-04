@@ -33,6 +33,8 @@ export interface Comanda {
   parent_comanda_id: string | null
   created_at: string
   updated_at: string
+  /** Ex. `magazin_public` pentru comenzi din magazinul fermierului. */
+  data_origin: string | null
   client_nume?: string | null
 }
 
@@ -187,6 +189,7 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     parent_comanda_id: row.parent_comanda_id ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    data_origin: row.data_origin ?? null,
     client_nume: row.clienti?.nume_client ?? null,
   }
 }
@@ -255,6 +258,7 @@ export async function getComenzi(): Promise<Comanda[]> {
       parent_comanda_id,
       created_at,
       updated_at,
+      data_origin,
       clienti (
         nume_client
       )
@@ -306,6 +310,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
       parent_comanda_id,
       created_at,
       updated_at,
+      data_origin,
       clienti (
         nume_client
       )
@@ -370,6 +375,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
       parent_comanda_id,
       created_at,
       updated_at,
+      data_origin,
       clienti (
         nume_client
       )

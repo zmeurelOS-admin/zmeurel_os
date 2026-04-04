@@ -1,0 +1,215 @@
+/**
+ * Variabile CSS și utilități „Gustă din Bucovina”.
+ * Scope: folosește împreună cu `.assoc-root` (magazin asociație).
+ */
+
+.assoc-root {
+  /* Ancore brand (nu se inversează la dark — fundaluri/CTA solide) */
+  --gusta-primary-solid: #0d6342;
+  --gusta-accent-solid: #ff9e1b;
+
+  /* Semantic light */
+  --gusta-primary: #0d6342;
+  --gusta-accent: #ff9e1b;
+  --gusta-secondary: #fff9e3;
+  --gusta-text: #3d4543;
+
+  /* Primary tints */
+  --gusta-primary-100: #0d6342;
+  --gusta-primary-80: #3d8261;
+  --gusta-primary-60: #6da181;
+  --gusta-primary-40: #9ec1a0;
+  --gusta-primary-20: #cee0d0;
+
+  /* Accent tints */
+  --gusta-accent-100: #ff9e1b;
+  --gusta-accent-80: #ffb149;
+  --gusta-accent-60: #ffc576;
+  --gusta-accent-40: #ffd8a4;
+  --gusta-accent-20: #ffecd1;
+
+  /* Shadows & layout tokens */
+  --gusta-shadow-sm: 0 1px 2px rgba(13, 99, 66, 0.06), 0 2px 8px rgba(61, 69, 67, 0.04);
+  --gusta-shadow-md: 0 2px 6px rgba(13, 99, 66, 0.08), 0 8px 24px rgba(61, 69, 67, 0.08);
+  --gusta-shadow-lg: 0 4px 12px rgba(13, 99, 66, 0.1), 0 16px 40px rgba(61, 69, 67, 0.1);
+  --gusta-shadow-accent-glow: 0 4px 20px rgba(255, 158, 27, 0.35), 0 2px 8px rgba(13, 99, 66, 0.12);
+
+  --gusta-radius-sm: 0.5rem;
+  --gusta-radius-md: 0.75rem;
+  --gusta-radius-lg: 1rem;
+  --gusta-radius-xl: 1.375rem;
+  --gusta-radius-2xl: 1.5rem;
+  --gusta-radius-full: 9999px;
+
+  --gusta-space-1: 0.25rem;
+  --gusta-space-2: 0.5rem;
+  --gusta-space-3: 0.75rem;
+  --gusta-space-4: 1rem;
+  --gusta-space-5: 1.25rem;
+  --gusta-space-6: 1.5rem;
+  --gusta-space-8: 2rem;
+  --gusta-space-10: 2.5rem;
+  --gusta-space-12: 3rem;
+  --gusta-space-16: 4rem;
+}
+
+/* Magazin asociație: light forțat (color-scheme + tokens) chiar dacă `html` are `.dark` din ERP */
+.assoc-root.light[data-theme='light'],
+.assoc-root[data-theme='light'] {
+  color-scheme: light;
+}
+
+html.dark .assoc-root.light,
+html.dark .assoc-root[data-theme='light'] {
+  --gusta-primary: #0d6342;
+  --gusta-accent: #ff9e1b;
+  --gusta-secondary: #fff9e3;
+  --gusta-text: #3d4543;
+  --gusta-primary-100: #0d6342;
+  --gusta-primary-80: #3d8261;
+  --gusta-primary-60: #6da181;
+  --gusta-primary-40: #9ec1a0;
+  --gusta-primary-20: #cee0d0;
+  --gusta-accent-100: #ff9e1b;
+  --gusta-accent-80: #ffb149;
+  --gusta-accent-60: #ffc576;
+  --gusta-accent-40: #ffd8a4;
+  --gusta-accent-20: #ffecd1;
+  --gusta-shadow-sm: 0 1px 2px rgba(13, 99, 66, 0.06), 0 2px 8px rgba(61, 69, 67, 0.04);
+  --gusta-shadow-md: 0 2px 6px rgba(13, 99, 66, 0.08), 0 8px 24px rgba(61, 69, 67, 0.08);
+  --gusta-shadow-lg: 0 4px 12px rgba(13, 99, 66, 0.1), 0 16px 40px rgba(61, 69, 67, 0.1);
+  --gusta-shadow-accent-glow: 0 4px 20px rgba(255, 158, 27, 0.35), 0 2px 8px rgba(13, 99, 66, 0.12);
+}
+
+/* Dark: fundal verde, text deschis */
+.assoc-root.dark,
+.assoc-root[data-theme='dark'] {
+  --gusta-primary: #cee0d0;
+  --gusta-accent: #ff9e1b;
+  --gusta-secondary: #3d8261;
+  --gusta-text: #fff9e3;
+
+  --gusta-primary-100: #cee0d0;
+  --gusta-primary-80: #9ec1a0;
+  --gusta-primary-60: #6da181;
+  --gusta-primary-40: #3d8261;
+  --gusta-primary-20: #0d6342;
+
+  --gusta-accent-100: #ff9e1b;
+  --gusta-accent-80: #ffb149;
+  --gusta-accent-60: #ffc576;
+  --gusta-accent-40: #ffd8a4;
+  --gusta-accent-20: #ffecd1;
+
+  --gusta-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+  --gusta-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.25), 0 8px 28px rgba(0, 0, 0, 0.2);
+  --gusta-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.3), 0 16px 48px rgba(0, 0, 0, 0.22);
+  --gusta-shadow-accent-glow: 0 4px 24px rgba(255, 158, 27, 0.45), 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* —— Background —— */
+.gusta-bg-primary {
+  background-color: var(--gusta-primary-solid);
+}
+.gusta-bg-primary-80 {
+  background-color: var(--gusta-primary-80);
+}
+.gusta-bg-primary-60 {
+  background-color: var(--gusta-primary-60);
+}
+.gusta-bg-primary-40 {
+  background-color: var(--gusta-primary-40);
+}
+.gusta-bg-primary-20 {
+  background-color: var(--gusta-primary-20);
+}
+
+.gusta-bg-accent {
+  background-color: var(--gusta-accent-solid);
+}
+.gusta-bg-accent-80 {
+  background-color: var(--gusta-accent-80);
+}
+.gusta-bg-accent-60 {
+  background-color: var(--gusta-accent-60);
+}
+.gusta-bg-accent-40 {
+  background-color: var(--gusta-accent-40);
+}
+.gusta-bg-accent-20 {
+  background-color: var(--gusta-accent-20);
+}
+
+.gusta-bg-secondary {
+  background-color: var(--gusta-secondary);
+}
+
+/* —— Text —— */
+.gusta-text-default {
+  color: var(--gusta-text);
+}
+.gusta-text-primary {
+  color: var(--gusta-primary-100);
+}
+.gusta-text-primary-80 {
+  color: var(--gusta-primary-80);
+}
+.gusta-text-primary-60 {
+  color: var(--gusta-primary-60);
+}
+
+.gusta-text-accent {
+  color: var(--gusta-accent-100);
+}
+.gusta-text-accent-80 {
+  color: var(--gusta-accent-80);
+}
+
+/* —— Border —— */
+.gusta-border-primary {
+  border-color: var(--gusta-primary-100);
+}
+.gusta-border-primary-40 {
+  border-color: var(--gusta-primary-40);
+}
+.gusta-border-accent {
+  border-color: var(--gusta-accent-100);
+}
+
+.gusta-border {
+  border-width: 1px;
+  border-style: solid;
+}
+
+/* —— Shadow / radius helpers —— */
+.gusta-shadow-sm {
+  box-shadow: var(--gusta-shadow-sm);
+}
+.gusta-shadow-md {
+  box-shadow: var(--gusta-shadow-md);
+}
+.gusta-shadow-lg {
+  box-shadow: var(--gusta-shadow-lg);
+}
+.gusta-shadow-accent-glow {
+  box-shadow: var(--gusta-shadow-accent-glow);
+}
+
+.gusta-rounded-sm {
+  border-radius: var(--gusta-radius-sm);
+}
+.gusta-rounded-md {
+  border-radius: var(--gusta-radius-md);
+}
+.gusta-rounded-lg {
+  border-radius: var(--gusta-radius-lg);
+}
+.gusta-rounded-xl {
+  border-radius: var(--gusta-radius-xl);
+}
+.gusta-rounded-2xl {
+  border-radius: var(--gusta-radius-2xl);
+}
+.gusta-rounded-full {
+  border-radius: var(--gusta-radius-full);
+}

@@ -1,8 +1,10 @@
-import { Building2, ShieldCheck } from 'lucide-react'
+import { BarChart3, Building2, FileSearch, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
 
 import { AppShell } from '@/components/app/AppShell'
 import { PageHeader } from '@/components/app/PageHeader'
 import { AdminTenantsPlanTable, type AdminTenantRow } from '@/components/admin/AdminTenantsPlanTable'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { BETA_MODE } from '@/lib/config/beta'
 import { getEffectivePlan, normalizeSubscriptionPlan } from '@/lib/subscription/plans'
@@ -13,7 +15,10 @@ export default async function AdminPage() {
 
   const { data, error } = await supabase.rpc('admin_list_tenants')
 
-  const rows = (data ?? []) as AdminTenantRow[]
+  const rows = ((data ?? []) as AdminTenantRow[]).map((row) => ({
+    ...row,
+    is_association_approved: row.is_association_approved ?? false,
+  }))
   const totalTenants = rows.length
   const planCounts = rows.reduce(
     (acc, row) => {
@@ -33,6 +38,21 @@ export default async function AdminPage() {
       header={<PageHeader title="Admin" subtitle="Panou administrare" rightSlot={<ShieldCheck className="h-5 w-5" />} />}
     >
       <div className="mx-auto mt-3 w-full max-w-6xl space-y-3 py-3 sm:mt-0">
+        <div className="hidden flex-wrap gap-2 md:flex">
+          <Button asChild variant="outline" size="sm" className="h-9 gap-2 rounded-xl border-[var(--agri-border)]">
+            <Link href="/admin/analytics">
+              <BarChart3 className="h-4 w-4" />
+              Analytics global
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-9 gap-2 rounded-xl border-[var(--agri-border)]">
+            <Link href="/admin/audit">
+              <FileSearch className="h-4 w-4" />
+              Audit
+            </Link>
+          </Button>
+        </div>
+
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Card className="rounded-2xl border-[var(--agri-border)]">
             <CardContent className="flex items-center gap-3 p-4">
@@ -64,7 +84,7 @@ export default async function AdminPage() {
         {error ? (
           <Card className="rounded-2xl border-red-200 bg-red-50">
             <CardContent className="p-4 text-sm text-red-800">
-              Eroare la înc?rcare tenanți: {error.message}
+              Eroare la încărcare tenanți: {error.message}
             </CardContent>
           </Card>
         ) : (

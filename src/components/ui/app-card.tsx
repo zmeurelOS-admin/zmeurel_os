@@ -7,11 +7,13 @@ export type AppCardProps = React.ComponentProps<'div'> & {
   elevateOnHover?: boolean
 }
 
+// AppCard este containerul semantic de baza pentru toate suprafetele de tip card.
+// Paleta si contrastul vin din token-uri, nu din culori locale in componente.
 const appCardBaseClass =
-  'w-full rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-[18px] shadow-[var(--agri-elevated-shadow)]'
+  'w-full rounded-[var(--agri-radius-lg)] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 text-[var(--text-primary)] shadow-[var(--shadow-soft)] sm:p-[18px]'
 
 const appCardElevateHoverClass =
-  'transition-[box-shadow] duration-150 ease-out hover:shadow-[var(--agri-elevated-shadow-hover)]'
+  'transition-[box-shadow] duration-150 ease-out hover:shadow-[var(--shadow-elevated)]'
 
 function AppCard({ className, elevateOnHover, ...props }: AppCardProps) {
   return (
@@ -25,7 +27,12 @@ function AppCard({ className, elevateOnHover, ...props }: AppCardProps) {
 
 function InfoCard({ className, elevateOnHover, ...props }: AppCardProps) {
   return (
-    <AppCard data-slot="info-card" elevateOnHover={elevateOnHover} className={cn('text-left', className)} {...props} />
+    <AppCard
+      data-slot="info-card"
+      elevateOnHover={elevateOnHover}
+      className={cn('bg-[var(--surface-card-elevated)] text-left shadow-[var(--shadow-elevated)]', className)}
+      {...props}
+    />
   )
 }
 
@@ -43,7 +50,12 @@ function ActionCard({ className, elevateOnHover, ...props }: AppCardProps) {
 
 function ListCard({ className, elevateOnHover, ...props }: AppCardProps) {
   return (
-    <AppCard data-slot="list-card" elevateOnHover={elevateOnHover} className={cn('text-left', className)} {...props} />
+    <AppCard
+      data-slot="list-card"
+      elevateOnHover={elevateOnHover}
+      className={cn('bg-[var(--surface-card-muted)] text-left', className)}
+      {...props}
+    />
   )
 }
 
@@ -52,8 +64,8 @@ function AppCardHeader({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="app-card-header"
       className={cn(
-        'mb-3.5 flex items-start justify-between gap-4 [&_[data-slot=app-card-title]]:text-sm [&_[data-slot=app-card-title]]:font-semibold [&_h1]:text-sm [&_h1]:font-semibold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold',
-        className
+        'mb-3 flex items-start justify-between gap-3.5 text-[var(--text-primary)] [&_[data-slot=app-card-title]]:text-sm [&_[data-slot=app-card-title]]:[font-weight:650] [&_h1]:text-sm [&_h1]:[font-weight:650] [&_h2]:text-sm [&_h2]:[font-weight:650] [&_h3]:text-sm [&_h3]:[font-weight:650]',
+        className,
       )}
       {...props}
     />
@@ -61,11 +73,19 @@ function AppCardHeader({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function AppCardContent({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div data-slot="app-card-content" className={cn('space-y-4 text-sm', className)} {...props} />
+  return (
+    <div data-slot="app-card-content" className={cn('space-y-3.5 text-sm text-[var(--text-secondary)]', className)} {...props} />
+  )
 }
 
 function AppCardFooter({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div data-slot="app-card-footer" className={cn('mt-4 flex flex-wrap gap-2', className)} {...props} />
+  return (
+    <div
+      data-slot="app-card-footer"
+      className={cn('mt-3.5 flex flex-wrap gap-2 border-t border-[var(--divider)] pt-3 text-[var(--text-secondary)]', className)}
+      {...props}
+    />
+  )
 }
 
 export {

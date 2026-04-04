@@ -1,10 +1,11 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
-import { getSupabase, resetSupabaseInstance } from '@/lib/supabase/client'
+import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 
 interface MoreMenuProps {
   open: boolean
@@ -62,9 +63,10 @@ const CONT_ITEMS = [
 
 export function MoreMenu({ open, onClose }: MoreMenuProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { isSuperAdmin } = useDashboardAuth()
 
-  // Manage data-modal-open for ManualAddFab CSS hiding
+  // Manage data-modal-open for mobile FAB / overlays
   useEffect(() => {
     if (open) {
       document.documentElement.setAttribute('data-modal-open', 'true')
@@ -83,18 +85,6 @@ export function MoreMenu({ open, onClose }: MoreMenuProps) {
   const handleNavigate = (href: string) => {
     onClose()
     window.setTimeout(() => router.push(href), 0)
-  }
-
-  const handleLogout = async () => {
-    onClose()
-    try {
-      const supabase = getSupabase()
-      await supabase.auth.signOut({ scope: 'local' })
-      resetSupabaseInstance()
-    } catch {
-      // ignore
-    }
-    window.location.replace('/')
   }
 
   return (
@@ -312,47 +302,56 @@ export function MoreMenu({ open, onClose }: MoreMenuProps) {
                 </button>
               ))}
 
-              {/* Deconectare */}
-              <button
-                type="button"
-                onClick={handleLogout}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  cursor: 'pointer',
-                  background: 'var(--status-danger-bg)',
-                  border: '1px solid var(--status-danger-border)',
-                  textAlign: 'left',
-                  width: '100%',
+              {/* Deconectare — POST /api/auth/sign-out (același flux ca LogoutButton) */}
+              <form
+                action="/api/auth/sign-out"
+                method="POST"
+                onSubmit={() => {
+                  onClose()
+                  prepareClientBeforeServerSignOut(queryClient)
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--status-danger-bg) 82%, var(--surface-elevated-hover))' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--status-danger-bg)' }}
+                style={{ width: '100%' }}
               >
-                <div
+                <button
+                  type="submit"
                   style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 12,
-                    background: 'var(--status-danger-bg)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 22,
-                    flexShrink: 0,
+                    gap: 12,
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    background: 'var(--status-danger-bg)',
+                    border: '1px solid var(--status-danger-border)',
+                    textAlign: 'left',
+                    width: '100%',
                   }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'color-mix(in srgb, var(--status-danger-bg) 82%, var(--surface-elevated-hover))' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--status-danger-bg)' }}
                 >
-                  🚪
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--status-danger-text)', lineHeight: 1.3 }}>
-                    Deconectare
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 12,
+                      background: 'var(--status-danger-bg)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 22,
+                      flexShrink: 0,
+                    }}
+                  >
+                    🚪
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-hint)', lineHeight: 1.4 }}>Ieși din cont</div>
-                </div>
-              </button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--status-danger-text)', lineHeight: 1.3 }}>
+                      Deconectare
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-hint)', lineHeight: 1.4 }}>Ieși din cont</div>
+                  </div>
+                </button>
+              </form>
             </div>
           </div>
         </div>

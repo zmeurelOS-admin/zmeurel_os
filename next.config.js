@@ -132,6 +132,15 @@ const { withSentryConfig } = require('@sentry/nextjs')
 const nextConfig = {
   reactStrictMode: true,
   turbopack: {},
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+    ],
+  },
   async headers() {
     return [
       {
@@ -185,6 +194,7 @@ const nextConfig = {
   },
 }
 
+// Sentry: la build, `SENTRY_AUTH_TOKEN` (și org/proiect din env sau sentry.properties) permit upload source maps.
 module.exports = withSentryConfig(withPWA(nextConfig), {
   silent: true,
   webpack: {

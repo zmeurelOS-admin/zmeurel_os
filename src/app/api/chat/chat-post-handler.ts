@@ -994,7 +994,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
           event_name: 'ai_chat_decision',
           module: 'ai_chat',
           status,
-          metadata,
+          event_data: metadata,
           user_id: userId,
           tenant_id: tenantId,
         })

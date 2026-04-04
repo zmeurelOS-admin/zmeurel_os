@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { normalizePhone } from '@/lib/utils/phone'
 
 export async function PATCH(req: Request) {
+  const invalidOriginResponse = validateSameOriginMutation(req)
+  if (invalidOriginResponse) {
+    return invalidOriginResponse
+  }
+
   const supabase = await createClient()
 
   const { data: { user }, error: authError } = await supabase.auth.getUser()

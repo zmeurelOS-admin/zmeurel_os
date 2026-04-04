@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
@@ -11,6 +10,8 @@ import * as z from 'zod'
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
 import { Button } from '@/components/ui/button'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -106,6 +107,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
     },
   })
 
+  const handleClose = () => {
+    if (createMutation.isPending) return
+    setDialogOpen(false)
+  }
+
   const onSubmit = (data: InvestitieFormData) => {
     if (createMutation.isPending) return
 
@@ -131,85 +137,102 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title="Adaugă investitie (CAPEX)"
+        desktopFormWide
         footer={
-          <div className="flex w-full flex-row items-center justify-between gap-3">
-            <Button type="button" variant="outline" className="agri-cta shrink-0" onClick={() => setDialogOpen(false)}>
-              Anulează
-            </Button>
-            <Button
-              type="button"
-              className="agri-cta shrink-0 bg-[var(--agri-primary)] text-white hover:opacity-95 dark:hover:opacity-95"
-              onClick={form.handleSubmit(onSubmit)}
-              disabled={createMutation.isPending || isInitialDataLoading}
-            >
-              {createMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Se salvează...
-                </>
-              ) : (
-                'Salvează'
-              )}
-            </Button>
-          </div>
+          <DialogFormActions
+            className="w-full"
+            onCancel={handleClose}
+            onSave={form.handleSubmit(onSubmit)}
+            saving={createMutation.isPending}
+            disabled={isInitialDataLoading}
+            cancelLabel="Anulează"
+            saveLabel="Salvează"
+          />
         }
       >
         {isInitialDataLoading ? <DialogInitialDataSkeleton compact /> : (
-        <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="space-y-2">
-            <Label htmlFor="inv_data">Data</Label>
-            <Input id="inv_data" type="date" className="agri-control h-12" {...form.register('data')} />
-            {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
-          </div>
+        <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="space-y-6 md:space-y-8">
+            <FormDialogSection label="Înregistrare">
+              <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="inv_data">Data</Label>
+                  <Input id="inv_data" type="date" className="agri-control h-12 md:h-11" {...form.register('data')} />
+                  {form.formState.errors.data ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
+                  ) : null}
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="inv_categorie">Categorie</Label>
-            <select id="inv_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
-              <option value="">Selectează categoria</option>
-              {CATEGORII_INVESTITII.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            {form.formState.errors.categorie ? <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p> : null}
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="inv_categorie">Categorie</Label>
+                  <select
+                    id="inv_categorie"
+                    className="agri-control h-12 w-full px-3 text-base md:h-11"
+                    {...form.register('categorie')}
+                  >
+                    <option value="">Selectează categoria</option>
+                    {CATEGORII_INVESTITII.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  {form.formState.errors.categorie ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p>
+                  ) : null}
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="inv_parcela_id">Parcelă</Label>
-            <select id="inv_parcela_id" className="agri-control h-12 w-full px-3 text-base" {...form.register('parcela_id')}>
-              <option value="">Fără legătură cu parcelă</option>
-              {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
-                <option key={parcela.id} value={parcela.id}>
-                  {parcela.nume_parcela || 'Parcela'}
-                </option>
-              ))}
-            </select>
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="inv_parcela_id">Parcelă</Label>
+                  <select
+                    id="inv_parcela_id"
+                    className="agri-control h-12 w-full px-3 text-base md:h-11"
+                    {...form.register('parcela_id')}
+                  >
+                    <option value="">Fără legătură cu parcelă</option>
+                    {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
+                      <option key={parcela.id} value={parcela.id}>
+                        {parcela.nume_parcela || 'Parcela'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="inv_suma_lei">Suma investita (lei)</Label>
-            <Input
-              id="inv_suma_lei"
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              className="agri-control h-12"
-              placeholder="Ex: 1500.00"
-              {...form.register('suma_lei')}
-            />
-            {form.formState.errors.suma_lei ? <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p> : null}
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="inv_suma_lei">Suma investită (lei)</Label>
+                  <Input
+                    id="inv_suma_lei"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    className="agri-control h-12 md:h-11"
+                    placeholder="Ex: 1500.00"
+                    {...form.register('suma_lei')}
+                  />
+                  {form.formState.errors.suma_lei ? (
+                    <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p>
+                  ) : null}
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="inv_furnizor">Furnizor</Label>
-            <Input id="inv_furnizor" className="agri-control h-12" {...form.register('furnizor')} />
-          </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="inv_furnizor">Furnizor</Label>
+                  <Input id="inv_furnizor" className="agri-control h-12 md:h-11" {...form.register('furnizor')} />
+                </div>
+              </div>
+            </FormDialogSection>
 
-          <div className="space-y-2">
-            <Label htmlFor="inv_descriere">Descriere</Label>
-            <Textarea id="inv_descriere" rows={4} className="agri-control w-full px-3 py-2 text-base" {...form.register('descriere')} />
+            <FormDialogSection label="Detalii">
+              <div className="space-y-2">
+                <Label htmlFor="inv_descriere">Descriere</Label>
+                <Textarea
+                  id="inv_descriere"
+                  rows={4}
+                  className="agri-control w-full px-3 py-2 text-base md:min-h-[7.5rem]"
+                  {...form.register('descriere')}
+                />
+              </div>
+            </FormDialogSection>
           </div>
         </form>
         )}

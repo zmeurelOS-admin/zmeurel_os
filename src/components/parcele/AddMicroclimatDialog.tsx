@@ -59,7 +59,9 @@ export function AddMicroclimatDialog({
   const conditiiLabel = getConditiiMediuLabel(tipUnitate)
   const conditiiLabelLower = getConditiiMediuLabelLower(tipUnitate)
   const successMessage =
-    conditiiLabel === 'Microclimat' ? 'Microclimat înregistrat' : 'Condiții de mediu salvate'
+    conditiiLabel === 'Microclimat'
+      ? 'Date actualizate — recomandările sunt mai precise'
+      : 'Condiții de mediu salvate'
 
   useEffect(() => {
     if (open) form.reset(defaultValues)

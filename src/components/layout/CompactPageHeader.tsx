@@ -26,19 +26,19 @@ export function CompactPageHeader({
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 overflow-hidden border-b border-[var(--surface-divider)] px-[var(--shell-content-px)] pb-2 pt-[calc(var(--safe-t)+8px)] shadow-[0_8px_28px_rgba(16,32,21,0.05)] backdrop-blur-md dark:shadow-[0_10px_32px_rgba(0,0,0,0.28)] sm:px-5 md:px-6 lg:static lg:z-40 lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-6 lg:pt-4 lg:shadow-none lg:backdrop-blur-none xl:px-10',
+        'sticky top-0 z-30 overflow-hidden border-b border-[var(--divider)] px-[var(--shell-content-px)] pb-1.5 pt-[calc(var(--safe-t)+7px)] shadow-[var(--shadow-soft)] backdrop-blur-sm sm:px-5 md:px-6 lg:static lg:z-40 lg:overflow-visible lg:border-b-0 lg:px-8 lg:pb-5 lg:pt-4 lg:shadow-none lg:backdrop-blur-none xl:px-10',
         className
       )}
     >
-      <div className="absolute inset-0 bg-[var(--agri-bg)]/95 lg:hidden" />
-      <div className="absolute inset-0 hidden bg-gradient-to-b from-emerald-600 to-emerald-700 lg:block" />
+      <div className="absolute inset-0 bg-[color:color-mix(in_srgb,var(--surface-page)_95%,transparent)] lg:hidden" />
+      <div className="absolute inset-0 hidden bg-[color:color-mix(in_srgb,var(--primary)_92%,black_8%)] lg:block" />
 
       <div className="relative mx-auto w-full max-w-7xl">
         {(title || subtitle) && (
           <>
             <div
               className={cn(
-                'flex min-h-[44px] items-start lg:hidden',
+                'flex min-h-[42px] items-start lg:hidden',
                 stackMobileRightSlotBelow && showMobileRightSlot && rightSlot
                   ? 'flex-col gap-2'
                   : 'flex-wrap justify-between gap-x-2 gap-y-2'
@@ -51,20 +51,20 @@ export function CompactPageHeader({
                 )}
               >
                 {title ? (
-                  <h1 className="text-[clamp(1.15rem,4.6vw,1.35rem)] font-semibold leading-[1.12] tracking-[-0.02em] text-[var(--agri-text)] [font-weight:750]">
+                  <h1 className="text-[clamp(1.12rem,4.4vw,1.3rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text-primary)] [font-weight:750]">
                     {title}
                   </h1>
                 ) : null}
                 {subtitle ? (
-                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-4 text-[var(--agri-text-muted)]">{subtitle}</p>
+                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.3] text-[var(--text-secondary)]">{subtitle}</p>
                 ) : null}
               </div>
               {showMobileRightSlot && rightSlot ? (
                 <div
                   className={cn(
-                    'text-white [&_button]:text-[11px] [&_button]:sm:text-sm',
+                    'text-[var(--text-primary)] lg:text-[var(--text-on-accent)] [&_button]:text-[11px] [&_button]:sm:text-sm',
                     stackMobileRightSlotBelow
-                      ? 'flex w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-2 border-t border-white/10 pt-2'
+                      ? 'flex w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-2 border-t border-[var(--divider)] lg:border-white/10 pt-2'
                       : 'shrink-0'
                   )}
                 >
@@ -75,11 +75,11 @@ export function CompactPageHeader({
 
             <div className="hidden items-start justify-between gap-3 lg:flex lg:items-center">
               <div className="min-w-0 space-y-0.5">
-                {title ? <h1 className="truncate text-2xl font-semibold text-white">{title}</h1> : null}
-                {subtitle ? <p className="line-clamp-2 text-sm text-emerald-100">{subtitle}</p> : null}
+                {title ? <h1 className="truncate text-[1.55rem] text-[var(--text-on-accent)] [font-weight:750]">{title}</h1> : null}
+                {subtitle ? <p className="line-clamp-2 text-[13px] text-[color:color-mix(in_srgb,var(--text-on-accent)_84%,transparent)]">{subtitle}</p> : null}
               </div>
               {rightSlot ? (
-                <div className="flex shrink-0 items-center justify-end text-white lg:items-center">{rightSlot}</div>
+                <div className="flex shrink-0 items-center justify-end text-[var(--text-on-accent)] lg:items-center">{rightSlot}</div>
               ) : null}
             </div>
           </>

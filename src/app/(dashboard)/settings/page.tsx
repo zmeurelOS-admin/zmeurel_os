@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Download, KeyRound, Loader2, MapPin, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2 } from 'lucide-react'
@@ -12,10 +12,13 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { AppShell } from '@/components/app/AppShell'
 import { FarmSwitcher } from '@/components/app/FarmSwitcher'
 import { PageHeader } from '@/components/app/PageHeader'
+import { DesktopSettingsNav, type SettingsNavItem } from '@/components/settings/DesktopSettingsNav'
+import { PushNotificationsSettings } from '@/components/settings/PushNotificationsSettings'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUiDensity } from '@/hooks/useUiDensity'
+import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 import { track } from '@/lib/analytics/track'
 import {
   clearDemoSeedAttempted,
@@ -143,6 +146,7 @@ export default function SettingsPage() {
   const [profilePhoneDraft, setProfilePhoneDraft] = useState('')
   const [profilePhoneError, setProfilePhoneError] = useState('')
   const [isSavingProfilePhone, setIsSavingProfilePhone] = useState(false)
+  const [showPersonalPhoneField, setShowPersonalPhoneField] = useState(false)
   const [farmPhone, setFarmPhone] = useState('')
   const [farmPhoneDraft, setFarmPhoneDraft] = useState('')
   const [farmPhoneError, setFarmPhoneError] = useState('')
@@ -178,6 +182,7 @@ export default function SettingsPage() {
   const [deleteAccountStep2Open, setDeleteAccountStep2Open] = useState(false)
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('')
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+  const [activeSettingsSection, setActiveSettingsSection] = useState('profil')
 
   useEffect(() => {
     setThemeReady(true)
@@ -197,30 +202,30 @@ export default function SettingsPage() {
               .from('tenants')
               .select('contact_phone')
               .eq('id', resolvedTenantId)
-              .single()
+              .maybeSingle()
               .then(({ data, error }) => {
                 if (error) throw error
-                return data satisfies FarmPhoneRow
+                return (data ?? null) as FarmPhoneRow | null
               })
           : Promise.resolve<FarmPhoneRow | null>(null),
         supabase
           .from('profiles')
           .select('phone')
           .eq('id', userId)
-          .single()
+          .maybeSingle()
           .then(({ data, error }) => {
             if (error) throw error
-            return data satisfies ProfilePhoneRow
+            return (data ?? null) as ProfilePhoneRow | null
           }),
         resolvedTenantId
           ? supabase
               .from('tenant_settings')
               .select('latitudine_default,longitudine_default')
               .eq('tenant_id', resolvedTenantId)
-              .single()
+              .maybeSingle()
               .then(({ data, error }) => {
                 if (error) throw error
-                return data satisfies TenantSettingsRow
+                return (data ?? null) as TenantSettingsRow | null
               })
           : Promise.resolve<TenantSettingsRow | null>(null),
       ])
@@ -236,7 +241,7 @@ export default function SettingsPage() {
       setFarmPhone(cp)
       setFarmPhoneDraft(cp)
 
-      const pp = profileRow.phone ?? ''
+      const pp = profileRow?.phone ?? ''
       setProfilePhone(pp)
       setProfilePhoneDraft(pp)
 
@@ -258,6 +263,53 @@ export default function SettingsPage() {
   }, [confirmPassword, newPassword])
 
   const isDemo = safeEmail.includes('@demo.zmeurel.local')
+
+  const settingsNavItems = useMemo<SettingsNavItem[]>(() => {
+    const items: SettingsNavItem[] = [
+      { id: 'profil', label: 'Profil' },
+      { id: 'locatie', label: 'Locație' },
+      { id: 'parola', label: 'Parolă' },
+      { id: 'gdpr', label: 'Date și export' },
+      { id: 'notificari-push', label: 'Notificări push' },
+      { id: 'ai', label: 'Asistent AI' },
+    ]
+    if (isDemo) items.push({ id: 'demo', label: 'Mod demo' })
+    items.push({ id: 'actiuni-permanente', label: 'Acțiuni permanente' })
+    if (isSuperAdmin) items.push({ id: 'ferma', label: 'Schimbă fermă' })
+    items.push(
+      { id: 'tema', label: 'Temă' },
+      { id: 'interfata', label: 'Interfață' },
+    )
+    return items
+  }, [isDemo, isSuperAdmin])
+
+  const scrollSettingsSectionIntoView = useCallback((id: string) => {
+    setActiveSettingsSection(id)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const headerOffset = 100
+    const onScroll = () => {
+      if (!window.matchMedia('(min-width: 768px)').matches) return
+      let current = settingsNavItems[0]?.id ?? 'profil'
+      for (const { id } of settingsNavItems) {
+        const el = document.getElementById(id)
+        if (!el) continue
+        if (el.getBoundingClientRect().top - headerOffset <= 12) {
+          current = id
+        }
+      }
+      setActiveSettingsSection(current)
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [settingsNavItems])
+
   const canConfirmDeleteAccount = deleteAccountConfirmText.trim().toUpperCase() === 'ȘTERGE CONTUL'
   const isDemoActionPending = isReseedingDemoData || isExitingDemoMode
   const demoActionConfig = useMemo(() => {
@@ -708,11 +760,14 @@ export default function SettingsPage() {
       const payload = (await response.json()) as { error?: string | { message?: string } }
       if (!response.ok) throw new Error(getApiErrorMessage(payload, 'Nu am putut șterge contul.'))
 
-      const supabase = getSupabase()
-      await supabase.auth.signOut()
       toast.success('Contul și tenantul au fost șterse.')
-      router.push('/login')
-      router.refresh()
+      prepareClientBeforeServerSignOut(queryClient)
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const f = document.createElement('form')
+      f.method = 'POST'
+      f.action = `${origin}/api/auth/sign-out?next=/login`
+      document.body.appendChild(f)
+      f.submit()
     } catch (error: unknown) {
       const message = (error as { message?: string })?.message || 'Nu am putut șterge contul.'
       toast.error(message)
@@ -754,8 +809,15 @@ export default function SettingsPage() {
     <AppShell
       header={<PageHeader title="Cont și setări" subtitle="Profil utilizator și preferințe" rightSlot={<Settings2 className="h-5 w-5" />} />}
     >
-      <div className="mx-auto mt-3 w-full max-w-md space-y-3 py-3 sm:max-w-3xl sm:mt-0 lg:space-y-6 xl:space-y-8">
-        <section id="profil" className="agri-card space-y-4 p-6">
+      <div className="mx-auto mt-3 w-full max-w-md py-3 sm:max-w-3xl sm:mt-0 md:max-w-6xl lg:max-w-7xl">
+        <div className="md:grid md:grid-cols-[minmax(200px,260px)_minmax(0,1fr)] md:gap-8 lg:gap-10 md:items-start">
+          <DesktopSettingsNav
+            items={settingsNavItems}
+            activeId={activeSettingsSection}
+            onSelect={scrollSettingsSectionIntoView}
+          />
+          <div className="min-w-0 space-y-3 lg:space-y-6 xl:space-y-8">
+        <section id="profil" className="agri-card scroll-mt-24 space-y-4 p-6 md:scroll-mt-28">
           <h2 className="text-lg font-semibold text-[var(--agri-text)]">Contul tău</h2>
 
           <div className="space-y-2">
@@ -784,7 +846,7 @@ export default function SettingsPage() {
               />
               <Button
                 type="button"
-                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                className="agri-control h-11 border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)] hover:brightness-[0.98]"
                 disabled={isSavingFarmName || farmNameDraft.trim().length < 2 || farmNameDraft.trim() === farmName}
                 onClick={handleSaveFarmName}
               >
@@ -801,32 +863,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-phone" className="text-sm font-medium text-[var(--agri-text-muted)]">Telefonul tău</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="profile-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                className="agri-control h-11"
-                value={profilePhoneDraft}
-                onChange={(e) => { setProfilePhoneDraft(e.target.value); if (profilePhoneError) setProfilePhoneError('') }}
-                placeholder="07XX XXX XXX"
-              />
-              <Button
-                type="button"
-                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
-                disabled={isSavingProfilePhone || profilePhoneDraft.trim() === profilePhone}
-                onClick={handleSaveProfilePhone}
-              >
-                {isSavingProfilePhone ? <><Loader2 className="h-4 w-4 animate-spin" />Se salvează...</> : 'Salvează'}
-              </Button>
-            </div>
-            {profilePhoneError ? <p className="text-xs text-red-600">{profilePhoneError}</p> : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="farm-phone" className="text-sm font-medium text-[var(--agri-text-muted)]">Telefon contact fermă</Label>
+            <Label htmlFor="farm-phone" className="text-sm font-medium text-[var(--agri-text-muted)]">Telefon de contact</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 id="farm-phone"
@@ -840,17 +877,56 @@ export default function SettingsPage() {
               />
               <Button
                 type="button"
-                className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                className="agri-control h-11 border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)] hover:brightness-[0.98]"
                 disabled={isSavingFarmPhone || farmPhoneDraft.trim() === farmPhone}
                 onClick={handleSaveFarmPhone}
               >
                 {isSavingFarmPhone ? <><Loader2 className="h-4 w-4 animate-spin" />Se salvează...</> : 'Salvează'}
               </Button>
             </div>
-            {farmPhoneError ? <p className="text-xs text-red-600">{farmPhoneError}</p> : null}
+            <p className="text-xs text-[var(--agri-text-muted)]">
+              Numărul afișat pentru contactul fermei și comunicare operațională.
+            </p>
+            {farmPhoneError ? <p className="text-xs text-[var(--danger-text)]">{farmPhoneError}</p> : null}
           </div>
 
           <div className="space-y-2">
+            <button
+              type="button"
+              className="text-xs font-semibold text-[var(--agri-text-muted)] hover:text-[var(--agri-text)]"
+              onClick={() => setShowPersonalPhoneField((prev) => !prev)}
+            >
+              {showPersonalPhoneField ? 'Ascunde telefonul contului' : 'Editează telefonul contului (opțional)'}
+            </button>
+            {showPersonalPhoneField ? (
+              <div className="space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
+                <Label htmlFor="profile-phone" className="text-sm font-medium text-[var(--agri-text-muted)]">Telefon cont</Label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="profile-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    className="agri-control h-11"
+                    value={profilePhoneDraft}
+                    onChange={(e) => { setProfilePhoneDraft(e.target.value); if (profilePhoneError) setProfilePhoneError('') }}
+                    placeholder="07XX XXX XXX"
+                  />
+                  <Button
+                    type="button"
+                    className="agri-control h-11 border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)] hover:brightness-[0.98]"
+                    disabled={isSavingProfilePhone || profilePhoneDraft.trim() === profilePhone}
+                    onClick={handleSaveProfilePhone}
+                  >
+                    {isSavingProfilePhone ? <><Loader2 className="h-4 w-4 animate-spin" />Se salvează...</> : 'Salvează'}
+                  </Button>
+                </div>
+                {profilePhoneError ? <p className="text-xs text-[var(--danger-text)]">{profilePhoneError}</p> : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div id="locatie" className="scroll-mt-24 space-y-2">
             <Label className="text-sm font-medium text-[var(--agri-text-muted)]">Locație fermă</Label>
             <p className="text-xs text-[var(--agri-text-muted)]">
               Coordonatele GPS sunt folosite pentru prognoza meteo și calcule. Dacă nu sunt specificate, se vor folosi coordonatele parcelelor individuale.
@@ -886,7 +962,7 @@ export default function SettingsPage() {
                 </Button>
                 <Button
                   type="button"
-                  className="agri-control h-11 bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                  className="agri-control h-11 border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)] hover:brightness-[0.98]"
                   disabled={isSavingLocation || 
                     (latitudineDefaultDraft.trim() === latitudineDefault && 
                      longitudineDefaultDraft.trim() === longitudineDefault)}
@@ -905,6 +981,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div id="parola" className="scroll-mt-24">
           <div className="flex flex-row flex-wrap items-center gap-3">
             {!isDemo && (
               <Button type="button" variant="outline" className="agri-control h-11 justify-start gap-2" onClick={() => setPasswordDialogOpen(true)}>
@@ -927,23 +1004,32 @@ export default function SettingsPage() {
               Arată ghidul de pornire
             </Button>
             {isDemo && (
-              <Button
-                type="button"
-                className="h-11 rounded-xl bg-[var(--agri-primary)] px-5 text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
-                onClick={async () => {
-                  const supabase = getSupabase()
-                  await supabase.auth.signOut()
-                  window.location.href = '/start'
-                }}
-              >
-                Creează-ți ferma →
-              </Button>
+              <form action="/api/auth/leave-demo" method="POST" className="inline">
+                <Button
+                  type="submit"
+                  data-testid="settings-create-farm-cta"
+                  className="h-11 rounded-xl border border-[var(--info-border)] bg-[var(--info-bg)] px-5 text-[var(--info-text)] hover:brightness-[0.98]"
+                >
+                  Creează-ți ferma →
+                </Button>
+              </form>
             )}
+          </div>
           </div>
 
         </section>
 
-        <section id="gdpr" className="agri-card w-full space-y-4 p-6">
+        <section id="notificari-push" className="agri-card scroll-mt-24 space-y-3 p-6 md:scroll-mt-28">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-[var(--agri-text)]">Notificări push pe telefon</h2>
+            <p className="text-sm text-[var(--agri-text-muted)]">
+              Primești alertă când apare o comandă nouă, chiar dacă aplicația nu e deschisă (PWA / Chrome Android).
+            </p>
+          </div>
+          <PushNotificationsSettings />
+        </section>
+
+        <section id="gdpr" className="agri-card w-full scroll-mt-24 space-y-4 p-6 md:scroll-mt-28">
           <div className="space-y-2">
             <h2 className="text-lg font-semibold text-[var(--agri-text)]">Datele tale</h2>
             <p className="text-sm leading-relaxed text-[var(--agri-text-muted)]">
@@ -989,7 +1075,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] p-4">
+          <div id="ai" className="scroll-mt-24 rounded-2xl border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] p-4">
             <div className="space-y-1">
               <h3 className="text-base font-semibold text-[var(--soft-danger-text)]">Date AI</h3>
               <p className="text-sm text-[var(--soft-danger-text)]">
@@ -1015,7 +1101,8 @@ export default function SettingsPage() {
 
         </section>
 
-        <section id="demo" className="agri-card space-y-4 p-6">
+        {isDemo ? (
+        <section id="demo" className="agri-card scroll-mt-24 space-y-4 p-6 md:scroll-mt-28">
           <div className="space-y-4">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-[var(--agri-text)]">Mod demo</h2>
@@ -1048,55 +1135,57 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[var(--soft-danger-border)] bg-[var(--soft-danger-bg)] p-4">
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold text-[var(--soft-danger-text)]">Acțiuni permanente</h3>
-              <p className="text-sm text-[var(--soft-danger-text)]">
-                Aceste acțiuni șterg date reale și necesită confirmare.
-              </p>
-            </div>
+        </section>
+        ) : null}
 
-            <div className="mt-4 space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
-                onClick={() => {
-                  hapticConfirm()
-                  setDeleteFarmStep1Open(true)
-                }}
-              >
-                Resetează datele fermei
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
-                onClick={() => {
-                  hapticConfirm()
-                  setDeleteAccountStep1Open(true)
-                }}
-                disabled={isProtectedSuperadmin}
-              >
-                Șterge contul și ferma
-              </Button>
-              {isProtectedSuperadmin ? (
-                <p className="text-xs font-medium text-[var(--soft-danger-text)]">
-                  Cont protejat: acest cont nu poate fi șters.
-                </p>
-              ) : null}
-            </div>
+        <section id="actiuni-permanente" className="agri-card scroll-mt-24 space-y-4 p-6 md:scroll-mt-28">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-[var(--soft-danger-text)]">Acțiuni permanente</h2>
+            <p className="text-sm text-[var(--agri-text-muted)]">
+              Aceste acțiuni șterg date reale și necesită confirmare.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
+              onClick={() => {
+                hapticConfirm()
+                setDeleteFarmStep1Open(true)
+              }}
+            >
+              Resetează datele fermei
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="agri-control h-11 w-full justify-start border-[var(--soft-danger-border)] bg-[var(--agri-surface)] text-[var(--soft-danger-text)] hover:bg-[var(--agri-surface-muted)]"
+              onClick={() => {
+                hapticConfirm()
+                setDeleteAccountStep1Open(true)
+              }}
+              disabled={isProtectedSuperadmin}
+            >
+              Șterge contul și ferma
+            </Button>
+            {isProtectedSuperadmin ? (
+              <p className="text-xs font-medium text-[var(--soft-danger-text)]">
+                Cont protejat: acest cont nu poate fi șters.
+              </p>
+            ) : null}
           </div>
         </section>
 
         {isSuperAdmin ? (
-          <section id="ferma" className="agri-card space-y-3 p-6">
+          <section id="ferma" className="agri-card scroll-mt-24 space-y-3 p-6 md:scroll-mt-28">
             <h2 className="text-lg font-semibold text-[var(--agri-text)]">Schimbă fermă</h2>
             <FarmSwitcher variant="panel" />
           </section>
         ) : null}
 
-        <section id="tema" className="agri-card space-y-3 p-6">
+        <section id="tema" className="agri-card scroll-mt-24 space-y-3 p-6 md:scroll-mt-28">
           <h2 className="text-lg font-semibold text-[var(--agri-text)]">Tema aplicației</h2>
           <p className="text-sm text-[var(--agri-text-muted)]">
             Salvez preferința pe acest dispozitiv și pot urma tema sistemului când alegi Auto.
@@ -1151,7 +1240,7 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section id="interfata" className="agri-card space-y-3 p-6">
+        <section id="interfata" className="agri-card scroll-mt-24 space-y-3 p-6 md:scroll-mt-28">
           <h2 className="text-lg font-semibold text-[var(--agri-text)]">Tip interfață</h2>
           <p className="text-sm text-[var(--agri-text-muted)]">Aici alegi interfața normală sau compactă. Controlul nu mai apare în header.</p>
           <div className="grid grid-cols-2 gap-2">
@@ -1173,7 +1262,10 @@ export default function SettingsPage() {
             </Button>
           </div>
         </section>
+          </div>
+        </div>
       </div>
+      {isDemo ? (
       <AppDialog
         open={demoSeedTypeDialogOpen}
         onOpenChange={(open) => {
@@ -1205,6 +1297,8 @@ export default function SettingsPage() {
           ))}
         </div>
       </AppDialog>
+      ) : null}
+      {isDemo ? (
       <AppDialog
         open={demoActionDialog === 'exit'}
         onOpenChange={(open) => {
@@ -1227,7 +1321,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+              className="agri-cta border border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)] hover:brightness-[0.98]"
               disabled={isDemoActionPending || demoActionDialog !== 'exit'}
               onClick={() => {
                 if (demoActionDialog === 'exit') {
@@ -1244,6 +1338,7 @@ export default function SettingsPage() {
           Acțiunea afectează doar tenantul curent și nu poate modifica alte ferme.
         </p>
       </AppDialog>
+      ) : null}
 
       <AppDialog
         open={passwordDialogOpen}
@@ -1256,7 +1351,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-primary)] text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+              className="agri-cta border border-[var(--info-border)] bg-[var(--info-bg)] text-[var(--info-text)] hover:brightness-[0.98]"
               disabled={isSavingPassword || !!passwordError || newPassword.length === 0}
               onClick={handleChangePassword}
             >
@@ -1295,7 +1390,7 @@ export default function SettingsPage() {
             />
           </div>
 
-          {passwordError ? <p className="text-sm font-medium text-red-700">{passwordError}</p> : null}
+          {passwordError ? <p className="text-sm font-medium text-[var(--danger-text)]">{passwordError}</p> : null}
         </div>
       </AppDialog>
 
@@ -1310,7 +1405,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              className="agri-cta border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)] hover:brightness-[0.98]"
               disabled={isDeletingFarmData}
               onClick={handleDeleteFarmData}
             >
@@ -1346,7 +1441,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              className="agri-cta border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)] hover:brightness-[0.98]"
               disabled={isDeletingAiConversations}
               onClick={handleDeleteAiConversations}
             >
@@ -1372,7 +1467,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              className="agri-cta border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)] hover:brightness-[0.98]"
               onClick={() => {
                 setDeleteAccountStep1Open(false)
                 setDeleteAccountStep2Open(true)
@@ -1400,7 +1495,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               type="button"
-              className="agri-cta bg-[var(--agri-danger)] text-white hover:bg-red-700"
+              className="agri-cta border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)] hover:brightness-[0.98]"
               disabled={!canConfirmDeleteAccount || isDeletingAccount}
               onClick={handleDeleteAccountAndTenant}
             >

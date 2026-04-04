@@ -1,0 +1,202 @@
+{
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "baseUrl": "http://localhost:3000",
+  "setupError": null,
+  "report": [
+    {
+      "route": "/dashboard",
+      "key": "dashboard",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/activitati-agricole",
+      "key": "activitati",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/parcele",
+      "key": "parcele",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/parcele",
+      "key": "parcela-detail",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/recoltari",
+      "key": "recoltari",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/comenzi",
+      "key": "comenzi",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/vanzari",
+      "key": "vanzari",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/stocuri",
+      "key": "stocuri",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/cheltuieli",
+      "key": "cheltuieli",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/investitii",
+      "key": "investitii",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/culegatori",
+      "key": "culegatori",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/settings",
+      "key": "settings",
+      "theme": "light",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/dashboard",
+      "key": "dashboard",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/activitati-agricole",
+      "key": "activitati",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/parcele",
+      "key": "parcele",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/parcele",
+      "key": "parcela-detail",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/recoltari",
+      "key": "recoltari",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/comenzi",
+      "key": "comenzi",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/vanzari",
+      "key": "vanzari",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/stocuri",
+      "key": "stocuri",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/cheltuieli",
+      "key": "cheltuieli",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/investitii",
+      "key": "investitii",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/culegatori",
+      "key": "culegatori",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    },
+    {
+      "route": "/settings",
+      "key": "settings",
+      "theme": "dark",
+      "overflowX": false,
+      "hasRuntimeError": false,
+      "consoleErrors": []
+    }
+  ]
+}

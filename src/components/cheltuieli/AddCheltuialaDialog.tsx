@@ -8,6 +8,7 @@ import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -119,8 +120,10 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
       open={open}
       onOpenChange={onOpenChange}
       title="Adaugă cheltuială"
+      desktopFormWide
       footer={
         <DialogFormActions
+          className="w-full"
           onCancel={handleClose}
           onSave={form.handleSubmit(handleSubmit)}
           saving={isSubmitting}
@@ -130,61 +133,81 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(handleSubmit)}>
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Row 1: Data + Categorie */}
-          <div className="space-y-2">
-            <Label htmlFor="chelt_data">Data</Label>
-            <Input id="chelt_data" type="date" className="agri-control h-12" {...form.register('data')} />
-            {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
-          </div>
+        <div className="space-y-6 md:space-y-8">
+          <FormDialogSection label="Înregistrare">
+            <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="chelt_data">Data</Label>
+                <Input id="chelt_data" type="date" className="agri-control h-12 md:h-11" {...form.register('data')} />
+                {form.formState.errors.data ? (
+                  <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
+                ) : null}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="chelt_categorie">Categorie</Label>
-            <select id="chelt_categorie" className="agri-control h-12 w-full px-3 text-base" {...form.register('categorie')}>
-              <option value="">Selectează categoria</option>
-              {CATEGORII_CHELTUIELI.map((categorie) => (
-                <option key={categorie} value={categorie}>
-                  {categorie}
-                </option>
-              ))}
-            </select>
-            {form.formState.errors.categorie ? <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p> : null}
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="chelt_categorie">Categorie</Label>
+                <select
+                  id="chelt_categorie"
+                  className="agri-control h-12 w-full px-3 text-base md:h-11"
+                  {...form.register('categorie')}
+                >
+                  <option value="">Selectează categoria</option>
+                  {CATEGORII_CHELTUIELI.map((categorie) => (
+                    <option key={categorie} value={categorie}>
+                      {categorie}
+                    </option>
+                  ))}
+                </select>
+                {form.formState.errors.categorie ? (
+                  <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p>
+                ) : null}
+              </div>
 
-          {/* Row 2: Sumă + Furnizor */}
-          <div className="space-y-2">
-            <Label htmlFor="chelt_suma">Sumă (lei)</Label>
-            <Input
-              id="chelt_suma"
-              type="number"
-              inputMode="decimal"
-              pattern="[0-9]*"
-              step="0.01"
-              min="0"
-              className="agri-control h-12"
-              placeholder="Ex: 150.50"
-              {...form.register('suma_lei')}
-            />
-            {form.formState.errors.suma_lei ? <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p> : null}
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="chelt_suma">Sumă (lei)</Label>
+                <Input
+                  id="chelt_suma"
+                  type="number"
+                  inputMode="decimal"
+                  pattern="[0-9]*"
+                  step="0.01"
+                  min="0"
+                  className="agri-control h-12 md:h-11"
+                  placeholder="Ex: 150.50"
+                  {...form.register('suma_lei')}
+                />
+                {form.formState.errors.suma_lei ? (
+                  <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p>
+                ) : null}
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="chelt_furnizor">Furnizor / Magazin</Label>
-            <Input id="chelt_furnizor" className="agri-control h-12" placeholder="Ex: Lidl, Dedeman, Petrom" {...form.register('furnizor')} />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="chelt_furnizor">Furnizor / Magazin</Label>
+                <Input
+                  id="chelt_furnizor"
+                  className="agri-control h-12 md:h-11"
+                  placeholder="Ex: Lidl, Dedeman, Petrom"
+                  {...form.register('furnizor')}
+                />
+              </div>
+            </div>
+          </FormDialogSection>
 
-          {/* Descriere: full-width */}
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="chelt_descriere">Descriere</Label>
-            <Textarea
-              id="chelt_descriere"
-              rows={3}
-              className="agri-control w-full px-3 py-2 text-base"
-              placeholder="Ex: Electricitate pompa, factura 12345"
-              {...form.register('descriere')}
-            />
-            <p className="text-xs text-[var(--agri-text-muted)]">Detalii suplimentare (factura, observații etc.)</p>
-          </div>
+          <FormDialogSection label="Detalii">
+            <div className="space-y-2">
+              <Label htmlFor="chelt_descriere">Descriere</Label>
+              <Textarea
+                id="chelt_descriere"
+                rows={3}
+                className="agri-control w-full px-3 py-2 text-base md:min-h-[7.5rem]"
+                placeholder="Ex: Electricitate pompa, factura 12345"
+                {...form.register('descriere')}
+              />
+              <p className="text-xs text-[var(--agri-text-muted)]">
+                Detalii suplimentare (factura, observații etc.)
+              </p>
+            </div>
+          </FormDialogSection>
         </div>
       </form>
     </AppDrawer>

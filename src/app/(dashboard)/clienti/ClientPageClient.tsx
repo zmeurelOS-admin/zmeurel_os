@@ -330,17 +330,34 @@ function ClientCardNew({
   }
   onEdit: () => void
 }) {
-  const mainValue = metrics.totalRon > 0 ? `${metrics.totalRon.toFixed(0)} lei` : `${metrics.comenziCount} comenzi`
-  const secondaryValue = metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null
-  const isActive = metrics.comenziCount > 0 || metrics.vanzariCount > 0
+  const mainValue = metrics.totalRon > 0 ? `${metrics.totalRon.toFixed(0)} RON` : `${metrics.comenziCount} comenzi`
+  const subtitle = client.telefon || client.email || 'Fără contact'
+  const secondaryValue = [
+    metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null,
+    metrics.vanzariCount > 0 ? `${metrics.vanzariCount} vânzări` : null,
+  ].filter(Boolean).join(' • ') || undefined
+  const statusLabel =
+    metrics.unpaidRon > 0
+      ? `Neîncasat ${metrics.unpaidRon.toFixed(0)} RON`
+      : metrics.comenziCount > 0 || metrics.vanzariCount > 0
+        ? 'Activ'
+        : 'Fără activitate'
+  const statusTone =
+    metrics.unpaidRon > 0
+      ? 'warning'
+      : metrics.comenziCount > 0 || metrics.vanzariCount > 0
+        ? 'success'
+        : 'neutral'
 
   return (
     <MobileEntityCard
       title={client.nume_client}
       mainValue={mainValue}
-      subtitle={secondaryValue || undefined}
-      statusLabel={isActive ? 'Activ' : undefined}
-      statusTone="success"
+      subtitle={subtitle}
+      secondaryValue={secondaryValue}
+      statusLabel={statusLabel}
+      statusTone={statusTone}
+      showChevron
       onClick={onEdit}
     />
   )

@@ -1,0 +1,71 @@
+{
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "baseUrl": "http://localhost:3000",
+  "nonDemoReached": false,
+  "nonDemoNote": "Exit demo did not remove banner in this session.",
+  "findings": [
+    {
+      "flow": "demo",
+      "route": "/dashboard",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/activitati-agricole",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/parcele",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/recoltari",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/comenzi",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/vanzari",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/stocuri",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/cheltuieli",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/investitii",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/culegatori",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/settings",
+      "entries": []
+    },
+    {
+      "flow": "demo",
+      "route": "/parcele/d8e71760-c1a4-4cef-b943-6db6508b4762",
+      "entries": []
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "baseUrl": "http://localhost:3000",
+  "routes": [
+    {
+      "route": "/dashboard",
+      "wallTimeMs": 3101,
+      "requestCount": 47,
+      "dataRequestCount": 1,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user"
+      ],
+      "domNodes": 505,
+      "fpMs": 1412,
+      "fcpMs": 1412,
+      "domContentLoadedMs": 1149.7999999821186,
+      "loadEventMs": 2037.0999999940395
+    },
+    {
+      "route": "/comenzi",
+      "wallTimeMs": 5290,
+      "requestCount": 67,
+      "dataRequestCount": 7,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.1f2c35c4-1a3d-41ad-b96b-5733ec930d56",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/comenzi?select=id%2Ctenant_id%2Cclient_id%2Cclient_nume_manual%2Ctelefon%2Clocatie_livrare%2Cdata_comanda%2Cdata_livrare%2Ccantitate_kg%2Cpret_per_kg%2Ctotal%2Cstatus%2Cobservatii%2Clinked_vanzare_id%2Cparent_comanda_id%2Ccreated_at%2Cupdated_at%2Cclienti%28nume_client%29&tenant_id=eq.9ab10f08-434b-4f7b-82b8-2b291e84bd98&order=data_livrare.asc.nullslast%2Ccreated_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/clienti?select=id%2Cid_client%2Cnume_client%2Ctelefon%2Cemail%2Cadresa%2Cpret_negociat_lei_kg%2Cobservatii%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.9ab10f08-434b-4f7b-82b8-2b291e84bd98&order=nume_client.asc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/vanzari?select=id%2Cid_vanzare%2Cdata%2Cclient_id%2Ccomanda_id%2Ccantitate_kg%2Cpret_lei_kg%2Cstatus_plata%2Cobservatii_ladite%2Ccreated_at%2Cupdated_at%2Ctenant_id&tenant_id=eq.9ab10f08-434b-4f7b-82b8-2b291e84bd98&order=data.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/miscari_stoc?select=calitate%2Ctip_miscare%2Ccantitate_kg&tenant_id=eq.9ab10f08-434b-4f7b-82b8-2b291e84bd98&calitate=not.is.null&tip_miscare=not.is.null&cantitate_kg=not.is.null",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "domNodes": 909,
+      "fpMs": 1136,
+      "fcpMs": 1136,
+      "domContentLoadedMs": 886.5999999940395,
+      "loadEventMs": 1681.7000000178814
+    },
+    {
+      "route": "/recoltari",
+      "wallTimeMs": 2870,
+      "requestCount": 56,
+      "dataRequestCount": 1,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user"
+      ],
+      "domNodes": 386,
+      "fpMs": 1148,
+      "fcpMs": 1148,
+      "domContentLoadedMs": 888.8999999761581,
+      "loadEventMs": 1686.0999999940395
+    },
+    {
+      "route": "/parcele",
+      "wallTimeMs": 2938,
+      "requestCount": 67,
+      "dataRequestCount": 2,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.1f2c35c4-1a3d-41ad-b96b-5733ec930d56"
+      ],
+      "domNodes": 376,
+      "fpMs": 1216,
+      "fcpMs": 1216,
+      "domContentLoadedMs": 979.1999999880791,
+      "loadEventMs": 1836.3999999761581
+    },
+    {
+      "route": "/activitati-agricole",
+      "wallTimeMs": 2903,
+      "requestCount": 47,
+      "dataRequestCount": 2,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.1f2c35c4-1a3d-41ad-b96b-5733ec930d56"
+      ],
+      "domNodes": 394,
+      "fpMs": 1200,
+      "fcpMs": 1200,
+      "domContentLoadedMs": 890.6000000238419,
+      "loadEventMs": 1875.300000011921
+    },
+    {
+      "route": "/stocuri",
+      "wallTimeMs": 2806,
+      "requestCount": 50,
+      "dataRequestCount": 2,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.1f2c35c4-1a3d-41ad-b96b-5733ec930d56"
+      ],
+      "domNodes": 384,
+      "fpMs": 1248,
+      "fcpMs": 1248,
+      "domContentLoadedMs": 987.7999999821186,
+      "loadEventMs": 1677.9000000059605
+    },
+    {
+      "route": "/cheltuieli",
+      "wallTimeMs": 4456,
+      "requestCount": 58,
+      "dataRequestCount": 3,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.1f2c35c4-1a3d-41ad-b96b-5733ec930d56",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "domNodes": 1564,
+      "fpMs": 1080,
+      "fcpMs": 1080,
+      "domContentLoadedMs": 807.6999999880791,
+      "loadEventMs": 1572.9000000059605
+    },
+    {
+      "route": "/investitii",
+      "wallTimeMs": 4927,
+      "requestCount": 54,
+      "dataRequestCount": 4,
+      "dataRequests": [
+        "https://ilybohhdeplwcrbpblqw.supabase.co/auth/v1/user",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/profiles?select=tenant_id&id=eq.1f2c35c4-1a3d-41ad-b96b-5733ec930d56",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/parcele?select=id%2Cid_parcela%2Cnume_parcela%2Ctip_fruct%2Csoi_plantat%2Csuprafata_m2%2Cnr_plante%2Can_plantare%2Cstatus%2Cgps_lat%2Cgps_lng%2Clatitudine%2Clongitudine%2Cobservatii%2Ctip_unitate%2Ccultura%2Csoi%2Cnr_randuri%2Cdistanta_intre_randuri%2Csistem_irigare%2Cdata_plantarii%2Ccreated_at%2Ccreated_by%2Cupdated_at%2Cupdated_by%2Ctenant_id%2Cdata_origin%2Cdemo_seed_id%2Cstadiu%2Crol%2Capare_in_dashboard%2Ccontribuie_la_productie%2Cstatus_operational&tenant_id=eq.9ab10f08-434b-4f7b-82b8-2b291e84bd98&order=created_at.desc",
+        "https://ilybohhdeplwcrbpblqw.supabase.co/rest/v1/analytics_events"
+      ],
+      "domNodes": 1211,
+      "fpMs": 1488,
+      "fcpMs": 1488,
+      "domContentLoadedMs": 1219.5,
+      "loadEventMs": 2053.2999999821186
+    }
+  ]
+}

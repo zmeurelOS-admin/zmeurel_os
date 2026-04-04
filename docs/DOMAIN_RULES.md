@@ -22,6 +22,7 @@
 - `analytics_events`: application and product telemetry
 - `alert_dismissals`: dismissed alert tracking
 - `integrations_google_contacts`: Google contacts integration state
+- `association_product_offers`: propuneri de listare produs fermier -> asociație
 
 ## Core Business Relationships
 
@@ -34,6 +35,14 @@
 - A `comanda` may create or link to a `vanzare`.
 - `miscari_stoc` reflect stock deltas caused by harvests, sales, orders, corrections, and transformations.
 - `vanzari_butasi` has many `vanzari_butasi_items`.
+- `tenants` now also stores optional public-marketplace profile fields: `descriere_publica`, `specialitate`, `localitate`, `poze_ferma`.
+
+## Association Workspace Rules
+
+- Doar fermierii cu `tenants.is_association_approved = true` apar în workspace-ul asociației și în magazinul public multi-fermier.
+- Adminii/moderatorii asociației pot edita din ERP-ul asociației doar câmpurile publice de profil ale unui producător: `descriere_publica`, `specialitate`, `localitate`, `poze_ferma`.
+- Staff-ul asociației nu poate modifica din acest flux alte câmpuri din `tenants` (ex. `nume_ferma`, `owner_user_id`, `plan`, `is_association_approved`); acest lucru este blocat și de trigger SQL.
+- `poze_ferma` păstrează URL-uri publice din Supabase Storage și este limitat la maximum 3 imagini per producător.
 
 ## Parcel And Solar Rules
 

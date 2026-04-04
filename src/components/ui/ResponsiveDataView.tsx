@@ -39,6 +39,12 @@ interface ResponsiveDataViewProps<TData, TMobileData = TData> {
   desktopContainerClassName?: string
   onDesktopRowClick?: (item: TData) => void
   isDesktopRowSelected?: (item: TData) => boolean
+  /** Când true, tabelul nu mai filtrează după câmpul de căutare intern (ex. părintele filtrează deja `data`). */
+  skipDesktopDataFilter?: boolean
+  /** Când true, ascunde rândul cu SearchField desktop (căutarea e în toolbar modul). */
+  hideDesktopSearchRow?: boolean
+  /** Clase extra pe rândul desktop (ex. grupare vizuală); nu se aplică peste rândul selectat. */
+  getDesktopRowClassName?: (row: TData, index: number, rows: TData[]) => string | undefined
 }
 
 function normalizeSearchValue(value: string): string {
@@ -112,6 +118,9 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
   desktopContainerClassName,
   onDesktopRowClick,
   isDesktopRowSelected,
+  skipDesktopDataFilter = false,
+  hideDesktopSearchRow = false,
+  getDesktopRowClassName,
 }: ResponsiveDataViewProps<TData, TMobileData>) {
   const [desktopSearch, setDesktopSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
@@ -121,6 +130,7 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
   const normalizedQuery = normalizeSearchValue(desktopSearch.trim())
 
   const filteredData = useMemo(() => {
+    if (skipDesktopDataFilter) return data
     if (!normalizedQuery) return data
 
     return data.filter((row) =>
@@ -137,7 +147,7 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
         return text.includes(normalizedQuery)
       })
     )
-  }, [data, normalizedQuery, searchableColumns])
+  }, [data, normalizedQuery, searchableColumns, skipDesktopDataFilter])
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -161,16 +171,21 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
       </div>
 
       <div className={cn('hidden md:block', desktopContainerClassName)}>
-        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <SearchField
-            containerClassName="w-full max-w-md"
-            placeholder={searchPlaceholder}
-            value={desktopSearch}
-            onChange={(event) => setDesktopSearch(event.target.value)}
-            aria-label={searchPlaceholder}
-          />
-          {actions ? <div className="flex items-center justify-end gap-2">{actions}</div> : null}
-        </div>
+        {hideDesktopSearchRow ? null : (
+          <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <SearchField
+              containerClassName="w-full max-w-md"
+              placeholder={searchPlaceholder}
+              value={desktopSearch}
+              onChange={(event) => setDesktopSearch(event.target.value)}
+              aria-label={searchPlaceholder}
+            />
+            {actions ? <div className="flex items-center justify-end gap-2">{actions}</div> : null}
+          </div>
+        )}
+        {hideDesktopSearchRow && actions ? (
+          <div className="mb-3 flex items-center justify-end gap-2">{actions}</div>
+        ) : null}
 
         <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
           <Table>
@@ -241,10 +256,15 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                   return (
                     <TableRow
                       key={row.id}
+                      data-selected={isSelected ? 'true' : undefined}
                       className={cn(
-                        'border-[var(--agri-border)]',
-                        onDesktopRowClick ? 'cursor-pointer' : '',
-                        isSelected ? 'bg-[var(--soft-info-bg)] hover:bg-[var(--soft-info-bg)]' : '',
+                        'border-[var(--agri-border)] transition-colors',
+                        onDesktopRowClick
+                          ? 'cursor-pointer hover:bg-[color:color-mix(in_srgb,var(--surface-card-muted)_72%,var(--surface-card))]'
+                          : '',
+                        isSelected
+                          ? 'border-l-[3px] border-l-[var(--focus-ring)] bg-[var(--soft-info-bg)] hover:bg-[var(--soft-info-bg)]'
+                          : getDesktopRowClassName?.(row.original, row.index, filteredData) ?? '',
                       )}
                       onClick={onDesktopRowClick ? () => onDesktopRowClick(row.original) : undefined}
                     >

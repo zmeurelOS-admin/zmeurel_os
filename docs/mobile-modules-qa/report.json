@@ -1,0 +1,103 @@
+{
+  "viewport": {
+    "width": 412,
+    "height": 915
+  },
+  "setupError": null,
+  "report": [
+    {
+      "module": "comenzi",
+      "route": "/comenzi",
+      "theme": "light",
+      "url": "http://localhost:3000/comenzi",
+      "overflowX": false,
+      "expandedShot": null,
+      "consoleErrors": []
+    },
+    {
+      "module": "recoltari",
+      "route": "/recoltari",
+      "theme": "light",
+      "url": "http://localhost:3000/recoltari",
+      "overflowX": false,
+      "expandedShot": null,
+      "consoleErrors": [
+        "console: A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <div className=\"relative f...\">\n      <button>\n      <div>\n      <nav className=\"flex-1 spa...\">\n        <SidebarLink>\n        <div className=\"space-y-2 ...\">\n          <SidebarGroup group={{key:\"ferma\", ...}} collapsed={false} activeGroup=\"ferma\" open={false} ...>\n            <Collapsible open={true} onOpenChange={function onOpenChange}>\n              <CollapsibleProvider scope={undefined} disabled={undefined} contentId=\"radix-_R_5...\" open={true} ...>\n                <Primitive.div data-state=\"open\" data-disabled={undefined} ref={null}>\n                  <div data-state=\"open\" data-disabled={undefined} ref={null}>\n                    <div className=\"space-y-1\">\n                      <CollapsibleTrigger asChild={true}>\n                        <Primitive.button type=\"button\" aria-controls=\"radix-_R_5...\" aria-expanded={true} ...>\n                          <Primitive.button.Slot type=\"button\" aria-controls=\"radix-_R_5...\" aria-expanded={true} ...>\n                            <Primitive.button.SlotClone type=\"button\" aria-controls=\"radix-_R_5...\" aria-expanded={true} ...>\n                              <button\n                                type=\"button\"\n                                className=\"flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font...\"\n+                               aria-controls=\"radix-_R_5d34ndqlb_\"\n-                               aria-controls=\"radix-_R_lkckndqlb_\"\n                                aria-expanded={true}\n                                data-state=\"open\"\n                                data-disabled={undefined}\n                                disabled={undefined}\n                                onClick={function handleEvent}\n                                ref={null}\n                              >\n                      <_c className=\"space-y-1\">\n                        <CollapsibleContent ref={null} className=\"overflow-h...\">\n                          <Presence present={true}>\n                            <Primitive.div data-state=\"open\" data-disabled={undefined} id=\"radix-_R_5...\" hidden={false} ...>\n                              <div\n                                data-state=\"open\"\n                                data-disabled={undefined}\n+                               id=\"radix-_R_5d34ndqlb_\"\n-                               id=\"radix-_R_lkckndqlb_\"\n                                hidden={false}\n                                className=\"overflow-hidden space-y-1\"\n                                style={{--radix-collapsible-content-height:undefined, ...}}\n                                ref={function}\n                              >\n          <SidebarGroup group={{key:\"comer...\", ...}} collapsed={false} activeGroup=\"ferma\" open={false} ...>\n            <Collapsible open={false} onOpenChange={function onOpenChange}>\n              <CollapsibleProvider scope={undefined} disabled={undefined} contentId=\"radix-_R_9...\" open={false} ...>\n                <Primitive.div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                  <div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                    <div className=\"space-y-1\">\n                      <CollapsibleTrigger asChild={true}>\n                        <Primitive.button type=\"button\" aria-controls=\"radix-_R_9...\" aria-expanded={false} ...>\n                          <Primitive.button.Slot type=\"button\" aria-controls=\"radix-_R_9...\" aria-expanded={false} ...>\n                            <Primitive.button.SlotClone type=\"button\" aria-controls=\"radix-_R_9...\" aria-expanded={false} ...>\n                              <button\n                                type=\"button\"\n                                className=\"flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font...\"\n+                               aria-controls=\"radix-_R_9d34ndqlb_\"\n-                               aria-controls=\"radix-_R_15kckndqlb_\"\n                                aria-expanded={false}\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n                                disabled={undefined}\n                                onClick={function handleEvent}\n                                ref={null}\n                              >\n                      <_c className=\"space-y-1\">\n                        <CollapsibleContent ref={null} className=\"overflow-h...\">\n                          <Presence present={false}>\n                            <Primitive.div data-state=\"closed\" data-disabled={undefined} id=\"radix-_R_9...\" hidden={true} ...>\n                              <div\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n+                               id=\"radix-_R_9d34ndqlb_\"\n-                               id=\"radix-_R_15kckndqlb_\"\n                                hidden={true}\n                                className=\"overflow-hidden space-y-1\"\n                                style={{--radix-collapsible-content-height:undefined, ...}}\n                                ref={function}\n                              >\n          <SidebarGroup group={{key:\"finante\", ...}} collapsed={false} activeGroup=\"ferma\" open={false} ...>\n            <Collapsible open={false} onOpenChange={function onOpenChange}>\n              <CollapsibleProvider scope={undefined} disabled={undefined} contentId=\"radix-_R_d...\" open={false} ...>\n                <Primitive.div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                  <div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                    <div className=\"space-y-1\">\n                      <CollapsibleTrigger asChild={true}>\n                        <Primitive.button type=\"button\" aria-controls=\"radix-_R_d...\" aria-expanded={false} ...>\n                          <Primitive.button.Slot type=\"button\" aria-controls=\"radix-_R_d...\" aria-expanded={false} ...>\n                            <Primitive.button.SlotClone type=\"button\" aria-controls=\"radix-_R_d...\" aria-expanded={false} ...>\n                              <button\n                                type=\"button\"\n                                className=\"flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font...\"\n+                               aria-controls=\"radix-_R_dd34ndqlb_\"\n-                               aria-controls=\"radix-_R_1lkckndqlb_\"\n                                aria-expanded={false}\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n                                disabled={undefined}\n                                onClick={function handleEvent}\n                                ref={null}\n                              >\n                      <_c className=\"space-y-1\">\n                        <CollapsibleContent ref={null} className=\"overflow-h...\">\n                          <Presence present={false}>\n                            <Primitive.div data-state=\"closed\" data-disabled={undefined} id=\"radix-_R_d...\" hidden={true} ...>\n                              <div\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n+                               id=\"radix-_R_dd34ndqlb_\"\n-                               id=\"radix-_R_1lkckndqlb_\"\n                                hidden={true}\n                                className=\"overflow-hidden space-y-1\"\n                                style={{--radix-collapsible-content-height:undefined, ...}}\n                                ref={function}\n                              >\n        ...\n"
+      ]
+    },
+    {
+      "module": "parcele",
+      "route": "/parcele",
+      "theme": "light",
+      "url": "http://localhost:3000/parcele",
+      "overflowX": false,
+      "expandedShot": "parcele-light-expanded.png",
+      "consoleErrors": [
+        "console: A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <div className=\"relative f...\">\n      <button>\n      <div>\n      <nav className=\"flex-1 spa...\">\n        <SidebarLink>\n        <div className=\"space-y-2 ...\">\n          <SidebarGroup group={{key:\"ferma\", ...}} collapsed={false} activeGroup=\"ferma\" open={false} ...>\n            <Collapsible open={true} onOpenChange={function onOpenChange}>\n              <CollapsibleProvider scope={undefined} disabled={undefined} contentId=\"radix-_R_5...\" open={true} ...>\n                <Primitive.div data-state=\"open\" data-disabled={undefined} ref={null}>\n                  <div data-state=\"open\" data-disabled={undefined} ref={null}>\n                    <div className=\"space-y-1\">\n                      <CollapsibleTrigger asChild={true}>\n                        <Primitive.button type=\"button\" aria-controls=\"radix-_R_5...\" aria-expanded={true} ...>\n                          <Primitive.button.Slot type=\"button\" aria-controls=\"radix-_R_5...\" aria-expanded={true} ...>\n                            <Primitive.button.SlotClone type=\"button\" aria-controls=\"radix-_R_5...\" aria-expanded={true} ...>\n                              <button\n                                type=\"button\"\n                                className=\"flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font...\"\n+                               aria-controls=\"radix-_R_5d34ndqlb_\"\n-                               aria-controls=\"radix-_R_lkckndqlb_\"\n                                aria-expanded={true}\n                                data-state=\"open\"\n                                data-disabled={undefined}\n                                disabled={undefined}\n                                onClick={function handleEvent}\n                                ref={null}\n                              >\n                      <_c className=\"space-y-1\">\n                        <CollapsibleContent ref={null} className=\"overflow-h...\">\n                          <Presence present={true}>\n                            <Primitive.div data-state=\"open\" data-disabled={undefined} id=\"radix-_R_5...\" hidden={false} ...>\n                              <div\n                                data-state=\"open\"\n                                data-disabled={undefined}\n+                               id=\"radix-_R_5d34ndqlb_\"\n-                               id=\"radix-_R_lkckndqlb_\"\n                                hidden={false}\n                                className=\"overflow-hidden space-y-1\"\n                                style={{--radix-collapsible-content-height:undefined, ...}}\n                                ref={function}\n                              >\n          <SidebarGroup group={{key:\"comer...\", ...}} collapsed={false} activeGroup=\"ferma\" open={false} ...>\n            <Collapsible open={false} onOpenChange={function onOpenChange}>\n              <CollapsibleProvider scope={undefined} disabled={undefined} contentId=\"radix-_R_9...\" open={false} ...>\n                <Primitive.div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                  <div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                    <div className=\"space-y-1\">\n                      <CollapsibleTrigger asChild={true}>\n                        <Primitive.button type=\"button\" aria-controls=\"radix-_R_9...\" aria-expanded={false} ...>\n                          <Primitive.button.Slot type=\"button\" aria-controls=\"radix-_R_9...\" aria-expanded={false} ...>\n                            <Primitive.button.SlotClone type=\"button\" aria-controls=\"radix-_R_9...\" aria-expanded={false} ...>\n                              <button\n                                type=\"button\"\n                                className=\"flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font...\"\n+                               aria-controls=\"radix-_R_9d34ndqlb_\"\n-                               aria-controls=\"radix-_R_15kckndqlb_\"\n                                aria-expanded={false}\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n                                disabled={undefined}\n                                onClick={function handleEvent}\n                                ref={null}\n                              >\n                      <_c className=\"space-y-1\">\n                        <CollapsibleContent ref={null} className=\"overflow-h...\">\n                          <Presence present={false}>\n                            <Primitive.div data-state=\"closed\" data-disabled={undefined} id=\"radix-_R_9...\" hidden={true} ...>\n                              <div\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n+                               id=\"radix-_R_9d34ndqlb_\"\n-                               id=\"radix-_R_15kckndqlb_\"\n                                hidden={true}\n                                className=\"overflow-hidden space-y-1\"\n                                style={{--radix-collapsible-content-height:undefined, ...}}\n                                ref={function}\n                              >\n          <SidebarGroup group={{key:\"finante\", ...}} collapsed={false} activeGroup=\"ferma\" open={false} ...>\n            <Collapsible open={false} onOpenChange={function onOpenChange}>\n              <CollapsibleProvider scope={undefined} disabled={undefined} contentId=\"radix-_R_d...\" open={false} ...>\n                <Primitive.div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                  <div data-state=\"closed\" data-disabled={undefined} ref={null}>\n                    <div className=\"space-y-1\">\n                      <CollapsibleTrigger asChild={true}>\n                        <Primitive.button type=\"button\" aria-controls=\"radix-_R_d...\" aria-expanded={false} ...>\n                          <Primitive.button.Slot type=\"button\" aria-controls=\"radix-_R_d...\" aria-expanded={false} ...>\n                            <Primitive.button.SlotClone type=\"button\" aria-controls=\"radix-_R_d...\" aria-expanded={false} ...>\n                              <button\n                                type=\"button\"\n                                className=\"flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font...\"\n+                               aria-controls=\"radix-_R_dd34ndqlb_\"\n-                               aria-controls=\"radix-_R_1lkckndqlb_\"\n                                aria-expanded={false}\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n                                disabled={undefined}\n                                onClick={function handleEvent}\n                                ref={null}\n                              >\n                      <_c className=\"space-y-1\">\n                        <CollapsibleContent ref={null} className=\"overflow-h...\">\n                          <Presence present={false}>\n                            <Primitive.div data-state=\"closed\" data-disabled={undefined} id=\"radix-_R_d...\" hidden={true} ...>\n                              <div\n                                data-state=\"closed\"\n                                data-disabled={undefined}\n+                               id=\"radix-_R_dd34ndqlb_\"\n-                               id=\"radix-_R_1lkckndqlb_\"\n                                hidden={true}\n                                className=\"overflow-hidden space-y-1\"\n                                style={{--radix-collapsible-content-height:undefined, ...}}\n                                ref={function}\n                              >\n        ...\n"
+      ]
+    },
+    {
+      "module": "stocuri",
+      "route": "/stocuri",
+      "theme": "light",
+      "url": "http://localhost:3000/stocuri",
+      "overflowX": false,
+      "expandedShot": "stocuri-light-expanded.png",
+      "consoleErrors": []
+    },
+    {
+      "module": "vanzari",
+      "route": "/vanzari",
+      "theme": "light",
+      "url": "http://localhost:3000/vanzari",
+      "overflowX": false,
+      "expandedShot": null,
+      "consoleErrors": []
+    },
+    {
+      "module": "comenzi",
+      "route": "/comenzi",
+      "theme": "dark",
+      "url": "http://localhost:3000/comenzi",
+      "overflowX": false,
+      "expandedShot": null,
+      "consoleErrors": []
+    },
+    {
+      "module": "recoltari",
+      "route": "/recoltari",
+      "theme": "dark",
+      "url": "http://localhost:3000/recoltari",
+      "overflowX": false,
+      "expandedShot": null,
+      "consoleErrors": []
+    },
+    {
+      "module": "parcele",
+      "route": "/parcele",
+      "theme": "dark",
+      "url": "http://localhost:3000/parcele",
+      "overflowX": false,
+      "expandedShot": "parcele-dark-expanded.png",
+      "consoleErrors": []
+    },
+    {
+      "module": "stocuri",
+      "route": "/stocuri",
+      "theme": "dark",
+      "url": "http://localhost:3000/stocuri",
+      "overflowX": false,
+      "expandedShot": "stocuri-dark-expanded.png",
+      "consoleErrors": []
+    },
+    {
+      "module": "vanzari",
+      "route": "/vanzari",
+      "theme": "dark",
+      "url": "http://localhost:3000/vanzari",
+      "overflowX": false,
+      "expandedShot": null,
+      "consoleErrors": []
+    }
+  ]
+}

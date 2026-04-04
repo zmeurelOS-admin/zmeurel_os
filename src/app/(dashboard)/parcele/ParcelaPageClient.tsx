@@ -50,8 +50,7 @@ function parcelaRolLabel(rol: string | null | undefined): { label: string; varia
 function parcelaSubtitle(parcela: Parcela): string {
   const cultura = (parcela.cultura || parcela.tip_fruct || null) as string | null
   const soi = (parcela.soi || parcela.soi_plantat || null) as string | null
-  const culturaSoi = [cultura, soi].filter(Boolean).join(' · ')
-  return [culturaSoi || null, formatM2ToHa(parcela.suprafata_m2)].filter(Boolean).join(' · ') || '-'
+  return [cultura, soi].filter(Boolean).join(' · ') || 'Fără cultură setată'
 }
 
 export function ParcelaPageClient({
@@ -113,7 +112,7 @@ export function ParcelaPageClient({
 
         {!isLoading && parcele.length === 0 && (
           <p className="text-center text-sm text-[var(--agri-text-muted)]">
-            Nu exist? terenuri.
+            Nu există terenuri.
           </p>
         )}
 
@@ -126,8 +125,14 @@ export function ParcelaPageClient({
                   icon={<span aria-hidden>{parcelaEmoji(p)}</span>}
                   title={p.nume_parcela || 'Teren'}
                   subtitle={parcelaSubtitle(p)}
+                  mainValue={formatM2ToHa(p.suprafata_m2)}
+                  meta={[
+                    p.tip_unitate ? `Tip: ${p.tip_unitate}` : null,
+                    p.nr_plante ? `${Number(p.nr_plante)} plante` : null,
+                  ].filter(Boolean).join(' • ') || undefined}
                   statusLabel={parcelaRolLabel((p as { rol?: string | null }).rol).label}
                   statusTone={parcelaRolLabel((p as { rol?: string | null }).rol).variant}
+                  showChevron
                   onClick={() => setExpandedId((current) => (current === p.id ? null : p.id))}
                   bottomSlot={expandedId === p.id ? (
                     <>
@@ -139,10 +144,6 @@ export function ParcelaPageClient({
                         <span>
                           <span className="text-[var(--agri-text-muted)]">Nr plante: </span>
                           <span className="font-semibold">{p.nr_plante || '-'}</span>
-                        </span>
-                        <span>
-                          <span className="text-[var(--agri-text-muted)]">Suprafață: </span>
-                          <span className="font-semibold">{formatM2ToHa(p.suprafata_m2)}</span>
                         </span>
                         <span>
                           <span className="text-[var(--agri-text-muted)]">Status REI: </span>
@@ -181,7 +182,7 @@ export function ParcelaPageClient({
             </div>
 
             <div className="hidden lg:grid lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)] lg:gap-4">
-              <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
+              <div className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
@@ -205,11 +206,11 @@ export function ParcelaPageClient({
                           onClick={() => setDesktopSelectedParcelaId(parcela.id)}
                         >
                           <TableCell className="font-medium">{parcela.nume_parcela || '-'}</TableCell>
-                          <TableCell className="text-[var(--agri-text-muted)]">{parcela.tip_unitate || '-'}</TableCell>
-                          <TableCell className="text-right tabular-nums text-[var(--agri-text-muted)]">
+                          <TableCell className="text-[var(--text-secondary)]">{parcela.tip_unitate || '-'}</TableCell>
+                          <TableCell className="text-right tabular-nums text-[var(--text-secondary)]">
                             {Number(parcela.suprafata_m2 || 0).toFixed(0)} m2
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-[var(--agri-text-muted)]">
+                          <TableCell className="text-right tabular-nums text-[var(--text-secondary)]">
                             {Number(parcela.nr_plante || 0)}
                           </TableCell>
                           <TableCell>
@@ -222,20 +223,20 @@ export function ParcelaPageClient({
                 </Table>
               </div>
 
-              <aside className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-4 shadow-sm">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Detalii teren</h3>
+              <aside className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Detalii teren</h3>
                 {desktopSelectedParcela ? (
-                  <div className="mt-4 space-y-3 text-sm text-[var(--agri-text-muted)]">
-                    <p><span className="font-medium text-[var(--agri-text)]">Nume:</span> {desktopSelectedParcela.nume_parcela || '-'}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Tip unitate:</span> {desktopSelectedParcela.tip_unitate || '-'}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Cultura:</span> {desktopSelectedParcela.cultura || desktopSelectedParcela.tip_fruct || '-'}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Soi:</span> {desktopSelectedParcela.soi || desktopSelectedParcela.soi_plantat || '-'}</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Suprafata:</span> {Number(desktopSelectedParcela.suprafata_m2 || 0).toFixed(0)} m2</p>
-                    <p><span className="font-medium text-[var(--agri-text)]">Nr. plante:</span> {Number(desktopSelectedParcela.nr_plante || 0)}</p>
+                  <div className="mt-4 space-y-3 text-sm text-[var(--text-secondary)]">
+                    <p><span className="font-medium text-[var(--text-primary)]">Nume:</span> {desktopSelectedParcela.nume_parcela || '-'}</p>
+                    <p><span className="font-medium text-[var(--text-primary)]">Tip unitate:</span> {desktopSelectedParcela.tip_unitate || '-'}</p>
+                    <p><span className="font-medium text-[var(--text-primary)]">Cultura:</span> {desktopSelectedParcela.cultura || desktopSelectedParcela.tip_fruct || '-'}</p>
+                    <p><span className="font-medium text-[var(--text-primary)]">Soi:</span> {desktopSelectedParcela.soi || desktopSelectedParcela.soi_plantat || '-'}</p>
+                    <p><span className="font-medium text-[var(--text-primary)]">Suprafata:</span> {Number(desktopSelectedParcela.suprafata_m2 || 0).toFixed(0)} m2</p>
+                    <p><span className="font-medium text-[var(--text-primary)]">Nr. plante:</span> {Number(desktopSelectedParcela.nr_plante || 0)}</p>
                     <div className="flex gap-2 pt-2">
                       <button
                         type="button"
-                        className="rounded-md bg-[var(--agri-primary)] px-3 py-2 text-xs font-semibold text-white hover:opacity-95"
+                        className="rounded-md border border-[var(--info-border)] bg-[var(--info-bg)] px-3 py-2 text-xs font-semibold text-[var(--info-text)] hover:brightness-[0.98]"
                         onClick={() => {
                           setSelectedParcela(desktopSelectedParcela)
                           setEditOpen(true)
@@ -256,7 +257,7 @@ export function ParcelaPageClient({
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-[var(--agri-text-muted)]">Selectează un teren pentru detalii.</p>
+                  <p className="mt-4 text-sm text-[var(--text-secondary)]">Selectează un teren pentru detalii.</p>
                 )}
               </aside>
             </div>

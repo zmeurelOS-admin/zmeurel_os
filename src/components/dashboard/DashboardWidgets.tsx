@@ -23,14 +23,24 @@ type WidgetFrameProps = {
 
 function WidgetPlaceholder() {
   return (
-    <div className="flex h-full min-h-[140px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/60 px-4 text-center">
-      <Sparkles className="mb-3 h-5 w-5 text-[var(--agri-text-muted)]" />
-      <div className="text-sm font-semibold text-[var(--agri-text)]">Nicio dată disponibilă</div>
-      <div className="mt-1 max-w-xs text-xs leading-5 text-[var(--agri-text-muted)]">
+    <div className="flex min-h-[120px] flex-col items-center justify-center gap-2 px-2 py-6 text-center">
+      <Sparkles className="h-5 w-5 text-[var(--text-tertiary)]" />
+      <div className="text-[14px] font-semibold leading-5 text-[var(--text-primary)]">Nicio dată disponibilă</div>
+      <div className="max-w-xs text-[12px] leading-5 text-[var(--text-secondary)]">
         Widget-ul rămâne disponibil în layout și se va popula automat când apar date noi.
       </div>
     </div>
   )
+}
+
+function orderStatusToneClass(status: string): string {
+  const normalized = status.trim().toLowerCase()
+  if (normalized.includes('anulat')) return 'text-[var(--status-danger-text)]'
+  if (normalized.includes('livrat')) return 'text-[var(--status-success-text)]'
+  if (normalized.includes('confirm') || normalized.includes('program') || normalized.includes('livrare')) {
+    return 'text-[var(--status-warning-text)]'
+  }
+  return 'text-[var(--text-secondary)]'
 }
 
 function WidgetFrame({
@@ -48,28 +58,31 @@ function WidgetFrame({
   return (
     <AppCard
       className={cn(
-        'dashboard-widget-frame flex h-full flex-col overflow-hidden p-0 shadow-[0_10px_24px_rgba(16,32,21,0.06)]',
-        editMode ? 'border-dashed border-[var(--agri-primary)]/45 bg-[var(--agri-surface)]' : '',
+        'dashboard-widget-frame flex h-full flex-col overflow-hidden p-0',
+        editMode ? 'border-dashed border-[color:color-mix(in_srgb,var(--focus-ring)_45%,var(--border-default))] bg-[var(--surface-card)]' : '',
         className
       )}
     >
       {!hideHeader ? (
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--agri-border)]/60 px-[18px] py-3.5">
+        <div className="flex items-start justify-between gap-3 px-[18px] pb-2 pt-3.5">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               {editMode && handleEnabled ? (
-                <span className="dashboard-widget-handle inline-flex cursor-grab items-center rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-1.5 py-1 text-[var(--agri-text-muted)] active:cursor-grabbing">
+                <span
+                  className="dashboard-widget-handle inline-flex cursor-grab items-center text-[var(--text-tertiary)] active:cursor-grabbing"
+                  aria-hidden
+                >
                   <GripVertical className="h-3.5 w-3.5" />
                 </span>
               ) : null}
               {title ? (
-                <h3 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]">
+                <h3 className="truncate text-[1.02rem] leading-tight tracking-[-0.03em] text-[var(--text-primary)] [font-weight:750]">
                   {title}
                 </h3>
               ) : null}
             </div>
             {description ? (
-              <p className="mt-1 text-xs font-normal leading-5 tracking-[-0.01em] text-[var(--agri-text-muted)]">
+              <p className="mt-1 text-[12px] font-normal leading-5 tracking-[-0.01em] text-[var(--text-secondary)]">
                 {description}
               </p>
             ) : null}
@@ -89,11 +102,13 @@ function WidgetFrame({
         </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col px-[18px] py-4">
+      <div className={cn('flex flex-1 flex-col px-[18px] pb-4', hideHeader ? 'pt-0' : 'pt-2')}>
         {placeholder ? <WidgetPlaceholder /> : children}
       </div>
 
-      {footer ? <div className="border-t border-[var(--agri-border)]/60 px-[18px] py-3">{footer}</div> : null}
+      {footer ? (
+        <div className="border-t border-[var(--divider)] px-[18px] py-3">{footer}</div>
+      ) : null}
     </AppCard>
   )
 }
@@ -120,60 +135,35 @@ export function KpiSummaryWidget({
       handleEnabled={false}
       hideHeader
       placeholder={items.length === 0}
-      className="dashboard-kpi-summary-widget bg-[linear-gradient(180deg,rgba(45,106,79,0.06),rgba(255,255,255,0))]"
+      className="dashboard-kpi-summary-widget bg-[var(--surface-card)]"
     >
-      {items.length === 1 ? (
-        <div className="dashboard-kpi-tile px-2 py-1">
-          <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
-            {items[0].label}
-          </div>
-          <div
-            className={cn(
-              'mt-2 text-[clamp(2rem,6vw,2.5rem)] font-bold leading-none',
-              items[0].tone === 'positive'
-                ? 'text-[var(--value-positive)]'
-                : items[0].tone === 'negative'
-                  ? 'text-[var(--value-negative)]'
-                  : 'text-[var(--agri-text)]'
-            )}
-          >
-            {items[0].value}
-          </div>
-          <div className="mt-2 text-xs text-[var(--agri-text-muted)]">{items[0].meta}</div>
-          {items[0].trendLabel ? (
-            <div className="mt-1 truncate text-xs font-semibold text-[var(--agri-primary)]">{items[0].trendLabel}</div>
-          ) : null}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="dashboard-kpi-tile px-2 py-1"
-            >
-              <div className="truncate text-xs font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
-                {item.label}
-              </div>
-              <div
+      <div className="flex flex-col gap-3.5 pt-2">
+        {items.map((item) => (
+          <div key={item.id} className="space-y-1">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[13px] leading-5 text-[var(--text-secondary)]">{item.label}</span>
+              <span
                 className={cn(
-                  'mt-2 whitespace-nowrap text-[clamp(1.35rem,3vw,1.75rem)] font-bold leading-none',
+                  'shrink-0 text-[1.05rem] font-semibold tabular-nums tracking-[-0.03em]',
                   item.tone === 'positive'
-                    ? 'text-[var(--value-positive)]'
+                    ? 'text-[var(--success-text)]'
                     : item.tone === 'negative'
-                      ? 'text-[var(--value-negative)]'
-                      : 'text-[var(--agri-text)]'
+                      ? 'text-[var(--danger-text)]'
+                      : 'text-[var(--text-primary)]'
                 )}
               >
                 {item.value}
-              </div>
-              <div className="mt-2 text-xs text-[var(--agri-text-muted)]">{item.meta}</div>
-              {item.trendLabel ? (
-                <div className="mt-1 truncate text-xs font-semibold text-[var(--agri-primary)]">{item.trendLabel}</div>
-              ) : null}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+            {item.meta ? (
+              <div className="text-[12px] leading-5 text-[var(--text-secondary)]">{item.meta}</div>
+            ) : null}
+            {item.trendLabel ? (
+              <div className="text-[12px] font-medium text-[var(--info-text)]">{item.trendLabel}</div>
+            ) : null}
+          </div>
+        ))}
+      </div>
     </WidgetFrame>
   )
 }
@@ -209,22 +199,19 @@ export function ComenziRecenteWidget({
         </Button>
       }
     >
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3.5">
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/35 px-4 py-3"
-          >
+          <div key={item.id} className="space-y-1">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{item.client}</div>
-                <div className="mt-1 text-xs text-[var(--agri-text-muted)]">
-                  {item.quantity} · {item.deliveryDate}
-                </div>
+              <div className="min-w-0 truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">
+                {item.client}
               </div>
-              <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+              <span className={cn('shrink-0 text-[12px] leading-5', orderStatusToneClass(item.status))}>
                 {item.status}
               </span>
+            </div>
+            <div className="text-[12px] leading-5 text-[var(--text-secondary)]">
+              {item.quantity} · {item.deliveryDate}
             </div>
           </div>
         ))}
@@ -264,22 +251,17 @@ export function ActivitatiPlanificateWidget({
         </Button>
       }
     >
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3.5">
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-2xl border border-[var(--agri-border)] bg-[var(--surface-card)] pl-3 pr-4 py-3 border-l-4 border-l-amber-500"
-          >
+          <div key={item.id} className="space-y-1">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{item.title}</div>
-                <div className="mt-1 text-xs text-[var(--agri-text-muted)]">{item.parcela}</div>
-                <div className="mt-2 text-xs font-medium text-[var(--agri-text-muted)]">{item.detail}</div>
+                <div className="truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.title}</div>
+                <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.parcela}</div>
               </div>
-              <div className="rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2.5 py-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">
-                {item.date}
-              </div>
+              <span className="shrink-0 text-[12px] leading-5 text-[var(--text-secondary)]">{item.date}</span>
             </div>
+            <div className="text-[12px] font-medium leading-5 text-[var(--text-secondary)]">{item.detail}</div>
           </div>
         ))}
       </div>
@@ -317,20 +299,15 @@ export function RecoltariRecenteWidget({
         </Button>
       }
     >
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3.5">
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-2xl border border-[var(--agri-border)] bg-[var(--surface-card)] pl-3 pr-4 py-3 border-l-4 border-l-green-500"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{item.parcela}</div>
-                <div className="mt-1 text-xs text-[var(--agri-text-muted)]">{item.timestamp}</div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-bold text-[var(--value-positive)]">{item.quantity}</div>
-              </div>
+          <div key={item.id} className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.parcela}</div>
+              <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.timestamp}</div>
+            </div>
+            <div className="shrink-0 text-[13px] font-semibold tabular-nums text-[var(--success-text)]">
+              {item.quantity}
             </div>
           </div>
         ))}
@@ -370,33 +347,23 @@ export function StocuriCriticeWidget({
         </Button>
       }
     >
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3.5">
         {items.map((item) => {
           const critical = item.severity === 'critical'
           return (
-            <div
-              key={item.id}
-              className={cn(
-                'rounded-2xl border border-[var(--agri-border)] bg-[var(--surface-card)] pl-3 pr-4 py-3 border-l-4',
-                critical ? 'border-l-red-500' : 'border-l-amber-500'
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-[var(--agri-text)]">{item.produs}</div>
-                  <div className="mt-1 text-xs text-[var(--agri-text-muted)]">{item.locatie}</div>
-                </div>
-                <div
-                  className={cn(
-                    'rounded-xl px-2.5 py-1 text-[11px] font-bold',
-                    critical
-                      ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
-                  )}
-                >
-                  {item.quantity}
-                </div>
+            <div key={item.id} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.produs}</div>
+                <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.locatie}</div>
               </div>
+              <span
+                className={cn(
+                  'shrink-0 text-[13px] font-semibold tabular-nums',
+                  critical ? 'text-[var(--status-danger-text)]' : 'text-[var(--status-warning-text)]'
+                )}
+              >
+                {item.quantity}
+              </span>
             </div>
           )
         })}
@@ -436,28 +403,28 @@ export function SumarVenituriWidget({
         </Button>
       }
     >
-      <div className="flex h-full flex-col justify-between gap-4">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--agri-text-muted)]">
+      <div className="flex h-full flex-col gap-4">
+        <div className="space-y-2">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
             {periodLabel}
           </div>
-          <div className="mt-2 text-3xl font-bold text-[var(--agri-text)]">{total}</div>
-          <div className="mt-2 text-xs text-[var(--agri-text-muted)]">Perioada comparată: {previous}</div>
+          <div className="text-[1.35rem] font-bold leading-tight tracking-[-0.03em] text-[var(--text-primary)] [font-weight:750]">
+            {total}
+          </div>
+          <div className="text-[12px] leading-5 text-[var(--text-secondary)]">Perioada comparată: {previous}</div>
           {trendLabel ? (
-            <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2.5 py-1 text-xs font-semibold text-[var(--agri-primary)]">
-              {trendLabel.startsWith('-') ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
-              {trendLabel}
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--info-text)]">
+              {trendLabel.startsWith('-') ? <TrendingDown className="h-3.5 w-3.5 shrink-0" /> : <TrendingUp className="h-3.5 w-3.5 shrink-0" />}
+              <span>{trendLabel}</span>
             </div>
           ) : null}
         </div>
-        <div className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/40 px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-[var(--agri-text)]">Trend venituri</div>
-              <div className="mt-1 text-xs text-[var(--agri-text-muted)]">Ultimele 8 săptămâni</div>
-            </div>
-            <Sparkline values={series} className="h-10 w-28" height={32} strokeClassName="stroke-[var(--agri-primary)]" />
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-3 border-t border-[var(--divider)] pt-3">
+          <div>
+            <div className="text-[14px] leading-tight text-[var(--text-primary)] [font-weight:650]">Trend venituri</div>
+            <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">Ultimele 8 săptămâni</div>
           </div>
+          <Sparkline values={series} className="h-10 w-28" height={32} strokeClassName="stroke-[var(--info-text)]" />
         </div>
       </div>
     </WidgetFrame>

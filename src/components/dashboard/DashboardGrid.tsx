@@ -8,5 +8,5 @@ interface DashboardGridProps {
 }
 
 export function DashboardGrid({ children, className }: DashboardGridProps) {
-  return <div className={cn('grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-3', className)}>{children}</div>
+  return <div className={cn('grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4', className)}>{children}</div>
 }

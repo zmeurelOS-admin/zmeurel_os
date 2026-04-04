@@ -1,4 +1,4 @@
-﻿// scripts/check-env.js
+// scripts/check-env.js
 
 // đź”ą ĂŽncarcÄ .env.local explicit
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -33,4 +33,10 @@ if (process.env.NEXT_PUBLIC_SITE_URL && process.env.NEXT_PUBLIC_SITE_URL !== pro
 }
 
 console.log("âś… Env vars ok:", required.join(", "));
+
+if (process.env.VERCEL === "1" && (!process.env.SENTRY_AUTH_TOKEN || String(process.env.SENTRY_AUTH_TOKEN).trim() === "")) {
+  console.warn(
+    "[check-env] SENTRY_AUTH_TOKEN lipsește pe Vercel — upload-ul de source maps către Sentry la build poate eșua (vezi next.config.js + withSentryConfig)."
+  );
+}
 

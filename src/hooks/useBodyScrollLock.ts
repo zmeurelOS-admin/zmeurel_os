@@ -2,22 +2,16 @@
 
 import { useEffect } from 'react'
 
-export function useBodyScrollLock(locked: boolean) {
+/**
+ * Blochează scroll-ul pe `document.body` când `locked` e true (ex. sheet-uri modale).
+ */
+export function useBodyScrollLock(locked: boolean): void {
   useEffect(() => {
-    if (!locked) return
-
-    const previousBodyOverflow = document.body.style.overflow
-    const previousHtmlOverflow = document.documentElement.style.overflow
-
+    if (!locked || typeof document === 'undefined') return
+    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
-    document.body.setAttribute('data-scroll-locked', 'true')
-
     return () => {
-      document.body.style.overflow = previousBodyOverflow
-      document.documentElement.style.overflow = previousHtmlOverflow
-      document.body.style.pointerEvents = 'auto'
-      document.body.removeAttribute('data-scroll-locked')
+      document.body.style.overflow = prev
     }
   }, [locked])
 }

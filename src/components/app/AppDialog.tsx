@@ -11,12 +11,29 @@ interface AppDialogProps {
   children: React.ReactNode
   footer?: React.ReactNode
   contentClassName?: string
+  /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
+  desktopFormWide?: boolean
 }
 
-export function AppDialog({ open, onOpenChange, title, description, children, footer, contentClassName }: AppDialogProps) {
+export function AppDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  contentClassName,
+  desktopFormWide,
+}: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <FormDialogLayout title={title} description={description} footer={footer} contentClassName={contentClassName}>
+      <FormDialogLayout
+        title={title}
+        description={description}
+        footer={footer}
+        contentClassName={contentClassName}
+        desktopFormWide={desktopFormWide}
+      >
         {children}
       </FormDialogLayout>
     </Dialog>

@@ -20,10 +20,15 @@ Next.js App Router routes, layouts, route groups, metadata, and API endpoints.
 Important areas:
 
 - `src/app/(auth)` public auth pages
+- `src/app/magazin` public farmer storefront (`/magazin`, `/magazin/[tenantId]`) — catalog + coș local; loader `src/lib/shop/load-public-shop.ts`; **`/magazin/asociatie`** magazin multi-fermier „Gustă din Bucovina” (`load-association-catalog.ts`, `AssociationShopClient.tsx`, `AssociationLogo.tsx`, `AssociationHeroVisual.tsx`)
 - `src/app/(dashboard)` protected app pages
 - `src/app/(onboarding)` onboarding/demo entry
 - `src/app/api` server routes
 - `src/app/api/chat` AI chat API package split into `route.ts`, `chat-post-handler.ts`, `contract-helpers.ts`, `extractors.ts`, `signal-detectors.ts`, `conversation-memory.ts`, `date-helpers.ts`, `flow-detection.ts`, and `utils.ts`
+- `src/app/api/shop/order` — public shop checkout (POST → `comenzi`, service role); notificare fermier opțională Resend în `src/lib/shop/notify-farmer-shop-order.ts` (vezi `AGENTS.md` / env)
+- `src/app/api/association/producer-profile` — update profil public producător (admin/moderator asociație)
+- `src/app/api/association/producer-photos` — upload/delete poze fermă pentru profilul public
+- `src/app/api/association/settings` — salvează setările publice ale asociației în Storage JSON
 - `src/app/auth/callback/route.ts` Supabase auth callback completion
 - `src/app/layout.tsx` root layout, analytics, monitoring, toaster
 - `src/app/providers.tsx` React Query and auth/add-action providers
@@ -38,6 +43,8 @@ Main categories:
 - `src/components/ui` reusable primitive UI components
 - `src/components/layout` navigation shell components
 - module folders like `parcele`, `recoltari`, `vanzari`, `comenzi`, `clienti`, `activitati-agricole`, `vanzari-butasi`
+- `src/components/association/producatori/ProducerProfileEditor.tsx` dialog/sheet pentru profil public producător
+- `src/components/association/settings/AssociationSettingsClient.tsx` ecran funcțional pentru branding/program magazin asociație
 - `src/components/landing` marketing/landing page sections
 
 ### `src/lib`
@@ -47,6 +54,7 @@ Shared business logic and infrastructure.
 Notable subfolders:
 
 - `analytics` custom analytics event insertion
+- `association` helpers pentru auth, queries, și setările publice ale hub-ului asociației
 - `api` route security helpers
 - `auth` tenant creation, redirects, superadmin checks
 - `alerts` smart alert generation
@@ -153,7 +161,7 @@ Repository documentation. This folder now includes persistent AI context files.
 - `/rapoarte`
 - `/planuri`
 - `/settings`
-- `/admin/*` for superadmin-only screens
+- `/admin/*` for superadmin-only screens (analytics dashboard: `src/lib/admin/analytics-dashboard-data.ts` + `src/components/admin/analytics/`)
 
 ### API Routes
 
@@ -197,7 +205,7 @@ Implementation note:
 
 ## Infrastructure Files
 
-- `src/proxy.ts` request guard and tenant header injector
+- `src/proxy.ts` request guard and tenant header injector (Next.js 16: `export const config` in the same file; no separate `middleware.ts`)
 - `src/lib/tenant/destructive-cleanup.ts` canonical tenant-scoped destructive delete order shared by reset/GDPR/demo cleanup flows
 - `src/lib/offline/syncables.ts` local allowlist for tables that may use the generic idempotent sync RPC
 - `src/lib/prefetch-idle.ts` constrained-network-aware idle prefetch helper used by mobile/dashboard navigation
@@ -205,7 +213,7 @@ Implementation note:
 - `next.config.js` PWA + Sentry config, plus conditional bundle analyzer support when `ANALYZE=true`
 - `vercel.json` cron schedules
 - `playwright.config.ts` E2E config
-- `instrumentation.ts` and `instrumentation-client.ts` Sentry instrumentation
+- `src/instrumentation.ts` + `src/instrumentation-client.ts` — singurele hook-uri Next pentru Sentry; `sentry.server.config.ts` / `sentry.edge.config.ts` la rădăcină; `src/lib/monitoring/sentry-runtime.ts` (release + rate-uri comune), `sentry-options.ts`, `sentry.ts`
 
 ## Structural Notes And Anomalies
 

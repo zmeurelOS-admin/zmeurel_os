@@ -1,4 +1,4 @@
-﻿# Audit Part 4 - Quality (read-only)
+# Audit Part 4 - Quality (read-only)
 
 Data audit: 2026-03-07
 
@@ -46,8 +46,8 @@ Da.
 Fișiere relevante:
 - `next.config.js` (wrap cu `withSentryConfig`)
 - `sentry.server.config.ts` (init server)
-- `instrumentation.ts` (register + `onRequestError`)
-- `instrumentation-client.ts` (init client + `onRouterTransitionStart`)
+- `src/instrumentation.ts` (register + `onRequestError`)
+- `src/instrumentation-client.ts` (init client + `onRouterTransitionStart`)
 - `src/components/app/MonitoringInit.tsx`
 - `src/lib/monitoring/useSentryUser.ts` (setează user în Sentry)
 

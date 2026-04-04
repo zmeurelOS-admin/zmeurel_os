@@ -22,9 +22,16 @@ import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
 import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
 import { Button } from '@/components/ui/button'
+import {
+  DesktopInspectorPanel,
+  DesktopInspectorSection,
+  DesktopSplitPane,
+  DesktopToolbar,
+} from '@/components/ui/desktop'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -159,44 +166,48 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
   const furnizor = (cheltuiala.furnizor ?? '').trim()
 
   const titleText = categorie || 'Altele'
-  const subtitleText = furnizor || descriere || undefined
+  const subtitleText = furnizor || 'Furnizor nespecificat'
   const dateLabel = cheltuiala.data ? formatCheltuialaStatusLabel(cheltuiala.data) : undefined
-  const autoLabel = isAuto ? 'Auto' : undefined
+  const metaText =
+    descriere.length > 0 ? `${descriere.slice(0, 72)}${descriere.length > 72 ? '…' : ''}` : undefined
+  const autoLabel = isAuto ? 'Automat' : 'Manual'
 
   return (
     <MobileEntityCard
       title={titleText}
       icon={<span aria-hidden>{emoji}</span>}
-      mainValue={`${formatRon(suma)} lei`}
+      mainValue={`${formatRon(suma)} RON`}
       subtitle={subtitleText}
       secondaryValue={dateLabel}
+      meta={metaText}
       statusLabel={autoLabel}
-      statusTone="neutral"
+      statusTone={isAuto ? 'warning' : 'neutral'}
+      showChevron
       onClick={onToggle}
       bottomSlot={isExpanded ? (
         <>
-          <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text)]">
+          <div className="flex flex-wrap gap-2 text-xs text-[var(--text-primary)]">
             <span>
-              <span className="text-[var(--agri-text-muted)]">Categorie: </span>
+              <span className="text-[var(--text-secondary)]">Categorie: </span>
               <span className="font-semibold">{cheltuiala.categorie || 'Altele'}</span>
             </span>
             <span>
-              <span className="text-[var(--agri-text-muted)]">Sumă: </span>
-              <span className="font-semibold text-[var(--value-negative)]">{formatRon(suma)} RON</span>
+              <span className="text-[var(--text-secondary)]">Sumă: </span>
+              <span className="font-semibold text-[var(--danger-text)]">{formatRon(suma)} RON</span>
             </span>
             <span>
-              <span className="text-[var(--agri-text-muted)]">Data: </span>
+              <span className="text-[var(--text-secondary)]">Data: </span>
               <span className="font-semibold">{new Date(cheltuiala.data).toLocaleDateString('ro-RO')}</span>
             </span>
             {cheltuiala.furnizor ? (
               <span>
-                <span className="text-[var(--agri-text-muted)]">Furnizor: </span>
+                <span className="text-[var(--text-secondary)]">Furnizor: </span>
                 <span className="font-semibold">{cheltuiala.furnizor}</span>
               </span>
             ) : null}
             {cheltuiala.descriere ? (
               <span>
-                <span className="text-[var(--agri-text-muted)]">Observații: </span>
+                <span className="text-[var(--text-secondary)]">Observații: </span>
                 <span className="font-semibold">{cheltuiala.descriere}</span>
               </span>
             ) : null}
@@ -240,6 +251,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Cheltuiala; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
+  const autoFilterAdjustedRef = useRef(false)
 
   const [search, setSearch] = useState('')
   const [temporalFilter, setTemporalFilter] = useState<TemporalFilter>('luna')
@@ -248,6 +260,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   const [editing, setEditing] = useState<Cheltuiala | null>(null)
   const [deleting, setDeleting] = useState<Cheltuiala | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [desktopSelectedCheltuialaId, setDesktopSelectedCheltuialaId] = useState<string | null>(null)
 
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = searchParams.get('openForm') === '1'
@@ -486,6 +499,30 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
     })
   }, [searched, temporalFilter, todayIso, weekStartIso, monthStartIso])
 
+  const desktopSelectedCheltuiala =
+    filtered.find((row) => row.id === desktopSelectedCheltuialaId) ?? filtered[0] ?? null
+
+  const filteredTotalRon = useMemo(
+    () => filtered.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0),
+    [filtered],
+  )
+
+  useEffect(() => {
+    if (autoFilterAdjustedRef.current) return
+    if (isLoading || isError) return
+    if (search.trim()) return
+    if (temporalFilter !== 'luna') return
+    if (cheltuieli.length === 0) return
+    if (filtered.length > 0) return
+
+    // Dacă există date, dar "Luna" nu are rezultate, evităm impresia că datele lipsesc.
+    const timer = window.setTimeout(() => {
+      setTemporalFilter('toate')
+    }, 0)
+    autoFilterAdjustedRef.current = true
+    return () => window.clearTimeout(timer)
+  }, [cheltuieli.length, filtered.length, isError, isLoading, search, temporalFilter])
+
   const PILL_FILTERS: { key: TemporalFilter; label: string }[] = [
     { key: 'luna', label: 'Luna' },
     { key: 'sapt', label: 'Săpt.' },
@@ -579,21 +616,21 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       header={<PageHeader title="Cheltuieli" subtitle="Monitorizare costuri operaționale" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3 md:max-w-7xl">
 
         {/* SCOREBOARD */}
         {scoreboard.totalLuna > 0 ? (
           <ModuleScoreboard className="mb-2">
             <span>
-              <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--value-negative)]">
+              <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--danger-text)]">
                 {formatRon(scoreboard.totalLuna)}
               </span>
-              <span className="ml-1 text-[10px] font-medium text-[var(--text-hint)]">RON</span>
+              <span className="ml-1 text-[10px] font-medium text-[var(--text-secondary)]">RON</span>
             </span>
             {scoreboard.topCategorie ? (
               <span className="text-[11px]">
-                <span className="text-[var(--agri-text-muted)]">Top: </span>
-                <strong className="text-[var(--agri-text)]">{scoreboard.topCategorie}</strong>
+                <span className="text-[var(--text-secondary)]">Top: </span>
+                <strong className="text-[var(--text-primary)]">{scoreboard.topCategorie}</strong>
               </span>
             ) : null}
           </ModuleScoreboard>
@@ -611,17 +648,42 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
           ))}
         </ModulePillRow>
 
-        {/* SEARCH */}
+        {/* SEARCH mobil */}
         {cheltuieli.length > 5 ? (
-          <div style={{ marginBottom: 10 }}>
+          <div className="mb-2.5 md:hidden">
             <SearchField
-              containerClassName="md:hidden"
               placeholder="Caută categorie, descriere, furnizor..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Caută cheltuieli"
             />
           </div>
+        ) : null}
+
+        {!isLoading && !isError && cheltuieli.length > 0 ? (
+          <DesktopToolbar
+            className="hidden md:flex"
+            trailing={
+              <div className="flex flex-wrap items-center justify-end gap-x-2 text-sm text-[var(--text-secondary)]">
+                <span>
+                  <span className="font-semibold text-[var(--danger-text)]">{formatRon(filteredTotalRon)}</span>
+                  <span className="ml-1 text-xs text-[var(--text-tertiary)]">RON în filtru</span>
+                </span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span>
+                  {filtered.length} {filtered.length === 1 ? 'înregistrare' : 'înregistrări'}
+                </span>
+              </div>
+            }
+          >
+            <SearchField
+              containerClassName="w-full max-w-md min-w-[200px]"
+              placeholder="Caută categorie, descriere, furnizor..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Caută cheltuieli (desktop)"
+            />
+          </DesktopToolbar>
         ) : null}
 
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
@@ -631,32 +693,165 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         {!isLoading && !isError && filtered.length === 0 ? (
           <ModuleEmptyCard
             emoji="📉"
-            title="Nicio cheltuială înregistrată"
-            hint="Adaugă prima cheltuială cu butonul +"
+            title={cheltuieli.length > 0 ? 'Nu există rezultate pentru filtrele curente' : 'Nicio cheltuială înregistrată'}
+            hint={
+              cheltuieli.length > 0
+                ? 'Schimbă perioada sau caută după alt termen'
+                : 'Adaugă prima cheltuială cu butonul +'
+            }
           />
         ) : null}
 
         {/* LIST */}
         {!isLoading && !isError && filtered.length > 0 ? (
-          <ResponsiveDataView
-            columns={desktopColumns}
-            data={filtered}
-            getRowId={(row) => row.id}
-            mobileContainerClassName="grid-cols-1"
-            searchPlaceholder="Caută în cheltuieli..."
-            emptyMessage="Nu am găsit cheltuieli pentru filtrele curente."
-            renderCard={(cheltuiala) => (
-              <CheltuialaCardNew
-                cheltuiala={cheltuiala}
-                isExpanded={expandedId === cheltuiala.id}
-                onToggle={() => setExpandedId(expandedId === cheltuiala.id ? null : cheltuiala.id)}
-                onEdit={() => {
-                  setEditing(cheltuiala)
-                  setEditOpen(true)
-                }}
-                onDelete={() => setDeleting(cheltuiala)}
+          <DesktopSplitPane
+            master={
+              <ResponsiveDataView
+                columns={desktopColumns}
+                data={filtered}
+                getRowId={(row) => row.id}
+                mobileContainerClassName="grid-cols-1"
+                searchPlaceholder="Caută în cheltuieli..."
+                emptyMessage="Nu am găsit cheltuieli pentru filtrele curente."
+                desktopContainerClassName="md:min-w-0"
+                skipDesktopDataFilter
+                hideDesktopSearchRow
+                onDesktopRowClick={(row) => setDesktopSelectedCheltuialaId(row.id)}
+                isDesktopRowSelected={(row) => desktopSelectedCheltuiala?.id === row.id}
+                renderCard={(cheltuiala) => (
+                  <CheltuialaCardNew
+                    cheltuiala={cheltuiala}
+                    isExpanded={expandedId === cheltuiala.id}
+                    onToggle={() => setExpandedId(expandedId === cheltuiala.id ? null : cheltuiala.id)}
+                    onEdit={() => {
+                      setEditing(cheltuiala)
+                      setEditOpen(true)
+                    }}
+                    onDelete={() => setDeleting(cheltuiala)}
+                  />
+                )}
               />
-            )}
+            }
+            detail={
+              <DesktopInspectorPanel
+                title="Detalii cheltuială"
+                description={
+                  desktopSelectedCheltuiala
+                    ? `${desktopSelectedCheltuiala.id_cheltuiala || desktopSelectedCheltuiala.id.slice(0, 8)}`
+                    : undefined
+                }
+                footer={
+                  desktopSelectedCheltuiala ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="agri-cta"
+                        onClick={() => {
+                          setEditing(desktopSelectedCheltuiala)
+                          setEditOpen(true)
+                        }}
+                      >
+                        Editează
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="agri-cta"
+                        onClick={() => setDeleting(desktopSelectedCheltuiala)}
+                      >
+                        Șterge
+                      </Button>
+                    </div>
+                  ) : null
+                }
+              >
+                {desktopSelectedCheltuiala ? (
+                  (() => {
+                    const c = desktopSelectedCheltuiala
+                    const suma = Number(c.suma_lei || 0)
+                    const isAuto = isAutoManoperaCheltuiala(c)
+                    const emoji = cheltuialaCategoryEmoji(c.categorie)
+
+                    return (
+                      <>
+                        <DesktopInspectorSection label="Sumar">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-lg" aria-hidden>
+                              {emoji}
+                            </span>
+                            <span className="text-lg font-bold text-[var(--danger-text)]">
+                              {formatRon(suma)} RON
+                            </span>
+                            <StatusBadge
+                              text={isAuto ? 'Automat (manoperă)' : 'Manual'}
+                              variant={isAuto ? 'warning' : 'neutral'}
+                            />
+                          </div>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Categorie / dată / tip">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Categorie: </span>
+                            {c.categorie || 'Altele'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Data: </span>
+                            {c.data
+                              ? new Date(c.data).toLocaleDateString('ro-RO', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })
+                              : '—'}
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)]">
+                            {formatCheltuialaStatusLabel(c.data) || '—'}
+                          </p>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Furnizor / descriere">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Furnizor: </span>
+                            {c.furnizor?.trim() || '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Descriere: </span>
+                            {c.descriere?.trim() || '—'}
+                          </p>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Valoare / context">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Sumă: </span>
+                            {formatRon(suma)} RON
+                          </p>
+                          {c.document_url ? (
+                            <p>
+                              <span className="font-medium text-[var(--text-primary)]">Document: </span>
+                              <a
+                                href={c.document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--focus-ring)] underline underline-offset-2"
+                              >
+                                Deschide link
+                              </a>
+                            </p>
+                          ) : null}
+                          {c.sync_status ? (
+                            <p className="text-xs text-[var(--text-tertiary)]">
+                              Sincronizare: {c.sync_status}
+                            </p>
+                          ) : null}
+                        </DesktopInspectorSection>
+                      </>
+                    )
+                  })()
+                ) : (
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Selectează o cheltuială din tabel pentru a vedea detaliile.
+                  </p>
+                )}
+              </DesktopInspectorPanel>
+            }
           />
         ) : null}
 

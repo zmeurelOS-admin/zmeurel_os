@@ -431,6 +431,7 @@ export default function LoginPageClient() {
 
                   <Button
                     type="submit"
+                    data-testid="login-register-submit"
                     className="h-11 w-full rounded-xl bg-[var(--agri-primary)] text-white hover:bg-emerald-700"
                     disabled={registerLoading || googleLoading}
                   >

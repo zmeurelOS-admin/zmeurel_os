@@ -45,10 +45,10 @@ type PeriodFilter = 'luna' | 'toate'
 
 function statusLabel(status: string): string {
   const normalized = status.toLowerCase()
-  if (normalized === 'livrata') return '✅ Livrată'
-  if (normalized === 'anulata') return '❌ Anulată'
-  if (normalized === 'confirmata' || normalized === 'pregatita') return '🔵 În curs'
-  return '🟡 Nouă'
+  if (normalized === 'livrata') return 'Livrată'
+  if (normalized === 'anulata') return 'Anulată'
+  if (normalized === 'confirmata' || normalized === 'pregatita') return 'În curs'
+  return 'Nouă'
 }
 
 // ─── Inline card component ────────────────────────────────────────────────────
@@ -66,9 +66,12 @@ function ButasiCardNew({
   const totalButasi = (vanzare.items ?? []).reduce((sum, item) => sum + Number(item.cantitate || 0), 0)
   const firstItem = vanzare.items?.[0]
   const soi = firstItem?.soi || 'Butași'
-  const subtitle = `${soi} · ${totalButasi} buc`
+  const subtitle = vanzare.data_comanda
+    ? `Comandă ${new Date(vanzare.data_comanda).toLocaleDateString('ro-RO')}`
+    : 'Dată nespecificată'
+  const secondaryValue = `${soi} • ${totalButasi} buc`
   const valoare = Number(vanzare.total_lei || 0)
-  const mainValue = `${valoare.toFixed(0)} lei`
+  const mainValue = `${valoare.toFixed(0)} RON`
   
   // Mapare status la StatusBadge variant
   const getStatusVariant = (status: string): 'success' | 'warning' | 'danger' | 'neutral' => {
@@ -84,8 +87,10 @@ function ButasiCardNew({
       title={title}
       mainValue={mainValue}
       subtitle={subtitle}
+      secondaryValue={secondaryValue}
       statusLabel={statusLabel(vanzare.status)}
       statusTone={getStatusVariant(vanzare.status)}
+      showChevron
       onClick={onEdit}
     />
   )
@@ -328,7 +333,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
 
         {/* Cards */}
         {!isLoading && !isError && filteredVanzari.length > 0 ? (
-          <div>
+          <div className="space-y-3">
             {filteredVanzari.map((vanzare) => (
               <ButasiCardNew
                 key={vanzare.id}

@@ -1,11 +1,13 @@
 import { BottomTabBar } from '@/components/app/BottomTabBar'
+import { DashboardContextSync } from '@/components/app/DashboardContextSync'
 import { DemoBanner } from '@/components/app/DemoBanner'
+import { PushPermissionBanner } from '@/components/notifications/PushPermissionBanner'
 import { AiPanel } from '@/components/ai/AiPanel'
-import { Sidebar } from '@/components/layout/Sidebar'
-import AiFab from '@/components/ui/AiFab'
-import ManualAddFab from '@/components/ui/ManualAddFab'
+import { DashboardSidebarLoader } from '@/components/layout/DashboardSidebarLoader'
+import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
+import { getAssociationRole } from '@/lib/association/auth'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 
@@ -28,33 +30,45 @@ export default async function DashboardLayout({ children }: { children: React.Re
     throw new Error('DashboardLayout requires an authenticated user. Access should be guarded by src/proxy.ts.')
   }
 
+  let associationShopApproved = false
+  let farmName: string | null = null
+  const tenantIdForAuth =
+    typeof tenantIdFromProxy === 'string' && tenantIdFromProxy ? tenantIdFromProxy : null
+  if (tenantIdForAuth) {
+    const { data: tenantRow } = await supabase
+      .from('tenants')
+      .select('is_association_approved, nume_ferma')
+      .eq('id', tenantIdForAuth)
+      .maybeSingle()
+    associationShopApproved = tenantRow?.is_association_approved === true
+    farmName = tenantRow?.nume_ferma ?? null
+  }
+
   const initialAuth = {
     userId: user.id,
     email: user.email ?? null,
     isSuperAdmin: await isSuperAdmin(supabase, user.id),
-    tenantId: typeof tenantIdFromProxy === 'string' && tenantIdFromProxy ? tenantIdFromProxy : null,
+    tenantId: tenantIdForAuth,
+    associationShopApproved,
+    associationRole: await getAssociationRole(user.id),
+    farmName,
   }
 
   return (
     <Providers initialAuth={initialAuth}>
       <AiPanelProvider>
-        <div className="hidden min-h-screen bg-[var(--agri-bg)] md:block">
+        <DashboardContextSync />
+        <div className="min-h-screen bg-[var(--agri-bg)]">
           <DemoBanner />
-          <Sidebar />
+          <PushPermissionBanner />
+          <DashboardSidebarLoader />
           <main className="min-h-screen transition-[margin-left] duration-300 ease-in-out md:ml-[var(--sidebar-width)]">
-            <div className="min-h-screen">{children}</div>
+            {children}
           </main>
           <AiPanel />
-        </div>
-
-        <div className="bg-[var(--agri-bg)] md:hidden">
-          <DemoBanner />
-          {children}
           <BottomTabBar />
+          <UnifiedMobileFab />
         </div>
-
-        <AiFab />
-        <ManualAddFab />
       </AiPanelProvider>
     </Providers>
   )

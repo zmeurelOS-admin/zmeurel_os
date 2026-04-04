@@ -90,43 +90,43 @@ function temporalBadgeForActivity(activity: ActivitateAgricola, today: Date): Te
     if (remaining > 2) {
       return {
         label: `⏳ Pauză ${remaining} zile`,
-        className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+        className: 'border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)]',
       }
     }
     if (remaining >= 1 && remaining <= 2) {
       return {
         label: `⚠️ Încă ${remaining} zile`,
-        className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+        className: 'border border-[var(--warning-border)] bg-[var(--warning-bg)] text-[var(--warning-text)]',
       }
     }
     return {
       label: '✅ Sigur de cules',
-      className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      className: 'border border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success-text)]',
     }
   }
 
   if (daysSince === 0) {
     return {
       label: 'azi',
-      className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+      className: 'border border-[var(--neutral-border)] bg-[var(--neutral-bg)] text-[var(--neutral-text)]',
     }
   }
   if (daysSince === 1) {
     return {
       label: 'ieri',
-      className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+      className: 'border border-[var(--neutral-border)] bg-[var(--neutral-bg)] text-[var(--neutral-text)]',
     }
   }
   if (daysSince !== null) {
     return {
       label: `acum ${daysSince} zile`,
-      className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+      className: 'border border-[var(--neutral-border)] bg-[var(--neutral-bg)] text-[var(--neutral-text)]',
     }
   }
 
   return {
     label: 'fără dată',
-    className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    className: 'border border-[var(--neutral-border)] bg-[var(--neutral-bg)] text-[var(--neutral-text)]',
   }
 }
 
@@ -148,7 +148,7 @@ const QUICK_ADD_PILLS = [
 const SECTION_LABEL_STYLE: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 700,
-  color: 'var(--text-hint)',
+  color: 'var(--text-tertiary)',
   letterSpacing: '0.07em',
   textTransform: 'uppercase',
   marginBottom: 8,
@@ -353,7 +353,7 @@ export default function ActivitatiPage() {
       bottomBar={
         <StickyActionBar>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--agri-text-muted)]">Total activități: {activitati.length}</p>
+            <p className="text-sm font-medium text-[var(--text-secondary)]">Total activități: {activitati.length}</p>
           </div>
         </StickyActionBar>
       }
@@ -364,7 +364,7 @@ export default function ActivitatiPage() {
         {stareParceleRows.length > 0 ? (
           <div>
             <span style={SECTION_LABEL_STYLE}>Stare terenuri</span>
-            <div style={{ background: 'var(--agri-surface)', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--agri-border)' }}>
+            <div style={{ background: 'var(--surface-card)', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border-default)' }}>
               {stareParceleRows.map((row) => {
                 const badge = row.latest ? temporalBadgeForActivity(row.latest, today) : null
                 const emoji = activityEmojiByTip(row.latest?.tip_activitate)
@@ -373,7 +373,7 @@ export default function ActivitatiPage() {
                     key={row.parcela.id}
                     type="button"
                     onClick={() => setSelectedParcelaId((prev) => (prev === row.parcela.id ? null : row.parcela.id))}
-                    className="w-full cursor-pointer border-b border-[var(--surface-divider)] px-3 py-2.5 text-left last:border-b-0 dark:border-slate-700/80"
+                    className="w-full cursor-pointer border-b border-[var(--divider)] px-3 py-2.5 text-left last:border-b-0"
                     style={{
                       width: '100%',
                       textAlign: 'left',
@@ -388,10 +388,10 @@ export default function ActivitatiPage() {
                   >
                     <span style={{ fontSize: 15, flexShrink: 0 }}>{row.latest ? emoji : '📋'}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--agri-text)' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
                         {row.parcela.nume_parcela || 'Teren'}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 1 }}>
+                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 1 }}>
                         {row.latest
                           ? `${activityDisplayLabel(row.latest.tip_activitate)} · ${formatDateShort(row.latest.data_aplicare)}`
                           : 'Nicio activitate'}
@@ -400,7 +400,7 @@ export default function ActivitatiPage() {
                     {badge ? (
                       <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
                     ) : (
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                      <span className="rounded-full border border-[var(--neutral-border)] bg-[var(--neutral-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--neutral-text)]">
                         Nicio activitate
                       </span>
                     )}
@@ -510,10 +510,10 @@ export default function ActivitatiPage() {
         {isLoading ? <LoadingState label="Se încarcă activitățile..." /> : null}
 
         {!isLoading && !isError && activitati.length === 0 ? (
-          <div style={{ borderRadius: 12, background: 'var(--agri-surface)', border: '1px solid var(--agri-border)', padding: '20px 16px', textAlign: 'center' }}>
+          <div style={{ borderRadius: 12, background: 'var(--surface-card)', border: '1px solid var(--border-default)', padding: '20px 16px', textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>✂️</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--agri-text)', marginBottom: 4 }}>Nicio activitate înregistrată</div>
-            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>Adaugă prima activitate folosind butoanele rapide de sus</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Nu ai înregistrat activități recente</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Adaugă activități pentru un istoric complet</div>
           </div>
         ) : null}
 
@@ -533,7 +533,7 @@ export default function ActivitatiPage() {
               const isExpanded = expandedCardId === a.id
 
               return (
-                <div key={a.id} className="rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-3.5 shadow-[var(--agri-shadow)] dark:bg-slate-800">
+                <div key={a.id} className="rounded-[var(--agri-radius-lg)] border border-[var(--border-default)] bg-[var(--surface-card)] p-3.5 shadow-[var(--shadow-soft)]">
                   <button
                     type="button"
                     className="w-full text-left"
@@ -541,7 +541,7 @@ export default function ActivitatiPage() {
                     aria-expanded={isExpanded}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0 text-sm font-semibold text-[var(--agri-text)]">
+                      <div className="min-w-0 text-sm font-semibold text-[var(--text-primary)]">
                         {activityEmojiByTip(a.tip_activitate)} {activityDisplayLabel(a.tip_activitate)}
                       </div>
                       <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>
@@ -549,37 +549,37 @@ export default function ActivitatiPage() {
                       </span>
                     </div>
                     <div className="mt-1.5 flex items-center justify-between gap-2">
-                      <p className="truncate text-xs text-[var(--agri-text-muted)]">
+                      <p className="truncate text-xs text-[var(--text-secondary)]">
                         {[a.produs_utilizat, a.doza].filter(Boolean).join(' · ') || 'Fără produs/doză'}
                       </p>
-                      <p className="truncate text-xs text-[var(--agri-text-muted)]">{parcelaName}</p>
+                      <p className="truncate text-xs text-[var(--text-secondary)]">{parcelaName}</p>
                     </div>
                   </button>
 
                   {isExpanded ? (
-                    <div className="mt-3 space-y-2 border-t border-[var(--agri-border)] pt-3 dark:border-slate-700">
-                      <p className="text-xs text-[var(--agri-text-muted)]">
-                        <span className="font-semibold text-[var(--agri-text)]">Data:</span>{' '}
+                    <div className="mt-3 space-y-2 border-t border-[var(--divider)] pt-3">
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">Data:</span>{' '}
                         {a.data_aplicare ? new Date(a.data_aplicare).toLocaleDateString('ro-RO') : '-'}
                       </p>
-                      <p className="text-xs text-[var(--agri-text-muted)]">
-                        <span className="font-semibold text-[var(--agri-text)]">Parcelă:</span> {parcelaName}
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">Parcelă:</span> {parcelaName}
                       </p>
-                      <p className="text-xs text-[var(--agri-text-muted)]">
-                        <span className="font-semibold text-[var(--agri-text)]">Observații:</span> {a.observatii?.trim() || '—'}
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">Observații:</span> {a.observatii?.trim() || '—'}
                       </p>
 
                       <div className="mt-2 flex gap-2">
                         <button
                           type="button"
-                          className="flex-1 rounded-lg border border-amber-200 bg-amber-100/70 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-900/25 dark:text-amber-300"
+                          className="flex-1 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--warning-text)] transition hover:brightness-[0.98]"
                           onClick={() => setEditingActivity(a)}
                         >
                           ✏️ Edit
                         </button>
                         <button
                           type="button"
-                          className="flex-1 rounded-lg border border-red-200 bg-red-100/70 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-900/25 dark:text-red-300"
+                          className="flex-1 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--danger-text)] transition hover:brightness-[0.98]"
                           onClick={() => {
                             const confirmed = window.confirm('Ștergi această activitate?')
                             if (confirmed) deleteMutation.mutate(a.id)

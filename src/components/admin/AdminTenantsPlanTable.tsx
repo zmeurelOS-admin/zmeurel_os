@@ -31,6 +31,7 @@ export interface AdminTenantRow {
   created_at: string | null
   parcels_count: number
   users_count: number
+  is_association_approved: boolean
 }
 
 interface PendingPlanChange {
@@ -62,6 +63,65 @@ function planBadgeClass(plan: SubscriptionPlan): string {
 export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProps) {
   const [rows, setRows] = useState<AdminTenantRow[]>(initialRows)
   const [pendingChange, setPendingChange] = useState<PendingPlanChange | null>(null)
+
+  const updateAssociationMutation = useMutation({
+    mutationFn: async (payload: { tenantId: string; next: boolean; tenantName: string }) => {
+      const response = await fetch('/api/admin/tenant-association', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenantId: payload.tenantId,
+          isAssociationApproved: payload.next,
+        }),
+      })
+
+      const result = (await response.json()) as {
+        ok?: boolean
+        error?: string | { code?: string | null; message?: string | null }
+      }
+
+      if (!response.ok || !result.ok) {
+        const message =
+          typeof result.error === 'string'
+            ? result.error
+            : result.error?.message
+        const code =
+          typeof result.error === 'string'
+            ? null
+            : result.error?.code
+        throw new Error([message, code].filter(Boolean).join(' | ') || 'Nu am putut actualiza magazinul asociației.')
+      }
+
+      return result
+    },
+    onSuccess: (_data, payload) => {
+      setRows((current) =>
+        current.map((row) =>
+          row.tenant_id === payload.tenantId
+            ? {
+                ...row,
+                is_association_approved: payload.next,
+              }
+            : row
+        )
+      )
+      toast.success(
+        payload.next
+          ? `${payload.tenantName} apare acum în magazinul asociației.`
+          : `${payload.tenantName} nu mai apare în magazinul asociației.`
+      )
+    },
+    onError: (error) => {
+      const message = (error as { message?: string })?.message ?? 'Nu am putut actualiza setarea.'
+      if (message.includes('FORBIDDEN')) {
+        toast.error('Doar superadmin poate modifica această setare.')
+        return
+      }
+      toast.error(message)
+    },
+  })
 
   const updatePlanMutation = useMutation({
     mutationFn: async (payload: PendingPlanChange) => {
@@ -128,7 +188,8 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
       <CardHeader>
         <CardTitle className="text-lg">Tenanti</CardTitle>
         <CardDescription>
-          Superadmin poate vedea toate fermele ți poate modifica planul de abonament.
+          Superadmin poate vedea toate fermele, poate modifica planul de abonament și vizibilitatea în magazinul
+          asociației.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -157,6 +218,7 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
                 <TableHead>Creat la</TableHead>
                 <TableHead className="text-right">Terenuri</TableHead>
                 <TableHead className="text-right">Utilizatori</TableHead>
+                <TableHead className="text-center">Magazin asociație</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,6 +269,27 @@ export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProp
                     <TableCell>{createdAt}</TableCell>
                     <TableCell className="text-right font-semibold">{row.parcels_count}</TableCell>
                     <TableCell className="text-right font-semibold">{row.users_count}</TableCell>
+                    <TableCell className="text-center">
+                      <label className="inline-flex cursor-pointer items-center gap-2">
+                        <span className="sr-only">Apare în magazinul asociației</span>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)] focus:ring-[var(--agri-primary)]"
+                          checked={row.is_association_approved}
+                          disabled={
+                            updateAssociationMutation.isPending &&
+                            updateAssociationMutation.variables?.tenantId === row.tenant_id
+                          }
+                          onChange={(e) => {
+                            updateAssociationMutation.mutate({
+                              tenantId: row.tenant_id,
+                              next: e.target.checked,
+                              tenantName: row.tenant_name,
+                            })
+                          }}
+                        />
+                      </label>
+                    </TableCell>
                   </TableRow>
                 )
               })}

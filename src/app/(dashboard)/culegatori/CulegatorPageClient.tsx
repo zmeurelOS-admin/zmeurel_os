@@ -7,6 +7,7 @@ import { Pencil, Trash2, UserRound } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { AppDialog } from '@/components/app/AppDialog'
 import { ModuleEmptyCard, ModuleScoreboard } from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
@@ -15,10 +16,18 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
 import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
 import { Button } from '@/components/ui/button'
+import {
+  DesktopInspectorPanel,
+  DesktopInspectorSection,
+  DesktopSplitPane,
+  DesktopToolbar,
+} from '@/components/ui/desktop'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
+import StatusBadge from '@/components/ui/StatusBadge'
 import { useAddAction } from '@/contexts/AddActionContext'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { queryKeys } from '@/lib/query-keys'
 import {
   createCulegator,
@@ -80,23 +89,38 @@ function getRecoltareKg(recoltare: Recoltare): number {
 function CulegatorCardNew({
   culegator,
   stats,
-  onEdit,
+  onOpenDetails,
 }: {
   culegator: Culegator
   stats: WorkerStats | undefined
-  onEdit: () => void
+  onOpenDetails: () => void
 }) {
   const seasonKg = stats?.seasonKg ?? 0
   const seasonCount = stats?.seasonCount ?? 0
-  const mainValue = `${seasonKg.toFixed(0)} kg`
-  const secondary = seasonCount > 0 ? `${seasonCount} recoltări${culegator.telefon ? ` · ${culegator.telefon}` : ''}` : culegator.telefon || undefined
+  const todayKg = stats?.todayKg ?? 0
+  const lastSignal = stats?.lastRecoltare
+    ? `Ultima: ${stats.lastRecoltare.date} · ${stats.lastRecoltare.parcela}`
+    : undefined
+  const mainValue = `${seasonKg.toFixed(0)} kg sezon`
+  const subtitle = culegator.telefon || 'Fără telefon'
+  const secondaryValue = [
+    seasonCount > 0 ? `${seasonCount} recoltări` : null,
+    todayKg > 0 ? `${todayKg.toFixed(0)} kg azi` : null,
+  ].filter(Boolean).join(' • ') || undefined
+  const statusLabel = todayKg > 0 ? 'Activ azi' : seasonCount > 0 ? 'Activ sezon' : 'Fără activitate'
+  const statusTone = todayKg > 0 ? 'success' : seasonCount > 0 ? 'warning' : 'neutral'
 
   return (
     <MobileEntityCard
       title={culegator.nume_prenume}
       mainValue={mainValue}
-      subtitle={secondary}
-      onClick={onEdit}
+      subtitle={subtitle}
+      secondaryValue={secondaryValue}
+      meta={lastSignal}
+      statusLabel={statusLabel}
+      statusTone={statusTone}
+      showChevron
+      onClick={onOpenDetails}
     />
   )
 }
@@ -104,6 +128,7 @@ function CulegatorCardNew({
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export function CulegatorPageClient({ initialCulegatori }: Props) {
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -112,6 +137,8 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
 
   const [searchTerm, setSearchTerm] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [detailsCulegator, setDetailsCulegator] = useState<Culegator | null>(null)
+  const [desktopSelectedCulegatorId, setDesktopSelectedCulegatorId] = useState<string | null>(null)
   const [editCulegator, setEditCulegator] = useState<Culegator | null>(null)
   const [deleting, setDeleting] = useState<Culegator | null>(null)
 
@@ -370,6 +397,11 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       }
     })
   }, [filteredCulegatori, workerStats])
+
+  const desktopSelectedRow =
+    desktopRows.find((row) => row.id === desktopSelectedCulegatorId) ?? desktopRows[0] ?? null
+  const desktopSelectedCulegator = desktopSelectedRow?.raw ?? null
+
   const desktopColumns = useMemo<ColumnDef<DesktopCulegatorRow>[]>(() => [
     {
       id: 'data',
@@ -459,7 +491,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         />
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3 md:max-w-7xl">
 
         {/* Scoreboard compact */}
         <ModuleScoreboard tone="tinted" className="gap-x-3.5 gap-y-1">
@@ -483,6 +515,26 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
           aria-label="Caută culegători"
         />
 
+        <DesktopToolbar
+          className="hidden md:flex"
+          trailing={
+            <span className="text-sm text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text-primary)]">{filteredCulegatori.length}</span>
+              <span className="ml-1">
+                {filteredCulegatori.length === 1 ? 'culegător în listă' : 'culegători în listă'}
+              </span>
+            </span>
+          }
+        >
+          <SearchField
+            containerClassName="w-full max-w-md min-w-[200px]"
+            placeholder="Caută culegător..."
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            aria-label="Caută culegători (desktop)"
+          />
+        </DesktopToolbar>
+
         {/* Error */}
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
@@ -500,24 +552,237 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
 
         {/* Cards */}
         {!isLoading && !isError && filteredCulegatori.length > 0 ? (
-          <ResponsiveDataView
-            columns={desktopColumns}
-            data={desktopRows}
-            mobileData={filteredCulegatori}
-            getRowId={(row) => row.id}
-            getMobileRowId={(row) => row.id}
-            searchPlaceholder="Caută în manoperă..."
-            emptyMessage="Nu am găsit culegători pentru filtrele curente."
-            renderCard={(culegator) => (
-              <CulegatorCardNew
-                culegator={culegator}
-                stats={workerStats.get(culegator.id)}
-                onEdit={() => setEditCulegator(culegator)}
+          <DesktopSplitPane
+            master={
+              <ResponsiveDataView
+                columns={desktopColumns}
+                data={desktopRows}
+                mobileData={filteredCulegatori}
+                mobileContainerClassName="grid-cols-1"
+                getRowId={(row) => row.id}
+                getMobileRowId={(row) => row.id}
+                searchPlaceholder="Caută în manoperă..."
+                emptyMessage="Nu am găsit culegători pentru filtrele curente."
+                desktopContainerClassName="md:min-w-0"
+                skipDesktopDataFilter
+                hideDesktopSearchRow
+                onDesktopRowClick={(row) => setDesktopSelectedCulegatorId(row.id)}
+                isDesktopRowSelected={(row) => desktopSelectedRow?.id === row.id}
+                renderCard={(culegator) => (
+                  <CulegatorCardNew
+                    culegator={culegator}
+                    stats={workerStats.get(culegator.id)}
+                    onOpenDetails={() => setDetailsCulegator(culegator)}
+                  />
+                )}
               />
-            )}
+            }
+            detail={
+              <DesktopInspectorPanel
+                title="Detalii culegător"
+                description={
+                  desktopSelectedCulegator
+                    ? `${desktopSelectedCulegator.id_culegator || desktopSelectedCulegator.id.slice(0, 8)}`
+                    : undefined
+                }
+                footer={
+                  desktopSelectedCulegator ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="agri-cta"
+                        onClick={() => setEditCulegator(desktopSelectedCulegator)}
+                      >
+                        Editează
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="agri-cta"
+                        onClick={() => setDeleting(desktopSelectedCulegator)}
+                      >
+                        Șterge
+                      </Button>
+                    </div>
+                  ) : null
+                }
+              >
+                {desktopSelectedCulegator ? (
+                  (() => {
+                    const c = desktopSelectedCulegator
+                    const stats = workerStats.get(c.id)
+                    const todayKg = stats?.todayKg ?? 0
+                    const seasonCount = stats?.seasonCount ?? 0
+                    const statusLabel =
+                      todayKg > 0 ? 'Activ azi' : seasonCount > 0 ? 'Activ sezon' : 'Fără activitate'
+                    const statusVariant =
+                      todayKg > 0 ? 'success' : seasonCount > 0 ? 'warning' : 'neutral'
+
+                    return (
+                      <>
+                        <DesktopInspectorSection label="Sumar">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusBadge text={statusLabel} variant={statusVariant} />
+                            <span className="text-xs text-[var(--text-tertiary)]">
+                              {c.status_activ ? 'În evidență (activ)' : 'Marcat inactiv'}
+                            </span>
+                          </div>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Contact / identificare">
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Nume: </span>
+                            {c.nume_prenume}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Telefon: </span>
+                            {c.telefon || '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Tip angajare: </span>
+                            {c.tip_angajare || '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Data angajării: </span>
+                            {c.data_angajare
+                              ? new Date(c.data_angajare.slice(0, 10)).toLocaleDateString('ro-RO')
+                              : '—'}
+                          </p>
+                          <p>
+                            <span className="font-medium text-[var(--text-primary)]">Tarif: </span>
+                            {Number(c.tarif_lei_kg ?? 0) > 0
+                              ? `${Number(c.tarif_lei_kg ?? 0)} RON/kg`
+                              : '—'}
+                          </p>
+                        </DesktopInspectorSection>
+                        <DesktopInspectorSection label="Activitate / recoltări">
+                          {!stats ? (
+                            <p className="text-[var(--text-tertiary)]">Nu există activitate înregistrată.</p>
+                          ) : (
+                            <>
+                              <p>
+                                <span className="font-medium text-[var(--text-primary)]">Sezon: </span>
+                                {formatKg(stats.seasonKg)} kg · {stats.seasonCount} recoltări
+                                {stats.seasonDays > 0 ? ` · ${stats.seasonDays} zile cu activitate` : null}
+                              </p>
+                              <p>
+                                <span className="font-medium text-[var(--text-primary)]">Azi: </span>
+                                {formatKg(stats.todayKg)} kg · {stats.todayCount} recoltări
+                              </p>
+                              <p>
+                                <span className="font-medium text-[var(--text-primary)]">Total (istoric): </span>
+                                {formatKg(stats.totalKg)} kg · {stats.totalCount} recoltări
+                              </p>
+                              <p>
+                                <span className="font-medium text-[var(--text-primary)]">Ultima recoltare: </span>
+                                {stats.lastRecoltare
+                                  ? `${stats.lastRecoltare.date} · ${stats.lastRecoltare.parcela} · ${formatKg(stats.lastRecoltare.kg)} kg`
+                                  : '—'}
+                              </p>
+                            </>
+                          )}
+                        </DesktopInspectorSection>
+                        {c.observatii?.trim() ? (
+                          <DesktopInspectorSection label="Observații">
+                            <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                              {c.observatii}
+                            </p>
+                          </DesktopInspectorSection>
+                        ) : null}
+                      </>
+                    )
+                  })()
+                ) : (
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Selectează un culegător din tabel pentru a vedea detaliile.
+                  </p>
+                )}
+              </DesktopInspectorPanel>
+            }
           />
         ) : null}
       </div>
+
+      <AppDialog
+        open={Boolean(detailsCulegator) && !isDesktop}
+        onOpenChange={(open) => {
+          if (!open) setDetailsCulegator(null)
+        }}
+        title={detailsCulegator?.nume_prenume || 'Detalii culegător'}
+        description="Detalii activitate și date de contact"
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDetailsCulegator(null)}
+            >
+              Închide
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (!detailsCulegator) return
+                setDetailsCulegator(null)
+                setDeleting(detailsCulegator)
+              }}
+            >
+              Șterge
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (!detailsCulegator) return
+                setDetailsCulegator(null)
+                setEditCulegator(detailsCulegator)
+              }}
+            >
+              Editează
+            </Button>
+          </div>
+        }
+      >
+        {detailsCulegator ? (
+          <div className="space-y-2 text-sm">
+            <p className="text-[var(--agri-text-muted)]">
+              Telefon: <span className="font-semibold text-[var(--agri-text)]">{detailsCulegator.telefon || '—'}</span>
+            </p>
+            <p className="text-[var(--agri-text-muted)]">
+              Tarif: <span className="font-semibold text-[var(--agri-text)]">{Number(detailsCulegator.tarif_lei_kg ?? 0)} RON/kg</span>
+            </p>
+            <p className="text-[var(--agri-text-muted)]">
+              Status: <span className="font-semibold text-[var(--agri-text)]">{detailsCulegator.status_activ ? 'Activ' : 'Inactiv'}</span>
+            </p>
+            {(() => {
+              const stats = workerStats.get(detailsCulegator.id)
+              if (!stats) {
+                return (
+                  <p className="text-[var(--agri-text-muted)]">Nu există activitate înregistrată.</p>
+                )
+              }
+              return (
+                <>
+                  <p className="text-[var(--agri-text-muted)]">
+                    Sezon: <span className="font-semibold text-[var(--agri-text)]">{formatKg(stats.seasonKg)} kg · {stats.seasonCount} recoltări</span>
+                  </p>
+                  <p className="text-[var(--agri-text-muted)]">
+                    Azi: <span className="font-semibold text-[var(--agri-text)]">{formatKg(stats.todayKg)} kg · {stats.todayCount} recoltări</span>
+                  </p>
+                  <p className="text-[var(--agri-text-muted)]">
+                    Ultima recoltare:{' '}
+                    <span className="font-semibold text-[var(--agri-text)]">
+                      {stats.lastRecoltare
+                        ? `${stats.lastRecoltare.date} · ${stats.lastRecoltare.parcela} · ${formatKg(stats.lastRecoltare.kg)} kg`
+                        : '—'}
+                    </span>
+                  </p>
+                </>
+              )
+            })()}
+          </div>
+        ) : null}
+      </AppDialog>
 
       <AddCulegatorDialog
         open={showAdd}
@@ -532,6 +797,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
           open={!!editCulegator}
           onOpenChange={(open) => { if (!open) setEditCulegator(null) }}
           culegator={editCulegator}
+          activitySummary={workerStats.get(editCulegator.id) ?? null}
           onSubmit={async (id, formData) => {
             await updateMutation.mutateAsync({ id, formData: formData as unknown as Record<string, unknown> })
           }}

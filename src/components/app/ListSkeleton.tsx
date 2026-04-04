@@ -12,20 +12,20 @@ function SkeletonContent() {
   return (
     <>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
-          <Skeleton className="h-4 w-2/3 rounded-lg" />
-          <Skeleton className="h-3 w-1/2 rounded-lg" />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <Skeleton className="h-4 w-3/5 rounded-md" />
+          <Skeleton className="h-3 w-2/5 rounded-md" />
         </div>
-        <Skeleton className="h-8 w-8 flex-shrink-0 rounded-lg" />
+        <Skeleton className="h-9 w-9 flex-shrink-0 rounded-xl" />
       </div>
-      <Skeleton className="mt-3 h-3 w-5/6 rounded-lg" />
+      <Skeleton className="mt-2.5 h-3 w-4/5 rounded-md" />
     </>
   )
 }
 
 export function ListSkeletonCard({ className }: ListSkeletonProps) {
   return (
-    <ListCard className={cn('border-[var(--agri-border)] bg-[var(--agri-surface)]', className)}>
+    <ListCard className={cn('bg-[var(--surface-card)]', className)}>
       <SkeletonContent />
     </ListCard>
   )
@@ -33,7 +33,7 @@ export function ListSkeletonCard({ className }: ListSkeletonProps) {
 
 export function ListSkeletonRow({ className }: ListSkeletonProps) {
   return (
-    <div className={cn('px-4 py-3', className)}>
+    <div className={cn('rounded-[var(--agri-radius)] border border-[var(--divider)] bg-[var(--surface-card)] px-4 py-3.5', className)}>
       <SkeletonContent />
     </div>
   )
