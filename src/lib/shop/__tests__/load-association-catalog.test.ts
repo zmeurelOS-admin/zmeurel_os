@@ -60,7 +60,21 @@ describe('loadAssociationCatalog', () => {
               if (cols.includes('nume_ferma')) {
                 return {
                   in: () =>
-                    resolveResult([{ id: TID, nume_ferma: 'Ferma Nord' }]),
+                    resolveResult([
+                      {
+                        id: TID,
+                        nume_ferma: 'Ferma Nord',
+                        logo_url: 'logos/ferma-nord.jpg',
+                        descriere_publica: 'Ferma cu zmeură și mure.',
+                        localitate: 'Suceava',
+                        website: 'fermanord.ro',
+                        facebook: 'ferma.nord',
+                        instagram: 'fermanord',
+                        whatsapp: '+40700000000',
+                        email_public: 'contact@fermanord.ro',
+                        program_piata: 'Sâmbătă, 08:00 - 12:00',
+                      },
+                    ]),
                 }
               }
               return resolveResult([
@@ -74,6 +88,11 @@ describe('loadAssociationCatalog', () => {
         }
         return {}
       },
+      storage: {
+        from: () => ({
+          getPublicUrl: (path: string) => ({ data: { publicUrl: `https://cdn.test/${path}` } }),
+        }),
+      },
       auth: { admin: { getUserById: async () => ({ data: null, error: new Error('x') }) } },
     })
 
@@ -81,6 +100,15 @@ describe('loadAssociationCatalog', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]?.displayPrice).toBe(17)
     expect(rows[0]?.farmName).toBe('Ferma Nord')
+    expect(rows[0]?.producerLogoUrl).toBe('https://cdn.test/logos/ferma-nord.jpg')
+    expect(rows[0]?.producerDescription).toBe('Ferma cu zmeură și mure.')
+    expect(rows[0]?.producerLocation).toBe('Suceava')
+    expect(rows[0]?.producerWebsite).toBe('fermanord.ro')
+    expect(rows[0]?.producerFacebook).toBe('ferma.nord')
+    expect(rows[0]?.producerInstagram).toBe('fermanord')
+    expect(rows[0]?.producerWhatsapp).toBe('+40700000000')
+    expect(rows[0]?.producerEmailPublic).toBe('contact@fermanord.ro')
+    expect(rows[0]?.producerProgramPiata).toBe('Sâmbătă, 08:00 - 12:00')
     expect(rows[0]?.pret_unitar).toBe(20)
   })
 
@@ -110,7 +138,7 @@ describe('loadAssociationCatalog', () => {
             select: (cols: string) => {
               if (cols.includes('nume_ferma')) {
                 return {
-                  in: () => resolveResult([{ id: TID, nume_ferma: 'F' }]),
+                  in: () => resolveResult([{ id: TID, nume_ferma: 'F', logo_url: null }]),
                 }
               }
               return resolveResult([
@@ -123,6 +151,11 @@ describe('loadAssociationCatalog', () => {
           return makeChain(resolveResult(prodRows))
         }
         return {}
+      },
+      storage: {
+        from: () => ({
+          getPublicUrl: (path: string) => ({ data: { publicUrl: `https://cdn.test/${path}` } }),
+        }),
       },
       auth: { admin: { getUserById: async () => ({ data: null, error: new Error('x') }) } },
     })

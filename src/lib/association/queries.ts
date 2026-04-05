@@ -5,42 +5,70 @@ import type { Database } from '@/types/supabase'
 type ProduseRow = Database['public']['Tables']['produse']['Row']
 type TenantRow = Pick<
   Database['public']['Tables']['tenants']['Row'],
-  'nume_ferma' | 'is_association_approved'
+  'nume_ferma' | 'is_association_approved' | 'is_demo'
 >
 
+export type AssociationFoodType = 'standard' | 'bio' | 'traditional' | 'ecologic'
+
 export type AssociationProduct = ProduseRow & {
+  assoc_ingrediente: string | null
+  assoc_alergeni: string | null
+  assoc_pastrare: string | null
+  assoc_valabilitate: string | null
+  assoc_tip_produs: AssociationFoodType | null
   farmName: string | null
   /** Din tenants embed — dacă e false, vitrina asociației nu publică ferma. */
   tenantIsAssociationApproved: boolean
 }
 
-export type AssociationOrderRow = Pick<
-  Database['public']['Tables']['comenzi']['Row'],
-  | 'id'
-  | 'status'
-  | 'data_comanda'
-  | 'data_livrare'
-  | 'telefon'
-  | 'locatie_livrare'
-  | 'client_nume_manual'
-  | 'client_id'
-  | 'produs_id'
-  | 'total'
-  | 'cantitate_kg'
-  | 'pret_per_kg'
-  | 'tenant_id'
-  | 'observatii'
-  | 'created_at'
-  | 'updated_at'
-  | 'linked_vanzare_id'
-  | 'data_origin'
->
+export type AssociationOrderRow = {
+  id: string
+  numar_comanda_scurt: string | null
+  status: string
+  data_comanda: string
+  data_livrare: string | null
+  telefon: string | null
+  locatie_livrare: string | null
+  client_nume_manual: string | null
+  client_id: string | null
+  produs_id: string | null
+  total: number
+  cost_livrare: number
+  cantitate_kg: number | null
+  pret_per_kg: number | null
+  tenant_id: string | null
+  observatii: string | null
+  note_interne: string | null
+  canal_confirmare: 'whatsapp' | 'sms' | 'apel' | null
+  created_at: string
+  updated_at: string
+  linked_vanzare_id: string | null
+  data_origin: string | null
+}
+
+export type AssociationOrderLine = {
+  id: string
+  produsId: string | null
+  tenantId: string | null
+  productName: string
+  farmName: string | null
+  qtyKg: number
+  unitPriceLei: number
+  lineTotalLei: number
+  observatii: string | null
+  addedByAdmin: boolean
+  sourceLabel: string
+}
 
 export type AssociationOrder = AssociationOrderRow & {
   clientName: string | null
   localitate: string | null
   farmName: string | null
   produs: Pick<ProduseRow, 'id' | 'nume' | 'pret_unitar'> | null
+  lineCount: number
+  subtotalLei: number
+  deliveryFeeLei: number
+  lines: AssociationOrderLine[]
 }
 
 export type AssociationProducerRole = 'admin' | 'moderator' | 'viewer'
@@ -51,9 +79,16 @@ export type AssociationProducer = {
   nume_ferma: string
   is_association_approved: boolean | null
   descriere_publica: string | null
+  email_public: string | null
+  facebook: string | null
+  instagram: string | null
   localitate: string | null
+  logo_url: string | null
   poze_ferma: string[]
+  program_piata: string | null
   specialitate: string | null
+  website: string | null
+  whatsapp: string | null
   activeProductCount: number
   listedProductCount: number
   ownerUserId: string | null
@@ -177,6 +212,7 @@ async function approvedTenantIds(
     .from('tenants')
     .select('id')
     .eq('is_association_approved', true)
+    .eq('is_demo', false)
 
   if (error || !data?.length) {
     return []
@@ -194,10 +230,13 @@ export async function getAssociationProducts(): Promise<AssociationProduct[]> {
       *,
       tenants!inner (
         nume_ferma,
-        is_association_approved
+        is_association_approved,
+        is_demo
       )
     `
     )
+    .eq('tenants.is_association_approved', true)
+    .eq('tenants.is_demo', false)
     .order('association_listed', { ascending: false })
     .order('created_at', { ascending: false })
 
@@ -214,6 +253,13 @@ export async function getAssociationProducts(): Promise<AssociationProduct[]> {
     void _relation
     return {
       ...(rest as ProduseRow),
+      assoc_ingrediente: (row as { assoc_ingrediente?: string | null }).assoc_ingrediente ?? null,
+      assoc_alergeni: (row as { assoc_alergeni?: string | null }).assoc_alergeni ?? null,
+      assoc_pastrare: (row as { assoc_pastrare?: string | null }).assoc_pastrare ?? null,
+      assoc_valabilitate: (row as { assoc_valabilitate?: string | null }).assoc_valabilitate ?? null,
+      assoc_tip_produs:
+        ((row as { assoc_tip_produs?: AssociationFoodType | null }).assoc_tip_produs as AssociationFoodType | null) ??
+        null,
       farmName: tenant?.nume_ferma ?? null,
       tenantIsAssociationApproved: tenant?.is_association_approved ?? false,
     }
@@ -228,6 +274,7 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
     .select(
       `
       id,
+      numar_comanda_scurt,
       status,
       data_comanda,
       data_livrare,
@@ -237,10 +284,13 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
       client_id,
       produs_id,
       total,
+      cost_livrare,
       cantitate_kg,
       pret_per_kg,
       tenant_id,
       observatii,
+      note_interne,
+      canal_confirmare,
       created_at,
       updated_at,
       linked_vanzare_id,
@@ -257,7 +307,16 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
     return []
   }
 
-  return data.map((raw) => {
+  const groups = new Map<
+    string,
+    {
+      base: AssociationOrder
+      sortCreatedAt: number
+      sortUpdatedAt: number
+    }
+  >()
+
+  for (const raw of data) {
     const r = raw as unknown as AssociationOrderRow & {
       produse: Pick<ProduseRow, 'id' | 'nume' | 'pret_unitar'> | null
       clienti: {
@@ -277,32 +336,124 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
     const clientName = cli?.nume_client ?? r.client_nume_manual ?? null
     const phone = r.telefon ?? cli?.telefon ?? null
     const localitate = r.locatie_livrare ?? cli?.adresa ?? null
+    const groupKey = [
+      phone ?? '',
+      r.data_comanda,
+      clientName ?? '',
+      localitate ?? '',
+    ].join('|')
 
-    return {
+    const line: AssociationOrderLine = {
       id: r.id,
-      status: r.status,
-      data_comanda: r.data_comanda,
-      data_livrare: r.data_livrare,
-      telefon: phone,
-      locatie_livrare: r.locatie_livrare,
-      client_nume_manual: r.client_nume_manual,
-      client_id: r.client_id,
-      produs_id: r.produs_id,
-      total: r.total,
-      cantitate_kg: r.cantitate_kg,
-      pret_per_kg: r.pret_per_kg,
-      tenant_id: r.tenant_id,
-      observatii: r.observatii,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-      linked_vanzare_id: r.linked_vanzare_id,
-      data_origin: r.data_origin,
-      clientName,
-      localitate,
+      produsId: r.produs_id,
+      tenantId: r.tenant_id,
+      productName: produs?.nume?.trim() || 'Produs',
       farmName: tnt?.nume_ferma ?? null,
-      produs: produs ?? null,
+      qtyKg: Number(r.cantitate_kg || 0),
+      unitPriceLei: Number(r.pret_per_kg || produs?.pret_unitar || 0),
+      lineTotalLei: Number(r.total || 0),
+      observatii: r.observatii,
+      addedByAdmin: (r.observatii ?? '').includes('Adăugat manual de admin'),
+      sourceLabel: (r.observatii ?? '').includes('Adăugat manual de admin')
+        ? 'Adăugat manual de admin'
+        : 'Comandă originală',
     }
-  })
+
+    const createdAtMs = new Date(r.created_at).getTime()
+    const updatedAtMs = new Date(r.updated_at).getTime()
+    const existing = groups.get(groupKey)
+
+    if (!existing) {
+      groups.set(groupKey, {
+        base: {
+          id: r.id,
+          numar_comanda_scurt: (r as { numar_comanda_scurt?: string | null }).numar_comanda_scurt ?? null,
+          status: r.status,
+          data_comanda: r.data_comanda,
+          data_livrare: r.data_livrare,
+          telefon: phone,
+          locatie_livrare: r.locatie_livrare,
+          client_nume_manual: r.client_nume_manual,
+          client_id: r.client_id,
+          produs_id: r.produs_id,
+          total: Number(r.total || 0) + Number(r.cost_livrare || 0),
+          cost_livrare: Number(r.cost_livrare || 0),
+          cantitate_kg: r.cantitate_kg,
+          pret_per_kg: r.pret_per_kg,
+          tenant_id: r.tenant_id,
+          observatii: r.observatii,
+          note_interne: r.note_interne,
+          canal_confirmare: r.canal_confirmare,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+          linked_vanzare_id: r.linked_vanzare_id,
+          data_origin: r.data_origin,
+          clientName,
+          localitate,
+          farmName: tnt?.nume_ferma ?? null,
+          produs: produs ?? null,
+          lineCount: 1,
+          subtotalLei: Number(r.total || 0),
+          deliveryFeeLei: Number(r.cost_livrare || 0),
+          lines: [line],
+        },
+        sortCreatedAt: createdAtMs,
+        sortUpdatedAt: updatedAtMs,
+      })
+      continue
+    }
+
+    const farms = new Set(
+      [existing.base.farmName, tnt?.nume_ferma ?? null]
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .map((value) => value.trim()),
+    )
+
+    existing.base.lines.push(line)
+    existing.base.lineCount += 1
+    existing.base.subtotalLei = Number((existing.base.subtotalLei + Number(r.total || 0)).toFixed(2))
+    existing.base.deliveryFeeLei = Number(
+      (existing.base.deliveryFeeLei + Number(r.cost_livrare || 0)).toFixed(2),
+    )
+    existing.base.total = Number((existing.base.subtotalLei + existing.base.deliveryFeeLei).toFixed(2))
+    existing.base.farmName = farms.size > 0 ? [...farms].join(', ') : existing.base.farmName
+    if (!existing.base.note_interne && r.note_interne) {
+      existing.base.note_interne = r.note_interne
+    }
+    if (!existing.base.canal_confirmare && r.canal_confirmare) {
+      existing.base.canal_confirmare = r.canal_confirmare
+    }
+    if (createdAtMs < existing.sortCreatedAt) {
+      existing.sortCreatedAt = createdAtMs
+      existing.base.id = r.id
+      existing.base.numar_comanda_scurt = (r as { numar_comanda_scurt?: string | null }).numar_comanda_scurt ?? null
+      existing.base.created_at = r.created_at
+      existing.base.observatii = r.observatii
+      existing.base.produs_id = r.produs_id
+      existing.base.tenant_id = r.tenant_id
+      existing.base.cantitate_kg = r.cantitate_kg
+      existing.base.pret_per_kg = r.pret_per_kg
+      existing.base.produs = produs ?? existing.base.produs
+    }
+    if (updatedAtMs > existing.sortUpdatedAt) {
+      existing.sortUpdatedAt = updatedAtMs
+      existing.base.updated_at = r.updated_at
+      existing.base.status = r.status
+    }
+  }
+
+  return [...groups.values()]
+    .map((entry) => ({
+      ...entry.base,
+      lines: entry.base.lines.sort((a, b) => a.id.localeCompare(b.id)),
+      total: Number((entry.base.subtotalLei + entry.base.deliveryFeeLei).toFixed(2)),
+    }))
+    .sort((a, b) => {
+      if (a.data_comanda === b.data_comanda) {
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      }
+      return b.data_comanda.localeCompare(a.data_comanda)
+    })
 }
 
 function parseAssociationProducerRole(
@@ -318,9 +469,10 @@ export async function getAssociationProducers(): Promise<AssociationProducer[]> 
   const { data: tenants, error: tErr } = await supabase
     .from('tenants')
     .select(
-      'id, nume_ferma, owner_user_id, is_association_approved, descriere_publica, localitate, poze_ferma, specialitate'
+      'id, nume_ferma, owner_user_id, is_association_approved, is_demo, descriere_publica, localitate, poze_ferma, specialitate, logo_url, website, facebook, instagram, whatsapp, email_public, program_piata'
     )
     .eq('is_association_approved', true)
+    .eq('is_demo', false)
     .order('nume_ferma', { ascending: true })
 
   if (tErr || !tenants?.length) {
@@ -378,9 +530,16 @@ export async function getAssociationProducers(): Promise<AssociationProducer[]> 
         nume_ferma: t.nume_ferma ?? '',
         is_association_approved: t.is_association_approved,
         descriere_publica: t.descriere_publica ?? null,
+        email_public: t.email_public ?? null,
+        facebook: t.facebook ?? null,
+        instagram: t.instagram ?? null,
         localitate: t.localitate ?? 'Suceava',
+        logo_url: t.logo_url ?? null,
         poze_ferma: Array.isArray(t.poze_ferma) ? t.poze_ferma.filter((url) => typeof url === 'string') : [],
+        program_piata: t.program_piata ?? null,
         specialitate: t.specialitate ?? null,
+        website: t.website ?? null,
+        whatsapp: t.whatsapp ?? null,
         activeProductCount: 0,
         listedProductCount: 0,
         ownerUserId: uid ?? null,
@@ -415,9 +574,16 @@ export async function getAssociationProducers(): Promise<AssociationProducer[]> 
       nume_ferma: t.nume_ferma ?? '',
       is_association_approved: t.is_association_approved,
       descriere_publica: t.descriere_publica ?? null,
+      email_public: t.email_public ?? null,
+      facebook: t.facebook ?? null,
+      instagram: t.instagram ?? null,
       localitate: t.localitate ?? 'Suceava',
+      logo_url: t.logo_url ?? null,
       poze_ferma: Array.isArray(t.poze_ferma) ? t.poze_ferma.filter((url) => typeof url === 'string') : [],
+      program_piata: t.program_piata ?? null,
       specialitate: t.specialitate ?? null,
+      website: t.website ?? null,
+      whatsapp: t.whatsapp ?? null,
       activeProductCount: c.active,
       listedProductCount: c.listed,
       ownerUserId: uid ?? null,
@@ -511,6 +677,7 @@ export async function getAssociationDashboardPageData(): Promise<AssociationDash
     .select('id, tenants!inner(is_association_approved)', { count: 'exact', head: true })
     .eq('status', 'activ')
     .eq('tenants.is_association_approved', true)
+    .eq('tenants.is_demo', false)
     .eq('association_listed', true)
 
   const { count: productsTotal } = await supabase
@@ -518,12 +685,14 @@ export async function getAssociationDashboardPageData(): Promise<AssociationDash
     .select('id, tenants!inner(is_association_approved)', { count: 'exact', head: true })
     .eq('status', 'activ')
     .eq('tenants.is_association_approved', true)
+    .eq('tenants.is_demo', false)
 
   const { count: pendingProducts } = await supabase
     .from('produse')
     .select('id, tenants!inner(is_association_approved)', { count: 'exact', head: true })
     .eq('status', 'activ')
     .eq('tenants.is_association_approved', true)
+    .eq('tenants.is_demo', false)
     .eq('association_listed', false)
 
   const tenantIds = await approvedTenantIds(supabase)

@@ -19,7 +19,7 @@ import {
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
-import { type AssociationProduct } from '@/lib/association/queries'
+import { type AssociationFoodType, type AssociationProduct } from '@/lib/association/queries'
 import { CATEGORII_PRODUSE, type CategorieProdus } from '@/lib/supabase/queries/produse'
 import { toast } from '@/lib/ui/toast'
 import { associationShopProdusePath } from '@/lib/shop/association-routes'
@@ -110,6 +110,36 @@ type PatchBody = {
   association_price?: number | null
 }
 
+type FoodInfoDraft = {
+  tip: AssociationFoodType
+  ingrediente: string
+  alergeni: string
+  pastrare: string
+  valabilitate: string
+}
+
+const FOOD_TYPE_LABELS: Record<AssociationFoodType, string> = {
+  standard: 'Standard',
+  bio: 'Bio',
+  traditional: 'Tradițional',
+  ecologic: 'Ecologic',
+}
+
+function normalizeFoodType(value: string | null | undefined): AssociationFoodType {
+  if (value === 'bio' || value === 'traditional' || value === 'ecologic') return value
+  return 'standard'
+}
+
+function buildFoodDraft(product: AssociationProduct | null): FoodInfoDraft {
+  return {
+    tip: normalizeFoodType(product?.assoc_tip_produs ?? product?.tip_produs),
+    ingrediente: product?.assoc_ingrediente ?? product?.ingrediente ?? '',
+    alergeni: product?.assoc_alergeni ?? product?.alergeni ?? '',
+    pastrare: product?.assoc_pastrare ?? product?.conditii_pastrare ?? '',
+    valabilitate: product?.assoc_valabilitate ?? product?.termen_valabilitate ?? '',
+  }
+}
+
 async function patchAssociationProduct(body: PatchBody): Promise<AssociationProduct> {
   const res = await fetch('/api/association/products', {
     method: 'PATCH',
@@ -122,6 +152,47 @@ async function patchAssociationProduct(body: PatchBody): Promise<AssociationProd
   if (!res.ok || !json?.ok || !json.data) {
     const msg = json && typeof json === 'object' && 'error' in json && json.error?.message
     throw new Error(typeof msg === 'string' ? msg : 'Actualizare eșuată.')
+  }
+  return json.data
+}
+
+async function patchAssociationFoodInfo(
+  productId: string,
+  body: {
+    assoc_ingrediente: string | null
+    assoc_alergeni: string | null
+    assoc_pastrare: string | null
+    assoc_valabilitate: string | null
+    assoc_tip_produs: AssociationFoodType | null
+  },
+): Promise<{
+  assoc_ingrediente: string | null
+  assoc_alergeni: string | null
+  assoc_pastrare: string | null
+  assoc_valabilitate: string | null
+  assoc_tip_produs: AssociationFoodType | null
+}> {
+  const res = await fetch(`/api/association/products/${productId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const json = (await res.json().catch(() => null)) as
+    | {
+        ok?: boolean
+        data?: {
+          assoc_ingrediente: string | null
+          assoc_alergeni: string | null
+          assoc_pastrare: string | null
+          assoc_valabilitate: string | null
+          assoc_tip_produs: AssociationFoodType | null
+        }
+        error?: { message?: string }
+      }
+    | null
+  if (!res.ok || !json?.ok || !json.data) {
+    const msg = json && typeof json === 'object' && 'error' in json && json.error?.message
+    throw new Error(typeof msg === 'string' ? msg : 'Nu am putut salva informațiile alimentare.')
   }
   return json.data
 }
@@ -143,6 +214,8 @@ export function AssociationProduseClient({ initialProducts, canManage }: Associa
   const [toggleBusyId, setToggleBusyId] = useState<string | null>(null)
   const [priceBusy, setPriceBusy] = useState(false)
   const [priceDraft, setPriceDraft] = useState('')
+  const [foodDraft, setFoodDraft] = useState<FoodInfoDraft>(() => buildFoodDraft(initialProducts[0] ?? null))
+  const [savingFood, setSavingFood] = useState(false)
 
   useEffect(() => {
     setProducts(initialProducts)
@@ -200,6 +273,7 @@ export function AssociationProduseClient({ initialProducts, canManage }: Associa
     if (!p) return
     const ap = p.association_price
     setPriceDraft(ap != null ? String(ap) : '')
+    setFoodDraft(buildFoodDraft(p))
   }, [selected])
 
   const isPriceDirty = useCallback((p: AssociationProduct) => {
@@ -216,6 +290,33 @@ export function AssociationProduseClient({ initialProducts, canManage }: Associa
   const mergeProduct = useCallback((updated: AssociationProduct) => {
     setProducts((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)))
   }, [])
+
+  const handleSaveFoodInfo = useCallback(
+    async (product: AssociationProduct) => {
+      if (!canManage || !product.tenantIsAssociationApproved) return
+      setSavingFood(true)
+      try {
+        const saved = await patchAssociationFoodInfo(product.id, {
+          assoc_ingrediente: foodDraft.ingrediente.trim() || null,
+          assoc_alergeni: foodDraft.alergeni.trim() || null,
+          assoc_pastrare: foodDraft.pastrare.trim() || null,
+          assoc_valabilitate: foodDraft.valabilitate.trim() || null,
+          assoc_tip_produs: foodDraft.tip,
+        })
+        mergeProduct({
+          ...product,
+          ...saved,
+        })
+        toast.success('Informațiile alimentare au fost salvate.')
+        router.refresh()
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Nu am putut salva informațiile alimentare.')
+      } finally {
+        setSavingFood(false)
+      }
+    },
+    [canManage, foodDraft, mergeProduct, router],
+  )
 
   const handleToggleListed = useCallback(
     async (p: AssociationProduct, next: boolean) => {
@@ -420,41 +521,118 @@ export function AssociationProduseClient({ initialProducts, canManage }: Associa
 
         <DesktopInspectorSection label="Informații alimentare">
           <p className="mb-3 text-xs leading-relaxed text-[var(--text-secondary)]">
-            Ingrediente, alergeni și păstrare sunt setate de producător în ERP-ul Zmeurel (modulul Produse). Aici
-            doar vizualizare pentru coerența vitrinei.
+            Editează informațiile afișate în vitrina magazinului. Valorile salvate aici au prioritate peste ce setează
+            producătorul în ERP.
           </p>
-          <dl className="space-y-2 text-sm">
+
+          <div className="space-y-3">
             <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">Tip</dt>
-              <dd className="text-[var(--text-primary)]">
-                {(p.tip_produs ?? 'standard') === 'proaspat'
-                  ? 'Proaspăt'
-                  : (p.tip_produs ?? 'standard') === 'procesat'
-                    ? 'Procesat'
-                    : 'Standard'}
-              </dd>
+              <label
+                htmlFor={`food-tip-${p.id}`}
+                className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]"
+              >
+                Tip
+              </label>
+              <select
+                id={`food-tip-${p.id}`}
+                value={foodDraft.tip}
+                onChange={(e) => setFoodDraft((prev) => ({ ...prev, tip: e.target.value as AssociationFoodType }))}
+                disabled={!canEditAssocFields || savingFood}
+                className="agri-control h-10 w-full rounded-xl px-3 text-sm"
+              >
+                {Object.entries(FOOD_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </div>
+
             <div>
-              <dt className="text-xs font-semibold text-[var(--text-secondary)]">Ingrediente</dt>
-              <dd className="whitespace-pre-wrap text-[var(--text-primary)]">{p.ingrediente?.trim() || '—'}</dd>
+              <label
+                htmlFor={`food-ingrediente-${p.id}`}
+                className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]"
+              >
+                Ingrediente
+              </label>
+              <textarea
+                id={`food-ingrediente-${p.id}`}
+                value={foodDraft.ingrediente}
+                onChange={(e) => setFoodDraft((prev) => ({ ...prev, ingrediente: e.target.value }))}
+                disabled={!canEditAssocFields || savingFood}
+                placeholder="Ex: zmeură 100% naturală, fără aditivi"
+                rows={3}
+                className="agri-control min-h-[84px] w-full rounded-xl px-3 py-2 text-sm"
+              />
             </div>
+
             <div>
-              <dt className="text-xs font-semibold text-[var(--status-danger-text)]">Alergeni</dt>
-              <dd className="whitespace-pre-wrap font-medium text-[var(--status-danger-text)]">
-                {p.alergeni?.trim() || '—'}
-              </dd>
+              <label
+                htmlFor={`food-alergeni-${p.id}`}
+                className="mb-1 block text-xs font-semibold text-[var(--status-danger-text)]"
+              >
+                Alergeni
+              </label>
+              <textarea
+                id={`food-alergeni-${p.id}`}
+                value={foodDraft.alergeni}
+                onChange={(e) => setFoodDraft((prev) => ({ ...prev, alergeni: e.target.value }))}
+                disabled={!canEditAssocFields || savingFood}
+                placeholder="Ex: poate conține urme de nuci"
+                rows={2}
+                className="agri-control min-h-[72px] w-full rounded-xl px-3 py-2 text-sm"
+              />
             </div>
+
             <div>
-              <dt className="text-xs font-semibold text-[var(--text-secondary)]">Păstrare</dt>
-              <dd className="whitespace-pre-wrap text-[var(--text-primary)]">
-                {p.conditii_pastrare?.trim() || '—'}
-              </dd>
+              <label
+                htmlFor={`food-pastrare-${p.id}`}
+                className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]"
+              >
+                Păstrare
+              </label>
+              <input
+                id={`food-pastrare-${p.id}`}
+                value={foodDraft.pastrare}
+                onChange={(e) => setFoodDraft((prev) => ({ ...prev, pastrare: e.target.value }))}
+                disabled={!canEditAssocFields || savingFood}
+                placeholder="Ex: la frigider, 2-4°C"
+                className="agri-control h-10 w-full rounded-xl px-3 text-sm"
+              />
             </div>
+
             <div>
-              <dt className="text-xs font-semibold text-[var(--text-secondary)]">Valabilitate</dt>
-              <dd className="text-[var(--text-primary)]">{p.termen_valabilitate?.trim() || '—'}</dd>
+              <label
+                htmlFor={`food-valabilitate-${p.id}`}
+                className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]"
+              >
+                Valabilitate
+              </label>
+              <input
+                id={`food-valabilitate-${p.id}`}
+                value={foodDraft.valabilitate}
+                onChange={(e) => setFoodDraft((prev) => ({ ...prev, valabilitate: e.target.value }))}
+                disabled={!canEditAssocFields || savingFood}
+                placeholder="Ex: 5 zile de la recoltare"
+                className="agri-control h-10 w-full rounded-xl px-3 text-sm"
+              />
             </div>
-          </dl>
+
+            {canEditAssocFields ? (
+              <Button
+                type="button"
+                className="w-full"
+                disabled={savingFood}
+                onClick={() => void handleSaveFoodInfo(p)}
+              >
+                {savingFood ? 'Se salvează...' : 'Salvează informații alimentare'}
+              </Button>
+            ) : (
+              <p className="text-xs text-[var(--text-muted)]">
+                Doar moderatorii și administratorii pot suprascrie informațiile alimentare din vitrină.
+              </p>
+            )}
+          </div>
         </DesktopInspectorSection>
 
         <DesktopInspectorSection label="Detalii">

@@ -62,7 +62,7 @@ export async function PATCH(request: Request) {
         `
         id,
         tenant_id,
-        tenants!inner ( is_association_approved )
+        tenants!inner ( is_association_approved, is_demo )
       `
       )
       .eq('id', productId)
@@ -72,10 +72,14 @@ export async function PATCH(request: Request) {
       return apiError(404, 'NOT_FOUND', 'Produsul nu a fost găsit.')
     }
 
-    const tenantEmbed = existing.tenants as { is_association_approved: boolean } | { is_association_approved: boolean }[] | null
-    const approved = Array.isArray(tenantEmbed) ? tenantEmbed[0]?.is_association_approved : tenantEmbed?.is_association_approved
-    if (!approved) {
-      return apiError(403, 'FORBIDDEN', 'Produsul nu aparține unui fermier aprobat în asociație.')
+    const tenantEmbed = existing.tenants as
+      | { is_association_approved: boolean; is_demo?: boolean | null }
+      | { is_association_approved: boolean; is_demo?: boolean | null }[]
+      | null
+    const tenant = Array.isArray(tenantEmbed) ? tenantEmbed[0] : tenantEmbed
+    const approved = tenant?.is_association_approved
+    if (!approved || tenant?.is_demo === true) {
+      return apiError(403, 'FORBIDDEN', 'Produsul nu aparține unui fermier real aprobat în asociație.')
     }
 
     const updatePayload: Pick<

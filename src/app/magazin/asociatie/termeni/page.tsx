@@ -172,7 +172,7 @@ export default async function MagazinAsociatieTermeniPage() {
           {`FORMULAR DE RETRAGERE\n(completați și returnați acest formular doar dacă doriți retragerea din contract)\n\nCătre: ${m.legalName}, ${m.headquarters?.trim() || '[adresă]'}, ${m.email?.trim() || '[email]'}\n\nSubsemnatul/Subsemnata ______ notifică/notificăm prin prezenta retragerea mea/noastră din contractul de vânzare a următoarelor produse: ______\n\nComandate la data ______ / primite la data ______\n\nNumele consumatorului: ______\n\nAdresa consumatorului: ______\n\nSemnătura consumatorului (doar în caz de formular pe hârtie): ______\n\nData: ______`}
         </div>
         <WithdrawalFormDownloadButton merchant={m} />
-        <p className="mt-2 text-[11px] text-[#94a0a8]">/* DRAFT_LEGAL_REVIEW — formular conform Anexei din OUG 34/2014 */</p>
+        <p className="mt-2 text-[11px] text-[#94a0a8]">{'/* DRAFT_LEGAL_REVIEW — formular conform Anexei din OUG 34/2014 */'}</p>
       </AssociationLegalSection>
 
       <AssociationLegalSection title="8. Reclamații">

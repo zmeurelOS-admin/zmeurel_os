@@ -52,9 +52,16 @@ describe('loadProducerProfile', () => {
                     owner_user_id: 'owner-1',
                     is_association_approved: false,
                     descriere_publica: null,
+                    email_public: null,
+                    facebook: null,
+                    instagram: null,
                     poze_ferma: [],
                     localitate: 'Suceava',
+                    logo_url: null,
+                    program_piata: null,
                     specialitate: null,
+                    website: null,
+                    whatsapp: null,
                   },
                   error: null,
                 }),
@@ -90,9 +97,16 @@ describe('loadProducerProfile', () => {
                     owner_user_id: 'owner-1',
                     is_association_approved: true,
                     descriere_publica: 'Bio',
+                    email_public: 'contact@bio.test',
+                    facebook: '@fermabio',
+                    instagram: '@ferma.bio',
                     poze_ferma: [],
                     localitate: 'Suceava',
+                    logo_url: 'https://cdn.test/logo.jpg',
+                    program_piata: 'Sâmbătă, 08:00 - 12:30 · Curtea DAJ Suceava',
                     specialitate: 'Fructe',
+                    website: 'https://bio.test',
+                    whatsapp: '0740000000',
                   },
                   error: null,
                 }),
@@ -138,7 +152,10 @@ describe('loadProducerProfile', () => {
     const out = await loadProducerProfile(TID)
     expect(out).not.toBeNull()
     expect(out?.farm.numeFerma).toBe('Ferma Bio')
+    expect(out?.farm.logoUrl).toBe('https://cdn.test/logo.jpg')
+    expect(out?.farm.website).toBe('https://bio.test')
     expect(out?.products).toHaveLength(1)
     expect(out?.products[0]?.displayPrice).toBe(9)
+    expect(out?.products[0]?.producerLogoUrl).toBe('https://cdn.test/logo.jpg')
   })
 })

@@ -33,10 +33,33 @@ export type AssociationProduct = PublicShopProduct & {
   farmName: string
   /** Regiune afișată opțional (v1: branding asociație). */
   farmRegion: string | null
+  producerLogoUrl: string | null
+  producerDescription: string | null
+  producerLocation: string | null
+  producerWebsite: string | null
+  producerFacebook: string | null
+  producerInstagram: string | null
+  producerWhatsapp: string | null
+  producerEmailPublic: string | null
+  producerProgramPiata: string | null
   /**
    * Preț afișat și folosit la coș / checkout: `association_price` dacă e setat, altfel `pret_unitar`.
    */
   displayPrice: number
+}
+
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : null
+}
+
+function resolveProducerLogoUrl(admin: AnyAdmin, value: string | null | undefined): string | null {
+  const trimmed = normalizeOptionalText(value)
+  if (!trimmed) return null
+  if (/^https?:\/\//i.test(trimmed)) return trimmed
+
+  const publicUrl = admin?.storage?.from?.('producer-logos')?.getPublicUrl?.(trimmed)?.data?.publicUrl
+  return typeof publicUrl === 'string' && publicUrl.trim() ? publicUrl : trimmed
 }
 
 /**
@@ -55,38 +78,56 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       id: string
       owner_user_id: string | null
       is_association_approved: boolean | null
+      is_demo: boolean | null
     }[]
 
-    const withFlag = await admin.from('tenants').select('id, owner_user_id, is_association_approved')
+    const withFlag = await admin
+      .from('tenants')
+      .select('id, owner_user_id, is_association_approved, is_demo')
     if (withFlag.error) {
-      const legacy = await admin.from('tenants').select('id, owner_user_id')
-      if (legacy.error) {
-        const e = legacy.error as { message?: string; code?: string; details?: string }
-        console.error(
-          '[loadAssociationCatalog] tenants',
-          e.code ?? '',
-          e.message ?? '',
-          e.details ?? '',
-        )
-        return []
+      const fallback = await admin.from('tenants').select('id, owner_user_id, is_association_approved')
+      if (!fallback.error) {
+        rows = ((fallback.data ?? []) as {
+          id: string
+          owner_user_id: string | null
+          is_association_approved: boolean | null
+        }[]).map((t) => ({
+          ...t,
+          is_demo: t.id.startsWith('tenant_demo_'),
+        }))
+      } else {
+        const legacy = await admin.from('tenants').select('id, owner_user_id')
+        if (legacy.error) {
+          const e = legacy.error as { message?: string; code?: string; details?: string }
+          console.error(
+            '[loadAssociationCatalog] tenants',
+            e.code ?? '',
+            e.message ?? '',
+            e.details ?? '',
+          )
+          return []
+        }
+        rows = ((legacy.data ?? []) as { id: string; owner_user_id: string | null }[]).map((t) => ({
+          ...t,
+          is_association_approved: null,
+          is_demo: t.id.startsWith('tenant_demo_'),
+        }))
       }
-      rows = ((legacy.data ?? []) as { id: string; owner_user_id: string | null }[]).map((t) => ({
-        ...t,
-        is_association_approved: null,
-      }))
     } else {
       rows = (withFlag.data ?? []) as {
         id: string
         owner_user_id: string | null
         is_association_approved: boolean | null
+        is_demo: boolean | null
       }[]
     }
 
-    const fromDb = rows.filter((t) => t.is_association_approved === true).map((t) => t.id)
+    const eligibleRows = rows.filter((t) => t.is_demo !== true && !t.id.startsWith('tenant_demo_'))
+    const fromDb = eligibleRows.filter((t) => t.is_association_approved === true).map((t) => t.id)
 
     const fromAllowlist = (
       await Promise.all(
-        rows.map(async (t) => {
+        eligibleRows.map(async (t) => {
           if (!t.owner_user_id) return null
           const { data: userData, error: userErr } = await admin.auth.admin.getUserById(t.owner_user_id)
           if (userErr || !userData.user?.email) {
@@ -107,7 +148,7 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
     const { data: prodRows, error: prodError } = await admin
       .from('produse')
       .select(
-        'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,pret_unitar,association_price,moneda,poza_1_url,poza_2_url,status,association_listed,ingrediente,alergeni,conditii_pastrare,termen_valabilitate,tip_produs',
+        'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,pret_unitar,association_price,moneda,poza_1_url,poza_2_url,status,association_listed,ingrediente,alergeni,conditii_pastrare,termen_valabilitate,tip_produs,assoc_ingrediente,assoc_alergeni,assoc_pastrare,assoc_valabilitate,assoc_tip_produs',
       )
       .eq('status', 'activ')
       .eq('association_listed', true)
@@ -128,6 +169,11 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       conditii_pastrare?: string | null
       termen_valabilitate?: string | null
       tip_produs?: string | null
+      assoc_ingrediente?: string | null
+      assoc_alergeni?: string | null
+      assoc_pastrare?: string | null
+      assoc_valabilitate?: string | null
+      assoc_tip_produs?: string | null
     }
 
     const list = (prodRows ?? []) as ProdRow[]
@@ -136,7 +182,9 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
     const tenantIds = [...new Set(list.map((r) => r.tenant_id))]
     const { data: tnames, error: nameErr } = await admin
       .from('tenants')
-      .select('id, nume_ferma')
+      .select(
+        'id, nume_ferma, logo_url, descriere_publica, localitate, website, facebook, instagram, whatsapp, email_public, program_piata',
+      )
       .in('id', tenantIds)
 
     if (nameErr) {
@@ -144,8 +192,53 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       return []
     }
 
-    const nameById = new Map<string, string>(
-      (tnames as { id: string; nume_ferma: string }[] | null | undefined)?.map((t) => [t.id, t.nume_ferma]) ?? [],
+    const tenantById = new Map<
+      string,
+      {
+        name: string
+        logoUrl: string | null
+        description: string | null
+        location: string | null
+        website: string | null
+        facebook: string | null
+        instagram: string | null
+        whatsapp: string | null
+        emailPublic: string | null
+        programPiata: string | null
+      }
+    >(
+      (
+        tnames as
+          | {
+              id: string
+              nume_ferma: string
+              logo_url?: string | null
+              descriere_publica?: string | null
+              localitate?: string | null
+              website?: string | null
+              facebook?: string | null
+              instagram?: string | null
+              whatsapp?: string | null
+              email_public?: string | null
+              program_piata?: string | null
+            }[]
+          | null
+          | undefined
+      )?.map((t) => [
+        t.id,
+        {
+          name: t.nume_ferma,
+          logoUrl: resolveProducerLogoUrl(admin, t.logo_url),
+          description: normalizeOptionalText(t.descriere_publica),
+          location: normalizeOptionalText(t.localitate),
+          website: normalizeOptionalText(t.website),
+          facebook: normalizeOptionalText(t.facebook),
+          instagram: normalizeOptionalText(t.instagram),
+          whatsapp: normalizeOptionalText(t.whatsapp),
+          emailPublic: normalizeOptionalText(t.email_public),
+          programPiata: normalizeOptionalText(t.program_piata),
+        },
+      ]) ?? [],
     )
 
     return list
@@ -165,14 +258,23 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
           moneda: r.moneda,
           poza_1_url: r.poza_1_url,
           poza_2_url: r.poza_2_url,
-          ingrediente: r.ingrediente ?? null,
-          alergeni: r.alergeni ?? null,
-          conditii_pastrare: r.conditii_pastrare ?? null,
-          termen_valabilitate: r.termen_valabilitate ?? null,
-          tip_produs: r.tip_produs ?? 'standard',
+          ingrediente: r.assoc_ingrediente ?? r.ingrediente ?? null,
+          alergeni: r.assoc_alergeni ?? r.alergeni ?? null,
+          conditii_pastrare: r.assoc_pastrare ?? r.conditii_pastrare ?? null,
+          termen_valabilitate: r.assoc_valabilitate ?? r.termen_valabilitate ?? null,
+          tip_produs: r.assoc_tip_produs ?? r.tip_produs ?? 'standard',
           tenantId: r.tenant_id,
-          farmName: nameById.get(r.tenant_id) ?? 'Fermă',
+          farmName: tenantById.get(r.tenant_id)?.name ?? 'Fermă',
           farmRegion: null as string | null,
+          producerLogoUrl: tenantById.get(r.tenant_id)?.logoUrl ?? null,
+          producerDescription: tenantById.get(r.tenant_id)?.description ?? null,
+          producerLocation: tenantById.get(r.tenant_id)?.location ?? null,
+          producerWebsite: tenantById.get(r.tenant_id)?.website ?? null,
+          producerFacebook: tenantById.get(r.tenant_id)?.facebook ?? null,
+          producerInstagram: tenantById.get(r.tenant_id)?.instagram ?? null,
+          producerWhatsapp: tenantById.get(r.tenant_id)?.whatsapp ?? null,
+          producerEmailPublic: tenantById.get(r.tenant_id)?.emailPublic ?? null,
+          producerProgramPiata: tenantById.get(r.tenant_id)?.programPiata ?? null,
           displayPrice,
         }
         return row

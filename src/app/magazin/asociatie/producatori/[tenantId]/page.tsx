@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { GustProducerProfilePage } from '@/components/shop/association/producers/GustProducerProfilePage'
-import { buildAssociationMarketLine, loadAssociationSettingsCached } from '@/lib/association/public-settings'
 import { loadProducerProfileCached } from '@/lib/shop/load-producer-profile'
 
 export const dynamic = 'force-dynamic'
@@ -23,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${farm.numeFerma} — Gustă din Bucovina`
   const description =
     farm.descrierePublica?.trim() || `Produse locale de la ${farm.numeFerma}`
-  const ogImage = farm.pozeFerma[0] || `${siteUrl.replace(/\/$/, '')}/icons/icon.svg`
+  const ogImage = farm.logoUrl || farm.pozeFerma[0] || `${siteUrl.replace(/\/$/, '')}/images/gusta-logo.png`
   const imageAbsolute =
     ogImage.startsWith('http://') || ogImage.startsWith('https://') ? ogImage : `${siteUrl.replace(/\/$/, '')}${ogImage.startsWith('/') ? '' : '/'}${ogImage}`
 
@@ -42,10 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MagazinAsociatieProducerProfilePage({ params }: Props) {
   const { tenantId } = await params
-  const [profile, settings] = await Promise.all([
-    loadProducerProfileCached(tenantId),
-    loadAssociationSettingsCached(),
-  ])
+  const profile = await loadProducerProfileCached(tenantId)
   if (!profile) notFound()
 
   return (
@@ -53,7 +49,6 @@ export default async function MagazinAsociatieProducerProfilePage({ params }: Pr
       tenantId={tenantId}
       farm={profile.farm}
       products={profile.products}
-      associationMarketLine={buildAssociationMarketLine(settings)}
     />
   )
 }

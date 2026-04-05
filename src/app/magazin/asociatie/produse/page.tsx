@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     title,
     description,
-    images: [{ url: '/icons/icon.svg', alt: 'Gustă din Bucovina' }],
+    images: [{ url: '/images/gusta-logo.png', alt: 'Gustă din Bucovina' }],
   },
 }
 

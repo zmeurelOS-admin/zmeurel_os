@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ChevronLeft, MapPin } from 'lucide-react'
+import { ChevronLeft, Clock3, Globe, Instagram, Mail, MapPin, MessageCircle, Facebook } from 'lucide-react'
 
 import { useAssociationShop } from '@/components/shop/association/association-shop-context'
 import { GustProductCard } from '@/components/shop/association/catalog/GustProductCard'
@@ -50,14 +50,12 @@ export type GustProducerProfilePageProps = {
   tenantId: string
   farm: ProducerFarmPublic
   products: AssociationProduct[]
-  associationMarketLine?: string
 }
 
 export function GustProducerProfilePage({
   tenantId,
   farm,
   products,
-  associationMarketLine,
 }: GustProducerProfilePageProps) {
   const ctx = useAssociationShop()
   const [descExpanded, setDescExpanded] = useState(false)
@@ -92,7 +90,62 @@ export function GustProducerProfilePage({
 
   const rawPoze = farm.pozeFerma.filter((u) => u.trim().length > 0)
   const heroPhoto = rawPoze[0]?.trim()
-  const galleryPhotos = heroPhoto ? rawPoze.slice(1, 7) : rawPoze.slice(0, 6)
+  const galleryPhotos = rawPoze.slice(heroPhoto ? 1 : 0, 6)
+
+  const contactLinks = useMemo(() => {
+    const normalizeExternalUrl = (value: string) => {
+      const trimmed = value.trim()
+      if (!trimmed) return null
+      if (/^https?:\/\//i.test(trimmed)) return trimmed
+      return `https://${trimmed.replace(/^\/+/, '')}`
+    }
+
+    const normalizeHandleUrl = (value: string, baseUrl: string) => {
+      const trimmed = value.trim()
+      if (!trimmed) return null
+      if (/^https?:\/\//i.test(trimmed)) return trimmed
+      return `${baseUrl.replace(/\/$/, '')}/${trimmed.replace(/^@/, '')}`
+    }
+
+    const normalizeWhatsappUrl = (value: string) => {
+      const digits = value.replace(/[^\d+]/g, '')
+      if (!digits) return null
+      const normalized = digits.startsWith('+')
+        ? digits.slice(1)
+        : digits.startsWith('0')
+          ? `4${digits.slice(1)}`
+          : digits
+      return normalized ? `https://wa.me/${normalized}` : null
+    }
+
+    const items: Array<{ key: string; href: string; label: string; icon: typeof Globe; color: string }> = []
+
+    if (farm.website) {
+      const href = normalizeExternalUrl(farm.website)
+      if (href) items.push({ key: 'website', href, label: 'Website', icon: Globe, color: gustaBrandColors.primary })
+    }
+
+    if (farm.facebook) {
+      const href = normalizeHandleUrl(farm.facebook, 'https://facebook.com')
+      if (href) items.push({ key: 'facebook', href, label: 'Facebook', icon: Facebook, color: '#1877F2' })
+    }
+
+    if (farm.instagram) {
+      const href = normalizeHandleUrl(farm.instagram, 'https://instagram.com')
+      if (href) items.push({ key: 'instagram', href, label: 'Instagram', icon: Instagram, color: '#E4405F' })
+    }
+
+    if (farm.whatsapp) {
+      const href = normalizeWhatsappUrl(farm.whatsapp)
+      if (href) items.push({ key: 'whatsapp', href, label: 'WhatsApp', icon: MessageCircle, color: '#25D366' })
+    }
+
+    if (farm.emailPublic) {
+      items.push({ key: 'email', href: `mailto:${farm.emailPublic}`, label: 'Email', icon: Mail, color: '#5a6563' })
+    }
+
+    return items
+  }, [farm.emailPublic, farm.facebook, farm.instagram, farm.website, farm.whatsapp])
 
   return (
     <div className="pb-28 md:pb-12">
@@ -113,10 +166,10 @@ export function GustProducerProfilePage({
               className="relative h-[96px] w-[96px] shrink-0 overflow-hidden rounded-full shadow-md"
               style={{ boxShadow: '0 8px 28px rgba(13,99,66,0.15)' }}
             >
-              {heroPhoto ? (
+              {farm.logoUrl ? (
                 <Image
-                  src={heroPhoto}
-                  alt={farm.numeFerma}
+                  src={farm.logoUrl}
+                  alt={`Logo ${farm.numeFerma}`}
                   fill
                   className="object-cover"
                   sizes="96px"
@@ -183,6 +236,37 @@ export function GustProducerProfilePage({
             ) : null}
           </div>
 
+          {contactLinks.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {contactLinks.map((item) => {
+                const Icon = item.icon
+                return (
+                  <a
+                    key={item.key}
+                    href={item.href}
+                    target={item.href.startsWith('mailto:') ? undefined : '_blank'}
+                    rel={item.href.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
+                    className="assoc-body inline-flex min-h-[40px] items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-xs font-semibold transition hover:-translate-y-0.5"
+                    style={{ borderColor: '#e8e4db', color: item.color }}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {item.label}
+                  </a>
+                )
+              })}
+            </div>
+          ) : null}
+
+          {farm.programPiata ? (
+            <div
+              className="assoc-body inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-sm"
+              style={{ borderColor: '#e8e4db', color: '#5a6563', backgroundColor: '#f9faf8' }}
+            >
+              <Clock3 className="h-4 w-4 shrink-0" style={{ color: gustaBrandColors.primary }} aria-hidden />
+              <span>{farm.programPiata}</span>
+            </div>
+          ) : null}
+
           {/* Galerie */}
           {galleryPhotos.length > 0 ? (
             <div className="-mx-1">
@@ -210,10 +294,6 @@ export function GustProducerProfilePage({
               </div>
             </div>
           ) : null}
-
-          <p className="assoc-body rounded-xl border px-4 py-3 text-sm leading-relaxed" style={{ borderColor: '#e8e4db', color: '#5a6563' }}>
-            {associationMarketLine || 'Ne găsim adesea la piața volantă din Suceava, în fiecare sâmbătă dimineața.'}
-          </p>
         </header>
 
         {/* Produse */}

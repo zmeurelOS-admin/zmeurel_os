@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     type: 'website',
     description:
       'Magazin online al Asociației Gustă din Bucovina — produse locale din Suceava.',
-    images: [{ url: '/icons/icon.svg', alt: 'Gustă din Bucovina' }],
+    images: [{ url: '/images/gusta-logo.png', alt: 'Gustă din Bucovina' }],
   },
 }
 
