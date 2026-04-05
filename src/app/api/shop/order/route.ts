@@ -57,6 +57,9 @@ const bodySchema = z.object({
     .optional(),
   /** Consimțământ contact WhatsApp (magazin asociație). */
   whatsappConsent: z.boolean().optional(),
+  canal_confirmare: z.enum(['whatsapp', 'sms', 'apel']).optional(),
+  save_consent: z.boolean().optional(),
+  user_agent: z.string().optional(),
 })
 
 function todayIsoBucharest(): string {
@@ -98,8 +101,13 @@ export async function POST(request: Request) {
     cartSubtotalLei,
     associationCheckoutPart,
     whatsappConsent,
+    canal_confirmare,
+    save_consent,
+    user_agent,
   } = parsed.data
   const waConsent = whatsappConsent ?? true
+  const shouldSaveConsent =
+    (save_consent ?? false) && (canal_confirmare === 'whatsapp' || canal_confirmare === 'sms')
   const orderChannel: 'farm_shop' | 'association_shop' =
     channel ?? (checkoutContext === 'association' ? 'association_shop' : 'farm_shop')
   const orderDataOrigin = orderChannel === 'association_shop' ? 'magazin_asociatie' : 'magazin_public'
@@ -201,6 +209,7 @@ export async function POST(request: Request) {
 
     const today = todayIsoBucharest()
     const orderIds: string[] = []
+    const orderNumbers: string[] = []
     const batchNote = `Magazin online · ${resolved.length} ${resolved.length === 1 ? 'linie' : 'linii'}`
 
     const linesSubtotalBatch = round2(resolved.reduce((s, x) => s + x.lineTotal, 0))
@@ -213,6 +222,16 @@ export async function POST(request: Request) {
     const deliveryFeeWholeCart =
       orderChannel === 'association_shop' ? getDeliveryFee(cartSubtotalForDelivery) : 0
     const farmIndex = associationCheckoutPart?.farmIndex ?? 0
+    const customerSnapshot = {
+      nume,
+      telefon,
+      adresa: locatie,
+      observatii: observatii || null,
+      canal_confirmare: canal_confirmare || null,
+      consent_scope:
+        canal_confirmare === 'whatsapp' || canal_confirmare === 'sms' ? 'order_updates' : null,
+      timestamp: new Date().toISOString(),
+    }
 
     for (let i = 0; i < resolved.length; i++) {
       const r = resolved[i]
@@ -250,12 +269,14 @@ export async function POST(request: Request) {
         data_origin: orderDataOrigin,
         produs_id: r.produsId,
         whatsapp_consent: waConsent,
+        canal_confirmare: canal_confirmare || null,
+        customer_snapshot: customerSnapshot,
       }
 
       const { data: inserted, error: insErr } = await admin
         .from('comenzi')
         .insert(insertPayload)
-        .select('id')
+        .select('id, numar_comanda_scurt')
         .single()
 
       if (insErr) {
@@ -265,7 +286,44 @@ export async function POST(request: Request) {
           { status: 500 },
         )
       }
-      orderIds.push((inserted as { id: string }).id)
+      const insertedOrder = inserted as { id: string; numar_comanda_scurt?: string | null }
+      orderIds.push(insertedOrder.id)
+      if (insertedOrder.numar_comanda_scurt) {
+        orderNumbers.push(insertedOrder.numar_comanda_scurt)
+      }
+    }
+
+    if (shouldSaveConsent && orderIds[0]) {
+      const forwardedFor = request.headers.get('x-forwarded-for')
+      const clientIp =
+        forwardedFor?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+      const consentInsert = await admin.from('consent_events').insert({
+        phone: telefon,
+        canal: canal_confirmare,
+        scope: 'order_updates',
+        order_id: orderIds[0],
+        ip_address: clientIp,
+        user_agent: user_agent || request.headers.get('user-agent') || 'unknown',
+        tenant_context: 'association',
+      })
+      if (consentInsert.error) {
+        console.error('[shop/order] consent_events', consentInsert.error)
+      }
+    }
+
+    if (orderIds.length > 0) {
+      const messageInsert = await admin.from('message_log').insert(
+        orderIds.map((orderId) => ({
+          order_id: orderId,
+          canal: canal_confirmare || 'apel',
+          tip_mesaj: 'confirmare',
+          destinatar_phone: telefon,
+          status: 'pending',
+        })),
+      )
+      if (messageInsert.error) {
+        console.error('[shop/order] message_log', messageInsert.error)
+      }
     }
 
     try {
@@ -321,6 +379,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       orderIds,
+      orderNumbers,
       totalLei,
       linesSubtotalLei: totalLei,
       cartDeliveryFeeLei,

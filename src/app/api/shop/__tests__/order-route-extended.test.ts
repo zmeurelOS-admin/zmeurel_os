@@ -60,6 +60,11 @@ function makeAdmin(productRows: unknown[] | null) {
           },
         }
       }
+      if (t === 'message_log' || t === 'consent_events') {
+        return {
+          insert: async () => ({ data: null, error: null }),
+        }
+      }
       throw new Error(`unexpected table ${t}`)
     },
   }

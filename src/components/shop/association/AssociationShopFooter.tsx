@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 
 import type { AssociationPublicSettings } from '@/lib/association/public-settings'
@@ -32,6 +33,15 @@ export function AssociationShopFooter({ settings }: Props) {
       style={{ backgroundColor: '#0D6342', color: 'rgba(255,255,255,0.95)' }}
     >
       <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex justify-center sm:justify-start">
+          <Image
+            src="/images/gusta-logo-white.png"
+            alt="Gustă din Bucovina"
+            width={60}
+            height={60}
+            className="h-[60px] w-[60px] object-contain"
+          />
+        </div>
         <div>
           <p className="font-semibold text-white">
             Comerciant: <span className="font-bold">{m.legalName}</span>

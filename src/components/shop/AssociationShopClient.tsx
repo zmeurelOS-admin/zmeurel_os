@@ -218,6 +218,8 @@ export function AssociationShopClient({ products }: { products: AssociationProdu
             telefon: t,
             locatie: l,
             observatii: observatii.trim() || undefined,
+            canal_confirmare: 'whatsapp',
+            save_consent: true,
             whatsappConsent: true,
           }),
         })
@@ -259,6 +261,8 @@ export function AssociationShopClient({ products }: { products: AssociationProdu
       setCheckoutOpen(false)
       setOrderSuccess({
         orderIds: allIds,
+        orderNumbers: [],
+        primaryOrderNumber: null,
         totalLei,
         currency,
         farmCount: groups.size,
@@ -274,7 +278,7 @@ export function AssociationShopClient({ products }: { products: AssociationProdu
         clientName: n,
         clientTelefon: t,
         clientLocatie: l,
-        whatsappConsent: true,
+        canalComunicare: 'whatsapp',
         summaryLines,
       })
     } catch {

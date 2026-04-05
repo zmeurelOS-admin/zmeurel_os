@@ -12,6 +12,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { gustaBrandColors, gustaBrandShadows, gustaPrimaryTints } from '@/lib/shop/association/brand-tokens'
 import { getAmountUntilFreeDelivery, getDeliveryFee } from '@/lib/shop/association/delivery'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
+import { formatQuantityForDisplay, getQuantityStep } from '@/lib/shop/utils'
 import { cn } from '@/lib/utils'
 
 import { GustCheckoutForm } from './GustCheckoutForm'
@@ -140,13 +141,18 @@ export function GustCartSheet({
           aria-modal="true"
           aria-labelledby="gust-cart-title"
           className={cn(
-            'pointer-events-auto flex w-full max-w-[440px] flex-col overflow-hidden bg-white shadow-2xl transition-transform ease-out',
-            isDesktop ? 'max-h-[85vh] rounded-[20px]' : 'max-h-[88dvh] rounded-t-[24px]',
+            'pointer-events-auto flex w-full flex-col overflow-hidden bg-white shadow-2xl transition-transform ease-out',
+            isDesktop
+              ? step === 'checkout'
+                ? 'max-h-[90vh] rounded-[20px]'
+                : 'max-h-[85vh] max-w-[440px] rounded-[20px]'
+              : 'max-h-[88dvh] max-w-[440px] rounded-t-[24px]',
           )}
           style={{
             boxShadow: gustaBrandShadows.lg,
             transform: sheetTransform,
             transitionDuration: `${ANIM_MS}ms`,
+            width: isDesktop && step === 'checkout' ? 'clamp(640px, 72vw, 720px)' : undefined,
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -202,7 +208,11 @@ export function GustCartSheet({
                         key={it.id}
                         item={it}
                         imageUrls={getProductImageUrls?.(it.id)}
-                        onMinus={() => onAdjustQty(it.id, -qtyStepForUnit(it.unit))}
+                        onMinus={() => {
+                          const { step: qtyStep, min } = getQuantityStep(it.unit)
+                          const nextQty = it.qty - qtyStep
+                          onAdjustQty(it.id, nextQty < min ? -it.qty : -qtyStep)
+                        }}
                         onPlus={() => onAdjustQty(it.id, qtyStepForUnit(it.unit))}
                       />
                     ))}
@@ -269,7 +279,7 @@ export function GustCartSheet({
             </>
           ) : (
             <div
-              className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-2"
+              className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pt-2 md:px-5"
               style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
             >
               <GustCheckoutForm
@@ -370,7 +380,7 @@ function GustCartLineRow({
             className="min-w-[2.5rem] text-center text-sm font-bold tabular-nums"
             style={{ color: gustaBrandColors.text }}
           >
-            {it.qty}
+            {formatQuantityForDisplay(it.qty, it.unit)}
           </span>
           <button
             type="button"

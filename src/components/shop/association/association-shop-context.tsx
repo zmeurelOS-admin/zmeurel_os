@@ -18,6 +18,7 @@ import { buildGustProducerCardsFromProducts } from '@/components/shop/associatio
 import type { GustCartItem, GustCheckoutSuccess } from '@/components/shop/association/cart/gustCartTypes'
 import type { AssociationPublicSettings } from '@/lib/association/public-settings'
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
+import { getInitialQuantityForUnit, getQuantityStep } from '@/lib/shop/utils'
 
 export type { AssociationCartLine }
 
@@ -98,7 +99,7 @@ function AssociationShopProviderInner({
     (p: AssociationProduct) => {
       setSelectedProduct(p)
       const line = cartApi.lines.find((l) => l.product.id === p.id)
-      setDetailQtyDraft(String(line?.qty ?? 1))
+      setDetailQtyDraft(String(line?.qty ?? getInitialQuantityForUnit(p.unitate_vanzare)))
     },
     [cartApi.lines],
   )
@@ -116,8 +117,10 @@ function AssociationShopProviderInner({
 
   const addQuickToCart = useCallback(
     (p: AssociationProduct) => {
-      const step = p.unitate_vanzare === 'buc' ? 1 : 0.5
-      cartApi.addToCart(p, step)
+      const existing = cartApi.lines.find((line) => line.product.id === p.id)
+      const { step } = getQuantityStep(p.unitate_vanzare)
+      const initialQty = getInitialQuantityForUnit(p.unitate_vanzare)
+      cartApi.addToCart(p, existing ? step : initialQty)
     },
     [cartApi],
   )

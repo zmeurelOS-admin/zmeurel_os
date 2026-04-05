@@ -102,15 +102,14 @@ export function AssociationShopShell({ children }: { children?: ReactNode }) {
             href={ASSOCIATION_SHOP_BASE}
             className="flex shrink-0 items-start gap-2 border-b border-white/15 px-4 py-5 text-left transition hover:bg-white/5"
           >
-            <Image src="/icons/icon.svg" alt="" width={36} height={36} className="shrink-0 opacity-95" />
-            <div className="min-w-0 leading-tight">
-              <p className="assoc-heading text-[11px] font-semibold uppercase tracking-wide text-white/85">
-                Gustă din
-              </p>
-              <p className="assoc-heading text-lg font-extrabold" style={{ color: gustaBrandColors.accent }}>
-                Bucovina
-              </p>
-            </div>
+            <Image
+              src="/images/gusta-logo-horizontal.png"
+              alt="Gustă din Bucovina"
+              width={160}
+              height={40}
+              className="h-auto w-[160px] shrink-0"
+              priority
+            />
           </Link>
 
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">
@@ -215,10 +214,14 @@ export function AssociationShopShell({ children }: { children?: ReactNode }) {
         >
           {!isDesktop ? (
             <Link href={ASSOCIATION_SHOP_BASE} className="flex items-center gap-2">
-              <Image src="/icons/icon.svg" alt="" width={28} height={28} className="shrink-0" />
-              <span className="assoc-heading truncate text-sm font-bold" style={{ color: gustaBrandColors.primary }}>
-                Gustă din Bucovina
-              </span>
+              <Image
+                src="/images/gusta-logo-horizontal.png"
+                alt="Gustă din Bucovina"
+                width={120}
+                height={30}
+                className="h-auto w-[120px] shrink-0"
+                priority
+              />
             </Link>
           ) : null}
 

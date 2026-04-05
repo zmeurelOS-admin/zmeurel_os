@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 
 import { useAssociationShop } from '@/components/shop/association/association-shop-context'
@@ -9,6 +10,7 @@ import { labelForCategory } from '@/components/shop/association/tokens'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { gustaBrandColors } from '@/lib/shop/association/brand-tokens'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
+import { formatQuantityForDisplay } from '@/lib/shop/utils'
 import { cn } from '@/lib/utils'
 
 import { getGustCategoryVisual } from './gustCategoryVisual'
@@ -36,6 +38,7 @@ export function GustProductDetail({
   farmName,
   badge,
 }: GustProductDetailProps) {
+  const router = useRouter()
   const { publicSettings } = useAssociationShop()
   const merchant = resolveMerchantPublicInfo(publicSettings)
   const isDesktop = useMediaQuery(MD)
@@ -81,6 +84,8 @@ export function GustProductDetail({
     p.gramaj_per_unitate != null && Number.isFinite(p.gramaj_per_unitate)
       ? `${p.gramaj_per_unitate} g`
       : null
+  const producerName = p.farmName?.trim() || farmName
+  const producerHref = p.tenantId ? `/magazin/asociatie/producatori/${p.tenantId}` : null
 
   const mobileSlide = animateIn ? 'translateY(0)' : 'translateY(100%)'
   const desktopSlide = animateIn ? 'translateY(0) scale(1)' : 'translateY(24px) scale(0.98)'
@@ -173,13 +178,44 @@ export function GustProductDetail({
             >
               {p.nume}
             </h2>
-            <p
-              className="mt-2 flex items-center gap-1.5 text-sm font-semibold"
-              style={{ color: gustaBrandColors.primary }}
-            >
-              <span aria-hidden>🌱</span>
-              {farmName}
-            </p>
+            {producerHref ? (
+              <button
+                type="button"
+                className="mt-2 inline-flex items-center gap-2 text-left text-sm font-semibold text-[#0D6342] transition-colors hover:text-[#FF9E1B] hover:underline"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onClose()
+                  router.push(producerHref)
+                }}
+              >
+                {p.producerLogoUrl ? (
+                  <span className="relative h-5 w-5 overflow-hidden rounded-full">
+                    <Image
+                      src={p.producerLogoUrl}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="20px"
+                      unoptimized
+                    />
+                  </span>
+                ) : (
+                  <span aria-hidden>🌱</span>
+                )}
+                <span>{producerName}</span>
+                <span className="text-[10px] opacity-60" aria-hidden>
+                  ›
+                </span>
+              </button>
+            ) : (
+              <p
+                className="mt-2 flex items-center gap-1.5 text-sm font-semibold"
+                style={{ color: gustaBrandColors.primary }}
+              >
+                <span aria-hidden>🌱</span>
+                {producerName}
+              </p>
+            )}
             <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug" style={{ color: '#6b7a72' }}>
               <span aria-hidden>🏛</span>
               <span>Vândut de {merchant.legalName}</span>
@@ -270,7 +306,7 @@ export function GustProductDetail({
               }
             >
               {cartQuantity > 0
-                ? `În coș (${cartQuantity % 1 === 0 ? cartQuantity : cartQuantity.toFixed(1)})`
+                ? `În coș (${formatQuantityForDisplay(cartQuantity, p.unitate_vanzare)})`
                 : 'Adaugă în coș'}
             </button>
           </div>

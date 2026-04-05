@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, Plus, ShoppingBag } from 'lucide-react'
 
@@ -229,6 +230,21 @@ export default function AssociationLandingPage({
           aria-hidden
         />
         <div className="relative mx-auto w-full max-w-[600px] text-center">
+          <div className="mb-5 flex justify-center">
+            <div
+              className="overflow-hidden rounded-[20px] bg-white/10 p-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.16)]"
+              style={{ backdropFilter: 'blur(6px)' }}
+            >
+              <Image
+                src="/images/gusta-logo.png"
+                alt="Gustă din Bucovina"
+                width={120}
+                height={120}
+                className="h-[96px] w-[96px] rounded-[16px] object-contain md:h-[120px] md:w-[120px]"
+                priority
+              />
+            </div>
+          </div>
           <div
             className="assoc-heading mb-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold md:text-sm"
             style={{

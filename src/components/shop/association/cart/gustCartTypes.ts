@@ -1,4 +1,5 @@
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
+import { formatQuantityForDisplay, getQuantityStep } from '@/lib/shop/utils'
 
 /** Linie coș pentru UI Gustă — mapată la `POST /api/shop/order` (doar id + qty pe linie). */
 export type GustCartItem = {
@@ -34,11 +35,17 @@ export function gustCartItemsFromAssociationLines(
 }
 
 export function qtyStepForUnit(unit: string): number {
-  return unit.trim().toLowerCase() === 'buc' ? 1 : 0.5
+  return getQuantityStep(unit).step
 }
+
+export { formatQuantityForDisplay }
+
+export type GustCommunicationChannel = 'whatsapp' | 'sms' | 'apel'
 
 export type GustCheckoutSuccess = {
   orderIds: string[]
+  orderNumbers: string[]
+  primaryOrderNumber: string | null
   /** Subtotal doar produse (toate fermele). */
   totalLei: number
   currency: string
@@ -54,7 +61,7 @@ export type GustCheckoutSuccess = {
   clientName: string
   clientTelefon: string
   clientLocatie: string
-  whatsappConsent: boolean
+  canalComunicare: GustCommunicationChannel | null
   summaryLines: Array<{
     productName: string
     farmName: string
