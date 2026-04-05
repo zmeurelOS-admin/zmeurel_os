@@ -41,6 +41,15 @@ export function mockAssociationProduct(overrides?: Partial<AssociationProduct>):
     tenantId: ASSOCIATION_TEST_IDS.tenantId,
     farmName: 'Ferma de test',
     farmRegion: 'Suceava',
+    producerLogoUrl: null,
+    producerDescription: 'Descriere de test',
+    producerLocation: 'Suceava',
+    producerWebsite: null,
+    producerFacebook: null,
+    producerInstagram: null,
+    producerWhatsapp: null,
+    producerEmailPublic: null,
+    producerProgramPiata: null,
     displayPrice: 25,
     ...overrides,
   }
@@ -91,8 +100,15 @@ export function mockProducer(overrides?: Partial<GustProducerCard>): GustProduce
   return {
     tenantId: ASSOCIATION_TEST_IDS.tenantId,
     farmName: 'Ferma de test',
-    specialty: 'Fructe de pădure',
+    logoUrl: null,
+    description: 'Descriere de test',
     location: 'Suceava',
+    listedProducts: ['Zmeură'],
+    productCount: 1,
+    website: null,
+    facebook: null,
+    instagram: null,
+    whatsapp: null,
     ...overrides,
   }
 }

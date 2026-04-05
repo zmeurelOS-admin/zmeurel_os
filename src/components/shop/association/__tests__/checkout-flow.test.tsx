@@ -71,8 +71,9 @@ describe('GustCheckoutForm — flux checkout', () => {
     fireEvent.change(document.querySelector('input[autocomplete="street-address"]')!, {
       target: { value: 'Suceava, str. Principală 10' },
     })
+    await user.click(screen.getByRole('radio', { name: /WhatsApp/i }))
 
-    await user.click(screen.getByRole('button', { name: /Plasează comanda cu obligație de plată/i }))
+    await user.click(screen.getByRole('button', { name: /Plaseaz[ăa] comanda cu obliga[țt]ie de plat[ăa]/i }))
 
     expect(postShopOrderWithRetry).toHaveBeenCalled()
     const body = postShopOrderWithRetry.mock.calls[0]?.[0] as {
@@ -81,12 +82,16 @@ describe('GustCheckoutForm — flux checkout', () => {
       lines: { produsId: string; qty: number }[]
       cartSubtotalLei: number
       associationCheckoutPart: { farmIndex: number; farmCount: number }
+      canal_confirmare: string
+      save_consent: boolean
     }
     expect(body.channel).toBe('association_shop')
     expect(body.tenantId).toBe(TID)
     expect(body.lines).toEqual([{ produsId: PID, qty: 2 }])
     expect(body.cartSubtotalLei).toBe(24)
     expect(body.associationCheckoutPart).toEqual({ farmIndex: 0, farmCount: 1 })
+    expect(body.canal_confirmare).toBe('whatsapp')
+    expect(body.save_consent).toBe(true)
 
     expect(onComplete).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -96,6 +101,7 @@ describe('GustCheckoutForm — flux checkout', () => {
         grandTotalLei: 39,
         currency: 'RON',
         farmCount: 1,
+        canalComunicare: 'whatsapp',
       }),
     )
   })
@@ -121,10 +127,19 @@ describe('GustCheckoutForm — flux checkout', () => {
     fireEvent.change(document.querySelector('input[autocomplete="street-address"]')!, {
       target: { value: 'Suceava, str. Principală 10' },
     })
+    await user.click(screen.getByRole('radio', { name: /WhatsApp/i }))
 
-    await user.click(screen.getByRole('button', { name: /Plasează comanda cu obligație de plată/i }))
+    await user.click(screen.getByRole('button', { name: /Plaseaz[ăa] comanda cu obliga[țt]ie de plat[ăa]/i }))
 
     expect(await screen.findByText('Server indisponibil')).toBeInTheDocument()
     expect(onComplete).not.toHaveBeenCalled()
+  })
+
+  it('butonul ramane dezactivat pana este ales un canal de comunicare', () => {
+    render(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={vi.fn()} />)
+
+    expect(
+      screen.getByRole('button', { name: /Plaseaz[ăa] comanda cu obliga[țt]ie de plat[ăa]/i }),
+    ).toBeDisabled()
   })
 })

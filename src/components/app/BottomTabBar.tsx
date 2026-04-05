@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { MoreMenuDrawer } from '@/components/app/MoreMenuDrawer'
@@ -32,7 +32,6 @@ export function BottomTabBar() {
   const router = useRouter()
   const { associationRole } = useDashboardAuth()
   const [moreOpen, setMoreOpen] = useState(false)
-  const prevPathnameRef = useRef(pathname)
 
   const inAssociationWorkspace = pathname.startsWith('/asociatie')
   const tabs = useMemo(() => {
@@ -55,12 +54,6 @@ export function BottomTabBar() {
   }, [router])
 
   // Închide meniul doar la schimbare reală de rută (nu la re-randări cu același pathname)
-  useEffect(() => {
-    if (prevPathnameRef.current === pathname) return
-    prevPathnameRef.current = pathname
-    setMoreOpen(false)
-  }, [pathname])
-
   const isTabActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
   // ••• is active only when the menu is explicitly open, not based on pathname
   const moreActive = moreOpen

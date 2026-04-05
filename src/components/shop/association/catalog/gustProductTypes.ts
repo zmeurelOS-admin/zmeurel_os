@@ -7,16 +7,19 @@ export type GustCatalogProduct = {
   nume: string
   descriere: string | null
   categorie: string
+  farmName?: string
   unitate_vanzare: string
   gramaj_per_unitate: number | null
   pret_unitar: number | null
   /** Magazin asociație: preț efectiv (override). */
   displayPrice?: number
   moneda: string
+  producerLogoUrl?: string | null
   /** Array URL-uri când există în DB / payload. */
   poze?: string[] | null
   poza_1_url?: string | null
   poza_2_url?: string | null
+  tenantId?: string
   ingrediente?: string | null
   alergeni?: string | null
   conditii_pastrare?: string | null

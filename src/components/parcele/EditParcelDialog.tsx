@@ -16,7 +16,7 @@ import {
   ParcelForm,
   type ParcelFormValues,
 } from '@/components/parcele/ParcelForm'
-import { parseParcelaScop, coerceParcelaScopFromDb, coerceStatusOperationalFromDb } from '@/lib/parcele/dashboard-relevance'
+import { parseParcelaScop, coerceStatusOperationalFromDb } from '@/lib/parcele/dashboard-relevance'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
 interface EditParcelDialogProps {
@@ -99,7 +99,6 @@ export function EditParcelDialog({
     onError: (error: Error) => {
       hapticError()
       const dbError = error as Error & { details?: string; hint?: string; code?: string }
-      // eslint-disable-next-line no-console
       console.error('[EditParcelDialog] updateParcela error:', {
         message: dbError.message,
         details: dbError.details,

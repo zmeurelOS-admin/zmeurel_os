@@ -36,6 +36,15 @@ function prod(
     tenantId: TID,
     farmName: farm,
     farmRegion: null,
+    producerLogoUrl: null,
+    producerDescription: null,
+    producerLocation: null,
+    producerWebsite: null,
+    producerFacebook: null,
+    producerInstagram: null,
+    producerWhatsapp: null,
+    producerEmailPublic: null,
+    producerProgramPiata: null,
     displayPrice: price,
   }
 }

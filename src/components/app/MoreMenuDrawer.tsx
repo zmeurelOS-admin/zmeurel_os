@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import {
   Archive,
   BanknoteArrowUp,
@@ -103,10 +103,13 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   const { isSuperAdmin: isSuperAdminUser, associationRole } = useDashboardAuth()
   const ignoreCloseUntilRef = useRef(0)
   const prevOpenRef = useRef(false)
-  if (open && !prevOpenRef.current) {
-    ignoreCloseUntilRef.current = Date.now() + 220
-  }
-  prevOpenRef.current = open
+
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      ignoreCloseUntilRef.current = Date.now() + 220
+    }
+    prevOpenRef.current = open
+  }, [open])
 
   const handleOpenChange = (next: boolean) => {
     if (!next && Date.now() < ignoreCloseUntilRef.current) return

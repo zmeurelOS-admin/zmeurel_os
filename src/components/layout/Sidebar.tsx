@@ -370,6 +370,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState<boolean>(false)
   const [hash, setHash] = useState("")
   const [openSection, setOpenSection] = useState<SidebarAccordionKey | null>(null)
+  const [openSectionPath, setOpenSectionPath] = useState("")
 
   const currentGroup = useMemo(() => getGroupForPath(pathname), [pathname])
   const searchString = searchParams.toString()
@@ -406,10 +407,16 @@ export function Sidebar() {
     return () => window.removeEventListener("hashchange", updateHash)
   }, [])
 
-  useEffect(() => {
-    if (collapsed || inAssociationWorkspace) return
-    setOpenSection(deriveOpenSectionFromPath(pathname, isSuperAdminUser))
-  }, [pathname, collapsed, isSuperAdminUser, inAssociationWorkspace])
+  const pathnameOpenSection = useMemo(
+    () => deriveOpenSectionFromPath(pathname, isSuperAdminUser),
+    [pathname, isSuperAdminUser]
+  )
+  const activeOpenSection =
+    collapsed || inAssociationWorkspace
+      ? null
+      : openSectionPath === pathname
+        ? openSection
+        : pathnameOpenSection
 
   const bannerOffset = bannerVisible ? DEMO_BANNER_HEIGHT : 0
 
@@ -494,8 +501,9 @@ export function Sidebar() {
                         group={group}
                         collapsed={collapsed}
                         activeGroup={currentGroup}
-                        open={openSection === group.key}
+                        open={activeOpenSection === group.key}
                         onOpenChange={(next) => {
+                          setOpenSectionPath(pathname)
                           if (next) setOpenSection(group.key)
                           else setOpenSection(null)
                         }}
@@ -513,8 +521,9 @@ export function Sidebar() {
                         pathname={pathname}
                         searchString={searchString}
                         hash={hash}
-                        open={openSection === "admin"}
+                        open={activeOpenSection === "admin"}
                         onOpenChange={(next) => {
+                          setOpenSectionPath(pathname)
                           if (next) setOpenSection("admin")
                           else setOpenSection(null)
                         }}
@@ -531,8 +540,9 @@ export function Sidebar() {
                     pathname={pathname}
                     searchString={searchString}
                     hash={hash}
-                    open={openSection === "admin"}
+                    open={activeOpenSection === "admin"}
                     onOpenChange={(next) => {
+                      setOpenSectionPath(pathname)
                       if (next) setOpenSection("admin")
                       else setOpenSection(null)
                     }}
