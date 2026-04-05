@@ -18,9 +18,13 @@ vi.mock('@/lib/association/auth', () => ({
 
 const orderMocks = vi.hoisted(() => ({
   createClient: vi.fn(),
+  getSupabaseAdmin: vi.fn(),
 }))
 vi.mock('@/lib/supabase/server', () => ({
   createClient: () => orderMocks.createClient(),
+}))
+vi.mock('@/lib/supabase/admin', () => ({
+  getSupabaseAdmin: () => orderMocks.getSupabaseAdmin(),
 }))
 
 const OID = '880e8400-e29b-41d4-a716-446655440001'
@@ -34,9 +38,14 @@ function buildOrdersApi(opts: {
     data_origin: string | null
     tenant_id?: string | null
     status?: string
+    telefon?: string | null
+    data_comanda?: string
+    client_nume_manual?: string | null
+    locatie_livrare?: string | null
+    note_interne?: string | null
   } | null
   fetchError?: unknown
-  updateData: { id: string; status: string; updated_at: string } | null
+  updateData: { id: string }[] | null
   updateError?: unknown
 }) {
   return {
@@ -54,18 +63,17 @@ function buildOrdersApi(opts: {
                 : { data: opts.fetchData, error: null },
           }),
         }),
-        update: () => ({
-          eq: () => ({
-            eq: () => ({
-              select: () => ({
-                single: async () =>
-                  opts.updateError != null
-                    ? { data: null, error: opts.updateError }
-                    : { data: opts.updateData, error: null },
-              }),
-            }),
-          }),
-        }),
+        update: () => {
+          const query = {
+            eq: () => query,
+            is: () => query,
+            select: async () =>
+              opts.updateError != null
+                ? { data: null, error: opts.updateError }
+                : { data: opts.updateData, error: null },
+          }
+          return query
+        },
       }
     },
   }
@@ -78,15 +86,19 @@ describe('PATCH /api/association/orders — extended', () => {
 
   it('200: status noua → confirmata', async () => {
     getAssociationRole.mockResolvedValue('admin')
-    const updated = { id: OID, status: 'confirmata', updated_at: new Date().toISOString() }
-    orderMocks.createClient.mockResolvedValue(
+    const updated = [{ id: OID }]
+    orderMocks.createClient.mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
+    })
+    orderMocks.getSupabaseAdmin.mockReturnValue(
       buildOrdersApi({
-        user: { id: UID },
+        user: null,
         fetchData: {
           id: OID,
           data_origin: 'magazin_asociatie',
           tenant_id: TID,
           status: 'noua',
+          data_comanda: '2026-04-04',
         },
         updateData: updated,
       }),
@@ -102,9 +114,12 @@ describe('PATCH /api/association/orders — extended', () => {
 
   it('400: status invalid (schema)', async () => {
     getAssociationRole.mockResolvedValue('moderator')
-    orderMocks.createClient.mockResolvedValue(
+    orderMocks.createClient.mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
+    })
+    orderMocks.getSupabaseAdmin.mockReturnValue(
       buildOrdersApi({
-        user: { id: UID },
+        user: null,
         fetchData: {
           id: OID,
           data_origin: 'magazin_asociatie',
@@ -124,9 +139,12 @@ describe('PATCH /api/association/orders — extended', () => {
 
   it('403: data_origin magazin_public', async () => {
     getAssociationRole.mockResolvedValue('admin')
-    orderMocks.createClient.mockResolvedValue(
+    orderMocks.createClient.mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
+    })
+    orderMocks.getSupabaseAdmin.mockReturnValue(
       buildOrdersApi({
-        user: { id: UID },
+        user: null,
         fetchData: { id: OID, data_origin: 'magazin_public', tenant_id: TID, status: 'noua' },
         updateData: null,
       }),
@@ -141,13 +159,9 @@ describe('PATCH /api/association/orders — extended', () => {
 
   it('403: viewer', async () => {
     getAssociationRole.mockResolvedValue('viewer')
-    orderMocks.createClient.mockResolvedValue(
-      buildOrdersApi({
-        user: { id: UID },
-        fetchData: null,
-        updateData: null,
-      }),
-    )
+    orderMocks.createClient.mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
+    })
     const req = createSameOriginRequest('/api/association/orders', {
       method: 'PATCH',
       json: { orderId: OID, status: 'confirmata' },
@@ -158,15 +172,19 @@ describe('PATCH /api/association/orders — extended', () => {
 
   it('200: moderator poate actualiza', async () => {
     getAssociationRole.mockResolvedValue('moderator')
-    const updated = { id: OID, status: 'programata', updated_at: new Date().toISOString() }
-    orderMocks.createClient.mockResolvedValue(
+    const updated = [{ id: OID }]
+    orderMocks.createClient.mockResolvedValue({
+      auth: { getUser: async () => ({ data: { user: { id: UID } }, error: null }) },
+    })
+    orderMocks.getSupabaseAdmin.mockReturnValue(
       buildOrdersApi({
-        user: { id: UID },
+        user: null,
         fetchData: {
           id: OID,
           data_origin: 'magazin_asociatie',
           tenant_id: TID,
           status: 'noua',
+          data_comanda: '2026-04-04',
         },
         updateData: updated,
       }),
