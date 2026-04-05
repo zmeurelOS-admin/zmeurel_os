@@ -61,16 +61,27 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
   const isMobile = useMediaQuery('(max-width: 767px)')
   const fileInputRefs = useRef<Array<HTMLInputElement | null>>([])
   const previewUrlRefs = useRef<Array<string | null>>([null, null, null])
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
+  const logoPreviewUrlRef = useRef<string | null>(null)
 
   const [specialitatePreset, setSpecialitatePreset] = useState<string>('')
   const [specialitateCustom, setSpecialitateCustom] = useState('')
   const [specialitateMode, setSpecialitateMode] = useState<'preset' | 'custom'>('preset')
   const [localitate, setLocalitate] = useState('Suceava')
   const [descriere, setDescriere] = useState('')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [website, setWebsite] = useState('')
+  const [facebook, setFacebook] = useState('')
+  const [instagram, setInstagram] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [emailPublic, setEmailPublic] = useState('')
+  const [programPiata, setProgramPiata] = useState('')
   const [photoSlots, setPhotoSlots] = useState<Array<string | null>>([null, null, null])
   const [previewSlots, setPreviewSlots] = useState<Array<string | null>>([null, null, null])
   const [uploadingSlots, setUploadingSlots] = useState<Record<number, boolean>>({})
   const [deletingSlot, setDeletingSlot] = useState<number | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const replacePreview = useCallback((slot: number, nextUrl: string | null) => {
@@ -92,6 +103,9 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
       for (const url of previewUrls) {
         if (url) URL.revokeObjectURL(url)
       }
+      if (logoPreviewUrlRef.current) {
+        URL.revokeObjectURL(logoPreviewUrlRef.current)
+      }
     }
   }, [])
 
@@ -105,10 +119,23 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
     setSpecialitateCustom(isPreset ? '' : currentSpecialty)
     setLocalitate(producer.localitate?.trim() || 'Suceava')
     setDescriere(producer.descriere_publica ?? '')
+    setLogoUrl(producer.logo_url?.trim() || null)
+    setWebsite(producer.website ?? '')
+    setFacebook(producer.facebook ?? '')
+    setInstagram(producer.instagram ?? '')
+    setWhatsapp(producer.whatsapp ?? '')
+    setEmailPublic(producer.email_public ?? '')
+    setProgramPiata(producer.program_piata ?? '')
     setPhotoSlots(padPhotoSlots(producer.poze_ferma))
     setUploadingSlots({})
     setDeletingSlot(null)
+    setUploadingLogo(false)
     setSaving(false)
+    if (logoPreviewUrlRef.current) {
+      URL.revokeObjectURL(logoPreviewUrlRef.current)
+      logoPreviewUrlRef.current = null
+    }
+    setLogoPreview(null)
 
     for (let slot = 0; slot < MAX_PHOTOS; slot += 1) {
       replacePreview(slot, null)
@@ -116,8 +143,8 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
   }, [open, producer, replacePreview])
 
   const hasPendingUploads = useMemo(
-    () => Object.values(uploadingSlots).some(Boolean),
-    [uploadingSlots]
+    () => Object.values(uploadingSlots).some(Boolean) || uploadingLogo,
+    [uploadingLogo, uploadingSlots]
   )
 
   const effectiveSpecialitate =
@@ -144,6 +171,13 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
           descriere_publica: descriere.trim(),
           specialitate: effectiveSpecialitate,
           localitate: localitate.trim(),
+          logo_url: logoUrl ?? '',
+          website: website.trim(),
+          facebook: facebook.trim(),
+          instagram: instagram.trim(),
+          whatsapp: whatsapp.trim(),
+          email_public: emailPublic.trim(),
+          program_piata: programPiata.trim(),
           poze_ferma: compactPhotoSlots(photoSlots),
         }),
       })
@@ -160,16 +194,82 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
 
       onSaved(producer.id, {
         descriere_publica: descriere.trim() || null,
+        email_public: emailPublic.trim() || null,
+        facebook: facebook.trim() || null,
+        instagram: instagram.trim() || null,
         specialitate: effectiveSpecialitate || null,
         localitate: localitate.trim() || 'Suceava',
+        logo_url: logoUrl,
         poze_ferma: compactPhotoSlots(photoSlots),
+        program_piata: programPiata.trim() || null,
+        website: website.trim() || null,
+        whatsapp: whatsapp.trim() || null,
       })
       toast.success(`Profilul ${producer.nume_ferma} a fost actualizat.`)
       onOpenChange(false)
     } finally {
       setSaving(false)
     }
-  }, [descriere, effectiveSpecialitate, hasPendingUploads, localitate, onOpenChange, onSaved, photoSlots, producer])
+  }, [descriere, effectiveSpecialitate, emailPublic, facebook, hasPendingUploads, instagram, localitate, logoUrl, onOpenChange, onSaved, photoSlots, producer, programPiata, website, whatsapp])
+
+  const handleLogoUpload = useCallback(
+    async (file: File | null) => {
+      if (!producer || !file) return
+
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        toast.error('Format acceptat: PNG, JPG sau WebP.')
+        return
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error('Logo-ul trebuie să fie de maximum 2 MB.')
+        return
+      }
+
+      if (logoPreviewUrlRef.current) {
+        URL.revokeObjectURL(logoPreviewUrlRef.current)
+      }
+      const nextPreview = URL.createObjectURL(file)
+      logoPreviewUrlRef.current = nextPreview
+      setLogoPreview(nextPreview)
+      setUploadingLogo(true)
+
+      try {
+        const formData = new FormData()
+        formData.set('file', file)
+
+        const res = await fetch(`/api/association/producer-logo?tenantId=${encodeURIComponent(producer.id)}`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: formData,
+        })
+
+        const json = (await res.json().catch(() => null)) as
+          | { ok?: boolean; data?: { url?: string }; error?: { message?: string } }
+          | null
+
+        if (!res.ok || !json?.ok || !json.data?.url) {
+          const message = json && typeof json === 'object' && json.error?.message
+          if (logoPreviewUrlRef.current) {
+            URL.revokeObjectURL(logoPreviewUrlRef.current)
+            logoPreviewUrlRef.current = null
+          }
+          setLogoPreview(logoUrl)
+          toast.error(typeof message === 'string' ? message : 'Nu am putut urca logo-ul.')
+          return
+        }
+
+        if (logoPreviewUrlRef.current) {
+          URL.revokeObjectURL(logoPreviewUrlRef.current)
+          logoPreviewUrlRef.current = null
+        }
+        setLogoUrl(json.data.url)
+        setLogoPreview(json.data.url)
+      } finally {
+        setUploadingLogo(false)
+      }
+    },
+    [logoUrl, producer]
+  )
 
   const handleUpload = useCallback(
     async (slot: number, file: File | null) => {
@@ -261,6 +361,51 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
 
   const content = producer ? (
     <div className="space-y-5">
+      <div className="space-y-3 rounded-[18px] bg-[var(--surface-card-muted)] p-4">
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-secondary)]">Identitate vizuală</p>
+          <p className="text-xs text-[var(--text-secondary)]">Logo sau foto principală pentru pagina publică.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative h-[72px] w-[72px] overflow-hidden rounded-full border border-[var(--border-default)] bg-white">
+            {logoPreview || logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoPreview || logoUrl || ''}
+                alt={`Logo ${producer.nume_ferma}`}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xl font-extrabold text-[var(--text-secondary)]">
+                {producer.nume_ferma.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null
+                void handleLogoUpload(file)
+                event.currentTarget.value = ''
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={uploadingLogo}
+              onClick={() => logoInputRef.current?.click()}
+            >
+              {uploadingLogo ? 'Se încarcă…' : 'Încarcă logo'}
+            </Button>
+            <p className="text-[11px] text-[var(--text-secondary)]">PNG, JPG sau WebP, maximum 2 MB.</p>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label>Specialitate</Label>
         <Select
@@ -403,6 +548,74 @@ export function ProducerProfileEditor({ producer, open, onOpenChange, onSaved }:
               </div>
             )
           })}
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-[18px] bg-[var(--surface-card-muted)] p-4">
+        <div className="space-y-1">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-secondary)]">Contact public</p>
+          <p className="text-xs text-[var(--text-secondary)]">Completează doar datele pe care vrei să le afișezi public.</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="producer-website">Website</Label>
+          <Input
+            id="producer-website"
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+            placeholder="https://www.fermamea.ro"
+            maxLength={200}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="producer-facebook">Facebook</Label>
+          <Input
+            id="producer-facebook"
+            value={facebook}
+            onChange={(event) => setFacebook(event.target.value)}
+            placeholder="https://facebook.com/fermamea sau @fermamea"
+            maxLength={200}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="producer-instagram">Instagram</Label>
+          <Input
+            id="producer-instagram"
+            value={instagram}
+            onChange={(event) => setInstagram(event.target.value)}
+            placeholder="https://instagram.com/fermamea sau @fermamea"
+            maxLength={200}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="producer-whatsapp">WhatsApp</Label>
+          <Input
+            id="producer-whatsapp"
+            value={whatsapp}
+            onChange={(event) => setWhatsapp(event.target.value)}
+            placeholder="07xxxxxxxx"
+            maxLength={40}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="producer-email-public">Email public</Label>
+          <Input
+            id="producer-email-public"
+            type="email"
+            value={emailPublic}
+            onChange={(event) => setEmailPublic(event.target.value)}
+            placeholder="contact@fermamea.ro"
+            maxLength={200}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="producer-program-piata">Program piață volantă</Label>
+          <Input
+            id="producer-program-piata"
+            value={programPiata}
+            onChange={(event) => setProgramPiata(event.target.value)}
+            placeholder="Ex: Sâmbătă, 08:00 - 12:30 · Curtea DAJ Suceava"
+            maxLength={200}
+          />
         </div>
       </div>
 

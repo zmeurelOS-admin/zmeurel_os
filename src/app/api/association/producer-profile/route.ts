@@ -14,6 +14,13 @@ const patchBodySchema = z.object({
   specialitate: z.string().max(120).optional(),
   localitate: z.string().max(120).optional(),
   poze_ferma: z.array(z.string().url()).max(3).optional(),
+  logo_url: z.string().url().optional().or(z.literal('')),
+  website: z.string().max(200).optional(),
+  facebook: z.string().max(200).optional(),
+  instagram: z.string().max(200).optional(),
+  whatsapp: z.string().max(40).optional(),
+  email_public: z.string().email().max(200).optional().or(z.literal('')),
+  program_piata: z.string().max(200).optional(),
 })
 
 function normalizePhotos(values: string[] | undefined): string[] | undefined {
@@ -51,7 +58,20 @@ export async function PATCH(request: Request) {
       return apiError(400, 'INVALID_BODY', 'Date invalide.')
     }
 
-    const { tenantId, descriere_publica, specialitate, localitate, poze_ferma } = parsed.data
+    const {
+      tenantId,
+      descriere_publica,
+      specialitate,
+      localitate,
+      poze_ferma,
+      logo_url,
+      website,
+      facebook,
+      instagram,
+      whatsapp,
+      email_public,
+      program_piata,
+    } = parsed.data
     tenantIdForSentry = tenantId
 
     const { data: tenant, error: tenantErr } = await supabase
@@ -84,13 +104,34 @@ export async function PATCH(request: Request) {
     if (poze_ferma !== undefined) {
       patch.poze_ferma = normalizePhotos(poze_ferma)
     }
+    if (logo_url !== undefined) {
+      patch.logo_url = logo_url.trim() || null
+    }
+    if (website !== undefined) {
+      patch.website = website.trim() || null
+    }
+    if (facebook !== undefined) {
+      patch.facebook = facebook.trim() || null
+    }
+    if (instagram !== undefined) {
+      patch.instagram = instagram.trim() || null
+    }
+    if (whatsapp !== undefined) {
+      patch.whatsapp = whatsapp.trim() || null
+    }
+    if (email_public !== undefined) {
+      patch.email_public = email_public.trim() || null
+    }
+    if (program_piata !== undefined) {
+      patch.program_piata = program_piata.trim() || null
+    }
 
     const { data: updated, error: updateErr } = await supabase
       .from('tenants')
       .update(patch)
       .eq('id', tenantId)
       .select(
-        'id, nume_ferma, is_association_approved, descriere_publica, specialitate, localitate, poze_ferma, updated_at'
+        'id, nume_ferma, is_association_approved, descriere_publica, specialitate, localitate, poze_ferma, logo_url, website, facebook, instagram, whatsapp, email_public, program_piata, updated_at'
       )
       .single()
 
