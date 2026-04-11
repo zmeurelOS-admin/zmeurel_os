@@ -6,8 +6,12 @@ on:
       - 'src/app/api/chat/**'
       - 'src/lib/financial/chat-router.ts'
       - 'src/components/ai/**'
+      - 'src/components/ui/AiFab.tsx'
       - 'tests/ai-chat-harness.spec.ts'
+      - 'tests/ai-chat-harness.cases.ts'
       - 'playwright.ai-chat.config.ts'
+      - 'tests/ai-chat-route.integration.spec.ts'
+      - 'playwright.ai-chat.integration.config.ts'
       - 'package.json'
       - 'package-lock.json'
       - 'AGENTS.md'
@@ -20,8 +24,12 @@ on:
       - 'src/app/api/chat/**'
       - 'src/lib/financial/chat-router.ts'
       - 'src/components/ai/**'
+      - 'src/components/ui/AiFab.tsx'
       - 'tests/ai-chat-harness.spec.ts'
+      - 'tests/ai-chat-harness.cases.ts'
       - 'playwright.ai-chat.config.ts'
+      - 'tests/ai-chat-route.integration.spec.ts'
+      - 'playwright.ai-chat.integration.config.ts'
       - 'package.json'
       - 'package-lock.json'
       - 'AGENTS.md'
@@ -45,5 +53,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run AI chat gate
-        run: npm run check:ai-chat
+      - name: Run strict AI chat CI gate
+        run: npm run check:ai-chat:ci

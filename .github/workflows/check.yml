@@ -7,11 +7,15 @@ on:
   pull_request:
 
 jobs:
-  lint-and-typecheck:
+  critical-checks:
     runs-on: ubuntu-latest
+    env:
+      SENSITIVE_GUARD_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,8 +26,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npx tsc --noEmit
+      - name: Run critical checks
+        run: npm run check:critical

@@ -31,6 +31,13 @@
 - Cheltuieli now also tolerates linked environments where `metoda_plata` is not migrated yet, so temporary client-side 400/column-missing fallbacks are still possible until linked schema catch-up is complete.
 - Public producer profiles depend on `tenants.descriere_publica`, `specialitate`, `localitate`, and `poze_ferma`; if linked environments miss these columns or the new Storage bucket, admin editing and public profile rendering degrade.
 
+### Backup And Restore Readiness
+
+- Repo-ul acoperă codul, migrațiile, Edge Functions, `vercel.json`, runbook-ul și inventarul de env (`.env.local.example`), dar **nu** acoperă datele reale din `public`, `auth.users` sau obiectele Storage.
+- Bucket-urile active (`produse-photos`, `producer-photos`, `producer-logos`, `association-config`, `legal-docs`) sunt recreate din migrații, însă conținutul lor trebuie exportat/restaurat separat.
+- Pentru restore pe proiect Supabase nou, repo-ul încă nu are `supabase/config.toml`; asta înseamnă link/config manual în Dashboard sau Supabase CLI înainte de reaplicarea lanțului de migrații.
+- `npm run check:backup-readiness` verifică doar readiness-ul repo-ului, nu existența backup-urilor reale în providerii externi.
+
 ### Stock-Affecting RPCs
 
 - Harvests, sales, and orders rely on RPC-backed atomic behavior.
@@ -80,14 +87,18 @@
 - `api/demo/reload`
 
 These routes can delete significant amounts of data and use privileged access. They require careful review when touched.
+- `api/farm/reset`, `api/gdpr/account`, and `api/gdpr/farm` now require step-up auth in addition to session + same-origin (`/api/auth/destructive-step-up`, short-lived single-use token via `x-zmeurel-step-up-token`).
+- Remaining operational risk: step-up token replay protection is process-local (in-memory). In multi-instance/serverless topologies, replay blocking is best-effort until a shared nonce store is introduced.
 
 ### Destructive Flow Parity Drift
 
-- Newer tenant-scoped tables are not covered consistently across all destructive flows.
-- `src/app/api/farm/reset/route.ts` includes `culturi`, `culture_stage_logs`, and `solar_climate_logs`.
-- `src/app/api/gdpr/farm/route.ts` and `src/app/api/cron/demo-tenant-cleanup/route.ts` currently do not.
-- This creates data-retention, demo-cleanup, and GDPR-completeness risk when the schema evolves.
-- The delete surface is now centralized in code and also includes tenant-scoped catalog/customization tables, but any new tenant table must still be added there deliberately.
+- Tenant/farm destructive flows now share a single canonical helper (`src/lib/tenant/destructive-cleanup.ts`) used by:
+  - `src/app/api/farm/reset/route.ts`
+  - `src/app/api/gdpr/farm/route.ts`
+  - `src/app/api/cron/demo-tenant-cleanup/route.ts`
+- The helper models explicit scopes and centralizes delete order + post-delete verification on critical targets.
+- Residual risk: optional/newer tables are tolerated in schema-drift scenarios (missing table => skipped for optional targets), so operators should still monitor warning logs and keep migrations aligned across environments.
+- Any new tenant-scoped table must be added once in the canonical helper; this is now the single source of truth.
 
 ### RPC Trust Boundary
 
@@ -108,14 +119,24 @@ These routes can delete significant amounts of data and use privileged access. T
 
 ### Protected Accounts
 
-- Some destructive flows protect a specific superadmin email from deletion.
-- This is a business/security safeguard and should not be removed casually.
+- Destructive flows protejează conturile privilegiate prin rol (`profiles.is_superadmin`) și allowlist explicit pe user IDs în env (`ACCOUNT_DELETE_PROTECTED_USER_IDS`), nu prin email hardcodat.
+- Safeguard-ul rămâne critic pentru continuitatea operațională și nu trebuie eliminat fără un mecanism echivalent.
+- Scripturile operaționale destructive (`scripts/cleanup-demos.ts`, `scripts/cleanup-beta-accounts.ts`, `scripts/reset-test-users.ts`) folosesc același model role/user-id (`profiles.is_superadmin` + env `*_PROTECTED_USER_IDS`) și nu mai depind de un email personal hardcodat.
+- Unele migrații istorice conțin încă seed-uri/backfill-uri pe email; comportamentul activ este însă suprascris de migrațiile noi role-based și de guard-urile runtime din API.
+
+### Repository Guard Against Sensitive Hardcoding
+
+- `npm run check:sensitive-hardcoding` rulează automat în `npm run check:critical` și în workflow-ul general `.github/workflows/check.yml`.
+- Guardul blochează patternuri clare în fișierele noi/modificate: emailuri personale hardcodate în zone sensibile, comparații directe pe email pentru permisiuni/comportament, allowlist-uri inline fragile pe email/user IDs, secrete/API keys/tokens literale și folosirea de env-uri publice care sugerează secrete.
+- Excluderile deliberate sunt minime și orientate pe reducerea zgomotului: `docs/`, fișiere de test/fixtures, `.env*.example`, `supabase/migrations_archive/` și backup-uri/dump-uri istorice. Migrațiile active noi rămân scanate.
+- Guardul permite explicit adrese fake/non-personale pentru test/demo (`@example.test`, `@example.com`, `@demo.zmeurel.local`) și patternuri runtime legitime bazate pe `process.env`, pentru a evita false-positive-urile absurde.
 
 ### Google Contacts Integration
 
 - Integration routes are currently disabled with HTTP 410, but library code still exists.
-- Refresh tokens are stored and there is an explicit TODO to encrypt them at rest.
-- This is a notable security and compliance risk if the feature is re-enabled.
+- OAuth token payloads are now encrypted at rest in app code (`GOOGLE_TOKENS_ENCRYPTION_KEY`, AES-GCM, versioned payload).
+- Legacy plaintext rows are re-encrypted transparently when they are reused successfully.
+- Remaining operational risk: if `GOOGLE_TOKENS_ENCRYPTION_KEY` is missing in runtime env, encrypted rows cannot be decrypted and Google sync flows fail closed until env is fixed.
 
 ## Operational And Product Risks
 

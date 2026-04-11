@@ -17,17 +17,24 @@ Runtime app code lives under `src/`, especially `src/app` for routes and `src/li
 - Monitoring: Sentry.
 - Product analytics: Vercel Analytics/Speed Insights plus custom `analytics_events`.
 - PWA/offline: `next-pwa`, IndexedDB sync queue, idempotent mutation flow.
-- **Web Push (VAPID)**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (generate with `npx web-push generate-vapid-keys`; never commit secrets). Subscriptions in `push_subscriptions` (migrare `20260405006_push_subscriptions.sql`). Server: `src/lib/notifications/send-push.ts` (`web-push`, best-effort). După build, `postbuild` rulează `scripts/append-push-sw-import.js` ca să adauge `importScripts('/push-handlers.js')` la `public/sw.js` generat de Workbox. Handler-e în `public/push-handlers.js`. API: `POST /api/push/subscribe`, `POST /api/push/unsubscribe`. UI: `PushPermissionBanner`, `usePushSubscription`, setări la `/settings` → Notificări push. Trimitere automată doar pentru tipuri cu `pushEnabled` în `src/lib/notifications/config.ts` (implicit doar `order_new`).
+- **Web Push (VAPID)**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (generate with `npx web-push generate-vapid-keys`; never commit secrets) + opțional `VAPID_SUBJECT` (`mailto:...`, fallback sigur dacă lipsește). Subscriptions in `push_subscriptions` (migrare `20260405006_push_subscriptions.sql`). Server: `src/lib/notifications/send-push.ts` (`web-push`, best-effort). După build, `postbuild` rulează `scripts/append-push-sw-import.js` ca să adauge `importScripts('/push-handlers.js')` la `public/sw.js` generat de Workbox. Handler-e în `public/push-handlers.js`. API: `POST /api/push/subscribe`, `POST /api/push/unsubscribe`. UI: `PushPermissionBanner`, `usePushSubscription`, setări la `/settings` → Notificări push. Trimitere automată doar pentru tipuri cu `pushEnabled` în `src/lib/notifications/config.ts` (implicit doar `order_new`).
 
 Core runtime pattern:
 
 - `src/proxy.ts` acts as the request guard and injects user/tenant headers (Next.js 16: `proxy.ts` + static `export const config` in the same file; nu păstra `middleware.ts` duplicat).
+- Browser hardening headers sunt centralizate în `next.config.js` prin `src/lib/security/http-headers.js` (CSP + security headers). Dacă adaugi integrări externe noi (script/img/connect), actualizează allowlist-ul CSP din helper.
 - **Demo → creare fermă**: CTA „Creează-ți ferma” (`DemoBanner`, secțiunea Parolă din `/settings`) folosește `<form method="POST" action="/api/auth/leave-demo">` — `validateSameOriginMutation`, `createClient().auth.signOut()`, răspuns `303` la `/start` (fără `fetch` + `location.replace` în client).
 - **Logout sesiune (server)**: `POST /api/auth/sign-out` — `validateSameOriginMutation`, `createClient().auth.signOut()`, `303`; implicit la `/`, opțional `?next=/path` (path relativ, ex. `?next=/login` după ștergere cont). UI: `LogoutButton`, `MoreMenuDrawer`, `MoreMenu` și ștergere cont în setări folosesc același POST (form + `prepareClientBeforeServerSignOut` pentru cache Supabase/React Query).
+- **Step-up auth pentru acțiuni destructive**: `POST /api/auth/destructive-step-up` verifică parola curentă (same-origin + sesiune validă), apoi emite token scurt-lived, semnat și single-use (`x-zmeurel-step-up-token`). Tokenul este obligatoriu pentru rutele critice: `POST /api/farm/reset`, `DELETE /api/gdpr/farm`, `DELETE /api/gdpr/account`. Config server-only: `DESTRUCTIVE_ACTION_STEP_UP_SECRET`; protecții suplimentare pentru ștergere cont se configurează prin `ACCOUNT_DELETE_PROTECTED_USER_IDS` (UUID list).
+- **Scripturi destructive (ops)**: utilitarele din `scripts/cleanup-demos.ts`, `scripts/cleanup-beta-accounts.ts`, `scripts/reset-test-users.ts` protejează conturile privilegiate prin `profiles.is_superadmin` + allowlist pe user IDs (`*_PROTECTED_USER_IDS`), fără email personal hardcodat.
+- **Guard CI anti-hardcodare sensibilă**: `scripts/check-sensitive-hardcoding.mjs` rulează în `npm run check:critical` și blochează reintroducerea de emailuri personale hardcodate, comparații directe pe email pentru permisiuni, allowlist-uri inline fragile și secrete/tokenuri/API keys literale în fișierele noi/modificate.
+- Guardul scanează doar fișiere text relevante schimbate când are diff Git disponibil (în CI prin `SENSITIVE_GUARD_BASE_SHA` / base ref), ca să evite blocarea repo-ului pe istoricul vechi; excluderile deliberate includ `docs/`, `tests/`, `__tests__`, `.env*.example`, `supabase/migrations_archive/`, dump-uri/backup-uri istorice și fixtures cu adrese fake de tip `@example.test`.
+- **Backup / restore readiness (ops)**: `BACKUP-INSTRUCTIONS.md` este runbook-ul operațional curent; `.env.local.example` este inventarul versionat de env/secrets; `scripts/check-backup-readiness.mjs` verifică read-only că repo-ul are artefactele minime pentru restore auditabil (runbook, env inventory, `supabase/migrations/`, `supabase/functions/`, `vercel.json`, bucket-uri detectate din migrații și cron config), fără să pretindă backup automat de date.
+- Restore realist astăzi: cod + migrații + env inventory din repo, dar datele reale (`public`, `auth.users`) și obiectele Storage rămân backup-uri separate provider/manual; pentru proiect nou Supabase lipsește încă `supabase/config.toml`, deci restore-ul nu este complet turnkey doar din repo.
 - **BottomTabBar mobil**: drawer-ul „Mai mult” se închide la navigare doar când `usePathname()` se schimbă efectiv (nu la re-randări cu același path). În Playwright, testele care apasă tab barul trebuie să permită hidratarea clientului după navigare (ex. `page.goto(..., { waitUntil: 'load' })` + buton vizibil), nu doar `domcontentloaded`.
 - **Analytics admin / zgomot E2E**: `profiles.exclude_from_analytics` și `tenants.exclude_from_analytics` (migrare `20260402100000_analytics_exclude_test_accounts.sql`) — backfill pe `auth.users` cu email `*@example.test` (pattern folosit în toate spec-urile Playwright din repo). `loadAnalyticsDashboardData` și `refresh_tenant_metrics_daily` exclud aceste rânduri din KPI-uri și agregări zilnice. Reversibil în SQL. Preview read-only: `scripts/sql/analytics-exclude-test-accounts-preview.sql`.
-- **Magazin fermier (public, client final)**: ` /magazin` — landing; `/magazin/[tenantId]` — catalog produse read-only (încărcare server cu `getSupabaseAdmin()` în `src/lib/shop/load-public-shop.ts`), coș în state local + **checkout light**: `POST /api/shop/order` (anonim, `validateSameOriginMutation`, `getSupabaseAdmin`) inserează una sau mai multe înregistrări în `comenzi` (status `noua`, `data_origin: magazin_public`, `produs_id` când există coloana), câte una per linie din coș. După inserări reușite, `notifyFarmerShopOrder` (`src/lib/shop/notify-farmer-shop-order.ts`) poate trimite email fermierului prin **Resend** (HTTPS, fără dependență npm): destinatar = email din Auth pentru `tenants.owner_user_id`, sau override opțional `SHOP_ORDER_NOTIFY_EMAIL`; necesită `SHOP_ORDER_NOTIFY_FROM` + (`SHOP_ORDER_NOTIFY_RESEND_API_KEY` sau `RESEND_API_KEY`). Eșecul notificării este logat; răspunsul JSON de succes nu depinde de email. Proxy permite `pathname.startsWith('/api/shop')` fără autentificare. UI: `src/components/shop/FarmShopClient.tsx` (nu folosește AppShell ERP). Din ERP, modulul **Produse** (`ProdusePageClient`) expune „Vezi magazin” / „Copiază link magazin” folosind `tenantId` din `useDashboardAuth()` (fără fetch suplimentar); CTA-urile sunt dezactivate până există cel puțin un produs cu status „activ” (aliniat la vitrina publică).
-- **Magazin asociație (public, multi-fermier)**: `/magazin/asociatie` — branding „Gustă din Bucovina” **doar** aici (layout + `src/styles/association-shop.css`, fonturi Baloo 2 / Inter în `src/app/magazin/asociatie/layout.tsx`); nu în ERP sau magazin fermier. Catalog: `loadAssociationCatalog` / `loadAssociationCatalogCached` (`src/lib/shop/load-association-catalog.ts`) — produse `status = activ` pentru tenants cu `tenants.is_association_approved = true` (setat din **Admin** → tabel tenanți, coloana „Magazin asociație”, API `PATCH /api/admin/tenant-association`, doar superadmin) **reunit** cu fallback temporar: owner în allowlist env (`ASSOCIATION_ALLOWED_EMAILS`, virgulă; fallback cod: `DEFAULT_ASSOCIATION_ALLOWED_EMAILS`); fără filtru `is_demo`. UI: `AssociationShopClient.tsx` orchestrator + `src/components/shop/association/*` (header brand pe verde, hero, filtre + sortare client-side, carduri, detaliu dialog/sheet, coș drawer, checkout), `AssociationLogo.tsx`, `AssociationHeroVisual.tsx`, imagini produse cu `next/image` (`unoptimized` pentru URL storage); hero Unsplash în `next.config.js`. Landing comercial: trust în hero, secțiune „Cum funcționează”, grid, „Despre asociație” (valori) + footer; paletă (#0D6342 / #FF9E1B / #FFF9E3 / #F5EDCA / text #3D4543 / #6B7A72 / border #E8E0C4); coș grupat pe fermier; `POST /api/shop/order` per `tenantId`. Fără AppShell ERP.
+- **Magazin fermier (public, client final)**: ` /magazin` — landing; `/magazin/[tenantId]` — catalog produse read-only (încărcare server cu `getSupabaseAdmin()` în `src/lib/shop/load-public-shop.ts`), coș în state local + **checkout light**: `POST /api/shop/order` (anonim, `validateSameOriginMutation`, `getSupabaseAdmin`) inserează una sau mai multe înregistrări în `comenzi` (status `noua`, `data_origin: magazin_public`, `produs_id` când există coloana), câte una per linie din coș. Endpointul are hardening anti-abuse server-side în `src/lib/api/public-write-guard.ts` (rate limit fixed-window + cooldown scurt pe fingerprint de payload) și întoarce `429` cu `Retry-After` când pragurile sunt depășite. După inserări reușite, `notifyFarmerShopOrder` (`src/lib/shop/notify-farmer-shop-order.ts`) poate trimite email fermierului prin **Resend** (HTTPS, fără dependență npm): destinatar = email din Auth pentru `tenants.owner_user_id`, sau override opțional `SHOP_ORDER_NOTIFY_EMAIL`; necesită `SHOP_ORDER_NOTIFY_FROM` + (`SHOP_ORDER_NOTIFY_RESEND_API_KEY` sau `RESEND_API_KEY`). Eșecul notificării este logat; răspunsul JSON de succes nu depinde de email. Proxy permite `pathname.startsWith('/api/shop')` fără autentificare. UI: `src/components/shop/FarmShopClient.tsx` (nu folosește AppShell ERP). Din ERP, modulul **Produse** (`ProdusePageClient`) expune „Vezi magazin” / „Copiază link magazin” folosind `tenantId` din `useDashboardAuth()` (fără fetch suplimentar); CTA-urile sunt dezactivate până există cel puțin un produs cu status „activ” (aliniat la vitrina publică).
+- **Magazin asociație (public, multi-fermier)**: `/magazin/asociatie` — branding „Gustă din Bucovina” **doar** aici (layout + `src/styles/association-shop.css`, fonturi Baloo 2 / Inter în `src/app/magazin/asociatie/layout.tsx`); nu în ERP sau magazin fermier. Catalog: `loadAssociationCatalog` / `loadAssociationCatalogCached` (`src/lib/shop/load-association-catalog.ts`) — produse `status = activ` pentru tenants cu `tenants.is_association_approved = true` (setat din **Admin** → tabel tenanți, coloana „Magazin asociație”, API `PATCH /api/admin/tenant-association`, doar superadmin) **reunit** cu fallback temporar pe allowlist explicit în env: `ASSOCIATION_ALLOWED_OWNER_USER_IDS` (preferat, UUID-uri) și opțional `ASSOCIATION_ALLOWED_EMAILS` (legacy/tranziție). Fără fallback hardcodat în cod; fără filtru `is_demo`. UI: `AssociationShopClient.tsx` orchestrator + `src/components/shop/association/*` (header brand pe verde, hero, filtre + sortare client-side, carduri, detaliu dialog/sheet, coș drawer, checkout), `AssociationLogo.tsx`, `AssociationHeroVisual.tsx`, imagini produse cu `next/image` (`unoptimized` pentru URL storage); hero Unsplash în `next.config.js`. Landing comercial: trust în hero, secțiune „Cum funcționează”, grid, „Despre asociație” (valori) + footer; paletă (#0D6342 / #FF9E1B / #FFF9E3 / #F5EDCA / text #3D4543 / #6B7A72 / border #E8E0C4); coș grupat pe fermier; `POST /api/shop/order` per `tenantId`. Fără AppShell ERP.
 - **Profil public producător editat din workspace-ul asociației**: în `/asociatie/producatori`, adminii/moderatorii pot edita `tenants.descriere_publica`, `specialitate`, `localitate` și `poze_ferma` direct din dialogul `ProducerProfileEditor`; API-urile sunt `PATCH /api/association/producer-profile` și `POST/DELETE /api/association/producer-photos`. Pozele fermei merg în bucket-ul public `producer-photos` (`storage.objects`), maxim 3 URL-uri per tenant. RLS pe `tenants` permite staff-ului asociației doar aceste câmpuri publice prin migrarea `20260405011_allow_profile_update.sql`, iar triggerul `enforce_tenants_assoc_admin_updates()` blochează modificarea altor coloane.
 - **Setări asociație (branding public + piață)**: `/asociatie/setari` folosește `AssociationSettingsClient` + `PATCH /api/association/settings`; conținutul persistă în Storage privat (`association-config/settings.json`) prin `src/lib/association/public-settings.ts` și este citit pe landing-ul public `/magazin/asociatie` și pe profilul public al producătorului pentru descriere/program.
 - `src/app/(dashboard)/layout.tsx` trusts proxy headers when present and initializes app providers.
@@ -163,7 +170,7 @@ Actualizată:
 - Server-side Supabase access should go through `createClient()` in `src/lib/supabase/server.ts`.
 - Service-role access should be isolated to admin/API/cron/demo repair flows via `src/lib/supabase/admin.ts`.
 - Tenant-aware query functions typically resolve tenant internally using `getTenantId(...)`.
-- Canonical tenant destructive cleanup order now lives in `src/lib/tenant/destructive-cleanup.ts`.
+- Canonical tenant destructive cleanup order now lives in `src/lib/tenant/destructive-cleanup.ts`, with named scopes (`farm_reset`, `gdpr_farm_delete`, `demo_tenant_cleanup`), critical vs optional targets, and post-delete verification on critical targets.
 - Mutations often support backward-compatible fallback behavior for environments where some migrations are missing.
 - Analytics must not block UX; tracking is fire-and-forget.
 - Product analytics currently uses two helpers: legacy `src/lib/analytics/track.ts` and the more structured `src/lib/analytics/trackEvent.ts`; prefer the structured pattern for new work unless a task explicitly requires preserving legacy naming.
@@ -184,6 +191,7 @@ Actualizată:
 - Preserve idempotency and offline sync semantics where `client_sync_id`, `sync_status`, or RPC upsert flows already exist.
 - Keep the offline sync table allowlist in `src/lib/offline/syncables.ts` aligned with the SQL `upsert_with_idempotency` contract.
 - Preserve analytics and monitoring hooks unless the task explicitly changes instrumentation.
+- Pentru logare server-side în zone sensibile (AI chat, integrații, endpointuri publice), folosește helper-ele din `src/lib/logging/redaction.ts` (`sanitizeForLog`, `toSafeErrorContext`) și evită logarea inputului brut, tokenurilor, emailurilor, telefoanelor sau body-urilor externe complete.
 - Keep client-side Sentry lean: Replay is opt-in via `NEXT_PUBLIC_SENTRY_REPLAY_ENABLED=true`, and non-essential client monitoring should prefer lazy/dynamic loading over root shared imports.
 - Update the repository context docs incrementally when architecture, domain rules, or repo structure changes.
 
@@ -213,7 +221,7 @@ Actualizată:
 ## AI Chat Widget — Source of Truth & Current State
 
 ### Runtime Source of Truth Files:
-- `src/app/api/chat/route.ts` — wrapper-ul endpoint-ului POST pentru Next.js App Router
+- `src/app/api/chat/route.ts` — wrapper-ul endpoint-ului POST pentru Next.js App Router + guard `validateSameOriginMutation` (same-origin/CSRF)
 - `src/app/api/chat/chat-post-handler.ts` — orchestratorul principal al logicii AI chat, rate limiting, keyword queries și handoff UI
 - `src/app/api/chat/contract-helpers.ts` — parsare/validare open_form cu Zod, contracte structured output pentru flow-urile țintite și validare `prefill_data`
 - `src/app/api/chat/extractors.ts` — extractorii regex/text pentru sume, date, parcele, produse, clienți, doze și observații
@@ -243,7 +251,7 @@ Actualizată:
   - UI-ul consumă `prefill_data` ca sursă unică; cardul AI ascunde raw IDs, iar dialogurile folosesc direct `parcela_id` / `client_id` când sunt disponibile
 - **Memorie conversație**: ultimele 3 schimburi din `ai_conversations`, injectată doar când detectează continuare (`și`, `mai devreme`, `continuă`)
 - **Dictare voice**: Web Speech API `ro-RO`
-- **Rate limit**: 20 mesaje/zi/user în `profiles.ai_messages_count` (override la 60/zi pentru `profiles.is_superadmin = true` și pentru contul de test `zmeurel.app@gmail.com`)
+- **Rate limit**: 20 mesaje/zi/user în `profiles.ai_messages_count` (override privilegiat pentru `profiles.is_superadmin = true` și, opțional, pentru user IDs din `AI_CHAT_PRIVILEGED_USER_IDS`; pragul privilegiat se configurează cu `AI_CHAT_PRIVILEGED_DAILY_LIMIT`, default 60)
 - **Keyword context queries** (doar când se potrivesc):
   - `tratament` → ultimele activități agricole
   - `client` → căutare client după nume
@@ -298,21 +306,18 @@ Actualizată:
 - **Hotfix routing prioritar (2026-03-25)**:
   - Prioritate deterministică pe semnal dominant: `recoltare` > `activitate agricolă` > `cheltuială`.
   - În ambiguitate reală între flow-uri apropiate (ex: produs + parcelă fără verb clar), AI cere clarificare scurtă contextuală, fără clasificare agresivă greșită.
-  - Pentru inputuri vagi dar utile (`20 kile la Delniwa`, `Switch la Delniwa`, `am pus ceva ieri`), fallback-ul deterministic preferă clarificare scurtă contextuală în locul răspunsului generic.
-- **Stabilizare flow + payload hygiene (2026-03-25)**:
-  - După intrarea într-un flow activ (recoltare/activitate/cheltuială/investiție/comandă/client), follow-up-urile scurte prioritizează continuarea aceluiași flow.
-  - AI acceptă anulări explicite de câmp (`fără telefon`, `scoate data`, `șterge cantitatea`, etc.) și golește doar câmpul vizat, fără reset de flow.
-  - Payload-ul trimis spre `open_form` este curățat local de valori goale/conflictuale, păstrând doar valoarea finală activă.
 - **Harness regresii AI chat (2026-03-25)**:
-  - Testele locale critice rulează prin `npm run test:ai-chat` (config dedicat: `playwright.ai-chat.config.ts`).
+  - Harness-ul sintetic rapid rulează prin `npm run test:ai-chat` (config dedicat: `playwright.ai-chat.config.ts`).
   - Corpusul sintetic V2.6 acoperă acum pe categorii: routing clar, ambiguități controlate, continuitate multi-turn scurtă, corecții explicite, anulări explicite de câmp, canonicalizare/typo/nume apropiate, română reală/colocvială/dictare, `required_for_open_form`, `required_for_save_hint`, clarificări strict pe lipsuri reale, cazuri foarte scurte/sub-specificate și non-regresie pe flow-urile stabile.
   - Acoperă routing, follow-up scurt, entity locking/corecții, anulări explicite, ambiguități controlate, `required_for_open_form` și `required_for_save_hint`, cu focus pe româna reală a fermierului și failure modes probabile.
-  - Gate standard înainte de deploy pentru patch-uri AI: `npm run check:ai-chat`.
-  - CI gate dedicat: workflow `.github/workflows/ai-chat-gate.yml` rulează `npm run check:ai-chat` pe `pull_request`, `push` pe `main` (cu path filters AI) și `workflow_dispatch`.
-  - Orice bug nou descoperit pe AI chat trebuie adăugat întâi ca regresie în corpusul sintetic, apoi reparat.
   - Contract tests endpoint real: `npm run test:ai-chat:integration` acoperă `POST /api/chat` (handler real cu mock-uri locale pentru auth/supabase/telemetry/memory), fără browser și fără DB real.
+  - Gate standard înainte de deploy pentru patch-uri AI: `npm run check:ai-chat` (lint + typecheck + harness sintetic).
+  - CI gate dedicat: workflow `.github/workflows/ai-chat-gate.yml` rulează `npm run check:ai-chat:ci` pe `pull_request`, `push` pe `main` (cu path filters AI/chat relevanți) și `workflow_dispatch`.
+  - `check:ai-chat:ci` păstrează verificările rapide existente (`lint:ai-chat` + `typecheck` + harness sintetic) și adaugă `npm run test:critical:integration`, astfel regresiile importante din `POST /api/chat` sunt blocate automat doar pentru schimbările AI/chat relevante.
+  - Orice bug nou descoperit pe AI chat trebuie adăugat întâi ca regresie în corpusul sintetic, apoi reparat.
+  - Regression gate cross-modul (default înainte de build): `npm run test:critical` (hardening API/security stabile), iar `npm run check` include acum `npm run check:critical` înainte de `build`.
+  - Pentru verificare extinsă (înainte de release): `npm run test:critical:full` (include și `test:ai-chat:integration`).
 - **Observabilitate structurală minimă (2026-03-26)**:
-  - API-ul AI chat emite un eveniment structurat `ai_chat_decision` per răspuns AI, cu metadate de decizie (flow, mod decizie, clarificare/open_form/save_hint, câmpuri prezente/lipsă doar ca chei).
   - Nu se loghează mesajul brut al utilizatorului în analytics-ul de decizie; payload-ul rămâne structural și scurt.
   - În development există un debug log server-side scurt (`[chat] decision`) cu aceleași metadate structurale, fără text brut.
   - Admin analytics reutilizează acum aceste evenimente direct în `src/components/admin/AnalyticsDashboard.tsx` pentru o secțiune AI cu KPI-uri, distribuții pe flow/decision mode, fricțiune/clarificări, save hints, usage LLM și tabel recent, filtrabile pe interval, flow și decision mode.
@@ -418,10 +423,10 @@ Actualizată:
 ### Configurație:
 - Main model: `AI_GEMINI_MODEL` (fallback in code: `gemini-2.5-flash`)
 - Optional simple model: `AI_GEMINI_SIMPLE_MODEL` (fallback safe to main model)
-- Rate limit: `AI_CHAT_DAILY_LIMIT` (default 20) messages/day/user, cu override runtime la 60 pentru superadmin și `zmeurel.app@gmail.com`
+- Rate limit: `AI_CHAT_DAILY_LIMIT` (default 20) messages/day/user, cu override runtime pentru superadmin + allowlist `AI_CHAT_PRIVILEGED_USER_IDS` (limită: `AI_CHAT_PRIVILEGED_DAILY_LIMIT`, default 60)
 - Output token cap: `AI_CHAT_MAX_OUTPUT_TOKENS` (conservative default in code)
 - Usage logging toggle: `AI_CHAT_USAGE_LOG=true`
-- Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `AI_GEMINI_MODEL`, `AI_CHAT_DAILY_LIMIT`
+- Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `AI_GEMINI_MODEL`, `AI_CHAT_DAILY_LIMIT` (opțional: `AI_CHAT_PRIVILEGED_USER_IDS`, `AI_CHAT_PRIVILEGED_DAILY_LIMIT`)
 
 ## Sensitive Systems
 
@@ -432,7 +437,7 @@ Actualizată:
 - Demo tenant seeding/reload/cleanup
 - Offline sync queue and idempotent create flows
 - Stock-affecting RPCs for harvests, orders, and sales
-- Google Contacts integration code and stored refresh tokens
+- Google Contacts integration code and encrypted OAuth tokens (`GOOGLE_TOKENS_ENCRYPTION_KEY`, server-only)
 - Admin plan management and superadmin gating
 
 ## Practical Guidance For AI Agents
@@ -475,10 +480,10 @@ Update them incrementally. Do not rewrite them from scratch unless the repositor
 ### Configurație:
 - Main model: `AI_GEMINI_MODEL` (fallback in code: `gemini-2.5-flash`)
 - Optional simple model: `AI_GEMINI_SIMPLE_MODEL` (fallback safe to main model)
-- Rate limit: `AI_CHAT_DAILY_LIMIT` (default 20) messages/day/user, cu override runtime la 60 pentru superadmin și `zmeurel.app@gmail.com`
+- Rate limit: `AI_CHAT_DAILY_LIMIT` (default 20) messages/day/user, cu override runtime pentru superadmin + allowlist `AI_CHAT_PRIVILEGED_USER_IDS` (limită: `AI_CHAT_PRIVILEGED_DAILY_LIMIT`, default 60)
 - Output token cap: `AI_CHAT_MAX_OUTPUT_TOKENS` (conservative default in code)
 - Usage logging toggle: `AI_CHAT_USAGE_LOG=true`
-- Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `AI_GEMINI_MODEL`, `AI_CHAT_DAILY_LIMIT`
+- Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `AI_GEMINI_MODEL`, `AI_CHAT_DAILY_LIMIT` (opțional: `AI_CHAT_PRIVILEGED_USER_IDS`, `AI_CHAT_PRIVILEGED_DAILY_LIMIT`)
 
 ## Sensitive Systems
 
@@ -489,7 +494,7 @@ Update them incrementally. Do not rewrite them from scratch unless the repositor
 - Demo tenant seeding/reload/cleanup
 - Offline sync queue and idempotent create flows
 - Stock-affecting RPCs for harvests, orders, and sales
-- Google Contacts integration code and stored refresh tokens
+- Google Contacts integration code and encrypted OAuth tokens (`GOOGLE_TOKENS_ENCRYPTION_KEY`, server-only)
 - Admin plan management and superadmin gating
 
 ## Practical Guidance For AI Agents
