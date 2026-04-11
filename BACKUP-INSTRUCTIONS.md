@@ -332,13 +332,14 @@ Topologia operațională curentă este acum:
 - mapping Vercel dedicat pentru staging = env-uri branch-specific pe `preview` pentru branch-ul `staging`
 
 Important:
-
+ 
 - `zmeurelOS-prod` (`mkdajpmvmdgvfjkygwia`) rămâne `INACTIVE` și nu este folosit ca staging, ca să evităm ambiguitatea operațională între production și staging
-- branch-ul preview `staging` are override-uri dedicate pentru `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` și `CRON_SECRET`
-- pentru primul restore drill real mai rămâne de confirmat un preview deployment efectiv pentru branch-ul `staging`, plus completarea `SITE_URL` dacă exercițiul are nevoie de URL stabil server-side
+- branch-ul preview `staging` are override-uri dedicate pentru `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `SITE_URL` și `NEXT_PUBLIC_SITE_URL`
+- preview deployment-ul de referință pentru branch-ul `staging` este `READY`, cu URL stabil confirmat `https://zmeurel-git-staging-zmeurelos-admins-projects.vercel.app`
+- workspace-ul curent rămâne linked la dev; pentru operațiuni de staging care cer `supabase link`, folosește workflow-ul cu worktree separat documentat mai jos, nu relink în directorul principal
 
 Pentru primul restore drill real, minimul recomandat este:
-
+ 
 1. **Țintă Vercel stabilă**
    - fie proiect separat de staging,
    - fie un preview branch dedicat și stabil, folosit explicit pentru exerciții operaționale
@@ -368,8 +369,37 @@ Pentru primul restore drill real, minimul recomandat este:
    - în acest caz, drill-ul rămâne read-only sau tabletop până ai o țintă cu risc acceptabil
 
 Helper util în repo:
-
+ 
 - `npm run check:staging-readiness` verifică read-only paritatea minimă Vercel/Supabase și semnalează dacă proiectul linked dev pare nepotrivit pentru un restore drill destructiv
+
+### Workflow repetabil: repo -> staging fără relink în workspace-ul curent
+
+Păstrează directorul principal linked la `dev`. Pentru orice exercițiu operațional care trebuie să țintească explicit `staging`, folosește un worktree separat pe branch-ul `staging`.
+
+Pași recomandați:
+
+1. creezi un worktree temporar din `origin/staging`
+2. rulezi `supabase link --project-ref qinpqsqeaagjfobqwfwx` doar în acel worktree
+3. completezi local env-urile de staging din secret storage-ul real
+4. rulezi acolo comenzile de restore/drill
+5. ștergi worktree-ul după exercițiu
+
+Exemplu PowerShell:
+```powershell
+$stagingDir = Join-Path $env:TEMP 'zmeurel-staging-ops'
+git worktree add --detach $stagingDir origin/staging
+supabase link --project-ref qinpqsqeaagjfobqwfwx
+Copy-Item .env.local.example .env.local
+# completează valorile reale de staging în worktree-ul temporar
+# rulează aici pașii de drill / migrații / verificări
+git worktree remove $stagingDir --force
+```
+
+Note:
+
+- `supabase link` poate cere autentificare CLI și/sau parola DB a proiectului țintă; acestea trebuie luate din secret storage-ul operațional, nu din repo
+- nu relinka directorul principal dacă el rămâne baza ta de lucru pentru `dev`
+- pentru Vercel preview `staging`, URL-ul stabil de referință este `https://zmeurel-git-staging-zmeurelos-admins-projects.vercel.app`
 
 ## Procedură de restore minimă
 
