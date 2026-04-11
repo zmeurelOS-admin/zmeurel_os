@@ -8,6 +8,7 @@
     "lint:ai-chat": "eslint src/app/api/chat/route.ts src/app/api/chat/contract-helpers.ts src/lib/financial/chat-router.ts",
     "typecheck": "tsc --noEmit",
     "check:backup-readiness": "node scripts/check-backup-readiness.mjs",
+    "check:staging-readiness": "node scripts/check-staging-readiness.mjs",
     "check:sensitive-hardcoding": "node scripts/check-sensitive-hardcoding.mjs",
     "test:ai-chat": "playwright test --config=playwright.ai-chat.config.ts",
     "test:ai-chat:integration": "playwright test --config=playwright.ai-chat.integration.config.ts",

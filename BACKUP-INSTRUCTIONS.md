@@ -320,6 +320,44 @@ Pentru Zmeurel OS, fără confirmarea unui staging separat, varianta implicit si
 
 Nu rula restore destructiv pe production pentru acest exercițiu.
 
+## Staging readiness minimă pentru primul restore drill real
+
+Nu trata automat `preview` sau `zmeurelOS-dev` ca staging sigur doar pentru că sunt non-production.
+
+Pentru primul restore drill real, minimul recomandat este:
+
+1. **Țintă Vercel stabilă**
+   - fie proiect separat de staging,
+   - fie un preview branch dedicat și stabil, folosit explicit pentru exerciții operaționale
+
+2. **Țintă Supabase separată de orice utilizatori activi**
+   - ideal proiect Supabase separat de dev și production,
+   - alternativ branch/database izolat, dacă platforma și planul permit asta operațional
+
+3. **Paritate minimă de env**
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_SITE_URL`
+   - `SITE_URL`
+   - `CRON_SECRET`
+
+4. **Control explicit al joburilor programate**
+   - staging-ul trebuie să poată evita rularea cron jobs în timpul restore-ului
+   - dacă nu poți opri temporar efectele lor, nu ai încă un staging sigur pentru drill real
+
+5. **Link/config repetabil către Supabase target**
+   - preferabil `supabase/config.toml` sau un pas documentat clar pentru `supabase link`
+   - fără acest pas, restore-ul pe proiect nou rămâne prea manual pentru exercițiu repetabil
+
+6. **Politică clară de date**
+   - dacă mediul conține useri non-test sau tenants non-demo activi, tratează-l ca mediu sensibil
+   - în acest caz, drill-ul rămâne read-only sau tabletop până ai o țintă cu risc acceptabil
+
+Helper util în repo:
+
+- `npm run check:staging-readiness` verifică read-only paritatea minimă Vercel/Supabase și semnalează dacă proiectul linked dev pare nepotrivit pentru un restore drill destructiv
+
 ## Procedură de restore minimă
 
 ### 1. Repornește codul din repo
