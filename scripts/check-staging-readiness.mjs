@@ -9,6 +9,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const vercelBinary = process.platform === 'win32' ? 'vercel.cmd' : 'vercel'
 const supabaseBinary = process.platform === 'win32' ? 'supabase.exe' : 'supabase'
+const STAGING_PROJECT_NAME = 'zmeurelOS-staging'
+const STAGING_PREVIEW_BRANCH = 'staging'
 
 const MINIMAL_STAGING_PARITY_KEYS = [
   'NEXT_PUBLIC_SUPABASE_URL',
@@ -143,6 +145,10 @@ function normalizeVercelEnvKeys(entries) {
   return new Set(entries.filter((entry) => !entry.gitBranch).map((entry) => entry.key))
 }
 
+function normalizeBranchVercelEnvKeys(entries, branchName) {
+  return new Set(entries.filter((entry) => entry.gitBranch === branchName).map((entry) => entry.key))
+}
+
 function summarizePreviewBranches(entries) {
   return [...new Set(entries.map((entry) => entry.gitBranch).filter(Boolean))].sort()
 }
@@ -231,23 +237,38 @@ const linkedSupabaseRisk = await inspectLinkedSupabaseRisk()
 
 const productionKeys = normalizeVercelEnvKeys(productionEnvJson?.envs ?? [])
 const previewKeys = normalizeVercelEnvKeys(previewEnvJson?.envs ?? [])
+const stagingPreviewBranchKeys = normalizeBranchVercelEnvKeys(previewEnvJson?.envs ?? [], STAGING_PREVIEW_BRANCH)
 const developmentKeys = normalizeVercelEnvKeys(developmentEnvJson?.envs ?? [])
 const previewBranchNames = summarizePreviewBranches(previewEnvJson?.envs ?? [])
 const previewReadyDeployments = Array.isArray(previewDeploymentsJson?.deployments) ? previewDeploymentsJson.deployments.length : 0
-const previewMissingKeys = MINIMAL_STAGING_PARITY_KEYS.filter((key) => productionKeys.has(key) && !previewKeys.has(key))
+const stagingPreviewDeployments = Array.isArray(previewDeploymentsJson?.deployments)
+  ? previewDeploymentsJson.deployments.filter((deployment) => {
+      const commitRef = String(deployment.meta?.githubCommitRef || '')
+      const branchAlias = String(deployment.meta?.branchAlias || '')
+      return commitRef === STAGING_PREVIEW_BRANCH || branchAlias.includes(STAGING_PREVIEW_BRANCH)
+    })
+  : []
+const stagingPreviewEffectiveKeys = new Set([...previewKeys, ...stagingPreviewBranchKeys])
+const previewMissingKeys = MINIMAL_STAGING_PARITY_KEYS.filter((key) => productionKeys.has(key) && !stagingPreviewEffectiveKeys.has(key))
 const developmentMissingKeys = MINIMAL_STAGING_PARITY_KEYS.filter((key) => productionKeys.has(key) && !developmentKeys.has(key))
 const activeSupabaseProjects = Array.isArray(supabaseProjects)
   ? supabaseProjects.filter((project) => String(project.status || '').toUpperCase() !== 'INACTIVE')
   : []
-const separateStagingProject = activeSupabaseProjects.find((project) => /stage/i.test(String(project.name || '')))
+const separateStagingProject = activeSupabaseProjects.find((project) => project.name === STAGING_PROJECT_NAME)
 const hasSupabaseConfig = await pathExists('supabase/config.toml')
 
 const warnings = []
 if (previewReadyDeployments === 0) {
   warnings.push('Nu există preview deployments READY în proiectul Vercel linked.')
 }
+if (!previewBranchNames.includes(STAGING_PREVIEW_BRANCH)) {
+  warnings.push(`Nu au fost detectate override-uri Vercel preview dedicate pentru branch-ul ${STAGING_PREVIEW_BRANCH}.`)
+}
+if (stagingPreviewDeployments.length === 0) {
+  warnings.push(`Nu a fost detectat încă un preview deployment READY pentru branch-ul ${STAGING_PREVIEW_BRANCH}.`)
+}
 if (previewMissingKeys.length > 0) {
-  warnings.push(`Preview nu are încă paritatea minimă de env față de production pentru drill: ${previewMissingKeys.join(', ')}.`)
+  warnings.push(`Preview branch ${STAGING_PREVIEW_BRANCH} nu are încă paritatea minimă de env față de production pentru drill: ${previewMissingKeys.join(', ')}.`)
 }
 if (developmentMissingKeys.length > 0) {
   warnings.push(`Development nu are încă paritatea minimă de env față de production pentru drill: ${developmentMissingKeys.join(', ')}.`)
@@ -287,11 +308,13 @@ printSection('Topologie Vercel', [
   `Proiect linked în cwd: zmeurel`,
   `Preview deployments READY detectate: ${previewReadyDeployments}`,
   `Preview branches cu env-uri dedicate detectate: ${previewBranchNames.length > 0 ? previewBranchNames.join(', ') : 'niciuna'}`,
+  `Branch dedicat pentru staging: ${previewBranchNames.includes(STAGING_PREVIEW_BRANCH) ? STAGING_PREVIEW_BRANCH : 'neconfigurat'}`,
+  `Preview deployment READY pentru branch-ul ${STAGING_PREVIEW_BRANCH}: ${stagingPreviewDeployments.length > 0 ? 'da' : 'nu'}`,
 ])
 
 printSection('Paritate minimă env față de production', [
   `Chei minime evaluate: ${MINIMAL_STAGING_PARITY_KEYS.join(', ')}`,
-  `Preview: ${previewMissingKeys.length > 0 ? `lipsesc ${previewMissingKeys.join(', ')}` : 'OK'}`,
+  `Preview branch ${STAGING_PREVIEW_BRANCH}: ${previewMissingKeys.length > 0 ? `lipsesc ${previewMissingKeys.join(', ')}` : 'OK'}`,
   `Development: ${developmentMissingKeys.length > 0 ? `lipsesc ${developmentMissingKeys.join(', ')}` : 'OK'}`,
 ])
 
@@ -312,6 +335,15 @@ if (linkedSupabaseRisk && !linkedSupabaseRisk.error) {
     `Useri non-test activi în ultimele 30 zile: ${linkedSupabaseRisk.recentNonTestUsersLast30d}`,
     `Tenant-uri total: ${linkedSupabaseRisk.totalTenants}`,
     `Tenant-uri non-demo: ${linkedSupabaseRisk.nonDemoTenants}`,
+  ])
+}
+
+if (separateStagingProject) {
+  printSection('Țintă staging confirmată', [
+    `Supabase staging: ${separateStagingProject.name}`,
+    `Ref staging: ${separateStagingProject.ref}`,
+    `Status staging: ${separateStagingProject.status}`,
+    `Vercel preview branch dedicat: ${STAGING_PREVIEW_BRANCH}`,
   ])
 }
 

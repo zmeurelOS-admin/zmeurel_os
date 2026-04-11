@@ -324,6 +324,19 @@ Nu rula restore destructiv pe production pentru acest exercițiu.
 
 Nu trata automat `preview` sau `zmeurelOS-dev` ca staging sigur doar pentru că sunt non-production.
 
+Topologia operațională curentă este acum:
+
+- `production` = proiectul Vercel `zmeurel` pe env `production`
+- `dev` = proiectul Supabase `zmeurelOS-dev` (`ilybohhdeplwcrbpblqw`), linked local și folosit de `development` / `preview` shared defaults
+- `staging` = proiectul Supabase `zmeurelOS-staging` (`qinpqsqeaagjfobqwfwx`), separat de dev și production
+- mapping Vercel dedicat pentru staging = env-uri branch-specific pe `preview` pentru branch-ul `staging`
+
+Important:
+
+- `zmeurelOS-prod` (`mkdajpmvmdgvfjkygwia`) rămâne `INACTIVE` și nu este folosit ca staging, ca să evităm ambiguitatea operațională între production și staging
+- branch-ul preview `staging` are override-uri dedicate pentru `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` și `CRON_SECRET`
+- pentru primul restore drill real mai rămâne de confirmat un preview deployment efectiv pentru branch-ul `staging`, plus completarea `SITE_URL` dacă exercițiul are nevoie de URL stabil server-side
+
 Pentru primul restore drill real, minimul recomandat este:
 
 1. **Țintă Vercel stabilă**

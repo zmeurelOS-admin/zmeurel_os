@@ -37,6 +37,8 @@
 - Bucket-urile active (`produse-photos`, `producer-photos`, `producer-logos`, `association-config`, `legal-docs`) sunt recreate din migrații, însă conținutul lor trebuie exportat/restaurat separat.
 - Pentru restore pe proiect Supabase nou, repo-ul încă nu are `supabase/config.toml`; asta înseamnă link/config manual în Dashboard sau Supabase CLI înainte de reaplicarea lanțului de migrații.
 - `npm run check:backup-readiness` verifică doar readiness-ul repo-ului, nu existența backup-urilor reale în providerii externi.
+- Există acum un proiect Supabase separat pentru staging (`zmeurelOS-staging` / `qinpqsqeaagjfobqwfwx`) și override-uri Vercel dedicate pentru preview branch-ul `staging`, dar primul restore drill real mai depinde de apariția unui preview deployment efectiv pentru acel branch și de completarea `SITE_URL` dacă exercițiul are nevoie de URL server-side stabil.
+- `zmeurelOS-prod` rămâne `INACTIVE`; nu trebuie refolosit ca staging, pentru a evita confuzia operațională între staging și production.
 
 ### Stock-Affecting RPCs
 
