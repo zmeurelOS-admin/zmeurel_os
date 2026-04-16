@@ -152,24 +152,14 @@ export async function getCheltuieli(): Promise<Cheltuiala[]> {
       .order('data', { ascending: false });
 
     if (legacyError) {
-      console.error('Error fetching cheltuieli (legacy fallback):', {
-        message: legacyError.message,
-        code: legacyError.code,
-        details: legacyError.details,
-        hint: legacyError.hint,
-      });
+      
       throw toReadableError(legacyError, 'Nu am putut încărca cheltuielile.');
     }
 
     return ((legacyData ?? []) as unknown as Record<string, unknown>[]).map(normalizeCheltuialaRow);
   }
 
-  console.error('Error fetching cheltuieli:', {
-    message: error.message,
-    code: error.code,
-    details: error.details,
-    hint: error.hint,
-  });
+  
   throw toReadableError(error, 'Nu am putut încărca cheltuielile.');
 }
 
@@ -228,24 +218,14 @@ export async function createCheltuiala(
       .single();
 
     if (fallbackError) {
-      console.error('Error creating cheltuiala (fallback):', {
-        message: fallbackError.message,
-        code: fallbackError.code,
-        details: fallbackError.details,
-        hint: fallbackError.hint,
-      });
+      
       throw toReadableError(fallbackError, 'Nu am putut salva cheltuiala.');
     }
 
     return fallbackData as unknown as Cheltuiala;
   }
 
-  console.error('Error creating cheltuiala:', {
-    message: error.message,
-    code: error.code,
-    details: error.details,
-    hint: error.hint,
-  });
+  
   throw toReadableError(error, 'Nu am putut salva cheltuiala.');
 }
 
@@ -269,7 +249,7 @@ export async function updateCheltuiala(
     .single();
 
   if (error) {
-    console.error('Error updating cheltuiala:', error);
+    
     throw error;
   }
 
@@ -285,7 +265,7 @@ export async function deleteCheltuiala(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting cheltuiala:', error);
+    
     throw error;
   }
 }

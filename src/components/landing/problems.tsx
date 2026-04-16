@@ -1,62 +1,50 @@
-import { BarChart3, FileSpreadsheet, NotebookPen, SearchSlash } from 'lucide-react'
+import { Calculator, Coins, PackageCheck, ShoppingBag } from 'lucide-react'
 
-import Reveal from '@/components/landing/reveal'
+import { SectionIntro, SectionShell } from '@/components/landing/landing-shared'
 
-const problems = [
+const problemCards = [
   {
-    icon: FileSpreadsheet,
+    icon: PackageCheck,
     title: 'Cât ai cules?',
-    text: 'După 3 zile nu mai știi exact cât ai cules din fiecare parcelă.',
+    description: 'Fără o evidență simplă, nu știi exact ce parcelă produce bine și unde scade randamentul.',
   },
   {
-    icon: SearchSlash,
+    icon: ShoppingBag,
     title: 'Cât ai vândut?',
-    text: 'Nu vezi repede ce marfă ai dat și ce mai ai disponibil.',
+    description: 'Comenzile, clienții și livrările se pierd ușor când sunt notate în mai multe locuri.',
   },
   {
-    icon: NotebookPen,
+    icon: Coins,
     title: 'Cât ai cheltuit?',
-    text: 'Bonurile și facturile se pierd. Cheltuielile rămân neînregistrate.',
+    description: 'Motorina, tratamentele, ambalajele și zilierii se adună repede dacă nu le vezi la timp.',
   },
   {
-    icon: BarChart3,
+    icon: Calculator,
     title: 'Cât ai câștigat?',
-    text: 'Fără toate datele la un loc, nu știi dacă ferma ta produce profit sau pierdere.',
+    description: 'Profitul real rămâne neclar când nu legi recolta, vânzările și cheltuielile între ele.',
   },
 ]
 
-export default function Problems() {
+export function Problems() {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-      <Reveal className="mx-auto max-w-3xl text-center">
-        <p className="text-sm font-semibold tracking-[0.18em] text-[var(--landing-raspberry)] uppercase">
-          Probleme reale
-        </p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight text-[var(--landing-dark)] sm:text-4xl">
-          Ții evidența fermei în caiet sau Excel?
-        </h2>
-        <p className="mt-4 text-base leading-7 text-[color:var(--agri-text-muted)]">
-          Mulți fermieri notează producția și cheltuielile în caiet sau Excel. Datele se împrăștie, se pierd și nu mai știi la final cât ai câștigat cu adevărat.
-        </p>
-      </Reveal>
-      <div className="mt-10 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {problems.map((problem, index) => {
-          const Icon = problem.icon
-          return (
-            <Reveal
-              key={problem.title}
-              delayMs={index * 80}
-              className="flex h-full flex-col rounded-[28px] border border-[color:rgba(49,46,63,0.08)] bg-white p-6 shadow-[0_12px_34px_rgba(49,46,63,0.06)] transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_24px_54px_rgba(49,46,63,0.12)]"
-            >
-              <div className="inline-flex size-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(241,107,107,0.18),rgba(241,107,107,0.06))] text-[var(--landing-raspberry)]">
-                <Icon className="size-5" />
-              </div>
-              <h3 className="mt-5 text-lg font-semibold text-[var(--landing-dark)]">{problem.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-[color:var(--agri-text-muted)]">{problem.text}</p>
-            </Reveal>
-          )
-        })}
+    <SectionShell label="Probleme reale" className="bg-[#FAFAF6] py-16 md:py-24">
+      <SectionIntro
+        badge="Probleme reale"
+        title="Ții evidența fermei în caiet sau Excel?"
+        description="Când informațiile sunt împrăștiate, deciziile se iau greu și profitul real rămâne neclar."
+      />
+
+      <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {problemCards.map(({ icon: Icon, title, description }) => (
+          <article key={title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF0EC] text-[#E76F51]">
+              <Icon className="h-5 w-5" />
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-slate-800">{title}</h3>
+            <p className="mt-2 text-sm leading-7 text-slate-500">{description}</p>
+          </article>
+        ))}
       </div>
-    </section>
+    </SectionShell>
   )
 }

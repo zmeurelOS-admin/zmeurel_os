@@ -1,80 +1,87 @@
 import type { Metadata } from 'next'
 
-import Beta from '@/components/landing/beta'
-import Demo from '@/components/landing/demo'
-import FarmTypes from '@/components/landing/farm-types'
-import Faq from '@/components/landing/faq'
-import Footer from '@/components/landing/footer'
-import Hero from '@/components/landing/hero'
-import HowItWorks from '@/components/landing/how-it-works'
-import Install from '@/components/landing/install'
-import Mobile from '@/components/landing/mobile'
-import Modules from '@/components/landing/modules'
-import Problems from '@/components/landing/problems'
-import Solution from '@/components/landing/solution'
-import Testimonials from '@/components/landing/testimonials'
-import About from '@/components/landing/about'
-import Story from '@/components/landing/story'
-import WhatsAppButton from '@/components/landing/whatsapp-button'
+import { AssociationMarketplace } from '@/components/landing/association-marketplace'
+import { DemoCta } from '@/components/landing/demo-cta'
+import { Faq } from '@/components/landing/faq'
+import { FarmTypes } from '@/components/landing/farm-types'
+import { Hero } from '@/components/landing/hero'
+import { HowItWorks } from '@/components/landing/how-it-works'
+import { LandingFooter } from '@/components/landing/landing-footer'
+import { LandingHeader } from '@/components/landing/landing-header'
+import { Problems } from '@/components/landing/problems'
+import { PwaInstall } from '@/components/landing/pwa-install'
+import { Solution } from '@/components/landing/solution'
+import { Story } from '@/components/landing/story'
+import { Testimonials } from '@/components/landing/testimonials'
+import { ValueProps } from '@/components/landing/value-props'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.zmeurel.ro'),
   title: 'Zmeurel OS — Aplicație gratuită pentru fermieri | Evidență parcele, recolte, vânzări',
   description:
-    'Ține evidența fermei direct de pe telefon. Parcele, recolte, vânzări și cheltuieli într-un singur loc. Făcută de un fermier din Suceava. Gratuit în beta.',
+    'Zmeurel OS te ajută să ții evidența fermei direct de pe telefon. Notezi recoltele, lucrările, vânzările și cheltuielile în 30 de secunde. Gratuit în beta. Făcut de un fermier din Suceava.',
+  keywords:
+    'aplicație fermieri, evidență fermă, gestiune agricolă, recoltare, vânzări fermă, cheltuieli fermă, aplicație agricolă România, software agricol, magazin asociație producători',
   openGraph: {
-    type: 'website',
-    url: 'https://zmeurel.ro',
-    title: 'Zmeurel OS — Evidență simplă pentru fermă',
+    title: 'Zmeurel OS — Nu mai pierde bani din fermă',
     description:
-      'Ține evidența fermei direct de pe telefon. Parcele, recolte, vânzări și cheltuieli într-un singur loc. Gratuit în beta.',
+      'Vezi cât produci, cât vinzi și cât câștigi real — direct de pe telefon. Aplicație gratuită pentru fermieri.',
+    url: 'https://www.zmeurel.ro',
+    siteName: 'Zmeurel OS',
+    locale: 'ro_RO',
+    type: 'website',
     images: [
       {
-        url: 'https://zmeurel.ro/landing/screenshot-dashboard.jpg',
-        width: 430,
-        height: 932,
-        alt: 'Zmeurel OS — Dashboard fermă',
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Zmeurel OS — aplicație pentru fermieri',
       },
     ],
-    locale: 'ro_RO',
-    siteName: 'Zmeurel OS',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Zmeurel OS — Evidență simplă pentru fermă',
-    description:
-      'Ține evidența fermei direct de pe telefon. Parcele, recolte, vânzări și cheltuieli într-un singur loc. Gratuit în beta.',
-    images: ['https://zmeurel.ro/landing/screenshot-dashboard.jpg'],
+    title: 'Zmeurel OS — Nu mai pierde bani din fermă',
+    description: 'Evidență fermă simplă, direct de pe telefon. Gratuit în beta.',
+    images: ['/og-image.jpg'],
+  },
+  alternates: {
+    canonical: 'https://www.zmeurel.ro',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  other: {
+    'theme-color': '#2D6A4F',
   },
 }
 
-export default function Page() {
+export default function LandingPage() {
   return (
-    <main
-      className="min-h-screen bg-[linear-gradient(180deg,#fffaf7_0%,#ffffff_28%,#f7fbf8_100%)] text-[var(--agri-text)]"
-      style={
-        {
-          '--landing-raspberry': '#F16B6B',
-          '--landing-leaf': '#2F6F4E',
-          '--landing-dark': '#312E3F',
-        } as React.CSSProperties
-      }
-    >
-      <Hero />
-      <Problems />
-      <Solution />
-      <Testimonials />
-      <HowItWorks />
-      <Modules />
-      <FarmTypes />
-      <Story />
-      <About />
-      <Demo />
-      <Mobile />
-      <Install />
-      <Faq />
-      <Beta />
-      <Footer />
-      <WhatsAppButton />
-    </main>
+    <div className="min-h-screen bg-[#FAFAF6] text-slate-800">
+      <a
+        href="#main-content"
+        className="sr-only fixed left-4 top-4 z-[60] rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg focus:not-sr-only focus:outline-none focus:ring-2 focus:ring-[#2D6A4F] focus:ring-offset-2"
+      >
+        Sari la conținut
+      </a>
+      <LandingHeader />
+      <main id="main-content">
+        <Hero />
+        <ValueProps />
+        <Problems />
+        <Solution />
+        <HowItWorks />
+        <Testimonials />
+        <AssociationMarketplace />
+        <Story />
+        <FarmTypes />
+        <PwaInstall />
+        <Faq />
+        <DemoCta />
+      </main>
+      <LandingFooter />
+    </div>
   )
 }

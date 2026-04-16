@@ -1,11 +1,19 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { POST } from '@/app/api/shop/order/route'
+import { __resetPublicWriteGuardForTests } from '@/lib/api/public-write-guard'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
 vi.mock('@/lib/shop/notify-farmer-shop-order', () => ({
   notifyFarmerShopOrder: vi.fn().mockResolvedValue(undefined),
 }))
+vi.mock('@/lib/association/public-settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/association/public-settings')>()
+  return {
+    ...actual,
+    loadAssociationSettingsCached: vi.fn().mockResolvedValue(actual.DEFAULT_ASSOCIATION_SETTINGS),
+  }
+})
 
 const TID = '990e8400-e29b-41d4-a716-446655440001'
 const PID = '990e8400-e29b-41d4-a716-446655440002'
@@ -82,6 +90,7 @@ describe('POST /api/shop/order', () => {
   beforeEach(() => {
     insertPayloads.length = 0
     vi.clearAllMocks()
+    __resetPublicWriteGuardForTests()
     getSupabaseAdmin.mockReturnValue(makeAdmin([activeProduct]))
   })
 
@@ -126,7 +135,7 @@ describe('POST /api/shop/order', () => {
         tenantId: TID,
         lines: [{ produsId: PID, qty: 1 }],
         nume: 'Ion Popescu',
-        telefon: '0722123456',
+        telefon: '0722123457',
         locatie: 'Suceava, str. Test nr. 1',
       },
     })

@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
+import { destructiveActionScopes } from '@/lib/auth/destructive-action-step-up-contract'
+import { isProtectedAccountDeletionUser } from '@/lib/auth/protected-account'
+import { requireDestructiveActionStepUp } from '@/lib/auth/destructive-action-step-up'
+import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { captureApiError } from '@/lib/monitoring/sentry'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
-const PROTECTED_SUPERADMIN_EMAIL = 'popa.andrei.sv@gmail.com'
 
 async function getOwnerContext() {
   const supabase = await createClient()
@@ -21,7 +24,7 @@ async function getOwnerContext() {
 
   try {
     const tenantId = await getTenantIdByUserId(supabase, user.id)
-    return { user, tenant: { id: tenantId } }
+    return { supabase, user, tenant: { id: tenantId } }
   } catch (error) {
     captureApiError(error, {
       route: '/api/gdpr/account:getOwnerContext',
@@ -45,12 +48,26 @@ export async function DELETE(request: Request) {
       return invalidOriginResponse
     }
 
-    const { user, tenant } = await getOwnerContext()
+    const { supabase, user, tenant } = await getOwnerContext()
     userId = user.id
     tenantIdForSentry = tenant.id
 
-    if ((user.email ?? '').toLowerCase() === PROTECTED_SUPERADMIN_EMAIL) {
+    const userIsSuperadmin = await isSuperAdmin(supabase, user.id)
+    if (
+      isProtectedAccountDeletionUser({
+        userId: user.id,
+        isSuperadmin: userIsSuperadmin,
+      })
+    ) {
       return apiError(403, 'ACCOUNT_PROTECTED', 'Cont protejat. Acest cont nu poate fi sters.')
+    }
+
+    const stepUpError = requireDestructiveActionStepUp(request, {
+      userId: user.id,
+      scope: destructiveActionScopes.gdprAccountDelete,
+    })
+    if (stepUpError) {
+      return stepUpError
     }
 
     const admin = getSupabaseAdmin()

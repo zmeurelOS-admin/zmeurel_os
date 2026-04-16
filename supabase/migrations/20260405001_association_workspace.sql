@@ -187,12 +187,9 @@ CREATE POLICY "produse_update_association_staff"
 -- Value ''magazin_asociatie'' is used at application level; column already exists as text.
 
 -- ─── 6. Seed first association admin (idempotent) ───────────────────────────
-
-INSERT INTO public.association_members (user_id, role)
-SELECT id, 'admin'
-FROM auth.users
-WHERE email = 'popa.andrei.sv@gmail.com'
-ON CONFLICT (user_id) DO NOTHING;
+-- Superadmin email setat manual dupa deploy via Supabase Dashboard.
+-- Seed-ul initial pentru public.association_members se face operational,
+-- fara email personal hardcodat in migrari.
 
 -- ─── 7. RPC helper ───────────────────────────────────────────────────────────
 

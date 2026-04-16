@@ -4,9 +4,9 @@ config({ path: '.env.local' })
 
 import { getSupabaseAdmin } from '../src/lib/supabase/admin'
 
-const PROTECTED_ADMIN_EMAIL = 'popa.andrei.sv@gmail.com'
 const PAGE_SIZE = 200
 const REQUIRE_CONFIRM_FLAG = '--confirm'
+const PROTECTED_USER_IDS_ENV = 'RESET_TEST_USERS_PROTECTED_USER_IDS'
 
 const TENANT_TABLES_IN_DELETE_ORDER = [
   'vanzari_butasi_items',
@@ -43,7 +43,7 @@ type OwnedTenant = {
 type TableDeletionSummary = Record<TenantTable, number>
 
 type CleanupSummary = {
-  protectedEmail: string
+  protectedUserIds: string[]
   keptUsers: number
   deletedUsers: number
   deletedProfiles: number
@@ -78,12 +78,38 @@ function isMissingTableError(error: unknown): boolean {
   return code === '42P01' || code === 'PGRST205'
 }
 
-function normalizeEmail(email: string | null | undefined): string {
-  return (email ?? '').trim().toLowerCase()
+function parseCsvEnv(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
 }
 
-function isProtectedEmail(email: string | null | undefined): boolean {
-  return normalizeEmail(email) === PROTECTED_ADMIN_EMAIL
+async function resolveProtectedUserIds(admin: ReturnType<typeof getSupabaseAdmin>): Promise<Set<string>> {
+  const envProtectedIds = parseCsvEnv(process.env[PROTECTED_USER_IDS_ENV])
+  const protectedIds = new Set(envProtectedIds)
+
+  const { data, error } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('is_superadmin', true)
+
+  if (error) {
+    throw new Error(`Failed to load superadmin profiles: ${error.message}`)
+  }
+
+  for (const row of (data ?? []) as Array<{ id: string | null }>) {
+    if (row.id) protectedIds.add(row.id.toLowerCase())
+  }
+
+  if (protectedIds.size === 0) {
+    throw new Error(
+      `No protected users resolved. Configure ${PROTECTED_USER_IDS_ENV} or ensure at least one superadmin profile exists.`,
+    )
+  }
+
+  return protectedIds
 }
 
 async function listAllAuthUsers(): Promise<AuthUserLite[]> {
@@ -199,16 +225,14 @@ async function deleteTenantScopedData(
 }
 
 async function runCleanup(performDelete: boolean): Promise<CleanupSummary> {
+  const admin = getSupabaseAdmin()
+  const protectedUserIds = await resolveProtectedUserIds(admin)
   const users = await listAllAuthUsers()
-  const protectedUsers = users.filter((user) => isProtectedEmail(user.email))
-  const deletableUsers = users.filter((user) => !isProtectedEmail(user.email))
-
-  if (protectedUsers.length === 0) {
-    throw new Error(`Protected admin account not found: ${PROTECTED_ADMIN_EMAIL}`)
-  }
+  const protectedUsers = users.filter((user) => protectedUserIds.has(user.id.toLowerCase()))
+  const deletableUsers = users.filter((user) => !protectedUserIds.has(user.id.toLowerCase()))
 
   const summary: CleanupSummary = {
-    protectedEmail: PROTECTED_ADMIN_EMAIL,
+    protectedUserIds: Array.from(protectedUserIds),
     keptUsers: protectedUsers.length,
     deletedUsers: 0,
     deletedProfiles: 0,
@@ -267,9 +291,14 @@ async function main() {
 
   const summary = await runCleanup(true)
 
+  const protectedUserIds = await resolveProtectedUserIds(getSupabaseAdmin())
   const remainingUsers = await listAllAuthUsers()
-  const remainingProtected = remainingUsers.filter((user) => isProtectedEmail(user.email))
-  const remainingNonProtected = remainingUsers.filter((user) => !isProtectedEmail(user.email))
+  const remainingProtected = remainingUsers.filter((user) =>
+    protectedUserIds.has(user.id.toLowerCase()),
+  )
+  const remainingNonProtected = remainingUsers.filter(
+    (user) => !protectedUserIds.has(user.id.toLowerCase()),
+  )
 
   console.log('\nDeletion summary:')
   console.log(JSON.stringify(summary, null, 2))

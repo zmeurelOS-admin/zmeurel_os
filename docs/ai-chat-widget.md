@@ -14,7 +14,7 @@ The chat widget is a floating assistant embedded in the dashboard layout for all
 - Web Speech API for voice input (zero new deps)
 
 **Entry points:**
-- API: `src/app/api/chat/route.ts` — wrapper-ul POST endpoint pentru Next.js App Router
+- API: `src/app/api/chat/route.ts` — wrapper-ul POST endpoint pentru Next.js App Router (guard same-origin/CSRF cu `validateSameOriginMutation` înainte de handler)
 - Handler: `src/app/api/chat/chat-post-handler.ts` — orchestratorul POST, routing AI, rate limiting, keyword queries și handoff UI
 - Extractors: `src/app/api/chat/extractors.ts` — regex/text extraction helpers pentru payload-uri determinate
 - Signals: `src/app/api/chat/signal-detectors.ts` — detectori booleeni pentru routing-ul cheap-first
@@ -34,15 +34,16 @@ The chat widget is a floating assistant embedded in the dashboard layout for all
 
 ```
 Client → POST /api/chat { message, pathname, conversationId, history? }
-  1. Auth check (supabase.auth.getUser)
-  2. Profile read → tenant_id, rate limit check
-  3. Continuation detection + sticky-flow reset când mesajul nou schimbă clar intenția
-  4. Pentru `recoltare` / `activitate` / `comandă`: `generateObject` cu Zod + entități valide injectate
-  5. Backend validation: verifică ID-uri, missing fields, clarificări, `prefill_data`
-  6. Keyword queries / routing deterministic financiar pentru restul flow-urilor
-  7. Fallback conversațional cu `generateText` doar când nu există un flow structurat deschis
-  8. Fire-and-forget: save to ai_conversations, analytics, rate usage
-  9. Return JSON (`answer` / `form`)
+  1. Same-origin guard (`validateSameOriginMutation`) pentru mutația POST
+  2. Auth check (supabase.auth.getUser)
+  3. Profile read → tenant_id, rate limit check
+  4. Continuation detection + sticky-flow reset când mesajul nou schimbă clar intenția
+  5. Pentru `recoltare` / `activitate` / `comandă`: `generateObject` cu Zod + entități valide injectate
+  6. Backend validation: verifică ID-uri, missing fields, clarificări, `prefill_data`
+  7. Keyword queries / routing deterministic financiar pentru restul flow-urilor
+  8. Fallback conversațional cu `generateText` doar când nu există un flow structurat deschis
+  9. Fire-and-forget: save to ai_conversations, analytics, rate usage
+  10. Return JSON (`answer` / `form`)
 ```
 
 ---
@@ -132,10 +133,14 @@ Runs ONLY when the last user message matches a keyword group. All queries are pa
 - Rulează Node-only prin Playwright Test config dedicat (`playwright.ai-chat.config.ts`), fără browser flow/e2e și fără DB real.
 - Corpusul sintetic V2.6 este organizat pe categorii utile: routing clar, ambiguități controlate, continuitate multi-turn scurtă, corecții explicite, anulări explicite de câmp, canonicalizare/typo/nume apropiate, română reală/colocvială/dictare, `required_for_open_form`, `required_for_save_hint`, clarificări strict pe lipsuri reale, cazuri foarte scurte/sub-specificate și non-regresie.
 - Verificările sunt robuste pe comportament, nu pe snapshot text complet: flow ales, tip răspuns (`open_form`/clarificare/hint), câmpuri extrase/correctate/golite și prezența sau absența save hints.
-- Gate standard înainte de deploy pentru patch-uri AI relevante: `npm run check:ai-chat` (lint AI + typecheck + harness).
-- CI gate dedicat: `.github/workflows/ai-chat-gate.yml` rulează aceeași comandă (`npm run check:ai-chat`) pe `pull_request`, `push` pe `main` cu path filters AI și `workflow_dispatch`.
+- Contract tests endpoint real: `npm run test:ai-chat:integration` (Node-only, fără browser, cu mock-uri locale pentru dependențe externe inevitabile).
+- Gate standard înainte de deploy pentru patch-uri AI relevante: `npm run check:ai-chat` (lint AI + typecheck + harness sintetic).
+- Gate general repo: `.github/workflows/check.yml` rulează `npm run check:critical` pe toate PR-urile și pe `push` pe `main`.
+- CI gate dedicat AI/chat: `.github/workflows/ai-chat-gate.yml` rulează `npm run check:ai-chat:ci` pe `pull_request`, `push` pe `main` și `workflow_dispatch`, dar numai când sunt atinse path-urile AI/chat relevante.
+- `check:ai-chat:ci` combină `npm run check:ai-chat` cu `npm run test:critical:integration`, astfel regresiile importante din endpointul real `/api/chat` sunt blocate automat fără să încărcăm toate PR-urile nerelevante.
 - Regula de lucru: orice bug nou confirmat pe AI chat se adaugă mai întâi în corpusul sintetic ca regresie, apoi se face patch-ul.
-- Există acum și contract tests pentru endpointul real `/api/chat`: `npm run test:ai-chat:integration` (Node-only, fără browser, cu mock-uri locale pentru dependențe externe inevitabile).
+- Pentru hardening cross-modul înainte de build: `npm run test:critical` (suite stabile de security/API hardening).
+- Pentru gate extins înainte de release: `npm run test:critical:full` (include și `test:ai-chat:integration`).
 
 ### Decision observability (2026-03-26)
 
@@ -147,6 +152,7 @@ Runs ONLY when the last user message matches a keyword group. All queries are pa
   - `clarification_kind`, `flow_final_state`
   - `fields_present`, `fields_missing` (doar chei, fără valori brute)
 - În development se emite și un log scurt în server console (`[chat] decision`) cu aceeași structură, pentru debugging rapid fără expunere de text brut.
+- Logurile de eroare AI chat (`structured_extraction_failed`, `generateText error`, fallback-uri) folosesc redaction server-side (`sanitizeForLog` + `toSafeErrorContext`), fără input brut al utilizatorului, fără tokenuri și fără payload-uri sensibile în clar.
 - Dashboard-ul admin existent (`/admin/analytics`) are acum o secțiune AI care agregă direct aceste evenimente pentru KPI-uri de `open_form`/clarificări/LLM/save hints/continuation, distribuții pe flow și decision mode, fricțiune pe flow și un tabel recent de evenimente structurale.
 - Filtrele AI din dashboard sunt minime și deliberate: interval (`7 zile` / `30 zile`), `flow`, `decision mode`.
 - În dashboard, KPI-urile AI folosesc acum praguri pragmatice de beta cu semnalizare rapidă `Bun / Atenție / Risc` și un rezumat „Necesită atenție acum”; aceste praguri sunt orientative pentru hardening și nu reprezintă SLA final.
@@ -230,7 +236,8 @@ Runs ONLY when the last user message matches a keyword group. All queries are pa
 
 - Dacă ultimul răspuns AI a fost deja un `formular pregătit`, iar utilizatorul pornește explicit un flow nou non-agricol de tip `adaugă cheltuială` / `adaugă comandă` / `client nou`, handler-ul nu mai lipește automat payload-ul anterior; tratează mesajul ca cerere nouă și cere detalii proaspete.
 - Guard-ul de reset este limitat intenționat la flow-urile non-agricole (`cheltuială`, `investiție`, `comandă`, `client`), ca să nu schimbe comportamentul stabilizat pentru `recoltare` / `activitate`.
-- Pentru `comandă`, dacă `client_id` este rezolvat canonic și utilizatorul nu a dat explicit `pret_per_kg`, backend-ul completează acum prețul negociat al clientului din `clienti.pret_negociat_lei_kg` în `prefill_data`.
+- Pentru `comandă`, dacă `client_id` este rezolvat canonic și utilizatorul nu a dat explicit acele valori, backend-ul completează acum în `prefill_data` atât telefonul clientului (`clienti.telefon`), cât și prețul negociat (`clienti.pret_negociat_lei_kg`).
+- Acesta este contractul canonic pentru `/api/chat`: la client existent rezolvat sigur, `prefill_data.client_id` + `client_label` pot fi însoțite de `telefon` și `pret_per_kg`, iar mesajul de răspuns nu mai trebuie să ceară `prețul/kg` dacă valoarea negociată a fost moștenită.
 
 ### Financial ambiguity continuation hotfix (2026-03-27)
 

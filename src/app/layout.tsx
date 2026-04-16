@@ -14,6 +14,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.zmeurel.ro'),
   title: 'Zmeurel',
   description: 'Aplicație agricolă pentru management de teren, producție și vânzări.',
   manifest: '/manifest.webmanifest',
@@ -46,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#166534" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Zmeurel" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />

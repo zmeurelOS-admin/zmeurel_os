@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label'
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
 
 import { AssociationProductImage } from './AssociationProductImage'
-import { ASSOC, labelForCategory } from './tokens'
+import { ASSOC, labelForCategory, resolveAssociationCategory } from './tokens'
 
 type Props = {
   product: AssociationProduct
@@ -25,7 +25,7 @@ export function AssociationProductDetailContent({
   onQtyChange,
   onAddToCart,
 }: Props) {
-  const catLabel = labelForCategory(p.categorie)
+  const catLabel = labelForCategory(resolveAssociationCategory(p.association_category, p.categorie))
 
   return (
     <div className="flex max-h-[min(92dvh,720px)] flex-col overflow-hidden sm:max-h-[min(88vh,680px)]">
@@ -96,13 +96,13 @@ export function AssociationProductDetailContent({
           </Label>
           <Input
             id="assoc_qty_detail"
-            inputMode="decimal"
+            inputMode="numeric"
             className="h-12 rounded-xl border text-base"
             style={{ borderColor: ASSOC.border, color: ASSOC.text }}
             value={qtyDraft}
             onChange={(e) => onQtyChange(e.target.value)}
-            min="0.01"
-            step="any"
+            min="1"
+            step="1"
           />
         </div>
         <button

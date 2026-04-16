@@ -91,7 +91,7 @@ export async function getActivitatiAgricole(): Promise<ActivitateAgricola[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching activitati:', error)
+    
     throw error
   }
 
@@ -159,25 +159,14 @@ export async function createActivitateAgricola(
         .single()
 
       if (fallbackError) {
-        console.error('Error creating activitate (fallback):', {
-          message: fallbackError.message,
-          code: fallbackError.code,
-          details: fallbackError.details,
-          hint: fallbackError.hint,
-        })
+        
         throw toError(fallbackError)
       }
 
       return fallbackData as unknown as ActivitateAgricola
     }
 
-    console.error('Error creating activitate:', {
-      message: maybeError?.message,
-      code: maybeError?.code,
-      details: maybeError?.details,
-      hint: maybeError?.hint,
-      status: maybeError?.status,
-    })
+    
     throw toError(maybeError)
   }
 
@@ -201,7 +190,7 @@ export async function updateActivitateAgricola(
     .single()
 
   if (error) {
-    console.error('Error updating activitate:', error)
+    
     throw error
   }
 
@@ -217,7 +206,7 @@ export async function deleteActivitateAgricola(id: string): Promise<void> {
     .eq('id', id)
 
   if (error) {
-    console.error('Error deleting activitate:', error)
+    
     throw error
   }
 }

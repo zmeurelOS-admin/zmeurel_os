@@ -25,6 +25,7 @@ const ASOCIATIE_TABS: TabDef[] = [
   { label: 'Panou', href: '/asociatie', emoji: '🏛' },
   { label: 'Produse', href: '/asociatie/produse', emoji: '🛒' },
   { label: 'Comenzi', href: '/asociatie/comenzi', emoji: '📋' },
+  { label: 'Livrări', href: '/asociatie/livrari', emoji: '🚚' },
 ]
 
 export function BottomTabBar() {
@@ -49,6 +50,7 @@ export function BottomTabBar() {
     router.prefetch('/asociatie')
     router.prefetch('/asociatie/produse')
     router.prefetch('/asociatie/comenzi')
+    router.prefetch('/asociatie/livrari')
     router.prefetch('/asociatie/producatori')
     router.prefetch('/asociatie/setari')
   }, [router])

@@ -8,7 +8,13 @@ import { gustaBrandColors } from '@/lib/shop/association/brand-tokens'
 import { cn } from '@/lib/utils'
 
 import { getGustCategoryVisual } from './gustCategoryVisual'
-import { collectProductImageUrls, formatGustPrice, type GustCatalogProduct } from './gustProductTypes'
+import {
+  collectProductImageUrls,
+  formatGustPrice,
+  formatGustProductUnitLabel,
+  type GustCatalogProduct,
+} from './gustProductTypes'
+import { resolveAssociationCategory } from '@/components/shop/association/tokens'
 
 export type GustProductCardProps = {
   product: GustCatalogProduct
@@ -28,7 +34,8 @@ function GustProductCardInner({
 }: GustProductCardProps) {
   const urls = collectProductImageUrls(p)
   const firstUrl = urls[0]
-  const { bg, emoji } = getGustCategoryVisual(p.categorie)
+  const categoryKey = resolveAssociationCategory(p.association_category, p.categorie)
+  const { bg, emoji } = getGustCategoryVisual(categoryKey)
   const badgeText = badge ?? null
 
   const open = useCallback(() => onOpenDetail(p.id), [onOpenDetail, p.id])
@@ -112,7 +119,7 @@ function GustProductCardInner({
               <span className="text-xs font-semibold opacity-90">{p.moneda}</span>
             </p>
             <p className="mt-0.5 text-[11px] font-medium opacity-80" style={{ color: '#5a6563' }}>
-              / {p.unitate_vanzare}
+              {formatGustProductUnitLabel(p)}
             </p>
           </div>
           <button

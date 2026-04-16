@@ -1,59 +1,96 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Plus, ShoppingBag } from 'lucide-react'
+import {
+  Facebook,
+  Handshake,
+  Instagram,
+  Leaf,
+  MapPin,
+  Phone,
+  Plus,
+  ScrollText,
+  ShieldCheck,
+  ShoppingBag,
+  Truck,
+  type LucideIcon,
+} from 'lucide-react'
 
 import { AssociationProductImage } from '@/components/shop/association/AssociationProductImage'
-import { labelForCategory } from '@/components/shop/association/tokens'
+import {
+  labelForAssociationCategoryKey,
+  resolveAssociationCategory,
+  type AssociationCategoryDefinition,
+} from '@/components/shop/association/tokens'
+import type { GustProducerCard } from '@/components/shop/association/producers/GustProducersPage'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import type { AssociationPublicSettings } from '@/lib/association/public-settings'
 import {
-  buildAssociationMarketLine,
-  type AssociationPublicSettings,
-} from '@/lib/association/public-settings'
-import { gustaAssociationBrand } from '@/lib/shop/association/brand-config'
-import {
-  gustaAccentTints,
-  gustaBrandColors,
-  gustaBrandDark,
-  gustaBrandShadows,
-  gustaPrimaryTints,
-} from '@/lib/shop/association/brand-tokens'
+  normalizeFacebookUrl,
+  normalizeInstagramUrl,
+  normalizePhoneHref,
+} from '@/lib/shop/association/public-links'
+import { gustaAccentTints, gustaBrandColors, gustaBrandDark, gustaBrandShadows, gustaPrimaryTints } from '@/lib/shop/association/brand-tokens'
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
-import { associationProducerProfilePath, associationShopProdusePath } from '@/lib/shop/association-routes'
+import {
+  ASSOCIATION_SHOP_PRODUCATORI_PATH,
+  associationProducerProfilePath,
+  associationShopProdusePath,
+} from '@/lib/shop/association-routes'
 import { cn } from '@/lib/utils'
 
 const MD = '(min-width: 768px)'
 
-const shadowPrimarySoft = '0 2px 12px rgba(13, 99, 66, 0.08)'
-const shadowPrimaryMd = '0 4px 20px rgba(13, 99, 66, 0.08)'
+const HERO_STATS = [
+  { value: '9', label: 'Categorii' },
+  { value: '4 ani', label: 'Tradiție' },
+  { value: '200+', label: 'În rețea' },
+] as const
+
+const TRUST_CARDS: Array<{
+  icon: LucideIcon
+  title: string
+  text: string
+}> = [
+  {
+    icon: ShieldCheck,
+    title: 'Verificați oficial',
+    text: 'Toți producătorii dețin documente legale, autorizații sanitare și respectă normele de trasabilitate.',
+  },
+  {
+    icon: Handshake,
+    title: 'Fără intermediari',
+    text: 'Cumperi direct de la fermier. Fără adaos comercial, fără lanțuri de distribuție.',
+  },
+  {
+    icon: Leaf,
+    title: 'Produse naturale',
+    text: 'Tratamente legale, metode tradiționale. Fără conservanți artificiali, fără E-uri.',
+  },
+  {
+    icon: ScrollText,
+    title: 'Tradiție bucovinească',
+    text: 'Rețete din generație în generație, păstrate de producători locali din județul Suceava.',
+  },
+] as const
+
+type AssociationLandingPageProps = {
+  products: AssociationProduct[]
+  categoryDefinitions: AssociationCategoryDefinition[]
+  producerCards: GustProducerCard[]
+  settings: AssociationPublicSettings
+  formatPrice?: (p: AssociationProduct) => string
+  onOpenProduct?: (p: AssociationProduct) => void
+  onAddQuick?: (p: AssociationProduct) => void
+}
 
 function formatPriceDefault(p: AssociationProduct): string {
   return new Intl.NumberFormat('ro-RO', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(Number(p.displayPrice))
-}
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  fruct: '🍓',
-  leguma: '🥬',
-  procesat: '🫙',
-  altele: '🌿',
-}
-
-function emojiForCategory(key: string): string {
-  const k = key.trim().toLowerCase()
-  return CATEGORY_EMOJI[k] ?? '🌱'
-}
-
-function bgTintForCategory(key: string): string {
-  const k = key.trim().toLowerCase()
-  if (k === 'fruct') return gustaAccentTints[20]
-  if (k === 'leguma') return gustaPrimaryTints[20]
-  if (k === 'procesat') return gustaAccentTints[40]
-  return gustaPrimaryTints[40]
 }
 
 function initialsFromName(name: string): string {
@@ -63,41 +100,67 @@ function initialsFromName(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-export type AssociationLandingPageProps = {
-  products: AssociationProduct[]
-  settings: AssociationPublicSettings
-  formatPrice?: (p: AssociationProduct) => string
-  onOpenProduct?: (p: AssociationProduct) => void
-  onAddQuick?: (p: AssociationProduct) => void
+function categoryAccent(key: string): { emoji: string; bg: string } {
+  const normalized = key.trim().toLowerCase()
+  if (normalized === 'fructe_legume') return { emoji: '🍓', bg: gustaAccentTints[20] }
+  if (normalized === 'lactate_branzeturi') return { emoji: '🧀', bg: gustaPrimaryTints[20] }
+  if (normalized === 'carne_mezeluri') return { emoji: '🥩', bg: gustaAccentTints[40] }
+  if (normalized === 'miere_apicole') return { emoji: '🍯', bg: gustaAccentTints[20] }
+  if (normalized === 'conserve_muraturi') return { emoji: '🫙', bg: gustaPrimaryTints[20] }
+  if (normalized === 'panificatie_patiserie') return { emoji: '🥖', bg: gustaAccentTints[20] }
+  if (normalized === 'bauturi') return { emoji: '🧃', bg: gustaPrimaryTints[40] }
+  if (normalized === 'oua') return { emoji: '🥚', bg: gustaAccentTints[40] }
+  return { emoji: '🌿', bg: gustaPrimaryTints[40] }
 }
 
-const HERO_STATS = [
-  { value: '50+', label: 'Producători' },
-  { value: '7+', label: 'Categorii' },
-  { value: '4 ani', label: 'Tradiție' },
-  { value: '200+', label: 'În rețea' },
-] as const
+function InfoCard({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon
+  title: string
+  description?: string
+  children?: ReactNode
+}) {
+  const Icon = icon
 
-const VALUE_CARDS = [
-  {
-    emoji: '🏅',
-    title: 'Calitate',
-    text: 'Verificați de DAJ Suceava',
-  },
-  {
-    emoji: '🤝',
-    title: 'Comunitate',
-    text: '50+ producători uniți',
-  },
-  {
-    emoji: '🌾',
-    title: 'Tradiție',
-    text: 'Rețete din generație în generație',
-  },
-] as const
+  return (
+    <div
+      className="rounded-[20px] border bg-white p-4 md:p-5"
+      style={{
+        borderColor: gustaPrimaryTints[40],
+        boxShadow: '0 2px 14px rgba(13, 99, 66, 0.08)',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px]"
+          style={{ backgroundColor: `${gustaBrandColors.primary}14`, color: gustaBrandColors.primary }}
+        >
+          <Icon className="h-5 w-5" aria-hidden />
+        </div>
+        <div className="min-w-0">
+          <p className="assoc-heading text-base font-extrabold" style={{ color: gustaBrandColors.primary }}>
+            {title}
+          </p>
+          {description ? (
+            <p className="assoc-body mt-1 text-sm leading-relaxed" style={{ color: gustaBrandColors.text }}>
+              {description}
+            </p>
+          ) : null}
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function AssociationLandingPage({
   products,
+  categoryDefinitions,
+  producerCards,
   settings,
   formatPrice = formatPriceDefault,
   onOpenProduct,
@@ -111,11 +174,6 @@ export default function AssociationLandingPage({
     return () => cancelAnimationFrame(id)
   }, [])
 
-  const categories = useMemo(() => {
-    const s = new Set(products.map((p) => p.categorie))
-    return Array.from(s).sort((a, b) => a.localeCompare(b, 'ro'))
-  }, [products])
-
   const popularProducts = useMemo(() => {
     const sorted = [...products].sort((a, b) => {
       const ai = a.poza_1_url ? 1 : 0
@@ -126,156 +184,80 @@ export default function AssociationLandingPage({
     return sorted.slice(0, 4)
   }, [products])
 
-  const producersPreview = useMemo(() => {
-    const m = new Map<
-      string,
-      { tenantId: string; name: string; region: string | null; categories: Set<string> }
-    >()
-    for (const p of products) {
-      const cur = m.get(p.tenantId)
-      if (!cur) {
-        m.set(p.tenantId, {
-          tenantId: p.tenantId,
-          name: p.farmName?.trim() || 'Fermă locală',
-          region: p.farmRegion,
-          categories: new Set([p.categorie]),
-        })
-      } else {
-        cur.categories.add(p.categorie)
-        if (!cur.region && p.farmRegion) cur.region = p.farmRegion
-      }
-    }
-    return Array.from(m.values())
-      .sort((a, b) => a.name.localeCompare(b.name, 'ro'))
-      .slice(0, 6)
-      .map((row) => {
-        const counts = new Map<string, number>()
-        for (const c of row.categories) {
-          const k = c.trim()
-          counts.set(k, (counts.get(k) ?? 0) + 1)
-        }
-        let top = ''
-        let topN = -1
-        const sortedKeys = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'ro'))
-        for (const cat of sortedKeys) {
-          const n = counts.get(cat) ?? 0
-          if (n > topN) {
-            topN = n
-            top = cat
-          }
-        }
-        const specialty = top ? labelForCategory(top) : '—'
-        return { ...row, specialty }
-      })
-  }, [products])
+  const topProducers = useMemo(
+    () => [...producerCards].sort((a, b) => a.farmName.localeCompare(b.farmName, 'ro')).slice(0, 6),
+    [producerCards],
+  )
 
   const fadeCls = cn(
     'transition-all duration-700 ease-out motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0',
     entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3',
   )
-  const heroDescription = settings.description?.trim() || gustaAssociationBrand.heroDescription
-  const infoCards = [
-    {
-      id: 'volanta',
-      emoji: '📍',
-      title: 'Piața volantă',
-      desc: buildAssociationMarketLine(settings),
-      desktopOnly: false,
-    },
-    {
-      id: 'livrare',
-      emoji: '🚚',
-      title: 'Livrare locală',
-      desc: settings.marketLocation?.trim() || 'Livrare miercurea · Gratuit peste 150 lei',
-      desktopOnly: false,
-    },
-    {
-      id: 'contact',
-      emoji: '📞',
-      title: 'Contact & Facebook',
-      desc: settings.facebookUrl?.trim() || gustaAssociationBrand.social.facebookUrl,
-      desktopOnly: false,
-    },
-    {
-      id: 'natural',
-      emoji: '🌿',
-      title: 'Produse naturale',
-      desc: settings.marketNote?.trim() || 'Fără conservanți, direct din fermă',
-      desktopOnly: true,
-    },
-  ] as const
 
-  const sectionPad = 'px-4 py-10 md:px-12 md:py-12'
+  const marketLine =
+    [settings.marketSchedule?.trim() || 'Sâmbătă, 08:00-12:30', settings.marketLocation?.trim() || 'Curtea DAJ Suceava']
+      .filter(Boolean)
+      .join(', ')
+  const deliveryLine =
+    settings.deliveryCutoffText?.trim() || 'Livrare locală disponibilă pentru comenzile din rețea.'
+  const facebookHref = normalizeFacebookUrl(settings.facebookUrl)
+  const instagramHref = normalizeInstagramUrl(settings.instagramUrl)
+  const orderPhone = settings.orderPhone?.trim() || settings.merchantPhone?.trim() || ''
+  const orderPhoneHref = normalizePhoneHref(orderPhone)
+
+  const sectionPad = 'px-4 py-12 md:px-12 md:py-14'
 
   return (
     <div className={fadeCls} style={{ color: gustaBrandColors.text }}>
-      {/* Hero */}
       <section
-        className="relative overflow-hidden px-4 pb-12 pt-10 md:px-12 md:pb-16 md:pt-14"
+        className="relative overflow-hidden px-4 pb-14 pt-10 md:px-12 md:pb-18 md:pt-14"
         style={{
-          background: `linear-gradient(165deg, ${gustaBrandColors.primary} 0%, ${gustaBrandDark.backgroundDeep} 100%)`,
+          background: `linear-gradient(160deg, ${gustaBrandColors.primary} 0%, ${gustaBrandDark.backgroundDeep} 100%)`,
         }}
       >
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
           style={{
-            backgroundImage: `repeating-linear-gradient(
-              -45deg,
-              rgba(255, 255, 255, 0.5) 0,
-              rgba(255, 255, 255, 0.5) 1px,
-              transparent 1px,
-              transparent 12px
-            )`,
+            backgroundImage:
+              'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.18), transparent 28%), radial-gradient(circle at 80% 0%, rgba(255,158,27,0.16), transparent 24%), linear-gradient(135deg, rgba(255,255,255,0.04), transparent 45%)',
           }}
           aria-hidden
         />
-        <div className="relative mx-auto w-full max-w-[600px] text-center">
-          <div className="mb-5 flex justify-center">
-            <div
-              className="overflow-hidden rounded-[20px] bg-white/10 p-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.16)]"
-              style={{ backdropFilter: 'blur(6px)' }}
-            >
-              <Image
-                src="/images/gusta-logo.png"
-                alt="Gustă din Bucovina"
-                width={120}
-                height={120}
-                className="h-[96px] w-[96px] rounded-[16px] object-contain md:h-[120px] md:w-[120px]"
-                priority
-              />
-            </div>
-          </div>
+        <div className="relative mx-auto max-w-5xl text-center">
           <div
-            className="assoc-heading mb-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold md:text-sm"
+            className="assoc-heading inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold md:text-sm"
             style={{
               backgroundColor: gustaAccentTints[40],
               color: gustaBrandColors.text,
-              boxShadow: shadowPrimarySoft,
+              boxShadow: '0 2px 12px rgba(13, 99, 66, 0.12)',
             }}
           >
             <span aria-hidden>🏅</span>
             Finalist Premii UE 2025
           </div>
-          <h1
-            className="assoc-heading text-balance font-extrabold leading-tight text-white"
-            style={{
-              fontWeight: 800,
-              fontSize: isDesktop ? 40 : 28,
-              lineHeight: 1.15,
-              textShadow: '0 2px 24px rgba(0,0,0,0.15)',
-            }}
-          >
-            {gustaAssociationBrand.name}
-          </h1>
+
+          <div className="mt-6 flex justify-center">
+            <Image
+              src="/images/asociatie/logo_hero_pe_verde.png"
+              alt="Gustă din Bucovina"
+              width={500}
+              height={170}
+              className="h-auto w-full max-w-[500px] object-contain"
+              priority
+            />
+          </div>
+
           <p
-            className="assoc-body mx-auto mt-4 max-w-xl text-pretty text-sm leading-relaxed md:text-base"
+            className="assoc-body mx-auto mt-6 max-w-3xl text-pretty text-base leading-relaxed md:text-lg"
             style={{ color: gustaPrimaryTints[20] }}
           >
-            {heroDescription}
+            Producători locali din Bucovina, verificați de Direcția Agricolă Județeană Suceava.
+            Produse autentice, direct de la fermă.
           </p>
+
           <Link
             href={associationShopProdusePath()}
-            className="assoc-heading mx-auto mt-8 flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] px-6 text-base font-bold transition hover:brightness-105 active:scale-[0.98]"
+            className="assoc-heading mx-auto mt-8 flex min-h-[46px] w-fit items-center justify-center gap-2 rounded-[14px] px-6 text-base font-extrabold transition hover:brightness-105 active:scale-[0.98]"
             style={{
               backgroundColor: gustaBrandColors.accent,
               color: gustaBrandColors.text,
@@ -288,21 +270,21 @@ export default function AssociationLandingPage({
 
           <div
             className={cn(
-              'mt-10 grid gap-3 text-center',
-              isDesktop ? 'grid-cols-4' : 'grid-cols-2',
+              'mx-auto mt-10 grid max-w-2xl gap-3 text-center',
+              isDesktop ? 'grid-cols-3' : 'grid-cols-1',
             )}
           >
             {HERO_STATS.map((row) => (
               <div
                 key={row.label}
-                className="rounded-[10px] px-2 py-3"
+                className="rounded-[16px] px-4 py-4"
                 style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.09)',
                   border: `1px solid ${gustaPrimaryTints[80]}55`,
                 }}
               >
-                <p className="assoc-heading text-lg font-extrabold text-white md:text-xl">{row.value}</p>
-                <p className="assoc-body mt-0.5 text-[11px] font-medium md:text-xs" style={{ color: gustaPrimaryTints[20] }}>
+                <p className="assoc-heading text-xl font-extrabold text-white md:text-2xl">{row.value}</p>
+                <p className="assoc-body mt-1 text-[12px] font-medium" style={{ color: gustaPrimaryTints[20] }}>
                   {row.label}
                 </p>
               </div>
@@ -311,116 +293,182 @@ export default function AssociationLandingPage({
         </div>
       </section>
 
-      {/* Valori */}
-      <section className={sectionPad} style={{ backgroundColor: gustaBrandColors.secondary }}>
-        <div className="mx-auto grid max-w-6xl grid-cols-3 gap-2 md:gap-6">
-          {VALUE_CARDS.map((v) => (
-            <div
-              key={v.title}
-              className="flex flex-col items-center rounded-[16px] border bg-white px-2 py-4 text-center shadow-sm md:px-5 md:py-8"
-              style={{
-                borderColor: gustaPrimaryTints[40],
-                boxShadow: shadowPrimarySoft,
-              }}
-            >
-              <span className="text-2xl md:text-3xl" aria-hidden>
-                {v.emoji}
-              </span>
-              <h3 className="assoc-heading mt-2 text-sm font-bold md:text-lg" style={{ color: gustaBrandColors.primary }}>
-                {v.title}
-              </h3>
-              <p className="assoc-body mt-1 text-[11px] leading-snug md:text-sm" style={{ color: gustaBrandColors.text }}>
-                {v.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Info bar */}
-      <section className={cn(sectionPad, 'bg-white')}>
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-          {infoCards.map((card) => (
-            <div
-              key={card.id}
-              className={cn(
-                'flex gap-3 rounded-[16px] border p-3 md:p-4',
-                card.desktopOnly && 'hidden md:flex',
-              )}
-              style={{ borderColor: gustaPrimaryTints[40], boxShadow: shadowPrimarySoft }}
-            >
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-lg"
-                style={{ backgroundColor: `${gustaBrandColors.primary}1A` }}
-                aria-hidden
-              >
-                {card.emoji}
-              </div>
-              <div className="min-w-0 text-left">
-                <p className="assoc-heading text-sm font-bold md:text-base" style={{ color: gustaBrandColors.primary }}>
-                  {card.title}
-                </p>
-                <p className="assoc-body mt-0.5 text-[11px] leading-snug md:text-xs" style={{ color: gustaBrandColors.text }}>
-                  {card.desc}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Categorii */}
       <section className={sectionPad} style={{ backgroundColor: gustaBrandColors.secondary }}>
         <div className="mx-auto max-w-6xl">
-          <h2 className="assoc-heading text-xl font-extrabold md:text-2xl" style={{ color: gustaBrandColors.primary }}>
-            Categorii
-          </h2>
-          <p className="assoc-body mt-1 text-sm md:text-base" style={{ color: gustaBrandColors.text }}>
-            Alege o categorie și descoperă produsele din magazinul Asociației Gustă din Bucovina.
-          </p>
-          <div
-            className={cn(
-              'mt-5 flex gap-2 overflow-x-auto pb-1',
-              '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-            )}
-          >
-            {categories.map((cat) => (
-              <Link
-                key={cat}
-                href={associationShopProdusePath({ categorie: cat })}
-                className="assoc-heading shrink-0 rounded-full px-4 py-2 text-sm font-bold transition hover:brightness-95 active:scale-[0.98]"
-                style={{
-                  backgroundColor: gustaBrandColors.primary,
-                  color: gustaBrandColors.secondary,
-                  boxShadow: shadowPrimarySoft,
-                }}
-              >
-                {labelForCategory(cat)}
-              </Link>
-            ))}
+          <div className="max-w-2xl">
+            <h2 className="assoc-heading text-2xl font-extrabold md:text-3xl" style={{ color: gustaBrandColors.primary }}>
+              De ce au încredere clienții în rețeaua noastră
+            </h2>
+            <p className="assoc-body mt-2 text-sm leading-relaxed md:text-base" style={{ color: gustaBrandColors.text }}>
+              Selectăm cu grijă producătorii și păstrăm traseul cât mai scurt între fermă și client.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {TRUST_CARDS.map((card) => {
+              const Icon = card.icon
+              return (
+                <div
+                  key={card.title}
+                  className="rounded-[22px] border bg-white p-5"
+                  style={{
+                    borderColor: gustaPrimaryTints[40],
+                    boxShadow: '0 3px 18px rgba(13, 99, 66, 0.08)',
+                  }}
+                >
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-[16px]"
+                    style={{ backgroundColor: `${gustaBrandColors.primary}14`, color: gustaBrandColors.primary }}
+                  >
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <h3 className="assoc-heading mt-4 text-lg font-extrabold" style={{ color: gustaBrandColors.primary }}>
+                    {card.title}
+                  </h3>
+                  <p className="assoc-body mt-2 text-sm leading-relaxed" style={{ color: gustaBrandColors.text }}>
+                    {card.text}
+                  </p>
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
 
-      {/* Produse populare */}
+      <section className={cn(sectionPad, 'bg-white')}>
+        <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <InfoCard icon={MapPin} title="Piața volantă" description={marketLine} />
+          <InfoCard icon={Truck} title="Livrare locală" description={deliveryLine} />
+          <InfoCard icon={Facebook} title="Contact & Facebook">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {facebookHref ? (
+                <Link
+                  href={facebookHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold"
+                  style={{ borderColor: gustaPrimaryTints[40], color: gustaBrandColors.primary }}
+                >
+                  <Facebook className="h-4 w-4" aria-hidden />
+                  Facebook
+                </Link>
+              ) : null}
+              {instagramHref ? (
+                <Link
+                  href={instagramHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold"
+                  style={{ borderColor: gustaPrimaryTints[40], color: gustaBrandColors.primary }}
+                >
+                  <Instagram className="h-4 w-4" aria-hidden />
+                  Instagram
+                </Link>
+              ) : null}
+              {!facebookHref && !instagramHref ? (
+                <p className="assoc-body mt-1 text-sm" style={{ color: gustaBrandColors.text }}>
+                  Linkurile sociale pot fi completate din setările asociației.
+                </p>
+              ) : null}
+            </div>
+          </InfoCard>
+          <InfoCard
+            icon={Phone}
+            title="Telefon comandă"
+            description={orderPhone || 'Numărul de comandă poate fi adăugat din setările asociației.'}
+          >
+            {orderPhoneHref ? (
+              <a
+                href={orderPhoneHref}
+                className="assoc-heading mt-3 inline-flex items-center gap-2 text-base font-extrabold underline underline-offset-4"
+                style={{ color: gustaBrandColors.primary }}
+              >
+                <Phone className="h-4 w-4" aria-hidden />
+                {orderPhone}
+              </a>
+            ) : null}
+          </InfoCard>
+        </div>
+      </section>
+
+      <section className={sectionPad} style={{ backgroundColor: gustaBrandColors.secondary }}>
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="assoc-heading text-2xl font-extrabold md:text-3xl" style={{ color: gustaBrandColors.primary }}>
+                Categorii
+              </h2>
+              <p className="assoc-body mt-2 text-sm leading-relaxed md:text-base" style={{ color: gustaBrandColors.text }}>
+                Toate cele 9 categorii sunt vizibile și te duc direct în catalogul public.
+              </p>
+            </div>
+            <Link
+              href={associationShopProdusePath()}
+              className="assoc-heading inline-flex items-center gap-2 text-sm font-bold"
+              style={{ color: gustaBrandColors.primary }}
+            >
+              Vezi tot catalogul
+              <ShoppingBag className="h-4 w-4" aria-hidden />
+            </Link>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {categoryDefinitions.map((category) => {
+              const accent = categoryAccent(category.key)
+              return (
+                <Link
+                  key={category.key}
+                  href={associationShopProdusePath({ categorie: category.key })}
+                  className="group flex items-center gap-3 rounded-[20px] border bg-white px-4 py-4 transition hover:-translate-y-0.5"
+                  style={{
+                    borderColor: gustaPrimaryTints[40],
+                    boxShadow: '0 3px 18px rgba(13, 99, 66, 0.08)',
+                  }}
+                >
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] text-2xl"
+                    style={{ backgroundColor: accent.bg }}
+                    aria-hidden
+                  >
+                    {accent.emoji}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="assoc-heading text-base font-extrabold" style={{ color: gustaBrandColors.primary }}>
+                      {category.label}
+                    </p>
+                      <p className="assoc-body mt-1 text-sm" style={{ color: '#6B7A72' }}>
+                      Explorează produsele din această categorie
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className={cn(sectionPad, 'bg-white')}>
         <div className="mx-auto max-w-6xl">
-          <h2 className="assoc-heading text-xl font-extrabold md:text-2xl" style={{ color: gustaBrandColors.primary }}>
+          <h2 className="assoc-heading text-2xl font-extrabold md:text-3xl" style={{ color: gustaBrandColors.primary }}>
             Produse populare
           </h2>
+          <p className="assoc-body mt-2 text-sm leading-relaxed md:text-base" style={{ color: gustaBrandColors.text }}>
+            O selecție rapidă din oferta activă a asociației.
+          </p>
           {popularProducts.length === 0 ? (
-            <p className="assoc-body mt-4 text-sm" style={{ color: gustaBrandColors.text }}>
+            <p className="assoc-body mt-6 text-sm" style={{ color: gustaBrandColors.text }}>
               Nu sunt produse de afișat momentan.
             </p>
           ) : (
             <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-              {popularProducts.map((p) => (
-                <li key={p.id}>
+              {popularProducts.map((product) => (
+                <li key={product.id}>
                   <LandingPopularProductCard
-                    product={p}
+                    product={product}
+                    categoryDefinitions={categoryDefinitions}
                     formatPrice={formatPrice}
-                    onOpen={() => onOpenProduct?.(p)}
-                    onAdd={() => onAddQuick?.(p)}
+                    onOpen={() => onOpenProduct?.(product)}
+                    onAdd={() => onAddQuick?.(product)}
                   />
                 </li>
               ))}
@@ -429,65 +477,110 @@ export default function AssociationLandingPage({
         </div>
       </section>
 
-      {/* Producători */}
       <section className={sectionPad} style={{ backgroundColor: gustaBrandColors.secondary }}>
         <div className="mx-auto max-w-6xl">
-          <h2 className="assoc-heading text-xl font-extrabold md:text-2xl" style={{ color: gustaBrandColors.primary }}>
-            Producători
-          </h2>
-          <p className="assoc-body mt-1 text-sm md:text-base" style={{ color: gustaBrandColors.text }}>
-            Fermieri verificați din rețeaua asociației.
-          </p>
-          {producersPreview.length === 0 ? (
-            <p className="assoc-body mt-4 text-sm" style={{ color: gustaBrandColors.text }}>
-              Nu sunt producători de afișat.
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="assoc-heading text-2xl font-extrabold md:text-3xl" style={{ color: gustaBrandColors.primary }}>
+                Producători în rețea
+              </h2>
+              <p className="assoc-body mt-2 text-sm leading-relaxed md:text-base" style={{ color: gustaBrandColors.text }}>
+                Cardurile folosesc imaginea reală a producătorului atunci când există, cu fallback la inițiale doar dacă lipsește.
+              </p>
+            </div>
+            <Link
+              href={ASSOCIATION_SHOP_PRODUCATORI_PATH}
+              className="assoc-heading text-sm font-bold"
+              style={{ color: gustaBrandColors.primary }}
+            >
+              Vezi toți producătorii
+            </Link>
+          </div>
+
+          {topProducers.length === 0 ? (
+            <p className="assoc-body mt-6 text-sm" style={{ color: gustaBrandColors.text }}>
+              Nu sunt producători de afișat momentan.
             </p>
           ) : (
-            <ul className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
-              {producersPreview.map((f) => {
-                const locationLabel = f.region?.trim() || 'Suceava'
-                return (
-                  <li key={f.tenantId}>
-                    <Link
-                      href={associationProducerProfilePath(f.tenantId)}
-                      className={cn(
-                        'flex w-full flex-col items-center rounded-[16px] border bg-white px-3 py-4 text-center transition md:px-5 md:py-6',
-                        'hover:shadow-md active:scale-[0.99]',
-                      )}
-                      style={{ borderColor: gustaPrimaryTints[40], boxShadow: shadowPrimarySoft }}
-                    >
+            <ul className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {topProducers.map((producer) => (
+                <li key={producer.tenantId}>
+                  <Link
+                    href={associationProducerProfilePath(producer.tenantId)}
+                    className="group flex h-full flex-col rounded-[24px] border bg-white p-5 transition hover:-translate-y-0.5"
+                    style={{
+                      borderColor: gustaPrimaryTints[40],
+                      boxShadow: '0 4px 20px rgba(13, 99, 66, 0.08)',
+                    }}
+                  >
+                    <div className="flex items-start gap-4">
                       <div
-                        className="flex h-14 w-14 items-center justify-center rounded-full text-lg font-extrabold text-white md:h-16 md:w-16 md:text-xl"
-                        style={{
-                          background: `linear-gradient(135deg, ${gustaBrandColors.primary}, ${gustaPrimaryTints[80]})`,
-                          boxShadow: shadowPrimaryMd,
-                        }}
+                        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2"
+                        style={{ borderColor: gustaPrimaryTints[40] }}
                       >
-                        {initialsFromName(f.name)}
+                        {producer.logoUrl ? (
+                          <Image
+                            src={producer.logoUrl}
+                            alt={`Logo ${producer.farmName}`}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                            unoptimized
+                          />
+                        ) : (
+                          <div
+                            className="flex h-full w-full items-center justify-center text-lg font-extrabold text-white"
+                            style={{
+                              background: `linear-gradient(135deg, ${gustaBrandColors.primary}, ${gustaPrimaryTints[80]})`,
+                            }}
+                          >
+                            {initialsFromName(producer.farmName)}
+                          </div>
+                        )}
                       </div>
-                      <p
-                        className="assoc-heading mt-3 line-clamp-2 text-sm font-bold md:text-base"
-                        style={{ color: gustaBrandColors.text }}
-                      >
-                        {f.name}
+                      <div className="min-w-0 flex-1">
+                        <p className="assoc-heading text-lg font-extrabold" style={{ color: gustaBrandColors.primary }}>
+                          {producer.farmName}
+                        </p>
+                        <p className="assoc-body mt-1 flex items-center gap-1.5 text-sm" style={{ color: '#6B7A72' }}>
+                          <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                          <span className="truncate">{producer.location}</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {producer.description ? (
+                      <p className="assoc-body mt-4 line-clamp-3 text-sm leading-relaxed" style={{ color: gustaBrandColors.text }}>
+                        {producer.description}
                       </p>
-                      <p
-                        className="assoc-body mt-1 text-xs font-medium md:text-sm"
-                        style={{ color: gustaPrimaryTints[80] }}
+                    ) : null}
+
+                    {producer.listedProducts.length > 0 ? (
+                      <div
+                        className="mt-4 rounded-[18px] px-4 py-3"
+                        style={{ backgroundColor: '#F8FBF9', color: gustaBrandColors.text }}
                       >
-                        {f.specialty}
-                      </p>
-                      <p
-                        className="assoc-body mt-2 flex items-center justify-center gap-1 text-[11px] md:text-xs"
-                        style={{ color: gustaBrandColors.text }}
+                        <p className="assoc-heading text-sm font-bold" style={{ color: gustaBrandColors.primary }}>
+                          Din oferta lor
+                        </p>
+                        <p className="assoc-body mt-1 text-sm leading-relaxed">
+                          {producer.listedProducts.slice(0, 3).join(' · ')}
+                          {producer.listedProducts.length > 3 ? ` + încă ${producer.listedProducts.length - 3}` : ''}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-auto pt-4">
+                      <span
+                        className="assoc-heading inline-flex items-center gap-2 text-sm font-bold"
+                        style={{ color: gustaBrandColors.primary }}
                       >
-                        <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: gustaBrandColors.primary }} aria-hidden />
-                        <span className="line-clamp-2">{locationLabel}</span>
-                      </p>
-                    </Link>
-                  </li>
-                )
-              })}
+                        {producer.productCount} produse în catalog
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
             </ul>
           )}
         </div>
@@ -498,21 +591,30 @@ export default function AssociationLandingPage({
 
 type CardProps = {
   product: AssociationProduct
+  categoryDefinitions: AssociationCategoryDefinition[]
   formatPrice: (p: AssociationProduct) => string
   onOpen?: () => void
   onAdd?: () => void
 }
 
-function LandingPopularProductCard({ product: p, formatPrice, onOpen, onAdd }: CardProps) {
-  const farmName = p.farmName?.trim() || 'Fermă locală'
-  const hasImage = Boolean(p.poza_1_url?.trim())
+function LandingPopularProductCard({
+  product,
+  categoryDefinitions,
+  formatPrice,
+  onOpen,
+  onAdd,
+}: CardProps) {
+  const farmName = product.farmName?.trim() || 'Fermă locală'
+  const hasImage = Boolean(product.poza_1_url?.trim())
+  const categoryKey = resolveAssociationCategory(product.association_category, product.categorie)
+  const accent = categoryAccent(categoryKey)
 
   return (
     <article
-      className="flex h-full flex-col overflow-hidden rounded-[16px] border bg-white transition hover:shadow-md"
+      className="flex h-full flex-col overflow-hidden rounded-[18px] border bg-white transition hover:shadow-md"
       style={{
         borderColor: gustaPrimaryTints[40],
-        boxShadow: shadowPrimarySoft,
+        boxShadow: '0 3px 18px rgba(13, 99, 66, 0.08)',
       }}
     >
       <button
@@ -525,50 +627,47 @@ function LandingPopularProductCard({ product: p, formatPrice, onOpen, onAdd }: C
         )}
         style={{ ['--tw-ring-color' as string]: gustaBrandColors.primary }}
       >
-        <div
-          className="relative aspect-[4/5] w-full overflow-hidden"
-          style={{ backgroundColor: bgTintForCategory(p.categorie) }}
-        >
+        <div className="relative aspect-[4/5] w-full overflow-hidden" style={{ backgroundColor: accent.bg }}>
           {hasImage ? (
             <AssociationProductImage
-              src={p.poza_1_url}
-              alt={p.nume}
+              src={product.poza_1_url}
+              alt={product.nume}
               sizes="(max-width: 768px) 50vw, 25vw"
               className="h-full w-full object-cover"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-5xl" aria-hidden>
-              {emojiForCategory(p.categorie)}
+              {accent.emoji}
             </div>
           )}
           <span
-            className="assoc-body absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            className="assoc-body absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide"
             style={{
               backgroundColor: gustaBrandColors.secondary,
               color: gustaBrandColors.primary,
-              boxShadow: shadowPrimarySoft,
+              boxShadow: '0 2px 10px rgba(13, 99, 66, 0.08)',
             }}
           >
-            {labelForCategory(p.categorie)}
+            {labelForAssociationCategoryKey(categoryKey, categoryDefinitions)}
           </span>
         </div>
         <div className="flex flex-1 flex-col p-3">
           <h3 className="assoc-heading line-clamp-2 min-h-[2.25rem] text-sm font-bold" style={{ color: gustaBrandColors.text }}>
-            {p.nume}
+            {product.nume}
           </h3>
           <p className="assoc-body mt-1 line-clamp-1 text-xs" style={{ color: gustaPrimaryTints[80] }}>
             {farmName}
           </p>
           <p className="assoc-heading mt-2 text-base font-extrabold tabular-nums" style={{ color: gustaBrandColors.primary }}>
-            {formatPrice(p)} <span className="text-xs font-semibold">{p.moneda}</span>
+            {formatPrice(product)} <span className="text-xs font-semibold">{product.moneda}</span>
           </p>
         </div>
       </button>
       <div className="p-3 pt-0">
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation()
+          onClick={(event) => {
+            event.stopPropagation()
             onAdd?.()
           }}
           disabled={!onAdd}

@@ -16,6 +16,7 @@ export const runtime = 'nodejs'
 const settingsSchema = z.object({
   description: z.string().max(1200),
   facebookUrl: z.union([z.literal(''), z.string().url()]),
+  instagramUrl: z.union([z.literal(''), z.string().url()]),
   marketSchedule: z.string().max(160),
   marketLocation: z.string().max(160),
   activeDays: z.array(z.enum(ASSOCIATION_DAY_IDS)).max(7),
@@ -30,8 +31,11 @@ const settingsSchema = z.object({
   merchantContactPerson: z.string().max(120),
   merchantDeliveryPolicy: z.string().max(2000),
   merchantComplaintsPolicy: z.string().max(2000),
+  deliveryDays: z.array(z.enum(ASSOCIATION_DAY_IDS)).max(7),
+  deliveryCutoffText: z.string().max(500),
   merchantEmail: z.union([z.literal(''), z.string().email()]),
   merchantPhone: z.string().max(40),
+  orderPhone: z.string().max(40),
 })
 
 async function requireAssociationModerator() {
@@ -100,11 +104,16 @@ export async function PATCH(request: Request) {
       data: { settings },
     })
   } catch (error) {
+    const message =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : 'Nu am putut salva setările asociației.'
+    console.error('[api/association/settings] save failed', error)
     captureApiError(error, {
       route: '/api/association/settings',
       userId,
       tags: { http_method: 'PATCH' },
     })
-    return apiError(500, 'INTERNAL_ERROR', 'Nu am putut salva setările asociației.')
+    return apiError(500, 'INTERNAL_ERROR', message)
   }
 }

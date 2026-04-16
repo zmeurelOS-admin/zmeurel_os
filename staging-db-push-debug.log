@@ -1,0 +1,912 @@
+open C:\Users\Andrei\.supabase\profile: The system cannot find the file specified.
+Using workdir C:\Users\Andrei\AppData\Local\Temp\zmeurel-staging-debuglog-5e3cf293-3d1b-4376-97c5-7de912f04b5a
+Loading project ref from file: supabase\.temp\project-ref
+Resolved DNS: [2a05:d016:571:a426:b69f:c0c5:842e:2f62]:5432
+Initialising login role...
+Using access token for profile: supabase
+Supabase CLI 2.78.1
+Using profile: supabase (supabase.co)
+Connecting to remote database...
+2026/04/11 22:30:47 PG Send: {"Type":"StartupMessage","ProtocolVersion":196608,"Parameters":{"database":"postgres","user":"cli_login_postgres"}}
+2026/04/11 22:30:47 PG Recv: {"Type":"AuthenticationSASL","AuthMechanisms":["SCRAM-SHA-256"]}
+2026/04/11 22:30:47 PG Send: {"Type":"SASLInitialResponse","AuthMechanism":"SCRAM-SHA-256","Data":"n,,n=,r=pjwCTCsWkjlkroHmME2wfyi/"}
+2026/04/11 22:30:47 PG Recv: {"Type":"AuthenticationSASLContinue","Data":"r=pjwCTCsWkjlkroHmME2wfyi/rrxPIeChRTMQJVqtIjDLOQ6x,s=JASlvKIlgIlyniTsea+hkA==,i=4096"}
+2026/04/11 22:30:47 PG Send: {"Type":"SASLResponse","Data":"c=biws,r=pjwCTCsWkjlkroHmME2wfyi/rrxPIeChRTMQJVqtIjDLOQ6x,p=JdcI731D1Z5in2oEC3GRwkURfg4Q7qUH/LlbL6eo5M4="}
+2026/04/11 22:30:47 PG Recv: {"Type":"AuthenticationSASLFinal","Data":"v=w4zuAEts1khDt4QYdpka4R3KRT35X5V9y9V9VdZbOAw="}
+2026/04/11 22:30:47 PG Recv: {"Type":"AuthenticationOK"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"in_hot_standby","Value":"off"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"integer_datetimes","Value":"on"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"TimeZone","Value":"UTC"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"IntervalStyle","Value":"postgres"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"is_superuser","Value":"off"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"application_name","Value":""}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"default_transaction_read_only","Value":"off"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"scram_iterations","Value":"4096"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"DateStyle","Value":"ISO, MDY"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"standard_conforming_strings","Value":"on"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"session_authorization","Value":"cli_login_postgres"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"client_encoding","Value":"UTF8"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"server_version","Value":"17.6"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterStatus","Name":"server_encoding","Value":"UTF8"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BackendKeyData","ProcessID":26624,"SecretKey":2076548639}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+2026/04/11 22:30:47 PG Send: {"Type":"Query","String":"SET SESSION ROLE postgres"}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"SET"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"lrupsc_1_0","Query":"SELECT version FROM supabase_migrations.schema_migrations ORDER BY version","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"S","Name":"lrupsc_1_0"}
+2026/04/11 22:30:47 PG Send: {"Type":"Sync"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParameterDescription","ParameterOIDs":[]}
+2026/04/11 22:30:47 PG Recv: {"Type":"RowDescription","Fields":[{"Name":"version","TableOID":17364,"TableAttributeNumber":1,"DataTypeOID":25,"DataTypeSize":-1,"TypeModifier":-1,"Format":0}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"lrupsc_1_0","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[0]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Sync"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"RowDescription","Fields":[{"Name":"version","TableOID":17364,"TableAttributeNumber":1,"DataTypeOID":25,"DataTypeSize":-1,"TypeModifier":-1,"Format":0}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022400"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022501"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022502"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022503"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022504"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022505"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022506"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022601"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022602"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022603"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022604"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022605"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022606"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022607"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022608"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022609"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022610"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022611"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022612"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022613"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022614"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"20260226155238"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022701"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022702"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022703"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022704"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022705"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022706"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022710"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022711"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026022812"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030101"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030102"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030301"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030401"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030402"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030403"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030701"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030901"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030902"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026030903"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031001"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031002"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031003"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031004"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031005"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031101"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031102"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031105"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031106"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031107"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031108"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031109"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031110"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031111"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031112"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031113"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031114"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031115"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031116"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031200"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031201"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121701"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121702"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121703"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121704"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121705"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121706"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121707"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121800"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121900"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603121901"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122100"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122200"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122201"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122300"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122310"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122320"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122330"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122340"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122341"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603122350"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031301"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031302"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031303"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031304"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031305"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031306"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031307"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031401"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031402"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031501"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031502"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"20260315120000"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031601"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031602"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031801"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031802"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026031803"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603191100"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"202603191110"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032001"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032101"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032201"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032202"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032301"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032302"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"2026032401"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"20260328001"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"20260328002"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"DataRow","Values":[{"text":"20260328003"}]}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"SELECT 111"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+Do you want to push these migrations to the remote database?
+ ÔÇó 20260328004_unify_stock_advisory_locks.sql
+ ÔÇó 20260328005_fix_stock_product_and_quality.sql
+ ÔÇó 20260328006_downstream_stock_verification.sql
+ ÔÇó 20260328007_prevent_negative_stock.sql
+ ÔÇó 20260328008_validate_comanda_status_transitions.sql
+ ÔÇó 20260328009_missing_indexes_and_constraints.sql
+ ÔÇó 20260328010_refresh_stale_views.sql
+ ÔÇó 20260328011_add_fk_cascade_policies.sql
+ ÔÇó 20260328123000_profiles_add_dashboard_layout.sql
+ ÔÇó 20260329001_create_produse.sql
+ ÔÇó 2026033001_parcele_rol_column.sql
+ ÔÇó 2026033002_culturi_interval_tratament_zile.sql
+ ÔÇó 2026033003_add_lat_long_to_parcele.sql
+ ÔÇó 2026033004_create_tenant_settings.sql
+ ÔÇó 2026033005_create_meteo_cache.sql
+ ÔÇó 2026040102_parcele_scop_operational_dashboard.sql
+ ÔÇó 2026040103_fix_parcele_defaults.sql
+ ÔÇó 2026040104_produse_demo_seed_columns.sql
+
+ [Y/n] y
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"SET lock_timeout = '4s'","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"CREATE SCHEMA IF NOT EXISTS supabase_migrations","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version text NOT NULL PRIMARY KEY)","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"ALTER TABLE supabase_migrations.schema_migrations ADD COLUMN IF NOT EXISTS statements text[]","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"ALTER TABLE supabase_migrations.schema_migrations ADD COLUMN IF NOT EXISTS name text","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Sync"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"NoData"}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"SET"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"NoData"}
+2026/04/11 22:30:47 PG Recv: {"Severity":"NOTICE","SeverityUnlocalized":"NOTICE","Code":"42P06","Message":"schema \"supabase_migrations\" already exists, skipping","Detail":"","Hint":"","Position":0,"InternalPosition":0,"InternalQuery":"","Where":"","SchemaName":"","TableName":"","ColumnName":"","DataTypeName":"","ConstraintName":"","File":"schemacmds.c","Line":132,"Routine":"CreateSchemaCommand","UnknownFields":null}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"CREATE SCHEMA"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"NoData"}
+2026/04/11 22:30:47 PG Recv: {"Severity":"NOTICE","SeverityUnlocalized":"NOTICE","Code":"42P07","Message":"relation \"schema_migrations\" already exists, skipping","Detail":"","Hint":"","Position":0,"InternalPosition":0,"InternalQuery":"","Where":"","SchemaName":"","TableName":"","ColumnName":"","DataTypeName":"","ConstraintName":"","File":"parse_utilcmd.c","Line":207,"Routine":"transformCreateStmt","UnknownFields":null}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"CREATE TABLE"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"NoData"}
+2026/04/11 22:30:47 PG Recv: {"Severity":"NOTICE","SeverityUnlocalized":"NOTICE","Code":"42701","Message":"column \"statements\" of relation \"schema_migrations\" already exists, skipping","Detail":"","Hint":"","Position":0,"InternalPosition":0,"InternalQuery":"","Where":"","SchemaName":"","TableName":"","ColumnName":"","DataTypeName":"","ConstraintName":"","File":"tablecmds.c","Line":7471,"Routine":"check_for_column_name_collision","UnknownFields":null}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"ALTER TABLE"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"NoData"}
+2026/04/11 22:30:47 PG Recv: {"Severity":"NOTICE","SeverityUnlocalized":"NOTICE","Code":"42701","Message":"column \"name\" of relation \"schema_migrations\" already exists, skipping","Detail":"","Hint":"","Position":0,"InternalPosition":0,"InternalQuery":"","Where":"","SchemaName":"","TableName":"","ColumnName":"","DataTypeName":"","ConstraintName":"","File":"tablecmds.c","Line":7471,"Routine":"check_for_column_name_collision","UnknownFields":null}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"ALTER TABLE"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+Applying migration 20260328004_unify_stock_advisory_locks.sql...
+2026/04/11 22:30:47 PG Send: {"Type":"Query","String":"RESET ALL"}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"RESET"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"create or replace function public.create_recoltare_with_stock(\r\n  p_data date,\r\n  p_parcela_id uuid,\r\n  p_culegator_id uuid,\r\n  p_kg_cal1 numeric default 0,\r\n  p_kg_cal2 numeric default 0,\r\n  p_observatii text default null,\r\n  p_tenant_id uuid default null\r\n)\r\nreturns public.recoltari\r\nlanguage plpgsql\r\nsecurity definer\r\nset search_path = public\r\nas $$\r\ndeclare\r\n  v_user_id uuid := auth.uid();\r\n  v_tenant_id uuid;\r\n  v_tarif numeric;\r\n  v_kg_cal1 numeric := round(greatest(coalesce(p_kg_cal1, 0), 0)::numeric, 2);\r\n  v_kg_cal2 numeric := round(greatest(coalesce(p_kg_cal2, 0), 0)::numeric, 2);\r\n  v_total_kg numeric := round((greatest(coalesce(p_kg_cal1, 0), 0) + greatest(coalesce(p_kg_cal2, 0), 0))::numeric, 2);\r\n  v_valoare_munca numeric;\r\n  v_recoltare public.recoltari;\r\nbegin\r\n  if v_user_id is null then\r\n    raise exception 'Neautorizat';\r\n  end if;\r\n\r\n  select public.current_tenant_id()\r\n  into v_tenant_id;\r\n\r\n  if v_tenant_id is null then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  if p_tenant_id is not null and p_tenant_id \u003c\u003e v_tenant_id then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));\r\n\r\n  perform 1\r\n  from public.parcele p\r\n  where p.id = p_parcela_id\r\n    and p.tenant_id = v_tenant_id;\r\n\r\n  if not found then\r\n    raise exception 'Parcela este invalida pentru tenantul curent.';\r\n  end if;\r\n\r\n  select c.tarif_lei_kg\r\n  into v_tarif\r\n  from public.culegatori c\r\n  where c.id = p_culegator_id\r\n    and c.tenant_id = v_tenant_id;\r\n\r\n  if v_tarif is null or v_tarif \u003c= 0 then\r\n    raise exception 'Culegatorul nu are tarif setat in profil';\r\n  end if;\r\n\r\n  v_valoare_munca := round((v_total_kg * v_tarif)::numeric, 2);\r\n\r\n  insert into public.recoltari (\r\n    tenant_id,\r\n    id_recoltare,\r\n    data,\r\n    parcela_id,\r\n    culegator_id,\r\n    kg_cal1,\r\n    kg_cal2,\r\n    pret_lei_pe_kg_snapshot,\r\n    valoare_munca_lei,\r\n    observatii\r\n  )\r\n  values (\r\n    v_tenant_id,\r\n    public.generate_business_id('REC'),\r\n    p_data,\r\n    p_parcela_id,\r\n    p_culegator_id,\r\n    v_kg_cal1,\r\n    v_kg_cal2,\r\n    round(v_tarif::numeric, 2),\r\n    v_valoare_munca,\r\n    nullif(btrim(coalesce(p_observatii, '')), '')\r\n  )\r\n  returning *\r\n  into v_recoltare;\r\n\r\n  perform public.sync_recoltare_stock_movements(\r\n    v_recoltare.id,\r\n    v_tenant_id,\r\n    p_parcela_id,\r\n    p_data,\r\n    v_kg_cal1,\r\n    v_kg_cal2,\r\n    v_recoltare.observatii\r\n  );\r\n\r\n  return v_recoltare;\r\nend;\r\n$$","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"create or replace function public.deliver_order_atomic(\r\n  p_order_id uuid,\r\n  p_delivered_qty numeric,\r\n  p_payment_status text default 'Restanta',\r\n  p_remaining_delivery_date date default null\r\n)\r\nreturns jsonb\r\nlanguage plpgsql\r\nsecurity definer\r\nset search_path = public\r\nas $$\r\ndeclare\r\n  v_user_id uuid := auth.uid();\r\n  v_tenant_id uuid;\r\n  v_order public.comenzi;\r\n  v_sale public.vanzari;\r\n  v_delivered_order public.comenzi;\r\n  v_remaining_order public.comenzi;\r\n  v_sale_observatii text;\r\n  v_delivered_qty numeric := round(greatest(coalesce(p_delivered_qty, 0), 0)::numeric, 2);\r\n  v_current_qty numeric;\r\n  v_remaining_qty numeric;\r\n  v_total_available numeric;\r\n  v_remaining_to_allocate numeric;\r\n  v_take numeric;\r\n  v_deducted_stock numeric := 0;\r\n  v_today date := current_date;\r\n  v_remaining_date date;\r\n  v_bucket record;\r\nbegin\r\n  if v_user_id is null then\r\n    raise exception 'Neautorizat';\r\n  end if;\r\n\r\n  select public.current_tenant_id()\r\n  into v_tenant_id;\r\n\r\n  if v_tenant_id is null then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));\r\n\r\n  select *\r\n  into v_order\r\n  from public.comenzi\r\n  where id = p_order_id\r\n    and tenant_id = v_tenant_id\r\n  for update;\r\n\r\n  if not found then\r\n    raise exception 'Comanda este invalida pentru tenantul curent.';\r\n  end if;\r\n\r\n  v_current_qty := round(coalesce(v_order.cantitate_kg, 0)::numeric, 2);\r\n\r\n  if v_delivered_qty \u003c= 0 then\r\n    raise exception 'Cantitatea livrata trebuie sa fie mai mare decat 0.';\r\n  end if;\r\n\r\n  if v_delivered_qty \u003e v_current_qty then\r\n    raise exception 'Cantitatea livrata nu poate depasi cantitatea comandata.';\r\n  end if;\r\n\r\n  if v_order.status = 'anulata' then\r\n    raise exception 'Comanda anulata nu poate fi livrata.';\r\n  end if;\r\n\r\n  if v_order.status = 'livrata' or v_order.linked_vanzare_id is not null then\r\n    raise exception 'Comanda este deja livrata.';\r\n  end if;\r\n\r\n  select coalesce(sum(stock_bucket.available_kg), 0)\r\n  into v_total_available\r\n  from (\r\n    select round(\r\n      sum(\r\n        case\r\n          when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)\r\n          else coalesce(ms.cantitate_kg, 0)\r\n        end\r\n      )::numeric,\r\n      2\r\n    ) as available_kg\r\n    from public.miscari_stoc ms\r\n    where ms.tenant_id = v_tenant_id\r\n      and ms.locatie_id is not null\r\n      and ms.produs is not null\r\n      and ms.calitate is not null\r\n      and ms.depozit is not null\r\n      and ms.tip_miscare is not null\r\n      and ms.cantitate_kg is not null\r\n    group by ms.locatie_id, ms.produs, ms.calitate, ms.depozit\r\n    having sum(\r\n      case\r\n        when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)\r\n        else coalesce(ms.cantitate_kg, 0)\r\n      end\r\n    ) \u003e 0\r\n  ) as stock_bucket;\r\n\r\n  if v_total_available \u003c v_delivered_qty then\r\n    raise exception 'Stoc insuficient pentru livrare.';\r\n  end if;\r\n\r\n  v_sale_observatii := concat_ws(' | ', nullif(btrim(coalesce(v_order.observatii, '')), ''), format('Livrare comanda %s', v_order.id));\r\n\r\n  insert into public.vanzari (\r\n    tenant_id,\r\n    client_sync_id,\r\n    id_vanzare,\r\n    data,\r\n    client_id,\r\n    comanda_id,\r\n    cantitate_kg,\r\n    pret_lei_kg,\r\n    status_plata,\r\n    observatii_ladite,\r\n    sync_status,\r\n    created_by,\r\n    updated_by\r\n  )\r\n  values (\r\n    v_tenant_id,\r\n    gen_random_uuid()::text,\r\n    public.generate_business_id('V'),\r\n    v_today,\r\n    v_order.client_id,\r\n    v_order.id,\r\n    v_delivered_qty,\r\n    round(coalesce(v_order.pret_per_kg, 0)::numeric, 2),\r\n    coalesce(nullif(btrim(coalesce(p_payment_status, '')), ''), 'Restanta'),\r\n    nullif(btrim(v_sale_observatii), ''),\r\n    'synced',\r\n    v_user_id,\r\n    v_user_id\r\n  )\r\n  returning *\r\n  into v_sale;\r\n\r\n  v_remaining_to_allocate := v_delivered_qty;\r\n\r\n  for v_bucket in\r\n    select\r\n      ms.locatie_id,\r\n      ms.produs,\r\n      ms.calitate,\r\n      ms.depozit,\r\n      round(\r\n        sum(\r\n          case\r\n            when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)\r\n            else coalesce(ms.cantitate_kg, 0)\r\n          end\r\n        )::numeric,\r\n        2\r\n      ) as available_kg\r\n    from public.miscari_stoc ms\r\n    where ms.tenant_id = v_tenant_id\r\n      and ms.locatie_id is not null\r\n      and ms.produs is not null\r\n      and ms.calitate is not null\r\n      and ms.depozit is not null\r\n      and ms.tip_miscare is not null\r\n      and ms.cantitate_kg is not null\r\n    group by ms.locatie_id, ms.produs, ms.calitate, ms.depozit\r\n    having sum(\r\n      case\r\n        when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)\r\n        else coalesce(ms.cantitate_kg, 0)\r\n      end\r\n    ) \u003e 0\r\n    order by available_kg desc\r\n  loop\r\n    exit when v_remaining_to_allocate \u003c= 0;\r\n\r\n    v_take := round(least(v_bucket.available_kg, v_remaining_to_allocate)::numeric, 2);\r\n    if v_take \u003c= 0 then\r\n      continue;\r\n    end if;\r\n\r\n    insert into public.miscari_stoc (\r\n      tenant_id,\r\n      locatie_id,\r\n      produs,\r\n      calitate,\r\n      depozit,\r\n      tip_miscare,\r\n      cantitate_kg,\r\n      tip,\r\n      cantitate_cal1,\r\n      cantitate_cal2,\r\n      referinta_id,\r\n      data,\r\n      observatii,\r\n      descriere\r\n    )\r\n    values (\r\n      v_tenant_id,\r\n      v_bucket.locatie_id,\r\n      v_bucket.produs,\r\n      v_bucket.calitate,\r\n      v_bucket.depozit,\r\n      'vanzare',\r\n      v_take,\r\n      'vanzare',\r\n      case when v_bucket.calitate = 'cal1' then -v_take else 0 end,\r\n      case when v_bucket.calitate = 'cal2' then -v_take else 0 end,\r\n      v_sale.id,\r\n      v_today,\r\n      'Consum stoc prin livrare comanda',\r\n      'Consum stoc prin livrare comanda'\r\n    );\r\n\r\n    v_deducted_stock := round((v_deducted_stock + v_take)::numeric, 2);\r\n    v_remaining_to_allocate := round((v_remaining_to_allocate - v_take)::numeric, 2);\r\n  end loop;\r\n\r\n  if v_remaining_to_allocate \u003e 0 then\r\n    raise exception 'Stoc insuficient pentru livrare.';\r\n  end if;\r\n\r\n  update public.comenzi\r\n  set status = 'livrata',\r\n      linked_vanzare_id = v_sale.id,\r\n      observatii = concat_ws(\r\n        ' | ',\r\n        nullif(btrim(coalesce(v_order.observatii, '')), ''),\r\n        format('Livrata: %s kg', trim(to_char(v_delivered_qty, 'FM999999990.00')))\r\n      ),\r\n      updated_at = now()\r\n  where id = v_order.id\r\n    and tenant_id = v_tenant_id\r\n  returning *\r\n  into v_delivered_order;\r\n\r\n  v_remaining_qty := round((v_current_qty - v_delivered_qty)::numeric, 2);\r\n\r\n  if v_remaining_qty \u003e 0 then\r\n    v_remaining_date := coalesce(p_remaining_delivery_date, v_today + 1);\r\n\r\n    insert into public.comenzi (\r\n      tenant_id,\r\n      client_id,\r\n      client_nume_manual,\r\n      telefon,\r\n      locatie_livrare,\r\n      data_comanda,\r\n      data_livrare,\r\n      cantitate_kg,\r\n      pret_per_kg,\r\n      total,\r\n      status,\r\n      observatii,\r\n      parent_comanda_id\r\n    )\r\n    values (\r\n      v_tenant_id,\r\n      v_order.client_id,\r\n      v_order.client_nume_manual,\r\n      v_order.telefon,\r\n      v_order.locatie_livrare,\r\n      v_today,\r\n      v_remaining_date,\r\n      v_remaining_qty,\r\n      round(coalesce(v_order.pret_per_kg, 0)::numeric, 2),\r\n      round((v_remaining_qty * coalesce(v_order.pret_per_kg, 0))::numeric, 2),\r\n      case when v_remaining_date \u003e v_today then 'programata' else 'confirmata' end,\r\n      concat_ws(\r\n        ' | ',\r\n        nullif(btrim(coalesce(v_order.observatii, '')), ''),\r\n        format('Rest din comanda %s', v_order.id)\r\n      ),\r\n      v_order.id\r\n    )\r\n    returning *\r\n    into v_remaining_order;\r\n  end if;\r\n\r\n  return jsonb_build_object(\r\n    'delivered_order', to_jsonb(v_delivered_order),\r\n    'vanzare', to_jsonb(v_sale),\r\n    'remaining_order', to_jsonb(v_remaining_order),\r\n    'deducted_stock_kg', v_deducted_stock\r\n  );\r\nend;\r\n$$;\r\n\r\ncreate or replace function public.delete_comanda_atomic(\r\n  p_comanda_id uuid,\r\n  p_tenant_id uuid default null\r\n)\r\nreturns void\r\nlanguage plpgsql\r\nsecurity definer\r\nset search_path = public\r\nas $$\r\ndeclare\r\n  v_user_id uuid := auth.uid();\r\n  v_current_tenant_id uuid;\r\n  v_tenant_id uuid;\r\n  v_order public.comenzi;\r\nbegin\r\n  if v_user_id is null then\r\n    raise exception 'Neautorizat';\r\n  end if;\r\n\r\n  select public.current_tenant_id()\r\n  into v_current_tenant_id;\r\n\r\n  if v_current_tenant_id is null then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  if p_tenant_id is not null and p_tenant_id \u003c\u003e v_current_tenant_id then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  v_tenant_id := v_current_tenant_id;\r\n\r\n  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));\r\n\r\n  select *\r\n  into v_order\r\n  from public.comenzi\r\n  where id = p_comanda_id\r\n    and tenant_id = v_tenant_id\r\n  for update;\r\n\r\n  if not found then\r\n    raise exception 'Comanda este invalida pentru tenantul curent.';\r\n  end if;\r\n\r\n  if v_order.linked_vanzare_id is not null then\r\n    perform public.delete_vanzare_with_stock(v_order.linked_vanzare_id);\r\n  end if;\r\n\r\n  delete from public.comenzi\r\n  where id = v_order.id\r\n    and tenant_id = v_tenant_id;\r\nend;\r\n$$;\r\n\r\ncreate or replace function public.reopen_comanda_atomic(\r\n  p_comanda_id uuid,\r\n  p_tenant_id uuid default null\r\n)\r\nreturns public.comenzi\r\nlanguage plpgsql\r\nsecurity definer\r\nset search_path = public\r\nas $$\r\ndeclare\r\n  v_user_id uuid := auth.uid();\r\n  v_current_tenant_id uuid;\r\n  v_tenant_id uuid;\r\n  v_order public.comenzi;\r\n  v_reopened public.comenzi;\r\n  v_reopen_status public.comanda_status;\r\n  v_blocking_children integer := 0;\r\nbegin\r\n  if v_user_id is null then\r\n    raise exception 'Neautorizat';\r\n  end if;\r\n\r\n  select public.current_tenant_id()\r\n  into v_current_tenant_id;\r\n\r\n  if v_current_tenant_id is null then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  if p_tenant_id is not null and p_tenant_id \u003c\u003e v_current_tenant_id then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  v_tenant_id := v_current_tenant_id;\r\n\r\n  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));\r\n\r\n  select *\r\n  into v_order\r\n  from public.comenzi\r\n  where id = p_comanda_id\r\n    and tenant_id = v_tenant_id\r\n  for update;\r\n\r\n  if not found then\r\n    raise exception 'Comanda este invalida pentru tenantul curent.';\r\n  end if;\r\n\r\n  if v_order.status \u003c\u003e 'livrata' then\r\n    raise exception 'Doar comenzile livrate pot fi redeschise.';\r\n  end if;\r\n\r\n  select count(*)\r\n  into v_blocking_children\r\n  from public.comenzi child_order\r\n  where child_order.tenant_id = v_tenant_id\r\n    and child_order.parent_comanda_id = v_order.id\r\n    and (\r\n      child_order.linked_vanzare_id is not null\r\n      or child_order.status = 'livrata'\r\n    );\r\n\r\n  if v_blocking_children \u003e 0 then\r\n    raise exception 'Comanda are livrari ulterioare si nu poate fi redeschisa.';\r\n  end if;\r\n\r\n  if v_order.linked_vanzare_id is not null then\r\n    perform public.delete_vanzare_with_stock(v_order.linked_vanzare_id);\r\n  end if;\r\n\r\n  delete from public.comenzi child_order\r\n  where child_order.tenant_id = v_tenant_id\r\n    and child_order.parent_comanda_id = v_order.id\r\n    and child_order.linked_vanzare_id is null;\r\n\r\n  v_reopen_status := case\r\n    when v_order.data_livrare is not null and v_order.data_livrare \u003e current_date\r\n      then 'programata'::public.comanda_status\r\n    else 'confirmata'::public.comanda_status\r\n  end;\r\n\r\n  update public.comenzi\r\n  set status = v_reopen_status,\r\n      linked_vanzare_id = null,\r\n      updated_at = now(),\r\n      observatii = concat_ws(\r\n        ' | ',\r\n        nullif(btrim(coalesce(v_order.observatii, '')), ''),\r\n        'Comanda redeschisa'\r\n      )\r\n  where id = v_order.id\r\n    and tenant_id = v_tenant_id\r\n  returning *\r\n  into v_reopened;\r\n\r\n  return v_reopened;\r\nend;\r\n$$;\r\n\r\ncreate or replace function public.update_vanzare_with_stock(\r\n  p_vanzare_id uuid,\r\n  p_data date default null,\r\n  p_client_id uuid default null,\r\n  p_cantitate_kg numeric default null,\r\n  p_pret_lei_kg numeric default null,\r\n  p_status_plata text default null,\r\n  p_observatii_ladite text default null,\r\n  p_tenant_id uuid default null\r\n)\r\nreturns public.vanzari\r\nlanguage plpgsql\r\nsecurity definer\r\nset search_path = public\r\nas $$\r\ndeclare\r\n  v_user_id uuid := auth.uid();\r\n  v_tenant_id uuid;\r\n  v_vanzare public.vanzari;\r\n  v_existing_move public.miscari_stoc;\r\n  v_existing_move_count integer := 0;\r\n  v_old_qty numeric := 0;\r\n  v_new_qty numeric := 0;\r\n  v_new_price numeric := 0;\r\n  v_delta numeric := 0;\r\n  v_available_stock numeric := 0;\r\n  v_move_quality text;\r\n  v_status_plata text;\r\nbegin\r\n  if v_user_id is null then\r\n    raise exception 'Neautorizat';\r\n  end if;\r\n\r\n  select public.current_tenant_id()\r\n  into v_tenant_id;\r\n\r\n  if v_tenant_id is null then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  if p_tenant_id is not null and p_tenant_id \u003c\u003e v_tenant_id then\r\n    raise exception 'Tenant invalid pentru utilizatorul curent.';\r\n  end if;\r\n\r\n  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));\r\n\r\n  select *\r\n  into v_vanzare\r\n  from public.vanzari\r\n  where id = p_vanzare_id\r\n    and tenant_id = v_tenant_id\r\n  for update;\r\n\r\n  if not found then\r\n    raise exception 'Vanzarea este invalida pentru tenantul curent.';\r\n  end if;\r\n\r\n  select count(*)::int\r\n  into v_existing_move_count\r\n  from public.miscari_stoc ms\r\n  where ms.tenant_id = v_tenant_id\r\n    and ms.referinta_id = p_vanzare_id\r\n    and (\r\n      ms.tip = 'vanzare'\r\n      or ms.tip_miscare = 'vanzare'\r\n    );\r\n\r\n  if v_existing_move_count = 0 then\r\n    raise exception 'Miscarea de stoc asociata vanzarii lipseste.';\r\n  end if;\r\n\r\n  select *\r\n  into v_existing_move\r\n  from public.miscari_stoc ms\r\n  where ms.tenant_id = v_tenant_id\r\n    and ms.referinta_id = p_vanzare_id\r\n    and (\r\n      ms.tip = 'vanzare'\r\n      or ms.tip_miscare = 'vanzare'\r\n    )\r\n  order by ms.created_at asc\r\n  limit 1\r\n  for update;\r\n\r\n  v_old_qty := round(coalesce(v_vanzare.cantitate_kg, 0)::numeric, 2);\r\n  v_new_qty := round(greatest(coalesce(p_cantitate_kg, v_vanzare.cantitate_kg, 0), 0)::numeric, 2);\r\n  v_new_price := round(greatest(coalesce(p_pret_lei_kg, v_vanzare.pret_lei_kg, 0), 0)::numeric, 2);\r\n  v_delta := round((v_new_qty - v_old_qty)::numeric, 2);\r\n\r\n  if v_new_qty \u003c= 0 then\r\n    raise exception 'Cantitatea trebuie sa fie mai mare decat 0.';\r\n  end if;\r\n\r\n  if v_new_price \u003c= 0 then\r\n    raise exception 'Pretul trebuie sa fie mai mare decat 0.';\r\n  end if;\r\n\r\n  if v_existing_move_count \u003e 1 and v_delta \u003c\u003e 0 then\r\n    raise exception 'Cantitatea nu poate fi editata pentru vanzarile provenite din livrari cu mai multe alocari de stoc.';\r\n  end if;\r\n\r\n  if v_delta \u003e 0 then\r\n    if v_existing_move.locatie_id is not null\r\n      and v_existing_move.produs is not null\r\n      and v_existing_move.calitate is not null\r\n      and v_existing_move.depozit is not null then\r\n      select coalesce(\r\n        sum(\r\n          case\r\n            when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)\r\n            else coalesce(ms.cantitate_kg, 0)\r\n          end\r\n        ),\r\n        0\r\n      )\r\n      into v_available_stock\r\n      from public.miscari_stoc ms\r\n      where ms.tenant_id = v_tenant_id\r\n        and ms.locatie_id = v_existing_move.locatie_id\r\n        and ms.produs = v_existing_move.produs\r\n        and ms.calitate = v_existing_move.calitate\r\n        and ms.depozit = v_existing_move.depozit\r\n        and ms.tip_miscare is not null\r\n        and ms.cantitate_kg is not null;\r\n    else\r\n      select coalesce(\r\n        sum(\r\n          case\r\n            when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)\r\n            else coalesce(ms.cantitate_kg, 0)\r\n          end\r\n        ),\r\n        0\r\n      )\r\n      into v_available_stock\r\n      from public.miscari_stoc ms\r\n      where ms.tenant_id = v_tenant_id\r\n        and ms.tip_miscare is not null\r\n        and ms.cantitate_kg is not null;\r\n    end if;\r\n\r\n    if round(v_available_stock::numeric, 2) \u003c v_delta then\r\n      raise exception 'Stoc insuficient pentru a mari vanzarea.';\r\n    end if;\r\n  end if;\r\n\r\n  v_status_plata := coalesce(\r\n    nullif(btrim(coalesce(p_status_plata, '')), ''),\r\n    nullif(btrim(coalesce(v_vanzare.status_plata, '')), ''),\r\n    'platit'\r\n  );\r\n\r\n  update public.vanzari\r\n  set data = coalesce(p_data, v_vanzare.data),\r\n      client_id = coalesce(p_client_id, v_vanzare.client_id),\r\n      cantitate_kg = v_new_qty,\r\n      pret_lei_kg = v_new_price,\r\n      status_plata = v_status_plata,\r\n      observatii_ladite = coalesce(\r\n        nullif(btrim(coalesce(p_observatii_ladite, '')), ''),\r\n        v_vanzare.observatii_ladite\r\n      ),\r\n      updated_at = now(),\r\n      updated_by = v_user_id\r\n  where id = p_vanzare_id\r\n    and tenant_id = v_tenant_id\r\n  returning *\r\n  into v_vanzare;\r\n\r\n  if v_existing_move_count = 1 then\r\n    v_move_quality := coalesce(\r\n      v_existing_move.calitate,\r\n      case\r\n        when coalesce(v_existing_move.cantitate_cal2, 0) \u003c\u003e 0 then 'cal2'\r\n        else 'cal1'\r\n      end\r\n    );\r\n\r\n    update public.miscari_stoc\r\n    set tenant_id = v_tenant_id,\r\n        locatie_id = v_existing_move.locatie_id,\r\n        produs = v_existing_move.produs,\r\n        calitate = v_existing_move.calitate,\r\n        depozit = v_existing_move.depozit,\r\n        tip = 'vanzare',\r\n        tip_miscare = 'vanzare',\r\n        cantitate_kg = v_new_qty,\r\n        cantitate_cal1 = case when v_move_quality = 'cal2' then 0 else -v_new_qty end,\r\n        cantitate_cal2 = case when v_move_quality = 'cal2' then -v_new_qty else 0 end,\r\n        referinta_id = v_vanzare.id,\r\n        data = coalesce(p_data, v_existing_move.data, v_vanzare.data),\r\n        observatii = coalesce(v_existing_move.observatii, 'Scadere stoc la vanzare'),\r\n        descriere = coalesce(v_existing_move.descriere, 'Scadere stoc la vanzare')\r\n    where id = v_existing_move.id;\r\n  else\r\n    update public.miscari_stoc\r\n    set tenant_id = v_tenant_id,\r\n        tip = 'vanzare',\r\n        tip_miscare = 'vanzare',\r\n        referinta_id = v_vanzare.id,\r\n        data = coalesce(p_data, data),\r\n        observatii = coalesce(observatii, 'Consum stoc prin livrare comanda'),\r\n        descriere = coalesce(descriere, 'Consum stoc prin livrare comanda')\r\n    where tenant_id = v_tenant_id\r\n      and referinta_id = p_vanzare_id\r\n      and (\r\n        tip = 'vanzare'\r\n        or tip_miscare = 'vanzare'\r\n      );\r\n  end if;\r\n\r\n  return v_vanzare;\r\nend;\r\n$$;\r\n\r\nnotify pgrst, 'reload schema';","ParameterOIDs":null}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":null,"Parameters":[],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Parse","Name":"","Query":"INSERT INTO supabase_migrations.schema_migrations(version, name, statements) VALUES($1, $2, $3)","ParameterOIDs":[25,25,1009]}
+2026/04/11 22:30:47 PG Send: {"Type":"Bind","DestinationPortal":"","PreparedStatement":"","ParameterFormatCodes":[0,0,1],"Parameters":[{"text":"20260328004"},{"text":"unify_stock_advisory_locks"},{"binary":"0000000100000000000000190000000200000001000009fb637265617465206f72207265706c6163652066756e6374696f6e207075626c69632e6372656174655f7265636f6c746172655f776974685f73746f636b280d0a2020705f6461746120646174652c0d0a2020705f70617263656c615f696420757569642c0d0a2020705f63756c656761746f725f696420757569642c0d0a2020705f6b675f63616c31206e756d657269632064656661756c7420302c0d0a2020705f6b675f63616c32206e756d657269632064656661756c7420302c0d0a2020705f6f62736572766174696920746578742064656661756c74206e756c6c2c0d0a2020705f74656e616e745f696420757569642064656661756c74206e756c6c0d0a290d0a72657475726e73207075626c69632e7265636f6c746172690d0a6c616e677561676520706c706773716c0d0a736563757269747920646566696e65720d0a736574207365617263685f70617468203d207075626c69630d0a61732024240d0a6465636c6172650d0a2020765f757365725f69642075756964203a3d20617574682e75696428293b0d0a2020765f74656e616e745f696420757569643b0d0a2020765f7461726966206e756d657269633b0d0a2020765f6b675f63616c31206e756d65726963203a3d20726f756e6428677265617465737428636f616c6573636528705f6b675f63616c312c2030292c2030293a3a6e756d657269632c2032293b0d0a2020765f6b675f63616c32206e756d65726963203a3d20726f756e6428677265617465737428636f616c6573636528705f6b675f63616c322c2030292c2030293a3a6e756d657269632c2032293b0d0a2020765f746f74616c5f6b67206e756d65726963203a3d20726f756e642828677265617465737428636f616c6573636528705f6b675f63616c312c2030292c203029202b20677265617465737428636f616c6573636528705f6b675f63616c322c2030292c203029293a3a6e756d657269632c2032293b0d0a2020765f76616c6f6172655f6d756e6361206e756d657269633b0d0a2020765f7265636f6c74617265207075626c69632e7265636f6c746172693b0d0a626567696e0d0a2020696620765f757365725f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e20274e656175746f72697a6174273b0d0a2020656e642069663b0d0a0d0a202073656c656374207075626c69632e63757272656e745f74656e616e745f696428290d0a2020696e746f20765f74656e616e745f69643b0d0a0d0a2020696620765f74656e616e745f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020696620705f74656e616e745f6964206973206e6f74206e756c6c20616e6420705f74656e616e745f6964203c3e20765f74656e616e745f6964207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020706572666f726d2070675f61647669736f72795f786163745f6c6f636b286861736874657874282773746f636b2d6d75746174696f6e27292c20686173687465787428765f74656e616e745f69643a3a7465787429293b0d0a0d0a2020706572666f726d20310d0a202066726f6d207075626c69632e70617263656c6520700d0a2020776865726520702e6964203d20705f70617263656c615f69640d0a20202020616e6420702e74656e616e745f6964203d20765f74656e616e745f69643b0d0a0d0a20206966206e6f7420666f756e64207468656e0d0a20202020726169736520657863657074696f6e202750617263656c61206573746520696e76616c6964612070656e7472752074656e616e74756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a202073656c65637420632e74617269665f6c65695f6b670d0a2020696e746f20765f74617269660d0a202066726f6d207075626c69632e63756c656761746f726920630d0a2020776865726520632e6964203d20705f63756c656761746f725f69640d0a20202020616e6420632e74656e616e745f6964203d20765f74656e616e745f69643b0d0a0d0a2020696620765f7461726966206973206e756c6c206f7220765f7461726966203c3d2030207468656e0d0a20202020726169736520657863657074696f6e202743756c656761746f72756c206e752061726520746172696620736574617420696e2070726f66696c273b0d0a2020656e642069663b0d0a0d0a2020765f76616c6f6172655f6d756e6361203a3d20726f756e642828765f746f74616c5f6b67202a20765f7461726966293a3a6e756d657269632c2032293b0d0a0d0a2020696e7365727420696e746f207075626c69632e7265636f6c7461726920280d0a2020202074656e616e745f69642c0d0a2020202069645f7265636f6c746172652c0d0a20202020646174612c0d0a2020202070617263656c615f69642c0d0a2020202063756c656761746f725f69642c0d0a202020206b675f63616c312c0d0a202020206b675f63616c322c0d0a20202020707265745f6c65695f70655f6b675f736e617073686f742c0d0a2020202076616c6f6172655f6d756e63615f6c65692c0d0a202020206f6273657276617469690d0a2020290d0a202076616c75657320280d0a20202020765f74656e616e745f69642c0d0a202020207075626c69632e67656e65726174655f627573696e6573735f6964282752454327292c0d0a20202020705f646174612c0d0a20202020705f70617263656c615f69642c0d0a20202020705f63756c656761746f725f69642c0d0a20202020765f6b675f63616c312c0d0a20202020765f6b675f63616c322c0d0a20202020726f756e6428765f74617269663a3a6e756d657269632c2032292c0d0a20202020765f76616c6f6172655f6d756e63612c0d0a202020206e756c6c696628627472696d28636f616c6573636528705f6f6273657276617469692c20272729292c202727290d0a2020290d0a202072657475726e696e67202a0d0a2020696e746f20765f7265636f6c746172653b0d0a0d0a2020706572666f726d207075626c69632e73796e635f7265636f6c746172655f73746f636b5f6d6f76656d656e7473280d0a20202020765f7265636f6c746172652e69642c0d0a20202020765f74656e616e745f69642c0d0a20202020705f70617263656c615f69642c0d0a20202020705f646174612c0d0a20202020765f6b675f63616c312c0d0a20202020765f6b675f63616c322c0d0a20202020765f7265636f6c746172652e6f6273657276617469690d0a2020293b0d0a0d0a202072657475726e20765f7265636f6c746172653b0d0a656e643b0d0a2424000049c6637265617465206f72207265706c6163652066756e6374696f6e207075626c69632e64656c697665725f6f726465725f61746f6d6963280d0a2020705f6f726465725f696420757569642c0d0a2020705f64656c6976657265645f717479206e756d657269632c0d0a2020705f7061796d656e745f73746174757320746578742064656661756c74202752657374616e7461272c0d0a2020705f72656d61696e696e675f64656c69766572795f6461746520646174652064656661756c74206e756c6c0d0a290d0a72657475726e73206a736f6e620d0a6c616e677561676520706c706773716c0d0a736563757269747920646566696e65720d0a736574207365617263685f70617468203d207075626c69630d0a61732024240d0a6465636c6172650d0a2020765f757365725f69642075756964203a3d20617574682e75696428293b0d0a2020765f74656e616e745f696420757569643b0d0a2020765f6f72646572207075626c69632e636f6d656e7a693b0d0a2020765f73616c65207075626c69632e76616e7a6172693b0d0a2020765f64656c6976657265645f6f72646572207075626c69632e636f6d656e7a693b0d0a2020765f72656d61696e696e675f6f72646572207075626c69632e636f6d656e7a693b0d0a2020765f73616c655f6f62736572766174696920746578743b0d0a2020765f64656c6976657265645f717479206e756d65726963203a3d20726f756e6428677265617465737428636f616c6573636528705f64656c6976657265645f7174792c2030292c2030293a3a6e756d657269632c2032293b0d0a2020765f63757272656e745f717479206e756d657269633b0d0a2020765f72656d61696e696e675f717479206e756d657269633b0d0a2020765f746f74616c5f617661696c61626c65206e756d657269633b0d0a2020765f72656d61696e696e675f746f5f616c6c6f63617465206e756d657269633b0d0a2020765f74616b65206e756d657269633b0d0a2020765f64656475637465645f73746f636b206e756d65726963203a3d20303b0d0a2020765f746f6461792064617465203a3d2063757272656e745f646174653b0d0a2020765f72656d61696e696e675f6461746520646174653b0d0a2020765f6275636b6574207265636f72643b0d0a626567696e0d0a2020696620765f757365725f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e20274e656175746f72697a6174273b0d0a2020656e642069663b0d0a0d0a202073656c656374207075626c69632e63757272656e745f74656e616e745f696428290d0a2020696e746f20765f74656e616e745f69643b0d0a0d0a2020696620765f74656e616e745f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020706572666f726d2070675f61647669736f72795f786163745f6c6f636b286861736874657874282773746f636b2d6d75746174696f6e27292c20686173687465787428765f74656e616e745f69643a3a7465787429293b0d0a0d0a202073656c656374202a0d0a2020696e746f20765f6f726465720d0a202066726f6d207075626c69632e636f6d656e7a690d0a20207768657265206964203d20705f6f726465725f69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a2020666f72207570646174653b0d0a0d0a20206966206e6f7420666f756e64207468656e0d0a20202020726169736520657863657074696f6e2027436f6d616e6461206573746520696e76616c6964612070656e7472752074656e616e74756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020765f63757272656e745f717479203a3d20726f756e6428636f616c6573636528765f6f726465722e63616e7469746174655f6b672c2030293a3a6e756d657269632c2032293b0d0a0d0a2020696620765f64656c6976657265645f717479203c3d2030207468656e0d0a20202020726169736520657863657074696f6e202743616e74697461746561206c697672617461207472656275696520736120666965206d6169206d61726520646563617420302e273b0d0a2020656e642069663b0d0a0d0a2020696620765f64656c6976657265645f717479203e20765f63757272656e745f717479207468656e0d0a20202020726169736520657863657074696f6e202743616e74697461746561206c697672617461206e7520706f617465206465706173692063616e7469746174656120636f6d616e646174612e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6f726465722e737461747573203d2027616e756c61746127207468656e0d0a20202020726169736520657863657074696f6e2027436f6d616e646120616e756c617461206e7520706f617465206669206c6976726174612e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6f726465722e737461747573203d20276c69767261746127206f7220765f6f726465722e6c696e6b65645f76616e7a6172655f6964206973206e6f74206e756c6c207468656e0d0a20202020726169736520657863657074696f6e2027436f6d616e646120657374652064656a61206c6976726174612e273b0d0a2020656e642069663b0d0a0d0a202073656c65637420636f616c657363652873756d2873746f636b5f6275636b65742e617661696c61626c655f6b67292c2030290d0a2020696e746f20765f746f74616c5f617661696c61626c650d0a202066726f6d20280d0a2020202073656c65637420726f756e64280d0a20202020202073756d280d0a2020202020202020636173650d0a202020202020202020207768656e206d732e7469705f6d69736361726520696e20282776616e7a617265272c2027636f6e73756d272c20276f66657269745f67726174756974272c202770696572646572652729207468656e202d636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a20202020202020202020656c736520636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a2020202020202020656e640d0a202020202020293a3a6e756d657269632c0d0a202020202020320d0a202020202920617320617661696c61626c655f6b670d0a2020202066726f6d207075626c69632e6d6973636172695f73746f63206d730d0a202020207768657265206d732e74656e616e745f6964203d20765f74656e616e745f69640d0a202020202020616e64206d732e6c6f63617469655f6964206973206e6f74206e756c6c0d0a202020202020616e64206d732e70726f647573206973206e6f74206e756c6c0d0a202020202020616e64206d732e63616c6974617465206973206e6f74206e756c6c0d0a202020202020616e64206d732e6465706f7a6974206973206e6f74206e756c6c0d0a202020202020616e64206d732e7469705f6d697363617265206973206e6f74206e756c6c0d0a202020202020616e64206d732e63616e7469746174655f6b67206973206e6f74206e756c6c0d0a2020202067726f7570206279206d732e6c6f63617469655f69642c206d732e70726f6475732c206d732e63616c69746174652c206d732e6465706f7a69740d0a20202020686176696e672073756d280d0a202020202020636173650d0a20202020202020207768656e206d732e7469705f6d69736361726520696e20282776616e7a617265272c2027636f6e73756d272c20276f66657269745f67726174756974272c202770696572646572652729207468656e202d636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a2020202020202020656c736520636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a202020202020656e640d0a2020202029203e20300d0a2020292061732073746f636b5f6275636b65743b0d0a0d0a2020696620765f746f74616c5f617661696c61626c65203c20765f64656c6976657265645f717479207468656e0d0a20202020726169736520657863657074696f6e202753746f6320696e737566696369656e742070656e747275206c6976726172652e273b0d0a2020656e642069663b0d0a0d0a2020765f73616c655f6f627365727661746969203a3d20636f6e6361745f77732827207c20272c206e756c6c696628627472696d28636f616c6573636528765f6f726465722e6f6273657276617469692c20272729292c202727292c20666f726d617428274c69767261726520636f6d616e6461202573272c20765f6f726465722e696429293b0d0a0d0a2020696e7365727420696e746f207075626c69632e76616e7a61726920280d0a2020202074656e616e745f69642c0d0a20202020636c69656e745f73796e635f69642c0d0a2020202069645f76616e7a6172652c0d0a20202020646174612c0d0a20202020636c69656e745f69642c0d0a20202020636f6d616e64615f69642c0d0a2020202063616e7469746174655f6b672c0d0a20202020707265745f6c65695f6b672c0d0a202020207374617475735f706c6174612c0d0a202020206f6273657276617469695f6c61646974652c0d0a2020202073796e635f7374617475732c0d0a20202020637265617465645f62792c0d0a20202020757064617465645f62790d0a2020290d0a202076616c75657320280d0a20202020765f74656e616e745f69642c0d0a2020202067656e5f72616e646f6d5f7575696428293a3a746578742c0d0a202020207075626c69632e67656e65726174655f627573696e6573735f696428275627292c0d0a20202020765f746f6461792c0d0a20202020765f6f726465722e636c69656e745f69642c0d0a20202020765f6f726465722e69642c0d0a20202020765f64656c6976657265645f7174792c0d0a20202020726f756e6428636f616c6573636528765f6f726465722e707265745f7065725f6b672c2030293a3a6e756d657269632c2032292c0d0a20202020636f616c65736365286e756c6c696628627472696d28636f616c6573636528705f7061796d656e745f7374617475732c20272729292c202727292c202752657374616e746127292c0d0a202020206e756c6c696628627472696d28765f73616c655f6f627365727661746969292c202727292c0d0a202020202773796e636564272c0d0a20202020765f757365725f69642c0d0a20202020765f757365725f69640d0a2020290d0a202072657475726e696e67202a0d0a2020696e746f20765f73616c653b0d0a0d0a2020765f72656d61696e696e675f746f5f616c6c6f63617465203a3d20765f64656c6976657265645f7174793b0d0a0d0a2020666f7220765f6275636b657420696e0d0a2020202073656c6563740d0a2020202020206d732e6c6f63617469655f69642c0d0a2020202020206d732e70726f6475732c0d0a2020202020206d732e63616c69746174652c0d0a2020202020206d732e6465706f7a69742c0d0a202020202020726f756e64280d0a202020202020202073756d280d0a20202020202020202020636173650d0a2020202020202020202020207768656e206d732e7469705f6d69736361726520696e20282776616e7a617265272c2027636f6e73756d272c20276f66657269745f67726174756974272c202770696572646572652729207468656e202d636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a202020202020202020202020656c736520636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a20202020202020202020656e640d0a2020202020202020293a3a6e756d657269632c0d0a2020202020202020320d0a2020202020202920617320617661696c61626c655f6b670d0a2020202066726f6d207075626c69632e6d6973636172695f73746f63206d730d0a202020207768657265206d732e74656e616e745f6964203d20765f74656e616e745f69640d0a202020202020616e64206d732e6c6f63617469655f6964206973206e6f74206e756c6c0d0a202020202020616e64206d732e70726f647573206973206e6f74206e756c6c0d0a202020202020616e64206d732e63616c6974617465206973206e6f74206e756c6c0d0a202020202020616e64206d732e6465706f7a6974206973206e6f74206e756c6c0d0a202020202020616e64206d732e7469705f6d697363617265206973206e6f74206e756c6c0d0a202020202020616e64206d732e63616e7469746174655f6b67206973206e6f74206e756c6c0d0a2020202067726f7570206279206d732e6c6f63617469655f69642c206d732e70726f6475732c206d732e63616c69746174652c206d732e6465706f7a69740d0a20202020686176696e672073756d280d0a202020202020636173650d0a20202020202020207768656e206d732e7469705f6d69736361726520696e20282776616e7a617265272c2027636f6e73756d272c20276f66657269745f67726174756974272c202770696572646572652729207468656e202d636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a2020202020202020656c736520636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a202020202020656e640d0a2020202029203e20300d0a202020206f7264657220627920617661696c61626c655f6b6720646573630d0a20206c6f6f700d0a2020202065786974207768656e20765f72656d61696e696e675f746f5f616c6c6f63617465203c3d20303b0d0a0d0a20202020765f74616b65203a3d20726f756e64286c6561737428765f6275636b65742e617661696c61626c655f6b672c20765f72656d61696e696e675f746f5f616c6c6f63617465293a3a6e756d657269632c2032293b0d0a20202020696620765f74616b65203c3d2030207468656e0d0a202020202020636f6e74696e75653b0d0a20202020656e642069663b0d0a0d0a20202020696e7365727420696e746f207075626c69632e6d6973636172695f73746f6320280d0a20202020202074656e616e745f69642c0d0a2020202020206c6f63617469655f69642c0d0a20202020202070726f6475732c0d0a20202020202063616c69746174652c0d0a2020202020206465706f7a69742c0d0a2020202020207469705f6d6973636172652c0d0a20202020202063616e7469746174655f6b672c0d0a2020202020207469702c0d0a20202020202063616e7469746174655f63616c312c0d0a20202020202063616e7469746174655f63616c322c0d0a2020202020207265666572696e74615f69642c0d0a202020202020646174612c0d0a2020202020206f6273657276617469692c0d0a2020202020206465736372696572650d0a20202020290d0a2020202076616c75657320280d0a202020202020765f74656e616e745f69642c0d0a202020202020765f6275636b65742e6c6f63617469655f69642c0d0a202020202020765f6275636b65742e70726f6475732c0d0a202020202020765f6275636b65742e63616c69746174652c0d0a202020202020765f6275636b65742e6465706f7a69742c0d0a2020202020202776616e7a617265272c0d0a202020202020765f74616b652c0d0a2020202020202776616e7a617265272c0d0a20202020202063617365207768656e20765f6275636b65742e63616c6974617465203d202763616c3127207468656e202d765f74616b6520656c7365203020656e642c0d0a20202020202063617365207768656e20765f6275636b65742e63616c6974617465203d202763616c3227207468656e202d765f74616b6520656c7365203020656e642c0d0a202020202020765f73616c652e69642c0d0a202020202020765f746f6461792c0d0a20202020202027436f6e73756d2073746f63207072696e206c69767261726520636f6d616e6461272c0d0a20202020202027436f6e73756d2073746f63207072696e206c69767261726520636f6d616e6461270d0a20202020293b0d0a0d0a20202020765f64656475637465645f73746f636b203a3d20726f756e642828765f64656475637465645f73746f636b202b20765f74616b65293a3a6e756d657269632c2032293b0d0a20202020765f72656d61696e696e675f746f5f616c6c6f63617465203a3d20726f756e642828765f72656d61696e696e675f746f5f616c6c6f63617465202d20765f74616b65293a3a6e756d657269632c2032293b0d0a2020656e64206c6f6f703b0d0a0d0a2020696620765f72656d61696e696e675f746f5f616c6c6f63617465203e2030207468656e0d0a20202020726169736520657863657074696f6e202753746f6320696e737566696369656e742070656e747275206c6976726172652e273b0d0a2020656e642069663b0d0a0d0a2020757064617465207075626c69632e636f6d656e7a690d0a202073657420737461747573203d20276c697672617461272c0d0a2020202020206c696e6b65645f76616e7a6172655f6964203d20765f73616c652e69642c0d0a2020202020206f627365727661746969203d20636f6e6361745f7773280d0a202020202020202027207c20272c0d0a20202020202020206e756c6c696628627472696d28636f616c6573636528765f6f726465722e6f6273657276617469692c20272729292c202727292c0d0a2020202020202020666f726d617428274c6976726174613a202573206b67272c207472696d28746f5f6368617228765f64656c6976657265645f7174792c2027464d3939393939393939302e3030272929290d0a202020202020292c0d0a202020202020757064617465645f6174203d206e6f7728290d0a20207768657265206964203d20765f6f726465722e69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a202072657475726e696e67202a0d0a2020696e746f20765f64656c6976657265645f6f726465723b0d0a0d0a2020765f72656d61696e696e675f717479203a3d20726f756e642828765f63757272656e745f717479202d20765f64656c6976657265645f717479293a3a6e756d657269632c2032293b0d0a0d0a2020696620765f72656d61696e696e675f717479203e2030207468656e0d0a20202020765f72656d61696e696e675f64617465203a3d20636f616c6573636528705f72656d61696e696e675f64656c69766572795f646174652c20765f746f646179202b2031293b0d0a0d0a20202020696e7365727420696e746f207075626c69632e636f6d656e7a6920280d0a20202020202074656e616e745f69642c0d0a202020202020636c69656e745f69642c0d0a202020202020636c69656e745f6e756d655f6d616e75616c2c0d0a20202020202074656c65666f6e2c0d0a2020202020206c6f63617469655f6c6976726172652c0d0a202020202020646174615f636f6d616e64612c0d0a202020202020646174615f6c6976726172652c0d0a20202020202063616e7469746174655f6b672c0d0a202020202020707265745f7065725f6b672c0d0a202020202020746f74616c2c0d0a2020202020207374617475732c0d0a2020202020206f6273657276617469692c0d0a202020202020706172656e745f636f6d616e64615f69640d0a20202020290d0a2020202076616c75657320280d0a202020202020765f74656e616e745f69642c0d0a202020202020765f6f726465722e636c69656e745f69642c0d0a202020202020765f6f726465722e636c69656e745f6e756d655f6d616e75616c2c0d0a202020202020765f6f726465722e74656c65666f6e2c0d0a202020202020765f6f726465722e6c6f63617469655f6c6976726172652c0d0a202020202020765f746f6461792c0d0a202020202020765f72656d61696e696e675f646174652c0d0a202020202020765f72656d61696e696e675f7174792c0d0a202020202020726f756e6428636f616c6573636528765f6f726465722e707265745f7065725f6b672c2030293a3a6e756d657269632c2032292c0d0a202020202020726f756e642828765f72656d61696e696e675f717479202a20636f616c6573636528765f6f726465722e707265745f7065725f6b672c203029293a3a6e756d657269632c2032292c0d0a20202020202063617365207768656e20765f72656d61696e696e675f64617465203e20765f746f646179207468656e202770726f6772616d6174612720656c73652027636f6e6669726d6174612720656e642c0d0a202020202020636f6e6361745f7773280d0a202020202020202027207c20272c0d0a20202020202020206e756c6c696628627472696d28636f616c6573636528765f6f726465722e6f6273657276617469692c20272729292c202727292c0d0a2020202020202020666f726d61742827526573742064696e20636f6d616e6461202573272c20765f6f726465722e6964290d0a202020202020292c0d0a202020202020765f6f726465722e69640d0a20202020290d0a2020202072657475726e696e67202a0d0a20202020696e746f20765f72656d61696e696e675f6f726465723b0d0a2020656e642069663b0d0a0d0a202072657475726e206a736f6e625f6275696c645f6f626a656374280d0a202020202764656c6976657265645f6f72646572272c20746f5f6a736f6e6228765f64656c6976657265645f6f72646572292c0d0a202020202776616e7a617265272c20746f5f6a736f6e6228765f73616c65292c0d0a202020202772656d61696e696e675f6f72646572272c20746f5f6a736f6e6228765f72656d61696e696e675f6f72646572292c0d0a202020202764656475637465645f73746f636b5f6b67272c20765f64656475637465645f73746f636b0d0a2020293b0d0a656e643b0d0a24243b0d0a0d0a637265617465206f72207265706c6163652066756e6374696f6e207075626c69632e64656c6574655f636f6d616e64615f61746f6d6963280d0a2020705f636f6d616e64615f696420757569642c0d0a2020705f74656e616e745f696420757569642064656661756c74206e756c6c0d0a290d0a72657475726e7320766f69640d0a6c616e677561676520706c706773716c0d0a736563757269747920646566696e65720d0a736574207365617263685f70617468203d207075626c69630d0a61732024240d0a6465636c6172650d0a2020765f757365725f69642075756964203a3d20617574682e75696428293b0d0a2020765f63757272656e745f74656e616e745f696420757569643b0d0a2020765f74656e616e745f696420757569643b0d0a2020765f6f72646572207075626c69632e636f6d656e7a693b0d0a626567696e0d0a2020696620765f757365725f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e20274e656175746f72697a6174273b0d0a2020656e642069663b0d0a0d0a202073656c656374207075626c69632e63757272656e745f74656e616e745f696428290d0a2020696e746f20765f63757272656e745f74656e616e745f69643b0d0a0d0a2020696620765f63757272656e745f74656e616e745f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020696620705f74656e616e745f6964206973206e6f74206e756c6c20616e6420705f74656e616e745f6964203c3e20765f63757272656e745f74656e616e745f6964207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020765f74656e616e745f6964203a3d20765f63757272656e745f74656e616e745f69643b0d0a0d0a2020706572666f726d2070675f61647669736f72795f786163745f6c6f636b286861736874657874282773746f636b2d6d75746174696f6e27292c20686173687465787428765f74656e616e745f69643a3a7465787429293b0d0a0d0a202073656c656374202a0d0a2020696e746f20765f6f726465720d0a202066726f6d207075626c69632e636f6d656e7a690d0a20207768657265206964203d20705f636f6d616e64615f69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a2020666f72207570646174653b0d0a0d0a20206966206e6f7420666f756e64207468656e0d0a20202020726169736520657863657074696f6e2027436f6d616e6461206573746520696e76616c6964612070656e7472752074656e616e74756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6f726465722e6c696e6b65645f76616e7a6172655f6964206973206e6f74206e756c6c207468656e0d0a20202020706572666f726d207075626c69632e64656c6574655f76616e7a6172655f776974685f73746f636b28765f6f726465722e6c696e6b65645f76616e7a6172655f6964293b0d0a2020656e642069663b0d0a0d0a202064656c6574652066726f6d207075626c69632e636f6d656e7a690d0a20207768657265206964203d20765f6f726465722e69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69643b0d0a656e643b0d0a24243b0d0a0d0a637265617465206f72207265706c6163652066756e6374696f6e207075626c69632e72656f70656e5f636f6d616e64615f61746f6d6963280d0a2020705f636f6d616e64615f696420757569642c0d0a2020705f74656e616e745f696420757569642064656661756c74206e756c6c0d0a290d0a72657475726e73207075626c69632e636f6d656e7a690d0a6c616e677561676520706c706773716c0d0a736563757269747920646566696e65720d0a736574207365617263685f70617468203d207075626c69630d0a61732024240d0a6465636c6172650d0a2020765f757365725f69642075756964203a3d20617574682e75696428293b0d0a2020765f63757272656e745f74656e616e745f696420757569643b0d0a2020765f74656e616e745f696420757569643b0d0a2020765f6f72646572207075626c69632e636f6d656e7a693b0d0a2020765f72656f70656e6564207075626c69632e636f6d656e7a693b0d0a2020765f72656f70656e5f737461747573207075626c69632e636f6d616e64615f7374617475733b0d0a2020765f626c6f636b696e675f6368696c6472656e20696e7465676572203a3d20303b0d0a626567696e0d0a2020696620765f757365725f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e20274e656175746f72697a6174273b0d0a2020656e642069663b0d0a0d0a202073656c656374207075626c69632e63757272656e745f74656e616e745f696428290d0a2020696e746f20765f63757272656e745f74656e616e745f69643b0d0a0d0a2020696620765f63757272656e745f74656e616e745f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020696620705f74656e616e745f6964206973206e6f74206e756c6c20616e6420705f74656e616e745f6964203c3e20765f63757272656e745f74656e616e745f6964207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020765f74656e616e745f6964203a3d20765f63757272656e745f74656e616e745f69643b0d0a0d0a2020706572666f726d2070675f61647669736f72795f786163745f6c6f636b286861736874657874282773746f636b2d6d75746174696f6e27292c20686173687465787428765f74656e616e745f69643a3a7465787429293b0d0a0d0a202073656c656374202a0d0a2020696e746f20765f6f726465720d0a202066726f6d207075626c69632e636f6d656e7a690d0a20207768657265206964203d20705f636f6d616e64615f69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a2020666f72207570646174653b0d0a0d0a20206966206e6f7420666f756e64207468656e0d0a20202020726169736520657863657074696f6e2027436f6d616e6461206573746520696e76616c6964612070656e7472752074656e616e74756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6f726465722e737461747573203c3e20276c69767261746127207468656e0d0a20202020726169736520657863657074696f6e2027446f617220636f6d656e7a696c65206c69767261746520706f7420666920726564657363686973652e273b0d0a2020656e642069663b0d0a0d0a202073656c65637420636f756e74282a290d0a2020696e746f20765f626c6f636b696e675f6368696c6472656e0d0a202066726f6d207075626c69632e636f6d656e7a69206368696c645f6f726465720d0a20207768657265206368696c645f6f726465722e74656e616e745f6964203d20765f74656e616e745f69640d0a20202020616e64206368696c645f6f726465722e706172656e745f636f6d616e64615f6964203d20765f6f726465722e69640d0a20202020616e6420280d0a2020202020206368696c645f6f726465722e6c696e6b65645f76616e7a6172655f6964206973206e6f74206e756c6c0d0a2020202020206f72206368696c645f6f726465722e737461747573203d20276c697672617461270d0a20202020293b0d0a0d0a2020696620765f626c6f636b696e675f6368696c6472656e203e2030207468656e0d0a20202020726169736520657863657074696f6e2027436f6d616e646120617265206c69767261726920756c746572696f617265207369206e7520706f61746520666920726564657363686973612e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6f726465722e6c696e6b65645f76616e7a6172655f6964206973206e6f74206e756c6c207468656e0d0a20202020706572666f726d207075626c69632e64656c6574655f76616e7a6172655f776974685f73746f636b28765f6f726465722e6c696e6b65645f76616e7a6172655f6964293b0d0a2020656e642069663b0d0a0d0a202064656c6574652066726f6d207075626c69632e636f6d656e7a69206368696c645f6f726465720d0a20207768657265206368696c645f6f726465722e74656e616e745f6964203d20765f74656e616e745f69640d0a20202020616e64206368696c645f6f726465722e706172656e745f636f6d616e64615f6964203d20765f6f726465722e69640d0a20202020616e64206368696c645f6f726465722e6c696e6b65645f76616e7a6172655f6964206973206e756c6c3b0d0a0d0a2020765f72656f70656e5f737461747573203a3d20636173650d0a202020207768656e20765f6f726465722e646174615f6c697672617265206973206e6f74206e756c6c20616e6420765f6f726465722e646174615f6c697672617265203e2063757272656e745f646174650d0a2020202020207468656e202770726f6772616d617461273a3a7075626c69632e636f6d616e64615f7374617475730d0a20202020656c73652027636f6e6669726d617461273a3a7075626c69632e636f6d616e64615f7374617475730d0a2020656e643b0d0a0d0a2020757064617465207075626c69632e636f6d656e7a690d0a202073657420737461747573203d20765f72656f70656e5f7374617475732c0d0a2020202020206c696e6b65645f76616e7a6172655f6964203d206e756c6c2c0d0a202020202020757064617465645f6174203d206e6f7728292c0d0a2020202020206f627365727661746969203d20636f6e6361745f7773280d0a202020202020202027207c20272c0d0a20202020202020206e756c6c696628627472696d28636f616c6573636528765f6f726465722e6f6273657276617469692c20272729292c202727292c0d0a202020202020202027436f6d616e64612072656465736368697361270d0a202020202020290d0a20207768657265206964203d20765f6f726465722e69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a202072657475726e696e67202a0d0a2020696e746f20765f72656f70656e65643b0d0a0d0a202072657475726e20765f72656f70656e65643b0d0a656e643b0d0a24243b0d0a0d0a637265617465206f72207265706c6163652066756e6374696f6e207075626c69632e7570646174655f76616e7a6172655f776974685f73746f636b280d0a2020705f76616e7a6172655f696420757569642c0d0a2020705f6461746120646174652064656661756c74206e756c6c2c0d0a2020705f636c69656e745f696420757569642064656661756c74206e756c6c2c0d0a2020705f63616e7469746174655f6b67206e756d657269632064656661756c74206e756c6c2c0d0a2020705f707265745f6c65695f6b67206e756d657269632064656661756c74206e756c6c2c0d0a2020705f7374617475735f706c61746120746578742064656661756c74206e756c6c2c0d0a2020705f6f6273657276617469695f6c616469746520746578742064656661756c74206e756c6c2c0d0a2020705f74656e616e745f696420757569642064656661756c74206e756c6c0d0a290d0a72657475726e73207075626c69632e76616e7a6172690d0a6c616e677561676520706c706773716c0d0a736563757269747920646566696e65720d0a736574207365617263685f70617468203d207075626c69630d0a61732024240d0a6465636c6172650d0a2020765f757365725f69642075756964203a3d20617574682e75696428293b0d0a2020765f74656e616e745f696420757569643b0d0a2020765f76616e7a617265207075626c69632e76616e7a6172693b0d0a2020765f6578697374696e675f6d6f7665207075626c69632e6d6973636172695f73746f633b0d0a2020765f6578697374696e675f6d6f76655f636f756e7420696e7465676572203a3d20303b0d0a2020765f6f6c645f717479206e756d65726963203a3d20303b0d0a2020765f6e65775f717479206e756d65726963203a3d20303b0d0a2020765f6e65775f7072696365206e756d65726963203a3d20303b0d0a2020765f64656c7461206e756d65726963203a3d20303b0d0a2020765f617661696c61626c655f73746f636b206e756d65726963203a3d20303b0d0a2020765f6d6f76655f7175616c69747920746578743b0d0a2020765f7374617475735f706c61746120746578743b0d0a626567696e0d0a2020696620765f757365725f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e20274e656175746f72697a6174273b0d0a2020656e642069663b0d0a0d0a202073656c656374207075626c69632e63757272656e745f74656e616e745f696428290d0a2020696e746f20765f74656e616e745f69643b0d0a0d0a2020696620765f74656e616e745f6964206973206e756c6c207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020696620705f74656e616e745f6964206973206e6f74206e756c6c20616e6420705f74656e616e745f6964203c3e20765f74656e616e745f6964207468656e0d0a20202020726169736520657863657074696f6e202754656e616e7420696e76616c69642070656e747275207574696c697a61746f72756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a2020706572666f726d2070675f61647669736f72795f786163745f6c6f636b286861736874657874282773746f636b2d6d75746174696f6e27292c20686173687465787428765f74656e616e745f69643a3a7465787429293b0d0a0d0a202073656c656374202a0d0a2020696e746f20765f76616e7a6172650d0a202066726f6d207075626c69632e76616e7a6172690d0a20207768657265206964203d20705f76616e7a6172655f69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a2020666f72207570646174653b0d0a0d0a20206966206e6f7420666f756e64207468656e0d0a20202020726169736520657863657074696f6e202756616e7a61726561206573746520696e76616c6964612070656e7472752074656e616e74756c20637572656e742e273b0d0a2020656e642069663b0d0a0d0a202073656c65637420636f756e74282a293a3a696e740d0a2020696e746f20765f6578697374696e675f6d6f76655f636f756e740d0a202066726f6d207075626c69632e6d6973636172695f73746f63206d730d0a20207768657265206d732e74656e616e745f6964203d20765f74656e616e745f69640d0a20202020616e64206d732e7265666572696e74615f6964203d20705f76616e7a6172655f69640d0a20202020616e6420280d0a2020202020206d732e746970203d202776616e7a617265270d0a2020202020206f72206d732e7469705f6d697363617265203d202776616e7a617265270d0a20202020293b0d0a0d0a2020696620765f6578697374696e675f6d6f76655f636f756e74203d2030207468656e0d0a20202020726169736520657863657074696f6e20274d697363617265612064652073746f632061736f63696174612076616e7a61726969206c697073657374652e273b0d0a2020656e642069663b0d0a0d0a202073656c656374202a0d0a2020696e746f20765f6578697374696e675f6d6f76650d0a202066726f6d207075626c69632e6d6973636172695f73746f63206d730d0a20207768657265206d732e74656e616e745f6964203d20765f74656e616e745f69640d0a20202020616e64206d732e7265666572696e74615f6964203d20705f76616e7a6172655f69640d0a20202020616e6420280d0a2020202020206d732e746970203d202776616e7a617265270d0a2020202020206f72206d732e7469705f6d697363617265203d202776616e7a617265270d0a20202020290d0a20206f72646572206279206d732e637265617465645f6174206173630d0a20206c696d697420310d0a2020666f72207570646174653b0d0a0d0a2020765f6f6c645f717479203a3d20726f756e6428636f616c6573636528765f76616e7a6172652e63616e7469746174655f6b672c2030293a3a6e756d657269632c2032293b0d0a2020765f6e65775f717479203a3d20726f756e6428677265617465737428636f616c6573636528705f63616e7469746174655f6b672c20765f76616e7a6172652e63616e7469746174655f6b672c2030292c2030293a3a6e756d657269632c2032293b0d0a2020765f6e65775f7072696365203a3d20726f756e6428677265617465737428636f616c6573636528705f707265745f6c65695f6b672c20765f76616e7a6172652e707265745f6c65695f6b672c2030292c2030293a3a6e756d657269632c2032293b0d0a2020765f64656c7461203a3d20726f756e642828765f6e65775f717479202d20765f6f6c645f717479293a3a6e756d657269632c2032293b0d0a0d0a2020696620765f6e65775f717479203c3d2030207468656e0d0a20202020726169736520657863657074696f6e202743616e74697461746561207472656275696520736120666965206d6169206d61726520646563617420302e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6e65775f7072696365203c3d2030207468656e0d0a20202020726169736520657863657074696f6e202750726574756c207472656275696520736120666965206d6169206d61726520646563617420302e273b0d0a2020656e642069663b0d0a0d0a2020696620765f6578697374696e675f6d6f76655f636f756e74203e203120616e6420765f64656c7461203c3e2030207468656e0d0a20202020726169736520657863657074696f6e202743616e74697461746561206e7520706f61746520666920656469746174612070656e7472752076616e7a6172696c652070726f76656e6974652064696e206c697672617269206375206d6169206d756c746520616c6f636172692064652073746f632e273b0d0a2020656e642069663b0d0a0d0a2020696620765f64656c7461203e2030207468656e0d0a20202020696620765f6578697374696e675f6d6f76652e6c6f63617469655f6964206973206e6f74206e756c6c0d0a202020202020616e6420765f6578697374696e675f6d6f76652e70726f647573206973206e6f74206e756c6c0d0a202020202020616e6420765f6578697374696e675f6d6f76652e63616c6974617465206973206e6f74206e756c6c0d0a202020202020616e6420765f6578697374696e675f6d6f76652e6465706f7a6974206973206e6f74206e756c6c207468656e0d0a20202020202073656c65637420636f616c65736365280d0a202020202020202073756d280d0a20202020202020202020636173650d0a2020202020202020202020207768656e206d732e7469705f6d69736361726520696e20282776616e7a617265272c2027636f6e73756d272c20276f66657269745f67726174756974272c202770696572646572652729207468656e202d636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a202020202020202020202020656c736520636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a20202020202020202020656e640d0a2020202020202020292c0d0a2020202020202020300d0a202020202020290d0a202020202020696e746f20765f617661696c61626c655f73746f636b0d0a20202020202066726f6d207075626c69632e6d6973636172695f73746f63206d730d0a2020202020207768657265206d732e74656e616e745f6964203d20765f74656e616e745f69640d0a2020202020202020616e64206d732e6c6f63617469655f6964203d20765f6578697374696e675f6d6f76652e6c6f63617469655f69640d0a2020202020202020616e64206d732e70726f647573203d20765f6578697374696e675f6d6f76652e70726f6475730d0a2020202020202020616e64206d732e63616c6974617465203d20765f6578697374696e675f6d6f76652e63616c69746174650d0a2020202020202020616e64206d732e6465706f7a6974203d20765f6578697374696e675f6d6f76652e6465706f7a69740d0a2020202020202020616e64206d732e7469705f6d697363617265206973206e6f74206e756c6c0d0a2020202020202020616e64206d732e63616e7469746174655f6b67206973206e6f74206e756c6c3b0d0a20202020656c73650d0a20202020202073656c65637420636f616c65736365280d0a202020202020202073756d280d0a20202020202020202020636173650d0a2020202020202020202020207768656e206d732e7469705f6d69736361726520696e20282776616e7a617265272c2027636f6e73756d272c20276f66657269745f67726174756974272c202770696572646572652729207468656e202d636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a202020202020202020202020656c736520636f616c65736365286d732e63616e7469746174655f6b672c2030290d0a20202020202020202020656e640d0a2020202020202020292c0d0a2020202020202020300d0a202020202020290d0a202020202020696e746f20765f617661696c61626c655f73746f636b0d0a20202020202066726f6d207075626c69632e6d6973636172695f73746f63206d730d0a2020202020207768657265206d732e74656e616e745f6964203d20765f74656e616e745f69640d0a2020202020202020616e64206d732e7469705f6d697363617265206973206e6f74206e756c6c0d0a2020202020202020616e64206d732e63616e7469746174655f6b67206973206e6f74206e756c6c3b0d0a20202020656e642069663b0d0a0d0a20202020696620726f756e6428765f617661696c61626c655f73746f636b3a3a6e756d657269632c203229203c20765f64656c7461207468656e0d0a202020202020726169736520657863657074696f6e202753746f6320696e737566696369656e742070656e7472752061206d6172692076616e7a617265612e273b0d0a20202020656e642069663b0d0a2020656e642069663b0d0a0d0a2020765f7374617475735f706c617461203a3d20636f616c65736365280d0a202020206e756c6c696628627472696d28636f616c6573636528705f7374617475735f706c6174612c20272729292c202727292c0d0a202020206e756c6c696628627472696d28636f616c6573636528765f76616e7a6172652e7374617475735f706c6174612c20272729292c202727292c0d0a2020202027706c61746974270d0a2020293b0d0a0d0a2020757064617465207075626c69632e76616e7a6172690d0a20207365742064617461203d20636f616c6573636528705f646174612c20765f76616e7a6172652e64617461292c0d0a202020202020636c69656e745f6964203d20636f616c6573636528705f636c69656e745f69642c20765f76616e7a6172652e636c69656e745f6964292c0d0a20202020202063616e7469746174655f6b67203d20765f6e65775f7174792c0d0a202020202020707265745f6c65695f6b67203d20765f6e65775f70726963652c0d0a2020202020207374617475735f706c617461203d20765f7374617475735f706c6174612c0d0a2020202020206f6273657276617469695f6c6164697465203d20636f616c65736365280d0a20202020202020206e756c6c696628627472696d28636f616c6573636528705f6f6273657276617469695f6c61646974652c20272729292c202727292c0d0a2020202020202020765f76616e7a6172652e6f6273657276617469695f6c61646974650d0a202020202020292c0d0a202020202020757064617465645f6174203d206e6f7728292c0d0a202020202020757064617465645f6279203d20765f757365725f69640d0a20207768657265206964203d20705f76616e7a6172655f69640d0a20202020616e642074656e616e745f6964203d20765f74656e616e745f69640d0a202072657475726e696e67202a0d0a2020696e746f20765f76616e7a6172653b0d0a0d0a2020696620765f6578697374696e675f6d6f76655f636f756e74203d2031207468656e0d0a20202020765f6d6f76655f7175616c697479203a3d20636f616c65736365280d0a202020202020765f6578697374696e675f6d6f76652e63616c69746174652c0d0a202020202020636173650d0a20202020202020207768656e20636f616c6573636528765f6578697374696e675f6d6f76652e63616e7469746174655f63616c322c203029203c3e2030207468656e202763616c32270d0a2020202020202020656c7365202763616c31270d0a202020202020656e640d0a20202020293b0d0a0d0a20202020757064617465207075626c69632e6d6973636172695f73746f630d0a202020207365742074656e616e745f6964203d20765f74656e616e745f69642c0d0a20202020202020206c6f63617469655f6964203d20765f6578697374696e675f6d6f76652e6c6f63617469655f69642c0d0a202020202020202070726f647573203d20765f6578697374696e675f6d6f76652e70726f6475732c0d0a202020202020202063616c6974617465203d20765f6578697374696e675f6d6f76652e63616c69746174652c0d0a20202020202020206465706f7a6974203d20765f6578697374696e675f6d6f76652e6465706f7a69742c0d0a2020202020202020746970203d202776616e7a617265272c0d0a20202020202020207469705f6d697363617265203d202776616e7a617265272c0d0a202020202020202063616e7469746174655f6b67203d20765f6e65775f7174792c0d0a202020202020202063616e7469746174655f63616c31203d2063617365207768656e20765f6d6f76655f7175616c697479203d202763616c3227207468656e203020656c7365202d765f6e65775f71747920656e642c0d0a202020202020202063616e7469746174655f63616c32203d2063617365207768656e20765f6d6f76655f7175616c697479203d202763616c3227207468656e202d765f6e65775f71747920656c7365203020656e642c0d0a20202020202020207265666572696e74615f6964203d20765f76616e7a6172652e69642c0d0a202020202020202064617461203d20636f616c6573636528705f646174612c20765f6578697374696e675f6d6f76652e646174612c20765f76616e7a6172652e64617461292c0d0a20202020202020206f627365727661746969203d20636f616c6573636528765f6578697374696e675f6d6f76652e6f6273657276617469692c2027536361646572652073746f63206c612076616e7a61726527292c0d0a2020202020202020646573637269657265203d20636f616c6573636528765f6578697374696e675f6d6f76652e6465736372696572652c2027536361646572652073746f63206c612076616e7a61726527290d0a202020207768657265206964203d20765f6578697374696e675f6d6f76652e69643b0d0a2020656c73650d0a20202020757064617465207075626c69632e6d6973636172695f73746f630d0a202020207365742074656e616e745f6964203d20765f74656e616e745f69642c0d0a2020202020202020746970203d202776616e7a617265272c0d0a20202020202020207469705f6d697363617265203d202776616e7a617265272c0d0a20202020202020207265666572696e74615f6964203d20765f76616e7a6172652e69642c0d0a202020202020202064617461203d20636f616c6573636528705f646174612c2064617461292c0d0a20202020202020206f627365727661746969203d20636f616c65736365286f6273657276617469692c2027436f6e73756d2073746f63207072696e206c69767261726520636f6d616e646127292c0d0a2020202020202020646573637269657265203d20636f616c65736365286465736372696572652c2027436f6e73756d2073746f63207072696e206c69767261726520636f6d616e646127290d0a2020202077686572652074656e616e745f6964203d20765f74656e616e745f69640d0a202020202020616e64207265666572696e74615f6964203d20705f76616e7a6172655f69640d0a202020202020616e6420280d0a2020202020202020746970203d202776616e7a617265270d0a20202020202020206f72207469705f6d697363617265203d202776616e7a617265270d0a202020202020293b0d0a2020656e642069663b0d0a0d0a202072657475726e20765f76616e7a6172653b0d0a656e643b0d0a24243b0d0a0d0a6e6f746966792070677273742c202772656c6f616420736368656d61273b"}],"ResultFormatCodes":[]}
+2026/04/11 22:30:47 PG Send: {"Type":"Describe","ObjectType":"P","Name":""}
+2026/04/11 22:30:47 PG Send: {"Type":"Execute","Portal":"","MaxRows":0}
+2026/04/11 22:30:47 PG Send: {"Type":"Sync"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ParseComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"BindComplete"}
+2026/04/11 22:30:47 PG Recv: {"Type":"NoData"}
+2026/04/11 22:30:47 PG Recv: {"Type":"CommandComplete","CommandTag":"CREATE FUNCTION"}
+2026/04/11 22:30:47 PG Recv: {"Type":"ErrorResponse","Severity":"ERROR","SeverityUnlocalized":"ERROR","Code":"42601","Message":"cannot insert multiple commands into a prepared statement","Detail":"","Hint":"","Position":0,"InternalPosition":0,"InternalQuery":"","Where":"","SchemaName":"","TableName":"","ColumnName":"","DataTypeName":"","ConstraintName":"","File":"postgres.c","Line":1478,"Routine":"exec_parse_message","UnknownFields":null}
+2026/04/11 22:30:47 PG Recv: {"Type":"ReadyForQuery","TxStatus":"I"}
+2026/04/11 22:30:47 PG Send: {"Type":"Terminate"}
+ERROR: cannot insert multiple commands into a prepared statement (SQLSTATE 42601)                                                      
+At statement: 1                                                                                                                        
+create or replace function public.deliver_order_atomic(                                                                                
+  p_order_id uuid,                                                                                                                     
+  p_delivered_qty numeric,                                                                                                             
+  p_payment_status text default 'Restanta',                                                                                            
+  p_remaining_delivery_date date default null                                                                                          
+)                                                                                                                                      
+returns jsonb                                                                                                                          
+language plpgsql                                                                                                                       
+security definer                                                                                                                       
+set search_path = public                                                                                                               
+as $$                                                                                                                                  
+declare                                                                                                                                
+  v_user_id uuid := auth.uid();                                                                                                        
+  v_tenant_id uuid;                                                                                                                    
+  v_order public.comenzi;                                                                                                              
+  v_sale public.vanzari;                                                                                                               
+  v_delivered_order public.comenzi;                                                                                                    
+  v_remaining_order public.comenzi;                                                                                                    
+  v_sale_observatii text;                                                                                                              
+  v_delivered_qty numeric := round(greatest(coalesce(p_delivered_qty, 0), 0)::numeric, 2);                                             
+  v_current_qty numeric;                                                                                                               
+  v_remaining_qty numeric;                                                                                                             
+  v_total_available numeric;                                                                                                           
+  v_remaining_to_allocate numeric;                                                                                                     
+  v_take numeric;                                                                                                                      
+  v_deducted_stock numeric := 0;                                                                                                       
+  v_today date := current_date;                                                                                                        
+  v_remaining_date date;                                                                                                               
+  v_bucket record;                                                                                                                     
+begin                                                                                                                                  
+  if v_user_id is null then                                                                                                            
+    raise exception 'Neautorizat';                                                                                                     
+  end if;                                                                                                                              
+                                                                                                                                       
+  select public.current_tenant_id()                                                                                                    
+  into v_tenant_id;                                                                                                                    
+                                                                                                                                       
+  if v_tenant_id is null then                                                                                                          
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));                                              
+                                                                                                                                       
+  select *                                                                                                                             
+  into v_order                                                                                                                         
+  from public.comenzi                                                                                                                  
+  where id = p_order_id                                                                                                                
+    and tenant_id = v_tenant_id                                                                                                        
+  for update;                                                                                                                          
+                                                                                                                                       
+  if not found then                                                                                                                    
+    raise exception 'Comanda este invalida pentru tenantul curent.';                                                                   
+  end if;                                                                                                                              
+                                                                                                                                       
+  v_current_qty := round(coalesce(v_order.cantitate_kg, 0)::numeric, 2);                                                               
+                                                                                                                                       
+  if v_delivered_qty <= 0 then                                                                                                         
+    raise exception 'Cantitatea livrata trebuie sa fie mai mare decat 0.';                                                             
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_delivered_qty > v_current_qty then                                                                                              
+    raise exception 'Cantitatea livrata nu poate depasi cantitatea comandata.';                                                        
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_order.status = 'anulata' then                                                                                                   
+    raise exception 'Comanda anulata nu poate fi livrata.';                                                                            
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_order.status = 'livrata' or v_order.linked_vanzare_id is not null then                                                          
+    raise exception 'Comanda este deja livrata.';                                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  select coalesce(sum(stock_bucket.available_kg), 0)                                                                                   
+  into v_total_available                                                                                                               
+  from (                                                                                                                               
+    select round(                                                                                                                      
+      sum(                                                                                                                             
+        case                                                                                                                           
+          when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)                
+          else coalesce(ms.cantitate_kg, 0)                                                                                            
+        end                                                                                                                            
+      )::numeric,                                                                                                                      
+      2                                                                                                                                
+    ) as available_kg                                                                                                                  
+    from public.miscari_stoc ms                                                                                                        
+    where ms.tenant_id = v_tenant_id                                                                                                   
+      and ms.locatie_id is not null                                                                                                    
+      and ms.produs is not null                                                                                                        
+      and ms.calitate is not null                                                                                                      
+      and ms.depozit is not null                                                                                                       
+      and ms.tip_miscare is not null                                                                                                   
+      and ms.cantitate_kg is not null                                                                                                  
+    group by ms.locatie_id, ms.produs, ms.calitate, ms.depozit                                                                         
+    having sum(                                                                                                                        
+      case                                                                                                                             
+        when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)                  
+        else coalesce(ms.cantitate_kg, 0)                                                                                              
+      end                                                                                                                              
+    ) > 0                                                                                                                              
+  ) as stock_bucket;                                                                                                                   
+                                                                                                                                       
+  if v_total_available < v_delivered_qty then                                                                                          
+    raise exception 'Stoc insuficient pentru livrare.';                                                                                
+  end if;                                                                                                                              
+                                                                                                                                       
+  v_sale_observatii := concat_ws(' | ', nullif(btrim(coalesce(v_order.observatii, '')), ''), format('Livrare comanda %s', v_order.id));
+                                                                                                                                       
+  insert into public.vanzari (                                                                                                         
+    tenant_id,                                                                                                                         
+    client_sync_id,                                                                                                                    
+    id_vanzare,                                                                                                                        
+    data,                                                                                                                              
+    client_id,                                                                                                                         
+    comanda_id,                                                                                                                        
+    cantitate_kg,                                                                                                                      
+    pret_lei_kg,                                                                                                                       
+    status_plata,                                                                                                                      
+    observatii_ladite,                                                                                                                 
+    sync_status,                                                                                                                       
+    created_by,                                                                                                                        
+    updated_by                                                                                                                         
+  )                                                                                                                                    
+  values (                                                                                                                             
+    v_tenant_id,                                                                                                                       
+    gen_random_uuid()::text,                                                                                                           
+    public.generate_business_id('V'),                                                                                                  
+    v_today,                                                                                                                           
+    v_order.client_id,                                                                                                                 
+    v_order.id,                                                                                                                        
+    v_delivered_qty,                                                                                                                   
+    round(coalesce(v_order.pret_per_kg, 0)::numeric, 2),                                                                               
+    coalesce(nullif(btrim(coalesce(p_payment_status, '')), ''), 'Restanta'),                                                           
+    nullif(btrim(v_sale_observatii), ''),                                                                                              
+    'synced',                                                                                                                          
+    v_user_id,                                                                                                                         
+    v_user_id                                                                                                                          
+  )                                                                                                                                    
+  returning *                                                                                                                          
+  into v_sale;                                                                                                                         
+                                                                                                                                       
+  v_remaining_to_allocate := v_delivered_qty;                                                                                          
+                                                                                                                                       
+  for v_bucket in                                                                                                                      
+    select                                                                                                                             
+      ms.locatie_id,                                                                                                                   
+      ms.produs,                                                                                                                       
+      ms.calitate,                                                                                                                     
+      ms.depozit,                                                                                                                      
+      round(                                                                                                                           
+        sum(                                                                                                                           
+          case                                                                                                                         
+            when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)              
+            else coalesce(ms.cantitate_kg, 0)                                                                                          
+          end                                                                                                                          
+        )::numeric,                                                                                                                    
+        2                                                                                                                              
+      ) as available_kg                                                                                                                
+    from public.miscari_stoc ms                                                                                                        
+    where ms.tenant_id = v_tenant_id                                                                                                   
+      and ms.locatie_id is not null                                                                                                    
+      and ms.produs is not null                                                                                                        
+      and ms.calitate is not null                                                                                                      
+      and ms.depozit is not null                                                                                                       
+      and ms.tip_miscare is not null                                                                                                   
+      and ms.cantitate_kg is not null                                                                                                  
+    group by ms.locatie_id, ms.produs, ms.calitate, ms.depozit                                                                         
+    having sum(                                                                                                                        
+      case                                                                                                                             
+        when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)                  
+        else coalesce(ms.cantitate_kg, 0)                                                                                              
+      end                                                                                                                              
+    ) > 0                                                                                                                              
+    order by available_kg desc                                                                                                         
+  loop                                                                                                                                 
+    exit when v_remaining_to_allocate <= 0;                                                                                            
+                                                                                                                                       
+    v_take := round(least(v_bucket.available_kg, v_remaining_to_allocate)::numeric, 2);                                                
+    if v_take <= 0 then                                                                                                                
+      continue;                                                                                                                        
+    end if;                                                                                                                            
+                                                                                                                                       
+    insert into public.miscari_stoc (                                                                                                  
+      tenant_id,                                                                                                                       
+      locatie_id,                                                                                                                      
+      produs,                                                                                                                          
+      calitate,                                                                                                                        
+      depozit,                                                                                                                         
+      tip_miscare,                                                                                                                     
+      cantitate_kg,                                                                                                                    
+      tip,                                                                                                                             
+      cantitate_cal1,                                                                                                                  
+      cantitate_cal2,                                                                                                                  
+      referinta_id,                                                                                                                    
+      data,                                                                                                                            
+      observatii,                                                                                                                      
+      descriere                                                                                                                        
+    )                                                                                                                                  
+    values (                                                                                                                           
+      v_tenant_id,                                                                                                                     
+      v_bucket.locatie_id,                                                                                                             
+      v_bucket.produs,                                                                                                                 
+      v_bucket.calitate,                                                                                                               
+      v_bucket.depozit,                                                                                                                
+      'vanzare',                                                                                                                       
+      v_take,                                                                                                                          
+      'vanzare',                                                                                                                       
+      case when v_bucket.calitate = 'cal1' then -v_take else 0 end,                                                                    
+      case when v_bucket.calitate = 'cal2' then -v_take else 0 end,                                                                    
+      v_sale.id,                                                                                                                       
+      v_today,                                                                                                                         
+      'Consum stoc prin livrare comanda',                                                                                              
+      'Consum stoc prin livrare comanda'                                                                                               
+    );                                                                                                                                 
+                                                                                                                                       
+    v_deducted_stock := round((v_deducted_stock + v_take)::numeric, 2);                                                                
+    v_remaining_to_allocate := round((v_remaining_to_allocate - v_take)::numeric, 2);                                                  
+  end loop;                                                                                                                            
+                                                                                                                                       
+  if v_remaining_to_allocate > 0 then                                                                                                  
+    raise exception 'Stoc insuficient pentru livrare.';                                                                                
+  end if;                                                                                                                              
+                                                                                                                                       
+  update public.comenzi                                                                                                                
+  set status = 'livrata',                                                                                                              
+      linked_vanzare_id = v_sale.id,                                                                                                   
+      observatii = concat_ws(                                                                                                          
+        ' | ',                                                                                                                         
+        nullif(btrim(coalesce(v_order.observatii, '')), ''),                                                                           
+        format('Livrata: %s kg', trim(to_char(v_delivered_qty, 'FM999999990.00')))                                                     
+      ),                                                                                                                               
+      updated_at = now()                                                                                                               
+  where id = v_order.id                                                                                                                
+    and tenant_id = v_tenant_id                                                                                                        
+  returning *                                                                                                                          
+  into v_delivered_order;                                                                                                              
+                                                                                                                                       
+  v_remaining_qty := round((v_current_qty - v_delivered_qty)::numeric, 2);                                                             
+                                                                                                                                       
+  if v_remaining_qty > 0 then                                                                                                          
+    v_remaining_date := coalesce(p_remaining_delivery_date, v_today + 1);                                                              
+                                                                                                                                       
+    insert into public.comenzi (                                                                                                       
+      tenant_id,                                                                                                                       
+      client_id,                                                                                                                       
+      client_nume_manual,                                                                                                              
+      telefon,                                                                                                                         
+      locatie_livrare,                                                                                                                 
+      data_comanda,                                                                                                                    
+      data_livrare,                                                                                                                    
+      cantitate_kg,                                                                                                                    
+      pret_per_kg,                                                                                                                     
+      total,                                                                                                                           
+      status,                                                                                                                          
+      observatii,                                                                                                                      
+      parent_comanda_id                                                                                                                
+    )                                                                                                                                  
+    values (                                                                                                                           
+      v_tenant_id,                                                                                                                     
+      v_order.client_id,                                                                                                               
+      v_order.client_nume_manual,                                                                                                      
+      v_order.telefon,                                                                                                                 
+      v_order.locatie_livrare,                                                                                                         
+      v_today,                                                                                                                         
+      v_remaining_date,                                                                                                                
+      v_remaining_qty,                                                                                                                 
+      round(coalesce(v_order.pret_per_kg, 0)::numeric, 2),                                                                             
+      round((v_remaining_qty * coalesce(v_order.pret_per_kg, 0))::numeric, 2),                                                         
+      case when v_remaining_date > v_today then 'programata' else 'confirmata' end,                                                    
+      concat_ws(                                                                                                                       
+        ' | ',                                                                                                                         
+        nullif(btrim(coalesce(v_order.observatii, '')), ''),                                                                           
+        format('Rest din comanda %s', v_order.id)                                                                                      
+      ),                                                                                                                               
+      v_order.id                                                                                                                       
+    )                                                                                                                                  
+    returning *                                                                                                                        
+    into v_remaining_order;                                                                                                            
+  end if;                                                                                                                              
+                                                                                                                                       
+  return jsonb_build_object(                                                                                                           
+    'delivered_order', to_jsonb(v_delivered_order),                                                                                    
+    'vanzare', to_jsonb(v_sale),                                                                                                       
+    'remaining_order', to_jsonb(v_remaining_order),                                                                                    
+    'deducted_stock_kg', v_deducted_stock                                                                                              
+  );                                                                                                                                   
+end;                                                                                                                                   
+$$;                                                                                                                                    
+                                                                                                                                       
+create or replace function public.delete_comanda_atomic(                                                                               
+  p_comanda_id uuid,                                                                                                                   
+  p_tenant_id uuid default null                                                                                                        
+)                                                                                                                                      
+returns void                                                                                                                           
+language plpgsql                                                                                                                       
+security definer                                                                                                                       
+set search_path = public                                                                                                               
+as $$                                                                                                                                  
+declare                                                                                                                                
+  v_user_id uuid := auth.uid();                                                                                                        
+  v_current_tenant_id uuid;                                                                                                            
+  v_tenant_id uuid;                                                                                                                    
+  v_order public.comenzi;                                                                                                              
+begin                                                                                                                                  
+  if v_user_id is null then                                                                                                            
+    raise exception 'Neautorizat';                                                                                                     
+  end if;                                                                                                                              
+                                                                                                                                       
+  select public.current_tenant_id()                                                                                                    
+  into v_current_tenant_id;                                                                                                            
+                                                                                                                                       
+  if v_current_tenant_id is null then                                                                                                  
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  if p_tenant_id is not null and p_tenant_id <> v_current_tenant_id then                                                               
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  v_tenant_id := v_current_tenant_id;                                                                                                  
+                                                                                                                                       
+  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));                                              
+                                                                                                                                       
+  select *                                                                                                                             
+  into v_order                                                                                                                         
+  from public.comenzi                                                                                                                  
+  where id = p_comanda_id                                                                                                              
+    and tenant_id = v_tenant_id                                                                                                        
+  for update;                                                                                                                          
+                                                                                                                                       
+  if not found then                                                                                                                    
+    raise exception 'Comanda este invalida pentru tenantul curent.';                                                                   
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_order.linked_vanzare_id is not null then                                                                                        
+    perform public.delete_vanzare_with_stock(v_order.linked_vanzare_id);                                                               
+  end if;                                                                                                                              
+                                                                                                                                       
+  delete from public.comenzi                                                                                                           
+  where id = v_order.id                                                                                                                
+    and tenant_id = v_tenant_id;                                                                                                       
+end;                                                                                                                                   
+$$;                                                                                                                                    
+                                                                                                                                       
+create or replace function public.reopen_comanda_atomic(                                                                               
+  p_comanda_id uuid,                                                                                                                   
+  p_tenant_id uuid default null                                                                                                        
+)                                                                                                                                      
+returns public.comenzi                                                                                                                 
+language plpgsql                                                                                                                       
+security definer                                                                                                                       
+set search_path = public                                                                                                               
+as $$                                                                                                                                  
+declare                                                                                                                                
+  v_user_id uuid := auth.uid();                                                                                                        
+  v_current_tenant_id uuid;                                                                                                            
+  v_tenant_id uuid;                                                                                                                    
+  v_order public.comenzi;                                                                                                              
+  v_reopened public.comenzi;                                                                                                           
+  v_reopen_status public.comanda_status;                                                                                               
+  v_blocking_children integer := 0;                                                                                                    
+begin                                                                                                                                  
+  if v_user_id is null then                                                                                                            
+    raise exception 'Neautorizat';                                                                                                     
+  end if;                                                                                                                              
+                                                                                                                                       
+  select public.current_tenant_id()                                                                                                    
+  into v_current_tenant_id;                                                                                                            
+                                                                                                                                       
+  if v_current_tenant_id is null then                                                                                                  
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  if p_tenant_id is not null and p_tenant_id <> v_current_tenant_id then                                                               
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  v_tenant_id := v_current_tenant_id;                                                                                                  
+                                                                                                                                       
+  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));                                              
+                                                                                                                                       
+  select *                                                                                                                             
+  into v_order                                                                                                                         
+  from public.comenzi                                                                                                                  
+  where id = p_comanda_id                                                                                                              
+    and tenant_id = v_tenant_id                                                                                                        
+  for update;                                                                                                                          
+                                                                                                                                       
+  if not found then                                                                                                                    
+    raise exception 'Comanda este invalida pentru tenantul curent.';                                                                   
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_order.status <> 'livrata' then                                                                                                  
+    raise exception 'Doar comenzile livrate pot fi redeschise.';                                                                       
+  end if;                                                                                                                              
+                                                                                                                                       
+  select count(*)                                                                                                                      
+  into v_blocking_children                                                                                                             
+  from public.comenzi child_order                                                                                                      
+  where child_order.tenant_id = v_tenant_id                                                                                            
+    and child_order.parent_comanda_id = v_order.id                                                                                     
+    and (                                                                                                                              
+      child_order.linked_vanzare_id is not null                                                                                        
+      or child_order.status = 'livrata'                                                                                                
+    );                                                                                                                                 
+                                                                                                                                       
+  if v_blocking_children > 0 then                                                                                                      
+    raise exception 'Comanda are livrari ulterioare si nu poate fi redeschisa.';                                                       
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_order.linked_vanzare_id is not null then                                                                                        
+    perform public.delete_vanzare_with_stock(v_order.linked_vanzare_id);                                                               
+  end if;                                                                                                                              
+                                                                                                                                       
+  delete from public.comenzi child_order                                                                                               
+  where child_order.tenant_id = v_tenant_id                                                                                            
+    and child_order.parent_comanda_id = v_order.id                                                                                     
+    and child_order.linked_vanzare_id is null;                                                                                         
+                                                                                                                                       
+  v_reopen_status := case                                                                                                              
+    when v_order.data_livrare is not null and v_order.data_livrare > current_date                                                      
+      then 'programata'::public.comanda_status                                                                                         
+    else 'confirmata'::public.comanda_status                                                                                           
+  end;                                                                                                                                 
+                                                                                                                                       
+  update public.comenzi                                                                                                                
+  set status = v_reopen_status,                                                                                                        
+      linked_vanzare_id = null,                                                                                                        
+      updated_at = now(),                                                                                                              
+      observatii = concat_ws(                                                                                                          
+        ' | ',                                                                                                                         
+        nullif(btrim(coalesce(v_order.observatii, '')), ''),                                                                           
+        'Comanda redeschisa'                                                                                                           
+      )                                                                                                                                
+  where id = v_order.id                                                                                                                
+    and tenant_id = v_tenant_id                                                                                                        
+  returning *                                                                                                                          
+  into v_reopened;                                                                                                                     
+                                                                                                                                       
+  return v_reopened;                                                                                                                   
+end;                                                                                                                                   
+$$;                                                                                                                                    
+                                                                                                                                       
+create or replace function public.update_vanzare_with_stock(                                                                           
+  p_vanzare_id uuid,                                                                                                                   
+  p_data date default null,                                                                                                            
+  p_client_id uuid default null,                                                                                                       
+  p_cantitate_kg numeric default null,                                                                                                 
+  p_pret_lei_kg numeric default null,                                                                                                  
+  p_status_plata text default null,                                                                                                    
+  p_observatii_ladite text default null,                                                                                               
+  p_tenant_id uuid default null                                                                                                        
+)                                                                                                                                      
+returns public.vanzari                                                                                                                 
+language plpgsql                                                                                                                       
+security definer                                                                                                                       
+set search_path = public                                                                                                               
+as $$                                                                                                                                  
+declare                                                                                                                                
+  v_user_id uuid := auth.uid();                                                                                                        
+  v_tenant_id uuid;                                                                                                                    
+  v_vanzare public.vanzari;                                                                                                            
+  v_existing_move public.miscari_stoc;                                                                                                 
+  v_existing_move_count integer := 0;                                                                                                  
+  v_old_qty numeric := 0;                                                                                                              
+  v_new_qty numeric := 0;                                                                                                              
+  v_new_price numeric := 0;                                                                                                            
+  v_delta numeric := 0;                                                                                                                
+  v_available_stock numeric := 0;                                                                                                      
+  v_move_quality text;                                                                                                                 
+  v_status_plata text;                                                                                                                 
+begin                                                                                                                                  
+  if v_user_id is null then                                                                                                            
+    raise exception 'Neautorizat';                                                                                                     
+  end if;                                                                                                                              
+                                                                                                                                       
+  select public.current_tenant_id()                                                                                                    
+  into v_tenant_id;                                                                                                                    
+                                                                                                                                       
+  if v_tenant_id is null then                                                                                                          
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  if p_tenant_id is not null and p_tenant_id <> v_tenant_id then                                                                       
+    raise exception 'Tenant invalid pentru utilizatorul curent.';                                                                      
+  end if;                                                                                                                              
+                                                                                                                                       
+  perform pg_advisory_xact_lock(hashtext('stock-mutation'), hashtext(v_tenant_id::text));                                              
+                                                                                                                                       
+  select *                                                                                                                             
+  into v_vanzare                                                                                                                       
+  from public.vanzari                                                                                                                  
+  where id = p_vanzare_id                                                                                                              
+    and tenant_id = v_tenant_id                                                                                                        
+  for update;                                                                                                                          
+                                                                                                                                       
+  if not found then                                                                                                                    
+    raise exception 'Vanzarea este invalida pentru tenantul curent.';                                                                  
+  end if;                                                                                                                              
+                                                                                                                                       
+  select count(*)::int                                                                                                                 
+  into v_existing_move_count                                                                                                           
+  from public.miscari_stoc ms                                                                                                          
+  where ms.tenant_id = v_tenant_id                                                                                                     
+    and ms.referinta_id = p_vanzare_id                                                                                                 
+    and (                                                                                                                              
+      ms.tip = 'vanzare'                                                                                                               
+      or ms.tip_miscare = 'vanzare'                                                                                                    
+    );                                                                                                                                 
+                                                                                                                                       
+  if v_existing_move_count = 0 then                                                                                                    
+    raise exception 'Miscarea de stoc asociata vanzarii lipseste.';                                                                    
+  end if;                                                                                                                              
+                                                                                                                                       
+  select *                                                                                                                             
+  into v_existing_move                                                                                                                 
+  from public.miscari_stoc ms                                                                                                          
+  where ms.tenant_id = v_tenant_id                                                                                                     
+    and ms.referinta_id = p_vanzare_id                                                                                                 
+    and (                                                                                                                              
+      ms.tip = 'vanzare'                                                                                                               
+      or ms.tip_miscare = 'vanzare'                                                                                                    
+    )                                                                                                                                  
+  order by ms.created_at asc                                                                                                           
+  limit 1                                                                                                                              
+  for update;                                                                                                                          
+                                                                                                                                       
+  v_old_qty := round(coalesce(v_vanzare.cantitate_kg, 0)::numeric, 2);                                                                 
+  v_new_qty := round(greatest(coalesce(p_cantitate_kg, v_vanzare.cantitate_kg, 0), 0)::numeric, 2);                                    
+  v_new_price := round(greatest(coalesce(p_pret_lei_kg, v_vanzare.pret_lei_kg, 0), 0)::numeric, 2);                                    
+  v_delta := round((v_new_qty - v_old_qty)::numeric, 2);                                                                               
+                                                                                                                                       
+  if v_new_qty <= 0 then                                                                                                               
+    raise exception 'Cantitatea trebuie sa fie mai mare decat 0.';                                                                     
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_new_price <= 0 then                                                                                                             
+    raise exception 'Pretul trebuie sa fie mai mare decat 0.';                                                                         
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_existing_move_count > 1 and v_delta <> 0 then                                                                                   
+    raise exception 'Cantitatea nu poate fi editata pentru vanzarile provenite din livrari cu mai multe alocari de stoc.';             
+  end if;                                                                                                                              
+                                                                                                                                       
+  if v_delta > 0 then                                                                                                                  
+    if v_existing_move.locatie_id is not null                                                                                          
+      and v_existing_move.produs is not null                                                                                           
+      and v_existing_move.calitate is not null                                                                                         
+      and v_existing_move.depozit is not null then                                                                                     
+      select coalesce(                                                                                                                 
+        sum(                                                                                                                           
+          case                                                                                                                         
+            when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)              
+            else coalesce(ms.cantitate_kg, 0)                                                                                          
+          end                                                                                                                          
+        ),                                                                                                                             
+        0                                                                                                                              
+      )                                                                                                                                
+      into v_available_stock                                                                                                           
+      from public.miscari_stoc ms                                                                                                      
+      where ms.tenant_id = v_tenant_id                                                                                                 
+        and ms.locatie_id = v_existing_move.locatie_id                                                                                 
+        and ms.produs = v_existing_move.produs                                                                                         
+        and ms.calitate = v_existing_move.calitate                                                                                     
+        and ms.depozit = v_existing_move.depozit                                                                                       
+        and ms.tip_miscare is not null                                                                                                 
+        and ms.cantitate_kg is not null;                                                                                               
+    else                                                                                                                               
+      select coalesce(                                                                                                                 
+        sum(                                                                                                                           
+          case                                                                                                                         
+            when ms.tip_miscare in ('vanzare', 'consum', 'oferit_gratuit', 'pierdere') then -coalesce(ms.cantitate_kg, 0)              
+            else coalesce(ms.cantitate_kg, 0)                                                                                          
+          end                                                                                                                          
+        ),                                                                                                                             
+        0                                                                                                                              
+      )                                                                                                                                
+      into v_available_stock                                                                                                           
+      from public.miscari_stoc ms                                                                                                      
+      where ms.tenant_id = v_tenant_id                                                                                                 
+        and ms.tip_miscare is not null                                                                                                 
+        and ms.cantitate_kg is not null;                                                                                               
+    end if;                                                                                                                            
+                                                                                                                                       
+    if round(v_available_stock::numeric, 2) < v_delta then                                                                             
+      raise exception 'Stoc insuficient pentru a mari vanzarea.';                                                                      
+    end if;                                                                                                                            
+  end if;                                                                                                                              
+                                                                                                                                       
+  v_status_plata := coalesce(                                                                                                          
+    nullif(btrim(coalesce(p_status_plata, '')), ''),                                                                                   
+    nullif(btrim(coalesce(v_vanzare.status_plata, '')), ''),                                                                           
+    'platit'                                                                                                                           
+  );                                                                                                                                   
+                                                                                                                                       
+  update public.vanzari                                                                                                                
+  set data = coalesce(p_data, v_vanzare.data),                                                                                         
+      client_id = coalesce(p_client_id, v_vanzare.client_id),                                                                          
+      cantitate_kg = v_new_qty,                                                                                                        
+      pret_lei_kg = v_new_price,                                                                                                       
+      status_plata = v_status_plata,                                                                                                   
+      observatii_ladite = coalesce(                                                                                                    
+        nullif(btrim(coalesce(p_observatii_ladite, '')), ''),                                                                          
+        v_vanzare.observatii_ladite                                                                                                    
+      ),                                                                                                                               
+      updated_at = now(),                                                                                                              
+      updated_by = v_user_id                                                                                                           
+  where id = p_vanzare_id                                                                                                              
+    and tenant_id = v_tenant_id                                                                                                        
+  returning *                                                                                                                          
+  into v_vanzare;                                                                                                                      
+                                                                                                                                       
+  if v_existing_move_count = 1 then                                                                                                    
+    v_move_quality := coalesce(                                                                                                        
+      v_existing_move.calitate,                                                                                                        
+      case                                                                                                                             
+        when coalesce(v_existing_move.cantitate_cal2, 0) <> 0 then 'cal2'                                                              
+        else 'cal1'                                                                                                                    
+      end                                                                                                                              
+    );                                                                                                                                 
+                                                                                                                                       
+    update public.miscari_stoc                                                                                                         
+    set tenant_id = v_tenant_id,                                                                                                       
+        locatie_id = v_existing_move.locatie_id,                                                                                       
+        produs = v_existing_move.produs,                                                                                               
+        calitate = v_existing_move.calitate,                                                                                           
+        depozit = v_existing_move.depozit,                                                                                             
+        tip = 'vanzare',                                                                                                               
+        tip_miscare = 'vanzare',                                                                                                       
+        cantitate_kg = v_new_qty,                                                                                                      
+        cantitate_cal1 = case when v_move_quality = 'cal2' then 0 else -v_new_qty end,                                                 
+        cantitate_cal2 = case when v_move_quality = 'cal2' then -v_new_qty else 0 end,                                                 
+        referinta_id = v_vanzare.id,                                                                                                   
+        data = coalesce(p_data, v_existing_move.data, v_vanzare.data),                                                                 
+        observatii = coalesce(v_existing_move.observatii, 'Scadere stoc la vanzare'),                                                  
+        descriere = coalesce(v_existing_move.descriere, 'Scadere stoc la vanzare')                                                     
+    where id = v_existing_move.id;                                                                                                     
+  else                                                                                                                                 
+    update public.miscari_stoc                                                                                                         
+    set tenant_id = v_tenant_id,                                                                                                       
+        tip = 'vanzare',                                                                                                               
+        tip_miscare = 'vanzare',                                                                                                       
+        referinta_id = v_vanzare.id,                                                                                                   
+        data = coalesce(p_data, data),                                                                                                 
+        observatii = coalesce(observatii, 'Consum stoc prin livrare comanda'),                                                         
+        descriere = coalesce(descriere, 'Consum stoc prin livrare comanda')                                                            
+    where tenant_id = v_tenant_id                                                                                                      
+      and referinta_id = p_vanzare_id                                                                                                  
+      and (                                                                                                                            
+        tip = 'vanzare'                                                                                                                
+        or tip_miscare = 'vanzare'                                                                                                     
+      );                                                                                                                               
+  end if;                                                                                                                              
+                                                                                                                                       
+  return v_vanzare;                                                                                                                    
+end;                                                                                                                                   
+$$;                                                                                                                                    
+                                                                                                                                       
+notify pgrst, 'reload schema';                                                                                                         

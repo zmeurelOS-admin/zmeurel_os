@@ -295,7 +295,7 @@ export function AssociationShopClient({ products }: { products: AssociationProdu
 
   const addFromDetail = () => {
     if (!detailProduct) return
-    const q = Math.max(0.01, Number(String(qtyDraft).replace(',', '.')) || 0)
+    const q = Math.max(1, Math.floor(Number(String(qtyDraft).replace(',', '.')) || 0))
     setCart((prev) => ({
       ...prev,
       [detailProduct.id]: (prev[detailProduct.id] ?? 0) + q,
@@ -304,7 +304,7 @@ export function AssociationShopClient({ products }: { products: AssociationProdu
   }
 
   const addQuick = (p: AssociationProduct) => {
-    const step = p.unitate_vanzare === 'buc' ? 1 : 0.5
+    const step = 1
     setCart((prev) => ({
       ...prev,
       [p.id]: (prev[p.id] ?? 0) + step,
@@ -480,7 +480,7 @@ export function AssociationShopClient({ products }: { products: AssociationProdu
                     </p>
                     <ul className="space-y-2 border-l-2 pl-3" style={{ borderColor: `${M.green}33` }}>
                       {group.lines.map(({ product: p, qty }) => {
-                        const step = p.unitate_vanzare === 'buc' ? 1 : 0.5
+                        const step = 1
                         return (
                           <li
                             key={p.id}

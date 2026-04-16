@@ -1,0 +1,83 @@
+name: E2E Checkout Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase local
+        run: supabase start
+        timeout-minutes: 10
+
+      - name: Extract Supabase keys
+        run: |
+          STATUS_JSON=$(supabase status --output json)
+          printf '%s' "$STATUS_JSON" > supabase-status.json
+          node -e "
+            const fs = require('fs');
+            const s = JSON.parse(fs.readFileSync('supabase-status.json','utf8'));
+            const url = s.API_URL || s.api_url;
+            const anon = s.ANON_KEY || s.PUBLISHABLE_KEY;
+            const service = s.SERVICE_ROLE_KEY || s.SECRET_KEY;
+            fs.appendFileSync(process.env.GITHUB_ENV,
+              'NEXT_PUBLIC_SUPABASE_URL=' + url + '\n' +
+              'NEXT_PUBLIC_SUPABASE_ANON_KEY=' + anon + '\n' +
+              'SUPABASE_SERVICE_ROLE_KEY=' + service + '\n' +
+              'PLAYWRIGHT_BASE_URL=http://localhost:3000\n'
+            );
+            console.log('URL:', url);
+            console.log('Anon extracted:', anon ? 'yes' : 'NO');
+            console.log('Service extracted:', service ? 'yes' : 'NO');
+          "
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Next.js app
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: Start Next.js server
+        run: npm start &
+        env:
+          PORT: 3000
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 30000
+
+      - name: Run E2E checkout tests
+        run: npm run test:e2e:checkout
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+          PLAYWRIGHT_BASE_URL: ${{ env.PLAYWRIGHT_BASE_URL }}
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop

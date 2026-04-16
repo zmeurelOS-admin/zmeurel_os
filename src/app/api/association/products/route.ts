@@ -14,9 +14,23 @@ const patchBodySchema = z
   .object({
     productId: z.string().uuid(),
     association_listed: z.boolean().optional(),
+    association_category: z
+      .enum([
+        'fructe_legume',
+        'lactate_branzeturi',
+        'carne_mezeluri',
+        'miere_apicole',
+        'conserve_muraturi',
+        'panificatie_patiserie',
+        'bauturi',
+        'oua',
+        'altele',
+      ])
+      .nullable()
+      .optional(),
     association_price: z.number().nonnegative().nullable().optional(),
   })
-  .refine((b) => b.association_listed !== undefined || b.association_price !== undefined, {
+  .refine((b) => b.association_listed !== undefined || b.association_price !== undefined || b.association_category !== undefined, {
     message: 'Cel puțin un câmp trebuie trimis.',
   })
 
@@ -53,7 +67,7 @@ export async function PATCH(request: Request) {
       return apiError(400, 'INVALID_BODY', 'Date invalide.')
     }
 
-    const { productId, association_listed, association_price } = parsed.data
+    const { productId, association_listed, association_category, association_price } = parsed.data
     productIdForSentry = productId
 
     const { data: existing, error: fetchErr } = await supabase
@@ -61,6 +75,7 @@ export async function PATCH(request: Request) {
       .select(
         `
         id,
+        association_category,
         tenant_id,
         tenants!inner ( is_association_approved, is_demo )
       `
@@ -82,9 +97,28 @@ export async function PATCH(request: Request) {
       return apiError(403, 'FORBIDDEN', 'Produsul nu aparține unui fermier real aprobat în asociație.')
     }
 
+    if (association_listed === true && existing.tenant_id) {
+      const { data: legalDocsComplete, error: legalError } = await supabase.rpc('is_legal_docs_complete', {
+        p_tenant_id: existing.tenant_id,
+      })
+
+      if (legalError) {
+        return apiError(400, 'LEGAL_DOCS_CHECK_FAILED', 'Nu am putut verifica documentele legale ale fermierului.')
+      }
+
+      if (legalDocsComplete !== true) {
+        return apiError(403, 'LEGAL_DOCS_INCOMPLETE', 'Documente incomplete')
+      }
+    }
+
+    const effectiveAssociationCategory = association_category ?? existing.association_category ?? null
+    if (association_listed === true && !effectiveAssociationCategory) {
+      return apiError(400, 'CATEGORY_REQUIRED', 'Alege mai întâi categoria produsului pentru magazinul asociației.')
+    }
+
     const updatePayload: Pick<
       Database['public']['Tables']['produse']['Update'],
-      'association_listed' | 'association_price' | 'updated_at'
+      'association_listed' | 'association_category' | 'association_price' | 'updated_at'
     > = {
       updated_at: new Date().toISOString(),
     }
@@ -94,6 +128,9 @@ export async function PATCH(request: Request) {
     }
     if (association_price !== undefined) {
       updatePayload.association_price = association_price
+    }
+    if (association_category !== undefined) {
+      updatePayload.association_category = association_category
     }
 
     const { data: updated, error: upErr } = await supabase

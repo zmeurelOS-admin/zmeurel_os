@@ -110,6 +110,7 @@ function mapLegacyToGlobalTip(tipMiscare?: TipMiscareStoc): TipMiscareStocGlobal
   return 'corectie'
 }
 
+// @deprecated - dead code. Use atomic RPC functions instead. Do not call directly.
 export async function insertMiscareStoc(input: InsertMiscareStocInput): Promise<MiscareStoc> {
   const supabase = getSupabase()
   const tenantId = input.tenant_id ?? (await getTenantId(supabase))
@@ -172,6 +173,7 @@ export async function insertMiscareStoc(input: InsertMiscareStocInput): Promise<
   return data
 }
 
+// @deprecated - dead code. Use atomic RPC functions instead. Do not call directly.
 export async function deleteMiscariStocByReference(
   referintaId: string,
   tipMiscare?: TipMiscareStoc

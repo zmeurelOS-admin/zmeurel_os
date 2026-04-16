@@ -51,6 +51,7 @@ export type AssociationOrderLine = {
   produsId: string | null
   tenantId: string | null
   productName: string
+  unitLabel: string
   farmName: string | null
   qtyKg: number
   unitPriceLei: number
@@ -62,9 +63,10 @@ export type AssociationOrderLine = {
 
 export type AssociationOrder = AssociationOrderRow & {
   clientName: string | null
+  customerNote: string | null
   localitate: string | null
   farmName: string | null
-  produs: Pick<ProduseRow, 'id' | 'nume' | 'pret_unitar'> | null
+  produs: Pick<ProduseRow, 'id' | 'nume' | 'pret_unitar' | 'unitate_vanzare'> | null
   lineCount: number
   subtotalLei: number
   deliveryFeeLei: number
@@ -78,6 +80,7 @@ export type AssociationProducer = {
   id: string
   nume_ferma: string
   is_association_approved: boolean | null
+  legalDocsComplete: boolean
   descriere_publica: string | null
   email_public: string | null
   facebook: string | null
@@ -291,11 +294,12 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
       observatii,
       note_interne,
       canal_confirmare,
+      customer_snapshot,
       created_at,
       updated_at,
       linked_vanzare_id,
       data_origin,
-      produse ( id, nume, pret_unitar ),
+      produse ( id, nume, pret_unitar, unitate_vanzare ),
       clienti ( nume_client, telefon, adresa ),
       tenants ( nume_ferma )
     `
@@ -318,7 +322,12 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
 
   for (const raw of data) {
     const r = raw as unknown as AssociationOrderRow & {
-      produse: Pick<ProduseRow, 'id' | 'nume' | 'pret_unitar'> | null
+      customer_snapshot:
+        | {
+            observatii?: string | null
+          }
+        | null
+      produse: Pick<ProduseRow, 'id' | 'nume' | 'pret_unitar' | 'unitate_vanzare'> | null
       clienti: {
         nume_client: string
         telefon: string | null
@@ -336,6 +345,13 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
     const clientName = cli?.nume_client ?? r.client_nume_manual ?? null
     const phone = r.telefon ?? cli?.telefon ?? null
     const localitate = r.locatie_livrare ?? cli?.adresa ?? null
+    const customerNote =
+      r.customer_snapshot &&
+      typeof r.customer_snapshot === 'object' &&
+      typeof r.customer_snapshot.observatii === 'string' &&
+      r.customer_snapshot.observatii.trim().length > 0
+        ? r.customer_snapshot.observatii.trim()
+        : null
     const groupKey = [
       phone ?? '',
       r.data_comanda,
@@ -348,6 +364,7 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
       produsId: r.produs_id,
       tenantId: r.tenant_id,
       productName: produs?.nume?.trim() || 'Produs',
+      unitLabel: produs?.unitate_vanzare?.trim() || 'kg',
       farmName: tnt?.nume_ferma ?? null,
       qtyKg: Number(r.cantitate_kg || 0),
       unitPriceLei: Number(r.pret_per_kg || produs?.pret_unitar || 0),
@@ -389,6 +406,7 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
           linked_vanzare_id: r.linked_vanzare_id,
           data_origin: r.data_origin,
           clientName,
+          customerNote,
           localitate,
           farmName: tnt?.nume_ferma ?? null,
           produs: produs ?? null,
@@ -419,6 +437,9 @@ export async function getAssociationOrders(): Promise<AssociationOrder[]> {
     existing.base.farmName = farms.size > 0 ? [...farms].join(', ') : existing.base.farmName
     if (!existing.base.note_interne && r.note_interne) {
       existing.base.note_interne = r.note_interne
+    }
+    if (!existing.base.customerNote && customerNote) {
+      existing.base.customerNote = customerNote
     }
     if (!existing.base.canal_confirmare && r.canal_confirmare) {
       existing.base.canal_confirmare = r.canal_confirmare
@@ -491,6 +512,12 @@ export async function getAssociationProducers(): Promise<AssociationProducer[]> 
     ),
   ]
 
+  const { data: legalStatusRows } = await supabase.rpc('list_association_farmer_legal_status')
+  const legalDocsByTenant = new Map<string, boolean>()
+  for (const row of (legalStatusRows ?? []) as Array<{ tenant_id: string; legal_docs_complete: boolean | null }>) {
+    legalDocsByTenant.set(row.tenant_id, row.legal_docs_complete === true)
+  }
+
   const emailByUserId = new Map<string, string>()
   const memberByUserId = new Map<string, { id: string; role: AssociationProducerRole }>()
 
@@ -529,6 +556,7 @@ export async function getAssociationProducers(): Promise<AssociationProducer[]> 
         id: t.id,
         nume_ferma: t.nume_ferma ?? '',
         is_association_approved: t.is_association_approved,
+        legalDocsComplete: legalDocsByTenant.get(t.id) === true,
         descriere_publica: t.descriere_publica ?? null,
         email_public: t.email_public ?? null,
         facebook: t.facebook ?? null,
@@ -573,6 +601,7 @@ export async function getAssociationProducers(): Promise<AssociationProducer[]> 
       id: t.id,
       nume_ferma: t.nume_ferma ?? '',
       is_association_approved: t.is_association_approved,
+      legalDocsComplete: legalDocsByTenant.get(t.id) === true,
       descriere_publica: t.descriere_publica ?? null,
       email_public: t.email_public ?? null,
       facebook: t.facebook ?? null,

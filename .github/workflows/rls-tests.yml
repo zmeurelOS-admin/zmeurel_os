@@ -1,0 +1,44 @@
+name: RLS Tenant Isolation Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rls-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase local
+        run: supabase start
+        timeout-minutes: 10
+
+      - name: Extract Supabase local keys
+        run: |
+          STATUS_JSON=$(supabase status --output json)
+          echo "Supabase status output captured"
+          printf '%s' "$STATUS_JSON" > supabase-status.json
+          node -e "const fs=require('fs'); const status=JSON.parse(fs.readFileSync('supabase-status.json','utf8')); const testUrl=status.API_URL || status.api_url; const anonKey=status.ANON_KEY || status.PUBLISHABLE_KEY || status.anon_key || status.publishable; const adminKey=status.SERVICE_ROLE_KEY || status.SECRET_KEY || status.service_role_key || status.secret; fs.appendFileSync(process.env.GITHUB_ENV, `SUPABASE_TEST_URL=${testUrl}\n`); fs.appendFileSync(process.env.GITHUB_ENV, `SUPABASE_TEST_ANON_KEY=${anonKey}\n`); fs.appendFileSync(process.env.GITHUB_ENV, `SUPABASE_TEST_SERVICE_ROLE_KEY=${adminKey}\n`); console.log(`Test URL: ${testUrl}`); console.log(`Anon key extracted: ${anonKey ? 'yes' : 'NO - MISSING'}`); console.log(`Admin key extracted: ${adminKey ? 'yes' : 'NO - MISSING'}`);"
+
+      - name: Run RLS tests
+        run: npm run test:rls
+
+      - name: Stop Supabase local
+        if: always()
+        run: supabase stop

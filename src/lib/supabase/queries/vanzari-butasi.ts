@@ -394,7 +394,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
     .single()
 
   if (error) {
-    console.error('[DEBUG] createVanzareButasi main insert error:', error)
+    
     throw toReadableError(error, 'Nu am putut salva comanda de butasi.')
   }
 
@@ -411,14 +411,14 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
   const { error: itemsError } = await supabase.from('vanzari_butasi_items').insert(itemsPayload)
 
   if (itemsError) {
-    console.error('[DEBUG] createVanzareButasi items insert error:', itemsError)
+    
     const { error: rollbackError } = await supabase
       .from('vanzari_butasi')
       .delete()
       .eq('id', comandaId)
       .eq('tenant_id', tenantId)
     if (rollbackError) {
-      console.error('[DEBUG] createVanzareButasi rollback delete error:', rollbackError)
+      
     }
     throw toReadableError(itemsError, 'Nu am putut salva produsele comenzii de butasi.')
   }

@@ -3,6 +3,7 @@ import { Baloo_2, Inter } from 'next/font/google'
 
 import { AssociationMagazinRoot } from '@/components/shop/association/AssociationMagazinRoot'
 import { CookieConsentBanner } from '@/components/shop/association/legal/CookieConsentBanner'
+import { loadAssociationCategoryDefinitionsCached } from '@/lib/association/public-categories'
 import { loadAssociationSettingsCached } from '@/lib/association/public-settings'
 import { loadAssociationCatalogCached } from '@/lib/shop/load-association-catalog'
 
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
     type: 'website',
     description:
       'Magazin online al Asociației Gustă din Bucovina — produse locale din Suceava.',
-    images: [{ url: '/images/gusta-logo.png', alt: 'Gustă din Bucovina' }],
+    images: [{ url: '/images/asociatie/logo_hero_pe_verde.png', alt: 'Gustă din Bucovina' }],
   },
 }
 
@@ -44,14 +45,21 @@ const inter = Inter({
 })
 
 export default async function AsociatieMagazinLayout({ children }: { children: React.ReactNode }) {
-  const products = await loadAssociationCatalogCached()
-  const publicSettings = await loadAssociationSettingsCached()
+  const [products, publicSettings, categoryDefinitions] = await Promise.all([
+    loadAssociationCatalogCached(),
+    loadAssociationSettingsCached(),
+    loadAssociationCategoryDefinitionsCached(),
+  ])
   return (
     <div
       className={`${baloo.className} ${baloo.variable} ${inter.variable} assoc-root assoc-body light`}
       data-theme="light"
     >
-      <AssociationMagazinRoot products={products} publicSettings={publicSettings}>
+      <AssociationMagazinRoot
+        products={products}
+        publicSettings={publicSettings}
+        categoryDefinitions={categoryDefinitions}
+      >
         {children}
       </AssociationMagazinRoot>
       <CookieConsentBanner />

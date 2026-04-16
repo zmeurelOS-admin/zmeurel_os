@@ -65,3 +65,4 @@ lint-result.txt
 tsc-result.txt
 /npx
 /zmeurel-audit-stage-20260330-151422/
+supabase-status.json

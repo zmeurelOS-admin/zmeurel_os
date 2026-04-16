@@ -12,12 +12,11 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { gustaBrandColors, gustaBrandShadows, gustaPrimaryTints } from '@/lib/shop/association/brand-tokens'
 import { getAmountUntilFreeDelivery, getDeliveryFee } from '@/lib/shop/association/delivery'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
-import { formatQuantityForDisplay, getQuantityStep } from '@/lib/shop/utils'
+import { formatQuantityForDisplay } from '@/lib/shop/utils'
 import { cn } from '@/lib/utils'
 
 import { GustCheckoutForm } from './GustCheckoutForm'
 import type { GustCartItem, GustCheckoutSuccess } from './gustCartTypes'
-import { qtyStepForUnit } from './gustCartTypes'
 
 const MD = '(min-width: 768px)'
 const ANIM_MS = 400
@@ -208,12 +207,8 @@ export function GustCartSheet({
                         key={it.id}
                         item={it}
                         imageUrls={getProductImageUrls?.(it.id)}
-                        onMinus={() => {
-                          const { step: qtyStep, min } = getQuantityStep(it.unit)
-                          const nextQty = it.qty - qtyStep
-                          onAdjustQty(it.id, nextQty < min ? -it.qty : -qtyStep)
-                        }}
-                        onPlus={() => onAdjustQty(it.id, qtyStepForUnit(it.unit))}
+                        onMinus={() => onAdjustQty(it.id, -1)}
+                        onPlus={() => onAdjustQty(it.id, 1)}
                       />
                     ))}
                   </ul>
@@ -321,6 +316,7 @@ function GustCartLineRow({
   }
   const urls = imageUrls ?? collectProductImageUrls(stub)
   const first = urls[0]
+  const qty = Math.max(1, Math.round(it.qty))
 
   return (
     <li
@@ -380,7 +376,7 @@ function GustCartLineRow({
             className="min-w-[2.5rem] text-center text-sm font-bold tabular-nums"
             style={{ color: gustaBrandColors.text }}
           >
-            {formatQuantityForDisplay(it.qty, it.unit)}
+            {formatQuantityForDisplay(qty, it.unit)}
           </span>
           <button
             type="button"

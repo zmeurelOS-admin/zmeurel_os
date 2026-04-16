@@ -2,6 +2,14 @@
  * Livrare magazin asociație: miercuri, prag 150 lei, cutoff marți 12:00 Europe/Bucharest.
  */
 
+import {
+  ASSOCIATION_DAY_IDS,
+  ASSOCIATION_DAY_LABELS,
+  DEFAULT_ASSOCIATION_SETTINGS,
+  type AssociationDayId,
+  type AssociationPublicSettings,
+} from '@/lib/association/public-settings'
+
 export const DELIVERY_FEE_LEI = 15
 export const FREE_DELIVERY_THRESHOLD_LEI = 150
 export const TIMEZONE_BUCHAREST = 'Europe/Bucharest'
@@ -41,12 +49,22 @@ function bucharestMinutesSinceMidnight(now: Date): number {
   return h * 60 + min
 }
 
-/**
- * Data calendaristică (YYYY-MM-DD) a următoarei livrări miercuri.
- * - Înainte de marți 12:00 → miercurea din aceeași „săptămână” de livrare.
- * - După marți 12:00 → miercurea din săptămâna următoare (nu cea imediat următoare dacă e deja trecută față de cutoff).
- */
-export function getNextDeliveryDateIso(now: Date = new Date()): string {
+const DAY_TO_UTC_DOW: Record<AssociationDayId, number> = {
+  luni: 1,
+  marti: 2,
+  miercuri: 3,
+  joi: 4,
+  vineri: 5,
+  sambata: 6,
+  duminica: 0,
+}
+
+function normalizeDeliveryDays(days?: readonly AssociationDayId[] | null): AssociationDayId[] {
+  const normalized = [...new Set((days ?? []).filter((day): day is AssociationDayId => ASSOCIATION_DAY_IDS.includes(day)))]
+  return normalized.length > 0 ? normalized : [...DEFAULT_ASSOCIATION_SETTINGS.deliveryDays]
+}
+
+function legacyWednesdayDeliveryDateIso(now: Date): string {
   const ymd = bucharestYmdFromInstant(now)
   const dow = dowFromYmd(ymd.y, ymd.m, ymd.d)
   const mins = bucharestMinutesSinceMidnight(now)
@@ -66,6 +84,92 @@ export function getNextDeliveryDateIso(now: Date = new Date()): string {
       6: 4,
     }
     addDays = afterCutoff[dow] ?? 7
+  }
+
+  const target = addDaysToYmd(ymd, addDays)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${target.y}-${pad(target.m)}-${pad(target.d)}`
+}
+
+function isLegacyWednesdayOnlyConfig(days: readonly AssociationDayId[]): boolean {
+  return days.length === 1 && days[0] === 'miercuri'
+}
+
+export function getAssociationDeliveryDays(settings?: Pick<AssociationPublicSettings, 'deliveryDays'> | null): AssociationDayId[] {
+  return normalizeDeliveryDays(settings?.deliveryDays)
+}
+
+export function isAssociationDeliveryDayToday(
+  settings?: Pick<AssociationPublicSettings, 'deliveryDays'> | null,
+  now: Date = new Date(),
+): boolean {
+  const ymd = bucharestYmdFromInstant(now)
+  const dow = dowFromYmd(ymd.y, ymd.m, ymd.d)
+  return getAssociationDeliveryDays(settings).some((day) => DAY_TO_UTC_DOW[day] === dow)
+}
+
+export function getNextAssociationDeliveryDayId(
+  settings?: Pick<AssociationPublicSettings, 'deliveryDays'> | null,
+  now: Date = new Date(),
+  options?: { includeToday?: boolean },
+): AssociationDayId {
+  const days = getAssociationDeliveryDays(settings)
+  const ymd = bucharestYmdFromInstant(now)
+  const dow = dowFromYmd(ymd.y, ymd.m, ymd.d)
+  const startOffset = options?.includeToday ? 0 : 1
+
+  for (let offset = startOffset; offset < 14; offset += 1) {
+    const candidateDow = (dow + offset) % 7
+    const dayId = days.find((day) => DAY_TO_UTC_DOW[day] === candidateDow)
+    if (dayId) {
+      return dayId
+    }
+  }
+
+  return days[0] ?? DEFAULT_ASSOCIATION_SETTINGS.deliveryDays[0]
+}
+
+export function getNextAssociationDeliveryDayLabel(
+  settings?: Pick<AssociationPublicSettings, 'deliveryDays'> | null,
+  now: Date = new Date(),
+  options?: { includeToday?: boolean },
+): string {
+  return ASSOCIATION_DAY_LABELS[getNextAssociationDeliveryDayId(settings, now, options)]
+}
+
+export function getAssociationDeliveryCutoffText(
+  settings?: Pick<AssociationPublicSettings, 'deliveryCutoffText'> | null,
+): string {
+  return settings?.deliveryCutoffText?.trim() || DEFAULT_ASSOCIATION_SETTINGS.deliveryCutoffText
+}
+
+/**
+ * Data calendaristică (YYYY-MM-DD) a următoarei livrări miercuri.
+ * - Înainte de marți 12:00 → miercurea din aceeași „săptămână” de livrare.
+ * - După marți 12:00 → miercurea din săptămâna următoare (nu cea imediat următoare dacă e deja trecută față de cutoff).
+ */
+export function getNextDeliveryDateIso(
+  nowOrSettings?: Date | Pick<AssociationPublicSettings, 'deliveryDays'> | null,
+  maybeNow?: Date,
+): string {
+  const now = nowOrSettings instanceof Date ? nowOrSettings : maybeNow ?? new Date()
+  const settings = nowOrSettings instanceof Date ? null : nowOrSettings
+  const deliveryDays = getAssociationDeliveryDays(settings)
+
+  if (isLegacyWednesdayOnlyConfig(deliveryDays)) {
+    return legacyWednesdayDeliveryDateIso(now)
+  }
+
+  const ymd = bucharestYmdFromInstant(now)
+  const dow = dowFromYmd(ymd.y, ymd.m, ymd.d)
+  let addDays = 1
+
+  for (let offset = 1; offset < 14; offset += 1) {
+    const candidateDow = (dow + offset) % 7
+    if (deliveryDays.some((day) => DAY_TO_UTC_DOW[day] === candidateDow)) {
+      addDays = offset
+      break
+    }
   }
 
   const target = addDaysToYmd(ymd, addDays)

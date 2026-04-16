@@ -29,8 +29,10 @@ const produsSchema = z.object({
   nume: z.string().trim().min(1, 'Numele este obligatoriu'),
   descriere: z.string().optional(),
   categorie: z.enum(CATEGORII_PRODUSE),
-  unitate_vanzare: z.enum(UNITATI_VANZARE),
+  unitate_vanzare: z.string().trim().min(1, 'Unitatea este obligatorie'),
+  unitate_vanzare_custom: z.string().optional(),
   gramaj_per_unitate: z.string().optional(),
+  approximate_weight: z.string().optional(),
   pret_unitar: z.string().optional(),
   status: z.enum(['activ', 'inactiv']),
 })
@@ -75,7 +77,9 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
       descriere: '',
       categorie: 'fruct',
       unitate_vanzare: 'kg',
+      unitate_vanzare_custom: '',
       gramaj_per_unitate: '',
+      approximate_weight: '',
       pret_unitar: '',
       status: 'activ',
     },
@@ -86,6 +90,7 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
   const wUnit = useWatch({ control: form.control, name: 'unitate_vanzare' })
   const wPret = useWatch({ control: form.control, name: 'pret_unitar' })
   const wGramaj = useWatch({ control: form.control, name: 'gramaj_per_unitate' })
+  const wApprox = useWatch({ control: form.control, name: 'approximate_weight' })
   const wStatus = useWatch({ control: form.control, name: 'status' })
   const wDesc = useWatch({ control: form.control, name: 'descriere' })
 
@@ -104,7 +109,9 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
       descriere: produs.descriere ?? '',
       categorie: produs.categorie,
       unitate_vanzare: produs.unitate_vanzare,
+      unitate_vanzare_custom: '',
       gramaj_per_unitate: produs.gramaj_per_unitate != null ? String(produs.gramaj_per_unitate) : '',
+      approximate_weight: produs.approximate_weight ?? '',
       pret_unitar: produs.pret_unitar != null ? String(produs.pret_unitar) : '',
       status: produs.status,
     })
@@ -177,8 +184,12 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
         nume: data.nume,
         descriere: data.descriere || null,
         categorie: data.categorie,
-        unitate_vanzare: data.unitate_vanzare,
+        unitate_vanzare:
+          data.unitate_vanzare === 'altul'
+            ? (data.unitate_vanzare_custom?.trim() || data.unitate_vanzare)
+            : data.unitate_vanzare,
         gramaj_per_unitate: data.gramaj_per_unitate ? Number(data.gramaj_per_unitate) : null,
+        approximate_weight: data.approximate_weight?.trim() || null,
         pret_unitar: data.pret_unitar ? Number(data.pret_unitar) : null,
         status: data.status,
         ...photoUpdates,
@@ -189,7 +200,7 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
     } catch (err) {
       console.error('Error updating produs:', err)
       hapticError()
-      toast.error('Eroare la salvare.')
+      toast.error(err instanceof Error ? err.message : 'Eroare la salvare.')
     } finally {
       setIsSubmitting(false)
     }
@@ -244,14 +255,22 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
             <FormDialogSection label="Comercial">
               <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit_produs_unit">Unitate</Label>
+                  <Label htmlFor="edit_produs_unit">unit_label</Label>
                   <select id="edit_produs_unit" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('unitate_vanzare')}>
                     {UNITATI_VANZARE.map((u) => (
                       <option key={u} value={u}>
                         {u}
                       </option>
                     ))}
+                    <option value="altul">Altul</option>
                   </select>
+                  {wUnit === 'altul' ? (
+                    <Input
+                      className="agri-control h-12 md:h-11"
+                      placeholder="ex: borcan, casetă, sticlă"
+                      {...form.register('unitate_vanzare_custom')}
+                    />
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit_produs_pret">Preț unitar (lei)</Label>
@@ -266,15 +285,12 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="edit_produs_gramaj">Gramaj / unitate (g), opțional</Label>
+                  <Label htmlFor="edit_produs_approx">approximate_weight</Label>
                   <Input
-                    id="edit_produs_gramaj"
-                    type="number"
-                    inputMode="decimal"
-                    step="1"
-                    min="0"
+                    id="edit_produs_approx"
                     className="agri-control h-12 md:h-11 md:max-w-md"
-                    {...form.register('gramaj_per_unitate')}
+                    placeholder="ex: ~300g"
+                    {...form.register('approximate_weight')}
                   />
                 </div>
               </div>
@@ -326,6 +342,12 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
                   <div>
                     <dt className="text-xs font-medium text-[var(--text-tertiary)]">Gramaj</dt>
                     <dd className="mt-0.5 text-[var(--text-primary)]">{wGramaj} g</dd>
+                  </div>
+                ) : null}
+                {wApprox?.trim() ? (
+                  <div>
+                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Greutate aproximativă</dt>
+                    <dd className="mt-0.5 text-[var(--text-primary)]">{wApprox}</dd>
                   </div>
                 ) : null}
                 <div className="border-t border-[var(--divider)] pt-3">

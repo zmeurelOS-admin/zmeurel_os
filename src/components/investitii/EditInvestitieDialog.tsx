@@ -118,7 +118,7 @@ export function EditInvestitieDialog({
       onOpenChange(false)
     },
     onError: (error) => {
-      console.error('Error updating investitie:', error)
+      
       hapticError()
       toast.error('Eroare la actualizarea investiției')
     },

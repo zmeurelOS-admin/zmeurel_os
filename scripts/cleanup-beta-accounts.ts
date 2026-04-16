@@ -4,8 +4,8 @@ config({ path: '.env.local' })
 
 import { getSupabaseAdmin } from '../src/lib/supabase/admin'
 
-const PROTECTED_SUPERADMIN_EMAIL = 'popa.andrei.sv@gmail.com'
 const PAGE_SIZE = 200
+const PROTECTED_USER_IDS_ENV = 'CLEANUP_BETA_PROTECTED_USER_IDS'
 
 type DeleteResult = 'ok' | 'missing_table' | 'error'
 
@@ -103,8 +103,37 @@ async function resolveTenantIdForUser(
   return data?.id ?? null
 }
 
-function isProtectedAdminEmail(email: string | null): boolean {
-  return (email ?? '').toLowerCase() === PROTECTED_SUPERADMIN_EMAIL
+function parseCsvEnv(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+async function resolveProtectedUserIds(admin: ReturnType<typeof getSupabaseAdmin>): Promise<Set<string>> {
+  const protectedIds = new Set(parseCsvEnv(process.env[PROTECTED_USER_IDS_ENV]))
+
+  const { data, error } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('is_superadmin', true)
+
+  if (error) {
+    throw new Error(`Failed to load superadmin profiles: ${error.message}`)
+  }
+
+  for (const row of (data ?? []) as Array<{ id: string | null }>) {
+    if (row.id) protectedIds.add(row.id.toLowerCase())
+  }
+
+  if (protectedIds.size === 0) {
+    throw new Error(
+      `No protected users resolved. Configure ${PROTECTED_USER_IDS_ENV} or ensure at least one superadmin profile exists.`,
+    )
+  }
+
+  return protectedIds
 }
 
 async function deleteTenant(admin: ReturnType<typeof getSupabaseAdmin>, tenantId: string) {
@@ -135,11 +164,12 @@ async function main() {
   let deletedTenants = 0
   let keptUsers = 0
 
+  const protectedUserIds = await resolveProtectedUserIds(admin)
   const users = await fetchAllAuthUsers(admin)
   console.log(`Found ${users.length} auth users.`)
 
   for (const user of users) {
-    const keepUser = isProtectedAdminEmail(user.email)
+    const keepUser = protectedUserIds.has(user.id.toLowerCase())
 
     if (keepUser) {
       keptUsers += 1
@@ -164,13 +194,13 @@ async function main() {
   }
 
   console.log(
-    `Deleted ${deletedUsers} users, ${deletedTenants} tenants, kept protected admin: [${PROTECTED_SUPERADMIN_EMAIL}]`
+    `Deleted ${deletedUsers} users, ${deletedTenants} tenants, kept protected users: ${protectedUserIds.size}`
   )
   console.log(`Kept users count: ${keptUsers}`)
 
   const remainingUsers = await fetchAllAuthUsers(admin)
-  const protectedUsers = remainingUsers.filter((user) => isProtectedAdminEmail(user.email))
-  const remainingNonProtected = remainingUsers.filter((user) => !isProtectedAdminEmail(user.email))
+  const protectedUsers = remainingUsers.filter((user) => protectedUserIds.has(user.id.toLowerCase()))
+  const remainingNonProtected = remainingUsers.filter((user) => !protectedUserIds.has(user.id.toLowerCase()))
 
   console.log(`Remaining users: ${remainingUsers.length}`)
   console.log(`Remaining protected admin users: ${protectedUsers.length}`)

@@ -16,9 +16,10 @@ import {
 } from '@/components/shop/association/AssociationCartProvider'
 import { buildGustProducerCardsFromProducts } from '@/components/shop/association/producers/GustProducersPage'
 import type { GustCartItem, GustCheckoutSuccess } from '@/components/shop/association/cart/gustCartTypes'
+import type { AssociationCategoryDefinition } from '@/components/shop/association/tokens'
 import type { AssociationPublicSettings } from '@/lib/association/public-settings'
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
-import { getInitialQuantityForUnit, getQuantityStep } from '@/lib/shop/utils'
+import { getInitialQuantityForUnit } from '@/lib/shop/utils'
 
 export type { AssociationCartLine }
 
@@ -33,6 +34,7 @@ export type AssociationShopContextValue = {
   products: AssociationProduct[]
   /** Setări publice asociație (Storage JSON) — identitate comerciant în magazin. */
   publicSettings: AssociationPublicSettings
+  categoryDefinitions: AssociationCategoryDefinition[]
   searchQuery: string
   setSearchQuery: (s: string) => void
   showCart: boolean
@@ -73,10 +75,12 @@ export function useAssociationShop(): AssociationShopContextValue {
 function AssociationShopProviderInner({
   products,
   publicSettings,
+  categoryDefinitions,
   children,
 }: {
   products: AssociationProduct[]
   publicSettings: AssociationPublicSettings
+  categoryDefinitions: AssociationCategoryDefinition[]
   children: ReactNode
 }) {
   const cartApi = useAssociationCart()
@@ -86,12 +90,12 @@ function AssociationShopProviderInner({
   const [detailQtyDraft, setDetailQtyDraft] = useState('1')
   const [orderSuccess, setOrderSuccess] = useState<GustCheckoutSuccess | null>(null)
 
-  const categories = useMemo(() => {
-    const s = new Set(products.map((p) => p.categorie))
-    return Array.from(s).sort((a, b) => a.localeCompare(b, 'ro'))
-  }, [products])
+  const categories = useMemo(
+    () => categoryDefinitions.map((row) => row.key),
+    [categoryDefinitions],
+  )
 
-  const sidebarCategories = useMemo(() => categories.slice(0, 8), [categories])
+  const sidebarCategories = useMemo(() => categories.slice(0, 9), [categories])
 
   const producerCards = useMemo(() => buildGustProducerCardsFromProducts(products), [products])
 
@@ -110,7 +114,7 @@ function AssociationShopProviderInner({
 
   const addFromDetail = useCallback(() => {
     if (!selectedProduct) return
-    const q = Math.max(0.01, Number(String(detailQtyDraft).replace(',', '.')) || 0)
+    const q = Math.max(1, Math.round(Number(String(detailQtyDraft).replace(',', '.')) || 0))
     cartApi.addToCart(selectedProduct, q)
     setSelectedProduct(null)
   }, [selectedProduct, detailQtyDraft, cartApi])
@@ -118,9 +122,8 @@ function AssociationShopProviderInner({
   const addQuickToCart = useCallback(
     (p: AssociationProduct) => {
       const existing = cartApi.lines.find((line) => line.product.id === p.id)
-      const { step } = getQuantityStep(p.unitate_vanzare)
       const initialQty = getInitialQuantityForUnit(p.unitate_vanzare)
-      cartApi.addToCart(p, existing ? step : initialQty)
+      cartApi.addToCart(p, existing ? 1 : initialQty)
     },
     [cartApi],
   )
@@ -150,6 +153,7 @@ function AssociationShopProviderInner({
     (): AssociationShopContextValue => ({
       products,
       publicSettings,
+      categoryDefinitions,
       searchQuery,
       setSearchQuery,
       showCart,
@@ -181,6 +185,7 @@ function AssociationShopProviderInner({
     [
       products,
       publicSettings,
+      categoryDefinitions,
       searchQuery,
       showCart,
       selectedProduct,
@@ -213,15 +218,21 @@ function AssociationShopProviderInner({
 export function AssociationShopProvider({
   products,
   publicSettings,
+  categoryDefinitions,
   children,
 }: {
   products: AssociationProduct[]
   publicSettings: AssociationPublicSettings
+  categoryDefinitions: AssociationCategoryDefinition[]
   children: ReactNode
 }) {
   return (
     <AssociationCartProvider>
-      <AssociationShopProviderInner products={products} publicSettings={publicSettings}>
+      <AssociationShopProviderInner
+        products={products}
+        publicSettings={publicSettings}
+        categoryDefinitions={categoryDefinitions}
+      >
         {children}
       </AssociationShopProviderInner>
     </AssociationCartProvider>

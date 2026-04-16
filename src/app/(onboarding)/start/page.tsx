@@ -225,15 +225,11 @@ export default function StartOnboardingPage() {
         error?: string | { message?: string }
       }
 
-      console.info('Demo seed response:', JSON.stringify({
-        status: payload.status,
-        inserted: payload.inserted,
-        errors: payload.errors?.length ?? 0,
-      }))
+      
 
       if (!response.ok || payload.success === false) {
         if (payload.errors?.length) {
-          console.error('Demo seed errors:', JSON.stringify(payload.errors))
+          
         }
         const tableList =
           payload.errors
@@ -258,7 +254,7 @@ export default function StartOnboardingPage() {
       }
 
       if ((payload.inserted?.parcele ?? 0) <= 0) {
-        console.error('Demo seed inserted zero parcele:', JSON.stringify(payload))
+        
         throw new Error('Demo-ul a pornit incomplet: nu s-au creat parcelele.')
       }
 
@@ -266,7 +262,7 @@ export default function StartOnboardingPage() {
         demoType === 'berries' &&
         (payload.inserted?.parcele ?? 0) < 6
       ) {
-        console.error('Demo seed inserted fewer berries parcels than expected:', JSON.stringify(payload))
+        
         throw new Error('Demo-ul berries a pornit incomplet: parcelele lipsesc.')
       }
 
@@ -274,7 +270,7 @@ export default function StartOnboardingPage() {
         demoType === 'berries' &&
         (payload.inserted?.recoltari ?? 0) < 15
       ) {
-        console.error('Demo seed inserted fewer berries harvests than expected:', JSON.stringify(payload))
+        
         throw new Error('Demo-ul berries a pornit incomplet: recoltările lipsesc.')
       }
 
@@ -282,7 +278,7 @@ export default function StartOnboardingPage() {
         demoType === 'berries' &&
         (payload.inserted?.comenzi ?? 0) < 12
       ) {
-        console.error('Demo seed inserted fewer berries orders than expected:', JSON.stringify(payload))
+        
         throw new Error('Demo-ul berries a pornit incomplet: comenzile lipsesc.')
       }
 

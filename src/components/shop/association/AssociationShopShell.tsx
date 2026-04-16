@@ -28,9 +28,14 @@ const Z_TOPBAR = 50
 const Z_BOTTOMNAV = 200
 
 const SIDEBAR_CAT_EMOJI: Record<string, string> = {
-  fruct: '🍓',
-  leguma: '🥬',
-  procesat: '🫙',
+  fructe_legume: '🍓',
+  lactate_branzeturi: '🧀',
+  carne_mezeluri: '🥩',
+  miere_apicole: '🍯',
+  conserve_muraturi: '🫙',
+  panificatie_patiserie: '🍞',
+  bauturi: '🧃',
+  oua: '🥚',
   altele: '🌿',
 }
 
@@ -102,14 +107,16 @@ export function AssociationShopShell({ children }: { children?: ReactNode }) {
             href={ASSOCIATION_SHOP_BASE}
             className="flex shrink-0 items-start gap-2 border-b border-white/15 px-4 py-5 text-left transition hover:bg-white/5"
           >
-            <Image
-              src="/images/gusta-logo-horizontal.png"
-              alt="Gustă din Bucovina"
-              width={160}
-              height={40}
-              className="h-auto w-[160px] shrink-0"
-              priority
-            />
+            <div className="rounded-[18px] bg-white/10 p-3 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
+              <Image
+                src="/images/asociatie/logo_nav_simbol_alb.png"
+                alt="Gustă din Bucovina"
+                width={56}
+                height={56}
+                className="h-14 w-14 shrink-0 object-contain"
+                priority
+              />
+            </div>
           </Link>
 
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4">

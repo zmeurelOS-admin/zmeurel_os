@@ -14,6 +14,7 @@ import {
   type AssociationPublicSettings,
   buildAssociationMarketLine,
   formatAssociationActiveDays,
+  formatAssociationDeliveryDays,
 } from '@/lib/association/public-settings'
 import { toast } from '@/lib/ui/toast'
 
@@ -26,6 +27,7 @@ type Props = {
 export function AssociationSettingsClient({ initialSettings }: Props) {
   const [description, setDescription] = useState(initialSettings.description)
   const [facebookUrl, setFacebookUrl] = useState(initialSettings.facebookUrl)
+  const [instagramUrl, setInstagramUrl] = useState(initialSettings.instagramUrl)
   const [marketSchedule, setMarketSchedule] = useState(initialSettings.marketSchedule)
   const [marketLocation, setMarketLocation] = useState(initialSettings.marketLocation)
   const [activeDays, setActiveDays] = useState(initialSettings.activeDays)
@@ -38,10 +40,13 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
   const [merchantHeadquarters, setMerchantHeadquarters] = useState(initialSettings.merchantHeadquarters)
   const [merchantEmail, setMerchantEmail] = useState(initialSettings.merchantEmail)
   const [merchantPhone, setMerchantPhone] = useState(initialSettings.merchantPhone)
+  const [orderPhone, setOrderPhone] = useState(initialSettings.orderPhone)
   const [merchantRegistryNumber, setMerchantRegistryNumber] = useState(initialSettings.merchantRegistryNumber)
   const [merchantContactPerson, setMerchantContactPerson] = useState(initialSettings.merchantContactPerson)
   const [merchantDeliveryPolicy, setMerchantDeliveryPolicy] = useState(initialSettings.merchantDeliveryPolicy)
   const [merchantComplaintsPolicy, setMerchantComplaintsPolicy] = useState(initialSettings.merchantComplaintsPolicy)
+  const [deliveryDays, setDeliveryDays] = useState(initialSettings.deliveryDays)
+  const [deliveryCutoffText, setDeliveryCutoffText] = useState(initialSettings.deliveryCutoffText)
   const [saving, setSaving] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(initialSettings.updatedAt)
 
@@ -54,6 +59,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
         ...initialSettings,
         description,
         facebookUrl,
+        instagramUrl,
         marketSchedule,
         marketLocation,
         activeDays,
@@ -66,6 +72,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
         merchantHeadquarters,
         merchantEmail,
         merchantPhone,
+        orderPhone,
         merchantRegistryNumber,
         merchantContactPerson,
         merchantDeliveryPolicy,
@@ -76,6 +83,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
       activeDays,
       description,
       facebookUrl,
+      instagramUrl,
       initialSettings,
       lastSavedAt,
       marketEndTime,
@@ -92,6 +100,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
       merchantLegalForm,
       merchantLegalName,
       merchantPhone,
+      orderPhone,
       merchantRegistryNumber,
     ]
   )
@@ -109,6 +118,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
         body: JSON.stringify({
           description: description.trim(),
           facebookUrl: facebookUrl.trim(),
+          instagramUrl: instagramUrl.trim(),
           marketSchedule: marketSchedule.trim(),
           marketLocation: marketLocation.trim(),
           activeDays,
@@ -121,10 +131,13 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
           merchantHeadquarters: merchantHeadquarters.trim(),
           merchantEmail: merchantEmail.trim(),
           merchantPhone: merchantPhone.trim(),
+          orderPhone: orderPhone.trim(),
           merchantRegistryNumber: merchantRegistryNumber.trim(),
           merchantContactPerson: merchantContactPerson.trim(),
           merchantDeliveryPolicy: merchantDeliveryPolicy.trim(),
           merchantComplaintsPolicy: merchantComplaintsPolicy.trim(),
+          deliveryDays,
+          deliveryCutoffText: deliveryCutoffText.trim(),
         }),
       })
 
@@ -141,6 +154,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
       const saved = json.data.settings
       setDescription(saved.description)
       setFacebookUrl(saved.facebookUrl)
+      setInstagramUrl(saved.instagramUrl)
       setMarketSchedule(saved.marketSchedule)
       setMarketLocation(saved.marketLocation)
       setActiveDays(saved.activeDays)
@@ -153,10 +167,13 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
       setMerchantHeadquarters(saved.merchantHeadquarters)
       setMerchantEmail(saved.merchantEmail)
       setMerchantPhone(saved.merchantPhone)
+      setOrderPhone(saved.orderPhone)
       setMerchantRegistryNumber(saved.merchantRegistryNumber)
       setMerchantContactPerson(saved.merchantContactPerson)
       setMerchantDeliveryPolicy(saved.merchantDeliveryPolicy)
       setMerchantComplaintsPolicy(saved.merchantComplaintsPolicy)
+      setDeliveryDays(saved.deliveryDays)
+      setDeliveryCutoffText(saved.deliveryCutoffText)
       setLastSavedAt(saved.updatedAt)
       toast.success('Setările asociației au fost actualizate.')
     } finally {
@@ -196,6 +213,15 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
               value={facebookUrl}
               onChange={(event) => setFacebookUrl(event.target.value)}
               placeholder="https://www.facebook.com/..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="assoc-instagram">Link Instagram</Label>
+            <Input
+              id="assoc-instagram"
+              value={instagramUrl}
+              onChange={(event) => setInstagramUrl(event.target.value)}
+              placeholder="https://www.instagram.com/..."
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -290,7 +316,7 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="merchant-phone">Telefon oficial</Label>
+              <Label htmlFor="merchant-phone">Telefon contact</Label>
               <Input
                 id="merchant-phone"
                 type="tel"
@@ -299,6 +325,16 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
                 placeholder="07xx..."
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="merchant-order-phone">Telefon comandă</Label>
+            <Input
+              id="merchant-order-phone"
+              type="tel"
+              value={orderPhone}
+              onChange={(e) => setOrderPhone(e.target.value)}
+              placeholder="Număr afișat în box-ul Telefon comandă"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="merchant-contact-person">Persoană de contact</Label>
@@ -330,6 +366,61 @@ export function AssociationSettingsClient({ initialSettings }: Props) {
               maxLength={2000}
               placeholder="Canal de contact și pași pentru reclamații"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-[22px] border-0 shadow-[var(--shadow-md)]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold">Livrări</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Zile de livrare</Label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {ASSOCIATION_DAY_IDS.map((dayId) => {
+                const checked = deliveryDays.includes(dayId)
+                return (
+                  <label
+                    key={`delivery-${dayId}`}
+                    className="flex min-h-10 items-center gap-2 rounded-xl border border-[var(--border-default)] px-3 py-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        setDeliveryDays((current) => {
+                          if (event.target.checked) {
+                            return [...current, dayId]
+                          }
+                          return current.filter((item) => item !== dayId)
+                        })
+                      }}
+                    />
+                    <span>{ASSOCIATION_DAY_LABELS[dayId]}</span>
+                  </label>
+                )
+              })}
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">{formatAssociationDeliveryDays(deliveryDays)}</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="assoc-delivery-cutoff">Text afișat clientului</Label>
+              <span className="text-xs text-[var(--text-secondary)]">{deliveryCutoffText.length}/500</span>
+            </div>
+            <Textarea
+              id="assoc-delivery-cutoff"
+              value={deliveryCutoffText}
+              onChange={(event) => setDeliveryCutoffText(event.target.value.slice(0, 500))}
+              rows={3}
+              maxLength={500}
+              placeholder="Comenzile plasate până marți la ora 14:00 se livrează miercuri."
+            />
+          </div>
+          <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 py-3 text-sm text-[var(--text-secondary)]">
+            <p className="font-semibold text-[var(--text-primary)]">Preview client</p>
+            <p className="mt-2">🚚 {deliveryCutoffText.trim() || 'Comenzile plasate până marți la ora 14:00 se livrează miercuri.'}</p>
           </div>
         </CardContent>
       </Card>

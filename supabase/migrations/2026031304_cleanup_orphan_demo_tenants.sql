@@ -19,7 +19,6 @@ begin
     from public.tenants t
     join auth.users u on u.id = t.owner_user_id
     where u.email ilike '%@demo.zmeurel.local'
-      and u.email not ilike 'popa.andrei.sv@gmail.com'
   loop
     -- Child tables first to avoid FK violations
     delete from public.vanzari_butasi_items where tenant_id = v_tenant_id;

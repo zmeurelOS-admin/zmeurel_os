@@ -175,16 +175,6 @@ export async function updateParcela(
     .single()
 
   if (error) {
-    // eslint-disable-next-line no-console
-    console.error('[updateParcela] Supabase error', {
-      id,
-      tenantId,
-      input,
-      message: error.message,
-      details: (error as SupabaseLikeError).details,
-      hint: (error as SupabaseLikeError).hint,
-      code: (error as SupabaseLikeError).code,
-    })
     throw error
   }
 

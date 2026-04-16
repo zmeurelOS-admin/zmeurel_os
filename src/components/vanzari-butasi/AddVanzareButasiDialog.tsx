@@ -258,14 +258,7 @@ export function AddVanzareButasiDialog({
         statusText?: string
       }
       const resolvedMessage = resolveErrorMessage(error)
-      console.error('[DEBUG] Error creating butasi order:', {
-        message: maybeError?.message || resolvedMessage,
-        code: maybeError?.code,
-        details: maybeError?.details,
-        hint: maybeError?.hint,
-        statusText: maybeError?.statusText,
-        rawError: error,
-      })
+      
       captureReactError(error, {
         component: 'AddVanzareButasiDialog',
         tags: { module: 'vanzari-butasi', action: 'create_order' },

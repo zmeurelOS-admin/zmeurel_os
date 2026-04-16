@@ -17,6 +17,9 @@ export const NOTIFICATION_TYPES = {
   offer_new: 'offer_new',
   offer_approved: 'offer_approved',
   offer_rejected: 'offer_rejected',
+  legal_docs_expiring: 'legal_docs_expiring',
+  legal_docs_expired: 'legal_docs_expired',
+  weekly_sales_summary: 'weekly_sales_summary',
   system: 'system',
 } as const
 

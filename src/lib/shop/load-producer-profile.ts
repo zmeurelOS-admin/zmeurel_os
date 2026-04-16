@@ -3,8 +3,10 @@ import { cache } from 'react'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import {
   getAssociationAllowedEmails,
+  getAssociationAllowedOwnerUserIds,
   type AssociationProduct,
 } from '@/lib/shop/load-association-catalog'
+import { resolveProducerLogoUrl } from '@/lib/shop/producer-media'
 import type { PublicShopProduct } from '@/lib/shop/load-public-shop'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,8 +36,11 @@ async function tenantEligibleForAssociationShop(
 ): Promise<boolean> {
   if (tenant.is_demo === true || tenant.id?.startsWith('tenant_demo_')) return false
   if (tenant.is_association_approved === true) return true
-  const allowed = new Set(getAssociationAllowedEmails().map((e) => e.toLowerCase()))
   if (!tenant.owner_user_id) return false
+  const allowedOwnerUserIds = new Set(getAssociationAllowedOwnerUserIds().map((id) => id.toLowerCase()))
+  if (allowedOwnerUserIds.has(tenant.owner_user_id.toLowerCase())) return true
+  const allowed = new Set(getAssociationAllowedEmails().map((e) => e.toLowerCase()))
+  if (allowed.size === 0) return false
   const { data: userData, error } = await admin.auth.admin.getUserById(tenant.owner_user_id)
   if (error || !userData.user?.email) return false
   return allowed.has(userData.user.email.trim().toLowerCase())
@@ -46,11 +51,13 @@ function mapRowsToAssociationProducts(
     PublicShopProduct & {
       tenant_id: string
       association_price?: number | null
+      association_category?: string | null
       assoc_ingrediente?: string | null
       assoc_alergeni?: string | null
       assoc_pastrare?: string | null
       assoc_valabilitate?: string | null
       assoc_tip_produs?: string | null
+      approximate_weight?: string | null
       producer_logo_url?: string | null
     }
   >,
@@ -70,6 +77,8 @@ function mapRowsToAssociationProducts(
         categorie: r.categorie,
         unitate_vanzare: r.unitate_vanzare,
         gramaj_per_unitate: r.gramaj_per_unitate,
+        approximate_weight: r.approximate_weight ?? null,
+        association_category: r.association_category ?? null,
         pret_unitar: r.pret_unitar,
         moneda: r.moneda,
         poza_1_url: r.poza_1_url,
@@ -92,6 +101,8 @@ function mapRowsToAssociationProducts(
         producerEmailPublic: null,
         producerProgramPiata: null,
         displayPrice,
+        createdAt: new Date(0).toISOString(),
+        orderCount: 0,
       }
       return product
     })
@@ -160,7 +171,7 @@ export async function loadProducerProfile(
       facebook: row.facebook?.trim() || null,
       instagram: row.instagram?.trim() || null,
       localitate: (row.localitate?.trim() || 'Suceava') as string,
-      logoUrl: row.logo_url?.trim() || null,
+      logoUrl: resolveProducerLogoUrl(admin, row.logo_url),
       specialitate: row.specialitate?.trim() || null,
       pozeFerma,
       programPiata: row.program_piata?.trim() || null,
@@ -171,7 +182,7 @@ export async function loadProducerProfile(
     const { data: prodRows, error: prodError } = await admin
       .from('produse')
       .select(
-        'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,pret_unitar,association_price,moneda,poza_1_url,poza_2_url,status,association_listed,ingrediente,alergeni,conditii_pastrare,termen_valabilitate,tip_produs,assoc_ingrediente,assoc_alergeni,assoc_pastrare,assoc_valabilitate,assoc_tip_produs'
+        'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,approximate_weight,association_category,pret_unitar,association_price,moneda,poza_1_url,poza_2_url,status,association_listed,ingrediente,alergeni,conditii_pastrare,termen_valabilitate,tip_produs,assoc_ingrediente,assoc_alergeni,assoc_pastrare,assoc_valabilitate,assoc_tip_produs'
       )
       .eq('tenant_id', tenantId)
       .eq('status', 'activ')
@@ -179,7 +190,7 @@ export async function loadProducerProfile(
       .order('nume', { ascending: true })
 
     if (prodError) {
-      console.error('[loadProducerProfile] produse', prodError)
+      
       return { farm, products: [] }
     }
 

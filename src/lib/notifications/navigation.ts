@@ -51,6 +51,11 @@ export function getNotificationHref(
     case 'offer_approved':
     case 'offer_rejected':
       return '/produse'
+    case 'legal_docs_expiring':
+    case 'legal_docs_expired':
+      return '/settings/documente-legale'
+    case 'weekly_sales_summary':
+      return '/notificari'
     case 'system':
     default:
       return '/dashboard'

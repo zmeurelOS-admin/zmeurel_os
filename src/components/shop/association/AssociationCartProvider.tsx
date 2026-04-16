@@ -27,7 +27,7 @@ export type AssociationCartLine = {
 }
 
 function roundQty(n: number): number {
-  return Math.round((Number(n) || 0) * 100) / 100
+  return Math.round(Number(n) || 0)
 }
 
 function readStorage(): AssociationCartLine[] {
@@ -110,7 +110,7 @@ export function AssociationCartProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addToCart = useCallback((product: AssociationProduct, qty = 1) => {
-    const q = Math.max(0.01, roundQty(qty))
+    const q = roundQty(qty)
     setLines((prev) => {
       const idx = prev.findIndex((l) => l.product.id === product.id)
       if (idx === -1) return [...prev, { product, qty: q }]
@@ -152,7 +152,7 @@ export function AssociationCartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = useCallback(() => setLines([]), [])
 
-  const cartTotalQty = useMemo(() => lines.reduce((s, l) => s + l.qty, 0), [lines])
+  const cartTotalQty = useMemo(() => lines.reduce((s, l) => s + Math.round(l.qty), 0), [lines])
   const cartLineCount = lines.length
 
   const gustCatalogCartLines = useMemo(

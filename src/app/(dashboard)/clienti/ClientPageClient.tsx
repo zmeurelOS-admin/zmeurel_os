@@ -640,14 +640,12 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
 
         if (error) {
           const pgError = error as unknown as Record<string, unknown>
-          console.error('[clienti import] batch insert failed, retrying row-by-row:', {
-            message: error.message, details: pgError.details, hint: pgError.hint, code: pgError.code,
-          })
+          
           for (const record of chunk) {
             const { error: rowErr } = await supabase.from('clienti').insert([record.supabaseRow])
             if (rowErr) {
               const rowPg = rowErr as unknown as Record<string, unknown>
-              console.error('[clienti import] row error:', { name: record.sourceRow.nume_client, message: rowErr.message, details: rowPg.details })
+              
               failedRows.push({ name: record.sourceRow.nume_client, error: rowErr.message })
             } else {
               importedCount++

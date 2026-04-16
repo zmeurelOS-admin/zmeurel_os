@@ -3,6 +3,7 @@ import { generateObject, generateText } from 'ai'
 import { NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { Tables } from '@/types/supabase'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { routeFinancialMessage } from '@/lib/financial/chat-router'
@@ -817,7 +818,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     }
 
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      console.error('[chat] GOOGLE_GENERATIVE_AI_API_KEY lipsă')
+      
       return NextResponse.json({ error: 'Configurare lipsă pe server.' }, { status: 500 })
     }
 
@@ -829,7 +830,13 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     try {
       tenantId = await deps.getTenantIdOrNull(supabase)
     } catch (err) {
-      console.warn('[chat] getTenantIdOrNull failed:', err)
+      console.warn(
+        '[chat] getTenantIdOrNull failed',
+        sanitizeForLog({
+          error: toSafeErrorContext(err),
+          stage: 'tenant_resolution',
+        }),
+      )
     }
 
     let isSuperadmin = false
@@ -846,7 +853,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     const effectiveDailyLimit = resolveAiDailyLimit({
       baseLimit: DAILY_LIMIT,
       isSuperadmin,
-      email: user.email,
+      userId: user.id,
     })
 
     // --- Rate limit (atomic check + increment) ---
@@ -857,7 +864,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     })
 
     if (rlError) {
-      console.error('[chat] Rate limit RPC failed:', rlError.message)
+      
       return NextResponse.json({ error: 'Verificarea limitei a eșuat.' }, { status: 503 })
     }
 
@@ -872,7 +879,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     }
     if (rl?.allowed === false) {
       const appliedLimit = rl?.limit ?? effectiveDailyLimit
-      console.error('[ai-chat]', { event: 'rate_limit_hit', userId: userId.slice(0, 8) })
+      
       return NextResponse.json(
         {
           type: 'limit',
@@ -884,7 +891,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
       )
     }
     if (rl?.allowed !== true) {
-      console.error('[chat] Unexpected RPC response:', JSON.stringify(rl))
+      
       return NextResponse.json({ error: 'Eroare internă la verificarea limitei.' }, { status: 503 })
     }
 
@@ -937,7 +944,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
         ? explicitNewFlow
         : initialStickyFlow
     const effectiveMessage = shouldBreakStickyFlow ? message : continuation.effectiveMessage
-    if (continuationUsed) console.error('[ai-chat]', { event: 'continuation_detected', stickyFlow, msgLength: message.length })
+    
     const isShortFollowUp = isShortFollowUpMessage(message)
     const hasExplicitEntityChange =
       /(schimb|modific|corect|în loc de|in loc de|nu .* ci|alt[aă]|altul|alta)\b/i.test(message) ||
@@ -986,7 +993,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     const emitDecisionTelemetry = (decision: ChatDecisionTelemetry, status: 'success' | 'failed' = 'success') => {
       const metadata = buildDecisionMetadata(decision, status)
       if (process.env.NODE_ENV === 'development') {
-        console.info('[chat] decision', JSON.stringify(metadata))
+        
       }
       supabase
         .from('analytics_events')
@@ -1407,16 +1414,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
 
           if (USAGE_LOG_ENABLED) {
             const usage = extractUsageStats(result)
-            console.info(
-              '[chat] structured_usage',
-              JSON.stringify({
-                model: structuredModel,
-                inputTokens: usage.inputTokens,
-                outputTokens: usage.outputTokens,
-                reasoningTokens: usage.reasoningTokens,
-                totalTokens: usage.totalTokens,
-              })
-            )
+            
           }
 
           const structuredResult = resolveStructuredTargetedFlow({
@@ -1458,8 +1456,15 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
           )
         } catch (structuredErr) {
           const error = structuredErr instanceof Error ? structuredErr : new Error(String(structuredErr))
-          console.error('[ai-chat]', { event: 'structured_extraction_failed', input: effectiveMessage.slice(0, 100), error: { name: error.name, message: error.message } })
-          console.error('Structured extraction failed, trying deterministic:', error)
+          console.error(
+            '[ai-chat] structured_extraction_failed',
+            sanitizeForLog({
+              event: 'structured_extraction_failed',
+              fallback: 'deterministic',
+              message_length: effectiveMessage.length,
+              error: toSafeErrorContext(error),
+            }),
+          )
           // BUG-FOUND: dacă ieșim aici cu fallback generic, sărim peste extragerea
           // deterministică deja existentă de mai jos. Asta rupe cazuri clare precum
           // "Am recoltat 20 kg azi din Delniwa" atunci când generateObject eșuează.
@@ -1544,7 +1549,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
       const preferOrderFlow = stickyFlow === 'comanda' || hasOrderSignal
       const preferClientFlow = stickyFlow === 'client' || hasClientSignal
       const selectedDeterministicFlow = preferHarvestFlow ? 'recoltare' : preferActivityFlow ? 'activitate' : preferExpenseFlow ? 'cheltuiala' : preferInvestmentFlow ? 'investitie' : preferOrderFlow ? 'comanda' : preferClientFlow ? 'client' : null
-      if (selectedDeterministicFlow) console.info('[ai-chat]', { event: 'flow_selected', flow: selectedDeterministicFlow, trigger: stickyFlow ? 'stickyFlow' : 'signal', input: message.slice(0, 80) })
+      
 
       if (preferHarvestFlow) {
         const required = REQUIRED_FIELDS_FOR_OPEN.recoltare
@@ -2311,7 +2316,7 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     // --- Call LLM ---
     let text: string
     try {
-      console.error('[ai-chat]', { event: 'llm_fallback', input: effectiveMessage.slice(0, 100) })
+      
       const requestOptions = {
         model: google(activeModel),
         system: systemPrompt,
@@ -2341,21 +2346,16 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
 
       if (USAGE_LOG_ENABLED) {
         const usage = extractUsageStats(result)
-        console.info(
-          '[chat] usage',
-          JSON.stringify({
-            model: activeModel,
-            simpleRequest: isSimpleRequest,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            reasoningTokens: usage.reasoningTokens,
-            totalTokens: usage.totalTokens,
-          })
-        )
+        
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error('[chat] generateText error:', msg)
+      console.error(
+        '[chat] generateText error',
+        sanitizeForLog({
+          error: toSafeErrorContext(err),
+          stage: 'generate_text',
+        }),
+      )
       return jsonAnswerTracked(
         'Eroare la răspuns. Încearcă din nou.',
         {
@@ -2408,11 +2408,14 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
       }
     )
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : JSON.stringify(error)
-    console.error('[chat] EROARE:', msg)
+    console.error(
+      '[chat] unexpected failure',
+      sanitizeForLog({
+        error: toSafeErrorContext(error),
+        stage: 'chat_post_handler',
+      }),
+    )
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 }
-
-

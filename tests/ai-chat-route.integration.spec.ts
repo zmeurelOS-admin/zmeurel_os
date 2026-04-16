@@ -297,6 +297,8 @@ test.describe('ai chat route integration', () => {
         data_livrare: TOMORROW,
         pret_per_kg: 18,
       })
+      expect(String(payload.message ?? '').toLowerCase()).not.toContain('prețul/kg')
+      expect(String(payload.message ?? '').toLowerCase()).toContain('verifică și salvează')
     } finally {
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = previousApiKey
     }

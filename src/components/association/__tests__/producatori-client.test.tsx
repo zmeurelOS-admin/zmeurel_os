@@ -33,6 +33,7 @@ const baseProducer = (over: Partial<AssociationProducer>): AssociationProducer =
   id: 't0000000-0000-4000-8000-000000000001',
   nume_ferma: 'Ferma Test',
   is_association_approved: true,
+  legalDocsComplete: true,
   descriere_publica: null,
   email_public: null,
   facebook: null,

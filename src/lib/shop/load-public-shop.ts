@@ -14,6 +14,8 @@ export type PublicShopProduct = {
   categorie: string
   unitate_vanzare: string
   gramaj_per_unitate: number | null
+  approximate_weight: string | null
+  association_category?: string | null
   pret_unitar: number | null
   moneda: string
   poza_1_url: string | null
@@ -47,14 +49,14 @@ export async function loadPublicShopCatalog(
     const { data: rows, error: prodError } = await admin
       .from('produse')
       .select(
-        'id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,pret_unitar,moneda,poza_1_url,poza_2_url,status',
+        'id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,approximate_weight,pret_unitar,moneda,poza_1_url,poza_2_url,status',
       )
       .eq('tenant_id', tenantId)
       .eq('status', 'activ')
       .order('nume', { ascending: true })
 
     if (prodError) {
-      console.error('[loadPublicShopCatalog]', prodError)
+      
       return null
     }
 

@@ -224,7 +224,7 @@ export async function loadCanonicalCandidates(params: {
   try {
     const [parceleRes, clientiRes, activitatiRes, miscariStocRes] = await Promise.all([
       supabase.from('parcele').select('id,nume,nume_parcela,soi,soi_plantat,cultura,tip_fruct').eq('tenant_id', tenantId).limit(200),
-      supabase.from('clienti').select('id,nume_client').eq('tenant_id', tenantId).limit(200),
+      supabase.from('clienti').select('id,nume_client,telefon,pret_negociat_lei_kg').eq('tenant_id', tenantId).limit(200),
       supabase.from('activitati_agricole').select('produs_utilizat').eq('tenant_id', tenantId).limit(200),
       supabase.from('miscari_stoc').select('produs').eq('tenant_id', tenantId).limit(200),
     ])
@@ -274,6 +274,8 @@ export async function loadCanonicalCandidates(params: {
     const clientiRows = (clientiRes.data ?? []) as Array<{
       id?: string | null
       nume_client?: string | null
+      telefon?: string | null
+      pret_negociat_lei_kg?: number | null
     }>
     const clientNameToId: Record<string, string> = {}
     const clientNameToPhone: Record<string, string> = {}
@@ -282,11 +284,16 @@ export async function loadCanonicalCandidates(params: {
     for (const row of clientiRows) {
       const name = (row.nume_client ?? '').trim()
       const id = (row.id ?? '').trim()
+      const phone = (row.telefon ?? '').trim()
+      const negotiatedPricePerKg = typeof row.pret_negociat_lei_kg === 'number' ? row.pret_negociat_lei_kg : undefined
       if (!name || !id) continue
       clientNameToId[name] = id
+      if (phone) clientNameToPhone[name] = phone
       clientById[id] = {
         id,
         label: name,
+        ...(phone ? { phone } : {}),
+        ...(negotiatedPricePerKg != null ? { negotiatedPricePerKg } : {}),
       }
       clientOptions.push({ id, label: name })
     }

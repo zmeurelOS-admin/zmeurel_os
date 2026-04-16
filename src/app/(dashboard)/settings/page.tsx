@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Download, KeyRound, Loader2, MapPin, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2 } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -18,6 +19,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUiDensity } from '@/hooks/useUiDensity'
+import {
+  DESTRUCTIVE_STEP_UP_HEADER,
+  destructiveActionScopes,
+  type DestructiveActionScope,
+} from '@/lib/auth/destructive-action-step-up-contract'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 import { track } from '@/lib/analytics/track'
 import {
@@ -85,7 +91,6 @@ const GDPR_TABLES: TenantTable[] = [
 ]
 
 const EXPORT_BATCH_SIZE = 1000
-const PROTECTED_SUPERADMIN_EMAIL = 'popa.andrei.sv@gmail.com'
 
 function escapeCsvValue(value: unknown): string {
   const raw = value === null || value === undefined ? '' : String(value)
@@ -135,7 +140,7 @@ export default function SettingsPage() {
   const { density, setDensity } = useUiDensity()
   const { userId, email, isSuperAdmin } = useDashboardAuth()
   const safeEmail = email ?? 'Necunoscut'
-  const isProtectedSuperadmin = safeEmail.toLowerCase() === PROTECTED_SUPERADMIN_EMAIL
+  const isProtectedSuperadmin = isSuperAdmin
   const [themeReady, setThemeReady] = useState(false)
 
   const [tenantId, setTenantId] = useState<string | null>(null)
@@ -173,6 +178,7 @@ export default function SettingsPage() {
   const [isReseedingDemoData, setIsReseedingDemoData] = useState(false)
   const [isExitingDemoMode, setIsExitingDemoMode] = useState(false)
   const [isDeletingFarmData, setIsDeletingFarmData] = useState(false)
+  const [deleteFarmPassword, setDeleteFarmPassword] = useState('')
   const [demoActionDialog, setDemoActionDialog] = useState<DemoAction | null>(null)
   const [demoSeedTypeDialogOpen, setDemoSeedTypeDialogOpen] = useState(false)
 
@@ -181,6 +187,7 @@ export default function SettingsPage() {
   const [deleteAccountStep1Open, setDeleteAccountStep1Open] = useState(false)
   const [deleteAccountStep2Open, setDeleteAccountStep2Open] = useState(false)
   const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState('')
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState('')
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
   const [activeSettingsSection, setActiveSettingsSection] = useState('profil')
 
@@ -267,6 +274,7 @@ export default function SettingsPage() {
   const settingsNavItems = useMemo<SettingsNavItem[]>(() => {
     const items: SettingsNavItem[] = [
       { id: 'profil', label: 'Profil' },
+      { id: 'documente-legale', label: 'Documente legale' },
       { id: 'locatie', label: 'Locație' },
       { id: 'parola', label: 'Parolă' },
       { id: 'gdpr', label: 'Date și export' },
@@ -661,10 +669,49 @@ export default function SettingsPage() {
     }
   }
 
+  const requestDestructiveStepUpToken = async (
+    scope: DestructiveActionScope,
+    password: string,
+  ): Promise<string> => {
+    const response = await fetch('/api/auth/destructive-step-up', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope, password }),
+    })
+    const payload = (await response.json()) as {
+      ok?: boolean
+      stepUpToken?: string
+      error?: string | { message?: string }
+    }
+
+    if (!response.ok || payload.ok !== true || typeof payload.stepUpToken !== 'string') {
+      throw new Error(
+        getApiErrorMessage(payload, 'Confirmarea suplimentară a eșuat. Verifică parola și încearcă din nou.'),
+      )
+    }
+
+    return payload.stepUpToken
+  }
+
   const handleDeleteFarmData = async () => {
+    const password = deleteFarmPassword.trim()
+    if (!password) {
+      toast.error('Introdu parola curentă pentru confirmare.')
+      return
+    }
+
     setIsDeletingFarmData(true)
     try {
-      const response = await fetch('/api/farm/reset', { method: 'POST' })
+      const stepUpToken = await requestDestructiveStepUpToken(
+        destructiveActionScopes.farmReset,
+        password,
+      )
+      const response = await fetch('/api/farm/reset', {
+        method: 'POST',
+        headers: {
+          [DESTRUCTIVE_STEP_UP_HEADER]: stepUpToken,
+        },
+      })
       const payload = (await response.json()) as {
         success?: boolean
         error?: string | { message?: string }
@@ -676,6 +723,7 @@ export default function SettingsPage() {
       disableDemoMode()
       disableFarmSetupMode()
       clearDemoSeedAttempted()
+      setDeleteFarmPassword('')
       setDeleteFarmStep1Open(false)
       await resetTenantCaches()
       toast.success('Datele fermei au fost resetate.')
@@ -754,12 +802,30 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAccountAndTenant = async () => {
+    const password = deleteAccountPassword.trim()
+    if (!password) {
+      toast.error('Introdu parola curentă pentru confirmare.')
+      return
+    }
+
     setIsDeletingAccount(true)
     try {
-      const response = await fetch('/api/gdpr/account', { method: 'DELETE' })
+      const stepUpToken = await requestDestructiveStepUpToken(
+        destructiveActionScopes.gdprAccountDelete,
+        password,
+      )
+      const response = await fetch('/api/gdpr/account', {
+        method: 'DELETE',
+        headers: {
+          [DESTRUCTIVE_STEP_UP_HEADER]: stepUpToken,
+        },
+      })
       const payload = (await response.json()) as { error?: string | { message?: string } }
       if (!response.ok) throw new Error(getApiErrorMessage(payload, 'Nu am putut șterge contul.'))
 
+      setDeleteAccountPassword('')
+      setDeleteAccountConfirmText('')
+      setDeleteAccountStep2Open(false)
       toast.success('Contul și tenantul au fost șterse.')
       prepareClientBeforeServerSignOut(queryClient)
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -924,6 +990,20 @@ export default function SettingsPage() {
                 {profilePhoneError ? <p className="text-xs text-[var(--danger-text)]">{profilePhoneError}</p> : null}
               </div>
             ) : null}
+          </div>
+
+          <div id="documente-legale" className="scroll-mt-24 space-y-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Label className="text-sm font-medium text-[var(--agri-text-muted)]">Documente legale</Label>
+                <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
+                  Completează formularul legal pentru publicarea produselor și listarea în marketplace.
+                </p>
+              </div>
+              <Button type="button" variant="outline" asChild>
+                <Link href="/settings/documente-legale">Deschide formularul</Link>
+              </Button>
+            </div>
           </div>
 
           <div id="locatie" className="scroll-mt-24 space-y-2">
@@ -1396,7 +1476,12 @@ export default function SettingsPage() {
 
       <AppDialog
         open={deleteFarmStep1Open}
-        onOpenChange={setDeleteFarmStep1Open}
+        onOpenChange={(open) => {
+          setDeleteFarmStep1Open(open)
+          if (!open) {
+            setDeleteFarmPassword('')
+          }
+        }}
         title="Vrei să ștergi toate datele din fermă?"
         footer={
           <>
@@ -1406,7 +1491,7 @@ export default function SettingsPage() {
             <Button
               type="button"
               className="agri-cta border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)] hover:brightness-[0.98]"
-              disabled={isDeletingFarmData}
+              disabled={isDeletingFarmData || deleteFarmPassword.trim().length === 0}
               onClick={handleDeleteFarmData}
             >
               {isDeletingFarmData ? 'Se șterge...' : 'Șterge datele'}
@@ -1414,9 +1499,22 @@ export default function SettingsPage() {
           </>
         }
       >
-        <p className="text-sm text-[var(--agri-text-muted)]">
-          Toate recoltele, lucrările, vânzările, cheltuielile și culegătorii vor fi șterse. Contul tău rămâne activ și poți adăuga date noi oricând.
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--agri-text-muted)]">
+            Toate recoltele, lucrările, vânzările, cheltuielile și culegătorii vor fi șterse. Contul tău rămâne activ și poți adăuga date noi oricând.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="confirm-delete-farm-password">Parola curentă</Label>
+            <Input
+              id="confirm-delete-farm-password"
+              type="password"
+              className="agri-control h-11"
+              autoComplete="current-password"
+              value={deleteFarmPassword}
+              onChange={(event) => setDeleteFarmPassword(event.target.value)}
+            />
+          </div>
+        </div>
       </AppDialog>
 
       <AppDialog
@@ -1485,7 +1583,12 @@ export default function SettingsPage() {
 
       <AppDialog
         open={deleteAccountStep2Open}
-        onOpenChange={setDeleteAccountStep2Open}
+        onOpenChange={(open) => {
+          setDeleteAccountStep2Open(open)
+          if (!open) {
+            setDeleteAccountPassword('')
+          }
+        }}
         title="Confirmare finală - cont și tenant"
         description="Tastează ȘTERGE CONTUL pentru confirmare."
         footer={
@@ -1496,7 +1599,7 @@ export default function SettingsPage() {
             <Button
               type="button"
               className="agri-cta border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-text)] hover:brightness-[0.98]"
-              disabled={!canConfirmDeleteAccount || isDeletingAccount}
+              disabled={!canConfirmDeleteAccount || isDeletingAccount || deleteAccountPassword.trim().length === 0}
               onClick={handleDeleteAccountAndTenant}
             >
               {isDeletingAccount ? 'Se șterge...' : 'Șterge contul'}
@@ -1514,10 +1617,18 @@ export default function SettingsPage() {
             onChange={(event) => setDeleteAccountConfirmText(event.target.value)}
           />
         </div>
+        <div className="mt-3 space-y-2">
+          <Label htmlFor="confirm-delete-account-password">Parola curentă</Label>
+          <Input
+            id="confirm-delete-account-password"
+            type="password"
+            className="agri-control h-11"
+            autoComplete="current-password"
+            value={deleteAccountPassword}
+            onChange={(event) => setDeleteAccountPassword(event.target.value)}
+          />
+        </div>
       </AppDialog>
     </AppShell>
   )
 }
-
-
-

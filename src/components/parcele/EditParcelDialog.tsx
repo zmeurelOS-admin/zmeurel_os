@@ -99,12 +99,7 @@ export function EditParcelDialog({
     onError: (error: Error) => {
       hapticError()
       const dbError = error as Error & { details?: string; hint?: string; code?: string }
-      console.error('[EditParcelDialog] updateParcela error:', {
-        message: dbError.message,
-        details: dbError.details,
-        hint: dbError.hint,
-        code: dbError.code,
-      })
+      
       toast.error(error.message)
     },
   })

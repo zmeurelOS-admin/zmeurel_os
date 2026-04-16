@@ -13,7 +13,7 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error('Module error:', error)
+    
     captureReactError(error, { component: 'DashboardRouteGroupErrorBoundary' })
   }, [error])
 

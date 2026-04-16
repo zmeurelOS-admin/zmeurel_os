@@ -57,7 +57,7 @@ export default async function VanzariButasiPage() {
     .order('data_comanda', { ascending: false })
 
   if (vanzariError) {
-    console.error('[vanzari-butasi] load error:', vanzariError.message)
+    
   }
 
   const { data: clienti, error: clientiError } = await supabase
@@ -66,7 +66,7 @@ export default async function VanzariButasiPage() {
     .eq('tenant_id', tenantId)
 
   if (clientiError) {
-    console.error('[vanzari-butasi] clienti error:', clientiError.message)
+    
   }
 
   const { data: parcele, error: parceleError } = await supabase
@@ -75,7 +75,7 @@ export default async function VanzariButasiPage() {
     .eq('tenant_id', tenantId)
 
   if (parceleError) {
-    console.error('[vanzari-butasi] parcele error:', parceleError.message)
+    
   }
 
   // Map raw Supabase rows: nested join comes back as `vanzari_butasi_items`, component expects `items`

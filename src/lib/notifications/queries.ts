@@ -11,7 +11,7 @@ export async function getUnreadCount(supabase: SupabaseClient<Database>): Promis
     .eq('read', false)
 
   if (error) {
-    console.error('[notifications] getUnreadCount', error)
+    
     return 0
   }
   return count ?? 0
@@ -32,7 +32,7 @@ export async function getNotifications(
 
   const { data, error } = await q.range(offset, offset + limit - 1)
   if (error) {
-    console.error('[notifications] getNotifications', error)
+    
     return []
   }
   return (data ?? []) as NotificationRow[]
@@ -42,19 +42,16 @@ export async function markAsRead(
   supabase: SupabaseClient<Database>,
   notificationId: string,
 ): Promise<void> {
-  const { error } = await supabase.from('notifications').update({ read: true }).eq('id', notificationId)
-  if (error) console.error('[notifications] markAsRead', error)
+  await supabase.from('notifications').update({ read: true }).eq('id', notificationId)
 }
 
 export async function markAllAsRead(supabase: SupabaseClient<Database>): Promise<void> {
-  const { error } = await supabase.from('notifications').update({ read: true }).eq('read', false)
-  if (error) console.error('[notifications] markAllAsRead', error)
+  await supabase.from('notifications').update({ read: true }).eq('read', false)
 }
 
 export async function deleteNotification(
   supabase: SupabaseClient<Database>,
   notificationId: string,
 ): Promise<void> {
-  const { error } = await supabase.from('notifications').delete().eq('id', notificationId)
-  if (error) console.error('[notifications] deleteNotification', error)
+  await supabase.from('notifications').delete().eq('id', notificationId)
 }

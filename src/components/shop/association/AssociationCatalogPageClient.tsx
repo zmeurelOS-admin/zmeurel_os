@@ -8,7 +8,14 @@ import { GustCatalogPage } from '@/components/shop/association/catalog/GustCatal
 import { gustaPrimaryTints } from '@/lib/shop/association/brand-tokens'
 
 export function AssociationCatalogPageClient() {
-  const { products, searchQuery, addQuickToCart, openProductDetail, gustCatalogCartLines } =
+  const {
+    products,
+    categoryDefinitions,
+    searchQuery,
+    addQuickToCart,
+    openProductDetail,
+    gustCatalogCartLines,
+  } =
     useAssociationShop()
   const sp = useSearchParams()
   const router = useRouter()
@@ -80,6 +87,7 @@ export function AssociationCatalogPageClient() {
   return (
     <GustCatalogPage
       products={shopProducts}
+      categoryDefinitions={categoryDefinitions}
       selectedCategory={categorie}
       onCategoryChange={onCategoryChange}
       searchQuery={searchQuery}

@@ -525,7 +525,8 @@ type RunDemoSeedParams = {
   userId: string
 }
 
-export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams): Promise<RunDemoSeedResult> {
+export async function runDemoSeed({ request, tenant, userId: _userId }: RunDemoSeedParams): Promise<RunDemoSeedResult> {
+  void _userId
   const start = Date.now()
   const demoSeedId = DEMO_SEED_ID
 
@@ -565,12 +566,7 @@ export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams
     await updateTenantDemoState(tenant.id, false, null)
   }
 
-  console.info('[demo-seed] seed start', {
-    userId,
-    tenantId: tenant.id,
-    demoType: normalizedDemoType,
-    demoSeedId,
-  })
+  
 
   const admin = createServiceRoleClient()
   const rpcArgs: { p_tenant_id: string; p_demo_type?: DemoType } = {
@@ -615,10 +611,7 @@ export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams
   }
 
   if (seedError && isClientNameColumnMismatch(seedErrorMessage)) {
-    console.warn('[demo-seed] falling back to direct inserts due clienti column mismatch', {
-      tenantId: tenant.id,
-      seedErrorMessage,
-    })
+    
 
     await seedFallbackRows(tenant.id, normalizedDemoType, demoSeedId)
     await normalizeExistingDemoRows(tenant.id, demoSeedId, fallbackRows)
@@ -642,12 +635,7 @@ export async function runDemoSeed({ request, tenant, userId }: RunDemoSeedParams
     throw new Error('Demo seed verification failed: no stable demo parcela marker found')
   }
 
-  console.info('[demo-seed] seed success', {
-    userId,
-    tenantId: tenant.id,
-    demoType: normalizedDemoType,
-    demoSeedId,
-  })
+  
 
   return finish(normalizeSeedStatus(seedData?.status))
 }

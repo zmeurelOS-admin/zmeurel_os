@@ -4,7 +4,12 @@ import { useCallback, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 
 import { GustProductCard } from '@/components/shop/association/catalog/GustProductCard'
-import { labelForCategory } from '@/components/shop/association/tokens'
+import {
+  labelForAssociationCategoryKey,
+  type AssociationCategoryDefinition,
+  type AssociationCategoryKey,
+  resolveAssociationCategory,
+} from '@/components/shop/association/tokens'
 import { gustaBrandColors, gustaBrandShadows, gustaPrimaryTints } from '@/lib/shop/association/brand-tokens'
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
 import { cn } from '@/lib/utils'
@@ -17,7 +22,7 @@ function normalizeForSearch(s: string): string {
     .trim()
 }
 
-export type GustCatalogSort = 'recommended' | 'price-asc' | 'price-desc' | 'newest'
+export type GustCatalogSort = 'recommended' | 'newest' | 'most-ordered' | 'price-asc' | 'price-desc'
 
 export type GustCatalogCartLine = {
   productId: string
@@ -26,6 +31,7 @@ export type GustCatalogCartLine = {
 
 export type GustCatalogPageProps = {
   products: AssociationProduct[]
+  categoryDefinitions: AssociationCategoryDefinition[]
   selectedCategory: string | null
   onCategoryChange: (category: string | null) => void
   searchQuery: string
@@ -38,13 +44,15 @@ export type GustCatalogPageProps = {
 
 const SORT_OPTIONS: { value: GustCatalogSort; label: string }[] = [
   { value: 'recommended', label: 'Recomandate' },
+  { value: 'newest', label: 'Cele mai noi' },
+  { value: 'most-ordered', label: 'Cele mai comandate' },
   { value: 'price-asc', label: 'Preț crescător' },
   { value: 'price-desc', label: 'Preț descrescător' },
-  { value: 'newest', label: 'Cele mai noi' },
 ]
 
 export function GustCatalogPage({
   products,
+  categoryDefinitions,
   selectedCategory,
   onCategoryChange,
   searchQuery,
@@ -61,20 +69,18 @@ export function GustCatalogPage({
     return m
   }, [products])
 
-  const categories = useMemo(() => {
-    const s = new Set<string>()
-    for (const p of products) {
-      if (p.categorie?.trim()) s.add(p.categorie.trim())
-    }
-    return Array.from(s).sort((a, b) => a.localeCompare(b, 'ro'))
-  }, [products])
+  const categories = useMemo(
+    () => categoryDefinitions.map((row) => row.key as AssociationCategoryKey),
+    [categoryDefinitions],
+  )
 
   const searchNorm = normalizeForSearch(searchQuery)
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (selectedCategory != null) {
-        if (normalizeForSearch(p.categorie) !== normalizeForSearch(selectedCategory)) return false
+        const productCategory = resolveAssociationCategory(p.association_category, p.categorie)
+        if (normalizeForSearch(productCategory) !== normalizeForSearch(selectedCategory)) return false
       }
       if (searchNorm) {
         const inName = normalizeForSearch(p.nume).includes(searchNorm)
@@ -87,9 +93,30 @@ export function GustCatalogPage({
 
   const sorted = useMemo(() => {
     const arr = [...filtered]
-    // „Cele mai noi”: fără `created_at` în payload, păstrăm aceeași ordine ca serverul (ca „Recomandate”).
-    if (sort === 'recommended' || sort === 'newest') {
-      arr.sort((a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0))
+    if (sort === 'recommended') {
+      arr.sort((a, b) => {
+        const orderDiff = Number(b.orderCount ?? 0) - Number(a.orderCount ?? 0)
+        if (orderDiff !== 0) return orderDiff
+        const createdDiff = new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+        if (createdDiff !== 0) return createdDiff
+        return (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0)
+      })
+      return arr
+    }
+    if (sort === 'newest') {
+      arr.sort((a, b) => {
+        const createdDiff = new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()
+        if (createdDiff !== 0) return createdDiff
+        return (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0)
+      })
+      return arr
+    }
+    if (sort === 'most-ordered') {
+      arr.sort((a, b) => {
+        const orderDiff = Number(b.orderCount ?? 0) - Number(a.orderCount ?? 0)
+        if (orderDiff !== 0) return orderDiff
+        return (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0)
+      })
       return arr
     }
     if (sort === 'price-asc') {
@@ -109,7 +136,9 @@ export function GustCatalogPage({
   }, [cart])
 
   const headerTitle =
-    selectedCategory == null ? 'Toate produsele' : labelForCategory(selectedCategory)
+    selectedCategory == null
+      ? 'Toate produsele'
+      : labelForAssociationCategoryKey(selectedCategory, categoryDefinitions)
 
   const handleCardOpen = useCallback(
     (productId: string) => {
@@ -140,7 +169,7 @@ export function GustCatalogPage({
             </p>
           </div>
           <label className="assoc-body flex min-w-[200px] flex-col gap-1 text-xs font-bold sm:max-w-xs" style={{ color: gustaBrandColors.text }}>
-            Sortare
+            Sortează după
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as GustCatalogSort)}
@@ -228,8 +257,14 @@ export function GustCatalogPage({
                       }
                 }
               >
-                {labelForCategory(cat)} (
-                {products.filter((p) => normalizeForSearch(p.categorie) === normalizeForSearch(cat)).length})
+                {labelForAssociationCategoryKey(cat, categoryDefinitions)} (
+                {
+                  products.filter(
+                    (p) =>
+                      normalizeForSearch(resolveAssociationCategory(p.association_category, p.categorie)) ===
+                      normalizeForSearch(cat),
+                  ).length
+                })
               </button>
             )
           })}
@@ -251,7 +286,7 @@ export function GustCatalogPage({
           <ul className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] md:gap-5">
             {sorted.map((p, index) => {
               const q = cartQtyById.get(p.id) ?? 0
-              const badge = q > 0 ? `În coș · ${q % 1 === 0 ? q : q.toFixed(1)}` : undefined
+              const badge = q > 0 ? `În coș · ${q}` : undefined
               return (
                 <motion.li
                   key={p.id}

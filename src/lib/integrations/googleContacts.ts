@@ -2,6 +2,12 @@ import * as Sentry from '@sentry/nextjs'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { buildAnalyticsPayload } from '@/lib/analytics/schema'
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
+import {
+  decodeTokenSecret,
+  encryptTokenSecret,
+  TokenEncryptionConfigError,
+} from '@/lib/integrations/token-secret-crypto'
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_PEOPLE_API_URL = 'https://people.googleapis.com/v1/people/me/connections'
@@ -67,6 +73,72 @@ interface SyncContactsInput {
 interface RefreshAccessTokenInput {
   supabase: SupabaseClient<Database>
   integration: GoogleIntegrationRow
+}
+
+interface RuntimeIntegrationTokens {
+  integration: GoogleIntegrationRow
+  accessToken: string | null
+  refreshToken: string | null
+}
+
+function toRuntimeIntegration(
+  integration: GoogleIntegrationRow,
+  accessToken: string | null,
+  refreshToken: string | null
+): GoogleIntegrationRow {
+  return {
+    ...integration,
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  }
+}
+
+async function resolveRuntimeIntegrationTokens(args: {
+  supabase: SupabaseClient<Database>
+  integration: GoogleIntegrationRow
+}): Promise<RuntimeIntegrationTokens> {
+  const { supabase } = args
+  let { integration } = args
+
+  const decodedAccess = decodeTokenSecret(integration.access_token)
+  const decodedRefresh = decodeTokenSecret(integration.refresh_token)
+
+  const migrationPayload: TablesUpdate<'integrations_google_contacts'> = {}
+  try {
+    if (decodedAccess.format === 'legacy' && decodedAccess.value) {
+      migrationPayload.access_token = encryptTokenSecret(decodedAccess.value)
+    }
+    if (decodedRefresh.format === 'legacy' && decodedRefresh.value) {
+      migrationPayload.refresh_token = encryptTokenSecret(decodedRefresh.value)
+    }
+  } catch (error) {
+    if (!(error instanceof TokenEncryptionConfigError)) {
+      throw error
+    }
+  }
+
+  if (Object.keys(migrationPayload).length > 0) {
+    migrationPayload.updated_at = new Date().toISOString()
+    const { data, error } = await supabase
+      .from('integrations_google_contacts')
+      .update(migrationPayload)
+      .eq('id', integration.id)
+      .select('*')
+      .single()
+
+    if (error) throw error
+    integration = data
+  }
+
+  return {
+    integration: toRuntimeIntegration(
+      integration,
+      decodedAccess.value,
+      decodedRefresh.value
+    ),
+    accessToken: decodedAccess.value,
+    refreshToken: decodedRefresh.value,
+  }
 }
 
 function parseJwtExpiry(accessToken?: string | null): Date | null {
@@ -148,15 +220,18 @@ export async function refreshAccessTokenIfNeeded({
   supabase,
   integration,
 }: RefreshAccessTokenInput): Promise<GoogleIntegrationRow> {
+  const runtimeTokens = await resolveRuntimeIntegrationTokens({ supabase, integration })
+  integration = runtimeTokens.integration
+
   const now = new Date()
-  const expiry = integration.token_expires_at ? new Date(integration.token_expires_at) : parseJwtExpiry(integration.access_token)
-  const tokenIsValid = integration.access_token && expiry && expiry.getTime() - now.getTime() > 60_000
+  const expiry = integration.token_expires_at ? new Date(integration.token_expires_at) : parseJwtExpiry(runtimeTokens.accessToken)
+  const tokenIsValid = runtimeTokens.accessToken && expiry && expiry.getTime() - now.getTime() > 60_000
 
   if (tokenIsValid) {
     return integration
   }
 
-  if (!integration.refresh_token) {
+  if (!runtimeTokens.refreshToken) {
     throw new Error('Google refresh token missing')
   }
 
@@ -173,24 +248,25 @@ export async function refreshAccessTokenIfNeeded({
       client_id: clientId,
       client_secret: clientSecret,
       grant_type: 'refresh_token',
-      refresh_token: integration.refresh_token,
+      refresh_token: runtimeTokens.refreshToken,
     }),
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Google refresh token failed: ${body}`)
+    throw new Error(`Google refresh token failed (status ${response.status})`)
   }
 
   const tokenData = (await response.json()) as GoogleTokenResponse
   const tokenExpiresAt = tokenData.expires_in
     ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
     : integration.token_expires_at
+  const nextRefreshToken = tokenData.refresh_token ?? runtimeTokens.refreshToken
 
   const { data, error } = await supabase
     .from('integrations_google_contacts')
     .update({
-      access_token: tokenData.access_token,
+      access_token: encryptTokenSecret(tokenData.access_token),
+      refresh_token: nextRefreshToken ? encryptTokenSecret(nextRefreshToken) : null,
       token_expires_at: tokenExpiresAt,
       scope: tokenData.scope ?? integration.scope,
       updated_at: new Date().toISOString(),
@@ -200,7 +276,7 @@ export async function refreshAccessTokenIfNeeded({
     .single()
 
   if (error) throw error
-  return data
+  return toRuntimeIntegration(data, tokenData.access_token, nextRefreshToken ?? null)
 }
 
 export async function fetchContactsPaged({
@@ -239,7 +315,9 @@ export async function fetchContactsPaged({
         ;(error as { code?: string }).code = 'SYNC_TOKEN_EXPIRED'
         throw error
       }
-      throw new Error(`Google contacts fetch failed: ${errorText}`)
+      throw new Error(
+        `Google contacts fetch failed (status ${response.status}, body_length ${errorText.length})`,
+      )
     }
 
     const data = (await response.json()) as GoogleConnectionsResponse
@@ -426,7 +504,11 @@ export async function syncContacts({
     .single()
 
   if (integrationError) throw integrationError
-  liveIntegration = updatedIntegration
+  liveIntegration = toRuntimeIntegration(
+    updatedIntegration,
+    liveIntegration.access_token,
+    liveIntegration.refresh_token
+  )
 
   return {
     ...counters,
@@ -458,8 +540,7 @@ export async function exchangeGoogleCodeForTokens(code: string): Promise<GoogleT
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Google token exchange failed: ${body}`)
+    throw new Error(`Google token exchange failed (status ${response.status})`)
   }
 
   return (await response.json()) as GoogleTokenResponse
@@ -483,9 +564,8 @@ export async function upsertGoogleIntegration(args: {
     user_id: userId,
     user_email: userEmail,
     connected_email: connectedEmail,
-    access_token: tokenData.access_token ?? null,
-    // TODO: encrypt refresh_token at rest once a project-wide crypto utility is available.
-    refresh_token: tokenData.refresh_token ?? null,
+    access_token: tokenData.access_token ? encryptTokenSecret(tokenData.access_token) : null,
+    refresh_token: tokenData.refresh_token ? encryptTokenSecret(tokenData.refresh_token) : null,
     token_expires_at: tokenExpiresAt,
     scope: tokenData.scope ?? null,
     updated_at: new Date().toISOString(),
@@ -498,16 +578,21 @@ export async function upsertGoogleIntegration(args: {
     .single()
 
   if (error) throw error
-  return data
+  return toRuntimeIntegration(data, tokenData.access_token ?? null, tokenData.refresh_token ?? null)
 }
 
 export async function captureIntegrationError(error: unknown, context: Record<string, unknown>) {
+  const safeContext = sanitizeForLog(context)
+  const safeError = toSafeErrorContext(error)
   Sentry.captureException(error, {
     tags: {
       module: 'integrations',
       integration: 'google_contacts',
     },
-    extra: context,
+    extra: {
+      context: safeContext,
+      safe_error: safeError,
+    },
   })
 }
 

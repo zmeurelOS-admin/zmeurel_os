@@ -72,6 +72,14 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: true,
   },
+  weekly_sales_summary: {
+    icon: '🧾',
+    color: '#0D6342',
+    toastDuration: 5000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: false,
+  },
   system: {
     icon: 'ℹ️',
     color: '#3D4543',

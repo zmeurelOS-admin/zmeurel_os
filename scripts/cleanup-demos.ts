@@ -1,10 +1,10 @@
 /**
  * cleanup-demos.ts
- * Deletes all demo / guest tenant accounts while protecting the main admin.
+ * Deletes all demo / guest tenant accounts while protecting configured privileged users.
  *
  * Safety rules:
- *  1. Aborts if popa.andrei.sv@gmail.com is NOT found in auth.
- *  2. Never touches Andrei's tenant or auth user.
+ *  1. Aborts if no protected user is resolved.
+ *  2. Never touches protected users' tenant or auth user.
  *  3. Targets only demo-style accounts (guest-*, @demo.zmeurel.local, obviously-test emails).
  *
  * Run: npx tsx scripts/cleanup-demos.ts [--dry-run]
@@ -15,9 +15,9 @@ config({ path: '.env.local' })
 
 import { getSupabaseAdmin } from '../src/lib/supabase/admin'
 
-const PROTECTED_EMAIL = 'popa.andrei.sv@gmail.com'
 const PAGE_SIZE = 200
 const DRY_RUN = process.argv.includes('--dry-run')
+const PROTECTED_USER_IDS_ENV = 'CLEANUP_DEMOS_PROTECTED_USER_IDS'
 
 function isDemoEmail(email: string | null): boolean {
   if (!email) return true
@@ -47,6 +47,39 @@ async function fetchAllAuthUsers(admin: ReturnType<typeof getSupabaseAdmin>) {
   return users
 }
 
+function parseCsvEnv(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+async function resolveProtectedUserIds(admin: ReturnType<typeof getSupabaseAdmin>): Promise<Set<string>> {
+  const protectedIds = new Set(parseCsvEnv(process.env[PROTECTED_USER_IDS_ENV]))
+
+  const { data, error } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('is_superadmin', true)
+
+  if (error) {
+    throw new Error(`Failed loading superadmin profiles: ${error.message}`)
+  }
+
+  for (const row of (data ?? []) as Array<{ id: string | null }>) {
+    if (row.id) protectedIds.add(row.id.toLowerCase())
+  }
+
+  if (protectedIds.size === 0) {
+    throw new Error(
+      `No protected users resolved. Configure ${PROTECTED_USER_IDS_ENV} or ensure at least one superadmin profile exists.`,
+    )
+  }
+
+  return protectedIds
+}
+
 async function deleteTenantData(admin: ReturnType<typeof getSupabaseAdmin>, tenantId: string) {
   const tables = [
     'activitati_agricole', 'activitati_extra_season', 'cheltuieli_diverse',
@@ -70,16 +103,11 @@ async function main() {
   const users = await fetchAllAuthUsers(admin)
   console.log(`Found ${users.length} auth users.`)
 
-  // Safety check: Andrei must exist
-  const andrei = users.find((u) => u.email?.toLowerCase() === PROTECTED_EMAIL.toLowerCase())
-  if (!andrei) {
-    console.error(`ABORT: Protected admin account (${PROTECTED_EMAIL}) not found in auth. Refusing to run.`)
-    process.exit(1)
-  }
-  console.log(`Protected admin found: ${andrei.id} (${andrei.email})\n`)
+  const protectedUserIds = await resolveProtectedUserIds(admin)
+  console.log(`Protected users resolved: ${protectedUserIds.size}\n`)
 
-  const targets = users.filter((u) => u.id !== andrei.id && isDemoEmail(u.email))
-  const skipped = users.filter((u) => u.id !== andrei.id && !isDemoEmail(u.email))
+  const targets = users.filter((u) => !protectedUserIds.has(u.id.toLowerCase()) && isDemoEmail(u.email))
+  const skipped = users.filter((u) => !protectedUserIds.has(u.id.toLowerCase()) && !isDemoEmail(u.email))
 
   if (skipped.length > 0) {
     console.log(`Skipping ${skipped.length} non-demo real user(s):`)

@@ -197,6 +197,10 @@ export function AssociationProducatoriClient({
         toast.message('Nu există produse active de listat.')
         return
       }
+      if (!p.legalDocsComplete) {
+        toast.error('Documente incomplete.')
+        return
+      }
       if (p.listedProductCount >= p.activeProductCount) {
         toast.message('Toate produsele active sunt deja listate.')
         return
@@ -386,8 +390,12 @@ export function AssociationProducatoriClient({
             size="sm"
             className="w-full sm:w-auto"
             disabled={
-              p.activeProductCount === 0 || batchBusyId === p.id || p.listedProductCount >= p.activeProductCount
+              p.activeProductCount === 0 ||
+              batchBusyId === p.id ||
+              p.listedProductCount >= p.activeProductCount ||
+              !p.legalDocsComplete
             }
+            title={!p.legalDocsComplete ? 'Documente incomplete' : undefined}
             onClick={() => void batchListAll(p)}
           >
             <ListChecks className="mr-1.5 h-3.5 w-3.5" aria-hidden />
@@ -395,6 +403,9 @@ export function AssociationProducatoriClient({
           </Button>
         ) : null}
       </div>
+      {!p.legalDocsComplete ? (
+        <p className="text-xs font-medium text-[var(--status-warning-text)]">Documente incomplete</p>
+      ) : null}
       {renderRoleSection(p)}
     </div>
   )
@@ -420,7 +431,17 @@ export function AssociationProducatoriClient({
             <span className="tabular-nums">{p.activeProductCount}</span> produse active ·{' '}
             <span className="tabular-nums">{p.listedProductCount}</span> listate în magazin
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">{approvedBadge()}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {approvedBadge()}
+            {!p.legalDocsComplete ? (
+              <Badge
+                variant="outline"
+                className="border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]"
+              >
+                Documente incomplete
+              </Badge>
+            ) : null}
+          </div>
         </div>
       </div>
       {cardActions(p)}
@@ -607,6 +628,11 @@ export function AssociationProducatoriClient({
                         {p.activeProductCount} active · {p.listedProductCount} listate
                       </div>
                       <div className="mt-2">{approvedBadge()}</div>
+                      {!p.legalDocsComplete ? (
+                        <div className="mt-2 text-[11px] font-medium text-[var(--status-warning-text)]">
+                          Documente incomplete
+                        </div>
+                      ) : null}
                       {canManageAssociationRoles && p.associationRole ? (
                         <div className="mt-2">{producerRoleBadge(p.associationRole)}</div>
                       ) : canManageAssociationRoles && !p.associationRole ? (

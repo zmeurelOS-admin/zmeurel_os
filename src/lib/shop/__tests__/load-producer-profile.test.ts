@@ -9,6 +9,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 const TID = 'c0000000-0000-4000-8000-000000000001'
 const PID = 'd0000000-0000-4000-8000-000000000001'
+const originalAssociationAllowedOwnerUserIds = process.env.ASSOCIATION_ALLOWED_OWNER_USER_IDS
 
 function resolveResult(data: unknown) {
   return Promise.resolve({ data, error: null })
@@ -17,6 +18,11 @@ function resolveResult(data: unknown) {
 describe('loadProducerProfile', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    if (originalAssociationAllowedOwnerUserIds === undefined) {
+      delete process.env.ASSOCIATION_ALLOWED_OWNER_USER_IDS
+    } else {
+      process.env.ASSOCIATION_ALLOWED_OWNER_USER_IDS = originalAssociationAllowedOwnerUserIds
+    }
   })
 
   it('returnează null pentru UUID invalid', async () => {
@@ -157,5 +163,81 @@ describe('loadProducerProfile', () => {
     expect(out?.products).toHaveLength(1)
     expect(out?.products[0]?.displayPrice).toBe(9)
     expect(out?.products[0]?.producerLogoUrl).toBe('https://cdn.test/logo.jpg')
+  })
+
+  it('acceptă fallback de tranziție pe owner_user_id allowlist (fără comparație pe email)', async () => {
+    process.env.ASSOCIATION_ALLOWED_OWNER_USER_IDS = 'owner-1'
+    const getUserById = vi.fn()
+
+    getSupabaseAdmin.mockReturnValue({
+      from: (table: string) => {
+        if (table === 'tenants') {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: {
+                    id: TID,
+                    nume_ferma: 'Ferma Fallback',
+                    owner_user_id: 'owner-1',
+                    is_association_approved: false,
+                    descriere_publica: null,
+                    email_public: null,
+                    facebook: null,
+                    instagram: null,
+                    poze_ferma: [],
+                    localitate: 'Suceava',
+                    logo_url: null,
+                    program_piata: null,
+                    specialitate: null,
+                    website: null,
+                    whatsapp: null,
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          }
+        }
+        if (table === 'produse') {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    order: () =>
+                      resolveResult([
+                        {
+                          id: PID,
+                          tenant_id: TID,
+                          nume: 'Produs fallback',
+                          descriere: null,
+                          categorie: 'x',
+                          unitate_vanzare: 'kg',
+                          gramaj_per_unitate: null,
+                          pret_unitar: 10,
+                          association_price: null,
+                          moneda: 'RON',
+                          poza_1_url: null,
+                          poza_2_url: null,
+                          status: 'activ',
+                          association_listed: true,
+                        },
+                      ]),
+                  }),
+                }),
+              }),
+            }),
+          }
+        }
+        return {}
+      },
+      auth: { admin: { getUserById } },
+    })
+
+    const out = await loadProducerProfile(TID)
+    expect(out).not.toBeNull()
+    expect(out?.farm.numeFerma).toBe('Ferma Fallback')
+    expect(getUserById).not.toHaveBeenCalled()
   })
 })

@@ -1,28 +1,18 @@
 import { NextResponse } from 'next/server'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
+import { destructiveActionScopes } from '@/lib/auth/destructive-action-step-up-contract'
+import { requireDestructiveActionStepUp } from '@/lib/auth/destructive-action-step-up'
 import { captureApiError } from '@/lib/monitoring/sentry'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import {
+  deleteTenantScopedData,
+  TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
+} from '@/lib/tenant/destructive-cleanup'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
 export const runtime = 'nodejs'
-
-type TenantTable =
-  | 'activitati_agricole'
-  | 'cheltuieli_diverse'
-  | 'vanzari'
-  | 'recoltari'
-  | 'clienti'
-  | 'parcele'
-  | 'culegatori'
-  | 'investitii'
-  | 'vanzari_butasi'
-  | 'vanzari_butasi_items'
-  | 'comenzi'
-  | 'miscari_stoc'
-  | 'alert_dismissals'
-  | 'integrations_google_contacts'
 
 export async function POST(request: Request) {
   let userId: string | null = null
@@ -48,6 +38,15 @@ export async function POST(request: Request) {
     }
     userId = user.id
 
+    const stepUpError = requireDestructiveActionStepUp(request, {
+      userId: user.id,
+      scope: destructiveActionScopes.farmReset,
+      statusKey: 'success',
+    })
+    if (stepUpError) {
+      return stepUpError
+    }
+
     let tenantId: string
     try {
       tenantId = await getTenantId(supabase)
@@ -68,40 +67,20 @@ export async function POST(request: Request) {
     }
     tenantIdForSentry = tenantId
     const admin = createServiceRoleClient()
-
-    const deleteByTenant = async (table: TenantTable) => {
-      const { error } = await admin.from(table).delete().eq('tenant_id', tenantId)
-      if (error) {
-        throw new Error(`Delete failed for ${table}: ${error.message ?? 'Unknown error'}`)
-      }
-    }
-
     console.info('[farm-reset] start', { userId: user.id, tenantId })
-
-    // Child rows first, then parents, to avoid FK conflicts.
-    await deleteByTenant('vanzari_butasi_items')
-    await deleteByTenant('miscari_stoc')
-    await deleteByTenant('alert_dismissals')
-    await deleteByTenant('integrations_google_contacts')
-    await deleteByTenant('comenzi')
-
-    const { error: analyticsDeleteError } = await admin
-      .from('analytics_events' as unknown as 'alert_dismissals')
-      .delete()
-      .eq('tenant_id', tenantId)
-    if (analyticsDeleteError) {
-      throw new Error(`Delete failed for analytics_events: ${analyticsDeleteError.message ?? 'Unknown error'}`)
+    const cleanupResult = await deleteTenantScopedData(admin, tenantId, {
+      scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.farmReset,
+      verifyCriticalTables: true,
+    })
+    const nonCriticalFailures = cleanupResult.steps.filter(
+      (step) => step.status === 'failed' && !step.critical
+    )
+    if (nonCriticalFailures.length > 0) {
+      console.warn('[farm-reset] cleanup completed with non-critical failures', {
+        tenantId,
+        failedTargets: nonCriticalFailures.map((step) => step.target),
+      })
     }
-
-    await deleteByTenant('vanzari_butasi')
-    await deleteByTenant('vanzari')
-    await deleteByTenant('recoltari')
-    await deleteByTenant('cheltuieli_diverse')
-    await deleteByTenant('activitati_agricole')
-    await deleteByTenant('investitii')
-    await deleteByTenant('clienti')
-    await deleteByTenant('culegatori')
-    await deleteByTenant('parcele')
 
     const { error: resetDemoFlagsError } = await supabase
       .from('tenants')

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Database, TablesInsert } from '@/types/supabase'
 import { DEMO_DATA_ORIGIN } from '@/lib/demo/demo-constants'
+import { LEGAL_DOCS_BUCKET } from '@/lib/legal-docs/shared'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 
 import { generateBusinessId } from '@/lib/supabase/business-ids'
@@ -13,6 +14,8 @@ import {
 } from './demo-fixtures'
 
 const DEMO_CULEGATOR_TARIF_LEI_KG = 2.5
+const DEMO_LEGAL_DOC_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/xZ0AAAAASUVORK5CYII='
 
 /** Coordonate în jurul Suceava (meteo / hărți) — ușor variate per parcelă */
 const SUCEAVA_COORDS = [
@@ -99,6 +102,47 @@ async function insertRecoltareStockMovementsForSeed(
 
   const { error: insErr } = await supabaseAdmin.from('miscari_stoc').insert(rows)
   return { error: insErr }
+}
+
+async function seedDemoLegalDocs(
+  supabaseAdmin: SupabaseClient<Database>,
+  params: {
+    tenantId: string
+    seedId: string
+  }
+): Promise<void> {
+  const { tenantId, seedId } = params
+  const nowIso = new Date().toISOString()
+  const storagePath = `${tenantId}/demo-legal-docs/${seedId}-certificat-producator.png`
+
+  const legalDocRow: TablesInsert<'farmer_legal_docs'> = {
+    tenant_id: tenantId,
+    full_name: 'Andrei Popa',
+    legal_type: 'certificat_producator',
+    certificate_series: 'SV',
+    certificate_number: 'DEMO-2026-001',
+    certificate_expiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    locality: 'Suceava',
+    phone: '0745123456',
+    certificate_photo_url: storagePath,
+    legal_accepted_at: nowIso,
+    cui: null,
+  }
+
+  const { error } = await supabaseAdmin.from('farmer_legal_docs').upsert(legalDocRow).select('tenant_id').single()
+  if (error) {
+    throw new Error(`Demo legal docs seed failed: ${error.message ?? 'Unknown error'}`)
+  }
+
+  const fileBuffer = Buffer.from(DEMO_LEGAL_DOC_PNG_BASE64, 'base64')
+  const { error: uploadError } = await supabaseAdmin.storage.from(LEGAL_DOCS_BUCKET).upload(storagePath, fileBuffer, {
+    contentType: 'image/png',
+    upsert: true,
+  })
+
+  if (uploadError) {
+    
+  }
 }
 
 /** Trebuie să coincidă cu mișcările de recoltare — `check_stock_not_negative` grupează după (tenant, produs, locatie_id, depozit). */
@@ -585,33 +629,16 @@ function logSeedInsertError(
 ) {
   const normalizedError = normalizeSeedError(table, error, sentData)
   errors.push(normalizedError)
-  console.error(
-    `SEED ${table} ERROR:`,
-    JSON.stringify({
-      table,
-      message: normalizedError.message,
-      details: normalizedError.details,
-      hint: normalizedError.hint,
-      code: normalizedError.code,
-      sent_data: sentData ?? null,
-    })
-  )
 }
 
-function logSeedInsertSuccess(table: string, rows: Array<Record<string, unknown>> | null | undefined) {
-  console.info(
-    `SEED ${table} OK:`,
-    JSON.stringify({
-      rows: rows?.length ?? 0,
-      returned_sample: rows?.[0] ?? null,
-    })
-  )
+function logSeedInsertSuccess(_table: string, _rows: Array<Record<string, unknown>> | null | undefined) {
+  void _table
+  void _rows
 }
 
 async function inferDemoTypeForTenant(
   supabaseAdmin: SupabaseClient<Database>,
-  tenantId: string,
-  _demoColumnsSupport: DemoColumnsSupport
+  tenantId: string
 ): Promise<DemoType> {
   const { data, error } = await ((supabaseAdmin.from('parcele') as unknown) as {
     select: (columns: string) => {
@@ -867,6 +894,25 @@ export async function seedDemoDataForTenant(
     }
   }
 
+  try {
+    await seedDemoLegalDocs(supabaseAdmin, {
+      tenantId,
+      seedId,
+    })
+    
+  } catch (error) {
+    logSeedInsertError(
+      errors,
+      'farmer_legal_docs',
+      error instanceof Error ? { message: error.message } : { message: 'Demo legal docs seed failed' },
+      {
+        tenant_id: tenantId,
+        legal_type: 'certificat_producator',
+        certificate_photo_url: `${tenantId}/demo-legal-docs/${seedId}-certificat-producator.png`,
+      }
+    )
+  }
+
   const produseBase = demoType === 'solar'
     ? ['Roșii', 'Castraveți', 'Ardei', 'Răsaduri', 'Mix legume']
     : demoType === 'orchard'
@@ -980,7 +1026,7 @@ export async function seedDemoDataForTenant(
       summary.stocuri += 1
     }
   }
-  console.info('SEED recoltari OK:', JSON.stringify({ rows: summary.recoltari }))
+  
 
   const comandaStatuses = ['livrata', 'livrata', 'livrata', 'livrata', 'confirmata', 'confirmata', 'confirmata', 'confirmata', 'noua', 'noua', 'anulata', 'anulata']
   const comenziRows = comandaStatuses.map((status, idx) => {
@@ -1116,7 +1162,7 @@ export async function seedDemoDataForTenant(
       summary.stocuri += 1
     }
   }
-  console.info('SEED vanzari OK:', JSON.stringify({ rows: summary.vanzari }))
+  
 
   const cheltuialaTotal = demoType === 'fieldcrop' ? 20 : 15
   const cheltuieliRows = Array.from({ length: cheltuialaTotal }).map((_, idx) => ({
@@ -1251,7 +1297,7 @@ export async function reloadDemoDataForTenant(
   requestedDemoType?: DemoType
 ): Promise<{ deletedRows: number; seedId: string; summary: DemoSeedSummary }> {
   const demoColumnsSupport = await resolveDemoColumnSupport(supabaseAdmin)
-  const demoType = requestedDemoType ?? (await inferDemoTypeForTenant(supabaseAdmin, tenantId, demoColumnsSupport))
+  const demoType = requestedDemoType ?? (await inferDemoTypeForTenant(supabaseAdmin, tenantId))
   const deletedRows = await deleteDemoRows({
     supabaseAdmin,
     tenantId,

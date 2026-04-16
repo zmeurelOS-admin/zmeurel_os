@@ -25,7 +25,7 @@ Important areas:
 - `src/app/(onboarding)` onboarding/demo entry
 - `src/app/api` server routes
 - `src/app/api/chat` AI chat API package split into `route.ts`, `chat-post-handler.ts`, `contract-helpers.ts`, `extractors.ts`, `signal-detectors.ts`, `conversation-memory.ts`, `date-helpers.ts`, `flow-detection.ts`, and `utils.ts`
-- `src/app/api/shop/order` — public shop checkout (POST → `comenzi`, service role); notificare fermier opțională Resend în `src/lib/shop/notify-farmer-shop-order.ts` (vezi `AGENTS.md` / env)
+- `src/app/api/shop/order` — public shop checkout (POST → `comenzi`, service role); hardening anti-abuse server-side (IP/fingerprint guard) în `src/lib/api/public-write-guard.ts`; notificare fermier opțională Resend în `src/lib/shop/notify-farmer-shop-order.ts` (vezi `AGENTS.md` / env)
 - `src/app/api/association/producer-profile` — update profil public producător (admin/moderator asociație)
 - `src/app/api/association/producer-photos` — upload/delete poze fermă pentru profilul public
 - `src/app/api/association/settings` — salvează setările publice ale asociației în Storage JSON

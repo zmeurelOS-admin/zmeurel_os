@@ -15,6 +15,7 @@ import {
 } from '@/lib/shop/association/merchant-info'
 import { postShopOrderWithRetry } from '@/lib/shop/association/checkout-fetch'
 import {
+  getAssociationDeliveryCutoffText,
   formatDeliveryDateFromIso,
   getAmountUntilFreeDelivery,
   getDeliveryFee,
@@ -23,6 +24,9 @@ import {
 import { formatQuantityForDisplay } from '@/lib/shop/utils'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/ui/toast'
+
+import { useAssociationShop } from '@/components/shop/association/association-shop-context'
+import { AssociationDeliveryNotice } from '@/components/shop/association/AssociationDeliveryNotice'
 
 import type {
   GustCartItem,
@@ -130,6 +134,7 @@ export function GustCheckoutForm({
   onComplete,
   merchant,
 }: GustCheckoutFormProps) {
+  const { publicSettings } = useAssociationShop()
   const m = merchant ?? defaultResolvedMerchant()
   const [nume, setNume] = useState('')
   const [telefon, setTelefon] = useState('')
@@ -160,10 +165,14 @@ export function GustCheckoutForm({
     }, 0)
   }, [items])
 
-  const deliveryDateIso = useMemo(() => getNextDeliveryDateIso(), [])
+  const deliveryDateIso = useMemo(() => getNextDeliveryDateIso(publicSettings), [publicSettings])
   const deliveryDateLabel = useMemo(
     () => formatDeliveryDateFromIso(deliveryDateIso),
     [deliveryDateIso],
+  )
+  const deliveryCutoffText = useMemo(
+    () => getAssociationDeliveryCutoffText(publicSettings),
+    [publicSettings],
   )
   const deliveryFee = useMemo(() => getDeliveryFee(estimatedTotal), [estimatedTotal])
   const amountUntilFree = useMemo(() => getAmountUntilFreeDelivery(estimatedTotal), [estimatedTotal])
@@ -821,6 +830,11 @@ export function GustCheckoutForm({
             className="sticky bottom-0 z-[1] -mx-4 border-t bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur md:col-span-2 md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:backdrop-blur-0"
             style={{ borderColor: gustaPrimaryTints[40] }}
           >
+            <AssociationDeliveryNotice
+              text={deliveryCutoffText}
+              compact
+              className="mb-3 border-[#E8E0C4] bg-[#FFF9E3]"
+            />
             {inlineError ? (
               <p
                 className="mb-3 rounded-xl border px-3 py-2 text-sm"

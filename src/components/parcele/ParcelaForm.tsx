@@ -74,10 +74,7 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
       },
       (error) => {
         setGeoLoading(false)
-        console.error('[ParcelaForm] geolocation error', {
-          code: error.code,
-          message: error.message,
-        })
+        
         if (error.code === 1) {
           setGeoStatus({ state: 'denied', message: 'Locația nu e disponibilă. Poți adăuga coordonatele manual mai târziu.' })
           toast.error('Permite accesul la locație din setările browserului')

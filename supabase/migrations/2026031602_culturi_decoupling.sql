@@ -155,6 +155,11 @@ $$;
 
 grant execute on function public.validate_suprafata_culturi(uuid, numeric, uuid) to authenticated;
 
+drop trigger if exists culturi_check_suprafata on public.culturi;
+create trigger culturi_check_suprafata
+  before insert or update of suprafata_ocupata, solar_id on public.culturi
+  for each row execute function public.check_culturi_suprafata();
+
 -- ============================================================
 -- 5. ADAUGĂ cultura_id LA culture_stage_logs
 -- ============================================================

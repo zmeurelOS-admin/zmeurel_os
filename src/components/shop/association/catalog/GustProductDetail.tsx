@@ -6,15 +6,22 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 
 import { useAssociationShop } from '@/components/shop/association/association-shop-context'
-import { labelForCategory } from '@/components/shop/association/tokens'
+import { AssociationDeliveryNotice } from '@/components/shop/association/AssociationDeliveryNotice'
+import { labelForCategory, resolveAssociationCategory } from '@/components/shop/association/tokens'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { gustaBrandColors } from '@/lib/shop/association/brand-tokens'
+import { getAssociationDeliveryCutoffText } from '@/lib/shop/association/delivery'
 import { resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
 import { formatQuantityForDisplay } from '@/lib/shop/utils'
 import { cn } from '@/lib/utils'
 
 import { getGustCategoryVisual } from './gustCategoryVisual'
-import { collectProductImageUrls, formatGustPrice, type GustCatalogProduct } from './gustProductTypes'
+import {
+  collectProductImageUrls,
+  formatGustPrice,
+  formatGustProductUnitLabel,
+  type GustCatalogProduct,
+} from './gustProductTypes'
 
 const MD = '(min-width: 768px)'
 const ANIM_MS = 400
@@ -41,6 +48,7 @@ export function GustProductDetail({
   const router = useRouter()
   const { publicSettings } = useAssociationShop()
   const merchant = resolveMerchantPublicInfo(publicSettings)
+  const deliveryCutoffText = getAssociationDeliveryCutoffText(publicSettings)
   const isDesktop = useMediaQuery(MD)
   const [mounted, setMounted] = useState(false)
   const [animateIn, setAnimateIn] = useState(false)
@@ -78,12 +86,9 @@ export function GustProductDetail({
 
   const urls = collectProductImageUrls(p)
   const firstUrl = urls[0]
-  const { bg, emoji } = getGustCategoryVisual(p.categorie)
-  const categoryLabel = labelForCategory(p.categorie)
-  const gramaj =
-    p.gramaj_per_unitate != null && Number.isFinite(p.gramaj_per_unitate)
-      ? `${p.gramaj_per_unitate} g`
-      : null
+  const categoryKey = resolveAssociationCategory(p.association_category, p.categorie)
+  const { bg, emoji } = getGustCategoryVisual(categoryKey)
+  const categoryLabel = labelForCategory(categoryKey)
   const producerName = p.farmName?.trim() || farmName
   const producerHref = p.tenantId ? `/magazin/asociatie/producatori/${p.tenantId}` : null
 
@@ -270,10 +275,15 @@ export function GustProductDetail({
                 className="rounded-full px-3 py-1 text-xs font-semibold"
                 style={{ backgroundColor: '#f0efec', color: '#5a6563' }}
               >
-                {p.unitate_vanzare}
-                {gramaj ? ` · ${gramaj}` : ''}
+                {formatGustProductUnitLabel(p)}
               </span>
             </div>
+
+            <AssociationDeliveryNotice
+              text={deliveryCutoffText}
+              compact
+              className="mt-4 border-[#E8E0C4] bg-[#FFF9E3]"
+            />
           </div>
 
           <div
@@ -288,7 +298,7 @@ export function GustProductDetail({
                 {formatGustPrice(p)} <span className="text-base font-bold">{p.moneda}</span>
               </p>
               <p className="mt-1 text-sm" style={{ color: '#5a6563' }}>
-                / {p.unitate_vanzare}
+                {formatGustProductUnitLabel(p)}
               </p>
             </div>
             <button

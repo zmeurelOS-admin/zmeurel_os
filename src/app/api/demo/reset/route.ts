@@ -37,11 +37,7 @@ export async function POST(request: Request) {
     const admin = createServiceRoleClient()
     const result = await deleteDemoDataForTenant(admin, tenant.id)
 
-    console.info('[demo-seed] delete success', {
-      userId: user.id,
-      tenantId: tenant.id,
-      deletedRows: result.deletedRows,
-    })
+    
 
     return NextResponse.json({
       ok: true,

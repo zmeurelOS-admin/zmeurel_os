@@ -3,11 +3,14 @@ import { DashboardContextSync } from '@/components/app/DashboardContextSync'
 import { DemoBanner } from '@/components/app/DemoBanner'
 import { PushPermissionBanner } from '@/components/notifications/PushPermissionBanner'
 import { AiPanel } from '@/components/ai/AiPanel'
+import BetaWidget from '@/components/beta-widget'
 import { DashboardSidebarLoader } from '@/components/layout/DashboardSidebarLoader'
+import { LegalDocsPersistentBanner } from '@/components/legal-docs/LegalDocsPersistentBanner'
 import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { getAssociationRole } from '@/lib/association/auth'
+import { getTenantLegalDocs } from '@/lib/legal-docs/server'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 
@@ -32,16 +35,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   let associationShopApproved = false
   let farmName: string | null = null
+  let shouldShowLegalDocsBanner = false
   const tenantIdForAuth =
     typeof tenantIdFromProxy === 'string' && tenantIdFromProxy ? tenantIdFromProxy : null
   if (tenantIdForAuth) {
-    const { data: tenantRow } = await supabase
-      .from('tenants')
-      .select('is_association_approved, nume_ferma')
-      .eq('id', tenantIdForAuth)
-      .maybeSingle()
+    const [{ data: tenantRow }, legalDocs] = await Promise.all([
+      supabase
+        .from('tenants')
+        .select('is_association_approved, nume_ferma')
+        .eq('id', tenantIdForAuth)
+        .maybeSingle(),
+      getTenantLegalDocs(supabase, tenantIdForAuth),
+    ])
     associationShopApproved = tenantRow?.is_association_approved === true
     farmName = tenantRow?.nume_ferma ?? null
+    shouldShowLegalDocsBanner = !legalDocs.status.complete
   }
 
   const initialAuth = {
@@ -60,11 +68,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <DashboardContextSync />
         <div className="min-h-screen bg-[var(--agri-bg)]">
           <DemoBanner />
+          {shouldShowLegalDocsBanner ? <LegalDocsPersistentBanner /> : null}
           <PushPermissionBanner />
           <DashboardSidebarLoader />
           <main className="min-h-screen transition-[margin-left] duration-300 ease-in-out md:ml-[var(--sidebar-width)]">
             {children}
           </main>
+          <BetaWidget />
           <AiPanel />
           <BottomTabBar />
           <UnifiedMobileFab />

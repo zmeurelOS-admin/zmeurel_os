@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { captureApiError } from '@/lib/monitoring/sentry'
 import { createClient } from '@/lib/supabase/server'
 
@@ -10,6 +11,14 @@ export const runtime = 'nodejs'
 const bodySchema = z.object({
   endpoint: z.string().min(1),
 })
+
+function getEndpointHost(endpoint: string): string {
+  try {
+    return new URL(endpoint).hostname
+  } catch {
+    return 'invalid-endpoint'
+  }
+}
 
 export async function POST(request: Request) {
   let userId: string | null = null
@@ -38,6 +47,7 @@ export async function POST(request: Request) {
       return apiError(400, 'INVALID_BODY', 'Endpoint lipsă.')
     }
 
+    const endpointHost = getEndpointHost(parsed.data.endpoint)
     const { error } = await supabase
       .from('push_subscriptions')
       .delete()
@@ -45,10 +55,18 @@ export async function POST(request: Request) {
       .eq('endpoint', parsed.data.endpoint)
 
     if (error) {
-      console.error('[push/unsubscribe]', error)
+      console.error(
+        '[push/unsubscribe] delete failed',
+        sanitizeForLog({
+          userId: user.id,
+          endpointHost,
+          error: toSafeErrorContext(error),
+        }),
+      )
       return apiError(500, 'INTERNAL_ERROR', 'Nu am putut șterge subscrierea.')
     }
 
+    console.info('[push/unsubscribe] deleted', sanitizeForLog({ userId: user.id, endpointHost }))
     return NextResponse.json({ ok: true })
   } catch (error) {
     captureApiError(error, { route: '/api/push/unsubscribe', tags: { http_method: 'POST' }, userId })

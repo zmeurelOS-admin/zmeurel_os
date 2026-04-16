@@ -20,7 +20,7 @@ const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 64
 const DEMO_BANNER_HEIGHT = 48
 
-type GroupKey = "ferma" | "comercial" | "finante"
+type GroupKey = "ferma" | "comercial" | "finante" | "administrare"
 
 type SidebarAccordionKey = GroupKey | "admin"
 
@@ -62,6 +62,7 @@ const GROUPS: Group[] = [
       { href: "/clienti", label: "Clienți", emoji: "👥" },
       { href: "/produse", label: "Produse", emoji: "🛒" },
       { href: "/stocuri", label: "Stocuri", emoji: "📦" },
+      { href: "/vanzari-butasi", label: "Material săditor", emoji: "🛍️" },
     ],
   },
   {
@@ -71,6 +72,11 @@ const GROUPS: Group[] = [
       { href: "/cheltuieli", label: "Cheltuieli", emoji: "💸" },
       { href: "/investitii", label: "Investiții", emoji: "💼" },
     ],
+  },
+  {
+    key: "administrare",
+    label: "Administrare",
+    items: [{ href: "/rapoarte", label: "Rapoarte", emoji: "📈" }],
   },
 ]
 
@@ -118,12 +124,16 @@ function getGroupForPath(pathname: string): GroupKey | null {
     pathname.startsWith("/vanzari") ||
     pathname.startsWith("/clienti") ||
     pathname.startsWith("/produse") ||
-    pathname.startsWith("/stocuri")
+    pathname.startsWith("/stocuri") ||
+    pathname.startsWith("/vanzari-butasi")
   ) {
     return "comercial"
   }
   if (pathname.startsWith("/cheltuieli") || pathname.startsWith("/investitii")) {
     return "finante"
+  }
+  if (pathname.startsWith("/rapoarte")) {
+    return "administrare"
   }
   return null
 }

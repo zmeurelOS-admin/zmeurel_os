@@ -13,7 +13,7 @@ export default async function CheltuieliPage() {
     .order('data', { ascending: false })
 
   if (error) {
-    console.error('Failed loading cheltuieli_diverse for cheltuieli page:', error)
+    
   }
 
   return <CheltuialaPageClient initialCheltuieli={(cheltuieli ?? []) as unknown as Cheltuiala[]} />

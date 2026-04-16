@@ -34,6 +34,8 @@ export function mockAssociationProduct(overrides?: Partial<AssociationProduct>):
     categorie: 'Fructe',
     unitate_vanzare: 'buc',
     gramaj_per_unitate: 1000,
+    approximate_weight: null,
+    association_category: null,
     pret_unitar: 28,
     moneda: 'RON',
     poza_1_url: null,
@@ -51,6 +53,8 @@ export function mockAssociationProduct(overrides?: Partial<AssociationProduct>):
     producerEmailPublic: null,
     producerProgramPiata: null,
     displayPrice: 25,
+    createdAt: ISO,
+    orderCount: 0,
     ...overrides,
   }
 }

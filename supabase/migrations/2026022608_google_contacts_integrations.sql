@@ -50,8 +50,7 @@ create policy integrations_google_contacts_admin_select
 on public.integrations_google_contacts
 for select
 using (
-  user_email = 'popa.andrei.sv@gmail.com'
-  and auth.uid() = user_id
+  auth.uid() = user_id
 );
 
 drop policy if exists integrations_google_contacts_admin_insert on public.integrations_google_contacts;
@@ -59,8 +58,7 @@ create policy integrations_google_contacts_admin_insert
 on public.integrations_google_contacts
 for insert
 with check (
-  user_email = 'popa.andrei.sv@gmail.com'
-  and auth.uid() = user_id
+  auth.uid() = user_id
   and tenant_id = (
     select id
     from public.tenants
@@ -74,12 +72,10 @@ create policy integrations_google_contacts_admin_update
 on public.integrations_google_contacts
 for update
 using (
-  user_email = 'popa.andrei.sv@gmail.com'
-  and auth.uid() = user_id
+  auth.uid() = user_id
 )
 with check (
-  user_email = 'popa.andrei.sv@gmail.com'
-  and auth.uid() = user_id
+  auth.uid() = user_id
   and tenant_id = (
     select id
     from public.tenants
@@ -93,8 +89,7 @@ create policy integrations_google_contacts_admin_delete
 on public.integrations_google_contacts
 for delete
 using (
-  user_email = 'popa.andrei.sv@gmail.com'
-  and auth.uid() = user_id
+  auth.uid() = user_id
 );
 
 notify pgrst, 'reload schema';

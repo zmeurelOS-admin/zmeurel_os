@@ -329,6 +329,63 @@ export type Database = {
         }
         Relationships: []
       }
+      association_categories: {
+        Row: {
+          created_at: string
+          is_active: boolean
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          is_active?: boolean
+          key: string
+          label: string
+          sort_order: number
+        }
+        Update: {
+          created_at?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      association_public_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          facebook_url: string | null
+          instagram_url: string | null
+          order_phone: string | null
+          phone: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          order_phone?: string | null
+          phone?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          order_phone?: string | null
+          phone?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       association_product_offers: {
         Row: {
           created_at: string
@@ -1433,6 +1490,92 @@ export type Database = {
         }
         Relationships: []
       }
+      farmer_legal_docs: {
+        Row: {
+          certificate_expiry: string | null
+          certificate_number: string | null
+          certificate_photo_url: string | null
+          certificate_series: string | null
+          cui: string | null
+          created_at: string
+          full_name: string | null
+          legal_accepted_at: string | null
+          legal_docs_complete: boolean
+          legal_type: Database['public']['Enums']['farmer_legal_type'] | null
+          locality: string | null
+          phone: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_expiry?: string | null
+          certificate_number?: string | null
+          certificate_photo_url?: string | null
+          certificate_series?: string | null
+          cui?: string | null
+          created_at?: string
+          full_name?: string | null
+          legal_accepted_at?: string | null
+          legal_type?: Database['public']['Enums']['farmer_legal_type'] | null
+          locality?: string | null
+          phone?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_expiry?: string | null
+          certificate_number?: string | null
+          certificate_photo_url?: string | null
+          certificate_series?: string | null
+          cui?: string | null
+          created_at?: string
+          full_name?: string | null
+          legal_accepted_at?: string | null
+          legal_type?: Database['public']['Enums']['farmer_legal_type'] | null
+          locality?: string | null
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmer_legal_docs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      farmer_weekly_summary_runs: {
+        Row: {
+          created_at: string
+          tenant_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          tenant_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          tenant_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmer_weekly_summary_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parcele: {
         Row: {
           an_plantare: number
@@ -1552,7 +1695,9 @@ export type Database = {
       produse: {
         Row: {
           alergeni: string | null
+          approximate_weight: string | null
           association_listed: boolean
+          association_category: string | null
           association_price: number | null
           categorie: string
           conditii_pastrare: string | null
@@ -1560,6 +1705,7 @@ export type Database = {
           data_origin: string | null
           demo_seed_id: string | null
           descriere: string | null
+          farmer_id: string | null
           gramaj_per_unitate: number | null
           id: string
           ingrediente: string | null
@@ -1577,7 +1723,9 @@ export type Database = {
         }
         Insert: {
           alergeni?: string | null
+          approximate_weight?: string | null
           association_listed?: boolean
+          association_category?: string | null
           association_price?: number | null
           categorie?: string
           conditii_pastrare?: string | null
@@ -1585,6 +1733,7 @@ export type Database = {
           data_origin?: string | null
           demo_seed_id?: string | null
           descriere?: string | null
+          farmer_id?: string | null
           gramaj_per_unitate?: number | null
           id?: string
           ingrediente?: string | null
@@ -1602,7 +1751,9 @@ export type Database = {
         }
         Update: {
           alergeni?: string | null
+          approximate_weight?: string | null
           association_listed?: boolean
+          association_category?: string | null
           association_price?: number | null
           categorie?: string
           conditii_pastrare?: string | null
@@ -1610,6 +1761,7 @@ export type Database = {
           data_origin?: string | null
           demo_seed_id?: string | null
           descriere?: string | null
+          farmer_id?: string | null
           gramaj_per_unitate?: number | null
           id?: string
           ingrediente?: string | null
@@ -3139,6 +3291,11 @@ export type Database = {
         | "in_livrare"
         | "livrata"
         | "anulata"
+      farmer_legal_type:
+        | "certificat_producator"
+        | "pfa"
+        | "ii"
+        | "srl"
       miscare_stoc_tip_global:
         | "recoltare"
         | "ajustare"
@@ -3279,6 +3436,12 @@ export const Constants = {
         "in_livrare",
         "livrata",
         "anulata",
+      ],
+      farmer_legal_type: [
+        "certificat_producator",
+        "pfa",
+        "ii",
+        "srl",
       ],
       miscare_stoc_tip_global: [
         "recoltare",

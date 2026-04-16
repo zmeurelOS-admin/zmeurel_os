@@ -183,7 +183,7 @@ export function FarmShopClient({
 
   const addFromDetail = () => {
     if (!detailProduct) return
-    const q = Math.max(0.01, Number(String(qtyDraft).replace(',', '.')) || 0)
+    const q = Math.max(1, Math.floor(Number(String(qtyDraft).replace(',', '.')) || 0))
     setCart((prev) => ({
       ...prev,
       [detailProduct.id]: (prev[detailProduct.id] ?? 0) + q,
@@ -392,7 +392,7 @@ export function FarmShopClient({
           ) : (
             <ul className="space-y-3">
               {cartLines.map(({ product: p, qty }) => {
-                const step = p.unitate_vanzare === 'buc' ? 1 : 0.5
+                const step = 1
                 return (
                 <li
                   key={p.id}

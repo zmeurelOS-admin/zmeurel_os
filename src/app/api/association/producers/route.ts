@@ -180,6 +180,20 @@ export async function POST(request: Request) {
       return apiError(403, 'NOT_APPROVED', 'Ferma nu este aprobată pentru magazinul asociației.')
     }
 
+    if (listed) {
+      const { data: legalDocsComplete, error: legalError } = await supabase.rpc('is_legal_docs_complete', {
+        p_tenant_id: tenantId,
+      })
+
+      if (legalError) {
+        return apiError(400, 'LEGAL_DOCS_CHECK_FAILED', 'Nu am putut verifica documentele legale ale fermierului.')
+      }
+
+      if (legalDocsComplete !== true) {
+        return apiError(403, 'LEGAL_DOCS_INCOMPLETE', 'Documente incomplete')
+      }
+    }
+
     const { data: rows, error: upErr } = await supabase
       .from('produse')
       .update({

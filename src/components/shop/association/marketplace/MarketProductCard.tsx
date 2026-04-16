@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 
 import { AssociationProductImage } from '@/components/shop/association/AssociationProductImage'
-import { labelForCategory } from '@/components/shop/association/tokens'
+import { labelForCategory, resolveAssociationCategory } from '@/components/shop/association/tokens'
 import type { AssociationProduct } from '@/lib/shop/load-association-catalog'
 
 import { M } from './marketTokens'
@@ -18,6 +18,7 @@ type Props = {
  */
 export function MarketProductCard({ product: p, formatPrice, onOpenDetail, onAddQuick }: Props) {
   const farmName = p.farmName?.trim() || 'Fermă locală'
+  const categoryKey = resolveAssociationCategory(p.association_category, p.categorie)
 
   return (
     <article
@@ -41,7 +42,7 @@ export function MarketProductCard({ product: p, formatPrice, onOpenDetail, onAdd
             className="assoc-body absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm sm:text-[11px]"
             style={{ backgroundColor: M.cream, color: M.green, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
           >
-            {labelForCategory(p.categorie)}
+            {labelForCategory(categoryKey)}
           </span>
         </div>
         <div className="flex flex-1 flex-col p-3 sm:p-4">

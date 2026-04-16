@@ -1,3 +1,6 @@
+do $migration$
+begin
+  execute $function$
 create or replace function public.create_recoltare_with_stock(
   p_data date,
   p_parcela_id uuid,
@@ -11,7 +14,7 @@ returns public.recoltari
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $create_recoltare_with_stock$
 declare
   v_user_id uuid := auth.uid();
   v_tenant_id uuid;
@@ -99,8 +102,14 @@ begin
 
   return v_recoltare;
 end;
-$$;
+$create_recoltare_with_stock$;
+$function$;
+end
+$migration$;
 
+do $migration$
+begin
+  execute $function$
 create or replace function public.deliver_order_atomic(
   p_order_id uuid,
   p_delivered_qty numeric,
@@ -111,7 +120,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $deliver_order_atomic$
 declare
   v_user_id uuid := auth.uid();
   v_tenant_id uuid;
@@ -387,8 +396,14 @@ begin
     'deducted_stock_kg', v_deducted_stock
   );
 end;
-$$;
+$deliver_order_atomic$;
+$function$;
+end
+$migration$;
 
+do $migration$
+begin
+  execute $function$
 create or replace function public.delete_comanda_atomic(
   p_comanda_id uuid,
   p_tenant_id uuid default null
@@ -397,7 +412,7 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $delete_comanda_atomic$
 declare
   v_user_id uuid := auth.uid();
   v_current_tenant_id uuid;
@@ -442,8 +457,14 @@ begin
   where id = v_order.id
     and tenant_id = v_tenant_id;
 end;
-$$;
+$delete_comanda_atomic$;
+$function$;
+end
+$migration$;
 
+do $migration$
+begin
+  execute $function$
 create or replace function public.reopen_comanda_atomic(
   p_comanda_id uuid,
   p_tenant_id uuid default null
@@ -452,7 +473,7 @@ returns public.comenzi
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $reopen_comanda_atomic$
 declare
   v_user_id uuid := auth.uid();
   v_current_tenant_id uuid;
@@ -541,8 +562,14 @@ begin
 
   return v_reopened;
 end;
-$$;
+$reopen_comanda_atomic$;
+$function$;
+end
+$migration$;
 
+do $migration$
+begin
+  execute $function$
 create or replace function public.update_vanzare_with_stock(
   p_vanzare_id uuid,
   p_data date default null,
@@ -557,7 +584,7 @@ returns public.vanzari
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $update_vanzare_with_stock$
 declare
   v_user_id uuid := auth.uid();
   v_tenant_id uuid;
@@ -756,6 +783,8 @@ begin
 
   return v_vanzare;
 end;
-$$;
+$update_vanzare_with_stock$;
+$function$;
+end
+$migration$;
 
-notify pgrst, 'reload schema';

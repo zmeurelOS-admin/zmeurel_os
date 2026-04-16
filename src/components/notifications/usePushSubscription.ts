@@ -32,6 +32,31 @@ function subscriptionToJson(sub: PushSubscription) {
   }
 }
 
+async function ensurePushServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    throw new Error('Service Worker nu este disponibil în acest browser.')
+  }
+
+  const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost'
+  if (!isSecure) {
+    throw new Error('Notificările push necesită HTTPS.')
+  }
+
+  const existing =
+    (await navigator.serviceWorker.getRegistration('/')) ??
+    (await navigator.serviceWorker.getRegistration())
+
+  if (existing) {
+    return existing
+  }
+
+  console.info('[push] registering service worker /sw.js')
+  const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+  await navigator.serviceWorker.ready
+  console.info('[push] service worker ready')
+  return registration
+}
+
 async function parseSubscribeError(res: Response): Promise<string> {
   try {
     const data = (await res.json()) as { error?: { message?: string } }
@@ -52,9 +77,10 @@ async function postPushSubscribe(subscription: ReturnType<typeof subscriptionToJ
   })
   if (!res.ok) {
     const message = await parseSubscribeError(res)
-    console.error('[push] POST /api/push/subscribe failed', res.status, message)
+    console.error('[push] POST /api/push/subscribe failed', { status: res.status, message })
     return { ok: false, message }
   }
+  console.info('[push] subscription saved on server')
   return { ok: true }
 }
 
@@ -84,7 +110,7 @@ export function usePushSubscription() {
     let cancelled = false
     ;(async () => {
       try {
-        const reg = await navigator.serviceWorker.ready
+        const reg = await ensurePushServiceWorkerRegistration()
         const sub = await reg.pushManager.getSubscription()
         if (!cancelled) setIsSubscribed(Boolean(sub))
       } catch (e) {
@@ -107,20 +133,22 @@ export function usePushSubscription() {
     if (!isSupported || !vapidPublic) {
       const msg = !vapidPublic ? 'Lipsește cheia VAPID publică (NEXT_PUBLIC_VAPID_PUBLIC_KEY).' : 'Browserul nu suportă push.'
       setSubscribeError(msg)
-      console.error('[push] subscribe blocked:', msg)
+      console.error('[push] subscribe blocked', { message: msg })
       return false
     }
     try {
       const perm = await Notification.requestPermission()
+      console.info('[push] notification permission result', { permission: perm })
       setPermission(perm)
       if (perm !== 'granted') {
         setSubscribeError('Permisiune refuzată pentru notificări.')
         return false
       }
 
-      const reg = await navigator.serviceWorker.ready
+      const reg = await ensurePushServiceWorkerRegistration()
       const existing = await reg.pushManager.getSubscription()
       if (existing) {
+        console.info('[push] reusing existing browser subscription')
         const payload = subscriptionToJson(existing)
         const posted = await postPushSubscribe(payload)
         if (!posted.ok) {
@@ -138,6 +166,7 @@ export function usePushSubscription() {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(vapidPublic) as BufferSource,
         })
+        console.info('[push] pushManager.subscribe succeeded')
       } catch (e) {
         console.error('[push] pushManager.subscribe', e)
         setSubscribeError(e instanceof Error ? e.message : 'Eroare la subscribe în browser.')
@@ -153,6 +182,7 @@ export function usePushSubscription() {
       }
 
       setIsSubscribed(true)
+      console.info('[push] subscribe flow completed')
       return true
     } catch (e) {
       console.error('[push] subscribe', e)
@@ -163,7 +193,7 @@ export function usePushSubscription() {
 
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     try {
-      const reg = await navigator.serviceWorker.ready
+      const reg = await ensurePushServiceWorkerRegistration()
       const sub = await reg.pushManager.getSubscription()
       if (sub) {
         const endpoint = sub.endpoint
@@ -174,9 +204,13 @@ export function usePushSubscription() {
           body: JSON.stringify({ endpoint }),
         })
         if (!res.ok) {
-          console.error('[push] POST /api/push/unsubscribe', res.status)
+          const message = await parseSubscribeError(res)
+          console.error('[push] POST /api/push/unsubscribe failed', { status: res.status, message })
+        } else {
+          console.info('[push] subscription removed from server')
         }
         await sub.unsubscribe()
+        console.info('[push] browser subscription removed')
       }
       setIsSubscribed(false)
       setSubscribeError(null)

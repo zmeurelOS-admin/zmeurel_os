@@ -18,7 +18,7 @@ The product also includes:
 ### 1. Authentication And Tenant Entry
 
 - Public **magazin fermier** (catalog pentru clientul final, fără cont): `/magazin` și `/magazin/[tenantId]` (UUID tenant), coș în browser + trimitere comandă prin `POST /api/shop/order` în `comenzi` (fără plată online); notificare email opțională către proprietar (Resend, vezi `AGENTS.md`); nu este modul ERP.
-- Public **magazin asociație** (multi-fermier, branding separat „Gustă din Bucovina”): `/magazin/asociatie` — catalog agregat pentru `tenants.is_association_approved` (control din `/admin`, superadmin) plus fallback temporar pe allowlist env (`load-association-catalog.ts`), același endpoint de comandă per fermă; UI în `AssociationShopClient` + `components/shop/association/*` (fără AppShell); nu este modul ERP.
+- Public **magazin asociație** (multi-fermier, branding separat „Gustă din Bucovina”): `/magazin/asociatie` — catalog agregat pentru `tenants.is_association_approved` (control din `/admin`, superadmin) plus fallback temporar pe allowlist env explicit (`ASSOCIATION_ALLOWED_OWNER_USER_IDS`, opțional `ASSOCIATION_ALLOWED_EMAILS` legacy) în `load-association-catalog.ts`, același endpoint de comandă per fermă; UI în `AssociationShopClient` + `components/shop/association/*` (fără AppShell); nu este modul ERP.
 - Workspace-ul **Asociație** include acum și editarea profilului public al producătorilor direct din `/asociatie/producatori`: adminii/moderatorii pot actualiza `descriere_publica`, `specialitate`, `localitate` și `poze_ferma` pentru fermierii deja aprobați, iar pozele sunt urcate în Storage.
 - Public entry is `/` and `/start`.
 - Users can log in with email/password or Google.
@@ -79,6 +79,7 @@ The app is primarily a client-driven dashboard over Supabase, but critical write
 - service-role admin clients
 - RLS and tenant-aware queries
 - storage-backed association settings (`association-config/settings.json`) for public branding/schedule copy
+- Web Push handled in Next.js routes/libs (`/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/test`, `src/lib/notifications/send-push.ts`) while browser delivery runs through the Workbox service worker plus `public/push-handlers.js`
 
 Notable API packaging detail:
 

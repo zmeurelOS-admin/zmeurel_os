@@ -9,6 +9,8 @@ export function AssociationLandingView({ settings }: { settings: AssociationPubl
   return (
     <AssociationLandingPage
       products={ctx.products}
+      categoryDefinitions={ctx.categoryDefinitions}
+      producerCards={ctx.producerCards}
       settings={settings}
       formatPrice={ctx.formatPrice}
       onOpenProduct={ctx.openProductDetail}

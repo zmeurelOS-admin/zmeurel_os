@@ -28,11 +28,11 @@ function errorStatus(error: unknown): number | null {
 }
 
 function logInfo(step: string, payload: Record<string, unknown>) {
-  console.info('[auth-callback]', step, payload)
+  
 }
 
 function logError(step: string, payload: Record<string, unknown>) {
-  console.error('[auth-callback]', step, payload)
+  
 }
 
 function addBreadcrumb(step: string, payload: Record<string, unknown>) {

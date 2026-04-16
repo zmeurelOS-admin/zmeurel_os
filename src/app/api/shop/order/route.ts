@@ -2,11 +2,20 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { validateSameOriginMutation } from '@/lib/api/route-security'
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
+import {
+  buildShopOrderFingerprint,
+  consumeFixedWindowLimit,
+  extractClientIpFromHeaders,
+  isFingerprintInCooldown,
+  markFingerprintCooldown,
+} from '@/lib/api/public-write-guard'
 import {
   createNotificationForTenantOwner,
   createNotificationsForAssociationAdmins,
   NOTIFICATION_TYPES,
 } from '@/lib/notifications/create'
+import { loadAssociationSettingsCached } from '@/lib/association/public-settings'
 import {
   formatDeliveryDateFromIso,
   getDeliveryFee,
@@ -70,6 +79,23 @@ function round2(n: number): number {
   return Math.round((Number(n) || 0) * 100) / 100
 }
 
+const SHOP_ORDER_RATE_LIMIT_BURST = { limit: 12, windowMs: 60_000 } as const
+const SHOP_ORDER_RATE_LIMIT_SUSTAINED = { limit: 60, windowMs: 10 * 60_000 } as const
+const SHOP_ORDER_DUPLICATE_COOLDOWN_MS = 20_000
+
+function tooManyRequestsResponse(
+  message: string,
+  retryAfterSeconds: number,
+): NextResponse<{ ok: boolean; error: string }> {
+  return NextResponse.json(
+    { ok: false, error: message },
+    {
+      status: 429,
+      headers: { 'Retry-After': String(Math.max(1, retryAfterSeconds)) },
+    },
+  )
+}
+
 export async function POST(request: Request) {
   const originCheck = validateSameOriginMutation(request)
   if (originCheck) return originCheck
@@ -111,9 +137,55 @@ export async function POST(request: Request) {
   const orderChannel: 'farm_shop' | 'association_shop' =
     channel ?? (checkoutContext === 'association' ? 'association_shop' : 'farm_shop')
   const orderDataOrigin = orderChannel === 'association_shop' ? 'magazin_asociatie' : 'magazin_public'
+  const requestFingerprint = buildShopOrderFingerprint({
+    tenantId,
+    channel: orderChannel,
+    nume,
+    telefon,
+    locatie,
+    lines,
+  })
+  const clientIp = extractClientIpFromHeaders(request.headers)
+  const actorKey =
+    clientIp !== 'unknown'
+      ? `ip:${clientIp}`
+      : `fp:${requestFingerprint.slice(0, 24)}`
+  const duplicateKey = `shop-order:duplicate:${actorKey}:${requestFingerprint}`
+
+  const burstLimit = consumeFixedWindowLimit(
+    `shop-order:burst:${actorKey}`,
+    SHOP_ORDER_RATE_LIMIT_BURST,
+  )
+  if (!burstLimit.allowed) {
+    return tooManyRequestsResponse(
+      'Prea multe încercări. Reîncearcă în câteva minute.',
+      burstLimit.retryAfterSeconds,
+    )
+  }
+
+  const sustainedLimit = consumeFixedWindowLimit(
+    `shop-order:sustained:${actorKey}`,
+    SHOP_ORDER_RATE_LIMIT_SUSTAINED,
+  )
+  if (!sustainedLimit.allowed) {
+    return tooManyRequestsResponse(
+      'Prea multe încercări. Reîncearcă în câteva minute.',
+      sustainedLimit.retryAfterSeconds,
+    )
+  }
+
+  const duplicateCooldown = isFingerprintInCooldown(duplicateKey)
+  if (!duplicateCooldown.allowed) {
+    return tooManyRequestsResponse(
+      'Comandă similară trimisă recent. Așteaptă câteva secunde și încearcă din nou.',
+      duplicateCooldown.retryAfterSeconds,
+    )
+  }
 
   try {
     const admin = getSupabaseAdmin() as AnyAdmin
+    const associationSettings =
+      orderChannel === 'association_shop' ? await loadAssociationSettingsCached() : null
 
     const { data: tenant, error: tenantError } = await admin
       .from('tenants')
@@ -135,7 +207,7 @@ export async function POST(request: Request) {
       .in('id', ids)
 
     if (prodError) {
-      console.error('[shop/order]', prodError)
+      
       return NextResponse.json({ ok: false, error: 'Nu am putut verifica produsele.' }, { status: 500 })
     }
 
@@ -218,7 +290,7 @@ export async function POST(request: Request) {
         ? round2(cartSubtotalLei ?? linesSubtotalBatch)
         : linesSubtotalBatch
     const deliveryDateIso =
-      orderChannel === 'association_shop' ? getNextDeliveryDateIso() : today
+      orderChannel === 'association_shop' ? getNextDeliveryDateIso(associationSettings) : today
     const deliveryFeeWholeCart =
       orderChannel === 'association_shop' ? getDeliveryFee(cartSubtotalForDelivery) : 0
     const farmIndex = associationCheckoutPart?.farmIndex ?? 0
@@ -280,7 +352,7 @@ export async function POST(request: Request) {
         .single()
 
       if (insErr) {
-        console.error('[shop/order] insert', insErr)
+        
         return NextResponse.json(
           { ok: false, error: 'Nu am putut salva comanda. Încearcă din nou.' },
           { status: 500 },
@@ -294,9 +366,6 @@ export async function POST(request: Request) {
     }
 
     if (shouldSaveConsent && orderIds[0]) {
-      const forwardedFor = request.headers.get('x-forwarded-for')
-      const clientIp =
-        forwardedFor?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
       const consentInsert = await admin.from('consent_events').insert({
         phone: telefon,
         canal: canal_confirmare,
@@ -307,7 +376,7 @@ export async function POST(request: Request) {
         tenant_context: 'association',
       })
       if (consentInsert.error) {
-        console.error('[shop/order] consent_events', consentInsert.error)
+        
       }
     }
 
@@ -322,7 +391,7 @@ export async function POST(request: Request) {
         })),
       )
       if (messageInsert.error) {
-        console.error('[shop/order] message_log', messageInsert.error)
+        
       }
     }
 
@@ -358,7 +427,14 @@ export async function POST(request: Request) {
         )
       }
     } catch (e) {
-      console.error('[shop/order] notifications', e)
+      console.error(
+        '[shop/order] notifications failed',
+        sanitizeForLog({
+          error: toSafeErrorContext(e),
+          tenantId,
+          channel: orderChannel,
+        }),
+      )
     }
 
     await notifyFarmerShopOrder(admin, {
@@ -372,6 +448,8 @@ export async function POST(request: Request) {
       currency: resolved[0]?.moneda ?? 'RON',
       dataOrigin: orderDataOrigin,
     })
+
+    markFingerprintCooldown(duplicateKey, SHOP_ORDER_DUPLICATE_COOLDOWN_MS)
 
     const cartDeliveryFeeLei =
       orderChannel === 'association_shop' && farmIndex === 0 ? deliveryFeeWholeCart : 0
@@ -387,7 +465,12 @@ export async function POST(request: Request) {
       currency: resolved[0]?.moneda ?? 'RON',
     })
   } catch (e) {
-    console.error('[shop/order]', e)
+    console.error(
+      '[shop/order] failure',
+      sanitizeForLog({
+        error: toSafeErrorContext(e),
+      }),
+    )
     return NextResponse.json({ ok: false, error: 'Eroare server.' }, { status: 500 })
   }
 }

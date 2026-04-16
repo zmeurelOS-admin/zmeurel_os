@@ -86,7 +86,7 @@ async function fetchMeteo(tenantId: string | null): Promise<MeteoResponse> {
       : err
         ? String(err)
         : ''
-  console.warn('[useMeteo] invoke failed', msg || err)
+  
 
   return {
     available: false,

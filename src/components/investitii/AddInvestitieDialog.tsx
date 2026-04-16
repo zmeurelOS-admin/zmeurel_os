@@ -101,7 +101,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
         setDialogOpen(false)
         return
       }
-      console.error('Error creating investitie:', error)
+      
       hapticError()
       toast.error('Eroare la adaugarea investitiei')
     },

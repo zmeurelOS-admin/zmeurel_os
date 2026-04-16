@@ -15,7 +15,7 @@ export async function resolveAuthUserIdByEmail(
   for (let safety = 0; safety < 100; safety++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
     if (error) {
-      console.error('[resolveAuthUserIdByEmail] listUsers', error.message)
+      
       return null
     }
     const users = data?.users ?? []

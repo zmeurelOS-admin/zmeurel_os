@@ -20,6 +20,7 @@ export const ASSOCIATION_NAV_ITEMS: SidebarNavItem[] = [
   { href: '/asociatie/produse', label: 'Produse în asociație', emoji: '🛒' },
   { href: '/asociatie/oferte', label: 'Oferte', emoji: '📨' },
   { href: '/asociatie/comenzi', label: 'Comenzi magazin', emoji: '📋' },
+  { href: '/asociatie/livrari', label: 'Livrări', emoji: '🚚' },
   { href: '/asociatie/producatori', label: 'Producători', emoji: '🌾' },
   { href: '/asociatie/setari', label: 'Setări asociație', emoji: '⚙️' },
   { href: '/magazin/asociatie', label: 'Vitrină publică', emoji: '🛍️' },

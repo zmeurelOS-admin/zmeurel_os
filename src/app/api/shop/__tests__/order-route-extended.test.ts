@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { POST } from '@/app/api/shop/order/route'
+import { __resetPublicWriteGuardForTests } from '@/lib/api/public-write-guard'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
 const createNotificationsForAssociationAdmins = vi.fn()
@@ -15,6 +16,13 @@ vi.mock('@/lib/notifications/create', () => ({
 vi.mock('@/lib/shop/notify-farmer-shop-order', () => ({
   notifyFarmerShopOrder: vi.fn().mockResolvedValue(undefined),
 }))
+vi.mock('@/lib/association/public-settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/association/public-settings')>()
+  return {
+    ...actual,
+    loadAssociationSettingsCached: vi.fn().mockResolvedValue(actual.DEFAULT_ASSOCIATION_SETTINGS),
+  }
+})
 
 const TID = '990e8400-e29b-41d4-a716-446655440001'
 const PID = '990e8400-e29b-41d4-a716-446655440002'
@@ -90,6 +98,7 @@ describe('POST /api/shop/order — canal și preț (extended)', () => {
   beforeEach(() => {
     insertPayloads.length = 0
     vi.clearAllMocks()
+    __resetPublicWriteGuardForTests()
   })
 
   it("association_shop: data_origin magazin_asociatie", async () => {

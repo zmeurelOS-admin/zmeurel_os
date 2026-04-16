@@ -1,44 +1,93 @@
 import Image from 'next/image'
 
-import Reveal from '@/components/landing/reveal'
+import { SectionIntro, SectionShell } from '@/components/landing/landing-shared'
 
-export default function Story() {
+const photos = [
+  {
+    src: '/landing/landing_raspberry_1.webp',
+    alt: 'Andrei în plantația de zmeură din Suceava',
+    width: 900,
+    height: 1200,
+  },
+  {
+    src: '/landing/landing_raspberry_box.webp',
+    alt: 'Lădiță cu zmeură proaspătă pregătită pentru livrare',
+    width: 1200,
+    height: 900,
+  },
+  {
+    src: '/landing/landing_raspberry_boxes.webp',
+    alt: 'Mai multe caserole cu zmeură pregătite pentru clienți',
+    width: 1200,
+    height: 900,
+  },
+]
+
+export function Story() {
   return (
-    <section id="poveste" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-      <div className="grid items-center gap-10 lg:grid-cols-5 lg:gap-16">
-        <Reveal delayMs={120} className="order-1 space-y-6 lg:col-span-3">
-          <div className="space-y-3">
-            <p className="text-sm font-semibold tracking-[0.18em] text-[var(--landing-leaf)] uppercase">
-              De la fermă la aplicație
-            </p>
-            <h2 className="text-3xl font-bold tracking-tight text-[var(--landing-dark)] sm:text-4xl">
-              A pornit dintr-o nevoie reală din fermă.
-            </h2>
+    <SectionShell label="Povestea Zmeurel OS" className="border-t border-slate-200 bg-white py-16 md:py-24">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+        <div>
+          <SectionIntro
+            badge="De la fermă la aplicație"
+            title="Făcut de un fermier, pentru fermieri."
+            align="left"
+            description="Mă numesc Andrei și sunt fermier de zmeură în Suceava, de 5 ani. Am trecut prin caiet, notițe în telefon și Excel până am ajuns să îmi construiesc propria aplicație. Zmeurel OS a apărut din nevoia mea reală de a ține evidența fermei simplu, direct de pe telefon. Acum vreau să o ofer tuturor fermierilor care au aceeași nevoie."
+          />
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="https://facebook.com/ZmeuraSuceava"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:ring-offset-2"
+            >
+              Facebook
+            </a>
+            <a
+              href="https://instagram.com/zmeurel_sv"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:ring-offset-2"
+            >
+              Instagram
+            </a>
           </div>
-          <div className="space-y-4 text-base leading-7 text-[color:var(--agri-text-muted)]">
-            <p>
-              În fermă notam recoltele, lucrările, vânzările și cheltuielile în mai multe locuri. Unele date erau în Excel, altele în telefon sau pe hârtie.
-            </p>
-            <p>
-              Când voiam să văd cât produce o parcelă sau cât rămâne după cheltuieli, trebuia să adun totul manual.
-            </p>
-            <p>
-              De aici a apărut Zmeurel OS: o aplicație simplă, făcută pentru fermieri care vor să aibă datele fermei la îndemână, direct pe telefon.
-            </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+              <Image
+                src={photos[0].src}
+                alt={photos[0].alt}
+                width={photos[0].width}
+                height={photos[0].height}
+                loading="lazy"
+                quality={80}
+                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 40vw, 320px"
+                className="h-full w-full object-cover"
+              />
+            </div>
           </div>
-        </Reveal>
-        <Reveal className="order-2 flex justify-center lg:col-span-2">
-          <div className="mx-auto max-w-[250px] overflow-hidden rounded-[2.5rem] border-[8px] border-gray-800 bg-gray-800 shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_26px_64px_rgba(49,46,63,0.14)] lg:max-w-[220px]">
-            <Image
-              src="/landing/screenshot-recoltari.jpg"
-              alt="Zmeurel OS — pagina de recoltări."
-              width={430}
-              height={932}
-              className="h-auto w-full rounded-[1.8rem]"
-            />
+          <div className="space-y-4 pt-6">
+            {photos.slice(1).map((photo) => (
+              <div key={photo.src} className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+                <Image
+                  src={photo.src}
+                  alt={photo.alt}
+                  width={photo.width}
+                  height={photo.height}
+                  loading="lazy"
+                  quality={80}
+                  sizes="(max-width: 768px) 50vw, (max-width: 1200px) 40vw, 320px"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
           </div>
-        </Reveal>
+        </div>
       </div>
-    </section>
+    </SectionShell>
   )
 }

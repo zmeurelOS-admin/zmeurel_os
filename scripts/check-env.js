@@ -40,3 +40,8 @@ if (process.env.VERCEL === "1" && (!process.env.SENTRY_AUTH_TOKEN || String(proc
   );
 }
 
+if (process.env.VERCEL === "1" && (!process.env.DESTRUCTIVE_ACTION_STEP_UP_SECRET || String(process.env.DESTRUCTIVE_ACTION_STEP_UP_SECRET).trim() === "")) {
+  console.warn(
+    "[check-env] DESTRUCTIVE_ACTION_STEP_UP_SECRET lipsește pe Vercel — rutele destructive (GDPR/reset) vor respinge step-up auth."
+  );
+}

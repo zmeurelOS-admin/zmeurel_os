@@ -34,6 +34,7 @@ export const queryKeys = {
   associationProductOffers: (tenantId: string | null) => ['association-product-offers', tenantId] as const,
   associationOffersWorkspace: ['association-offers-workspace'] as const,
   associationOffersPendingCount: ['association-offers-pending-count'] as const,
+  associationDeliveries: ['association-deliveries'] as const,
   vanzari: ['vanzari'] as const,
   vanzariButasi: ['vanzari-butasi'] as const,
 }

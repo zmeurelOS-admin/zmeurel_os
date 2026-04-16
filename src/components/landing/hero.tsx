@@ -1,167 +1,65 @@
-'use client'
-
-import Image from 'next/image'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
 
-import Reveal from '@/components/landing/reveal'
-import { Button } from '@/components/ui/button'
-import { buildLoginUrl } from '@/lib/auth/redirects'
+import { SectionShell } from '@/components/landing/landing-shared'
 
-const navItems = [
-  { href: '#solutie', label: 'Caracteristici' },
-  { href: '#cum-functioneaza', label: 'Cum funcționează' },
-  { href: '#demo', label: 'Demo' },
+const stats = [
+  { value: '30 sec', label: 'să notezi o recoltare' },
+  { value: '1 loc', label: 'pentru toate datele fermei' },
+  { value: '100%', label: 'gratuit în beta' },
 ]
 
-export default function Hero() {
+export function Hero() {
   return (
-    <section className="relative">
-      {/* Background blobs — clipped in their own overflow-hidden wrapper so sticky works */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_top_left,rgba(241,107,107,0.22),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(47,111,78,0.18),transparent_28%),radial-gradient(circle_at_50%_100%,rgba(49,46,63,0.08),transparent_36%)]" />
-        <div className="absolute left-[-5%] top-24 h-56 w-56 rounded-full bg-[rgba(241,107,107,0.12)] blur-3xl" />
-        <div className="absolute right-[-3%] top-12 h-60 w-60 rounded-full bg-[rgba(47,111,78,0.12)] blur-3xl" />
-      </div>
+    <SectionShell label="Hero Zmeurel OS" className="overflow-hidden bg-[#FAFAF6] py-16 md:py-24">
+      <div
+        className="rounded-[28px]"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at top, rgba(45,106,79,0.10), transparent 42%), radial-gradient(circle at 85% 30%, rgba(183,223,201,0.28), transparent 26%)',
+        }}
+      >
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="inline-flex items-center rounded-full border border-[#B7DFC9] bg-[#E8F5EE] px-4 py-1.5 text-xs font-semibold tracking-wide text-[#2D6A4F]">
+            🔓 Beta deschis — locuri limitate
+          </span>
+          <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-800 md:text-5xl lg:text-6xl">
+            Nu mai pierde bani din fermă.
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-500 md:text-base">
+            Vezi cât produci, cât vinzi și cât câștigi real — direct de pe telefon. Aplicație gratuită,
+            făcută de un fermier din Suceava.
+          </p>
 
-      {/* Sticky navbar */}
-      <div className="sticky top-0 z-50 px-4 pb-2 pt-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex items-center justify-between gap-3 rounded-full border border-white/70 bg-white/90 px-3 py-2 shadow-[0_12px_32px_rgba(49,46,63,0.08)] backdrop-blur-md sm:px-5 sm:py-3">
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row">
             <Link
-              href="/"
-              className="flex min-w-0 items-center gap-2 text-[var(--landing-dark)] sm:gap-3"
+              href="/start"
+              className="rounded-xl bg-[#2D6A4F] px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#1f4a37] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:ring-offset-2"
             >
-              <Image
-                src="/icons/icon.svg"
-                alt="Zmeurel OS"
-                width={40}
-                height={40}
-                className="size-8 shrink-0 sm:size-10"
-              />
-              <span className="text-sm font-semibold sm:hidden">Zmeurel</span>
-              <span className="hidden text-sm font-bold uppercase tracking-[0.12em] sm:inline">Zmeurel OS</span>
+              Încearcă gratuit
             </Link>
-
-            <nav className="hidden items-center gap-6 text-sm text-[color:var(--agri-text-muted)] md:flex">
-              {navItems.map((item) => (
-                <a key={item.href} href={item.href} className="transition-colors hover:text-[var(--landing-dark)]">
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-
-            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <Button
-                asChild
-                size="sm"
-                variant="ghost"
-                className="h-9 rounded-full px-3 text-[var(--landing-dark)] sm:px-4"
-              >
-                <Link href={buildLoginUrl()}>Login</Link>
-              </Button>
-              <Button
-                asChild
-                size="sm"
-                className="h-9 rounded-full bg-[linear-gradient(135deg,#f16b6b_0%,#d84b62_100%)] px-3 text-white shadow-sm hover:brightness-105 sm:px-4"
-              >
-                <Link href="/start">Încearcă gratuit</Link>
-              </Button>
-            </div>
+            <a
+              href="https://wa.me/40752953048"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl bg-[#25D366] px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#1ebc5a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:ring-offset-2"
+            >
+              Scrie-mi pe WhatsApp
+            </a>
           </div>
         </div>
-      </div>
 
-      {/* Hero content */}
-      <div className="mx-auto max-w-7xl px-4 pb-14 pt-8 sm:px-6 sm:pb-20 lg:px-8 lg:pb-24">
-        <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.7fr)] lg:gap-14">
-          <div className="space-y-5 sm:space-y-7">
-            <Reveal className="inline-flex items-center gap-2 rounded-full border border-[color:rgba(47,111,78,0.22)] bg-[rgba(47,111,78,0.06)] px-3.5 py-1.5 text-sm font-semibold text-[var(--landing-leaf)] shadow-sm backdrop-blur">
-              🔓 Beta deschis — locuri limitate
-            </Reveal>
-
-            <Reveal delayMs={80} className="space-y-4 sm:space-y-5">
-              <h1 className="max-w-2xl text-[2rem] font-bold leading-[1.06] tracking-tight text-[var(--landing-dark)] sm:text-5xl lg:text-6xl">
-                Nu mai pierde bani din fermă.
-              </h1>
-              <p className="max-w-2xl text-[15px] leading-6 text-[color:var(--agri-text-muted)] sm:text-lg sm:leading-7">
-                Vezi cât produci, cât vinzi și cât câștigi real — direct de pe telefon.
-              </p>
-              <p className="text-sm font-medium text-[var(--landing-leaf)]">
-                🌱 Aplicație gratuită în beta · Făcută de un fermier din Suceava
-              </p>
-            </Reveal>
-
-            <Reveal delayMs={160} className="flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-              <Button
-                asChild
-                size="lg"
-                className="h-12 rounded-full bg-[linear-gradient(135deg,#2f6f4e_0%,#3f8c62_100%)] px-6 text-white shadow-[0_18px_42px_rgba(47,111,78,0.28)] hover:brightness-105"
-              >
-                <Link href="/start">Încearcă gratuit</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="h-12 rounded-full border-[color:rgba(49,46,63,0.16)] bg-white/82 px-6 text-[var(--landing-dark)] shadow-sm transition-colors hover:border-[color:rgba(49,46,63,0.28)] hover:bg-[var(--landing-dark)] hover:text-white"
-              >
-                <a href="https://wa.me/40752953048" target="_blank" rel="noopener noreferrer">
-                  Scrie-mi pe WhatsApp
-                  <ArrowRight className="size-5" />
-                </a>
-              </Button>
-            </Reveal>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                ['Notezi repede', 'Adaugi datele direct din câmp sau din solar.'],
-                ['Vezi clar', 'Ai toate datele fermei într-un singur loc.'],
-                ['Câștigi mai mult', 'Știi exact ce produce și ce profit aduce ferma.'],
-              ].map(([title, text], index) => (
-                <Reveal
-                  key={title}
-                  delayMs={240 + index * 80}
-                  className="rounded-3xl border border-white/82 bg-white/88 p-4 shadow-[0_14px_34px_rgba(49,46,63,0.07)] backdrop-blur transition-transform duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_22px_50px_rgba(49,46,63,0.12)]"
-                >
-                  <p className="text-sm font-semibold text-[var(--landing-dark)]">{title}</p>
-                  <p className="mt-2 text-sm leading-6 text-[color:var(--agri-text-muted)]">{text}</p>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-
-          <Reveal delayMs={120} className="relative mt-2 flex justify-center sm:mt-4 lg:mt-0 lg:justify-end">
-            <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 7.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="relative will-change-transform"
+        <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
+          {stats.map((stat) => (
+            <article
+              key={stat.value}
+              className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm last:col-span-2 md:last:col-span-1"
             >
-              <div className="mx-auto max-w-[200px] overflow-hidden rounded-[2.5rem] border-[8px] border-gray-800 bg-gray-800 shadow-2xl sm:max-w-[240px]">
-                <Image
-                  src="/landing/screenshot-dashboard.jpg"
-                  alt="Dashboard Zmeurel OS — recoltare și activitate fermă"
-                  width={430}
-                  height={932}
-                  priority
-                  className="h-auto w-full rounded-[1.8rem]"
-                />
-              </div>
-            </motion.div>
-
-            <motion.div
-              animate={{ y: [0, 6, 0] }}
-              transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute -bottom-4 left-3 rounded-[26px] border border-white/84 bg-white px-4 py-3 shadow-[0_18px_45px_rgba(49,46,63,0.16)] sm:-bottom-5 sm:left-8 will-change-transform"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--landing-leaf)]">Astăzi</p>
-              <p className="mt-1 text-base font-semibold text-[var(--landing-dark)]">120 kg recoltate</p>
-              <p className="text-sm text-[color:var(--agri-text-muted)]">4 culegători, 2 parcele active</p>
-            </motion.div>
-          </Reveal>
+              <p className="text-2xl font-black text-[#2D6A4F] md:text-3xl">{stat.value}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{stat.label}</p>
+            </article>
+          ))}
         </div>
       </div>
-    </section>
+    </SectionShell>
   )
 }

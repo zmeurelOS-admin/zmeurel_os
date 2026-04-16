@@ -235,10 +235,20 @@ function mapPlataToStatus(plata: ComandaPlata): string {
   return 'restanta'
 }
 
-export async function getComenzi(): Promise<Comanda[]> {
+type ComenziQueryContextLike = {
+  queryKey?: unknown
+}
+
+export async function getComenzi(): Promise<Comanda[]>
+export async function getComenzi(includeAssociation: boolean): Promise<Comanda[]>
+export async function getComenzi(
+  includeAssociationOrContext: boolean | ComenziQueryContextLike = false,
+): Promise<Comanda[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const { data, error } = await supabase
+  const includeAssociation =
+    typeof includeAssociationOrContext === 'boolean' ? includeAssociationOrContext : false
+  let query = supabase
     .from('comenzi')
     .select(`
       id,
@@ -264,6 +274,14 @@ export async function getComenzi(): Promise<Comanda[]> {
       )
     `)
     .eq('tenant_id', tenantId)
+
+  // Păstrăm comenzile legacy/manuale fără `data_origin`, dar ascundem cele venite
+  // din magazinul asociației din dashboardul fermierului.
+  if (!includeAssociation) {
+    query = query.or('data_origin.is.null,data_origin.neq.magazin_asociatie')
+  }
+
+  const { data, error } = await query
     .order('data_livrare', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 

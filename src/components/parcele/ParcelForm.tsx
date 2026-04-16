@@ -185,10 +185,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
       },
       (error) => {
         setGeoLoading(false)
-        console.error('[ParcelForm] geolocation error', {
-          code: error.code,
-          message: error.message,
-        })
+        
         if (error.code === 1) {
           // Permission denied: gentle UX — don't block saving
           setGeoStatus({

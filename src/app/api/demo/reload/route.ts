@@ -53,14 +53,7 @@ export async function POST(request: Request) {
     const admin = createServiceRoleClient()
     const result = await reloadDemoDataForTenant(admin, tenant.id, demoType)
 
-    console.info('[demo-seed] reload success', {
-      userId: user.id,
-      tenantId: tenant.id,
-      seedId: result.seedId,
-      deletedRows: result.deletedRows,
-      summary: result.summary,
-      demo_type: demoType,
-    })
+    
 
     return NextResponse.json({
       status: 'reloaded',

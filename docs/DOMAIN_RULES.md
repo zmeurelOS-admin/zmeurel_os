@@ -217,7 +217,7 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 ## Admin And Privilege Rules
 
 - Superadmin capability is stored on `profiles.is_superadmin`.
-- AI chat daily limit override to 60 applies to superadmins and to the dedicated test account `zmeurel.app@gmail.com`; all other users keep `AI_CHAT_DAILY_LIMIT`.
+- AI chat daily limit override applies to superadmins and opțional la user IDs configurați în `AI_CHAT_PRIVILEGED_USER_IDS`; limita privilegiată se controlează prin `AI_CHAT_PRIVILEGED_DAILY_LIMIT` (default 60). Restul utilizatorilor folosesc `AI_CHAT_DAILY_LIMIT`.
 - Admin pages are protected in layout.
 - Service-role operations are used for:
   - cron jobs

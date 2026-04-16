@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 
 import { captureApiError } from '@/lib/monitoring/sentry'
+import { isProtectedDemoCleanupOwnerUserId } from '@/lib/auth/protected-account'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
+import {
+  deleteTenantScopedData,
+  TENANT_DESTRUCTIVE_CLEANUP_SCOPES,
+  type TenantCleanupError,
+} from '@/lib/tenant/destructive-cleanup'
 
 export const runtime = 'nodejs'
-
-const PROTECTED_EMAIL = 'popa.andrei.sv@gmail.com'
 
 function hasValidCronSecret(request: Request): boolean {
   const expected = process.env.CRON_SECRET
@@ -15,23 +19,6 @@ function hasValidCronSecret(request: Request): boolean {
   const bearerSecret = bearer?.startsWith('Bearer ') ? bearer.slice(7) : null
   return headerSecret === expected || bearerSecret === expected
 }
-
-const TENANT_TABLES = [
-  'vanzari_butasi_items',
-  'miscari_stoc',
-  'alert_dismissals',
-  'integrations_google_contacts',
-  'comenzi',
-  'vanzari_butasi',
-  'vanzari',
-  'recoltari',
-  'cheltuieli_diverse',
-  'activitati_agricole',
-  'investitii',
-  'clienti',
-  'culegatori',
-  'parcele',
-] as const
 
 export async function GET(request: Request) {
   if (!hasValidCronSecret(request)) {
@@ -44,11 +31,20 @@ export async function GET(request: Request) {
   const errors: string[] = []
 
   try {
-    // Resolve protected owner ID to guarantee we never touch it
-    const { data: protectedUser } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
-    const protectedId = protectedUser?.users?.find(
-      (u) => u.email?.toLowerCase() === PROTECTED_EMAIL.toLowerCase()
-    )?.id ?? null
+    const { data: superadminProfiles, error: superadminFetchError } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('is_superadmin', true)
+
+    if (superadminFetchError) {
+      throw new Error(`Fetch superadmins: ${superadminFetchError.message}`)
+    }
+
+    const protectedOwnerIds = new Set(
+      ((superadminProfiles ?? []) as Array<{ id: string | null }>)
+        .map((row) => row.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    )
 
     // Find expired demo tenants directly — no N+1 needed
     type TenantRow = { id: string; owner_user_id: string | null }
@@ -62,42 +58,66 @@ export async function GET(request: Request) {
 
     const expired = (expiredRaw ?? []) as unknown as TenantRow[]
 
-    // Guard: never touch the protected owner
-    const safe = expired.filter((t) => !protectedId || t.owner_user_id !== protectedId)
+    // Guard: never touch protected owners (superadmins + explicit env allowlist)
+    const safe = expired.filter((tenant) => {
+      if (!tenant.owner_user_id) return true
+      if (protectedOwnerIds.has(tenant.owner_user_id)) return false
+      if (isProtectedDemoCleanupOwnerUserId(tenant.owner_user_id)) return false
+      return true
+    })
 
     if (safe.length === 0) {
       return NextResponse.json({ ok: true, deletedTenants: 0, deletedUsers: 0, message: 'Nothing to clean up.' })
     }
 
-    const tenantIds = safe.map((t) => t.id)
-    const ownerIds = safe.map((t) => t.owner_user_id).filter(Boolean) as string[]
+    const cleanedTenantIds: string[] = []
+    const ownerIdByTenantId = new Map(
+      safe
+        .map((tenant) => [tenant.id, tenant.owner_user_id] as const)
+        .filter(([, ownerUserId]) => Boolean(ownerUserId))
+    )
 
-    // Delete all child table rows
-    for (const table of TENANT_TABLES) {
+    for (const tenant of safe) {
       try {
-        await admin.from(table).delete().in('tenant_id', tenantIds)
+        const cleanupResult = await deleteTenantScopedData(admin, tenant.id, {
+          scope: TENANT_DESTRUCTIVE_CLEANUP_SCOPES.demoTenantCleanup,
+          verifyCriticalTables: true,
+        })
+        const nonCriticalFailures = cleanupResult.steps.filter(
+          (step) => step.status === 'failed' && !step.critical
+        )
+        if (nonCriticalFailures.length > 0) {
+          errors.push(
+            `tenant ${tenant.id} non-critical cleanup warnings: ${nonCriticalFailures
+              .map((step) => step.target)
+              .join(', ')}`
+          )
+        }
+        cleanedTenantIds.push(tenant.id)
       } catch (err) {
-        errors.push(`${table}: ${err instanceof Error ? err.message : 'unknown'}`)
+        const cleanupError = err as TenantCleanupError | Error
+        const message = cleanupError instanceof Error ? cleanupError.message : 'unknown'
+        errors.push(`tenant ${tenant.id} cleanup failed: ${message}`)
       }
     }
 
-    // analytics_events — cast to bypass narrow type
-    try {
-      await admin
-        .from('analytics_events' as unknown as 'alert_dismissals')
-        .delete()
-        .in('tenant_id', tenantIds)
-    } catch { /* non-critical */ }
-
     // Delete tenants
-    const { error: tenantErr } = await admin.from('tenants').delete().in('id', tenantIds)
-    if (tenantErr) {
-      errors.push(`tenants: ${tenantErr.message}`)
-    } else {
-      deletedTenants = tenantIds.length
+    let tenantIdsWithDeletedTenantRow: string[] = []
+    if (cleanedTenantIds.length > 0) {
+      const { error: tenantErr } = await admin.from('tenants').delete().in('id', cleanedTenantIds)
+      if (tenantErr) {
+        errors.push(`tenants: ${tenantErr.message}`)
+      } else {
+        deletedTenants = cleanedTenantIds.length
+        tenantIdsWithDeletedTenantRow = cleanedTenantIds
+      }
     }
 
     // Delete auth users
+    const ownerIds = tenantIdsWithDeletedTenantRow
+      .map((tenantId) => ownerIdByTenantId.get(tenantId))
+      .filter(Boolean) as string[]
+
     for (const userId of ownerIds) {
       try {
         const { error: authErr } = await admin.auth.admin.deleteUser(userId)
@@ -110,8 +130,6 @@ export async function GET(request: Request) {
         errors.push(`auth user ${userId}: ${err instanceof Error ? err.message : 'unknown'}`)
       }
     }
-
-    console.info('[demo-tenant-cleanup] done', { deletedTenants, deletedUsers, errors: errors.length })
 
     return NextResponse.json({
       ok: true,

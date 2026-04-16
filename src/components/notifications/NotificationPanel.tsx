@@ -33,6 +33,8 @@ function iconForType(type: string): string {
       return '✅'
     case 'offer_rejected':
       return '❌'
+    case 'weekly_sales_summary':
+      return '🧾'
     case 'system':
       return '🔔'
     default:

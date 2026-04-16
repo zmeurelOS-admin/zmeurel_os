@@ -65,15 +65,7 @@ export async function POST(request: Request) {
     const admin = createServiceRoleClient()
     const result = await seedDemoDataForTenant(admin, tenant.id, demoType)
 
-    console.info('[demo-seed] seed result', {
-      userId: user.id,
-      tenantId: tenant.id,
-      status: result.status,
-      demo_type: demoType,
-      seedId: result.seedId,
-      summary: result.summary,
-      errors: result.errors.length,
-    })
+    
 
     if (result.status === 'skipped_existing_data') {
       return NextResponse.json(

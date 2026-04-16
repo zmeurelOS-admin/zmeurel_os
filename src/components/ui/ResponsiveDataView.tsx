@@ -45,6 +45,8 @@ interface ResponsiveDataViewProps<TData, TMobileData = TData> {
   hideDesktopSearchRow?: boolean
   /** Clase extra pe rândul desktop (ex. grupare vizuală); nu se aplică peste rândul selectat. */
   getDesktopRowClassName?: (row: TData, index: number, rows: TData[]) => string | undefined
+  desktopTableContainerClassName?: string
+  stickyDesktopHeader?: boolean
 }
 
 function normalizeSearchValue(value: string): string {
@@ -121,6 +123,8 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
   skipDesktopDataFilter = false,
   hideDesktopSearchRow = false,
   getDesktopRowClassName,
+  desktopTableContainerClassName,
+  stickyDesktopHeader = false,
 }: ResponsiveDataViewProps<TData, TMobileData>) {
   const [desktopSearch, setDesktopSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
@@ -188,7 +192,7 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
         ) : null}
 
         <div className="overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-sm">
-          <Table>
+          <Table containerClassName={desktopTableContainerClassName}>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
@@ -209,6 +213,7 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                         key={header.id}
                         className={cn(
                           'min-h-12',
+                          stickyDesktopHeader && 'sticky top-0 z-20 bg-[var(--agri-surface-muted)]',
                           isNumeric && 'text-right',
                           stickyClassName,
                           meta.headerClassName,

@@ -1,12 +1,16 @@
 /**
  * debug-db.ts
  * Connects with the service role key and prints a diagnostic report:
- *   - Andrei's auth user + tenant
+ *   - target auth user + tenant
  *   - Parcele for that tenant (columns + count)
  *   - Whether the `stadiu` column exists
  *   - Attempts a dry test-insert/delete to verify write access
  *
  * Run: npx tsx scripts/debug-db.ts
+ *
+ * Target selection:
+ *   1. `DEBUG_DB_TARGET_USER_ID` (recommended)
+ *   2. First `profiles.is_superadmin = true` user (fallback)
  */
 
 import { config } from 'dotenv'
@@ -14,31 +18,58 @@ config({ path: '.env.local' })
 
 import { getSupabaseAdmin } from '../src/lib/supabase/admin'
 
-const PROTECTED_EMAIL = 'popa.andrei.sv@gmail.com'
+function parseEnvCsv(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
+async function resolveTargetUserId(admin: ReturnType<typeof getSupabaseAdmin>): Promise<string> {
+  const explicit = parseEnvCsv(process.env.DEBUG_DB_TARGET_USER_ID)[0]
+  if (explicit) return explicit
+
+  const { data, error } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('is_superadmin', true)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`profiles lookup failed: ${error.message}`)
+  }
+
+  if (!data?.id) {
+    throw new Error(
+      'No debug target found. Set DEBUG_DB_TARGET_USER_ID or ensure at least one superadmin profile exists.',
+    )
+  }
+
+  return data.id
+}
 
 async function main() {
   const admin = getSupabaseAdmin()
 
-  // 1. Find Andrei's auth user
+  // 1. Resolve target auth user
   console.log('=== Auth user ===')
-  const { data: { users }, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 })
-  if (listErr) throw new Error(`listUsers: ${listErr.message}`)
-
-  const andrei = users.find((u) => u.email?.toLowerCase() === PROTECTED_EMAIL.toLowerCase())
-  if (!andrei) {
-    console.error(`NOT FOUND: ${PROTECTED_EMAIL}`)
-    process.exit(1)
+  const targetUserId = await resolveTargetUserId(admin)
+  const { data: authUser, error: authUserErr } = await admin.auth.admin.getUserById(targetUserId)
+  if (authUserErr || !authUser.user) {
+    throw new Error(`getUserById(${targetUserId}) failed: ${authUserErr?.message ?? 'not found'}`)
   }
-  console.log(`id:    ${andrei.id}`)
-  console.log(`email: ${andrei.email}`)
-  console.log(`created_at: ${andrei.created_at}`)
+  console.log(`id:    ${authUser.user.id}`)
+  console.log(`email: ${authUser.user.email}`)
+  console.log(`created_at: ${authUser.user.created_at}`)
 
   // 2. Find tenant
   console.log('\n=== Tenant ===')
   const { data: tenant, error: tenantErr } = await admin
     .from('tenants')
     .select('*')
-    .eq('owner_user_id', andrei.id)
+    .eq('owner_user_id', authUser.user.id)
     .maybeSingle()
   if (tenantErr) throw new Error(`tenants: ${tenantErr.message}`)
   if (!tenant) { console.log('No tenant found for this user.'); process.exit(0) }

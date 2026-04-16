@@ -94,6 +94,50 @@ describe('AssociationCartProvider / useCart', () => {
     expect(screen.getByTestId('estimated-total')).toHaveTextContent('30')
   })
 
+  it('cantitatea din coș rămâne întreagă', async () => {
+    const user = userEvent.setup()
+    render(
+      <AssociationCartProvider>
+        <CartProbe />
+      </AssociationCartProvider>,
+    )
+    await user.click(screen.getByText('add-p1'))
+    await user.click(screen.getByText('set-p1-3'))
+    expect(screen.getByTestId('lines-json')).toHaveTextContent('"qty":3')
+  })
+
+  it('bumpQty elimină linia când ajunge la zero', async () => {
+    function MinusProbe() {
+      const { lines, addToCart, bumpQty } = useCart()
+      const p1 = mockAssociationProduct({
+        id: 'aa000000-0000-4000-8000-000000000001',
+        displayPrice: 10,
+        nume: 'P1',
+      })
+      return (
+        <div>
+          <div data-testid="line-count">{lines.length}</div>
+          <button type="button" onClick={() => addToCart(p1)}>
+            add
+          </button>
+          <button type="button" onClick={() => bumpQty(p1.id, -1)}>
+            minus
+          </button>
+        </div>
+      )
+    }
+
+    const user = userEvent.setup()
+    render(
+      <AssociationCartProvider>
+        <MinusProbe />
+      </AssociationCartProvider>,
+    )
+    await user.click(screen.getByText('add'))
+    await user.click(screen.getByText('minus'))
+    expect(screen.getByTestId('line-count')).toHaveTextContent('0')
+  })
+
   it('updateQty modifică cantitatea', async () => {
     const user = userEvent.setup()
     render(

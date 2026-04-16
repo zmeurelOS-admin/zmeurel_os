@@ -22,9 +22,15 @@ begin
 end;
 $$;
 
-drop trigger if exists culturi_check_suprafata on public.culturi;
-create trigger culturi_check_suprafata
-  before insert or update of suprafata_ocupata, solar_id on public.culturi
-  for each row execute function public.check_culturi_suprafata();
+do $$
+begin
+  if to_regclass('public.culturi') is not null then
+    drop trigger if exists culturi_check_suprafata on public.culturi;
+    create trigger culturi_check_suprafata
+      before insert or update of suprafata_ocupata, solar_id on public.culturi
+      for each row execute function public.check_culturi_suprafata();
+  end if;
+end;
+$$;
 
 notify pgrst, 'reload schema';

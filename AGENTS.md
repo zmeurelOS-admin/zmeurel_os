@@ -17,7 +17,7 @@ Runtime app code lives under `src/`, especially `src/app` for routes and `src/li
 - Monitoring: Sentry.
 - Product analytics: Vercel Analytics/Speed Insights plus custom `analytics_events`.
 - PWA/offline: `next-pwa`, IndexedDB sync queue, idempotent mutation flow.
-- **Web Push (VAPID)**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (generate with `npx web-push generate-vapid-keys`; never commit secrets) + opțional `VAPID_SUBJECT` (`mailto:...`, fallback sigur dacă lipsește). Subscriptions in `push_subscriptions` (migrare `20260405006_push_subscriptions.sql`). Server: `src/lib/notifications/send-push.ts` (`web-push`, best-effort). După build, `postbuild` rulează `scripts/append-push-sw-import.js` ca să adauge `importScripts('/push-handlers.js')` la `public/sw.js` generat de Workbox. Handler-e în `public/push-handlers.js`. API: `POST /api/push/subscribe`, `POST /api/push/unsubscribe`. UI: `PushPermissionBanner`, `usePushSubscription`, setări la `/settings` → Notificări push. Trimitere automată doar pentru tipuri cu `pushEnabled` în `src/lib/notifications/config.ts` (implicit doar `order_new`).
+- **Web Push (VAPID)**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (generate with `npx web-push generate-vapid-keys`; never commit secrets) + opțional `VAPID_SUBJECT` (`mailto:...`, fallback sigur dacă lipsește). Subscriptions in `push_subscriptions` (migrare `20260405006_push_subscriptions.sql`). Server: `src/lib/notifications/send-push.ts` (`web-push`, best-effort, sender în Next/Vercel, nu în Supabase Edge Functions). După build, `postbuild` rulează `scripts/append-push-sw-import.js` ca să adauge `importScripts('/push-handlers.js')` la `public/sw.js` generat de Workbox. Handler-e în `public/push-handlers.js`. API: `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `POST /api/push/test` (autentificat, intern, pentru verificare end-to-end). UI: `PushPermissionBanner`, `usePushSubscription`, setări la `/settings` → Notificări push. Salvarea subscription folosește doar coloanele de bază (`user_id`, `endpoint`, `keys_p256dh`, `keys_auth`) ca să rămână compatibilă și cu medii unde coloanele opționale nu sunt aliniate. Trimitere automată doar pentru tipuri cu `pushEnabled` în `src/lib/notifications/config.ts` (implicit doar `order_new`).
 
 Core runtime pattern:
 
@@ -37,6 +37,7 @@ Core runtime pattern:
 - **Magazin fermier (public, client final)**: ` /magazin` — landing; `/magazin/[tenantId]` — catalog produse read-only (încărcare server cu `getSupabaseAdmin()` în `src/lib/shop/load-public-shop.ts`), coș în state local + **checkout light**: `POST /api/shop/order` (anonim, `validateSameOriginMutation`, `getSupabaseAdmin`) inserează una sau mai multe înregistrări în `comenzi` (status `noua`, `data_origin: magazin_public`, `produs_id` când există coloana), câte una per linie din coș. Endpointul are hardening anti-abuse server-side în `src/lib/api/public-write-guard.ts` (rate limit fixed-window + cooldown scurt pe fingerprint de payload) și întoarce `429` cu `Retry-After` când pragurile sunt depășite. După inserări reușite, `notifyFarmerShopOrder` (`src/lib/shop/notify-farmer-shop-order.ts`) poate trimite email fermierului prin **Resend** (HTTPS, fără dependență npm): destinatar = email din Auth pentru `tenants.owner_user_id`, sau override opțional `SHOP_ORDER_NOTIFY_EMAIL`; necesită `SHOP_ORDER_NOTIFY_FROM` + (`SHOP_ORDER_NOTIFY_RESEND_API_KEY` sau `RESEND_API_KEY`). Eșecul notificării este logat; răspunsul JSON de succes nu depinde de email. Proxy permite `pathname.startsWith('/api/shop')` fără autentificare. UI: `src/components/shop/FarmShopClient.tsx` (nu folosește AppShell ERP). Din ERP, modulul **Produse** (`ProdusePageClient`) expune „Vezi magazin” / „Copiază link magazin” folosind `tenantId` din `useDashboardAuth()` (fără fetch suplimentar); CTA-urile sunt dezactivate până există cel puțin un produs cu status „activ” (aliniat la vitrina publică).
 - **Magazin asociație (public, multi-fermier)**: `/magazin/asociatie` — branding „Gustă din Bucovina” **doar** aici (layout + `src/styles/association-shop.css`, fonturi Baloo 2 / Inter în `src/app/magazin/asociatie/layout.tsx`); nu în ERP sau magazin fermier. Catalog: `loadAssociationCatalog` / `loadAssociationCatalogCached` (`src/lib/shop/load-association-catalog.ts`) — produse `status = activ` pentru tenants cu `tenants.is_association_approved = true` (setat din **Admin** → tabel tenanți, coloana „Magazin asociație”, API `PATCH /api/admin/tenant-association`, doar superadmin) **reunit** cu fallback temporar pe allowlist explicit în env: `ASSOCIATION_ALLOWED_OWNER_USER_IDS` (preferat, UUID-uri) și opțional `ASSOCIATION_ALLOWED_EMAILS` (legacy/tranziție). Fără fallback hardcodat în cod; fără filtru `is_demo`. UI: `AssociationShopClient.tsx` orchestrator + `src/components/shop/association/*` (header brand pe verde, hero, filtre + sortare client-side, carduri, detaliu dialog/sheet, coș drawer, checkout), `AssociationLogo.tsx`, `AssociationHeroVisual.tsx`, imagini produse cu `next/image` (`unoptimized` pentru URL storage); hero Unsplash în `next.config.js`. Landing comercial: trust în hero, secțiune „Cum funcționează”, grid, „Despre asociație” (valori) + footer; paletă (#0D6342 / #FF9E1B / #FFF9E3 / #F5EDCA / text #3D4543 / #6B7A72 / border #E8E0C4); coș grupat pe fermier; `POST /api/shop/order` per `tenantId`. Fără AppShell ERP.
 - **Profil public producător editat din workspace-ul asociației**: în `/asociatie/producatori`, adminii/moderatorii pot edita `tenants.descriere_publica`, `specialitate`, `localitate` și `poze_ferma` direct din dialogul `ProducerProfileEditor`; API-urile sunt `PATCH /api/association/producer-profile` și `POST/DELETE /api/association/producer-photos`. Pozele fermei merg în bucket-ul public `producer-photos` (`storage.objects`), maxim 3 URL-uri per tenant. RLS pe `tenants` permite staff-ului asociației doar aceste câmpuri publice prin migrarea `20260405011_allow_profile_update.sql`, iar triggerul `enforce_tenants_assoc_admin_updates()` blochează modificarea altor coloane.
+- **Catalog produse asociație (ERP)**: `/asociatie/produse` folosește acum tabel full-width + Sheet responsive unic pentru vizualizare/editare produs (`side="right"` pe `md+`, `side="bottom"` pe mobil), cu tab-uri „Preț & Vizibilitate” și „Informații alimentare”; „Elimină din catalog” face doar PATCH (`association_listed = false`, `association_price = null`), fără DELETE pe `produse`. Crearea nouă merge prin `POST /api/association/products/create` și inserează în `public.produse` pentru un fermier aprobat al asociației, cu TODO explicit despre vizibilitatea ulterioară în ERP-ul fermierului.
 - **Setări asociație (branding public + piață)**: `/asociatie/setari` folosește `AssociationSettingsClient` + `PATCH /api/association/settings`; conținutul persistă în Storage privat (`association-config/settings.json`) prin `src/lib/association/public-settings.ts` și este citit pe landing-ul public `/magazin/asociatie` și pe profilul public al producătorului pentru descriere/program.
 - `src/app/(dashboard)/layout.tsx` trusts proxy headers when present and initializes app providers.
 - Most protected pages are thin route files that render client-side page components using React Query.
@@ -469,6 +470,39 @@ When future prompts modify architecture, domain logic, repository structure, or 
 - `docs/CODE_STRUCTURE.md`
 - `docs/DOMAIN_RULES.md`
 - `docs/KNOWN_RISKS.md`
+
+## Testare E2E Checkout
+
+Testul E2E acoperă fluxul complet al magazinului public:
+produse → coș → checkout → comandă → DB assertions.
+
+**Rulare locală:**
+`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 \`
+`NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key> \`
+`SUPABASE_SERVICE_ROLE_KEY=<service-role-key> \`
+`npm run test:e2e:checkout`
+
+**Mock-uri necesare:** fără `RESEND_API_KEY` și fără VAPID keys în env
+— outbound-urile server-side sunt dezactivate automat dacă lipsesc cheile.
+
+**Assertions DB verificate:** `comenzi` (`status=noua`), `message_log`, `consent_events`.
+
+**CI:** rulează automat în `e2e-checkout.yml` la push/PR pe `main`.
+
+## Testare RLS
+
+Testele RLS verifică izolarea cross-tenant la nivel de bază de date, nu la nivel de cod TypeScript. Mock-urile nu sunt suficiente pentru acest scop — un mock care returnează `[]` trece indiferent de politicile RLS.
+
+**Tabele acoperite:** `parcele`, `comenzi`, `produse`, `miscari_stoc`, `profiles`
+
+**Rulare locală:**
+`supabase start`
+`SUPABASE_TEST_URL=http://127.0.0.1:54321 \`
+`SUPABASE_TEST_ANON_KEY=<anon-key-din-supabase-status> \`
+`SUPABASE_TEST_SERVICE_ROLE_KEY=<service-role-din-supabase-status> \`
+`npm run test:rls`
+
+**CI:** rulează automat în `rls-tests.yml` la push/PR pe `main`.
 
 Update them incrementally. Do not rewrite them from scratch unless the repository changes substantially.- **Nu mai este nevoie de scanare completă de repo** pentru taskuri AI
 - **Pornește de la fișierele source of truth enumerate mai sus**

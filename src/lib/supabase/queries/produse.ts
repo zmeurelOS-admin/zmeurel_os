@@ -5,7 +5,7 @@ import { getTenantId } from '@/lib/tenant/get-tenant'
 type AnySupabase = any
 
 export const CATEGORII_PRODUSE = ['fruct', 'leguma', 'procesat', 'altele'] as const
-export const UNITATI_VANZARE = ['kg', 'buc', 'ladă', 'casoletă', 'palet', 'cutie'] as const
+export const UNITATI_VANZARE = ['kg', 'kilogram', 'buc', 'ladă', 'casoletă', 'palet', 'cutie', 'borcan', 'pachet', 'pungă', 'sticlă'] as const
 
 export type CategorieProdus = (typeof CATEGORII_PRODUSE)[number]
 export type UnitateVanzare = (typeof UNITATI_VANZARE)[number]
@@ -16,8 +16,10 @@ export interface Produs {
   nume: string
   descriere: string | null
   categorie: CategorieProdus
-  unitate_vanzare: UnitateVanzare
+  unitate_vanzare: string
   gramaj_per_unitate: number | null
+  approximate_weight: string | null
+  association_category: string | null
   pret_unitar: number | null
   moneda: string
   poza_1_url: string | null
@@ -31,8 +33,10 @@ export interface CreateProdusInput {
   nume: string
   descriere?: string | null
   categorie?: CategorieProdus
-  unitate_vanzare?: UnitateVanzare
+  unitate_vanzare?: string
   gramaj_per_unitate?: number | null
+  approximate_weight?: string | null
+  association_category?: string | null
   pret_unitar?: number | null
   poza_1_url?: string | null
   poza_2_url?: string | null
@@ -42,16 +46,34 @@ export interface UpdateProdusInput {
   nume?: string
   descriere?: string | null
   categorie?: CategorieProdus
-  unitate_vanzare?: UnitateVanzare
+  unitate_vanzare?: string
   gramaj_per_unitate?: number | null
+  approximate_weight?: string | null
+  association_category?: string | null
   pret_unitar?: number | null
   poza_1_url?: string | null
   poza_2_url?: string | null
   status?: 'activ' | 'inactiv'
 }
 
+function mapProductMutationError(error: unknown): Error {
+  const message =
+    typeof error === 'object' && error && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : 'Operațiunea pe produs a eșuat.'
+
+  if (
+    message.includes('Completează documentele legale înainte de publicarea produselor') ||
+    message.includes('Completează documentele legale înainte de publicarea produselor în Zmeurel OS')
+  ) {
+    return new Error('Completează documentele legale înainte de a publica produse.')
+  }
+
+  return error instanceof Error ? error : new Error(message)
+}
+
 const SELECT_COLS =
-  'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,pret_unitar,moneda,poza_1_url,poza_2_url,status,created_at,updated_at'
+  'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,approximate_weight,association_category,pret_unitar,moneda,poza_1_url,poza_2_url,status,created_at,updated_at'
 
 export async function getProduse(): Promise<Produs[]> {
   const supabase = getSupabase() as AnySupabase
@@ -95,6 +117,8 @@ export async function createProdus(input: CreateProdusInput): Promise<Produs> {
       categorie: input.categorie ?? 'fruct',
       unitate_vanzare: input.unitate_vanzare ?? 'kg',
       gramaj_per_unitate: input.gramaj_per_unitate ?? null,
+      approximate_weight: input.approximate_weight ?? null,
+      association_category: input.association_category ?? null,
       pret_unitar: input.pret_unitar ?? null,
       poza_1_url: input.poza_1_url ?? null,
       poza_2_url: input.poza_2_url ?? null,
@@ -102,7 +126,7 @@ export async function createProdus(input: CreateProdusInput): Promise<Produs> {
     .select(SELECT_COLS)
     .single()
 
-  if (error) throw error
+  if (error) throw mapProductMutationError(error)
   return data as Produs
 }
 
@@ -118,7 +142,7 @@ export async function updateProdus(id: string, input: UpdateProdusInput): Promis
     .select(SELECT_COLS)
     .single()
 
-  if (error) throw error
+  if (error) throw mapProductMutationError(error)
   return data as Produs
 }
 

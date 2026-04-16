@@ -1,35 +1,44 @@
 import { cache } from 'react'
 
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { normalizeOptionalText, resolveProducerLogoUrl } from '@/lib/shop/producer-media'
 import type { PublicShopProduct } from '@/lib/shop/load-public-shop'
 
 /** `produse` / join — client relaxat ca în `load-public-shop.ts`. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyAdmin = any
 
-/** Fallback când lipsește `process.env.ASSOCIATION_ALLOWED_EMAILS`. */
-const DEFAULT_ASSOCIATION_ALLOWED_EMAILS = ['popa.andrei.sv@gmail.com'] as const
+function parseCsvEnv(rawValue: string | undefined): string[] {
+  if (!rawValue) return []
+  return rawValue
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+}
 
 /**
  * Email-uri permise în magazinul asociației (normalizate lowercase) — fallback de tranziție.
- * Prioritate: `ASSOCIATION_ALLOWED_EMAILS` (env, separate prin virgulă) → constanta de mai sus.
+ * Prioritate: `ASSOCIATION_ALLOWED_EMAILS` (env, separate prin virgulă).
  * Sursa principală: `tenants.is_association_approved = true` (setat din admin).
  */
 /** Exportat pentru eligibilitate magazin asociație (ex. profil producător public). */
 export function getAssociationAllowedEmails(): string[] {
-  const raw = process.env.ASSOCIATION_ALLOWED_EMAILS?.trim()
-  if (raw) {
-    const fromEnv = raw
-      .split(',')
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-    if (fromEnv.length > 0) return fromEnv
-  }
-  return [...DEFAULT_ASSOCIATION_ALLOWED_EMAILS]
+  return parseCsvEnv(process.env.ASSOCIATION_ALLOWED_EMAILS?.trim())
+}
+
+/**
+ * Fallback recomandat pentru tranziție: allowlist explicit pe owner user IDs (UUID-uri).
+ * Preferat față de email allowlist deoarece evită comparații pe identități personale.
+ */
+export function getAssociationAllowedOwnerUserIds(): string[] {
+  return parseCsvEnv(process.env.ASSOCIATION_ALLOWED_OWNER_USER_IDS?.trim())
 }
 
 export type AssociationProduct = PublicShopProduct & {
   tenantId: string
+  association_category: string | null
+  createdAt: string
+  orderCount: number
   farmName: string
   /** Regiune afișată opțional (v1: branding asociație). */
   farmRegion: string | null
@@ -48,20 +57,6 @@ export type AssociationProduct = PublicShopProduct & {
   displayPrice: number
 }
 
-function normalizeOptionalText(value: string | null | undefined): string | null {
-  const trimmed = value?.trim()
-  return trimmed ? trimmed : null
-}
-
-function resolveProducerLogoUrl(admin: AnyAdmin, value: string | null | undefined): string | null {
-  const trimmed = normalizeOptionalText(value)
-  if (!trimmed) return null
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-
-  const publicUrl = admin?.storage?.from?.('producer-logos')?.getPublicUrl?.(trimmed)?.data?.publicUrl
-  return typeof publicUrl === 'string' && publicUrl.trim() ? publicUrl : trimmed
-}
-
 /**
  * Catalog public multi-fermier pentru magazinul asociației.
  * - Produse `status = activ` și `association_listed = true`
@@ -71,7 +66,8 @@ function resolveProducerLogoUrl(admin: AnyAdmin, value: string | null | undefine
 export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
   try {
     const admin = getSupabaseAdmin() as AnyAdmin
-    const allowed = new Set(getAssociationAllowedEmails())
+    const allowedOwnerUserIds = new Set(getAssociationAllowedOwnerUserIds())
+    const allowedEmails = new Set(getAssociationAllowedEmails())
 
     /** Dacă migrarea `is_association_approved` nu e aplicată încă, PostgREST respinge coloana — folosim fallback. */
     let rows: {
@@ -98,13 +94,6 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       } else {
         const legacy = await admin.from('tenants').select('id, owner_user_id')
         if (legacy.error) {
-          const e = legacy.error as { message?: string; code?: string; details?: string }
-          console.error(
-            '[loadAssociationCatalog] tenants',
-            e.code ?? '',
-            e.message ?? '',
-            e.details ?? '',
-          )
           return []
         }
         rows = ((legacy.data ?? []) as { id: string; owner_user_id: string | null }[]).map((t) => ({
@@ -129,13 +118,17 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       await Promise.all(
         eligibleRows.map(async (t) => {
           if (!t.owner_user_id) return null
+          if (allowedOwnerUserIds.has(t.owner_user_id.toLowerCase())) {
+            return t.id
+          }
+          if (allowedEmails.size === 0) return null
           const { data: userData, error: userErr } = await admin.auth.admin.getUserById(t.owner_user_id)
           if (userErr || !userData.user?.email) {
-            if (userErr) console.warn('[loadAssociationCatalog] getUserById', t.id, userErr.message)
+            
             return null
           }
           const email = userData.user.email.trim().toLowerCase()
-          if (!allowed.has(email)) return null
+          if (!allowedEmails.has(email)) return null
           return t.id
         }),
       )
@@ -148,7 +141,7 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
     const { data: prodRows, error: prodError } = await admin
       .from('produse')
       .select(
-        'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,pret_unitar,association_price,moneda,poza_1_url,poza_2_url,status,association_listed,ingrediente,alergeni,conditii_pastrare,termen_valabilitate,tip_produs,assoc_ingrediente,assoc_alergeni,assoc_pastrare,assoc_valabilitate,assoc_tip_produs',
+        'id,tenant_id,nume,descriere,categorie,unitate_vanzare,gramaj_per_unitate,approximate_weight,association_category,pret_unitar,moneda,poza_1_url,poza_2_url,status,created_at,association_listed,association_price,ingrediente,alergeni,conditii_pastrare,termen_valabilitate,tip_produs,assoc_ingrediente,assoc_alergeni,assoc_pastrare,assoc_valabilitate,assoc_tip_produs',
       )
       .eq('status', 'activ')
       .eq('association_listed', true)
@@ -156,7 +149,7 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       .order('nume', { ascending: true })
 
     if (prodError) {
-      console.error('[loadAssociationCatalog] produse', prodError)
+      
       return []
     }
 
@@ -164,6 +157,7 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       tenant_id: string
       association_price?: number | null
       association_listed?: boolean | null
+      association_category?: string | null
       ingrediente?: string | null
       alergeni?: string | null
       conditii_pastrare?: string | null
@@ -174,10 +168,24 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       assoc_pastrare?: string | null
       assoc_valabilitate?: string | null
       assoc_tip_produs?: string | null
+      created_at: string
     }
 
     const list = (prodRows ?? []) as ProdRow[]
     if (list.length === 0) return []
+
+    const productIds = list.map((r) => r.id)
+    const { data: orderRows } = await admin
+      .from('comenzi')
+      .select('produs_id')
+      .eq('data_origin', 'magazin_asociatie')
+      .in('produs_id', productIds)
+
+    const orderCountByProduct = new Map<string, number>()
+    for (const row of (orderRows ?? []) as Array<{ produs_id: string | null }>) {
+      if (!row.produs_id) continue
+      orderCountByProduct.set(row.produs_id, (orderCountByProduct.get(row.produs_id) ?? 0) + 1)
+    }
 
     const tenantIds = [...new Set(list.map((r) => r.tenant_id))]
     const { data: tnames, error: nameErr } = await admin
@@ -188,7 +196,7 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
       .in('id', tenantIds)
 
     if (nameErr) {
-      console.error('[loadAssociationCatalog] tenant names', nameErr)
+      
       return []
     }
 
@@ -254,10 +262,14 @@ export async function loadAssociationCatalog(): Promise<AssociationProduct[]> {
           categorie: r.categorie,
           unitate_vanzare: r.unitate_vanzare,
           gramaj_per_unitate: r.gramaj_per_unitate,
+          approximate_weight: r.approximate_weight ?? null,
+          association_category: r.association_category ?? null,
           pret_unitar: r.pret_unitar,
           moneda: r.moneda,
           poza_1_url: r.poza_1_url,
           poza_2_url: r.poza_2_url,
+          createdAt: r.created_at,
+          orderCount: orderCountByProduct.get(r.id) ?? 0,
           ingrediente: r.assoc_ingrediente ?? r.ingrediente ?? null,
           alergeni: r.assoc_alergeni ?? r.alergeni ?? null,
           conditii_pastrare: r.assoc_pastrare ?? r.conditii_pastrare ?? null,

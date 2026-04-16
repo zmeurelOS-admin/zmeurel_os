@@ -1,6 +1,11 @@
 import { cache } from 'react'
 import { z } from 'zod'
 
+import {
+  DEFAULT_ASSOCIATION_PUBLIC_CONTACT,
+  loadAssociationPublicContact,
+  saveAssociationPublicContact,
+} from '@/lib/association/public-contact'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +41,8 @@ const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/
 export const DEFAULT_ASSOCIATION_SETTINGS = {
   description:
     'Rețea de producători locali din Bucovina care aduce mai aproape produse autentice, direct de la fermă.',
-  facebookUrl: 'https://www.facebook.com/haigustadinbucovina',
+  facebookUrl: DEFAULT_ASSOCIATION_PUBLIC_CONTACT.facebookUrl,
+  instagramUrl: DEFAULT_ASSOCIATION_PUBLIC_CONTACT.instagramUrl,
   marketSchedule: 'Sâmbătă, 08:00 - 12:30',
   marketLocation: 'Curtea DAJ Suceava',
   activeDays: ['sambata'] as AssociationDayId[],
@@ -50,16 +56,20 @@ export const DEFAULT_ASSOCIATION_SETTINGS = {
   merchantHeadquarters: '',
   merchantEmail: '',
   merchantPhone: '',
+  orderPhone: '',
   merchantRegistryNumber: '',
   merchantContactPerson: '',
   merchantDeliveryPolicy: '',
   merchantComplaintsPolicy: '',
+  deliveryDays: ['miercuri'] as AssociationDayId[],
+  deliveryCutoffText: 'Comenzile plasate până marți la ora 14:00 se livrează miercuri.',
   updatedAt: null as string | null,
 } as const
 
 const settingsSchema = z.object({
   description: z.string().max(1200).default(DEFAULT_ASSOCIATION_SETTINGS.description),
   facebookUrl: z.union([z.literal(''), z.string().url()]).default(DEFAULT_ASSOCIATION_SETTINGS.facebookUrl),
+  instagramUrl: z.union([z.literal(''), z.string().url()]).default(DEFAULT_ASSOCIATION_SETTINGS.instagramUrl),
   marketSchedule: z.string().max(160).default(DEFAULT_ASSOCIATION_SETTINGS.marketSchedule),
   marketLocation: z.string().max(160).default(DEFAULT_ASSOCIATION_SETTINGS.marketLocation),
   activeDays: z
@@ -83,10 +93,16 @@ const settingsSchema = z.object({
     .union([z.literal(''), z.string().email()])
     .default(DEFAULT_ASSOCIATION_SETTINGS.merchantEmail),
   merchantPhone: z.string().max(40).default(DEFAULT_ASSOCIATION_SETTINGS.merchantPhone),
+  orderPhone: z.string().max(40).default(DEFAULT_ASSOCIATION_SETTINGS.orderPhone),
   merchantRegistryNumber: z.string().max(80).default(DEFAULT_ASSOCIATION_SETTINGS.merchantRegistryNumber),
   merchantContactPerson: z.string().max(120).default(DEFAULT_ASSOCIATION_SETTINGS.merchantContactPerson),
   merchantDeliveryPolicy: z.string().max(2000).default(DEFAULT_ASSOCIATION_SETTINGS.merchantDeliveryPolicy),
   merchantComplaintsPolicy: z.string().max(2000).default(DEFAULT_ASSOCIATION_SETTINGS.merchantComplaintsPolicy),
+  deliveryDays: z
+    .array(z.enum(ASSOCIATION_DAY_IDS))
+    .max(7)
+    .default([...DEFAULT_ASSOCIATION_SETTINGS.deliveryDays]),
+  deliveryCutoffText: z.string().max(500).default(DEFAULT_ASSOCIATION_SETTINGS.deliveryCutoffText),
   updatedAt: z.string().datetime().nullable().default(DEFAULT_ASSOCIATION_SETTINGS.updatedAt),
 })
 
@@ -104,6 +120,7 @@ export function sanitizeAssociationSettings(
   const normalized = settingsSchema.parse({
     description: input?.description?.trim() || DEFAULT_ASSOCIATION_SETTINGS.description,
     facebookUrl: input?.facebookUrl?.trim() || '',
+    instagramUrl: input?.instagramUrl?.trim() || '',
     marketSchedule: input?.marketSchedule?.trim() || DEFAULT_ASSOCIATION_SETTINGS.marketSchedule,
     marketLocation: input?.marketLocation?.trim() || DEFAULT_ASSOCIATION_SETTINGS.marketLocation,
     activeDays: uniqueDays(input?.activeDays ?? DEFAULT_ASSOCIATION_SETTINGS.activeDays),
@@ -116,41 +133,63 @@ export function sanitizeAssociationSettings(
     merchantHeadquarters: input?.merchantHeadquarters?.trim() ?? '',
     merchantEmail: input?.merchantEmail?.trim() ?? '',
     merchantPhone: input?.merchantPhone?.trim() ?? '',
+    orderPhone: input?.orderPhone?.trim() ?? '',
     merchantRegistryNumber: input?.merchantRegistryNumber?.trim() ?? '',
     merchantContactPerson: input?.merchantContactPerson?.trim() ?? '',
     merchantDeliveryPolicy: input?.merchantDeliveryPolicy?.trim() ?? '',
     merchantComplaintsPolicy: input?.merchantComplaintsPolicy?.trim() ?? '',
+    deliveryDays: uniqueDays(input?.deliveryDays ?? DEFAULT_ASSOCIATION_SETTINGS.deliveryDays),
+    deliveryCutoffText: input?.deliveryCutoffText?.trim() || DEFAULT_ASSOCIATION_SETTINGS.deliveryCutoffText,
     updatedAt: input?.updatedAt ?? DEFAULT_ASSOCIATION_SETTINGS.updatedAt,
   })
 
   if (normalized.activeDays.length === 0) {
     normalized.activeDays = [...DEFAULT_ASSOCIATION_SETTINGS.activeDays]
   }
+  if (normalized.deliveryDays.length === 0) {
+    normalized.deliveryDays = [...DEFAULT_ASSOCIATION_SETTINGS.deliveryDays]
+  }
 
   return normalized
 }
 
-export async function loadAssociationSettings(): Promise<AssociationPublicSettings> {
+async function loadAssociationSettingsFromStorage(): Promise<Partial<AssociationPublicSettings> | null> {
   const admin = getSupabaseAdmin() as AnyAdmin
   const { data, error } = await admin.storage
     .from(ASSOCIATION_SETTINGS_BUCKET)
     .download(ASSOCIATION_SETTINGS_PATH)
 
   if (error || !data) {
-    return sanitizeAssociationSettings(DEFAULT_ASSOCIATION_SETTINGS)
+    return null
   }
 
   try {
     const text = await data.text()
     if (!text.trim()) {
-      return sanitizeAssociationSettings(DEFAULT_ASSOCIATION_SETTINGS)
+      return null
     }
-    const parsed = JSON.parse(text) as Partial<AssociationPublicSettings>
-    return sanitizeAssociationSettings(parsed)
+    return JSON.parse(text) as Partial<AssociationPublicSettings>
   } catch (parseError) {
     console.warn('[association-settings] parse failed', parseError)
-    return sanitizeAssociationSettings(DEFAULT_ASSOCIATION_SETTINGS)
+    return null
   }
+}
+
+export async function loadAssociationSettings(): Promise<AssociationPublicSettings> {
+  const [storedSettings, contactSettings] = await Promise.all([
+    loadAssociationSettingsFromStorage(),
+    loadAssociationPublicContact(),
+  ])
+
+  return sanitizeAssociationSettings({
+    ...DEFAULT_ASSOCIATION_SETTINGS,
+    ...(storedSettings ?? {}),
+    facebookUrl: contactSettings.facebookUrl || storedSettings?.facebookUrl || DEFAULT_ASSOCIATION_SETTINGS.facebookUrl,
+    instagramUrl: contactSettings.instagramUrl || storedSettings?.instagramUrl || '',
+    merchantEmail: contactSettings.merchantEmail || storedSettings?.merchantEmail || '',
+    merchantPhone: contactSettings.merchantPhone || storedSettings?.merchantPhone || '',
+    orderPhone: contactSettings.orderPhone || storedSettings?.orderPhone || '',
+  })
 }
 
 export const loadAssociationSettingsCached = cache(loadAssociationSettings)
@@ -158,7 +197,6 @@ export const loadAssociationSettingsCached = cache(loadAssociationSettings)
 export async function saveAssociationSettings(
   input: Partial<AssociationPublicSettings>
 ): Promise<AssociationPublicSettings> {
-  const admin = getSupabaseAdmin() as AnyAdmin
   const existing = await loadAssociationSettings()
   const nextSettings = sanitizeAssociationSettings({
     ...existing,
@@ -166,6 +204,20 @@ export async function saveAssociationSettings(
     updatedAt: new Date().toISOString(),
   })
 
+  try {
+    await saveAssociationPublicContact({
+      facebookUrl: nextSettings.facebookUrl,
+      instagramUrl: nextSettings.instagramUrl,
+      merchantEmail: nextSettings.merchantEmail,
+      merchantPhone: nextSettings.merchantPhone,
+      orderPhone: nextSettings.orderPhone,
+    })
+  } catch (error) {
+    console.error('[association-settings] save public contact failed', error)
+    throw error
+  }
+
+  const admin = getSupabaseAdmin() as AnyAdmin
   const payload = new TextEncoder().encode(JSON.stringify(nextSettings, null, 2))
   const { error } = await admin.storage
     .from(ASSOCIATION_SETTINGS_BUCKET)
@@ -176,6 +228,7 @@ export async function saveAssociationSettings(
     })
 
   if (error) {
+    
     throw error
   }
 
@@ -186,6 +239,12 @@ export function formatAssociationActiveDays(days: readonly AssociationDayId[]): 
   const unique = uniqueDays(days)
   if (unique.length === 0) return 'La cerere'
   if (unique.length === ASSOCIATION_DAY_IDS.length) return 'Zilnic'
+  return unique.map((day) => ASSOCIATION_DAY_LABELS[day]).join(', ')
+}
+
+export function formatAssociationDeliveryDays(days: readonly AssociationDayId[]): string {
+  const unique = uniqueDays(days)
+  if (unique.length === 0) return formatAssociationActiveDays(DEFAULT_ASSOCIATION_SETTINGS.deliveryDays)
   return unique.map((day) => ASSOCIATION_DAY_LABELS[day]).join(', ')
 }
 

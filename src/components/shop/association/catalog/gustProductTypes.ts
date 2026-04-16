@@ -10,6 +10,8 @@ export type GustCatalogProduct = {
   farmName?: string
   unitate_vanzare: string
   gramaj_per_unitate: number | null
+  approximate_weight?: string | null
+  association_category?: string | null
   pret_unitar: number | null
   /** Magazin asociație: preț efectiv (override). */
   displayPrice?: number
@@ -20,6 +22,8 @@ export type GustCatalogProduct = {
   poza_1_url?: string | null
   poza_2_url?: string | null
   tenantId?: string
+  createdAt?: string
+  orderCount?: number
   ingrediente?: string | null
   alergeni?: string | null
   conditii_pastrare?: string | null
@@ -46,4 +50,11 @@ export function formatGustPrice(p: GustCatalogProduct): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(Number(val))
+}
+
+export function formatGustProductUnitLabel(p: GustCatalogProduct): string {
+  const unit = p.unitate_vanzare?.trim() || 'unitate'
+  const approx = p.approximate_weight?.trim()
+  if (approx) return `${unit} (${approx})`
+  return unit
 }

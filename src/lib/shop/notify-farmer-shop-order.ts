@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { Database } from '@/types/supabase'
 
 export type ShopOrderNotifyPayload = {
@@ -56,18 +57,18 @@ async function resolveRecipientEmail(
   if (override) return override
 
   if (!payload.ownerUserId) {
-    console.warn('[shop-order-notify] skip: tenant fără owner_user_id', payload.tenantId)
+    
     return null
   }
 
   const { data, error } = await admin.auth.admin.getUserById(payload.ownerUserId)
   if (error) {
-    console.error('[shop-order-notify] getUserById', payload.tenantId, error.message)
+    
     return null
   }
   const email = data.user?.email?.trim()
   if (!email) {
-    console.warn('[shop-order-notify] skip: owner fără email', payload.tenantId)
+    
     return null
   }
   return email
@@ -76,7 +77,7 @@ async function resolveRecipientEmail(
 async function resolveAssociationAdminEmails(admin: SupabaseClient<Database>): Promise<string[]> {
   const { data: members, error } = await admin.from('association_members').select('user_id').eq('role', 'admin')
   if (error || !members?.length) {
-    if (error) console.warn('[shop-order-notify] association_members', error.message)
+    
     return []
   }
   const out: string[] = []
@@ -105,15 +106,7 @@ export async function notifyFarmerShopOrder(
     const body = buildMessageBody(payload)
 
     if (!apiKey || !from) {
-      console.warn(
-        '[shop-order-notify] email dezactivat (lipsește SHOP_ORDER_NOTIFY_RESEND_API_KEY/RESEND_API_KEY sau SHOP_ORDER_NOTIFY_FROM). Rezumat:',
-        {
-          tenantId: payload.tenantId,
-          client: payload.clientName,
-          lines: payload.lineCount,
-          total: payload.totalLei,
-        },
-      )
+      
       return
     }
 
@@ -147,12 +140,23 @@ export async function notifyFarmerShopOrder(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '')
-      console.error('[shop-order-notify] Resend HTTP', res.status, errText.slice(0, 500))
+      console.warn(
+        '[shop-order-notify] resend failed',
+        sanitizeForLog({
+          status: res.status,
+          body_length: errText.length,
+        }),
+      )
       return
     }
 
-    console.info('[shop-order-notify] trimis', { tenantId: payload.tenantId, recipients: uniqueTo.length })
+    
   } catch (e) {
-    console.error('[shop-order-notify] unexpected', e)
+    console.error(
+      '[shop-order-notify] unexpected',
+      sanitizeForLog({
+        error: toSafeErrorContext(e),
+      }),
+    )
   }
 }

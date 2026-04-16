@@ -34,7 +34,7 @@ export async function GET() {
     const messagesLimit = resolveAiDailyLimit({
       baseLimit,
       isSuperadmin: data?.is_superadmin,
-      email: user.email,
+      userId: user.id,
     })
 
     return NextResponse.json({ messagesUsed, messagesLimit })

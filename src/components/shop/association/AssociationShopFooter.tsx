@@ -2,9 +2,15 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { Facebook, Instagram, Mail, Phone } from 'lucide-react'
 
 import type { AssociationPublicSettings } from '@/lib/association/public-settings'
 import { merchantHasPublicContact, resolveMerchantPublicInfo } from '@/lib/shop/association/merchant-info'
+import {
+  normalizeFacebookUrl,
+  normalizeInstagramUrl,
+  normalizePhoneHref,
+} from '@/lib/shop/association/public-links'
 import {
   ASSOCIATION_SHOP_BASE,
   associationShopProdusePath,
@@ -16,84 +22,147 @@ type Props = {
   settings: AssociationPublicSettings
 }
 
-const legalLinkClass =
-  'block text-[13px] font-medium text-white/95 underline-offset-2 hover:text-white hover:underline'
+const linkClass = 'block text-[13px] font-medium text-white/90 underline-offset-2 hover:text-white hover:underline'
 
-const anpcCardClass =
-  'assoc-heading inline-flex flex-1 min-w-[140px] items-center justify-center rounded-lg border border-white/30 px-4 py-2 text-center text-[12px] font-semibold text-white transition hover:bg-white/10'
+function SocialLink({
+  href,
+  label,
+  icon: Icon,
+}: {
+  href: string
+  label: string
+  icon: typeof Facebook
+}) {
+  return (
+    <Link
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/16"
+    >
+      <Icon className="h-4 w-4" aria-hidden />
+      {label}
+    </Link>
+  )
+}
 
-/* DRAFT_LEGAL_REVIEW — footer identitate / ANPC / navigare */
+/* DRAFT_LEGAL_REVIEW — footer identitate / contact / social / legal */
 export function AssociationShopFooter({ settings }: Props) {
-  const m = resolveMerchantPublicInfo(settings)
-  const showDetail = merchantHasPublicContact(m)
+  const merchant = resolveMerchantPublicInfo(settings)
+  const showDetail = merchantHasPublicContact(merchant)
+  const facebookHref = normalizeFacebookUrl(settings.facebookUrl)
+  const instagramHref = normalizeInstagramUrl(settings.instagramUrl)
+  const orderPhone = settings.orderPhone?.trim() || merchant.phone
+  const phoneHref = normalizePhoneHref(orderPhone)
+  const email = merchant.email?.trim() || null
 
   return (
     <footer
-      className="assoc-body mt-auto w-full px-6 py-8 text-[12px] leading-relaxed sm:px-8 sm:py-10 sm:text-[13px]"
-      style={{ backgroundColor: '#0D6342', color: 'rgba(255,255,255,0.95)' }}
+      className="assoc-body mt-auto w-full px-6 py-10 text-[13px] leading-relaxed sm:px-8 sm:py-12"
+      style={{
+        background:
+          'linear-gradient(180deg, rgba(13,99,66,1) 0%, rgba(10,79,53,1) 100%)',
+        color: 'rgba(255,255,255,0.95)',
+      }}
     >
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex justify-center sm:justify-start">
-          <Image
-            src="/images/gusta-logo-white.png"
-            alt="Gustă din Bucovina"
-            width={60}
-            height={60}
-            className="h-[60px] w-[60px] object-contain"
-          />
-        </div>
-        <div>
-          <p className="font-semibold text-white">
-            Comerciant: <span className="font-bold">{m.legalName}</span>
-          </p>
-          {m.legalForm ? (
-            <p className="mt-1">
-              <span className="text-white/85">Formă juridică:</span> {m.legalForm}
+      <div className="mx-auto max-w-6xl space-y-8">
+        <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr_0.8fr]">
+          <div className="space-y-5">
+            <Image
+              src="/images/asociatie/logo_hero_pe_verde.png"
+              alt="Gustă din Bucovina"
+              width={280}
+              height={96}
+              className="h-auto w-full max-w-[280px] object-contain"
+              priority={false}
+            />
+            <p className="max-w-xl text-sm text-white/80">
+              Producători locali din Bucovina, verificați de Direcția Agricolă Județeană Suceava.
+              Produse autentice, direct de la fermă.
             </p>
-          ) : null}
-          {m.cui ? (
-            <p className="mt-1">
-              <span className="text-white/85">CUI / CIF:</span> {m.cui}
-            </p>
-          ) : null}
-          {m.headquarters ? (
-            <p className="mt-1 whitespace-pre-wrap">
-              <span className="text-white/85">Adresă:</span> {m.headquarters}
-            </p>
-          ) : null}
-          {m.email ? (
-            <p className="mt-1">
-              <span className="text-white/85">Email:</span>{' '}
-              <a href={`mailto:${m.email}`} className="font-medium underline underline-offset-2 hover:text-white">
-                {m.email}
-              </a>
-            </p>
-          ) : null}
-          {m.phone ? (
-            <p className="mt-1">
-              <span className="text-white/85">Telefon:</span>{' '}
-              <a
-                href={`tel:${m.phone.replace(/\s/g, '')}`}
-                className="font-medium underline underline-offset-2 hover:text-white"
-              >
-                {m.phone}
-              </a>
-            </p>
-          ) : null}
-          {!showDetail ? (
-            <p className="mt-2 text-white/90">
-              {m.legalName} — completează datele de contact în setările asociației (panoul intern).
-            </p>
-          ) : null}
+            <div className="flex flex-wrap gap-2.5">
+              {facebookHref ? <SocialLink href={facebookHref} label="Facebook" icon={Facebook} /> : null}
+              {instagramHref ? <SocialLink href={instagramHref} label="Instagram" icon={Instagram} /> : null}
+            </div>
+          </div>
+
+          <div>
+            <p className="assoc-heading mb-3 text-[11px] font-bold uppercase tracking-wide text-white/70">Contact</p>
+            <div className="space-y-2 text-sm text-white/88">
+              {orderPhone ? (
+                <p className="flex items-start gap-2">
+                  <Phone className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  {phoneHref ? (
+                    <a href={phoneHref} className="font-semibold underline underline-offset-2 hover:text-white">
+                      {orderPhone}
+                    </a>
+                  ) : (
+                    <span>{orderPhone}</span>
+                  )}
+                </p>
+              ) : null}
+              {email ? (
+                <p className="flex items-start gap-2">
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <a href={`mailto:${email}`} className="font-semibold underline underline-offset-2 hover:text-white">
+                    {email}
+                  </a>
+                </p>
+              ) : null}
+              <p className="pt-1 font-semibold text-white">Comerciant: Asociația Gustă din Bucovina</p>
+              {merchant.legalForm ? <p>Formă juridică: {merchant.legalForm}</p> : null}
+              {merchant.cui ? <p>CUI / CIF: {merchant.cui}</p> : null}
+              {merchant.headquarters ? <p className="whitespace-pre-wrap">Adresă: {merchant.headquarters}</p> : null}
+              {!showDetail ? (
+                <p className="text-white/70">
+                  Datele de contact publice pot fi completate din setările asociației.
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1">
+            <div>
+              <p className="assoc-heading mb-3 text-[11px] font-bold uppercase tracking-wide text-white/70">Meniu</p>
+              <nav className="space-y-2" aria-label="Meniu subsol">
+                <Link href={ASSOCIATION_SHOP_BASE} className={linkClass}>
+                  Acasă
+                </Link>
+                <Link href={associationShopProdusePath()} className={linkClass}>
+                  Magazin
+                </Link>
+                <Link href={ASSOCIATION_SHOP_PRODUCATORI_PATH} className={linkClass}>
+                  Producători
+                </Link>
+              </nav>
+            </div>
+            <div>
+              <p className="assoc-heading mb-3 text-[11px] font-bold uppercase tracking-wide text-white/70">Legal</p>
+              <nav className="space-y-2" aria-label="Legislație și informații">
+                <Link href={`${ASSOCIATION_SHOP_BASE}/termeni`} className={linkClass}>
+                  Termeni și condiții
+                </Link>
+                <Link href={`${ASSOCIATION_SHOP_BASE}/confidentialitate`} className={linkClass}>
+                  Politica de confidențialitate
+                </Link>
+                <Link href={`${ASSOCIATION_SHOP_BASE}/cookies`} className={linkClass}>
+                  Cookies
+                </Link>
+                <Link href={`${ASSOCIATION_SHOP_BASE}/despre`} className={linkClass}>
+                  Despre comerciant
+                </Link>
+              </nav>
+            </div>
+          </div>
         </div>
 
-        <div className="border-t border-white/20 pt-5 text-[11px] leading-relaxed text-white/85 sm:text-[12px]">
-          <p className="assoc-heading font-semibold text-white/95">Furnizor serviciu informatic (platformă)</p>
+        <div className="rounded-[24px] border border-white/14 bg-white/8 p-5 text-[12px] text-white/78">
+          <p className="assoc-heading font-semibold text-white/92">Furnizor serviciu informatic</p>
           <p className="mt-1">
-            <span className="text-white/80">Platformă tehnică:</span> {ZMEUREL_TECH_PLATFORM.productName}
+            Platformă tehnică: <span className="font-semibold text-white">{ZMEUREL_TECH_PLATFORM.productName}</span>
           </p>
           <p className="mt-0.5">
-            <span className="text-white/80">Contact tehnic:</span>{' '}
+            Contact tehnic:{' '}
             <a
               href={`mailto:${ZMEUREL_TECH_PLATFORM.contactEmail}`}
               className="font-medium underline underline-offset-2 hover:text-white"
@@ -102,7 +171,7 @@ export function AssociationShopFooter({ settings }: Props) {
             </a>
           </p>
           <p className="mt-0.5">
-            <span className="text-white/80">Web:</span>{' '}
+            Web:{' '}
             <Link
               href={ZMEUREL_TECH_PLATFORM.websiteUrl}
               className="font-medium underline underline-offset-2 hover:text-white"
@@ -112,66 +181,12 @@ export function AssociationShopFooter({ settings }: Props) {
               {ZMEUREL_TECH_PLATFORM.websiteLabel}
             </Link>
           </p>
-          <p className="mt-2 text-white/75">{ZMEUREL_TECH_PLATFORM.operatorLine}</p>
+          <p className="mt-2 text-white/66">{ZMEUREL_TECH_PLATFORM.operatorLine}</p>
         </div>
 
-        <div className="border-t border-white/20 pt-6">
-          <div className="grid gap-8 sm:grid-cols-2">
-            <div>
-              <p className="assoc-heading mb-3 text-[11px] font-bold uppercase tracking-wide text-white/70">Meniu</p>
-              <nav className="flex flex-col gap-2" aria-label="Meniu subsol">
-                <Link href={ASSOCIATION_SHOP_BASE} className={legalLinkClass}>
-                  Acasă
-                </Link>
-                <Link href={associationShopProdusePath()} className={legalLinkClass}>
-                  Magazin
-                </Link>
-                <Link href={ASSOCIATION_SHOP_PRODUCATORI_PATH} className={legalLinkClass}>
-                  Producători
-                </Link>
-              </nav>
-            </div>
-            <div>
-              <p className="assoc-heading mb-3 text-[11px] font-bold uppercase tracking-wide text-white/70">Legal</p>
-              <nav className="flex flex-col gap-2" aria-label="Legislație și informații">
-                <Link href={`${ASSOCIATION_SHOP_BASE}/termeni`} className={legalLinkClass}>
-                  Termeni și condiții
-                </Link>
-                <Link href={`${ASSOCIATION_SHOP_BASE}/confidentialitate`} className={legalLinkClass}>
-                  Politica de confidențialitate
-                </Link>
-                <Link href={`${ASSOCIATION_SHOP_BASE}/cookies`} className={legalLinkClass}>
-                  Cookies
-                </Link>
-                <Link href={`${ASSOCIATION_SHOP_BASE}/despre`} className={legalLinkClass}>
-                  Despre comerciant
-                </Link>
-              </nav>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <a
-            href="https://www.anpc.gov.ro/categorie/1271/sal"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={anpcCardClass}
-          >
-            ANPC — Soluționarea alternativă a litigiilor
-          </a>
-          <a
-            href="https://ec.europa.eu/consumers/odr"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={anpcCardClass}
-          >
-            Soluționarea online a litigiilor — Platforma UE
-          </a>
-        </div>
-
-        <div className="border-t border-white/20 pt-4 text-center text-[11px] text-white/85 sm:text-left sm:text-[12px]">
-          <p>© {new Date().getFullYear()} {m.legalName}</p>
+        <div className="border-t border-white/15 pt-4 text-center text-[12px] text-white/78 sm:flex sm:items-center sm:justify-between sm:text-left">
+          <p>© {new Date().getFullYear()} {merchant.legalName}</p>
+          <p>Produse locale autentice din Bucovina</p>
         </div>
       </div>
     </footer>

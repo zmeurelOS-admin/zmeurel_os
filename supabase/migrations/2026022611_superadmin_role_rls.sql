@@ -34,14 +34,9 @@ $$;
 grant execute on function public.is_superadmin(uuid) to authenticated;
 grant execute on function public.is_superadmin(uuid) to service_role;
 
-update public.profiles
-set is_superadmin = true
-where id = (
-  select id
-  from auth.users
-  where email = 'popa.andrei.sv@gmail.com'
-  limit 1
-);
+-- Superadmin email setat manual dupa deploy via Supabase Dashboard.
+-- Seed-ul initial pentru public.profiles.is_superadmin se face operational,
+-- fara email personal hardcodat in migrari.
 
 do $$
 declare

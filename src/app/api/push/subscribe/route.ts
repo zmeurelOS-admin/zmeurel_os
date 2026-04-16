@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { captureApiError } from '@/lib/monitoring/sentry'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,6 +17,14 @@ const bodySchema = z.object({
     }),
   }),
 })
+
+function getEndpointHost(endpoint: string): string {
+  try {
+    return new URL(endpoint).hostname
+  } catch {
+    return 'invalid-endpoint'
+  }
+}
 
 export async function POST(request: Request) {
   let userId: string | null = null
@@ -45,25 +54,104 @@ export async function POST(request: Request) {
     }
 
     const sub = parsed.data.subscription
-    const userAgent = request.headers.get('user-agent')
+    const endpointHost = getEndpointHost(sub.endpoint)
 
-    const { error } = await supabase.from('push_subscriptions').upsert(
-      {
-        user_id: user.id,
-        endpoint: sub.endpoint,
-        keys_p256dh: sub.keys.p256dh,
-        keys_auth: sub.keys.auth,
-        user_agent: userAgent,
-      },
-      { onConflict: 'user_id,endpoint' },
-    )
+    const { data: existingRow, error: existingError } = await supabase
+      .from('push_subscriptions')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('endpoint', sub.endpoint)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingError) {
+      console.error(
+        '[push/subscribe] lookup failed',
+        sanitizeForLog({
+          userId: user.id,
+          endpointHost,
+          error: toSafeErrorContext(existingError),
+        }),
+      )
+      return apiError(500, 'INTERNAL_ERROR', 'Nu am putut verifica subscrierea existentă.')
+    }
+
+    if (existingRow?.id) {
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .update({
+          keys_p256dh: sub.keys.p256dh,
+          keys_auth: sub.keys.auth,
+        })
+        .eq('id', existingRow.id)
+
+      if (error) {
+        console.error(
+          '[push/subscribe] update failed',
+          sanitizeForLog({
+            userId: user.id,
+            endpointHost,
+            subscriptionId: existingRow.id,
+            error: toSafeErrorContext(error),
+          }),
+        )
+        return apiError(500, 'INTERNAL_ERROR', 'Nu am putut actualiza subscrierea.')
+      }
+
+      console.info('[push/subscribe] updated', sanitizeForLog({ userId: user.id, endpointHost }))
+      return NextResponse.json({ ok: true, mode: 'updated' })
+    }
+
+    const { error } = await supabase.from('push_subscriptions').insert({
+      user_id: user.id,
+      endpoint: sub.endpoint,
+      keys_p256dh: sub.keys.p256dh,
+      keys_auth: sub.keys.auth,
+    })
 
     if (error) {
-      console.error('[push/subscribe]', error)
+      if (String((error as { code?: unknown })?.code ?? '') === '23505') {
+        const { error: retryError } = await supabase
+          .from('push_subscriptions')
+          .update({
+            keys_p256dh: sub.keys.p256dh,
+            keys_auth: sub.keys.auth,
+          })
+          .eq('user_id', user.id)
+          .eq('endpoint', sub.endpoint)
+
+        if (!retryError) {
+          console.info(
+            '[push/subscribe] updated after duplicate insert race',
+            sanitizeForLog({ userId: user.id, endpointHost }),
+          )
+          return NextResponse.json({ ok: true, mode: 'updated' })
+        }
+
+        console.error(
+          '[push/subscribe] retry update after duplicate failed',
+          sanitizeForLog({
+            userId: user.id,
+            endpointHost,
+            error: toSafeErrorContext(retryError),
+          }),
+        )
+        return apiError(500, 'INTERNAL_ERROR', 'Nu am putut salva subscrierea după retry.')
+      }
+
+      console.error(
+        '[push/subscribe] insert failed',
+        sanitizeForLog({
+          userId: user.id,
+          endpointHost,
+          error: toSafeErrorContext(error),
+        }),
+      )
       return apiError(500, 'INTERNAL_ERROR', 'Nu am putut salva subscrierea.')
     }
 
-    return NextResponse.json({ ok: true })
+    console.info('[push/subscribe] inserted', sanitizeForLog({ userId: user.id, endpointHost }))
+    return NextResponse.json({ ok: true, mode: 'inserted' })
   } catch (error) {
     captureApiError(error, { route: '/api/push/subscribe', tags: { http_method: 'POST' }, userId })
     return apiError(500, 'INTERNAL_ERROR', 'Eroare la subscriere push.')
