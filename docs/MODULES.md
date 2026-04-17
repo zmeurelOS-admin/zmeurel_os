@@ -87,6 +87,22 @@ _Last updated: 2026-03-21_
 
 ---
 
+## 4B. Tratamente & Fertilizare (Fundație DB)
+| Câmp | Valoare |
+|------|---------|
+| Route | UI dedicat în lucru; fără rută activă în faza de fundație |
+| Scope curent | DB-only, paralel cu `activitati_agricole`, `culture_stage_logs`, `etape_cultura` |
+| Tabele Supabase | `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii`, `parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament` |
+| Tip acces | tenant-scoped pentru toate tabelele operaționale; `produse_fitosanitare` permite bibliotecă shared (`tenant_id = NULL`) + produse private pe tenant |
+
+**Note cheie:**
+- Faza 1A nu înlocuiește `activitati_agricole` și nu migrează date existente; istoricul generic rămâne funcțional.
+- Faza 1A nu înlocuiește `culture_stage_logs` sau `etape_cultura`; `stadii_fenologice_parcela` este sursă nouă, paralelă, orientată pe planificare fenologică anuală.
+- Triggerul standard pentru tabelele noi este `public.touch_updated_at()`.
+- Seed-ul pentru `produse_fitosanitare` este global (`tenant_id = NULL`) și idempotent.
+
+---
+
 ## 5. Vânzări (Sales)
 | Câmp | Valoare |
 |------|---------|
@@ -302,3 +318,29 @@ _Last updated: 2026-03-21_
 - Rate limit: 20 mesaje/zi per utilizator
 
 **Documentație completă:** `docs/ai-chat-widget.md`
+## Tratamente & Fertilizare (Faza 2D-2)
+
+Schema DB: `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii`,
+`parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament`.
+
+Queries: `src/lib/supabase/queries/tratamente.ts`
+Helpers: `src/lib/tratamente/` (phi-checker, rotatie-frac, cupru-cumulat, doza-calculator,
+stadiu-ordering, generator, phi-guard, scheduler)
+
+Cron: `/api/cron/tratamente-scan` rulează de 2x/zi și trimite notificări push pentru
+aplicări planificate azi sau mâine.
+
+Status:
+- fundația DB + queries + helpers + engine generator + PHI guard + notificări complete
+- bibliotecă produse fitosanitare CRUD livrată
+- CRUD planuri tratament livrat prin wizard 3 pași:
+  - `/tratamente/planuri` listă cu căutare, filtre și arhivare/dezarhivare
+  - `/tratamente/planuri/nou` creare plan nou sau duplicare (`?duplicate_from=...`)
+  - `/tratamente/planuri/[planId]/editeaza` editare cu prefill complet
+  - `src/components/tratamente/plan-wizard/PlanWizard.tsx` este componenta generică reutilizabilă
+- hub global livrat la `/tratamente` pentru aplicări cross-parcel:
+  - tab-uri `Astăzi / Săptămâna asta / Toate`
+  - KPI-uri pentru programări, PHI warning, fereastră meteo și aplicări efectuate
+  - meteo deduplicat per parcelă și quick actions reutilizând flow-urile existente de detaliu aplicare
+- salvarea finală a planului este atomică prin RPC `public.upsert_plan_tratament_cu_linii(...)`
+- `planuri_tratament.arhivat` există pentru listare și excludere din selecțiile noi

@@ -37,4 +37,8 @@ export const queryKeys = {
   associationDeliveries: ['association-deliveries'] as const,
   vanzari: ['vanzari'] as const,
   vanzariButasi: ['vanzari-butasi'] as const,
+  produseFitosanitare: ['produse-fitosanitare'] as const,
+  planuriTratament: ['planuri-tratament'] as const,
+  tratamenteHub: ['tratamente', 'hub'] as const,
+  tratamenteHubMeteo: (parcelaId: string) => ['tratamente', 'hub', 'meteo', parcelaId] as const,
 }

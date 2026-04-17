@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/farmer-legal-docs-check",
       "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/tratamente-scan",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/tratamente-scan",
+      "schedule": "0 16 * * *"
     }
   ]
 }

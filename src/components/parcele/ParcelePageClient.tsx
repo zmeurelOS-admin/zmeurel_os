@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Map as MapIcon } from 'lucide-react'
+import { ChevronDown, ChevronUp, Map as MapIcon, SprayCan } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -822,6 +822,7 @@ function TerenCard({
   isExpanded,
   onToggle,
   onAddActivity,
+  onTratamente,
   onHistoric,
   onEdit,
   onDelete,
@@ -835,6 +836,7 @@ function TerenCard({
   isExpanded: boolean
   onToggle: (id: string) => void
   onAddActivity: (id: string) => void
+  onTratamente: (id: string) => void
   onHistoric: () => void
   onEdit: (parcela: Parcela) => void
   onDelete: (parcela: Parcela) => void
@@ -883,14 +885,14 @@ function TerenCard({
           </div>
         ) : null}
 
-        <div className="mb-2.5 flex gap-1.5">
+        <div className="mb-2.5 grid grid-cols-2 gap-1.5">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation()
               onAddActivity(parcela.id)
             }}
-            className="min-h-9 flex-1 rounded-[10px] border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-[11px] font-semibold text-[var(--pill-active-text)]"
+            className="min-h-9 w-full rounded-[10px] border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-[11px] font-semibold text-[var(--pill-active-text)]"
           >
             + Activitate
           </button>
@@ -900,9 +902,23 @@ function TerenCard({
               e.stopPropagation()
               onHistoric()
             }}
-            className="min-h-9 flex-1 rounded-[10px] border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-[11px] font-semibold text-[var(--button-muted-text)]"
+            className="min-h-9 w-full rounded-[10px] border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-[11px] font-semibold text-[var(--button-muted-text)]"
           >
             Istoric
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onTratamente(parcela.id)
+            }}
+            className="min-h-9 w-full rounded-[10px] border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2 text-[11px] font-semibold text-[var(--agri-text)]"
+            aria-label="Tratamente"
+          >
+            <span className="inline-flex items-center gap-1">
+              <SprayCan className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="text-[11px] font-semibold">Tratamente</span>
+            </span>
           </button>
         </div>
 
@@ -1049,6 +1065,14 @@ function TerenCard({
                 className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-[var(--button-muted-hover-bg)]"
               >
                 Istoric
+              </button>
+              <button
+                type="button"
+                onClick={() => onTratamente(parcela.id)}
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-xs font-semibold text-[var(--agri-text)] transition-colors hover:bg-[var(--agri-surface-muted)]"
+              >
+                <SprayCan className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                Tratamente
               </button>
               <button
                 type="button"
@@ -1406,6 +1430,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                       onAddActivity={(id) => {
                         setAddActivityParcelaId(id)
                         setAddActivityOpen(true)
+                      }}
+                      onTratamente={(id) => {
+                        router.push(`/parcele/${id}/tratamente`)
                       }}
                       onHistoric={() => {
                         if (isSolar) {

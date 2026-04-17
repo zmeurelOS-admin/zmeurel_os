@@ -50,6 +50,7 @@ const GROUPS: Group[] = [
       { href: "/parcele", label: "Parcele", emoji: "🌿" },
       { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
       { href: "/activitati-agricole", label: "Activități agricole", emoji: "🌱" },
+      { href: "/tratamente", label: "Tratamente", emoji: "🧪" },
       { href: "/culegatori", label: "Culegători", emoji: "👷" },
     ],
   },
@@ -115,6 +116,7 @@ function getGroupForPath(pathname: string): GroupKey | null {
     pathname.startsWith("/parcele") ||
     pathname.startsWith("/recoltari") ||
     pathname.startsWith("/activitati-agricole") ||
+    pathname.startsWith("/tratamente") ||
     pathname.startsWith("/culegatori")
   ) {
     return "ferma"

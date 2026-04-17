@@ -208,12 +208,15 @@ Actualizată:
 ## Database And Migration Warnings
 
 - The project depends on many Supabase SQL migrations, including RLS normalization, business ID generation, stock-safe RPCs, demo seeding, analytics, solar/culturi support, and tenant repair logic.
+- Modulul `Tratamente & Fertilizare` are fundație DB paralelă cu `activitati_agricole`, `culture_stage_logs` și `etape_cultura`. Tabelele noi sunt `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii`, `parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament`; nu se rescriu flow-urile existente și nu se mută date din structurile vechi.
+- CRUD-ul principal pentru planuri de tratament folosește acum wizard-ul `src/components/tratamente/plan-wizard/PlanWizard.tsx`, lista `/tratamente/planuri` și RPC-ul atomic `public.upsert_plan_tratament_cu_linii(...)`. Arhivarea este soft (`planuri_tratament.arhivat = true`), iar planurile arhivate nu mai trebuie oferite în fluxurile de asociere noi.
+- Hub-ul global `/tratamente` agregă aplicările cross-parcel pentru intervalul curent (azi + 7 zile încărcate inițial), filtre locale pe parcelă/status, meteo deduplicat pe parcelă și quick actions care reutilizează server actions-urile din detaliul unei aplicări (`markAplicataAction`, `reprogrameazaAction`, `anuleazaAction`).
 - Some query modules intentionally include compatibility fallbacks for partially migrated environments. Do not remove those without verifying schema parity in production.
 - `src/lib/supabase/queries/parcele.ts` now includes a schema-compat select fallback (legacy columns + safe defaults for `rol`, `apare_in_dashboard`, `contribuie_la_productie`, `status_operational`) to keep `/dashboard` and `/parcele` usable when linked environments lag migrations.
 - When adding new migrations, use a unique numeric timestamp prefix that matches Supabase CLI expectations exactly; avoid duplicate short versions like multiple `20260313_*` files.
 - Deprecated duplicate migration files that intentionally preserve old SQL should be archived outside `supabase/migrations/` (for example in `supabase/migrations_archive/`) so the active migration chain contains exactly one file per version.
 - For critical RPC/function migrations that have to be pushed to linked environments, prefer smaller files with one major function/grant unit instead of bundling several `create or replace function` definitions into one pending migration.
-- Generated types are in `src/types/supabase.ts`.
+- Generated types are in `src/types/supabase.ts`; `src/lib/supabase/types.ts` may exist as a thin re-export shim for module-local imports, but it is not the source of truth.
 - `generate_business_id(...)` has a local migration fix plus a client-side duplicate fallback because linked environments may still return repeated values until the repaired RPC is applied everywhere.
 - `cheltuieli_diverse.metoda_plata` is now part of the intended runtime schema, but cheltuieli reads/writes still include compatibility fallbacks for environments where that column is not live yet.
 - `analytics_events` is now present in `src/types/supabase.ts`, but the linked Supabase project still reflects the common runtime subset (`event_name`, `event_data`, `module`, `page_url`, `status`, `session_id`) rather than the fuller local analytics migration intent.
