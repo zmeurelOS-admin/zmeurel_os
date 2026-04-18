@@ -251,68 +251,50 @@ async function createExampleSheet(workbook: ExcelJS.Workbook) {
   ]
 
   sheet.getCell('A1').value = 'Cultură'
-  sheet.getCell('A2').value = 'Descriere'
   styleHeaderCell(sheet.getCell('A1'), META_FILL)
+  sheet.getCell('B1').value = 'Zmeur'
+
+  sheet.getCell('A2').value = 'Descriere'
   styleHeaderCell(sheet.getCell('A2'), META_FILL)
-  sheet.getCell('B1').value = CULTURA_LABELS.zmeur
   sheet.getCell('B2').value = 'Exemplu — copiază foaia și redenumește-o'
 
-  ;([
+  const headers: Array<[string, string, ExcelJS.Fill]> = [
     ['A4', 'Ordine', HEADER_FILL],
     ['B4', 'Stadiu', HEADER_FILL],
     ['C4', 'Produs', HEADER_FILL],
     ['D4', 'Doză ml/hl', OPTIONAL_FILL],
     ['E4', 'Doză l/ha', OPTIONAL_FILL],
     ['F4', 'Observații', OPTIONAL_FILL],
-  ] as const).forEach(([cellRef, label, fill]) => {
-    const cell = sheet.getCell(cellRef)
+  ]
+  headers.forEach(([ref, label, fill]) => {
+    const cell = sheet.getCell(ref)
     cell.value = label
     styleHeaderCell(cell, fill)
   })
 
-  const exampleRows = [
-    {
-      ordine: 1,
-      stadiu: STADIU_LABELS.umflare_muguri,
-      produs: 'Thiovit Jet',
-      dozaMlPerHl: 500,
-      dozaLPerHa: null,
-      observatii: 'Prevenție făinare',
-    },
-    {
-      ordine: 2,
-      stadiu: STADIU_LABELS.prefloral,
-      produs: 'Mospilan 20 SG',
-      dozaMlPerHl: 20,
-      dozaLPerHa: null,
-      observatii: 'Afide',
-    },
-    {
-      ordine: 3,
-      stadiu: STADIU_LABELS.cadere_petale,
-      produs: 'Signum',
-      dozaMlPerHl: 50,
-      dozaLPerHa: null,
-      observatii: 'Putregai gri Botrytis',
-    },
-    {
-      ordine: 4,
-      stadiu: STADIU_LABELS.parguire,
-      produs: 'Kocide 2000',
-      dozaMlPerHl: null,
-      dozaLPerHa: 3,
-      observatii: 'PHI 3 zile',
-    },
+  const exampleRows: Array<[
+    number,
+    string,
+    string,
+    number | null,
+    number | null,
+    string,
+  ]> = [
+    [1, 'Umflare muguri', 'Thiovit Jet', 500, null, 'Prevenție făinare'],
+    [2, 'Prefloral', 'Mospilan 20 SG', 20, null, 'Afide'],
+    [3, 'Cădere petale', 'Signum', 50, null, 'Putregai gri Botrytis'],
+    [4, 'Pârguire', 'Kocide 2000', null, 3, 'PHI 3 zile'],
   ]
 
-  exampleRows.forEach((rowData, index) => {
-    const rowNumber = index + 5
-    sheet.getCell(`A${rowNumber}`).value = rowData.ordine
-    sheet.getCell(`B${rowNumber}`).value = rowData.stadiu
-    sheet.getCell(`C${rowNumber}`).value = rowData.produs
-    sheet.getCell(`D${rowNumber}`).value = rowData.dozaMlPerHl
-    sheet.getCell(`E${rowNumber}`).value = rowData.dozaLPerHa
-    sheet.getCell(`F${rowNumber}`).value = rowData.observatii
+  exampleRows.forEach(([ordine, stadiu, produs, dozaMl, dozaL, obs], i) => {
+    const row = sheet.getRow(i + 5)
+    sheet.getCell(`A${i + 5}`).value = ordine
+    sheet.getCell(`B${i + 5}`).value = stadiu
+    sheet.getCell(`C${i + 5}`).value = produs
+    if (dozaMl !== null) sheet.getCell(`D${i + 5}`).value = dozaMl
+    if (dozaL !== null) sheet.getCell(`E${i + 5}`).value = dozaL
+    sheet.getCell(`F${i + 5}`).value = obs
+    void row
   })
 
   await protectWorksheet(sheet)
