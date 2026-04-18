@@ -344,3 +344,32 @@ Status:
   - meteo deduplicat per parcelă și quick actions reutilizând flow-urile existente de detaliu aplicare
 - salvarea finală a planului este atomică prin RPC `public.upsert_plan_tratament_cu_linii(...)`
 - `planuri_tratament.arhivat` există pentru listare și excludere din selecțiile noi
+
+## Import plan din Excel (2D-3)
+
+Rută UI: `/tratamente/planuri/import`
+
+Path-uri cheie:
+- `src/app/(dashboard)/tratamente/planuri/import/page.tsx`
+- `src/app/(dashboard)/tratamente/planuri/import/ImportFlowClient.tsx`
+- `src/app/(dashboard)/tratamente/planuri/import/UploadStep.tsx`
+- `src/app/(dashboard)/tratamente/planuri/import/UploadDropzone.tsx`
+- `src/app/(dashboard)/tratamente/planuri/import/ReviewStep.tsx`
+- `src/app/(dashboard)/tratamente/planuri/import/actions.ts`
+- `src/app/api/tratamente/import/parse/route.ts`
+- `src/app/api/tratamente/template-download/route.ts`
+- `src/lib/tratamente/import/template-spec.ts`
+- `src/lib/tratamente/import/template-generator.ts`
+- `src/lib/tratamente/import/parse-workbook.ts`
+- `src/lib/tratamente/import/fuzzy-match.ts`
+
+Flux:
+- utilizatorul descarcă template-ul XLSX generat server-side
+- completează una sau mai multe foi de plan și încarcă fișierul în flux separat de wizard
+- parserul rulează server-side prin `POST /api/tratamente/import/parse` cu `xlsx`
+- review-ul permite mapare produs exact / fuzzy / bibliotecă / produs nou / text liber / skip
+- salvarea finală creează eventualele produse noi și apoi reutilizează RPC-ul `public.upsert_plan_tratament_cu_linii(...)`
+
+Dependințe noi:
+- `exceljs` pentru generarea template-ului XLSX cu styling și data validation
+- `fuse.js` pentru sugestii fuzzy pe `nume_comercial`

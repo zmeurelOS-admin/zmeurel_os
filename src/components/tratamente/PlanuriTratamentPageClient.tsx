@@ -1,11 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, ClipboardList, Copy, FolderOpen, PencilLine, RotateCcw } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import {
+  Archive,
+  ClipboardList,
+  Copy,
+  FileSpreadsheet,
+  FolderOpen,
+  PencilLine,
+  RotateCcw,
+} from 'lucide-react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import {
   arhiveazaPlanTratamentAction,
@@ -103,12 +111,53 @@ function PlanTratamentCard({
 }
 
 export function PlanuriTratamentPageClient() {
+  const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
   const [cultureFilter, setCultureFilter] = useState<string>('all')
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const importedRaw = searchParams.get('imported')
+    const failedRaw = searchParams.get('failed')
+
+    if (!importedRaw && !failedRaw) return
+
+    const imported = Number(importedRaw ?? '0')
+    const failed = Number(failedRaw ?? '0')
+    const failedPlans = (searchParams.get('failedPlans') ?? '')
+      .split('||')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+    if (imported > 0 && failed === 0) {
+      toast.success(`${imported} planuri importate cu succes.`)
+    } else if (imported > 0 && failed > 0) {
+      toast.warning(
+        `${imported}/${imported + failed} planuri importate. Erori: ${
+          failedPlans.join(', ') || 'verifică fișierele respinse'
+        }.`
+      )
+    } else if (failed > 0) {
+      toast.error(
+        `Importul nu a salvat niciun plan. Erori: ${
+          failedPlans.join(', ') || 'verifică datele din review'
+        }.`
+      )
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('imported')
+    nextParams.delete('failed')
+    nextParams.delete('failedPlans')
+    const nextQuery = nextParams.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    })
+  }, [pathname, router, searchParams])
 
   const { data: planuri = [], isLoading, isError } = useQuery({
     queryKey: queryKeys.planuriTratament,
@@ -245,9 +294,25 @@ export function PlanuriTratamentPageClient() {
           title="Planuri de tratament"
           subtitle="Strategii sezoniere pentru parcelele fermei"
           rightSlot={
-            <Button type="button" className="bg-[var(--agri-primary)] text-white" onClick={() => router.push('/tratamente/planuri/nou')}>
-              + Plan nou
-            </Button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button type="button" variant="outline" asChild>
+                <Link
+                  href="/tratamente/planuri/import"
+                  aria-label="Import din Excel"
+                  title="Import din Excel"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span className="hidden sm:inline">Import din Excel</span>
+                </Link>
+              </Button>
+              <Button
+                type="button"
+                className="bg-[var(--agri-primary)] text-white"
+                onClick={() => router.push('/tratamente/planuri/nou')}
+              >
+                + Plan nou
+              </Button>
+            </div>
           }
           expandRightSlotOnMobile
         />
