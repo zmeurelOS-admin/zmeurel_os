@@ -7,38 +7,51 @@ import {
 } from '@/lib/tratamente/stadii-canonic'
 import { normalizeForSearch } from '@/lib/utils/string'
 
-const IMPORT_CROP_CODES = [...CROP_CODES, 'aronia', 'catina'] as const
+const IMPORT_CROP_CODES = [...CROP_CODES] as const
 
 const IMPORT_CROP_LABELS: Record<(typeof IMPORT_CROP_CODES)[number], string> = {
   agris: 'Agriș',
   afin: 'Afin',
   ardei: 'Ardei',
+  alun: 'Alun',
   aronia: 'Aronia',
   cais: 'Cais',
+  broccoli: 'Broccoli',
+  busuioc: 'Busuioc',
+  cartof: 'Cartof',
   capsun: 'Căpșun',
   castravete: 'Castravete',
   catina: 'Cătină',
+  ceapa: 'Ceapă',
   cires: 'Cireș',
   coacaz: 'Coacăz',
+  conopida: 'Conopidă',
   dovlecel: 'Dovlecel',
+  fasole: 'Fasole',
+  goji: 'Goji',
+  gulie: 'Gulie',
   mar: 'Măr',
+  mazare: 'Mazăre',
+  morcov: 'Morcov',
   mur: 'Mur',
   nuc: 'Nuc',
   par: 'Păr',
+  patrunjel: 'Pătrunjel',
   piersic: 'Piersic',
+  praz: 'Praz',
   prun: 'Prun',
   ridiche: 'Ridiche',
   rosie: 'Roșie',
+  rucola: 'Rucola',
   salata: 'Salată',
+  sfecla: 'Sfeclă',
   spanac: 'Spanac',
+  telina: 'Țelină',
+  usturoi: 'Usturoi',
   vanata: 'Vânătă',
+  varza: 'Varză',
   visin: 'Vișin',
   zmeur: 'Zmeur',
-}
-
-const LEGACY_IMPORT_CULTURE_MAP: Record<string, CulturaImport> = {
-  aronia: 'aronia',
-  catina: 'catina',
 }
 
 export const CULTURI_ACCEPTATE = IMPORT_CROP_CODES
@@ -119,7 +132,7 @@ export function mapImportCulture(value: string | null | undefined): CulturaImpor
 
   const normalized = normalizeForSearch(value)
   if (!normalized) return null
-  return LEGACY_IMPORT_CULTURE_MAP[normalized] ?? CULTURA_LOOKUP_MAP[normalized] ?? null
+  return CULTURA_LOOKUP_MAP[normalized] ?? null
 }
 
 export function mapImportStage(value: string | null | undefined): StadiuImport | null {

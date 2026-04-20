@@ -6,3 +6,5 @@
 - `crops.cod` este cheia canonică de lookup în modulul Tratamente; nu se compară direct stringurile libere din UI sau din datele legacy fără normalizare.
 - `crops.grup_biologic` este sursa pentru alegerea profilului contextual de stadii, a regulilor de cohortă și a comportamentului sezonier.
 - Când apar culturi noi, se actualizează mai întâi codul canonic și grupul biologic din catalog, apoi se propagă în Tratamente prin helper-ele existente, nu prin string literal în logică.
+- `cartof` folosește temporar profilul generic `solanacee`; nu reflectă tuberizarea și rămâne datorie tehnică pentru un profil dedicat `solanacee_tuberizante`.
+- `busuioc` folosește temporar profilul generic `frunzoase`; nu reflectă ciclurile multiple de recoltare, dar este acceptabil ca aproximare pentru uz agricol general.
