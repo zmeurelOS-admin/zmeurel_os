@@ -25,12 +25,20 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { STADII_ORDINE } from '@/lib/tratamente/stadiu-ordering'
+import type { Cohorta, ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
+import {
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 
 const sursaValues = ['manual', 'gdd', 'poza'] as const
 
 const formSchema = z.object({
   stadiu: z.string().trim().min(1, 'Selectează un stadiu.'),
+  cohort: z.enum(['floricane', 'primocane']).optional(),
   data_observata: z.string().trim().min(1, 'Data observării este obligatorie.'),
   sursa: z.enum(sursaValues, {
     message: 'Selectează sursa.',
@@ -42,6 +50,10 @@ export type RecordStadiuFormValues = z.infer<typeof formSchema>
 
 interface RecordStadiuSheetProps {
   an: number
+  cohortPreselectat?: Cohorta
+  configurareSezon?: ConfigurareSezon | null
+  grupBiologic?: GrupBiologic | null
+  isRubusMixt?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (values: RecordStadiuFormValues) => Promise<void> | void
@@ -49,19 +61,29 @@ interface RecordStadiuSheetProps {
   suggestedStadiu?: string | null
 }
 
-const STADII_OPTIONS = Object.entries(STADII_ORDINE)
-  .sort((a, b) => a[1].ordine - b[1].ordine)
-  .map(([value, config]) => ({ value, label: config.label }))
-
 const SURSA_OPTIONS: Array<{ value: (typeof sursaValues)[number]; label: string }> = [
   { value: 'manual', label: 'Manual' },
   { value: 'gdd', label: 'GDD' },
   { value: 'poza', label: 'Poză' },
 ]
 
-function getDefaultValues(suggestedStadiu?: string | null): RecordStadiuFormValues {
+function resolveSuggestedStadiu(
+  availableStadii: readonly StadiuCod[],
+  suggestedStadiu?: string | null
+): StadiuCod {
+  const fallback = availableStadii[0] ?? 'repaus_vegetativ'
+  const normalized = suggestedStadiu ? normalizeStadiu(suggestedStadiu) : null
+  return normalized && availableStadii.includes(normalized) ? normalized : fallback
+}
+
+function getDefaultValues(
+  availableStadii: readonly StadiuCod[],
+  suggestedStadiu?: string | null,
+  cohortPreselectat?: Cohorta
+): RecordStadiuFormValues {
   return {
-    stadiu: suggestedStadiu || 'repaus',
+    stadiu: resolveSuggestedStadiu(availableStadii, suggestedStadiu),
+    cohort: cohortPreselectat,
     data_observata: new Date().toISOString().slice(0, 10),
     sursa: 'manual',
     observatii: '',
@@ -70,6 +92,10 @@ function getDefaultValues(suggestedStadiu?: string | null): RecordStadiuFormValu
 
 export function RecordStadiuSheet({
   an,
+  cohortPreselectat,
+  configurareSezon,
+  grupBiologic,
+  isRubusMixt = false,
   open,
   onOpenChange,
   onSubmit,
@@ -77,7 +103,22 @@ export function RecordStadiuSheet({
   suggestedStadiu,
 }: RecordStadiuSheetProps) {
   const isMobile = useMediaQuery('(max-width: 767px)')
-  const defaultValues = useMemo(() => getDefaultValues(suggestedStadiu), [suggestedStadiu])
+  const stadiiOptions = useMemo(
+    () =>
+      listStadiiPentruGrup(grupBiologic).map((value) => ({
+        value,
+        label: getLabelStadiuContextual(value, configurareSezon ?? null),
+      })),
+    [configurareSezon, grupBiologic]
+  )
+  const availableStadii = useMemo(
+    () => stadiiOptions.map((option) => option.value),
+    [stadiiOptions]
+  )
+  const defaultValues = useMemo(
+    () => getDefaultValues(availableStadii, suggestedStadiu, cohortPreselectat),
+    [availableStadii, cohortPreselectat, suggestedStadiu]
+  )
   const form = useForm<RecordStadiuFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues,
@@ -87,16 +128,43 @@ export function RecordStadiuSheet({
 
   useEffect(() => {
     if (open) {
-      form.reset(getDefaultValues(suggestedStadiu))
+      form.reset(getDefaultValues(availableStadii, suggestedStadiu, cohortPreselectat))
     }
-  }, [form, open, suggestedStadiu])
+  }, [availableStadii, cohortPreselectat, form, open, suggestedStadiu])
 
   const save = form.handleSubmit(async (values) => {
+    if (isRubusMixt && !values.cohort) {
+      form.setError('cohort', { type: 'manual', message: 'Selectează cohorta.' })
+      return
+    }
     await onSubmit(values)
   })
 
+  const selectedCohort = useWatch({ control: form.control, name: 'cohort' })
+
   const content = (
     <form className="space-y-4" onSubmit={save}>
+      {isRubusMixt ? (
+        <div className="space-y-2">
+          <Label>Coortă</Label>
+          <Select
+            value={selectedCohort}
+            onValueChange={(value) => form.setValue('cohort', value as Cohorta, { shouldValidate: true })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selectează cohorta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="floricane">{getCohortaLabel('floricane')}</SelectItem>
+              <SelectItem value="primocane">{getCohortaLabel('primocane')}</SelectItem>
+            </SelectContent>
+          </Select>
+          {form.formState.errors.cohort ? (
+            <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.cohort.message}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <Label>Stadiu</Label>
         <Select
@@ -107,7 +175,7 @@ export function RecordStadiuSheet({
             <SelectValue placeholder="Selectează stadiul" />
           </SelectTrigger>
           <SelectContent>
-            {STADII_OPTIONS.map((option) => (
+            {stadiiOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>

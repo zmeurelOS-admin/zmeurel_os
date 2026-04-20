@@ -1,4 +1,5 @@
 export * from './cupru-cumulat'
+export * from './conformitate'
 export * from './doza-calculator'
 export * from './generator'
 export * from './phi-guard'

@@ -222,10 +222,10 @@ export function ComenziRecenteWidget({
 
 type PlannedActivityItem = {
   id: string
-  title: string
+  title: React.ReactNode
   parcela: string
   date: string
-  detail: string
+  detail: React.ReactNode
 }
 
 export function ActivitatiPlanificateWidget({

@@ -5,9 +5,11 @@ import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app/AppShell'
 import { AplicareDetaliuClient } from '@/components/tratamente/AplicareDetaliuClient'
 import { AplicareDetaliuHeader } from '@/components/tratamente/AplicareDetaliuHeader'
+import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
 import {
   getAplicareById,
   getAplicariProdusInAn,
+  getGrupBiologicParcela,
 } from '@/lib/supabase/queries/tratamente'
 import { createClient } from '@/lib/supabase/server'
 import { calculeazaCantitateTotala } from '@/lib/tratamente/doza-calculator'
@@ -35,24 +37,27 @@ function buildOperatorDefault(email: string | null | undefined): string {
 
 export default async function AplicareDetaliuPage({ params }: PageProps) {
   const { id: parcelaId, aplicareId } = await params
-  const aplicare = await getAplicareById(aplicareId)
+  const supabase = await createClient()
+  const [aplicare, { data: authData }, grupBiologic] = await Promise.all([
+    getAplicareById(aplicareId),
+    supabase.auth.getUser(),
+    getGrupBiologicParcela(parcelaId),
+  ])
 
   if (!aplicare || aplicare.parcela_id !== parcelaId) {
     notFound()
   }
 
-  const supabase = await createClient()
-  const [{ data: authData }, meteoZi, phiGuard, aplicariSezon] = await Promise.all([
-    supabase.auth.getUser(),
-    aplicare.status === 'aplicata'
-      ? Promise.resolve(null)
-      : getMeteoZi(parcelaId).catch((error) => {
+  const [meteoZi, phiGuard, aplicariSezon] = await Promise.all([
+    aplicare.status === 'planificata'
+      ? getMeteoZi(parcelaId).catch((error) => {
           logMeteoWarning('Nu am putut încărca meteo pentru detaliul aplicării.', error, {
             parcelaId,
             aplicareId,
           })
           return null
-        }),
+        })
+      : Promise.resolve(null),
     aplicare.data_planificata
       ? checkPhiForRecoltare({
           parcelaId,
@@ -72,6 +77,11 @@ export default async function AplicareDetaliuPage({ params }: PageProps) {
         )
       : Promise.resolve(0),
   ])
+
+  const configurareSezon = await getConfigurareSezon(
+    parcelaId,
+    Number((aplicare.data_planificata ?? aplicare.created_at).slice(0, 4))
+  )
 
   const suprafataHa =
     typeof aplicare.parcela?.suprafata_m2 === 'number' && aplicare.parcela.suprafata_m2 > 0
@@ -129,8 +139,10 @@ export default async function AplicareDetaliuPage({ params }: PageProps) {
     >
       <AplicareDetaliuClient
         aplicare={aplicare}
+        configurareSezon={configurareSezon}
         currentOperator={buildOperatorDefault(authData.user?.email)}
         defaultCantitateMl={cantitateCalculata?.cantitateMl ?? aplicare.cantitate_totala_ml ?? null}
+        grupBiologic={grupBiologic}
         meteoDateLabel={aplicare.data_planificata ? formatDateRo(aplicare.data_planificata) : 'Următoarele 24h'}
         meteoZi={meteoZi}
         parcelaId={parcelaId}

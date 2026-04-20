@@ -91,10 +91,11 @@ import {
   CULTURA_LABELS,
   CULTURI_ACCEPTATE,
   STADIU_LABELS,
-  STADII_VALIDE,
 } from '@/lib/tratamente/import/template-spec'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
+
+import { getGrupBiologicDinCultura, getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
 
 type LineAction =
   | 'use_exact'
@@ -137,6 +138,10 @@ const PRODUCT_TIP_OPTIONS = [
   'bioregulator',
   'altul',
 ] as const
+
+function getStageOptionsForCulture(culturaTip: string) {
+  return getStadiuOptions(getGrupBiologicDinCultura(culturaTip))
+}
 
 function toNullableText(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null
@@ -834,6 +839,7 @@ export function ReviewStep({
           .map((line) => ({
             ordine: line.ordine,
             stadiu_trigger: line.stadiu_trigger,
+            cohort_trigger: line.cohort_trigger ?? null,
             produs_id:
               line.actiune === 'use_exact' ||
               line.actiune === 'use_suggestion' ||
@@ -984,6 +990,7 @@ export function ReviewStep({
       {planuriEditate.map((plan, planIndex) => {
         const summary = planSummaries[planIndex]
         const isOpen = expandedPlans[plan.foaie_nume] ?? true
+        const stageOptions = getStageOptionsForCulture(plan.cultura_tip)
 
         return (
           <Collapsible
@@ -1176,9 +1183,9 @@ export function ReviewStep({
                                         <SelectItem value="__none">
                                           Alege stadiul
                                         </SelectItem>
-                                        {STADII_VALIDE.map((stadiu) => (
-                                          <SelectItem key={stadiu} value={stadiu}>
-                                            {STADIU_LABELS[stadiu]}
+                                        {stageOptions.map((stadiu) => (
+                                          <SelectItem key={stadiu.value} value={stadiu.value}>
+                                            {stadiu.label}
                                           </SelectItem>
                                         ))}
                                       </SelectContent>
@@ -1410,9 +1417,9 @@ export function ReviewStep({
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="__none">Alege stadiul</SelectItem>
-                                      {STADII_VALIDE.map((stadiu) => (
-                                        <SelectItem key={stadiu} value={stadiu}>
-                                          {STADIU_LABELS[stadiu]}
+                                      {stageOptions.map((stadiu) => (
+                                        <SelectItem key={stadiu.value} value={stadiu.value}>
+                                          {stadiu.label}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>

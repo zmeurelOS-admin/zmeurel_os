@@ -7,10 +7,11 @@ import type { PlanActivParcela } from '@/lib/supabase/queries/tratamente'
 describe('PlanActivCard', () => {
   it('afișează empty state și CTA când planul lipsește', () => {
     const onAssign = vi.fn()
+    const currentYear = new Date().getFullYear()
 
     render(<PlanActivCard detailsHref={null} onAssign={onAssign} planActiv={null} />)
 
-    expect(screen.getByText('Nicio parcelă asignată pentru 2026')).toBeInTheDocument()
+    expect(screen.getByText(`Nicio parcelă asignată pentru ${currentYear}`)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Atribuie plan' })).toBeInTheDocument()
   })
 

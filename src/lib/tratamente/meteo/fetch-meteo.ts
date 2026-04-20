@@ -86,7 +86,7 @@ async function resolveParcelaCoords(parcelaId: string): Promise<ResolvedCoords> 
 
   const { data: parcela, error: parcelaError } = await supabase
     .from('parcele')
-    .select('tenant_id,latitudine,longitudine')
+    .select('tenant_id,latitudine,longitudine,gps_lat,gps_lng')
     .eq('id', parcelaId)
     .maybeSingle()
 
@@ -95,8 +95,8 @@ async function resolveParcelaCoords(parcelaId: string): Promise<ResolvedCoords> 
     throw new Error('Parcela nu a fost găsită pentru meteo.')
   }
 
-  const parcelaLat = asFiniteNumber(parcela.latitudine)
-  const parcelaLon = asFiniteNumber(parcela.longitudine)
+  const parcelaLat = asFiniteNumber(parcela.latitudine) ?? asFiniteNumber(parcela.gps_lat)
+  const parcelaLon = asFiniteNumber(parcela.longitudine) ?? asFiniteNumber(parcela.gps_lng)
   if (parcelaLat !== null && parcelaLon !== null) {
     return { lat: parcelaLat, lon: parcelaLon }
   }
@@ -207,58 +207,72 @@ function computePrecipitatii24h(slots: ForecastSlot[]): number | null {
   return total > 0 ? round(total, 1) : 0
 }
 
-export async function getMeteoSnapshot(parcelaId: string): Promise<MeteoSnapshot> {
-  const { lat, lon } = await resolveParcelaCoords(parcelaId)
-  const payload = await invokeMeteoService(lat, lon)
+export async function getMeteoSnapshot(parcelaId: string): Promise<MeteoSnapshot | null> {
+  try {
+    const { lat, lon } = await resolveParcelaCoords(parcelaId)
+    const payload = await invokeMeteoService(lat, lon)
 
-  return {
-    timestamp: new Date().toISOString(),
-    temperatura_c: round(payload?.current?.temp ?? null),
-    umiditate_pct: round(payload?.current?.humidity ?? null, 0),
-    vant_kmh: round(payload?.current?.windSpeed ?? null),
-    precipitatii_mm_24h: null,
-    descriere: capitalizeText(payload?.current?.description),
-  }
-}
-
-export async function getMeteoZi(parcelaId: string): Promise<MeteoZi> {
-  const { lat, lon } = await resolveParcelaCoords(parcelaId)
-  const [payload, forecastSlots] = await Promise.all([
-    invokeMeteoService(lat, lon),
-    fetchForecastSlots(lat, lon),
-  ])
-
-  const start = startOfHour(new Date())
-  const ferestre_24h = Array.from({ length: 24 }, (_, index) => {
-    const ora = addHours(start, index)
-    const targetMs = ora.getTime()
-    const nearest = findClosestSlot(targetMs, forecastSlots)
-
-    return evaluateFereastra({
-      timestamp: ora.toISOString(),
-      temperatura_c:
-        index === 0
-          ? round(payload?.current?.temp ?? nearest?.temperatura_c ?? null)
-          : nearest?.temperatura_c ?? null,
-      vant_kmh:
-        index === 0
-          ? round(payload?.current?.windSpeed ?? nearest?.vant_kmh ?? null)
-          : nearest?.vant_kmh ?? null,
-      precipitatii_mm: nearest?.precipitatii_mm ?? null,
-    })
-  })
-
-  return {
-    parcelaId,
-    snapshot_curent: {
+    return {
       timestamp: new Date().toISOString(),
       temperatura_c: round(payload?.current?.temp ?? null),
       umiditate_pct: round(payload?.current?.humidity ?? null, 0),
       vant_kmh: round(payload?.current?.windSpeed ?? null),
-      precipitatii_mm_24h: computePrecipitatii24h(forecastSlots.slice(0, 8)),
+      precipitatii_mm_24h: null,
       descriere: capitalizeText(payload?.current?.description),
-    },
-    ferestre_24h,
+    }
+  } catch (error) {
+    logMeteoWarning('Nu am putut încărca snapshot-ul meteo pentru parcelă.', error, {
+      parcelaId,
+    })
+    return null
+  }
+}
+
+export async function getMeteoZi(parcelaId: string): Promise<MeteoZi | null> {
+  try {
+    const { lat, lon } = await resolveParcelaCoords(parcelaId)
+    const [payload, forecastSlots] = await Promise.all([
+      invokeMeteoService(lat, lon),
+      fetchForecastSlots(lat, lon),
+    ])
+
+    const start = startOfHour(new Date())
+    const ferestre_24h = Array.from({ length: 24 }, (_, index) => {
+      const ora = addHours(start, index)
+      const targetMs = ora.getTime()
+      const nearest = findClosestSlot(targetMs, forecastSlots)
+
+      return evaluateFereastra({
+        timestamp: ora.toISOString(),
+        temperatura_c:
+          index === 0
+            ? round(payload?.current?.temp ?? nearest?.temperatura_c ?? null)
+            : nearest?.temperatura_c ?? null,
+        vant_kmh:
+          index === 0
+            ? round(payload?.current?.windSpeed ?? nearest?.vant_kmh ?? null)
+            : nearest?.vant_kmh ?? null,
+        precipitatii_mm: nearest?.precipitatii_mm ?? null,
+      })
+    })
+
+    return {
+      parcelaId,
+      snapshot_curent: {
+        timestamp: new Date().toISOString(),
+        temperatura_c: round(payload?.current?.temp ?? null),
+        umiditate_pct: round(payload?.current?.humidity ?? null, 0),
+        vant_kmh: round(payload?.current?.windSpeed ?? null),
+        precipitatii_mm_24h: computePrecipitatii24h(forecastSlots.slice(0, 8)),
+        descriere: capitalizeText(payload?.current?.description),
+      },
+      ferestre_24h,
+    }
+  } catch (error) {
+    logMeteoWarning('Nu am putut încărca ferestrele meteo pentru parcelă.', error, {
+      parcelaId,
+    })
+    return null
   }
 }
 

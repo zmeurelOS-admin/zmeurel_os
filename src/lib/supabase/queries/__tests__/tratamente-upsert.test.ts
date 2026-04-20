@@ -25,6 +25,7 @@ function createAwaitable<T>(result: T) {
     eq: vi.fn(() => builder),
     order: vi.fn(() => builder),
     in: vi.fn(() => builder),
+    update: vi.fn(() => builder),
     maybeSingle: vi.fn(async () => result),
     single: vi.fn(async () => result),
     then: (onFulfilled?: (value: T) => unknown, onRejected?: (reason: unknown) => unknown) =>
@@ -55,9 +56,47 @@ describe('upsertPlanTratamentCuLinii', () => {
           created_by: null,
           updated_by: null,
         },
-        linii: [],
+        linii: [
+          {
+            id: 'linie-1',
+            tenant_id: 'tenant-1',
+            plan_id: 'plan-1',
+            ordine: 1,
+            stadiu_trigger: 'buton_verde',
+            cohort_trigger: 'floricane',
+            produs_id: 'prod-1',
+            produs_nume_manual: null,
+            doza_ml_per_hl: 200,
+            doza_l_per_ha: null,
+            observatii: 'Test',
+            created_at: '2026-01-01T00:00:00Z',
+            updated_at: '2026-01-01T00:00:00Z',
+          },
+        ],
         parcele_asociate: [],
       },
+      error: null,
+    })
+
+    const planLiniiBuilder = createAwaitable({
+      data: [
+        {
+          id: 'linie-1',
+          tenant_id: 'tenant-1',
+          plan_id: 'plan-1',
+          ordine: 1,
+          stadiu_trigger: 'buton_verde',
+          cohort_trigger: 'floricane',
+          produs_id: 'prod-1',
+          produs_nume_manual: null,
+          doza_ml_per_hl: 200,
+          doza_l_per_ha: null,
+          observatii: 'Test',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+          produs: null,
+        },
+      ],
       error: null,
     })
 
@@ -90,10 +129,7 @@ describe('upsertPlanTratamentCuLinii', () => {
         }
 
         if (table === 'planuri_tratament_linii') {
-          return createAwaitable({
-            data: [],
-            error: null,
-          })
+          return planLiniiBuilder
         }
 
         if (table === 'parcele_planuri') {
@@ -120,6 +156,7 @@ describe('upsertPlanTratamentCuLinii', () => {
         {
           ordine: 1,
           stadiu_trigger: 'buton_verde',
+          cohort_trigger: null,
           produs_id: 'prod-1',
           produs_nume_manual: null,
           doza_ml_per_hl: 200,
@@ -144,6 +181,7 @@ describe('upsertPlanTratamentCuLinii', () => {
         {
           ordine: 1,
           stadiu_trigger: 'buton_verde',
+          cohort_trigger: null,
           produs_id: 'prod-1',
           produs_nume_manual: null,
           doza_ml_per_hl: 200,
@@ -155,6 +193,7 @@ describe('upsertPlanTratamentCuLinii', () => {
       p_an: 2026,
     })
 
+    expect(planLiniiBuilder.update).not.toHaveBeenCalled()
     expect(result.id).toBe('plan-1')
   })
 })

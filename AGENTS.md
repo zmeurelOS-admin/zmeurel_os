@@ -208,12 +208,20 @@ Actualizată:
 ## Database And Migration Warnings
 
 - The project depends on many Supabase SQL migrations, including RLS normalization, business ID generation, stock-safe RPCs, demo seeding, analytics, solar/culturi support, and tenant repair logic.
-- Modulul `Tratamente & Fertilizare` are fundație DB paralelă cu `activitati_agricole`, `culture_stage_logs` și `etape_cultura`. Tabelele noi sunt `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii`, `parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament`; nu se rescriu flow-urile existente și nu se mută date din structurile vechi.
+- Modulul `Protecție & Nutriție` are fundație DB paralelă cu `activitati_agricole`, `culture_stage_logs` și `etape_cultura`. Tabelele noi sunt `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii`, `parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament`; nu se rescriu flow-urile existente și nu se mută date din structurile vechi.
+- Sursa canonică pentru stadiile fenologice din modulul nou este `src/lib/tratamente/stadii-canonic.ts`. Regula este fixă: în DB / payload-uri / import se stochează codul canonic snake_case, iar în UI se afișează exclusiv label-ul RO mapat din acest fișier.
+- Fișierul expune și `ManagementCategory` + `getManagementCategory(...)` pentru logica semantică de management; categoriile sunt ordonate intern ca `repaus < vegetativ < prefloral < inflorit < fruct_mic < coacere < post_recoltare`, iar helper-ele de grupare trebuie să rămână pure și fără efecte secundare.
+- Din Faza 2, catalogul `crops` are `cod` canonic singular (`zmeur`, `capsun`, `rosie` etc.) și `grup_biologic`; `parcele.cultura` rămâne text liber, dar consumatorii din Tratamente trebuie să treacă prin `normalizeCropCod(...)` înainte să compare sau să facă lookup în `crops`.
+- `src/lib/tratamente/stadii-canonic.ts` mai expune profilurile de stadii per `GrupBiologic`; regula de compatibilitate este importantă: `listStadiiInOrdine()` și `getOrdine()` rămân wrapper-ele legacy pe profilul implicit Rubus, iar ordonarea contextuală nouă se face exclusiv prin `listStadiiPentruGrup(...)`, `getOrdineInGrup(...)` și `getStadiuUrmatorInGrup(...)`.
+- `activitati_agricole.tip_activitate` rămâne `varchar` liber pentru istoric și compatibilitate, dar tipurile care țin acum de modulul `Protecție & Nutriție` sunt marcate prin `tip_deprecat = true` (migrare `20260419120000_deprecate_activitati_pn.sql`). UI-ul din `/activitati-agricole` nu mai oferă aceste tipuri la creare/editare nouă, iar înregistrările vechi apar ca „Arhivat” și nu mai pot fi editate din modulul generic.
 - CRUD-ul principal pentru planuri de tratament folosește acum wizard-ul `src/components/tratamente/plan-wizard/PlanWizard.tsx`, lista `/tratamente/planuri` și RPC-ul atomic `public.upsert_plan_tratament_cu_linii(...)`. Arhivarea este soft (`planuri_tratament.arhivat = true`), iar planurile arhivate nu mai trebuie oferite în fluxurile de asociere noi.
+- Configurarea sezonieră per parcelă este noul strat de input în `configurari_parcela_sezon`; helper-ul `src/lib/tratamente/configurare-sezon.ts` decide sistemul de conducere / tipul de ciclu și label-ul contextual folosit în UI-ul de tratamente.
+- Din Faza 4, Rubus cu `sistem_conducere = 'mixt_floricane_primocane'` rulează în model dual-cohortă: `stadii_fenologice_parcela.cohort`, `planuri_tratament_linii.cohort_trigger` și `aplicari_tratament.cohort_la_aplicare` folosesc doar `floricane | primocane | NULL`; pentru non-Rubus și Rubus `primocane_only` toate aceste coloane rămân `NULL`.
 - Import XLSX via `exceljs` + `fuse.js`, flux separat de wizard la `/tratamente/planuri/import`, parser server-side în `POST /api/tratamente/import/parse`, template download în `GET /api/tratamente/template-download`, RPC reutilizat `upsert_plan_tratament_cu_linii(...)`.
 - Hub-ul global `/tratamente` agregă aplicările cross-parcel pentru intervalul curent (azi + 7 zile încărcate inițial), filtre locale pe parcelă/status, meteo deduplicat pe parcelă și quick actions care reutilizează server actions-urile din detaliul unei aplicări (`markAplicataAction`, `reprogrameazaAction`, `anuleazaAction`).
 - Some query modules intentionally include compatibility fallbacks for partially migrated environments. Do not remove those without verifying schema parity in production.
 - `src/lib/supabase/queries/parcele.ts` now includes a schema-compat select fallback (legacy columns + safe defaults for `rol`, `apare_in_dashboard`, `contribuie_la_productie`, `status_operational`) to keep `/dashboard` and `/parcele` usable when linked environments lag migrations.
+- `parcele.stadiu` este deprecat: nu se folosește în cod nou, nu este sursă de adevăr pentru Tratamente și eliminarea lui rămâne planificată post-v1.
 - When adding new migrations, use a unique numeric timestamp prefix that matches Supabase CLI expectations exactly; avoid duplicate short versions like multiple `20260313_*` files.
 - Deprecated duplicate migration files that intentionally preserve old SQL should be archived outside `supabase/migrations/` (for example in `supabase/migrations_archive/`) so the active migration chain contains exactly one file per version.
 - For critical RPC/function migrations that have to be pushed to linked environments, prefer smaller files with one major function/grant unit instead of bundling several `create or replace function` definitions into one pending migration.
@@ -223,6 +231,27 @@ Actualizată:
 - `analytics_events` is now present in `src/types/supabase.ts`, but the linked Supabase project still reflects the common runtime subset (`event_name`, `event_data`, `module`, `page_url`, `status`, `session_id`) rather than the fuller local analytics migration intent.
 - Local migration history remains the source of truth, but analytics runtime code is intentionally aligned to the shared subset until the pending remote migration chain is repaired and applied cleanly.
 - `types/database.types.ts` exists as a legacy manual type file and should not be treated as the source of truth.
+
+## Fluxuri Legacy
+
+- **Fluxul legacy solar** este vechiul traseu de stadii pentru culturi din solar/greenhouse, separat de modulul Tratamente.
+- Fluxul scrie în `culturi.stadiu` și în `culture_stage_logs`, nu în `stadii_fenologice_parcela`.
+- Rămâne decuplat intenționat deoarece modulul nou are deja propriul model canonic pe stadii, profiluri, cohorte și configurare sezonieră, iar amestecarea lor ar crea ambiguități și migrații riscante.
+- Nu se modifică funcționalitatea acestui flux fără un plan explicit de migrare și validare end-to-end.
+- Decizia asupra viitorului lui se ia post-v1, după ce modulul Tratamente rămâne stabil pe fluxul canonic nou.
+
+## Refactor Stadii Fenologice (Fazele 0-5)
+
+- Faza 0 a introdus `stadii-canonic.ts`, `normalizeStadiu` și migrarea spre schema cloud.
+- Faza 1 a adăugat `ManagementCategory` și `isCategoryAtLeast` pentru reguli semantice de management.
+- Faza 2 a canonizat cele 22 de coduri de stadii, a introdus `GrupBiologic`, `crops.cod`, `crops.grup_biologic`, selectorul contextual și fallback-ul Rubus.
+- Faza 3 a adăugat `configurari_parcela_sezon`, bannerul/dialogul de configurare, auto-popularea Maravilla/Delniwa și label-ul contextual pentru solanacee.
+- Faza 4 a livrat cohortele pe cloud, `cohort_trigger`, `cohort_la_aplicare`, UI dual-cohortă și importul XLSX extins.
+- Faza 5 a închis datoriile rămase: sezon dinamic prin `getCurrentSezon()`, RPC-ul `upsert_plan_tratament_cu_linii` cu `cohort_trigger` nativ, `allowCohortTrigger` explicit pe `configurareSezon`, deprecarea explicită a `parcele.stadiu` și documentarea fluxurilor legacy.
+- Sursa canonică de adevăr pentru stadii rămâne `src/lib/tratamente/stadii-canonic.ts`; în DB, payload-uri și importuri se stochează doar coduri canonice `StadiuCod`.
+- În UI se afișează exclusiv label-uri prin `getLabelRo(...)` sau `getLabelStadiuContextual(...)`; regula este să nu folosim string literals de stadiu în logică, ci întotdeauna `StadiuCod`.
+- Pentru stadii noi, pattern-ul este: cod canonic în helper, mapare de label în același fișier, integrare în profilul biologic relevant, apoi propagare în import, generator și UI.
+- Fluxurile legacy/deprecate rămân marcate explicit în cod și documentație; nu se amestecă cu traseul canonic nou fără o migrare separată.
 
 ## AI Chat Widget — Source of Truth & Current State
 

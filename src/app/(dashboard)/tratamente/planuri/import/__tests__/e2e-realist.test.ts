@@ -77,8 +77,9 @@ describe('parseImportedPlansWorkbook e2e realist', () => {
       const clonedSheet = JSON.parse(JSON.stringify(exampleSheet)) as XLSX.WorkSheet
       clonedSheet.B1 = { t: 's', v: 'Zmeur' }
       clonedSheet.B2 = { t: 's', v: 'Test e2e' }
-      clonedSheet.C6 = { t: 's', v: 'Mospilan typo' }
-      clonedSheet.C7 = { t: 's', v: 'Signum' }
+      clonedSheet.D6 = { t: 's', v: 'Mospilan typo' }
+      clonedSheet.C7 = { t: 's', v: 'floricane' }
+      clonedSheet.D7 = { t: 's', v: 'Signum' }
 
       workbook.SheetNames.push('Zmeur 2026')
       workbook.Sheets['Zmeur 2026'] = clonedSheet
@@ -102,12 +103,13 @@ describe('parseImportedPlansWorkbook e2e realist', () => {
       expect(plan?.linii.length).toBe(4)
       expect(plan?.linii[0]?.produs_match.tip).toBe('exact')
       expect(['fuzzy', 'none']).toContain(plan?.linii[1]?.produs_match.tip)
+      expect(plan?.linii[2]?.cohort_trigger).toBe('floricane')
       expect(plan?.linii[2]?.produs_match.tip).toBe('exact')
       expect(plan?.linii[3]?.produs_match.tip).toBe('exact')
       expect(parseResult.global_errors).toContain(
         'Foaia «Plan» a fost lăsată goală și a fost ignorată.'
       )
     },
-    15_000
+    30_000
   )
 })

@@ -50,13 +50,22 @@ const produse: ProdusFitosanitar[] = [
   },
 ]
 
-function renderStep(initialLinii: PlanWizardLinieDraft[] = []) {
+function renderStep(
+  initialLinii: PlanWizardLinieDraft[] = [],
+  options?: { culturaTip?: string; grupBiologic?: 'rubus' | 'solanacee' }
+) {
   const TestHost = () => {
     const [linii, setLinii] = React.useState<PlanWizardLinieDraft[]>(initialLinii)
 
     return (
       <>
-        <PlanWizardStepLinii culturaTip="zmeur" linii={linii} produse={produse} onChange={setLinii} />
+        <PlanWizardStepLinii
+          culturaTip={options?.culturaTip ?? 'zmeur'}
+          grupBiologic={options?.grupBiologic}
+          linii={linii}
+          produse={produse}
+          onChange={setLinii}
+        />
         <div data-testid="state">{JSON.stringify(linii)}</div>
       </>
     )
@@ -104,4 +113,20 @@ describe('PlanWizardStepLinii', () => {
     expect(screen.queryByText('Sulf Rapid')).not.toBeInTheDocument()
     expect(screen.getByText('Cupru Standard')).toBeInTheDocument()
   }, 15_000)
+
+  it('filtrează selectorul de stadii după grupul biologic al culturii', async () => {
+    const user = userEvent.setup()
+
+    renderStep([], { culturaTip: 'rosie', grupBiologic: 'solanacee' })
+
+    await user.click(screen.getByRole('button', { name: /adaugă linie tratament/i }))
+
+    const select = screen.getByLabelText('Stadiu fenologic *') as HTMLSelectElement
+    const optionValues = Array.from(select.options).map((option) => option.value)
+
+    expect(optionValues).toContain('rasad')
+    expect(optionValues).toContain('transplant')
+    expect(optionValues).toContain('etaj_floral')
+    expect(optionValues).not.toContain('buton_roz')
+  })
 })

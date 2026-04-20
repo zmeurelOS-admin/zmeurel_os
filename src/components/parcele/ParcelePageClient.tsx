@@ -831,7 +831,9 @@ function TerenCard({
   onDesfiintaCultura,
 }: {
   parcela: Parcela
-  latestActivity: { date: string; type: string; product: string; pauseUntil?: string | null } | undefined
+  latestActivity:
+    | { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }
+    | undefined
   activeCulturiCount: number
   isExpanded: boolean
   onToggle: (id: string) => void
@@ -856,6 +858,7 @@ function TerenCard({
   const metaLine = buildParcelaDesktopMeta(parcela)
   const summaryLine = buildParcelaSummaryLine(parcela, activeCulturiCount)
   const culturiLabel = activeCulturiCount > 0 ? getCulturiCountLabel(activeCulturiCount, true) : null
+  const archivedActivityLabel = latestActivity?.tipDeprecat ? `${latestActivity.type} · Arhivat` : null
   const remainingDays = latestActivity?.pauseUntil
     ? Math.ceil((new Date(latestActivity.pauseUntil).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     : 0
@@ -875,6 +878,14 @@ function TerenCard({
               ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''} — ${relTime}`
               : 'Nicio activitate înregistrată'}
           </div>
+          {archivedActivityLabel ? (
+            <div
+              className="mt-1 text-xs text-amber-700"
+              title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+            >
+              {archivedActivityLabel}
+            </div>
+          ) : null}
         </div>
 
         {hasPause ? (
@@ -976,7 +987,21 @@ function TerenCard({
           bottomSlotAlign="full"
           ariaLabel={`${parcela.nume_parcela || 'Teren'}${isExpanded ? ', detalii deschise' : ''}`}
           onClick={() => onToggle(parcela.id)}
-          bottomSlot={isExpanded ? mobileExpanded : undefined}
+          bottomSlot={
+            archivedActivityLabel || isExpanded ? (
+              <>
+                {archivedActivityLabel && !isExpanded ? (
+                  <div
+                    className="mb-2 text-xs text-amber-700"
+                    title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+                  >
+                    {archivedActivityLabel}
+                  </div>
+                ) : null}
+                {isExpanded ? mobileExpanded : null}
+              </>
+            ) : undefined
+          }
         />
       </div>
 
@@ -1037,6 +1062,14 @@ function TerenCard({
               ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
               : 'Nicio activitate înregistrată'}
           </div>
+          {archivedActivityLabel ? (
+            <div
+              className="mt-1 text-xs text-amber-700"
+              title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+            >
+              {archivedActivityLabel}
+            </div>
+          ) : null}
           {culturiLabel ? <div className="mt-1 text-sm text-[var(--agri-text-muted)]">{culturiLabel}</div> : null}
 
         </div>
@@ -1251,7 +1284,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   }, [])
 
   const latestActivityByParcela = useMemo(() => {
-    const map = new Map<string, { date: string; type: string; product: string; pauseUntil?: string | null }>()
+    const map = new Map<string, { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }>()
     const latestByParcela = buildLatestActivityByParcela(activitati)
     for (const [parcelaId, row] of latestByParcela.entries()) {
       const tip = row.tip_activitate || 'Activitate'
@@ -1266,6 +1299,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         type: tip,
         product: produs,
         pauseUntil,
+        tipDeprecat: Boolean(row.tip_deprecat),
       })
     }
     return map

@@ -60,8 +60,8 @@ async function createInstructionsSheet(workbook: ExcelJS.Workbook) {
     ['', 'Selectează cultura din dropdown-ul din celula B1.'],
     ['', 'Opțional, adaugă o descriere în B2.'],
     ['', 'Completează liniile începând de pe rândul 5.'],
-    ['', 'Pentru fiecare linie: Ordine, Stadiu (dropdown), Produs (nume comercial), doză (ml/hl SAU l/ha, NU ambele), observații.'],
-    ['2. Cum se interpretează coloanele', 'A = Ordine, B = Stadiu, C = Produs, D = Doză ml/hl, E = Doză l/ha, F = Observații.'],
+    ['', 'Pentru fiecare linie: Ordine, Stadiu (cod canonic snake_case din dropdown), cohortă trigger opțională, Produs (nume comercial), doză (ml/hl SAU l/ha, NU ambele), observații.'],
+    ['2. Cum se interpretează coloanele', 'A = Ordine, B = Stadiu, C = Cohortă trigger, D = Produs, E = Doză ml/hl, F = Doză l/ha, G = Observații.'],
     ['3. Doze', 'Exact una dintre ml/hl sau l/ha trebuie completată pentru fiecare linie.'],
     ['4. Produse necunoscute', 'Produsele necunoscute sunt detectate automat — le vei putea rezolva în ecranul de review.'],
     ['5. Mai multe planuri', 'Poți adăuga foi noi pentru mai multe planuri: copiază foaia „Plan”, apoi redenumește-o.'],
@@ -90,6 +90,7 @@ function createPlanSheet(workbook: ExcelJS.Workbook) {
   sheet.columns = [
     { width: 8 },
     { width: 25 },
+    { width: 18 },
     { width: 35 },
     { width: 14 },
     { width: 14 },
@@ -109,10 +110,11 @@ function createPlanSheet(workbook: ExcelJS.Workbook) {
   ;([
     ['A4', 'Ordine', HEADER_FILL],
     ['B4', 'Stadiu', HEADER_FILL],
-    ['C4', 'Produs', HEADER_FILL],
-    ['D4', 'Doză ml/hl', OPTIONAL_FILL],
-    ['E4', 'Doză l/ha', OPTIONAL_FILL],
-    ['F4', 'Observații', OPTIONAL_FILL],
+    ['C4', 'Cohortă trigger', OPTIONAL_FILL],
+    ['D4', 'Produs', HEADER_FILL],
+    ['E4', 'Doză ml/hl', OPTIONAL_FILL],
+    ['F4', 'Doză l/ha', OPTIONAL_FILL],
+    ['G4', 'Observații', OPTIONAL_FILL],
   ] as const).forEach(([cellRef, label, fill]) => {
     const cell = sheet.getCell(cellRef)
     cell.value = label
@@ -129,15 +131,20 @@ function createPlanSheet(workbook: ExcelJS.Workbook) {
     sheet.getCell(`B${row}`).dataValidation = {
       type: 'list',
       allowBlank: false,
-      formulae: [`"${STADII_VALIDE.map((item) => STADIU_LABELS[item]).join(',')}"`],
+      formulae: [`"${STADII_VALIDE.join(',')}"`],
     }
-    sheet.getCell(`D${row}`).dataValidation = {
+    sheet.getCell(`C${row}`).dataValidation = {
+      type: 'list',
+      allowBlank: true,
+      formulae: ['"floricane,primocane"'],
+    }
+    sheet.getCell(`E${row}`).dataValidation = {
       type: 'decimal',
       operator: 'greaterThanOrEqual',
       allowBlank: true,
       formulae: ['0'],
     }
-    sheet.getCell(`E${row}`).dataValidation = {
+    sheet.getCell(`F${row}`).dataValidation = {
       type: 'decimal',
       operator: 'greaterThanOrEqual',
       allowBlank: true,
@@ -244,6 +251,7 @@ async function createExampleSheet(workbook: ExcelJS.Workbook) {
   sheet.columns = [
     { width: 8 },
     { width: 25 },
+    { width: 18 },
     { width: 35 },
     { width: 14 },
     { width: 14 },
@@ -261,10 +269,11 @@ async function createExampleSheet(workbook: ExcelJS.Workbook) {
   const headers: Array<[string, string, ExcelJS.Fill]> = [
     ['A4', 'Ordine', HEADER_FILL],
     ['B4', 'Stadiu', HEADER_FILL],
-    ['C4', 'Produs', HEADER_FILL],
-    ['D4', 'Doză ml/hl', OPTIONAL_FILL],
-    ['E4', 'Doză l/ha', OPTIONAL_FILL],
-    ['F4', 'Observații', OPTIONAL_FILL],
+    ['C4', 'Cohortă trigger', OPTIONAL_FILL],
+    ['D4', 'Produs', HEADER_FILL],
+    ['E4', 'Doză ml/hl', OPTIONAL_FILL],
+    ['F4', 'Doză l/ha', OPTIONAL_FILL],
+    ['G4', 'Observații', OPTIONAL_FILL],
   ]
   headers.forEach(([ref, label, fill]) => {
     const cell = sheet.getCell(ref)
@@ -276,24 +285,26 @@ async function createExampleSheet(workbook: ExcelJS.Workbook) {
     number,
     string,
     string,
+    string,
     number | null,
     number | null,
     string,
   ]> = [
-    [1, 'Umflare muguri', 'Thiovit Jet', 500, null, 'Prevenție făinare'],
-    [2, 'Prefloral', 'Mospilan 20 SG', 20, null, 'Afide'],
-    [3, 'Cădere petale', 'Signum', 50, null, 'Putregai gri Botrytis'],
-    [4, 'Pârguire', 'Kocide 2000', null, 3, 'PHI 3 zile'],
+    [1, 'umflare_muguri', '', 'Thiovit Jet', 500, null, 'Prevenție făinare'],
+    [2, 'buton_roz', '', 'Mospilan 20 SG', 20, null, 'Afide'],
+    [3, 'inflorit', 'floricane', 'Signum', 50, null, 'Doar pe floricane în timpul înfloririi'],
+    [4, 'crestere_vegetativa', 'primocane', 'Kocide 2000', null, 3, 'Doar pe primocane'],
   ]
 
-  exampleRows.forEach(([ordine, stadiu, produs, dozaMl, dozaL, obs], i) => {
+  exampleRows.forEach(([ordine, stadiu, cohorta, produs, dozaMl, dozaL, obs], i) => {
     const row = sheet.getRow(i + 5)
     sheet.getCell(`A${i + 5}`).value = ordine
     sheet.getCell(`B${i + 5}`).value = stadiu
-    sheet.getCell(`C${i + 5}`).value = produs
-    if (dozaMl !== null) sheet.getCell(`D${i + 5}`).value = dozaMl
-    if (dozaL !== null) sheet.getCell(`E${i + 5}`).value = dozaL
-    sheet.getCell(`F${i + 5}`).value = obs
+    sheet.getCell(`C${i + 5}`).value = cohorta
+    sheet.getCell(`D${i + 5}`).value = produs
+    if (dozaMl !== null) sheet.getCell(`E${i + 5}`).value = dozaMl
+    if (dozaL !== null) sheet.getCell(`F${i + 5}`).value = dozaL
+    sheet.getCell(`G${i + 5}`).value = obs
     void row
   })
 

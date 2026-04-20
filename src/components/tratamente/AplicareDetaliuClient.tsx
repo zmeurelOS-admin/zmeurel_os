@@ -4,30 +4,24 @@ import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import {
   anuleazaAction,
   markAplicataAction,
   reprogrameazaAction,
 } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
 import { AplicareHero } from '@/components/tratamente/AplicareHero'
+import { AnuleazaDialog } from '@/components/tratamente/AnuleazaDialog'
 import { MarkAplicataSheet, type MarkAplicataFormValues } from '@/components/tratamente/MarkAplicataSheet'
+import { MeteoSnapshotCard } from '@/components/tratamente/MeteoSnapshotCard'
 import { MeteoWindowBar } from '@/components/tratamente/MeteoWindowBar'
 import { ReprogrameazaSheet, type ReprogrameazaFormValues } from '@/components/tratamente/ReprogrameazaSheet'
 import { VerificariAutomate, type VerificareAutomataState } from '@/components/tratamente/VerificariAutomate'
 import { AppCard } from '@/components/ui/app-card'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
+import { isRubusMixt, type ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import type { MeteoSnapshot, MeteoZi } from '@/lib/tratamente/meteo'
+import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 
 interface AplicareDetaliuClientProps {
@@ -37,6 +31,8 @@ interface AplicareDetaliuClientProps {
   meteoDateLabel: string
   meteoZi: MeteoZi | null
   parcelaId: string
+  configurareSezon?: ConfigurareSezon | null
+  grupBiologic?: GrupBiologic | null
   stadiuImplicit: string | null
   verificari: {
     phi: VerificareAutomataState
@@ -51,19 +47,8 @@ function isMeteoSnapshot(value: unknown): value is MeteoSnapshot {
   return typeof candidate.timestamp === 'string'
 }
 
-function SnapshotCard({ snapshot }: { snapshot: MeteoSnapshot }) {
-  return (
-    <AppCard className="rounded-2xl">
-      <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Snapshot meteo salvat</h3>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-[var(--text-secondary)]">
-        <p>{`Temp: ${snapshot.temperatura_c ?? '—'}°C`}</p>
-        <p>{`Umiditate: ${snapshot.umiditate_pct ?? '—'}%`}</p>
-        <p>{`Vânt: ${snapshot.vant_kmh ?? '—'} km/h`}</p>
-        <p>{`Ploaie 24h: ${snapshot.precipitatii_mm_24h ?? '—'} mm`}</p>
-        <p className="col-span-2">{snapshot.descriere ?? 'Fără descriere meteo disponibilă.'}</p>
-      </div>
-    </AppCard>
-  )
+function normalizeCohorta(value: string | null | undefined) {
+  return value === 'floricane' || value === 'primocane' ? value : null
 }
 
 export function AplicareDetaliuClient({
@@ -73,6 +58,8 @@ export function AplicareDetaliuClient({
   meteoDateLabel,
   meteoZi,
   parcelaId,
+  configurareSezon,
+  grupBiologic,
   stadiuImplicit,
   verificari,
 }: AplicareDetaliuClientProps) {
@@ -84,6 +71,10 @@ export function AplicareDetaliuClient({
   const [isPending, startTransition] = useTransition()
 
   const snapshotSalvat = isMeteoSnapshot(aplicare.meteo_snapshot) ? aplicare.meteo_snapshot : null
+  const isPlanificata = aplicare.status === 'planificata'
+  const rubusMixt = isRubusMixt(configurareSezon)
+  const cohortBlocata = normalizeCohorta(aplicare.linie?.cohort_trigger)
+  const cohortImplicita = normalizeCohorta(aplicare.cohort_la_aplicare) ?? cohortBlocata ?? null
 
   const handleMarkAplicata = async (values: MarkAplicataFormValues) => {
     startTransition(async () => {
@@ -94,6 +85,9 @@ export function AplicareDetaliuClient({
       formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
       formData.set('operator', values.operator ?? '')
       formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
+      if (values.cohort_la_aplicare) {
+        formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
+      }
       formData.set('observatii', values.observatii ?? '')
       if (values.meteoSnapshot) {
         formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
@@ -148,28 +142,28 @@ export function AplicareDetaliuClient({
   return (
     <>
       <div className="mx-auto w-full max-w-5xl space-y-4 py-3 pb-32 md:py-4 md:pb-10">
-        <AplicareHero aplicare={aplicare} />
+        <AplicareHero aplicare={aplicare} configurareSezon={configurareSezon} />
 
-        {aplicare.status === 'aplicata' && snapshotSalvat ? (
-          <SnapshotCard snapshot={snapshotSalvat} />
-        ) : meteoZi ? (
+        {aplicare.status === 'aplicata' ? (
+          <MeteoSnapshotCard snapshot={snapshotSalvat} />
+        ) : isPlanificata && meteoZi ? (
           <MeteoWindowBar dateLabel={meteoDateLabel} ferestre={meteoZi.ferestre_24h} />
-        ) : (
+        ) : isPlanificata ? (
           <AppCard className="rounded-2xl">
-            <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Ferestre meteo pentru aplicare</h3>
+            <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Ferestre meteo</h3>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              Meteo nu este disponibil acum. Poți continua și fără snapshot automat.
+              Meteo indisponibil acum. Poți continua și fără snapshot automat.
             </p>
           </AppCard>
-        )}
+        ) : null}
 
         <VerificariAutomate phi={verificari.phi} sezon={verificari.sezon} stoc={verificari.stoc} />
       </div>
 
-      {aplicare.status === 'aplicata' ? (
+      {!isPlanificata ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--divider)] bg-[color:color-mix(in_srgb,var(--surface-page)_92%,transparent)] px-4 py-3 backdrop-blur-sm md:static md:mx-auto md:mt-2 md:max-w-5xl md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
           <Button type="button" variant="outline" className="w-full md:w-auto" asChild>
-            <Link href={`/parcele/${parcelaId}/tratamente/toate`}>Vezi istoric</Link>
+            <Link href={`/parcele/${parcelaId}/tratamente`}>Înapoi la listă</Link>
           </Button>
         </div>
       ) : (
@@ -189,9 +183,14 @@ export function AplicareDetaliuClient({
       )}
 
       <MarkAplicataSheet
+        cohortLaAplicareBlocata={cohortBlocata}
         defaultCantitateMl={defaultCantitateMl}
+        defaultCohortLaAplicare={cohortImplicita}
         defaultOperator={currentOperator}
         defaultStadiu={stadiuImplicit}
+        configurareSezon={configurareSezon}
+        grupBiologic={grupBiologic}
+        isRubusMixt={rubusMixt}
         meteoSnapshot={meteoZi?.snapshot_curent ?? null}
         onOpenChange={setMarkOpen}
         onSubmit={handleMarkAplicata}
@@ -207,28 +206,14 @@ export function AplicareDetaliuClient({
         pending={isPending}
       />
 
-      <AlertDialog open={anulareOpen} onOpenChange={setAnulareOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Anulezi aplicarea?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Poți lăsa un motiv scurt pentru istoric. Aplicarea va rămâne înregistrată cu status anulat.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Textarea
-            rows={4}
-            value={motivAnulare}
-            onChange={(event) => setMotivAnulare(event.target.value)}
-            placeholder="Ex: Fereastră meteo nefavorabilă."
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Înapoi</AlertDialogCancel>
-            <Button type="button" className="bg-[var(--status-danger-text)] text-white" onClick={handleAnuleaza} disabled={isPending}>
-              {isPending ? 'Se salvează...' : 'Confirmă anularea'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AnuleazaDialog
+        motiv={motivAnulare}
+        onConfirm={handleAnuleaza}
+        onMotivChange={setMotivAnulare}
+        onOpenChange={setAnulareOpen}
+        open={anulareOpen}
+        pending={isPending}
+      />
     </>
   )
 }

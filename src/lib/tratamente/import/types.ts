@@ -31,6 +31,7 @@ export type ProdusMatch =
 export interface ParsedLine {
   ordine: number
   stadiu_trigger: string
+  cohort_trigger?: 'floricane' | 'primocane' | null
   stadiu_input_raw: string
   produs_input: string
   produs_match: ProdusMatch
@@ -64,6 +65,7 @@ export type DraftProdusImport = Omit<InsertTenantProdus, 'activ'> & {
 export interface PlanSaveLineInput {
   ordine: number
   stadiu_trigger: string
+  cohort_trigger?: 'floricane' | 'primocane' | null
   produs_id: string | null
   produs_nume_manual: string | null
   doza_ml_per_hl: number | null

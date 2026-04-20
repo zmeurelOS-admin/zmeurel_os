@@ -1,36 +1,104 @@
-import Link from 'next/link'
+import { notFound } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { PageHeader } from '@/components/app/PageHeader'
-import { Button } from '@/components/ui/button'
+import { AppCard } from '@/components/ui/app-card'
+import { ParceleAsignateList } from '@/components/tratamente/ParceleAsignateList'
+import { PlanDetailHeader } from '@/components/tratamente/PlanDetailHeader'
+import { PlanLiniiList } from '@/components/tratamente/PlanLiniiList'
+import {
+  countAplicariPlan,
+  getPlanTratamentComplet,
+  listParcelePentruPlanWizard,
+  listProduseFitosanitare,
+} from '@/lib/supabase/queries/tratamente'
+import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
+import { needsCohortSelection } from '@/lib/tratamente/configurare-sezon'
+import { getGrupBiologicDinCultura } from '@/components/tratamente/plan-wizard/helpers'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 
 type PageProps = {
   params: Promise<{ planId: string }>
 }
 
-export default async function TratamentePlanPlaceholderPage({ params }: PageProps) {
+export default async function TratamentePlanDetailPage({ params }: PageProps) {
   const { planId } = await params
+  const plan = await getPlanTratamentComplet(planId)
+
+  if (!plan) {
+    notFound()
+  }
+
+  const [produse, parceleDisponibile, aplicariCount] = await Promise.all([
+    listProduseFitosanitare({ activ: true }),
+    listParcelePentruPlanWizard(plan.cultura_tip),
+    countAplicariPlan(planId),
+  ])
+
+  const anCurent = getCurrentSezon()
+  const configurareSezon = plan.parcele_asociate[0]?.parcela_id
+    ? await getConfigurareSezon(plan.parcele_asociate[0].parcela_id, anCurent)
+    : null
+  const grupBiologic = getGrupBiologicDinCultura(plan.cultura_tip)
+  const allowCohortTrigger = needsCohortSelection(grupBiologic, configurareSezon)
 
   return (
     <AppShell
       header={
         <PageHeader
-          title="Detaliu plan tratamente"
-          subtitle={`Planul ${planId.slice(0, 8)} este în lucru`}
+          title={plan.nume}
+          subtitle={`${plan.cultura_tip} · ${plan.arhivat ? 'dezactivat' : 'activ'}`}
           expandRightSlotOnMobile
+          summary={
+            <PlanDetailHeader
+              countAplicari={aplicariCount}
+              descriere={plan.descriere}
+              isArchived={plan.arhivat}
+              planId={plan.id}
+              planName={plan.nume}
+            />
+          }
         />
       }
+      bottomInset="calc(var(--app-nav-clearance) + 1rem)"
     >
-      <div className="mx-auto w-full max-w-3xl space-y-4 py-4">
-        <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
-          <h2 className="text-lg text-[var(--text-primary)] [font-weight:650]">În lucru</h2>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            Detaliul planului de tratamente va fi adăugat într-un pas următor al fazei 2.
-          </p>
-          <Button type="button" variant="outline" size="sm" className="mt-4" asChild>
-            <Link href="/dashboard">Înapoi la dashboard</Link>
-          </Button>
-        </section>
+      <div className="mx-auto w-full max-w-5xl space-y-4 py-3 pb-28 md:py-4 md:pb-8">
+        <AppCard className="rounded-[22px] p-5">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Status</p>
+              <p className="mt-2 text-base text-[var(--text-primary)] [font-weight:650]">
+                {plan.arhivat ? 'Dezactivat' : 'Activ'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Linii</p>
+              <p className="mt-2 text-base text-[var(--text-primary)] [font-weight:650]">{plan.linii.length}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Aplicări asociate</p>
+              <p className="mt-2 text-base text-[var(--text-primary)] [font-weight:650]">{aplicariCount}</p>
+            </div>
+          </div>
+          {plan.descriere?.trim() ? (
+            <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">{plan.descriere}</p>
+          ) : null}
+        </AppCard>
+
+        <ParceleAsignateList
+          anCurent={anCurent}
+          parceleAsociate={plan.parcele_asociate}
+          parceleDisponibile={parceleDisponibile}
+          planId={plan.id}
+        />
+
+        <PlanLiniiList
+          allowCohortTrigger={allowCohortTrigger}
+          culturaTip={plan.cultura_tip}
+          linii={plan.linii}
+          planId={plan.id}
+          produse={produse}
+        />
       </div>
     </AppShell>
   )

@@ -94,6 +94,14 @@ export function ActivityDetailDialog({ activitate, parcelaName, open, onOpenChan
                 <DialogTitle className="text-left text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]">
                   {activitate.tip_activitate || 'Activitate agricolă'}
                 </DialogTitle>
+                {activitate.tip_deprecat ? (
+                  <div
+                    className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-800"
+                    title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+                  >
+                    {(activitate.tip_activitate || 'Activitate agricolă') + ' · Arhivat'}
+                  </div>
+                ) : null}
                 {parcelaName ? <p className="text-sm text-[var(--agri-text-muted)]">Teren: {parcelaName}</p> : null}
               </div>
 
@@ -144,14 +152,16 @@ export function ActivityDetailDialog({ activitate, parcelaName, open, onOpenChan
               🗑️ Șterge
             </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="agri-cta bg-amber-500 text-white hover:bg-amber-600 border-amber-600 dark:border-amber-500"
-              onClick={() => setEditOpen(true)}
-            >
-              ✏️ Editează
-            </Button>
+            {!activitate.tip_deprecat ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="agri-cta bg-amber-500 text-white hover:bg-amber-600 border-amber-600 dark:border-amber-500"
+                onClick={() => setEditOpen(true)}
+              >
+                ✏️ Editează
+              </Button>
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

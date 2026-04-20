@@ -34,14 +34,16 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import { getCohortaLabel, type Cohorta } from '@/lib/tratamente/configurare-sezon'
+import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 
 import {
   filterProduseForCulture,
   formatDoza,
   getProdusDisplayName,
   getStadiuMeta,
+  getStadiuOptions,
   inferDoseUnitFromProduct,
-  STADIU_OPTIONS,
   suggestDoseFromProduct,
 } from '@/components/tratamente/plan-wizard/helpers'
 import {
@@ -53,14 +55,18 @@ import {
 } from '@/components/tratamente/plan-wizard/types'
 
 interface PlanWizardStepLiniiProps {
+  allowCohortTrigger?: boolean
   culturaTip: string
+  grupBiologic?: GrupBiologic | null
   linii: PlanWizardLinieDraft[]
   produse: ProdusFitosanitar[]
   onChange: (nextLinii: PlanWizardLinieDraft[]) => void
 }
 
 interface LinieEditorProps {
+  allowCohortTrigger?: boolean
   culturaTip: string
+  grupBiologic?: GrupBiologic | null
   initialValue: PlanWizardLinieDraft
   onCancel: () => void
   onSave: (linie: PlanWizardLinieDraft) => void
@@ -185,7 +191,9 @@ function EditorChrome({
 }
 
 function LinieEditor({
+  allowCohortTrigger = false,
   culturaTip,
+  grupBiologic,
   initialValue,
   onCancel,
   onSave,
@@ -210,6 +218,7 @@ function LinieEditor({
     () => produse.find((produs) => produs.id === value.produs_id) ?? null,
     [produse, value.produs_id]
   )
+  const stadiuOptions = useMemo(() => getStadiuOptions(grupBiologic), [grupBiologic])
 
   const filteredProducts = useMemo(
     () => filterProduseForCulture(produse, culturaTip, showAllProducts, search).slice(0, 8),
@@ -247,17 +256,38 @@ function LinieEditor({
             id="linie-stadiu"
             value={value.stadiu_trigger}
             onChange={(event) => setValue((current) => ({ ...current, stadiu_trigger: event.target.value }))}
-            className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-          >
-            <option value="">Alege stadiul</option>
-            {STADIU_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.emoji} {option.label}
-              </option>
+          className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+        >
+          <option value="">Alege stadiul</option>
+          {stadiuOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.emoji} {option.label}
+            </option>
             ))}
           </select>
           {errors.stadiu_trigger ? <p className="text-sm text-[var(--soft-danger-text)]">{errors.stadiu_trigger}</p> : null}
         </div>
+
+        {allowCohortTrigger ? (
+          <div className="space-y-2">
+            <Label htmlFor="linie-cohorta">Cohortă vizată</Label>
+            <select
+              id="linie-cohorta"
+              value={value.cohort_trigger ?? ''}
+              onChange={(event) =>
+                setValue((current) => ({
+                  ...current,
+                  cohort_trigger: event.target.value ? (event.target.value as Cohorta) : null,
+                }))
+              }
+              className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+            >
+              <option value="">Ambele cohorte</option>
+              <option value="floricane">Doar {getCohortaLabel('floricane')}</option>
+              <option value="primocane">Doar {getCohortaLabel('primocane')}</option>
+            </select>
+          </div>
+        ) : null}
 
         <div className="space-y-3 rounded-[20px] bg-[var(--surface-card-muted)] p-4">
           <div className="space-y-2">
@@ -438,7 +468,9 @@ function LinieEditor({
 }
 
 export function PlanWizardStepLinii({
+  allowCohortTrigger = false,
   culturaTip,
+  grupBiologic,
   linii,
   produse,
   onChange,
@@ -526,6 +558,11 @@ export function PlanWizardStepLinii({
                           <span className="rounded-full border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)]">
                             {stadiu.emoji} {stadiu.label}
                           </span>
+                          {allowCohortTrigger ? (
+                            <span className="rounded-full border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)]">
+                              {linie.cohort_trigger ? getCohortaLabel(linie.cohort_trigger) : 'Ambele cohorte'}
+                            </span>
+                          ) : null}
                         </div>
                         <p className="mt-3 truncate text-base text-[var(--text-primary)] [font-weight:650]">
                           {getProdusDisplayName(linie, produse)}
@@ -607,7 +644,9 @@ export function PlanWizardStepLinii({
 
       {editingLine ? (
         <LinieEditor
+          allowCohortTrigger={allowCohortTrigger}
           culturaTip={culturaTip}
+          grupBiologic={grupBiologic}
           initialValue={editingLine}
           onCancel={() => {
             setEditorOpen(false)

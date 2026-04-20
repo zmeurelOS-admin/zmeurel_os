@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Archive } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
@@ -25,7 +26,7 @@ import { deleteActivitateAgricola, getActivitatiAgricole, type ActivitateAgricol
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { queryKeys } from '@/lib/query-keys'
 
-type TipFilter = 'toate' | 'tratamente' | 'fertilizare' | 'taiere' | 'altele'
+type TipFilter = 'toate' | 'arhivate_pn' | 'taiere' | 'altele'
 
 function normalizeText(value: string | null | undefined): string {
   return (value ?? '')
@@ -36,8 +37,6 @@ function normalizeText(value: string | null | undefined): string {
 
 function activityKind(tip: string | null | undefined): TipFilter {
   const value = normalizeText(tip)
-  if (value.includes('tratament') || value.includes('fungic') || value.includes('pestic') || value.includes('erbic') || value.includes('insecticid')) return 'tratamente'
-  if (value.includes('fert') || value.includes('fertirg') || value.includes('fertigare')) return 'fertilizare'
   if (value.includes('tund') || value.includes('tai') || value.includes('curata') || value.includes('copilit') || value.includes('defolier')) return 'taiere'
   if (value.includes('toate')) return 'toate'
   return 'altele'
@@ -137,11 +136,13 @@ function formatDateShort(value: string | null | undefined): string {
   return parsed.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' })
 }
 
+function getArchivedActivityLabel(activity: Pick<ActivitateAgricola, 'tip_activitate'>): string {
+  return `${activity.tip_activitate || 'Activitate'} · Arhivat`
+}
+
 const QUICK_ADD_PILLS = [
   { emoji: '💧', label: 'Irigare', value: 'irigatie' },
-  { emoji: '💊', label: 'Tratament', value: 'fungicide_pesticide' },
   { emoji: '✂️', label: 'Tăiere', value: 'Tundere/Curatare' },
-  { emoji: '🌱', label: 'Fertilizare', value: 'fertilizare_foliara' },
   { emoji: '📋', label: 'Altele', value: 'altele' },
 ]
 
@@ -329,7 +330,14 @@ export default function ActivitatiPage() {
   const filteredActivitati = useMemo(() => {
     const term = normalizeText(searchQuery)
     return activitati.filter((item) => {
-      if (tipFilter !== 'toate' && activityKind(item.tip_activitate) !== tipFilter) return false
+      if (tipFilter === 'arhivate_pn' && !item.tip_deprecat) return false
+      if (
+        tipFilter !== 'toate' &&
+        tipFilter !== 'arhivate_pn' &&
+        activityKind(item.tip_activitate) !== tipFilter
+      ) {
+        return false
+      }
       if (selectedParcelaId && item.parcela_id !== selectedParcelaId) return false
       if (!term) return true
       return [
@@ -368,6 +376,7 @@ export default function ActivitatiPage() {
               {stareParceleRows.map((row) => {
                 const badge = row.latest ? temporalBadgeForActivity(row.latest, today) : null
                 const emoji = activityEmojiByTip(row.latest?.tip_activitate)
+                const archivedLabel = row.latest?.tip_deprecat ? getArchivedActivityLabel(row.latest) : null
                 return (
                   <button
                     key={row.parcela.id}
@@ -396,6 +405,14 @@ export default function ActivitatiPage() {
                           ? `${activityDisplayLabel(row.latest.tip_activitate)} · ${formatDateShort(row.latest.data_aplicare)}`
                           : 'Nicio activitate'}
                       </div>
+                      {archivedLabel ? (
+                        <div
+                          className="mt-1 max-w-full truncate text-xs text-amber-700"
+                          title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+                        >
+                          {archivedLabel}
+                        </div>
+                      ) : null}
                     </div>
                     {badge ? (
                       <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
@@ -412,37 +429,39 @@ export default function ActivitatiPage() {
         ) : null}
 
         {/* ADAUGĂ RAPID — ascuns pe mobil (FAB / flux principal rămân) */}
-        <div className="hidden md:block">
-          <span style={{ ...SECTION_LABEL_STYLE, marginTop: 6 }}>Adaugă rapid</span>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {QUICK_ADD_PILLS.map((pill) => (
-              <button
-                key={pill.value}
-                type="button"
-                onClick={() => {
-                  setAiPrefill({ tip: pill.value, parcela_id: '', parcela_label: '', produs: '', doza: '', data: '', observatii: '' })
-                  setAddOpen(true)
-                }}
-                style={{
-                  padding: '8px 14px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  background: 'var(--button-muted-bg)',
-                  border: '1px solid var(--button-muted-border)',
-                  color: 'var(--button-muted-text)',
-                  borderRadius: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontSize: 14 }}>{pill.emoji}</span>
-                {pill.label}
-              </button>
-            ))}
+        {QUICK_ADD_PILLS.length > 0 ? (
+          <div className="hidden md:block">
+            <span style={{ ...SECTION_LABEL_STYLE, marginTop: 6 }}>Adaugă rapid</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {QUICK_ADD_PILLS.map((pill) => (
+                <button
+                  key={pill.value}
+                  type="button"
+                  onClick={() => {
+                    setAiPrefill({ tip: pill.value, parcela_id: '', parcela_label: '', produs: '', doza: '', data: '', observatii: '' })
+                    setAddOpen(true)
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    background: 'var(--button-muted-bg)',
+                    border: '1px solid var(--button-muted-border)',
+                    color: 'var(--button-muted-text)',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 14 }}>{pill.emoji}</span>
+                  {pill.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* RECENTE */}
         <div>
@@ -451,12 +470,19 @@ export default function ActivitatiPage() {
           {/* Filters */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             {([
-              ['toate', 'Toate'],
-              ['tratamente', '💊 Tratamente'],
-              ['fertilizare', '🌿 Fertilizare'],
-              ['taiere', '✂️ Tăiere'],
-              ['altele', 'Altele'],
-            ] as Array<[TipFilter, string]>).map(([key, label]) => {
+              { key: 'toate', label: 'Toate' },
+              {
+                key: 'arhivate_pn',
+                label: (
+                  <span className="inline-flex items-center gap-1">
+                    <Archive className="h-3.5 w-3.5" aria-hidden />
+                    Arhivate P&N
+                  </span>
+                ),
+              },
+              { key: 'taiere', label: '✂️ Tăiere' },
+              { key: 'altele', label: 'Altele' },
+            ] as Array<{ key: TipFilter; label: React.ReactNode }>).map(({ key, label }) => {
               const active = tipFilter === key
               return (
                 <button
@@ -531,6 +557,8 @@ export default function ActivitatiPage() {
               const parcelaName = a.parcela_id ? parcelaMap[a.parcela_id] || 'Teren' : 'Teren'
               const badge = temporalBadgeForActivity(a, today)
               const isExpanded = expandedCardId === a.id
+              const isArchived = Boolean(a.tip_deprecat)
+              const archivedLabel = getArchivedActivityLabel(a)
 
               return (
                 <div key={a.id} className="rounded-[var(--agri-radius-lg)] border border-[var(--border-default)] bg-[var(--surface-card)] p-3.5 shadow-[var(--shadow-soft)]">
@@ -541,8 +569,21 @@ export default function ActivitatiPage() {
                     aria-expanded={isExpanded}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0 text-sm font-semibold text-[var(--text-primary)]">
-                        {activityEmojiByTip(a.tip_activitate)} {activityDisplayLabel(a.tip_activitate)}
+                      <div className="min-w-0">
+                        <div className="min-w-0 text-sm font-semibold text-[var(--text-primary)]">
+                          {activityEmojiByTip(a.tip_activitate)}{' '}
+                          {isArchived ? a.tip_activitate || 'Activitate' : activityDisplayLabel(a.tip_activitate)}
+                        </div>
+                        {isArchived ? (
+                          <span
+                            title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+                            className="mt-1 inline-flex max-w-full items-center rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[10px] font-semibold leading-tight text-amber-800"
+                          >
+                            <span className="max-w-full whitespace-normal break-words text-left">
+                              {archivedLabel}
+                            </span>
+                          </span>
+                        ) : null}
                       </div>
                       <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>
                         {badge.label}
@@ -570,13 +611,15 @@ export default function ActivitatiPage() {
                       </p>
 
                       <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          className="flex-1 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--warning-text)] transition hover:brightness-[0.98]"
-                          onClick={() => setEditingActivity(a)}
-                        >
-                          ✏️ Edit
-                        </button>
+                        {!isArchived ? (
+                          <button
+                            type="button"
+                            className="flex-1 rounded-lg border border-[var(--warning-border)] bg-[var(--warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--warning-text)] transition hover:brightness-[0.98]"
+                            onClick={() => setEditingActivity(a)}
+                          >
+                            ✏️ Edit
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className="flex-1 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--danger-text)] transition hover:brightness-[0.98]"
@@ -627,5 +670,3 @@ export default function ActivitatiPage() {
     </AppShell>
   )
 }
-
-

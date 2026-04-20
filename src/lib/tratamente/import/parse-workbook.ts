@@ -1,13 +1,19 @@
+import { isValidCropCod } from '@/lib/crops/crop-codes'
 import type { WorkBook, WorkSheet } from 'xlsx'
 
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
 import { fuzzyMatchProdus } from '@/lib/tratamente/import/fuzzy-match'
 import {
+  mapImportCohortTrigger,
   mapImportCulture,
   mapImportStage,
   SHEET_NAMES_RESERVED,
 } from '@/lib/tratamente/import/template-spec'
 import type { ParsedLine, ParsedPlan, ParseResult } from '@/lib/tratamente/import/types'
+import {
+  getGrupBiologicForCropCod,
+  isStadiuValidPentruGrup,
+} from '@/lib/tratamente/stadii-canonic'
 import { normalizeForSearch } from '@/lib/utils/string'
 
 type SheetJsModule = typeof import('xlsx')
@@ -54,15 +60,19 @@ function addPlanError(
 }
 
 function validateHeader(rows: unknown[][]): string | null {
-  const expected = ['ordine', 'stadiu', 'produs']
-  const actual = [0, 1, 2].map((columnIndex) =>
+  const actual = [0, 1, 2, 3].map((columnIndex) =>
     normalizeForSearch(getCellText(rows, 3, columnIndex))
   )
+  const isLegacy = actual[0] === 'ordine' && actual[1] === 'stadiu' && actual[2] === 'produs'
+  const isExtended =
+    actual[0] === 'ordine' &&
+    actual[1] === 'stadiu' &&
+    actual[2] === 'cohorta trigger' &&
+    actual[3] === 'produs'
 
-  const isValid = expected.every((value, index) => actual[index] === value)
-  return isValid
+  return isLegacy || isExtended
     ? null
-    : 'Header invalid pe rândul 4. Primele trei coloane trebuie să fie „Ordine”, „Stadiu” și „Produs”.'
+    : 'Header invalid pe rândul 4. Coloanele trebuie să înceapă cu „Ordine”, „Stadiu” și opțional „Cohortă trigger”, apoi „Produs”.'
 }
 
 function parseSheetRows(
@@ -76,6 +86,11 @@ function parseSheetRows(
     raw: true,
     defval: null,
   }) as unknown[][]
+  const culturaDetectata = mapImportCulture(getCellText(rows, 0, 1))
+  const grupBiologic =
+    culturaDetectata && isValidCropCod(culturaDetectata)
+      ? getGrupBiologicForCropCod(culturaDetectata)
+      : null
 
   const planErrors: Array<{ row: number; message: string }> = []
   const headerError = validateHeader(rows)
@@ -85,7 +100,7 @@ function parseSheetRows(
       foaie_nume: sheetName,
       plan_metadata: {
         nume_sugerat: sheetName,
-        cultura_tip_detectat: mapImportCulture(getCellText(rows, 0, 1)),
+        cultura_tip_detectat: culturaDetectata,
         descriere: getCellText(rows, 1, 1) || null,
       },
       linii: [],
@@ -97,7 +112,8 @@ function parseSheetRows(
 
   for (let rowIndex = 4; rowIndex < rows.length; rowIndex += 1) {
     const rowNumber = rowIndex + 1
-    const rowValues = [0, 1, 2, 3, 4, 5].map((columnIndex) =>
+    const hasExtendedHeader = normalizeForSearch(getCellText(rows, 3, 2)) === 'cohorta trigger'
+    const rowValues = (hasExtendedHeader ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5]).map((columnIndex) =>
       getCellText(rows, rowIndex, columnIndex)
     )
 
@@ -105,7 +121,13 @@ function parseSheetRows(
       break
     }
 
-    const [ordineRaw, stadiuRaw, produsRaw, dozaMlRaw, dozaLRaw, observatiiRaw] = rowValues
+    const [ordineRaw, stadiuRaw, cohortRaw, produsRawMaybe, dozaMlRawMaybe, dozaLRawMaybe, observatiiRawMaybe] = hasExtendedHeader
+      ? rowValues
+      : [rowValues[0], rowValues[1], '', rowValues[2], rowValues[3], rowValues[4], rowValues[5]]
+    const produsRaw = produsRawMaybe ?? ''
+    const dozaMlRaw = dozaMlRawMaybe ?? ''
+    const dozaLRaw = dozaLRawMaybe ?? ''
+    const observatiiRaw = observatiiRawMaybe ?? ''
     const lineErrors: string[] = []
     const lineWarnings: string[] = []
 
@@ -119,6 +141,17 @@ function parseSheetRows(
     if (!stadiuTrigger) {
       lineErrors.push('Stadiul nu este valid. Folosește una dintre valorile din template.')
       addPlanError(planErrors, rowNumber, 'Stadiul nu este valid.')
+    } else if (grupBiologic && !isStadiuValidPentruGrup(stadiuTrigger, grupBiologic)) {
+      lineWarnings.push(
+        'Stadiul nu este tipic pentru cultura detectată în această foaie. Verifică profilul biologic înainte de import.'
+      )
+    }
+
+    const cohortTrigger = mapImportCohortTrigger(cohortRaw)
+    if (cohortRaw.trim() && !cohortTrigger) {
+      lineWarnings.push('Cohortă trigger invalidă. Valorile acceptate sunt doar "floricane" sau "primocane".')
+    } else if (cohortTrigger && grupBiologic !== 'rubus') {
+      lineWarnings.push('Cohorta este relevantă doar pentru Rubus. Verifică dacă foaia țintește o cultură Rubus mixtă.')
     }
 
     const produsInput = produsRaw.trim()
@@ -158,6 +191,7 @@ function parseSheetRows(
     parsedLines.push({
       ordine: Number.isInteger(ordine) && ordine >= 1 ? ordine : rowNumber - 4,
       stadiu_trigger: stadiuTrigger,
+      cohort_trigger: cohortTrigger,
       stadiu_input_raw: stadiuRaw,
       produs_input: produsInput,
       produs_match: produsMatch,
@@ -173,7 +207,7 @@ function parseSheetRows(
     foaie_nume: sheetName,
     plan_metadata: {
       nume_sugerat: sheetName,
-      cultura_tip_detectat: mapImportCulture(getCellText(rows, 0, 1)),
+      cultura_tip_detectat: culturaDetectata,
       descriere: getCellText(rows, 1, 1) || null,
     },
     linii: parsedLines,

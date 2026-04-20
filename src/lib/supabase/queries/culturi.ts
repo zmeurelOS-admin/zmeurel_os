@@ -162,6 +162,10 @@ export async function createCultura(input: CreateCulturaInput): Promise<Cultura>
       distanta_intre_randuri: input.distanta_intre_randuri ?? null,
       sistem_irigare: input.sistem_irigare?.trim() || null,
       data_plantarii: input.data_plantarii || null,
+      // FLUX LEGACY SOLAR — decuplat de modulul Tratamente.
+      // Scrie în culturi.stadiu și culture_stage_logs.
+      // Nu modifica fără plan explicit de migrare.
+      // Vezi AGENTS.md secțiunea "Fluxuri legacy".
       // Default stage for new cultura should reflect earliest life-cycle: 'plantare'
       stadiu: input.stadiu || 'plantare',
       interval_tratament_zile: input.interval_tratament_zile ?? 14,
@@ -202,6 +206,10 @@ export async function updateCultura(id: string, input: UpdateCulturaInput): Prom
   if (input.distanta_intre_randuri !== undefined) payload.distanta_intre_randuri = input.distanta_intre_randuri
   if (input.sistem_irigare !== undefined) payload.sistem_irigare = input.sistem_irigare?.trim() || null
   if (input.data_plantarii !== undefined) payload.data_plantarii = input.data_plantarii || null
+  // FLUX LEGACY SOLAR — decuplat de modulul Tratamente.
+  // Scrie în culturi.stadiu și culture_stage_logs.
+  // Nu modifica fără plan explicit de migrare.
+  // Vezi AGENTS.md secțiunea "Fluxuri legacy".
   if (input.stadiu !== undefined) payload.stadiu = input.stadiu
   if (input.interval_tratament_zile !== undefined) payload.interval_tratament_zile = input.interval_tratament_zile
   if (input.observatii !== undefined) payload.observatii = input.observatii?.trim() || null

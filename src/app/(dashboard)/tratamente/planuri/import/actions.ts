@@ -63,6 +63,7 @@ export async function saveImportedPlansAction(
         resolvedLines.push({
           ordine: line.ordine,
           stadiu_trigger: line.stadiu_trigger,
+          cohort_trigger: line.cohort_trigger,
           produs_id: produsId ?? null,
           produs_nume_manual: line.produs_nume_manual,
           doza_ml_per_hl: line.doza_ml_per_hl,

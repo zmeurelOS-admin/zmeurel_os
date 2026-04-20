@@ -255,7 +255,7 @@ export function HubTratamenteClient({
     <AppShell
       header={
         <PageHeader
-          title="Tratamente"
+          title="Protecție & Nutriție"
           subtitle="Hub global pentru aplicările fermei"
           summary={
             <p className="text-xs text-[var(--text-secondary)]">

@@ -30,6 +30,8 @@ export type SidebarNavItem = {
   emoji: string
   /** Dacă true, ruta e activă doar la potrivire exactă (ex. hub /admin fără sub-rute). */
   exact?: boolean
+  /** Prefixe suplimentare care marchează itemul ca activ. */
+  activePrefixes?: string[]
 }
 
 type NavItem = SidebarNavItem
@@ -50,7 +52,7 @@ const GROUPS: Group[] = [
       { href: "/parcele", label: "Parcele", emoji: "🌿" },
       { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
       { href: "/activitati-agricole", label: "Activități agricole", emoji: "🌱" },
-      { href: "/tratamente", label: "Tratamente", emoji: "🧪" },
+      { href: "/tratamente/conformitate", label: "Protecție & Nutriție", emoji: "🧪", activePrefixes: ["/tratamente"] },
       { href: "/culegatori", label: "Culegători", emoji: "👷" },
     ],
   },
@@ -305,6 +307,9 @@ function isActiveHref(
 }
 
 export function isNavItemActive(item: NavItem, pathname: string, searchString: string, hash: string) {
+  if (item.activePrefixes?.some((prefix) => pathname.startsWith(prefix))) {
+    return true
+  }
   return isActiveHref(item.href, pathname, searchString, hash, item.exact === true)
 }
 

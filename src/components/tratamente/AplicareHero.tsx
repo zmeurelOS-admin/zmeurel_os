@@ -6,6 +6,9 @@ import { ro } from 'date-fns/locale'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { AppCard } from '@/components/ui/app-card'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
+import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
+import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
 
 function capitalizeLabel(value: string | null | undefined): string | null {
   if (!value) return null
@@ -56,20 +59,30 @@ function getPhiLabel(aplicare: AplicareTratamentDetaliu): string {
   return '—'
 }
 
-function getTriggerLabel(aplicare: AplicareTratamentDetaliu): string {
+function getTriggerLabel(aplicare: AplicareTratamentDetaliu, configurareSezon: ConfigurareSezon | null): string {
   const trigger = aplicare.linie?.stadiu_trigger ?? aplicare.stadiu_la_aplicare
-  return trigger ? `la ${trigger.replaceAll('_', ' ')}` : '—'
+  if (!trigger) return '—'
+
+  const cod = normalizeStadiu(trigger)
+  return cod ? `la ${getLabelStadiuContextual(cod, configurareSezon)}` : `la ${trigger}`
+}
+
+function getCohortLabel(aplicare: AplicareTratamentDetaliu): string | null {
+  const cohorta = aplicare.cohort_la_aplicare
+  return cohorta === 'floricane' || cohorta === 'primocane' ? `Pentru ${getCohortaLabel(cohorta)}` : null
 }
 
 export interface AplicareHeroProps {
   aplicare: AplicareTratamentDetaliu
+  configurareSezon?: ConfigurareSezon | null
 }
 
-export function AplicareHero({ aplicare }: AplicareHeroProps) {
+export function AplicareHero({ aplicare, configurareSezon }: AplicareHeroProps) {
   const frac = aplicare.produs?.frac_irac?.trim()
-  const appliedMeta =
+  const cohortLabel = getCohortLabel(aplicare)
+  const appliedAt =
     aplicare.status === 'aplicata' && aplicare.data_aplicata
-      ? `Aplicată ${format(parseISO(aplicare.data_aplicata), 'd MMM yyyy, HH:mm', { locale: ro })}${aplicare.operator ? ` · ${aplicare.operator}` : ''}`
+      ? format(parseISO(aplicare.data_aplicata), 'd MMM yyyy, HH:mm', { locale: ro })
       : null
 
   return (
@@ -84,9 +97,6 @@ export function AplicareHero({ aplicare }: AplicareHeroProps) {
             {getTypeLabel(aplicare)}
             {frac ? ` · FRAC ${frac}` : ''}
           </p>
-          {appliedMeta ? (
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">{appliedMeta}</p>
-          ) : null}
         </div>
         <StatusBadge text={getStatusLabel(aplicare.status)} variant={getStatusTone(aplicare.status)} />
       </div>
@@ -102,9 +112,27 @@ export function AplicareHero({ aplicare }: AplicareHeroProps) {
         </div>
         <div className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-3">
           <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Stadiu</p>
-          <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">{getTriggerLabel(aplicare)}</p>
+          <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">
+            {getTriggerLabel(aplicare, configurareSezon ?? null)}
+          </p>
         </div>
       </div>
+
+      {cohortLabel ? (
+        <div className="mt-3 inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
+          {cohortLabel}
+        </div>
+      ) : null}
+
+      {aplicare.status === 'aplicata' && appliedAt ? (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--status-success-bg)] px-4 py-3">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Aplicată pe {appliedAt}
+            {aplicare.operator ? ` · ${aplicare.operator}` : ''}
+          </p>
+          <StatusBadge text="Aplicată" variant="success" />
+        </div>
+      ) : null}
     </AppCard>
   )
 }

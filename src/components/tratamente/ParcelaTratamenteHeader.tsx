@@ -17,7 +17,7 @@ export function ParcelaTratamenteHeader({
 }: ParcelaTratamenteHeaderProps) {
   return (
     <CompactPageHeader
-      title="Tratamente"
+      title="Protecție & Nutriție"
       subtitle={parcelaName}
       showMobileRightSlot
       rightSlot={

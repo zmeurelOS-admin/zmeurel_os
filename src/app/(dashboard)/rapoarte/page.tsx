@@ -29,7 +29,7 @@ export default async function RapoartePage() {
         .select('id,id_client,nume_client'),
       supabase
         .from('activitati_agricole')
-        .select('id,data_aplicare,parcela_id,tip_activitate,produs_utilizat,doza,timp_pauza_zile,observatii')
+        .select('id,data_aplicare,parcela_id,tip_activitate,tip_deprecat,produs_utilizat,doza,timp_pauza_zile,observatii')
         .order('data_aplicare', { ascending: false }),
     ])
 

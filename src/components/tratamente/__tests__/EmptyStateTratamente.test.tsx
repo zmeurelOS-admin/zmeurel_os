@@ -1,26 +1,25 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 import { EmptyStateTratamente } from '@/components/tratamente/EmptyStateTratamente'
 
 describe('EmptyStateTratamente', () => {
-  it('afișează exact două CTA și le leagă de callback-uri', async () => {
-    const onAssignPlan = vi.fn()
-    const onRecordStadiu = vi.fn()
+  it('afișează pașii ghidați și CTA-urile spre creare/import', () => {
+    render(
+      <EmptyStateTratamente
+        createPlanHref="/tratamente/planuri/nou?parcela_id=123"
+        importPlanHref="/tratamente/planuri/import"
+      />
+    )
 
-    render(<EmptyStateTratamente onAssignPlan={onAssignPlan} onRecordStadiu={onRecordStadiu} />)
+    expect(screen.getByText('Creează primul plan de tratament')).toBeInTheDocument()
+    expect(screen.getByText('Asignează planul la parcela curentă')).toBeInTheDocument()
+    expect(screen.getByText('Înregistrează primul stadiu fenologic')).toBeInTheDocument()
 
-    const assignButton = screen.getByRole('button', { name: 'Atribuie un plan' })
-    const recordButton = screen.getByRole('button', { name: 'Înregistrează primul stadiu' })
+    const createLink = screen.getByRole('link', { name: 'Creează primul plan' })
+    const importLink = screen.getByRole('link', { name: /Importă din Excel/i })
 
-    expect(assignButton).toBeInTheDocument()
-    expect(recordButton).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /Atribuie un plan|Înregistrează primul stadiu/ })).toHaveLength(2)
-
-    await assignButton.click()
-    await recordButton.click()
-
-    expect(onAssignPlan).toHaveBeenCalledTimes(1)
-    expect(onRecordStadiu).toHaveBeenCalledTimes(1)
+    expect(createLink).toHaveAttribute('href', '/tratamente/planuri/nou?parcela_id=123')
+    expect(importLink).toHaveAttribute('href', '/tratamente/planuri/import')
   })
 })

@@ -17,10 +17,19 @@ export function ActivitateAgricolaCard({ activitate, parcelaNume, onEdit, onDele
   const remainingDays = computeActivityRemainingDays(activitate)
   const pauseTone = getPauseVisualTone(remainingDays)
   const hasActivePause = remainingDays > 0
+  const archivedLabel = `${activitate.tip_activitate || 'Activitate'} · Arhivat`
+  const archivedBadge = activitate.tip_deprecat ? (
+    <Badge
+      title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+      className="badge-consistent border border-amber-300 bg-amber-100 text-amber-800"
+    >
+      {archivedLabel}
+    </Badge>
+  ) : null
 
   return (
     <CompactListCard
-      title={activitate.tip_activitate || 'Activitate'}
+      title={archivedBadge ?? (activitate.tip_activitate || 'Activitate')}
       borderTone={pauseTone}
       cornerBadge={
         hasActivePause ? (
@@ -30,7 +39,7 @@ export function ActivitateAgricolaCard({ activitate, parcelaNume, onEdit, onDele
         ) : null
       }
       leftRows={[
-        { label: 'Activitate', value: activitate.tip_activitate || 'Nespecificata' },
+        { label: 'Activitate', value: archivedBadge ?? (activitate.tip_activitate || 'Nespecificata'), allowWrap: true },
         { label: 'Data', value: new Date(activitate.data_aplicare).toLocaleDateString('ro-RO') },
         { label: 'Parcelă', value: parcelaNume || 'Nespecificat' },
         { label: 'Produs / doza', value: `${activitate.produs_utilizat || '-'} - ${activitate.doza || '-'}` },
@@ -59,7 +68,7 @@ export function ActivitateAgricolaCard({ activitate, parcelaNume, onEdit, onDele
         { label: 'Pauză', value: `${activitate.timp_pauza_zile || 0} zile`, rowClassName: 'hidden sm:block' },
         { label: 'Ramase', value: `${remainingDays} zile`, emphasis: 'financial', rowClassName: 'hidden sm:block' },
       ]}
-      onEdit={() => onEdit(activitate)}
+      onEdit={activitate.tip_deprecat ? undefined : () => onEdit(activitate)}
       onDelete={() => onDelete(activitate)}
     />
   )

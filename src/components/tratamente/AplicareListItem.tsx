@@ -7,10 +7,14 @@ import { ro } from 'date-fns/locale'
 import { getAplicareStatusLabel, getAplicareStatusTone } from '@/components/tratamente/aplicare-status'
 import StatusBadge from '@/components/ui/StatusBadge'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
+import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
+import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
 
 interface AplicareListItemProps {
   aplicare: AplicareTratamentDetaliu
   parcelaId: string
+  configurareSezon?: ConfigurareSezon | null
 }
 
 const TIP_ACCENT: Record<string, string> = {
@@ -47,21 +51,29 @@ function getProductName(aplicare: AplicareTratamentDetaliu): string {
   return aplicare.produs?.nume_comercial ?? aplicare.produs_nume_manual ?? 'Produs nespecificat'
 }
 
-function getTriggerLabel(aplicare: AplicareTratamentDetaliu): string | null {
+function getTriggerLabel(aplicare: AplicareTratamentDetaliu, configurareSezon: ConfigurareSezon | null): string | null {
   const trigger = aplicare.linie?.stadiu_trigger ?? aplicare.stadiu_la_aplicare
   if (!trigger) return null
-  return `la ${trigger.replaceAll('_', ' ')}`
+  const cod = normalizeStadiu(trigger)
+  return cod ? `la ${getLabelStadiuContextual(cod, configurareSezon)}` : `la ${trigger}`
+}
+
+function getCohortLabel(aplicare: AplicareTratamentDetaliu): string | null {
+  const cohorta = aplicare.cohort_la_aplicare
+  return cohorta === 'floricane' || cohorta === 'primocane' ? `Pentru ${getCohortaLabel(cohorta)}` : null
 }
 
 export function AplicareListItem({
   aplicare,
   parcelaId,
+  configurareSezon,
 }: AplicareListItemProps) {
   const href = `/parcele/${parcelaId}/tratamente/aplicare/${aplicare.id}`
   const planificata = aplicare.data_planificata ?? aplicare.created_at
   const dateLabel = format(parseISO(planificata), 'EEEE, d MMM', { locale: ro })
   const doza = formatDoza(aplicare)
-  const triggerLabel = getTriggerLabel(aplicare)
+  const triggerLabel = getTriggerLabel(aplicare, configurareSezon ?? null)
+  const cohortLabel = getCohortLabel(aplicare)
   const frac = aplicare.produs?.frac_irac?.trim() || null
 
   return (
@@ -90,11 +102,16 @@ export function AplicareListItem({
           {doza ? <p className="mt-1 text-sm text-[var(--text-secondary)]">{doza}</p> : null}
         </div>
 
-        {triggerLabel || frac ? (
+        {triggerLabel || cohortLabel || frac ? (
           <div className="mt-3 flex flex-wrap gap-2">
             {triggerLabel ? (
               <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
                 {triggerLabel}
+              </span>
+            ) : null}
+            {cohortLabel ? (
+              <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
+                {cohortLabel}
               </span>
             ) : null}
             {frac ? (

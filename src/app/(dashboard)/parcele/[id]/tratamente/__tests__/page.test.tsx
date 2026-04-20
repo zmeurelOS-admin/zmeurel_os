@@ -3,10 +3,13 @@ import { render, screen } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   getParcelaTratamenteContext: vi.fn(),
+  getParcelaById: vi.fn(),
   getPlanActivPentruParcela: vi.fn(),
   listStadiiPentruParcela: vi.fn(),
   listAplicariParcela: vi.fn(),
   listPlanuriTratament: vi.fn(),
+  getGrupBiologicParcela: vi.fn(),
+  getOrCreateConfigurareSezon: vi.fn(),
   genereazaAplicariPentruParcela: vi.fn(),
 }))
 
@@ -16,6 +19,15 @@ vi.mock('@/lib/supabase/queries/tratamente', () => ({
   listStadiiPentruParcela: (...args: unknown[]) => mocks.listStadiiPentruParcela(...args),
   listAplicariParcela: (...args: unknown[]) => mocks.listAplicariParcela(...args),
   listPlanuriTratament: (...args: unknown[]) => mocks.listPlanuriTratament(...args),
+  getGrupBiologicParcela: (...args: unknown[]) => mocks.getGrupBiologicParcela(...args),
+}))
+
+vi.mock('@/lib/supabase/queries/parcele', () => ({
+  getParcelaById: (...args: unknown[]) => mocks.getParcelaById(...args),
+}))
+
+vi.mock('@/lib/supabase/queries/configurari-sezon', () => ({
+  getOrCreateConfigurareSezon: (...args: unknown[]) => mocks.getOrCreateConfigurareSezon(...args),
 }))
 
 vi.mock('@/lib/tratamente/generator/generator', () => ({
@@ -42,8 +54,21 @@ const parcela = {
   cultura: 'zmeur',
   tip_fruct: 'zmeur',
   soi: 'Delniwa',
+  soi_plantat: 'Delniwa',
   tip_unitate: 'camp',
   suprafata_m2: 1000,
+  tenant_id: 't1',
+  an_plantare: 2024,
+  status: 'Activ',
+  observatii: null,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  created_by: null,
+  updated_by: null,
+  rol: 'comercial',
+  apare_in_dashboard: true,
+  contribuie_la_productie: true,
+  status_operational: 'activ',
 }
 
 const plan = {
@@ -89,7 +114,7 @@ const buildAplicare = (id: string, tip: string) => ({
   stoc_mutatie_id: null,
   status: 'planificata',
   meteo_snapshot: null,
-  stadiu_la_aplicare: 'la înflorit',
+  stadiu_la_aplicare: 'inflorit',
   observatii: null,
   operator: null,
   created_at: '2026-04-18T08:00:00Z',
@@ -137,6 +162,18 @@ describe('parcela tratamente page', () => {
     mocks.listStadiiPentruParcela.mockResolvedValue([])
     mocks.listAplicariParcela.mockResolvedValue([])
     mocks.listPlanuriTratament.mockResolvedValue([])
+    mocks.getGrupBiologicParcela.mockResolvedValue('rubus')
+    mocks.getParcelaById.mockResolvedValue(parcela)
+    mocks.getOrCreateConfigurareSezon.mockResolvedValue({
+      id: 'cfg-1',
+      tenant_id: 't1',
+      parcela_id: parcela.id,
+      an: 2026,
+      sistem_conducere: 'primocane_only',
+      tip_ciclu_soi: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    })
     mocks.genereazaAplicariPentruParcela.mockResolvedValue({ propuneri: [], createdCount: 0, skippedCount: 0 })
   })
 
@@ -144,8 +181,17 @@ describe('parcela tratamente page', () => {
     const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
     render(element)
 
-    expect(screen.getAllByText('Tratamente').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Protecție & Nutriție').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Începe modulul de tratamente pentru această parcelă')).toBeInTheDocument()
+    expect(screen.getByText('Creează primul plan de tratament')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Creează primul plan' })).toHaveAttribute(
+      'href',
+      `/tratamente/planuri/nou?parcela_id=${parcela.id}`
+    )
+    expect(screen.getByRole('link', { name: /Importă din Excel/i })).toHaveAttribute(
+      'href',
+      '/tratamente/planuri/import'
+    )
     expect(screen.getByText('Nu ai înregistrat niciun stadiu anul acesta.')).toBeInTheDocument()
     expect(screen.getByText('Nicio parcelă asignată pentru 2026')).toBeInTheDocument()
     expect(screen.getByText('Nu există încă aplicări planificate pentru această parcelă în anul curent.')).toBeInTheDocument()
@@ -194,5 +240,29 @@ describe('parcela tratamente page', () => {
     expect(screen.getByText('Produs a3')).toBeInTheDocument()
     expect(screen.getByText('Plan activ pentru anul 2026')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Generează aplicări' })).toBeInTheDocument()
+  })
+
+  it('afișează bannerul de configurare când rubus nu are sistem de conducere definit', async () => {
+    mocks.getParcelaById.mockResolvedValue({
+      ...parcela,
+      soi: 'Soi necunoscut',
+      soi_plantat: 'Soi necunoscut',
+    })
+    mocks.getOrCreateConfigurareSezon.mockResolvedValue({
+      id: 'cfg-2',
+      tenant_id: 't1',
+      parcela_id: parcela.id,
+      an: 2026,
+      sistem_conducere: null,
+      tip_ciclu_soi: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    })
+
+    const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
+    render(element)
+
+    expect(screen.getByText(/Configurează sistemul de conducere pentru 2026/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Configurează' })).toBeInTheDocument()
   })
 })

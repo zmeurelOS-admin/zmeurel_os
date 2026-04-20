@@ -47,6 +47,7 @@ export function BottomTabBar() {
     router.prefetch('/recoltari')
     router.prefetch('/comenzi')
     router.prefetch('/activitati-agricole')
+    router.prefetch('/tratamente/conformitate')
     router.prefetch('/asociatie')
     router.prefetch('/asociatie/produse')
     router.prefetch('/asociatie/comenzi')

@@ -182,7 +182,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('inflorire')
+    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('inflorit')
   })
 
   it('mapează stadiul scris cu diacritice', async () => {
@@ -199,7 +199,83 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('inflorire')
+    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('inflorit')
+  })
+
+  it('acceptă direct codul canonic în fișierul nou', async () => {
+    const buffer = buildTestWorkbook([
+      {
+        name: 'Plan canonic',
+        cultura: 'Zmeur',
+        rows: [[1, 'scuturare_petale', 'Signum', 50, '', '']],
+      },
+    ])
+
+    const result = await parseImportedPlansWorkbook(
+      bufferToArrayBuffer(buffer),
+      TEST_PRODUSE
+    )
+
+    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('scuturare_petale')
+  })
+
+  it('acceptă aliasurile legacy și le normalizează la codul canonic', async () => {
+    const buffer = buildTestWorkbook([
+      {
+        name: 'Plan legacy',
+        cultura: 'Zmeur',
+        rows: [[1, 'Prefloral', 'Signum', 50, '', '']],
+      },
+    ])
+
+    const result = await parseImportedPlansWorkbook(
+      bufferToArrayBuffer(buffer),
+      TEST_PRODUSE
+    )
+
+    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('buton_roz')
+  })
+
+  it('acceptă stadiile noi pentru culturi compatibile, inclusiv roșii cu răsad', async () => {
+    const buffer = buildTestWorkbook([
+      {
+        name: 'Rosii solar',
+        cultura: 'Rosii',
+        rows: [[1, 'Răsad', 'Signum', 50, '', '']],
+      },
+    ])
+
+    const result = await parseImportedPlansWorkbook(
+      bufferToArrayBuffer(buffer),
+      TEST_PRODUSE
+    )
+
+    expect(result.planuri[0]?.plan_metadata.cultura_tip_detectat).toBe('rosie')
+    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('rasad')
+    expect(result.planuri[0]?.linii[0]?.warnings).not.toContain(
+      'Stadiul nu este tipic pentru cultura detectată în această foaie. Verifică profilul biologic înainte de import.'
+    )
+  })
+
+  it('avertizează, dar nu blochează, când stadiul nu este tipic pentru cultura detectată', async () => {
+    const buffer = buildTestWorkbook([
+      {
+        name: 'Zmeur cu rasad',
+        cultura: 'Zmeura',
+        rows: [[1, 'rasad', 'Signum', 50, '', '']],
+      },
+    ])
+
+    const result = await parseImportedPlansWorkbook(
+      bufferToArrayBuffer(buffer),
+      TEST_PRODUSE
+    )
+
+    expect(result.planuri[0]?.linii[0]?.errors).toHaveLength(0)
+    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('rasad')
+    expect(result.planuri[0]?.linii[0]?.warnings).toContain(
+      'Stadiul nu este tipic pentru cultura detectată în această foaie. Verifică profilul biologic înainte de import.'
+    )
   })
 
   it('semnalează eroare când ambele doze sunt completate', async () => {
@@ -302,7 +378,7 @@ describe('parseImportedPlansWorkbook', () => {
     const buffer = buildTestWorkbook([
       {
         name: 'Cultura invalida',
-        cultura: 'Prun',
+        cultura: 'Rubarba',
         rows: [[1, 'Prefloral', 'Signum', 50, '', '']],
       },
     ])

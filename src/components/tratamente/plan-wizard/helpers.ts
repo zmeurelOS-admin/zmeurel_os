@@ -1,6 +1,17 @@
+import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { calculeazaCupruCumulatAnual } from '@/lib/tratamente/cupru-cumulat'
 import { detectConsecutiveFrac, extractFracHistory } from '@/lib/tratamente/rotatie-frac'
-import { STADII_ORDINE, getStadiuOrdine } from '@/lib/tratamente/stadiu-ordering'
+import {
+  getGrupBiologicForCropCod,
+  getLabelRo,
+  getOrdine,
+  getOrdineInGrup,
+  listAllStadiiCanonice,
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
 
 import type {
@@ -9,18 +20,57 @@ import type {
   PlanWizardWarning,
 } from '@/components/tratamente/plan-wizard/types'
 
-export const STADIU_OPTIONS = Object.entries(STADII_ORDINE)
-  .sort((first, second) => first[1].ordine - second[1].ordine)
-  .map(([value, meta], index) => ({
+const STADIU_EMOJI: Partial<Record<StadiuCod, string>> = {
+  rasad: '🌱',
+  semanat: '🌾',
+  repaus_vegetativ: '🌙',
+  transplant: '🪴',
+  umflare_muguri: '🌿',
+  crestere_vegetativa: '🍃',
+  formare_rozeta: '🥬',
+  buton_verde: '🫛',
+  etaj_floral: '🌸',
+  buton_roz: '🌺',
+  inflorit: '🌼',
+  scuturare_petale: '🍃',
+  legare_fruct: '🫐',
+  fruct_verde: '🍏',
+  formare_capatana: '🥗',
+  bulbificare: '🧅',
+  umplere_pastaie: '🫛',
+  ingrosare_radacina: '🥕',
+  parga: '🍓',
+  maturitate: '🍇',
+  bolting: '🌾',
+  post_recoltare: '🍂',
+}
+
+export function getGrupBiologicDinCultura(culturaTip: string | null | undefined): GrupBiologic | null {
+  return getGrupBiologicForCropCod(normalizeCropCod(culturaTip))
+}
+
+export function getStadiuOptions(grupBiologic?: GrupBiologic | null) {
+  return listStadiiPentruGrup(grupBiologic).map((value) => ({
     value,
-    label: meta.label,
-    emoji: ['🌱', '🌿', '🫛', '🌸', '🌼', '🍃', '🫐', '🍓', '🍇', '🍂'][index] ?? '🌿',
+    label: getLabelRo(value),
+    emoji: STADIU_EMOJI[value] ?? '🌿',
   }))
+}
 
 export function getStadiuMeta(stadiu: string) {
-  return STADIU_OPTIONS.find((option) => option.value === stadiu) ?? {
-    value: stadiu,
-    label: STADII_ORDINE[stadiu]?.label ?? stadiu,
+  const cod = normalizeStadiu(stadiu)
+
+  if (cod) {
+    return {
+      value: cod,
+      label: getLabelRo(cod),
+      emoji: STADIU_EMOJI[cod] ?? '🌿',
+    }
+  }
+
+  return {
+    value: stadiu as StadiuCod,
+    label: stadiu,
     emoji: '🌿',
   }
 }
@@ -80,7 +130,7 @@ export function filterProduseForCulture(
   showAll: boolean,
   query: string
 ) {
-  const culture = normalizeText(culturaTip)
+  const culture = normalizeCropCod(culturaTip) ?? normalizeText(culturaTip)
   const search = normalizeText(query)
 
   return produse.filter((produs) => {
@@ -91,7 +141,7 @@ export function filterProduseForCulture(
       !culture ||
       !Array.isArray(produs.omologat_culturi) ||
       produs.omologat_culturi.length === 0 ||
-      produs.omologat_culturi.some((item) => normalizeText(item) === culture)
+      produs.omologat_culturi.some((item) => (normalizeCropCod(item) ?? normalizeText(item)) === culture)
 
     if (!matchesCulture) return false
 
@@ -103,9 +153,16 @@ export function filterProduseForCulture(
   })
 }
 
-export function sortLiniiForReview(linii: PlanWizardLinieDraft[]) {
+export function sortLiniiForReview(
+  linii: PlanWizardLinieDraft[],
+  grupBiologic?: GrupBiologic | null
+) {
   return [...linii].sort((first, second) => {
-    const stageDiff = getStadiuOrdine(first.stadiu_trigger) - getStadiuOrdine(second.stadiu_trigger)
+    const firstCod = normalizeStadiu(first.stadiu_trigger)
+    const secondCod = normalizeStadiu(second.stadiu_trigger)
+
+    const stageDiff =
+      resolveStadiuSortIndex(firstCod, grupBiologic) - resolveStadiuSortIndex(secondCod, grupBiologic)
     if (stageDiff !== 0) return stageDiff
     return first.ordine - second.ordine
   })
@@ -114,9 +171,10 @@ export function sortLiniiForReview(linii: PlanWizardLinieDraft[]) {
 export function buildWizardWarnings(
   linii: PlanWizardLinieDraft[],
   produse: ProdusFitosanitar[],
-  an: number
+  an: number,
+  grupBiologic?: GrupBiologic | null
 ): PlanWizardWarning[] {
-  const sorted = sortLiniiForReview(linii)
+  const sorted = sortLiniiForReview(linii, grupBiologic)
 
   const fracTimeline = extractFracHistory(
     sorted.map((linie, index) => ({
@@ -164,6 +222,18 @@ export function buildWizardWarnings(
   }
 
   return warnings
+}
+
+function resolveStadiuSortIndex(cod: StadiuCod | null, grupBiologic?: GrupBiologic | null): number {
+  if (!cod) return Number.MAX_SAFE_INTEGER
+  if (grupBiologic) {
+    const indexInGroup = getOrdineInGrup(cod, grupBiologic)
+    if (indexInGroup >= 0) return indexInGroup
+  }
+
+  const globalIndex = listAllStadiiCanonice().indexOf(cod)
+  if (globalIndex >= 0) return globalIndex + 100
+  return getOrdine(cod) + 100
 }
 
 function normalizeText(value: string | null | undefined) {

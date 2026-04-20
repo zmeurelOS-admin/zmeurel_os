@@ -4,7 +4,10 @@ import { notFound } from 'next/navigation'
 import { AppShell } from '@/components/app/AppShell'
 import { ParcelaTratamenteHeader } from '@/components/tratamente/ParcelaTratamenteHeader'
 import { ParcelaTratamenteDashboardClient } from '@/components/tratamente/ParcelaTratamenteDashboardClient'
+import type { StageState } from '@/components/tratamente/StadiuCurentCard'
+import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import {
+  getGrupBiologicParcela,
   getParcelaTratamenteContext,
   getPlanActivPentruParcela,
   listAplicariParcela,
@@ -16,15 +19,25 @@ import {
   type PlanTratament,
   type StadiuFenologicParcela,
 } from '@/lib/supabase/queries/tratamente'
+import { getOrCreateConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
+import { getParcelaById } from '@/lib/supabase/queries/parcele'
+import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import { isRubusMixt } from '@/lib/tratamente/configurare-sezon'
 import { genereazaAplicariPentruParcela } from '@/lib/tratamente/generator/generator'
-import { STADII_ORDINE, getStadiulUrmator } from '@/lib/tratamente/stadiu-ordering'
+import {
+  getOrdine,
+  getOrdineInGrup,
+  getStadiuUrmatorInGrup,
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+} from '@/lib/tratamente/stadii-canonic'
+import { getStadiulUrmator } from '@/lib/tratamente/stadiu-ordering'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 
 type PageProps = {
   params: Promise<{ id: string }>
 }
-
-const CURRENT_YEAR = 2026
-const STADII_SORTATE = Object.entries(STADII_ORDINE).sort((a, b) => a[1].ordine - b[1].ordine)
 
 function normalizeText(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? ''
@@ -32,7 +45,7 @@ function normalizeText(value: string | null | undefined): string {
 
 function getParcelaCultureHint(parcela: ParcelaTratamenteContext): string | null {
   const values = [parcela.cultura, parcela.tip_fruct]
-    .map((value) => normalizeText(value))
+    .map((value) => normalizeCropCod(value) ?? normalizeText(value))
     .filter(Boolean)
 
   return values[0] ?? null
@@ -48,13 +61,20 @@ function filterPlanuriDisponibile(planuri: PlanTratament[], parcela: ParcelaTrat
   return matched.length > 0 ? matched : planuri
 }
 
-function getStadiuCurent(stadii: StadiuFenologicParcela[]): StadiuFenologicParcela | null {
-  if (stadii.length === 0) return null
+function getStadiuCurent(
+  stadii: StadiuFenologicParcela[],
+  grupBiologic: GrupBiologic | null,
+  cohort?: Cohorta
+): StadiuFenologicParcela | null {
+  const stadiiFiltrate = cohort ? stadii.filter((stadiu) => stadiu.cohort === cohort) : stadii
+  if (stadiiFiltrate.length === 0) return null
 
-  return [...stadii].sort((a, b) => {
-    const ordineDiff =
-      (STADII_ORDINE[b.stadiu]?.ordine ?? Number.MIN_SAFE_INTEGER) -
-      (STADII_ORDINE[a.stadiu]?.ordine ?? Number.MIN_SAFE_INTEGER)
+  return [...stadiiFiltrate].sort((a, b) => {
+    const codA = normalizeStadiu(a.stadiu)
+    const codB = normalizeStadiu(b.stadiu)
+    const ordineA = codA ? resolveStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
+    const ordineB = codB ? resolveStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
+    const ordineDiff = ordineB - ordineA
     if (ordineDiff !== 0) return ordineDiff
 
     const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
@@ -64,13 +84,48 @@ function getStadiuCurent(stadii: StadiuFenologicParcela[]): StadiuFenologicParce
   })[0] ?? null
 }
 
-function getStadiuProgress(stadiu: string | null): number {
+function resolveStadiuOrder(cod: ReturnType<typeof normalizeStadiu>, grupBiologic: GrupBiologic | null): number {
+  if (!cod) return Number.MIN_SAFE_INTEGER
+  if (grupBiologic) {
+    const inGroup = getOrdineInGrup(cod, grupBiologic)
+    if (inGroup >= 0) return inGroup
+  }
+  return getOrdine(cod) + 100
+}
+
+function getStadiuProgress(stadiu: string | null, grupBiologic: GrupBiologic | null): number {
   if (!stadiu) return 0
 
-  const index = STADII_SORTATE.findIndex(([key]) => key === stadiu)
+  const cod = normalizeStadiu(stadiu)
+  if (!cod) return 0
+
+  const stadiiSortate = listStadiiPentruGrup(grupBiologic)
+  const index = stadiiSortate.findIndex((value) => value === cod)
   if (index === -1) return 0
-  if (STADII_SORTATE.length === 1) return 100
-  return Math.round((index / (STADII_SORTATE.length - 1)) * 100)
+  if (stadiiSortate.length === 1) return 100
+  return Math.round((index / (stadiiSortate.length - 1)) * 100)
+}
+
+function buildStageState(
+  stadii: StadiuFenologicParcela[],
+  grupBiologic: GrupBiologic | null,
+  cohort: Cohorta | null
+): StageState {
+  const stadiuCurent = getStadiuCurent(stadii, grupBiologic, cohort ?? undefined)
+  const stadiuCurentCod = stadiuCurent ? normalizeStadiu(stadiuCurent.stadiu) : null
+  const stadiuUrmator =
+    stadiuCurentCod && grupBiologic
+      ? getStadiuUrmatorInGrup(stadiuCurentCod, grupBiologic)
+      : stadiuCurent
+        ? getStadiulUrmator(stadiuCurent.stadiu)
+        : null
+
+  return {
+    cohort,
+    stadiuCurent,
+    stadiuProgress: getStadiuProgress(stadiuCurent?.stadiu ?? null, grupBiologic),
+    stadiuUrmator,
+  }
 }
 
 function sortAplicariAsc(aplicari: AplicareTratamentDetaliu[]): AplicareTratamentDetaliu[] {
@@ -91,32 +146,47 @@ function getPlanEditHref(planActiv: PlanActivParcela | null): string | null {
 
 export default async function ParcelaTratamentePage({ params }: PageProps) {
   const { id: parcelaId } = await params
-  const an = CURRENT_YEAR
+  const an = getCurrentSezon()
   const from = startOfYear(new Date(Date.UTC(an, 0, 1)))
   const to = endOfYear(new Date(Date.UTC(an, 0, 1)))
 
-  const [parcela, planActiv, stadii, aplicari, toatePlanurile] = await Promise.all([
+  const [parcela, parcelaSezon, planActiv, stadii, aplicari, toatePlanurile, grupBiologic] = await Promise.all([
     getParcelaTratamenteContext(parcelaId),
+    getParcelaById(parcelaId),
     getPlanActivPentruParcela(parcelaId, an),
     listStadiiPentruParcela(parcelaId, an),
     listAplicariParcela(parcelaId, { from, to }),
     listPlanuriTratament({ activ: true }),
+    getGrupBiologicParcela(parcelaId),
   ])
 
   if (!parcela) {
     notFound()
   }
 
+  const configurareSezon = parcelaSezon ? await getOrCreateConfigurareSezon(parcelaSezon, an) : null
+  const rubusMixt = isRubusMixt(configurareSezon)
   const planuriDisponibile = filterPlanuriDisponibile(toatePlanurile, parcela)
-  const stadiuCurent = getStadiuCurent(stadii)
-  const stadiuUrmator = stadiuCurent ? getStadiulUrmator(stadiuCurent.stadiu) : null
-  const stadiuProgress = getStadiuProgress(stadiuCurent?.stadiu ?? null)
+  const singleStageState = rubusMixt ? null : buildStageState(stadii, grupBiologic, null)
+  const dualStageState = rubusMixt
+    ? {
+        floricane: buildStageState(stadii, grupBiologic, 'floricane'),
+        primocane: buildStageState(stadii, grupBiologic, 'primocane'),
+      }
+    : null
 
   const aplicariSortate = sortAplicariAsc(aplicari)
   const urmatoareleAplicari = aplicariSortate.slice(0, 10)
   const aplicariCount = aplicariSortate.length
   const isGlobalEmpty = !planActiv && stadii.length === 0 && aplicariSortate.length === 0
-  const canGenerate = Boolean(planActiv?.plan?.id && stadiuCurent)
+  const canGenerate = Boolean(
+    planActiv?.plan?.id &&
+      (
+        singleStageState?.stadiuCurent ||
+        dualStageState?.floricane.stadiuCurent ||
+        dualStageState?.primocane.stadiuCurent
+      )
+  )
 
   let generationPreview: { creatableCount: number; skippedCount: number } | null = null
   if (canGenerate) {
@@ -153,18 +223,21 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
         an={an}
         aplicariCount={aplicariCount}
         createPlanHref={`/tratamente/planuri/nou?parcela_id=${parcelaId}`}
+        importPlanHref="/tratamente/planuri/import"
+        configurareSezon={configurareSezon}
         detailsHref={getPlanDetailsHref(planActiv)}
         editPlanHref={getPlanEditHref(planActiv)}
         generationPreview={generationPreview}
+        grupBiologic={grupBiologic}
         isGlobalEmpty={isGlobalEmpty}
         parcela={parcela}
         parcelaId={parcelaId}
         planActiv={planActiv}
         planuriDisponibile={planuriDisponibile}
         stadii={stadii}
-        stadiuCurent={stadiuCurent}
-        stadiuProgress={stadiuProgress}
-        stadiuUrmator={stadiuUrmator}
+        isRubusMixt={rubusMixt}
+        singleStageState={singleStageState}
+        dualStageState={dualStageState}
         urmatoareleAplicari={urmatoareleAplicari}
       />
     </AppShell>

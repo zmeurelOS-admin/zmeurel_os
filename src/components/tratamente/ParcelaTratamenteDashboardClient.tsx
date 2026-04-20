@@ -13,15 +13,18 @@ import {
 import { EmptyStateTratamente } from '@/components/tratamente/EmptyStateTratamente'
 import { AplicareListItem } from '@/components/tratamente/AplicareListItem'
 import { AssignPlanSheet } from '@/components/tratamente/AssignPlanSheet'
+import { ConfigurareSezonBanner } from '@/components/tratamente/ConfigurareSezonBanner'
+import { ConfigurareSezonDialog } from '@/components/tratamente/ConfigurareSezonDialog'
 import { GenereazaAplicariDialog } from '@/components/tratamente/GenereazaAplicariDialog'
 import {
   RecordStadiuSheet,
   type RecordStadiuFormValues,
 } from '@/components/tratamente/RecordStadiuSheet'
 import { PlanActivCard } from '@/components/tratamente/PlanActivCard'
-import { StadiuCurentCard } from '@/components/tratamente/StadiuCurentCard'
+import { StadiuCurentCard, type StageState } from '@/components/tratamente/StadiuCurentCard'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
+import { upsertConfigurareSezonAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
 import type {
   AplicareTratamentDetaliu,
   ParcelaTratamenteContext,
@@ -29,24 +32,33 @@ import type {
   PlanTratament,
   StadiuFenologicParcela,
 } from '@/lib/supabase/queries/tratamente'
+import type { Cohorta, ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import {
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+} from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 
 interface ParcelaTratamenteDashboardClientProps {
   an: number
   aplicariCount: number
   createPlanHref: string
+  importPlanHref: string
   detailsHref: string | null
   editPlanHref: string | null
   generationPreview: { creatableCount: number; skippedCount: number } | null
+  configurareSezon: ConfigurareSezon | null
+  grupBiologic?: GrupBiologic | null
   isGlobalEmpty: boolean
   parcela: ParcelaTratamenteContext
   parcelaId: string
   planActiv: PlanActivParcela | null
   planuriDisponibile: PlanTratament[]
   stadii: StadiuFenologicParcela[]
-  stadiuCurent: StadiuFenologicParcela | null
-  stadiuProgress: number
-  stadiuUrmator: string | null
+  isRubusMixt: boolean
+  singleStageState: StageState | null
+  dualStageState: { floricane: StageState; primocane: StageState } | null
   urmatoareleAplicari: AplicareTratamentDetaliu[]
 }
 
@@ -54,29 +66,44 @@ export function ParcelaTratamenteDashboardClient({
   an,
   aplicariCount,
   createPlanHref,
+  importPlanHref,
   detailsHref,
   editPlanHref,
   generationPreview,
+  configurareSezon,
+  grupBiologic,
   isGlobalEmpty,
   parcelaId,
   planActiv,
   planuriDisponibile,
-  stadiuCurent,
-  stadiuProgress,
-  stadiuUrmator,
+  isRubusMixt,
+  singleStageState,
+  dualStageState,
   urmatoareleAplicari,
 }: ParcelaTratamenteDashboardClientProps) {
   const router = useRouter()
   const [recordOpen, setRecordOpen] = useState(false)
+  const [recordCohort, setRecordCohort] = useState<Cohorta | undefined>(undefined)
   const [assignOpen, setAssignOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [seasonOpen, setSeasonOpen] = useState(false)
   const [isRecording, startRecordTransition] = useTransition()
   const [isAssigning, startAssignTransition] = useTransition()
   const [isGenerating, startGenerateTransition] = useTransition()
+  const [isConfiguring, startConfiguringTransition] = useTransition()
+  const firstStadiu = listStadiiPentruGrup(grupBiologic)[0] ?? 'repaus_vegetativ'
+  const primarySuggestedSource =
+    singleStageState?.stadiuUrmator ??
+    singleStageState?.stadiuCurent?.stadiu ??
+    dualStageState?.floricane.stadiuUrmator ??
+    dualStageState?.floricane.stadiuCurent?.stadiu ??
+    dualStageState?.primocane.stadiuUrmator ??
+    dualStageState?.primocane.stadiuCurent?.stadiu ??
+    ''
 
   const suggestedStadiu = useMemo(() => {
-    return stadiuUrmator ?? stadiuCurent?.stadiu ?? 'repaus'
-  }, [stadiuCurent?.stadiu, stadiuUrmator])
+    return normalizeStadiu(primarySuggestedSource) ?? firstStadiu
+  }, [firstStadiu, primarySuggestedSource])
 
   const handleRecordStadiu = async (values: RecordStadiuFormValues) => {
     startRecordTransition(async () => {
@@ -84,6 +111,9 @@ export function ParcelaTratamenteDashboardClient({
       formData.set('parcelaId', parcelaId)
       formData.set('an', String(an))
       formData.set('stadiu', values.stadiu)
+      if (values.cohort) {
+        formData.set('cohort', values.cohort)
+      }
       formData.set('data_observata', values.data_observata)
       formData.set('sursa', values.sursa)
       formData.set('observatii', values.observatii ?? '')
@@ -133,21 +163,59 @@ export function ParcelaTratamenteDashboardClient({
     })
   }
 
+  const handleSaveConfigurareSezon = async (values: {
+    sistem_conducere: string | null
+    tip_ciclu_soi: string | null
+  }) => {
+    startConfiguringTransition(async () => {
+      const formData = new FormData()
+      formData.set('parcelaId', parcelaId)
+      formData.set('an', String(an))
+      if (values.sistem_conducere) {
+        formData.set('sistem_conducere', values.sistem_conducere)
+      }
+      if (values.tip_ciclu_soi) {
+        formData.set('tip_ciclu_soi', values.tip_ciclu_soi)
+      }
+
+      const result = await upsertConfigurareSezonAction(formData)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+
+      toast.success('Configurarea sezonieră a fost salvată.')
+      setSeasonOpen(false)
+      router.refresh()
+    })
+  }
+
   return (
     <>
       <div className="mx-auto w-full max-w-5xl space-y-4 py-3 md:py-4">
         {isGlobalEmpty ? (
           <EmptyStateTratamente
-            onAssignPlan={() => setAssignOpen(true)}
-            onRecordStadiu={() => setRecordOpen(true)}
+            createPlanHref={createPlanHref}
+            importPlanHref={importPlanHref}
           />
         ) : null}
 
+        <ConfigurareSezonBanner
+          an={an}
+          configurareSezon={configurareSezon}
+          grupBiologic={grupBiologic ?? null}
+          onConfigure={() => setSeasonOpen(true)}
+        />
+
         <StadiuCurentCard
-          stadiuCurent={stadiuCurent}
-          stadiuProgress={stadiuProgress}
-          stadiuUrmator={stadiuUrmator}
-          onRecord={() => setRecordOpen(true)}
+          grupBiologic={grupBiologic}
+          configurareSezon={configurareSezon}
+          singleStageState={singleStageState}
+          dualStageState={dualStageState}
+          onRecord={(cohort) => {
+            setRecordCohort(cohort)
+            setRecordOpen(true)
+          }}
         />
 
         <PlanActivCard
@@ -178,7 +246,12 @@ export function ParcelaTratamenteDashboardClient({
             <>
               <div className="space-y-3">
                 {urmatoareleAplicari.map((aplicare) => (
-                  <AplicareListItem key={aplicare.id} aplicare={aplicare} parcelaId={parcelaId} />
+                  <AplicareListItem
+                    key={aplicare.id}
+                    aplicare={aplicare}
+                    configurareSezon={configurareSezon}
+                    parcelaId={parcelaId}
+                  />
                 ))}
               </div>
               <div className="pt-1">
@@ -194,8 +267,17 @@ export function ParcelaTratamenteDashboardClient({
       {recordOpen ? (
         <RecordStadiuSheet
           an={an}
+          cohortPreselectat={recordCohort}
+          configurareSezon={configurareSezon}
+          grupBiologic={grupBiologic}
+          isRubusMixt={isRubusMixt}
           open={recordOpen}
-          onOpenChange={setRecordOpen}
+          onOpenChange={(nextOpen) => {
+            setRecordOpen(nextOpen)
+            if (!nextOpen) {
+              setRecordCohort(undefined)
+            }
+          }}
           onSubmit={handleRecordStadiu}
           pending={isRecording}
           suggestedStadiu={suggestedStadiu}
@@ -223,7 +305,20 @@ export function ParcelaTratamenteDashboardClient({
         skippedCount={generationPreview?.skippedCount ?? 0}
       />
 
-      {planActiv?.plan && stadiuCurent ? (
+      <ConfigurareSezonDialog
+        an={an}
+        configurareSezon={configurareSezon}
+        grupBiologic={grupBiologic ?? null}
+        open={seasonOpen}
+        onOpenChange={setSeasonOpen}
+        onSubmit={handleSaveConfigurareSezon}
+        pending={isConfiguring}
+      />
+
+      {planActiv?.plan &&
+      (singleStageState?.stadiuCurent ||
+        dualStageState?.floricane.stadiuCurent ||
+        dualStageState?.primocane.stadiuCurent) ? (
         <Button
           type="button"
           size="icon-lg"

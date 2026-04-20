@@ -1,19 +1,13 @@
 // src/lib/supabase/queries/activitati-agricole.ts
 import { getSupabase } from '../client'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
+import { ACTIVITATI_PER_TIP } from '@/lib/activitati/activity-options'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 
-export const TIPURI_ACTIVITATI = [
-  'Tratament Fungicid',
-  'Tratament Insecticid',
-  'Tratament Erbicid',
-  'Fertilizare Organica',
-  'Fertilizare Chimica',
-  'Fertilizare Foliara',
-  'Irigare',
-  'Tundere/Curatare',
-  'Altele',
-] as const
+export { TIPURI_ACTIVITATE_DEPRECATE } from '@/lib/activitati/activity-options'
+
+// TODO: păstrat temporar pentru compatibilitate cu eventuale importuri legacy.
+export const TIPURI_ACTIVITATI = Array.from(new Set(Object.values(ACTIVITATI_PER_TIP).flat()))
 
 export interface ActivitateAgricola {
   id: string
@@ -29,6 +23,7 @@ export interface ActivitateAgricola {
   observatii: string | null
   sync_status: string | null
   conflict_flag: boolean | null
+  tip_deprecat: boolean
   created_by: string | null
   updated_by: string | null
   created_at: string
@@ -86,7 +81,7 @@ export async function getActivitatiAgricole(): Promise<ActivitateAgricola[]> {
 
   const { data, error } = await supabase
     .from('activitati_agricole')
-    .select('id,id_activitate,data_aplicare,parcela_id,tip_activitate,produs_utilizat,doza,timp_pauza_zile,operator,observatii,created_at,updated_at,tenant_id')
+    .select('id,id_activitate,data_aplicare,parcela_id,tip_activitate,tip_deprecat,produs_utilizat,doza,timp_pauza_zile,operator,observatii,created_at,updated_at,tenant_id')
     .order('data_aplicare', { ascending: false })
     .order('created_at', { ascending: false })
 

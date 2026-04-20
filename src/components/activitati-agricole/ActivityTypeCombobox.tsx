@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Search } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Search } from 'lucide-react'
 
 import { Label } from '@/components/ui/label'
+import { isTipActivitateDeprecata } from '@/lib/activitati/activity-options'
 import type { ActivityOption } from '@/lib/activitati/activity-options'
 
 function normalizeText(value: string): string {
@@ -37,6 +38,7 @@ export function ActivityTypeCombobox({
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [deprecatedMessage, setDeprecatedMessage] = useState<string | null>(null)
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? null,
@@ -73,6 +75,12 @@ export function ActivityTypeCombobox({
   }, [open])
 
   useEffect(() => {
+    if (!open) {
+      setDeprecatedMessage(null)
+    }
+  }, [open])
+
+  useEffect(() => {
     if (!open || !showSearch) return
     const frame = window.requestAnimationFrame(() => {
       searchInputRef.current?.focus()
@@ -85,6 +93,16 @@ export function ActivityTypeCombobox({
     onChange(nextValue)
     setOpen(false)
     setQuery('')
+    setDeprecatedMessage(null)
+  }
+
+  const handleCustomValueSelect = (inputValue: string) => {
+    if (isTipActivitateDeprecata(inputValue)) {
+      setDeprecatedMessage('Acest tip se înregistrează în modulul Protecție & Nutriție.')
+      return
+    }
+
+    handleSelect(inputValue)
   }
 
   return (
@@ -120,17 +138,29 @@ export function ActivityTypeCombobox({
                   <input
                     ref={searchInputRef}
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      const nextValue = event.target.value
+                      setQuery(nextValue)
+                      if (!nextValue.trim() || !isTipActivitateDeprecata(nextValue)) {
+                        setDeprecatedMessage(null)
+                      }
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && customValue && !hasExactMatch) {
                         event.preventDefault()
-                        handleSelect(customValue)
+                        handleCustomValueSelect(customValue)
                       }
                     }}
                     placeholder="Caută sau scrie o activitate..."
                     className="flex h-10 w-full rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] pl-9 pr-3 text-sm text-[var(--agri-text)] outline-none ring-0 placeholder:text-[var(--agri-text-muted)]"
                   />
                 </div>
+                {deprecatedMessage ? (
+                  <div className="mt-2 flex items-start gap-2 text-sm text-amber-700">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>{deprecatedMessage}</p>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -158,7 +188,7 @@ export function ActivityTypeCombobox({
                   type="button"
                   onMouseDown={(event) => {
                     event.preventDefault()
-                    handleSelect(customValue)
+                    handleCustomValueSelect(customValue)
                   }}
                   className="flex w-full items-center justify-between rounded-lg border-t border-[var(--agri-border)] px-3 py-2 text-left text-sm font-medium text-[var(--agri-primary)] transition-colors hover:bg-[var(--agri-surface-muted)]"
                 >

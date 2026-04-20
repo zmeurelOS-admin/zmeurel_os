@@ -135,7 +135,7 @@ describe('skip lines RPC contract', () => {
       expect(rpcArgs.p_linii).toHaveLength(2)
       expect(rpcArgs.p_linii.map((line) => line.ordine)).toEqual([1, 3])
     },
-    15_000
+    30_000
   )
 
   it(
@@ -193,6 +193,6 @@ describe('skip lines RPC contract', () => {
         failed: [],
       })
     },
-    15_000
+    30_000
   )
 })

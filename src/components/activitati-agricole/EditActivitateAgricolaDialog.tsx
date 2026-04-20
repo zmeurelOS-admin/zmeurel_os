@@ -72,6 +72,11 @@ export function EditActivitateAgricolaDialog({
 
   useEffect(() => {
     if (!open || !activitate) return
+    if (activitate.tip_deprecat) {
+      toast.info('Această activitate este arhivată. Înregistrează-o în Protecție & Nutriție.')
+      onOpenChange(false)
+      return
+    }
 
     form.reset({
       data_aplicare: activitate.data_aplicare

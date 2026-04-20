@@ -56,7 +56,7 @@ const groups: MenuGroup[] = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
-      { href: '/tratamente', label: 'Tratamente', icon: SprayCan },
+      { href: '/tratamente/conformitate', label: 'Protecție & Nutriție', icon: SprayCan },
       { href: '/investitii', label: 'Investiții', icon: TrendingUp },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
       { href: '/vanzari', label: 'Vânzări', icon: BanknoteArrowUp },
@@ -93,6 +93,9 @@ const associationGroup: MenuGroup = {
 function isMoreMenuItemActive(pathname: string, href: string) {
   const path = pathname.replace(/\/$/, '') || '/'
   if (href === '/admin') return path === '/admin'
+  if (href === '/tratamente/conformitate') {
+    return path === '/tratamente' || path.startsWith('/tratamente/')
+  }
   return path.startsWith(href)
 }
 

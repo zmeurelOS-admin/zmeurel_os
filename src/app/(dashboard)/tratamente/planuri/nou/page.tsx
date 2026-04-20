@@ -1,5 +1,7 @@
 import { PlanWizardScreen } from '@/components/tratamente/plan-wizard/PlanWizardScreen'
 import { getPlanTratamentComplet } from '@/lib/supabase/queries/tratamente'
+import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 
 type PageProps = {
   searchParams: Promise<{
@@ -13,7 +15,10 @@ export default async function TratamentePlanNouPage({ searchParams }: PageProps)
   const duplicateFrom = params.duplicate_from?.trim()
   const preselectedParcelaId = params.parcela_id?.trim()
 
-  const duplicatePlan = duplicateFrom ? await getPlanTratamentComplet(duplicateFrom) : null
+  const [duplicatePlan, configurareSezon] = await Promise.all([
+    duplicateFrom ? getPlanTratamentComplet(duplicateFrom) : Promise.resolve(null),
+    preselectedParcelaId ? getConfigurareSezon(preselectedParcelaId, getCurrentSezon()) : Promise.resolve(null),
+  ])
 
   const initialData = duplicatePlan
     ? {
@@ -26,6 +31,7 @@ export default async function TratamentePlanNouPage({ searchParams }: PageProps)
 
   return (
     <PlanWizardScreen
+      configurareSezon={configurareSezon}
       initialData={initialData}
       preselectedParcelaId={preselectedParcelaId}
       subtitle="Construiește strategia sezonieră în 3 pași"

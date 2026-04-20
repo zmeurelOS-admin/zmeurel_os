@@ -9,13 +9,8 @@ export const ACTIVITATI_PER_TIP: Record<TipUnitate, string[]> = {
   camp: [
     'Tăiere lăstari',
     'Palisare',
-    'Fertilizare foliară',
-    'Fertirigare',
-    'Fertilizare de bază',
-    'Fungicide/Pesticide',
     'Irigație',
     'Prășit',
-    'Erbicidat',
     'Mulcire',
     'Recoltare',
     'Altele',
@@ -24,9 +19,6 @@ export const ACTIVITATI_PER_TIP: Record<TipUnitate, string[]> = {
     'Semănat',
     'Răsădit',
     'Palisare',
-    'Fertilizare foliară',
-    'Fertirigare',
-    'Fungicide/Pesticide',
     'Irigație',
     'Aerisire',
     'Ciupire/Cârnire',
@@ -36,9 +28,6 @@ export const ACTIVITATI_PER_TIP: Record<TipUnitate, string[]> = {
   livada: [
     'Tăiere de formare',
     'Tăiere de fructificare',
-    'Stropire',
-    'Fertilizare',
-    'Erbicidat',
     'Cosire',
     'Recoltare',
     'Altele',
@@ -47,9 +36,6 @@ export const ACTIVITATI_PER_TIP: Record<TipUnitate, string[]> = {
     'Arat',
     'Discuit',
     'Semănat',
-    'Erbicidat',
-    'Fertilizare',
-    'Tratament fitosanitar',
     'Irigație',
     'Recoltare',
     'Transport',
@@ -87,4 +73,34 @@ export function withCurrentActivityOption(
   if (options.some((option) => option.value === value)) return options
 
   return [...options, { value, label: formatActivityLabel(value) }]
+}
+
+export const TIPURI_ACTIVITATE_DEPRECATE = new Set([
+  'Fungicide/Pesticide',
+  'Fertilizare foliară',
+  'Fertilizare Foliara',
+  'Fertilizare foliar',
+  'Fertirigare',
+  'fertigare',
+  'Fertilizare de bază',
+  'Fertilizare de baza',
+  'Fertilizare',
+  'Fertilizare Chimica',
+  'Fertilizare Organica',
+  'Tratament',
+  'tratament',
+  'Tratament fitosanitar',
+  'Tratament Fungicid',
+  'Tratament Insecticid',
+  'Tratament Erbicid',
+  'Erbicidat',
+  'Stropire',
+])
+
+// Detectează variante legacy și free-text prin comparație lower/trim.
+export function isTipActivitateDeprecata(tip: string): boolean {
+  const normalized = tip.toLowerCase().trim()
+  return [...TIPURI_ACTIVITATE_DEPRECATE].some(
+    (value) => value.toLowerCase().trim() === normalized
+  )
 }

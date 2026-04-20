@@ -1,5 +1,7 @@
 import * as z from 'zod'
 
+import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 import type {
   PlanTratamentComplet,
   PlanTratamentLiniePayload,
@@ -20,6 +22,7 @@ export const linieDraftSchema = z
     id: z.string().min(1),
     ordine: z.number().int().positive(),
     stadiu_trigger: z.string().trim().min(1, 'Alege stadiul fenologic.'),
+    cohort_trigger: z.enum(['floricane', 'primocane']).nullable().optional(),
     produs_id: z.string().trim().optional().nullable(),
     produs_nume_manual: z.string().trim().max(120, 'Numele manual poate avea cel mult 120 de caractere.').optional().nullable(),
     dozaUnitate: linieDozaUnitSchema,
@@ -67,6 +70,10 @@ export interface PlanWizardReviewContext {
   parcele: PlanWizardParcelaOption[]
 }
 
+function normalizeCohorta(value: string | null | undefined): 'floricane' | 'primocane' | null {
+  return value === 'floricane' || value === 'primocane' ? value : null
+}
+
 export function normalizeOptionalText(value: string | null | undefined): string {
   return value?.trim() ?? ''
 }
@@ -76,6 +83,7 @@ export function createEmptyLine(nextOrdine: number): PlanWizardLinieDraft {
     id: crypto.randomUUID(),
     ordine: nextOrdine,
     stadiu_trigger: '',
+    cohort_trigger: null,
     produs_id: null,
     produs_nume_manual: '',
     dozaUnitate: 'ml/hl',
@@ -94,7 +102,8 @@ export function ensureConsecutiveOrdine(linii: PlanWizardLinieDraft[]): PlanWiza
 export function lineToPayload(linie: PlanWizardLinieDraft): PlanTratamentLiniePayload {
   return {
     ordine: linie.ordine,
-    stadiu_trigger: linie.stadiu_trigger,
+    stadiu_trigger: normalizeStadiu(linie.stadiu_trigger) ?? linie.stadiu_trigger,
+    cohort_trigger: linie.cohort_trigger ?? null,
     produs_id: linie.produs_id?.trim() ? linie.produs_id : null,
     produs_nume_manual: linie.produs_nume_manual?.trim() ? linie.produs_nume_manual.trim() : null,
     doza_ml_per_hl: linie.dozaUnitate === 'ml/hl' ? linie.doza : null,
@@ -104,7 +113,7 @@ export function lineToPayload(linie: PlanWizardLinieDraft): PlanTratamentLiniePa
 }
 
 export function planToWizardValues(plan: PlanTratamentComplet): PlanWizardValues {
-  const anImplicit = plan.parcele_asociate[0]?.an ?? new Date().getFullYear()
+  const anImplicit = plan.parcele_asociate[0]?.an ?? getCurrentSezon()
 
   return {
     info: {
@@ -116,7 +125,8 @@ export function planToWizardValues(plan: PlanTratamentComplet): PlanWizardValues
       plan.linii.map((linie, index) => ({
         id: linie.id || `linie-${index + 1}`,
         ordine: linie.ordine ?? index + 1,
-        stadiu_trigger: linie.stadiu_trigger,
+        stadiu_trigger: normalizeStadiu(linie.stadiu_trigger) ?? linie.stadiu_trigger,
+        cohort_trigger: normalizeCohorta(linie.cohort_trigger),
         produs_id: linie.produs_id ?? null,
         produs_nume_manual: linie.produs_nume_manual ?? '',
         dozaUnitate: typeof linie.doza_l_per_ha === 'number' && linie.doza_l_per_ha > 0 ? 'l/ha' : 'ml/hl',
@@ -144,7 +154,7 @@ export function duplicatePlanForWizard(plan: PlanTratamentComplet): PlanWizardVa
       id: `copie-${index + 1}-${linie.id}`,
     })),
     revizuire: {
-      an: new Date().getFullYear(),
+      an: getCurrentSezon(),
       parcele_ids: [],
     },
   }

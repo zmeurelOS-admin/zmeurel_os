@@ -81,13 +81,15 @@ _Last updated: 2026-03-21_
 - `ActivitateAgricolaCard` — display activitate cu calcul pauze recoltare
 - `ConfirmDeleteActivitateDialog` — confirmare ștergere
 
-**Tipuri activități:** Tratament fitosanitar, Fertilizare, Irigare, Cosit, Altele
+**Tipuri activități (active în formular):** Tăiere/Palisare/Irigație/Prășit/Recoltare/Altele, în funcție de tipul unității (`camp`, `solar`, `livada`, `cultura_mare`)
 
-**Coloane `activitati_agricole`:** id_activitate, tenant_id, parcela_id, tip_activitate, data_aplicare, produs_folosit, cantitate, unitate_masura, observatii, timp_pauza_zile, client_sync_id
+**Coloane `activitati_agricole`:** id_activitate, tenant_id, parcela_id, tip_activitate, `tip_deprecat`, data_aplicare, produs_folosit, cantitate, unitate_masura, observatii, timp_pauza_zile, client_sync_id
+
+- Tipurile mutate în `Protecție & Nutriție` rămân vizibile pentru istoric, dar sunt marcate `tip_deprecat = true`, apar cu badge „Arhivat” și nu mai sunt oferite în dropdown-ul de creare/editare din modulul generic.
 
 ---
 
-## 4B. Tratamente & Fertilizare (Fundație DB)
+## 4B. Protecție & Nutriție (Fundație DB)
 | Câmp | Valoare |
 |------|---------|
 | Route | UI dedicat în lucru; fără rută activă în faza de fundație |
@@ -97,9 +99,20 @@ _Last updated: 2026-03-21_
 
 **Note cheie:**
 - Faza 1A nu înlocuiește `activitati_agricole` și nu migrează date existente; istoricul generic rămâne funcțional.
+- Din migrarea `20260419120000_deprecate_activitati_pn.sql`, inputurile chimice/nutritive istorice din `activitati_agricole` sunt doar arhivate logic (`tip_deprecat = true`) și redirecționate în UI către modulul `Protecție & Nutriție` pentru înregistrări noi.
 - Faza 1A nu înlocuiește `culture_stage_logs` sau `etape_cultura`; `stadii_fenologice_parcela` este sursă nouă, paralelă, orientată pe planificare fenologică anuală.
+- Codurile canonice pentru stadii sunt centralizate în `src/lib/tratamente/stadii-canonic.ts`; UI-ul nou afișează label RO, iar importul XLSX / generatorul / persistența folosesc același cod snake_case.
+- Același fișier conține și categoria internă de management (`ManagementCategory`), folosită pentru reguli semantice de tratament și ordonată ca `repaus < vegetativ < prefloral < inflorit < fruct_mic < coacere < post_recoltare`.
+- Din Faza 2, `crops` expune și `cod` canonic singular + `grup_biologic`; lookup-urile din Tratamente pornesc din `parcele.cultura` / `tip_fruct`, trec prin `normalizeCropCod(...)`, apoi rezolvă grupul biologic prin `crops.cod`.
+- Selectorii de stadiu din modulul nou sunt contextuali per grup biologic (`rubus`, `solanacee`, `frunzoase` etc.); compatibilitatea veche rămâne prin profilul implicit Rubus, dar UI-ul și importul folosesc `listStadiiPentruGrup(...)` când cultura este cunoscută.
+- Configurarea sezonieră per parcelă este salvată în `configurari_parcela_sezon` și folosește helper-ul `getLabelStadiuContextual(...)` pentru label-uri adaptate sezonului (de ex. `post_recoltare` → „Producție în curs” la solanacee nedeterminat).
+- Pentru Rubus mixt (`mixt_floricane_primocane`), modulul suportă dual-cohortă: stadiile se pot înregistra separat pe `floricane` și `primocane`, liniile de plan pot avea `cohort_trigger`, iar aplicările rezultate pot păstra `cohort_la_aplicare` pentru trasabilitate și afișare contextuală în UI.
 - Triggerul standard pentru tabelele noi este `public.touch_updated_at()`.
 - Seed-ul pentru `produse_fitosanitare` este global (`tenant_id = NULL`) și idempotent.
+- Faza 5 a închis datoriile tehnice rămase: anul curent de sezon este dinamic prin `getCurrentSezon()`, RPC-ul atomic `upsert_plan_tratament_cu_linii(...)` persistă `cohort_trigger` direct, `allowCohortTrigger` consultă explicit `configurareSezon.sistem_conducere`, iar `parcele.stadiu` este marcat clar ca deprecate.
+- Fluxul legacy solar rămâne separat și documentat: scrie în `culturi.stadiu` și `culture_stage_logs`, dar nu participă la modelul canonic al Tratamente.
+- Regula de cod finală: în Tratamente stocăm doar codul canonic al stadiului; UI-ul afișează label-ul RO, iar logica nu trebuie să depindă de string literal de stadiu.
+- Arhitectura completă a modulului este: stadii canonice → profiluri pe grup biologic → categorii de management → cohorte → configurare sezonieră → generator/import/RPC atomic.
 
 ---
 
@@ -318,7 +331,7 @@ _Last updated: 2026-03-21_
 - Rate limit: 20 mesaje/zi per utilizator
 
 **Documentație completă:** `docs/ai-chat-widget.md`
-## Tratamente & Fertilizare (Faza 2D-2)
+## Protecție & Nutriție (Faza 2D-2)
 
 Schema DB: `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii`,
 `parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament`.
@@ -342,6 +355,8 @@ Status:
   - tab-uri `Astăzi / Săptămâna asta / Toate`
   - KPI-uri pentru programări, PHI warning, fereastră meteo și aplicări efectuate
   - meteo deduplicat per parcelă și quick actions reutilizând flow-urile existente de detaliu aplicare
+- demo: seed-ul fermelor demo include acum planurile `Plan Maravilla 2026 — Demo` și `Plan Căpșun Primăvară — Demo`, cu linii fenologice, aplicări istorice și aplicări planificate pentru zmeur
+- onboarding: landing-ul `/tratamente/conformitate` afișează un banner ghidat în 3 pași pentru fermele fără planuri, iar bannerul dispare automat după ce există plan, parcelă asignată și cel puțin un stadiu înregistrat
 - salvarea finală a planului este atomică prin RPC `public.upsert_plan_tratament_cu_linii(...)`
 - `planuri_tratament.arhivat` există pentru listare și excludere din selecțiile noi
 

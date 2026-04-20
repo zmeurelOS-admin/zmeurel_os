@@ -1,6 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
+import type { CropCod } from '@/lib/crops/crop-codes'
+import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
+import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import { buildConformitateMetrici } from '@/lib/tratamente/conformitate/build-metrici'
+import type { ConformitateMetrici } from '@/lib/tratamente/conformitate/types'
 import { getMeteoSnapshot } from '@/lib/tratamente/meteo'
+import {
+  normalizeStadiu,
+  type GrupBiologic,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 import { getStadiuOrdine } from '@/lib/tratamente/stadiu-ordering'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 import type { Database, Json, Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
@@ -8,6 +18,7 @@ import type { Database, Json, Tables, TablesInsert, TablesUpdate } from '@/types
 export type ProdusFitosanitar = Tables<'produse_fitosanitare'>
 export type ProdusFitosanitarInsert = TablesInsert<'produse_fitosanitare'>
 export type ProdusFitosanitarUpdate = TablesUpdate<'produse_fitosanitare'>
+export type CropCatalog = Tables<'crops'>
 
 export type PlanTratament = Tables<'planuri_tratament'>
 export type PlanTratamentInsert = TablesInsert<'planuri_tratament'>
@@ -43,16 +54,18 @@ const PLAN_SELECT =
   'id,tenant_id,nume,cultura_tip,descriere,activ,arhivat,created_at,updated_at,created_by,updated_by'
 
 const LINIE_SELECT =
-  'id,tenant_id,plan_id,ordine,stadiu_trigger,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
+  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
 
 const PARCELA_PLAN_SELECT =
   'id,tenant_id,parcela_id,plan_id,an,activ,created_at,updated_at'
 
 const STADIU_SELECT =
-  'id,tenant_id,parcela_id,an,stadiu,data_observata,sursa,observatii,created_at,updated_at,created_by'
+  'id,tenant_id,parcela_id,an,stadiu,cohort,data_observata,sursa,observatii,created_at,updated_at,created_by'
 
 const APLICARE_SELECT =
-  'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,meteo_snapshot,stadiu_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
+  'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,meteo_snapshot,stadiu_la_aplicare,cohort_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
+
+const CROP_SELECT = 'id,cod,name,unit_type,tenant_id,grup_biologic,created_at'
 
 export interface InsertTenantProdus {
   nume_comercial: string
@@ -89,6 +102,7 @@ export interface CreatePlanTratamentInput {
 export interface CreatePlanTratamentLinieInput {
   ordine?: number
   stadiu_trigger: string
+  cohort_trigger?: Cohorta | null
   produs_id?: string | null
   produs_nume_manual?: string | null
   doza_ml_per_hl?: number | null
@@ -147,11 +161,19 @@ export interface UpsertPlanTratamentPayload {
 export interface PlanTratamentLiniePayload {
   ordine: number
   stadiu_trigger: string
+  cohort_trigger?: Cohorta | null
   produs_id?: string | null
   produs_nume_manual?: string | null
   doza_ml_per_hl?: number | null
   doza_l_per_ha?: number | null
   observatii?: string | null
+}
+
+export interface LiniePlanContext {
+  id: string
+  plan_id: string
+  stadiu_trigger: string
+  cohort_trigger: Cohorta | null
 }
 
 export interface PlanWizardParcelaOption {
@@ -203,6 +225,8 @@ export interface AplicareCrossParcelItem {
   plan_arhivat: boolean | null
   linie_id: string | null
   stadiu_trigger: string | null
+  cohort_trigger?: Cohorta | null
+  cohort_la_aplicare?: Cohorta | null
   produs_nume: string
   produs_tip: ProdusFitosanitar['tip'] | null
   produs_frac: string | null
@@ -216,10 +240,50 @@ export interface AplicareCrossParcelItem {
   urmatoarea_recoltare: string | null
 }
 
+export interface AplicareAgregata {
+  id: string
+  tenant_id: string
+  parcela_id: string
+  parcela_nume: string | null
+  parcela_cod: string | null
+  parcela_suprafata_m2: number | null
+  suprafata_ha: number | null
+  produs_id: string | null
+  produs_nume: string
+  produs_tip: ProdusFitosanitar['tip'] | null
+  produs_frac: string | null
+  produs_phi_zile: number | null
+  substanta_activa: string | null
+  plan_id: string | null
+  plan_nume: string | null
+  linie_id: string | null
+  stadiu_trigger: string | null
+  cohort_trigger?: Cohorta | null
+  stadiu_la_aplicare: string | null
+  cohort_la_aplicare?: Cohorta | null
+  data_planificata: string | null
+  data_aplicata: string | null
+  status: AplicareTratament['status']
+  doza_ml_per_hl: number | null
+  doza_l_per_ha: number | null
+  cantitate_totala_ml: number | null
+  observatii: string | null
+  operator: string | null
+}
+
+export interface AplicariAnualeParcelaGroup {
+  parcela: Pick<
+    Database['public']['Tables']['parcele']['Row'],
+    'id' | 'id_parcela' | 'nume_parcela' | 'suprafata_m2' | 'cultura' | 'tip_fruct' | 'soi' | 'tip_unitate'
+  >
+  aplicari: AplicareAgregata[]
+}
+
 export interface InsertStadiu {
   parcela_id: string
   an: number
   stadiu: string
+  cohort?: Cohorta | null
   data_observata: string
   sursa: 'manual' | 'gdd' | 'poza' | 'auto'
   observatii?: string | null
@@ -238,6 +302,7 @@ export interface InsertAplicarePlanificata {
   stoc_mutatie_id?: string | null
   meteo_snapshot?: Json | null
   stadiu_la_aplicare?: string | null
+  cohort_la_aplicare?: Cohorta | null
   observatii?: string | null
   operator?: string | null
   status?: 'planificata' | 'reprogramata'
@@ -269,6 +334,15 @@ export interface StatisticiAplicariCrossParcel {
   cu_meteo_favorabila: number
 }
 
+export interface TratamenteGlobalStats {
+  aplicariAzi: number
+  aplicariMaine: number
+  aplicariAplicateSezon: number
+  parceleCuPlan: number
+  alerteFracTotal: number
+  alerteCupruTotal: number
+}
+
 export interface MarkAplicareAsAplicataPayload {
   dataAplicata: Date
   cantitateTotala?: number | null
@@ -276,6 +350,7 @@ export interface MarkAplicareAsAplicataPayload {
   operator?: string | null
   observatii?: string | null
   stadiuLaAplicare?: string | null
+  cohortLaAplicare?: Cohorta | null
 }
 
 interface QueryContext {
@@ -303,6 +378,30 @@ function normalizeText(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function requireStadiuCod(value: string, fieldName: string): StadiuCod {
+  const cod = normalizeStadiu(value)
+  if (!cod) {
+    throw new Error(`Valoarea pentru ${fieldName} nu este un stadiu fenologic valid.`)
+  }
+
+  return cod
+}
+
+function normalizeOptionalStadiu(value: string | null | undefined): StadiuCod | null {
+  if (typeof value !== 'string') return null
+  return normalizeStadiu(value)
+}
+
+function normalizeOptionalCohorta(value: string | null | undefined): Cohorta | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'floricane' || normalized === 'primocane') {
+    return normalized
+  }
+
+  return null
+}
+
 function normalizeCulturi(value: string[] | null | undefined): string[] | null {
   if (!Array.isArray(value) || value.length === 0) return null
   const normalized = value
@@ -313,8 +412,7 @@ function normalizeCulturi(value: string[] | null | undefined): string[] | null {
 }
 
 function normalizeCulturaKey(value: string | null | undefined): string | null {
-  const normalized = normalizeText(value)?.toLowerCase()
-  return normalized ?? null
+  return normalizeCropCod(value) ?? normalizeText(value)?.toLowerCase() ?? null
 }
 
 function toIsoDate(value: Date): string {
@@ -365,6 +463,29 @@ type CrossParcelAplicareRow = AplicareTratament & {
   parcela: CrossParcelParcelaRelation | CrossParcelParcelaRelation[] | null
 }
 
+type AplicareAgregataParcelaRelation = Pick<
+  Database['public']['Tables']['parcele']['Row'],
+  'id' | 'id_parcela' | 'nume_parcela' | 'suprafata_m2' | 'cultura' | 'tip_fruct' | 'soi' | 'tip_unitate'
+>
+
+type AplicareAgregataRow = AplicareTratament & {
+  produs:
+    | AplicareTratamentDetaliu['produs']
+    | AplicareTratamentDetaliu['produs'][]
+    | null
+  linie: CrossParcelLinieRelation | CrossParcelLinieRelation[] | null
+  parcela: AplicareAgregataParcelaRelation | AplicareAgregataParcelaRelation[] | null
+}
+
+type TratamenteGlobalStatsAplicareRow = AplicareTratament & {
+  produs:
+    | AplicareTratamentDetaliu['produs']
+    | AplicareTratamentDetaliu['produs'][]
+    | null
+  linie: CrossParcelLinieRelation | CrossParcelLinieRelation[] | null
+  parcela: AplicareAgregataParcelaRelation | AplicareAgregataParcelaRelation[] | null
+}
+
 function resolveParcelaCoord(
   primary: number | null | undefined,
   fallback: number | null | undefined
@@ -392,6 +513,31 @@ function isPhiWarning(
   const phiDeadline = new Date(planificata)
   phiDeadline.setUTCDate(phiDeadline.getUTCDate() + phiZile)
   return phiDeadline.getTime() >= recoltare.getTime()
+}
+
+function toProdusCatalogItem(
+  produs: NonNullable<AplicareTratamentDetaliu['produs']>
+): ProdusFitosanitar {
+  return {
+    id: produs.id,
+    tenant_id: produs.tenant_id,
+    nume_comercial: produs.nume_comercial,
+    substanta_activa: produs.substanta_activa,
+    tip: produs.tip,
+    frac_irac: produs.frac_irac ?? null,
+    doza_min_ml_per_hl: null,
+    doza_max_ml_per_hl: null,
+    doza_min_l_per_ha: null,
+    doza_max_l_per_ha: null,
+    phi_zile: produs.phi_zile ?? null,
+    nr_max_aplicari_per_sezon: produs.nr_max_aplicari_per_sezon ?? null,
+    interval_min_aplicari_zile: null,
+    omologat_culturi: null,
+    activ: produs.activ,
+    created_at: '',
+    updated_at: '',
+    created_by: null,
+  }
 }
 
 async function getNextHarvestMap(
@@ -455,6 +601,8 @@ function mapAplicariCrossParcel(
       plan_arhivat: plan?.arhivat ?? null,
       linie_id: linie?.id ?? row.plan_linie_id,
       stadiu_trigger: linie?.stadiu_trigger ?? row.stadiu_la_aplicare ?? null,
+      cohort_trigger: normalizeOptionalCohorta(linie?.cohort_trigger ?? null),
+      cohort_la_aplicare: normalizeOptionalCohorta(row.cohort_la_aplicare ?? null),
       produs_nume: produs?.nume_comercial ?? row.produs_nume_manual ?? 'Produs nespecificat',
       produs_tip: produs?.tip ?? null,
       produs_frac: produs?.frac_irac ?? null,
@@ -466,6 +614,50 @@ function mapAplicariCrossParcel(
       meteo_snapshot: row.meteo_snapshot,
       phi_warning: isPhiWarning(row.data_planificata, produs?.phi_zile ?? null, urmatoareaRecoltare),
       urmatoarea_recoltare: urmatoareaRecoltare,
+    }
+  })
+}
+
+function mapAplicariAgregate(rows: AplicareAgregataRow[]): AplicareAgregata[] {
+  return rows.map((row) => {
+    const produs = firstRelation(row.produs)
+    const linie = firstRelation(row.linie)
+    const plan = firstRelation(linie?.plan)
+    const parcela = firstRelation(row.parcela)
+    const suprafataHa =
+      typeof parcela?.suprafata_m2 === 'number' && parcela.suprafata_m2 > 0
+        ? Math.round((parcela.suprafata_m2 / 10000) * 10000) / 10000
+        : null
+
+    return {
+      id: row.id,
+      tenant_id: row.tenant_id,
+      parcela_id: row.parcela_id,
+      parcela_nume: parcela?.nume_parcela ?? null,
+      parcela_cod: parcela?.id_parcela ?? null,
+      parcela_suprafata_m2: parcela?.suprafata_m2 ?? null,
+      suprafata_ha: suprafataHa,
+      produs_id: row.produs_id,
+      produs_nume: produs?.nume_comercial ?? row.produs_nume_manual ?? 'Produs nespecificat',
+      produs_tip: produs?.tip ?? null,
+      produs_frac: produs?.frac_irac ?? null,
+      produs_phi_zile: produs?.phi_zile ?? null,
+      substanta_activa: produs?.substanta_activa ?? null,
+      plan_id: plan?.id ?? linie?.plan_id ?? null,
+      plan_nume: plan?.nume ?? null,
+      linie_id: linie?.id ?? row.plan_linie_id,
+      stadiu_trigger: linie?.stadiu_trigger ?? null,
+      cohort_trigger: normalizeOptionalCohorta(linie?.cohort_trigger ?? null),
+      stadiu_la_aplicare: row.stadiu_la_aplicare ?? null,
+      cohort_la_aplicare: normalizeOptionalCohorta(row.cohort_la_aplicare ?? null),
+      data_planificata: row.data_planificata,
+      data_aplicata: row.data_aplicata,
+      status: row.status,
+      doza_ml_per_hl: row.doza_ml_per_hl,
+      doza_l_per_ha: row.doza_l_per_ha,
+      cantitate_totala_ml: row.cantitate_totala_ml,
+      observatii: row.observatii ?? linie?.observatii ?? null,
+      operator: row.operator,
     }
   })
 }
@@ -608,6 +800,51 @@ export async function listProduseFitosanitare(opts?: {
 
   if (error) throw error
   return data ?? []
+}
+
+/**
+ * Caută o cultură din catalog după codul canonic și preferă override-ul tenant-scoped când există.
+ * Exemplu: `getCropByCod('zmeur')`
+ */
+export async function getCropByCod(cod: CropCod): Promise<CropCatalog | null> {
+  const { supabase, tenantId } = await getQueryContext()
+
+  const { data, error } = await supabase
+    .from('crops')
+    .select(CROP_SELECT)
+    .eq('cod', cod)
+    .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
+
+  if (error) throw error
+
+  const rows = (data ?? []) as CropCatalog[]
+  const tenantScoped = rows.find((row) => row.tenant_id === tenantId)
+  return tenantScoped ?? rows.find((row) => row.tenant_id === null) ?? null
+}
+
+/**
+ * Rezolvă grupul biologic al parcelei pornind din `parcele.cultura` / `parcele.tip_fruct`
+ * și catalogul `crops.cod`. Valorile libere din parcelă sunt normalizate la citire.
+ * Exemplu: `getGrupBiologicParcela('uuid-parcela')`
+ */
+export async function getGrupBiologicParcela(parcelaId: string): Promise<GrupBiologic | null> {
+  const { supabase, tenantId } = await getQueryContext()
+
+  const { data, error } = await supabase
+    .from('parcele')
+    .select('cultura,tip_fruct')
+    .eq('id', parcelaId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  const cropCod = normalizeCropCod(data.cultura) ?? normalizeCropCod(data.tip_fruct)
+  if (!cropCod) return null
+
+  const crop = await getCropByCod(cropCod)
+  return (crop?.grup_biologic as GrupBiologic | null) ?? null
 }
 
 /**
@@ -857,7 +1094,8 @@ export async function upsertPlanTratamentCuLinii(
 
   const rpcLinii = liniiData.map((linie, index) => ({
     ordine: linie.ordine ?? index + 1,
-    stadiu_trigger: linie.stadiu_trigger.trim(),
+    stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
+    cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
     produs_id: linie.produs_id ?? null,
     produs_nume_manual: normalizeText(linie.produs_nume_manual),
     doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
@@ -876,6 +1114,7 @@ export async function upsertPlanTratamentCuLinii(
   if (error) throw error
 
   const payload = asPlanRpcPayload(data)
+
   const reloaded = await getPlanTratamentComplet(payload.plan.id)
 
   if (!reloaded) {
@@ -967,13 +1206,13 @@ export async function listCulturiPentruPlanWizard(): Promise<string[]> {
 
   for (const cultura of culturiResult.data ?? []) {
     if (cultura.activa === false) continue
-    const normalized = normalizeText(cultura.tip_planta)
+    const normalized = normalizeCropCod(cultura.tip_planta) ?? normalizeText(cultura.tip_planta)
     if (normalized) values.add(normalized)
   }
 
   for (const parcela of parceleResult.data ?? []) {
-    const cultura = normalizeText(parcela.cultura)
-    const tipFruct = normalizeText(parcela.tip_fruct)
+    const cultura = normalizeCropCod(parcela.cultura) ?? normalizeText(parcela.cultura)
+    const tipFruct = normalizeCropCod(parcela.tip_fruct) ?? normalizeText(parcela.tip_fruct)
     if (cultura) values.add(cultura)
     if (tipFruct) values.add(tipFruct)
   }
@@ -1080,7 +1319,8 @@ export async function createPlanTratament(
       tenant_id: ctx.tenantId,
       plan_id: plan.id,
       ordine: linie.ordine ?? index + 1,
-      stadiu_trigger: linie.stadiu_trigger.trim(),
+      stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
+      cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
       produs_id: linie.produs_id ?? null,
       produs_nume_manual: normalizeText(linie.produs_nume_manual),
       doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
@@ -1167,7 +1407,8 @@ export async function addLinieToPlan(
     tenant_id: ctx.tenantId,
     plan_id: planId,
     ordine,
-    stadiu_trigger: linie.stadiu_trigger.trim(),
+    stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
+    cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
     produs_id: linie.produs_id ?? null,
     produs_nume_manual: normalizeText(linie.produs_nume_manual),
     doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
@@ -1197,7 +1438,8 @@ export async function updateLiniePlan(
 
   const payload: PlanTratamentLinieUpdate = {}
   if (data.ordine !== undefined) payload.ordine = data.ordine
-  if (data.stadiu_trigger !== undefined) payload.stadiu_trigger = data.stadiu_trigger.trim()
+  if (data.stadiu_trigger !== undefined) payload.stadiu_trigger = requireStadiuCod(data.stadiu_trigger, 'stadiu_trigger')
+  if (data.cohort_trigger !== undefined) payload.cohort_trigger = normalizeOptionalCohorta(data.cohort_trigger)
   if (data.produs_id !== undefined) payload.produs_id = data.produs_id
   if (data.produs_nume_manual !== undefined) payload.produs_nume_manual = normalizeText(data.produs_nume_manual)
   if (data.doza_ml_per_hl !== undefined) payload.doza_ml_per_hl = data.doza_ml_per_hl
@@ -1232,6 +1474,193 @@ export async function deleteLiniePlan(linieId: string): Promise<void> {
   if (error) throw error
 }
 
+/** Returnează context minim pentru o linie din plan. */
+export async function getLiniePlanContext(linieId: string): Promise<LiniePlanContext | null> {
+  const ctx = await getQueryContext()
+
+  const { data, error } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .select('id,plan_id,stadiu_trigger,cohort_trigger')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('id', linieId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Reordonează liniile unui plan după lista nouă de ID-uri.
+ * @remarks Nu atomic; pentru atomicitate strictă se va folosi RPC într-o fază următoare.
+ */
+export async function reorderLiniiPlan(
+  planId: string,
+  orderedLinieIds: string[]
+): Promise<void> {
+  const ctx = await getQueryContext()
+  await ensurePlanExists(ctx, planId)
+
+  const { data: existingLinii, error } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .select('id,plan_id')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_id', planId)
+    .order('ordine', { ascending: true })
+
+  if (error) throw error
+
+  const rows = existingLinii ?? []
+  if (rows.length !== orderedLinieIds.length) {
+    throw new Error('Ordinea liniilor invalidă: nu toate liniile au fost furnizate')
+  }
+
+  const existingIds = new Set(rows.map((row) => row.id))
+
+  for (const linieId of orderedLinieIds) {
+    if (!existingIds.has(linieId)) {
+      throw new Error(`Linia ${linieId} nu aparține planului`)
+    }
+  }
+
+  await Promise.all(
+    orderedLinieIds.map((linieId, index) =>
+      ctx.supabase
+        .from('planuri_tratament_linii')
+        .update({ ordine: index + 1 })
+        .eq('id', linieId)
+        .eq('tenant_id', ctx.tenantId)
+        .eq('plan_id', planId)
+    )
+  )
+}
+
+/** Duplică un plan existent cu liniile sale sub un nume nou. */
+export async function duplicatePlanTratament(
+  planId: string,
+  numeNou: string
+): Promise<PlanTratamentCuLinii> {
+  const plan = await getPlanTratamentCuLinii(planId)
+
+  if (!plan) {
+    throw new Error('Planul selectat nu a fost găsit.')
+  }
+
+  return createPlanTratament(
+    {
+      nume: numeNou.trim(),
+      cultura_tip: plan.cultura_tip,
+      descriere: plan.descriere?.trim()
+        ? `Copie - ${plan.descriere.trim()}`
+        : 'Copie - ',
+      activ: true,
+      arhivat: false,
+    },
+    plan.linii.map((linie) => ({
+      ordine: linie.ordine,
+      stadiu_trigger: linie.stadiu_trigger,
+      cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
+      produs_id: linie.produs_id,
+      produs_nume_manual: linie.produs_nume_manual,
+      doza_ml_per_hl: linie.doza_ml_per_hl,
+      doza_l_per_ha: linie.doza_l_per_ha,
+      observatii: linie.observatii,
+    }))
+  )
+}
+
+/** Count aplicări asociate unui plan (prin linii → aplicări). */
+export async function countAplicariPlan(planId: string): Promise<number> {
+  const ctx = await getQueryContext()
+  await ensurePlanExists(ctx, planId)
+
+  const { data: linii, error: liniiError } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .select('id')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_id', planId)
+
+  if (liniiError) throw liniiError
+
+  const linieIds = (linii ?? []).map((linie) => linie.id)
+  if (linieIds.length === 0) return 0
+
+  const { count, error } = await ctx.supabase
+    .from('aplicari_tratament')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', ctx.tenantId)
+    .in('plan_linie_id', linieIds)
+
+  if (error) throw error
+  return count ?? 0
+}
+
+/**
+ * Șterge hard un plan. Permis doar dacă nu are aplicări asociate.
+ * Aruncă eroare descriptivă dacă există dependențe.
+ */
+export async function hardDeletePlanTratament(planId: string): Promise<void> {
+  const ctx = await getQueryContext()
+  await ensurePlanExists(ctx, planId)
+
+  const aplicariCount = await countAplicariPlan(planId)
+  if (aplicariCount > 0) {
+    throw new Error('Plan cu aplicări istorice nu poate fi șters. Dezactivează-l în schimb.')
+  }
+
+  const { error: asocieriError } = await ctx.supabase
+    .from('parcele_planuri')
+    .delete()
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_id', planId)
+
+  if (asocieriError) throw asocieriError
+
+  const { error: liniiError } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .delete()
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_id', planId)
+
+  if (liniiError) throw liniiError
+
+  const { error: planError } = await ctx.supabase
+    .from('planuri_tratament')
+    .delete()
+    .eq('tenant_id', ctx.tenantId)
+    .eq('id', planId)
+
+  if (planError) throw planError
+}
+
+/** Decuplează aplicările istorice de o linie din plan înainte de ștergere. */
+export async function detachAplicariDeLinie(linieId: string): Promise<void> {
+  const ctx = await getQueryContext()
+
+  const { error } = await ctx.supabase
+    .from('aplicari_tratament')
+    .update({ plan_linie_id: null })
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_linie_id', linieId)
+
+  if (error) throw error
+}
+
+/** Dezactivează o asociere plan-parcelă existentă. */
+export async function deactivateParcelaPlan(parcelaPlanId: string): Promise<ParcelaPlan> {
+  const ctx = await getQueryContext()
+
+  const { data, error } = await ctx.supabase
+    .from('parcele_planuri')
+    .update({ activ: false })
+    .eq('tenant_id', ctx.tenantId)
+    .eq('id', parcelaPlanId)
+    .select(PARCELA_PLAN_SELECT)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 /**
  * Listează parcelele care au un plan activ în anul cerut.
  * Exemplu: `listParceleCuPlanActiv(2026)`
@@ -1260,6 +1689,26 @@ export async function listParceleCuPlanActiv(an: number): Promise<ParcelaCuPlanA
     parcela: firstRelation(row.parcela),
     plan: firstRelation(row.plan),
   }))
+}
+
+/**
+ * Numără stadiile fenologice pentru un set de parcele într-un an.
+ * Exemplu: `countStadiiPentruParcelele(['uuid-1', 'uuid-2'], 2026)`
+ */
+export async function countStadiiPentruParcelele(parcelaIds: string[], an: number): Promise<number> {
+  if (parcelaIds.length === 0) return 0
+
+  const { supabase, tenantId } = await getQueryContext()
+
+  const { count, error } = await supabase
+    .from('stadii_fenologice_parcela')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+    .eq('an', an)
+    .in('parcela_id', parcelaIds)
+
+  if (error) throw error
+  return count ?? 0
 }
 
 /**
@@ -1392,10 +1841,14 @@ export async function getPlanActivPentruParcela(
  * Listează stadiile fenologice înregistrate pentru o parcelă și un an.
  * Exemplu: `listStadiiPentruParcela('uuid-parcela', 2026)`
  */
-export async function listStadiiPentruParcela(parcelaId: string, an: number): Promise<StadiuFenologicParcela[]> {
+export async function listStadiiPentruParcela(
+  parcelaId: string,
+  an: number,
+  cohort?: Cohorta
+): Promise<StadiuFenologicParcela[]> {
   const { supabase, tenantId } = await getQueryContext()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('stadii_fenologice_parcela')
     .select(STADIU_SELECT)
     .eq('tenant_id', tenantId)
@@ -1403,6 +1856,13 @@ export async function listStadiiPentruParcela(parcelaId: string, an: number): Pr
     .eq('an', an)
     .order('data_observata', { ascending: true })
     .order('created_at', { ascending: true })
+
+  const cohortNormalizat = normalizeOptionalCohorta(cohort)
+  if (cohortNormalizat) {
+    query = query.eq('cohort', cohortNormalizat)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
   return data ?? []
@@ -1414,9 +1874,10 @@ export async function listStadiiPentruParcela(parcelaId: string, an: number): Pr
  */
 export async function getStadiuCurentParcela(
   parcelaId: string,
-  an: number
+  an: number,
+  cohort?: Cohorta
 ): Promise<StadiuFenologicParcela | null> {
-  const stadii = await listStadiiPentruParcela(parcelaId, an)
+  const stadii = await listStadiiPentruParcela(parcelaId, an, cohort)
   if (stadii.length === 0) return null
 
   return [...stadii].sort((a, b) => {
@@ -1432,7 +1893,7 @@ export async function getStadiuCurentParcela(
 
 /**
  * Înregistrează un stadiu fenologic prin upsert pe cheia unică `(parcela_id, an, stadiu, sursa)`.
- * Exemplu: `recordStadiu({ parcela_id: 'uuid', an: 2026, stadiu: 'inflorit', data_observata: '2026-05-10', sursa: 'manual' })`
+ * Exemplu: `recordStadiu({ parcela_id: 'uuid', an: 2026, stadiu: 'inflorit', cohort: 'floricane', data_observata: '2026-05-10', sursa: 'manual' })`
  */
 export async function recordStadiu(data: InsertStadiu): Promise<StadiuFenologicParcela> {
   const ctx = await getQueryContext()
@@ -1441,7 +1902,8 @@ export async function recordStadiu(data: InsertStadiu): Promise<StadiuFenologicP
     tenant_id: ctx.tenantId,
     parcela_id: data.parcela_id,
     an: data.an,
-    stadiu: data.stadiu.trim(),
+    stadiu: requireStadiuCod(data.stadiu, 'stadiu'),
+    cohort: normalizeOptionalCohorta(data.cohort),
     data_observata: data.data_observata,
     sursa: data.sursa,
     observatii: normalizeText(data.observatii),
@@ -1450,7 +1912,7 @@ export async function recordStadiu(data: InsertStadiu): Promise<StadiuFenologicP
 
   const { data: upserted, error } = await ctx.supabase
     .from('stadii_fenologice_parcela')
-    .upsert(payload, { onConflict: 'parcela_id,an,stadiu,sursa' })
+    .upsert(payload, { onConflict: 'parcela_id,an,stadiu,sursa,cohort' })
     .select(STADIU_SELECT)
     .single()
 
@@ -1670,6 +2132,195 @@ export async function getAplicariProdusInAn(
 }
 
 /**
+ * Toate aplicările pentru o parcelă într-un an, cu join pe produs pentru FRAC/PHI/substanță activă.
+ * Exemplu: `getAplicariAnualAgregate('uuid-parcela', 2026)`
+ */
+export async function getAplicariAnualAgregate(
+  parcelaId: string,
+  an: number
+): Promise<AplicareAgregata[]> {
+  const { supabase, tenantId } = await getQueryContext()
+  const start = `${an}-01-01`
+  const end = `${an}-12-31`
+
+  const { data, error } = await supabase
+    .from('aplicari_tratament')
+    .select(
+      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
+    )
+    .eq('tenant_id', tenantId)
+    .eq('parcela_id', parcelaId)
+    .order('data_planificata', { ascending: true })
+    .order('data_aplicata', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  return mapAplicariAgregate((data ?? []) as AplicareAgregataRow[]).filter((aplicare) => {
+    const effectiveDate = aplicare.data_aplicata ?? aplicare.data_planificata
+    if (!effectiveDate) return false
+    return effectiveDate >= start && effectiveDate <= end
+  })
+}
+
+/**
+ * Agregare cross-parcelă pentru tenantul curent: fiecare parcelă cu aplicările sale.
+ * Exemplu: `getAplicariAnualToateParcelele(2026)`
+ */
+export async function getAplicariAnualToateParcelele(an: number): Promise<AplicariAnualeParcelaGroup[]> {
+  const { supabase, tenantId } = await getQueryContext()
+  const start = `${an}-01-01`
+  const end = `${an}-12-31`
+
+  const [parceleResult, aplicariResult] = await Promise.all([
+    supabase
+      .from('parcele')
+      .select('id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate')
+      .eq('tenant_id', tenantId)
+      .order('nume_parcela', { ascending: true }),
+    supabase
+      .from('aplicari_tratament')
+      .select(
+        `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
+      )
+      .eq('tenant_id', tenantId)
+      .order('data_planificata', { ascending: true })
+      .order('data_aplicata', { ascending: true })
+      .order('created_at', { ascending: true }),
+  ])
+
+  if (parceleResult.error) throw parceleResult.error
+  if (aplicariResult.error) throw aplicariResult.error
+
+  const aplicariByParcela = new Map<string, AplicareAgregata[]>()
+  for (const aplicare of mapAplicariAgregate((aplicariResult.data ?? []) as AplicareAgregataRow[])) {
+    const effectiveDate = aplicare.data_aplicata ?? aplicare.data_planificata
+    if (!effectiveDate || effectiveDate < start || effectiveDate > end) continue
+
+    const current = aplicariByParcela.get(aplicare.parcela_id) ?? []
+    current.push(aplicare)
+    aplicariByParcela.set(aplicare.parcela_id, current)
+  }
+
+  return (parceleResult.data ?? []).map((parcela) => ({
+    parcela,
+    aplicari: aplicariByParcela.get(parcela.id) ?? [],
+  }))
+}
+
+/**
+ * Metrici rapide conformitate per parcelă: cupru kg/ha, violări FRAC, PHI conflicts.
+ * Exemplu: `getConformitateMetrici('uuid-parcela', 2026)`
+ */
+export async function getConformitateMetrici(
+  parcelaId: string,
+  an: number
+): Promise<ConformitateMetrici> {
+  const [aplicari, produse] = await Promise.all([
+    getAplicariAnualAgregate(parcelaId, an),
+    listProduseFitosanitare(),
+  ])
+
+  return {
+    parcelaId,
+    ...buildConformitateMetrici(aplicari, produse, an),
+  }
+}
+
+/**
+ * Returnează statistici rapide pentru landing-ul global al modulului de tratamente.
+ * Exemplu: `getTratamenteGlobalStats(2026)`
+ */
+export async function getTratamenteGlobalStats(an = new Date().getUTCFullYear()): Promise<TratamenteGlobalStats> {
+  const ctx = await getQueryContext()
+  const start = `${an}-01-01`
+  const end = `${an}-12-31`
+  const today = toIsoDate(new Date())
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = toIsoDate(tomorrowDate)
+  const currentYear = new Date().getUTCFullYear()
+
+  const [aplicariResult, parcelePlanResult] = await Promise.all([
+    ctx.supabase
+      .from('aplicari_tratament')
+      .select(
+        `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
+      )
+      .eq('tenant_id', ctx.tenantId)
+      .order('data_planificata', { ascending: true })
+      .order('data_aplicata', { ascending: true })
+      .order('created_at', { ascending: true }),
+    ctx.supabase
+      .from('parcele_planuri')
+      .select('parcela_id')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('an', an)
+      .eq('activ', true),
+  ])
+
+  if (aplicariResult.error) throw aplicariResult.error
+  if (parcelePlanResult.error) throw parcelePlanResult.error
+
+  const aplicariRows = (aplicariResult.data ?? []) as TratamenteGlobalStatsAplicareRow[]
+  const aplicariMapate = mapAplicariAgregate(aplicariRows as AplicareAgregataRow[])
+  const aplicariInAn = aplicariMapate.filter((aplicare) => {
+    const effectiveDate = aplicare.data_aplicata ?? aplicare.data_planificata
+    if (!effectiveDate) return false
+    return effectiveDate >= start && effectiveDate <= end
+  })
+
+  const produseById = new Map<string, ProdusFitosanitar>()
+  for (const row of aplicariRows) {
+    const produs = firstRelation(row.produs)
+    if (!produs || produseById.has(produs.id)) continue
+    produseById.set(produs.id, toProdusCatalogItem(produs))
+  }
+
+  let alerteFracTotal = 0
+  let alerteCupruTotal = 0
+  const aplicariByParcela = new Map<string, AplicareAgregata[]>()
+  for (const aplicare of aplicariInAn) {
+    const current = aplicariByParcela.get(aplicare.parcela_id) ?? []
+    current.push(aplicare)
+    aplicariByParcela.set(aplicare.parcela_id, current)
+  }
+
+  for (const aplicariParcela of aplicariByParcela.values()) {
+    const metrici = buildConformitateMetrici(aplicariParcela, [...produseById.values()], an)
+    alerteFracTotal += metrici.fracViolatii
+    if (metrici.cupruAlertLevel === 'exceeded') {
+      alerteCupruTotal += 1
+    }
+  }
+
+  return {
+    aplicariAzi:
+      an === currentYear
+        ? aplicariMapate.filter(
+            (aplicare) =>
+              (aplicare.status === 'planificata' || aplicare.status === 'reprogramata') &&
+              aplicare.data_planificata === today
+          ).length
+        : 0,
+    aplicariMaine:
+      an === currentYear
+        ? aplicariMapate.filter(
+            (aplicare) =>
+              (aplicare.status === 'planificata' || aplicare.status === 'reprogramata') &&
+              aplicare.data_planificata === tomorrow
+          ).length
+        : 0,
+    aplicariAplicateSezon: aplicariInAn.filter(
+      (aplicare) => aplicare.status === 'aplicata' && Boolean(aplicare.data_aplicata)
+    ).length,
+    parceleCuPlan: new Set((parcelePlanResult.data ?? []).map((row) => row.parcela_id).filter(Boolean)).size,
+    alerteFracTotal,
+    alerteCupruTotal,
+  }
+}
+
+/**
  * Creează o aplicare planificată pentru tenantul curent.
  * Exemplu: `createAplicarePlanificata({ parcela_id: 'uuid', data_planificata: '2026-05-12', produs_id: 'uuid-produs' })`
  */
@@ -1693,7 +2344,8 @@ export async function createAplicarePlanificata(
     stoc_mutatie_id: data.stoc_mutatie_id ?? null,
     status: data.status ?? 'planificata',
     meteo_snapshot: data.meteo_snapshot ?? null,
-    stadiu_la_aplicare: normalizeText(data.stadiu_la_aplicare),
+    stadiu_la_aplicare: normalizeOptionalStadiu(data.stadiu_la_aplicare),
+    cohort_la_aplicare: normalizeOptionalCohorta(data.cohort_la_aplicare),
     observatii: normalizeText(data.observatii),
     operator: normalizeText(data.operator),
     created_by: ctx.userId,
@@ -1712,7 +2364,8 @@ export async function createAplicarePlanificata(
 
 /**
  * Marchează o aplicare ca efectuată și salvează snapshot-ul operațional relevant.
- * Dacă `meteoSnapshot` nu e în payload, se încearcă fetch automat de la OpenWeatherMap.
+ * Dacă `meteoSnapshot` lipsește, se încearcă fetch automat OpenWeatherMap.
+ * Eșecul meteo nu blochează aplicarea.
  * Exemplu: `markAplicareAsAplicata('uuid', { dataAplicata: new Date(), operator: 'Ion' })`
  */
 export async function markAplicareAsAplicata(
@@ -1723,9 +2376,10 @@ export async function markAplicareAsAplicata(
   const current = await getAplicareOwnedByTenant(ctx, id)
 
   let meteoSnapshot: Json | null | undefined = payload.meteoSnapshot
-  if (meteoSnapshot === undefined && current.parcela_id) {
+  if ((meteoSnapshot === undefined || meteoSnapshot === null) && current.parcela_id) {
     try {
-      meteoSnapshot = (await getMeteoSnapshot(current.parcela_id)) as unknown as Json
+      const autoSnapshot = await getMeteoSnapshot(current.parcela_id)
+      meteoSnapshot = autoSnapshot ? (autoSnapshot as unknown as Json) : null
     } catch (error) {
       console.warn(
         '[tratamente] snapshot meteo automat indisponibil',
@@ -1739,18 +2393,24 @@ export async function markAplicareAsAplicata(
     }
   }
 
+  const updatePayload: AplicareTratamentUpdate = {
+    status: 'aplicata',
+    data_aplicata: payload.dataAplicata.toISOString(),
+    cantitate_totala_ml: payload.cantitateTotala ?? null,
+    meteo_snapshot: meteoSnapshot ?? null,
+    operator: normalizeText(payload.operator),
+    observatii: normalizeText(payload.observatii),
+    stadiu_la_aplicare: normalizeOptionalStadiu(payload.stadiuLaAplicare),
+    updated_by: ctx.userId,
+  }
+
+  if (payload.cohortLaAplicare !== undefined) {
+    updatePayload.cohort_la_aplicare = normalizeOptionalCohorta(payload.cohortLaAplicare)
+  }
+
   const { data, error } = await ctx.supabase
     .from('aplicari_tratament')
-    .update({
-      status: 'aplicata',
-      data_aplicata: payload.dataAplicata.toISOString(),
-      cantitate_totala_ml: payload.cantitateTotala ?? null,
-      meteo_snapshot: meteoSnapshot ?? null,
-      operator: normalizeText(payload.operator),
-      observatii: normalizeText(payload.observatii),
-      stadiu_la_aplicare: normalizeText(payload.stadiuLaAplicare),
-      updated_by: ctx.userId,
-    })
+    .update(updatePayload)
     .eq('id', id)
     .eq('tenant_id', ctx.tenantId)
     .select(APLICARE_SELECT)

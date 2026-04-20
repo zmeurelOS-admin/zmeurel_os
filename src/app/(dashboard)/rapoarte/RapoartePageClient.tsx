@@ -88,6 +88,7 @@ interface ActivitateLite {
   data_aplicare: string
   parcela_id: string | null
   tip_activitate: string | null
+  tip_deprecat: boolean
   produs_utilizat: string | null
   doza: string | null
   timp_pauza_zile: number
@@ -623,6 +624,7 @@ export function RapoartePageClient({
           DataAplicare: new Date(activitate.data_aplicare).toLocaleDateString('ro-RO'),
           Parcela: parcela?.nume_parcela || 'Parcela necunoscuta',
           TipActivitate: activitate.tip_activitate || '',
+          Arhivat: activitate.tip_deprecat ? 'Da' : 'Nu',
           Produs: activitate.produs_utilizat || '',
           Doza: activitate.doza || '',
           TimpPauzaZile: String(activitate.timp_pauza_zile ?? 0),
@@ -641,6 +643,7 @@ export function RapoartePageClient({
       'Data aplicare',
       'Parcela',
       'Tip activitate',
+      'Arhivat',
       'Produs',
       'Doza',
       'Timp pauza (zile)',
@@ -656,6 +659,7 @@ export function RapoartePageClient({
           row.DataAplicare,
           row.Parcela,
           row.TipActivitate,
+          row.Arhivat,
           row.Produs,
           row.Doza,
           row.TimpPauzaZile,

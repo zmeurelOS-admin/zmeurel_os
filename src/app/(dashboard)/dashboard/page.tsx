@@ -659,7 +659,14 @@ export default function DashboardPage() {
           title: row.tip_activitate || 'Activitate agricolă',
           parcela: parcelaById.get(row.parcela_id ?? '') || 'Parcelă nedefinită',
           date: formatShortDate(toDateOnly(row.data_aplicare)),
-          detail: row.produs_utilizat ? `Produs: ${row.produs_utilizat}` : 'Fără produs specificat',
+          detail: row.tip_deprecat ? (
+            <span
+              className="text-xs text-amber-700"
+              title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+            >
+              {(row.tip_activitate || 'Activitate agricolă') + ' · Arhivat'}
+            </span>
+          ) : row.produs_utilizat ? `Produs: ${row.produs_utilizat}` : 'Fără produs specificat',
         })),
     [activitatiDashboard, parcelaById, todayIso]
   )

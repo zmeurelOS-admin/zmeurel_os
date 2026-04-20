@@ -26,13 +26,20 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { MeteoSnapshot } from '@/lib/tratamente/meteo'
-import { STADII_ORDINE } from '@/lib/tratamente/stadiu-ordering'
+import type { Cohorta, ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
+import {
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+} from '@/lib/tratamente/stadii-canonic'
 
 const formSchema = z.object({
   data_aplicata: z.string().trim().min(1, 'Data aplicării este obligatorie.'),
   cantitate_totala_ml: z.string().optional(),
   operator: z.string().optional(),
   stadiu_la_aplicare: z.string().optional(),
+  cohort_la_aplicare: z.enum(['floricane', 'primocane']).optional(),
   observatii: z.string().optional(),
   meteo_temperatura_c: z.string().optional(),
   meteo_umiditate_pct: z.string().optional(),
@@ -46,19 +53,20 @@ export type MarkAplicataFormValues = z.infer<typeof formSchema> & {
 }
 
 interface MarkAplicataSheetProps {
+  cohortLaAplicareBlocata?: Cohorta | null
   defaultCantitateMl: number | null
+  defaultCohortLaAplicare?: Cohorta | null
   defaultOperator: string
   defaultStadiu: string | null
+  configurareSezon?: ConfigurareSezon | null
+  grupBiologic?: GrupBiologic | null
+  isRubusMixt?: boolean
   meteoSnapshot: MeteoSnapshot | null
   onOpenChange: (open: boolean) => void
   onSubmit: (values: MarkAplicataFormValues) => Promise<void> | void
   open: boolean
   pending?: boolean
 }
-
-const STADII_OPTIONS = Object.entries(STADII_ORDINE)
-  .sort((a, b) => a[1].ordine - b[1].ordine)
-  .map(([value, config]) => ({ value, label: config.label }))
 
 function toLocalDateTimeInputValue(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -71,15 +79,20 @@ function formatNumber(value: number | null | undefined): string {
 
 function buildDefaultValues(
   defaultCantitateMl: number | null,
+  defaultCohortLaAplicare: Cohorta | null | undefined,
   defaultOperator: string,
   defaultStadiu: string | null,
+  stadiiValide: readonly string[],
   meteoSnapshot: MeteoSnapshot | null,
 ): z.infer<typeof formSchema> {
+  const normalizedStadiu = defaultStadiu ? normalizeStadiu(defaultStadiu) : null
   return {
     data_aplicata: toLocalDateTimeInputValue(new Date()),
     cantitate_totala_ml: formatNumber(defaultCantitateMl),
     operator: defaultOperator,
-    stadiu_la_aplicare: defaultStadiu ?? '',
+    stadiu_la_aplicare:
+      normalizedStadiu && stadiiValide.includes(normalizedStadiu) ? normalizedStadiu : '',
+    cohort_la_aplicare: defaultCohortLaAplicare ?? undefined,
     observatii: '',
     meteo_temperatura_c: formatNumber(meteoSnapshot?.temperatura_c),
     meteo_umiditate_pct: formatNumber(meteoSnapshot?.umiditate_pct),
@@ -96,9 +109,14 @@ function toOptionalNumber(value: string | undefined): number | null {
 }
 
 export function MarkAplicataSheet({
+  cohortLaAplicareBlocata = null,
   defaultCantitateMl,
+  defaultCohortLaAplicare = null,
   defaultOperator,
   defaultStadiu,
+  configurareSezon,
+  grupBiologic,
+  isRubusMixt = false,
   meteoSnapshot,
   onOpenChange,
   onSubmit,
@@ -107,9 +125,26 @@ export function MarkAplicataSheet({
 }: MarkAplicataSheetProps) {
   const isMobile = useMediaQuery('(max-width: 767px)')
   const [editMeteo, setEditMeteo] = useState(false)
+  const stadiiOptions = useMemo(
+    () =>
+      listStadiiPentruGrup(grupBiologic).map((value) => ({
+        value,
+        label: getLabelStadiuContextual(value, configurareSezon ?? null),
+      })),
+    [configurareSezon, grupBiologic]
+  )
+  const stadiiValide = useMemo(() => stadiiOptions.map((option) => option.value), [stadiiOptions])
   const defaultValues = useMemo(
-    () => buildDefaultValues(defaultCantitateMl, defaultOperator, defaultStadiu, meteoSnapshot),
-    [defaultCantitateMl, defaultOperator, defaultStadiu, meteoSnapshot],
+    () =>
+      buildDefaultValues(
+        defaultCantitateMl,
+        cohortLaAplicareBlocata ?? defaultCohortLaAplicare,
+        defaultOperator,
+        defaultStadiu,
+        stadiiValide,
+        meteoSnapshot
+      ),
+    [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultOperator, defaultStadiu, meteoSnapshot, stadiiValide],
   )
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -119,12 +154,26 @@ export function MarkAplicataSheet({
 
   useEffect(() => {
     if (open) {
-      form.reset(buildDefaultValues(defaultCantitateMl, defaultOperator, defaultStadiu, meteoSnapshot))
+      form.reset(
+        buildDefaultValues(
+          defaultCantitateMl,
+          cohortLaAplicareBlocata ?? defaultCohortLaAplicare,
+          defaultOperator,
+          defaultStadiu,
+          stadiiValide,
+          meteoSnapshot
+        )
+      )
       setEditMeteo(false)
     }
-  }, [defaultCantitateMl, defaultOperator, defaultStadiu, form, meteoSnapshot, open])
+  }, [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultOperator, defaultStadiu, form, meteoSnapshot, open, stadiiValide])
 
   const save = form.handleSubmit(async (values) => {
+    if (isRubusMixt && !cohortLaAplicareBlocata && !values.cohort_la_aplicare) {
+      form.setError('cohort_la_aplicare', { type: 'manual', message: 'Selectează cohorta pentru aplicare.' })
+      return
+    }
+
     const nextSnapshot = editMeteo
       ? {
           timestamp: new Date().toISOString(),
@@ -144,6 +193,28 @@ export function MarkAplicataSheet({
 
   const content = (
     <form className="space-y-4" onSubmit={save}>
+      {isRubusMixt ? (
+        <div className="space-y-2">
+          <Label>Aplicare pentru cohorta</Label>
+          <Select
+            value={form.watch('cohort_la_aplicare') || undefined}
+            onValueChange={(value) => form.setValue('cohort_la_aplicare', value as Cohorta)}
+            disabled={Boolean(cohortLaAplicareBlocata)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selectează cohorta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="floricane">{getCohortaLabel('floricane')}</SelectItem>
+              <SelectItem value="primocane">{getCohortaLabel('primocane')}</SelectItem>
+            </SelectContent>
+          </Select>
+          {form.formState.errors.cohort_la_aplicare ? (
+            <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.cohort_la_aplicare.message}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <Label htmlFor="aplicata-data">Data aplicată</Label>
         <Input id="aplicata-data" type="datetime-local" {...form.register('data_aplicata')} />
@@ -169,7 +240,7 @@ export function MarkAplicataSheet({
             <SelectValue placeholder="Selectează stadiul" />
           </SelectTrigger>
           <SelectContent>
-            {STADII_OPTIONS.map((option) => (
+            {stadiiOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>

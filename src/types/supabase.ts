@@ -34,6 +34,7 @@ export type Database = {
           sync_status: string | null
           tenant_id: string | null
           timp_pauza_zile: number | null
+          tip_deprecat: boolean
           tip_activitate: string | null
           updated_at: string
           updated_by: string | null
@@ -57,6 +58,7 @@ export type Database = {
           sync_status?: string | null
           tenant_id?: string | null
           timp_pauza_zile?: number | null
+          tip_deprecat?: boolean
           tip_activitate?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -80,6 +82,7 @@ export type Database = {
           sync_status?: string | null
           tenant_id?: string | null
           timp_pauza_zile?: number | null
+          tip_deprecat?: boolean
           tip_activitate?: string | null
           updated_at?: string
           updated_by?: string | null
@@ -188,6 +191,7 @@ export type Database = {
       aplicari_tratament: {
         Row: {
           cantitate_totala_ml: number | null
+          cohort_la_aplicare: string | null
           created_at: string
           created_by: string | null
           cultura_id: string | null
@@ -212,6 +216,7 @@ export type Database = {
         }
         Insert: {
           cantitate_totala_ml?: number | null
+          cohort_la_aplicare?: string | null
           created_at?: string
           created_by?: string | null
           cultura_id?: string | null
@@ -236,6 +241,7 @@ export type Database = {
         }
         Update: {
           cantitate_totala_ml?: number | null
+          cohort_la_aplicare?: string | null
           created_at?: string
           created_by?: string | null
           cultura_id?: string | null
@@ -911,23 +917,30 @@ export type Database = {
           },
         ]
       }
+      // Manual sync for crop canonicalization migrations (`crops.cod`, then `crops.grup_biologic`).
       crops: {
         Row: {
+          cod: string
           created_at: string
+          grup_biologic: string | null
           id: string
           name: string
           tenant_id: string | null
           unit_type: string
         }
         Insert: {
+          cod: string
           created_at?: string
+          grup_biologic?: string | null
           id?: string
           name: string
           tenant_id?: string | null
           unit_type: string
         }
         Update: {
+          cod?: string
           created_at?: string
+          grup_biologic?: string | null
           id?: string
           name?: string
           tenant_id?: string | null
@@ -1727,6 +1740,11 @@ export type Database = {
           sistem_irigare: string | null
           soi: string | null
           soi_plantat: string | null
+          /**
+           * @deprecated Nefolosit de modulul Tratamente din Faza 0.
+           * Folosește stadii_fenologice_parcela pentru stadii fenologice.
+           * A nu se folosi în cod nou.
+           */
           stadiu: string
           status: string | null
           status_operational: string
@@ -1762,6 +1780,11 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
+          /**
+           * @deprecated Nefolosit de modulul Tratamente din Faza 0.
+           * Folosește stadii_fenologice_parcela pentru stadii fenologice.
+           * A nu se folosi în cod nou.
+           */
           stadiu?: string
           status?: string | null
           status_operational?: string
@@ -1797,6 +1820,11 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
+          /**
+           * @deprecated Nefolosit de modulul Tratamente din Faza 0.
+           * Folosește stadii_fenologice_parcela pentru stadii fenologice.
+           * A nu se folosi în cod nou.
+           */
           stadiu?: string
           status?: string | null
           status_operational?: string
@@ -1929,8 +1957,57 @@ export type Database = {
           },
         ]
       }
+      configurari_parcela_sezon: {
+        Row: {
+          an: number
+          created_at: string
+          id: string
+          parcela_id: string
+          sistem_conducere: string | null
+          tenant_id: string
+          tip_ciclu_soi: string | null
+          updated_at: string
+        }
+        Insert: {
+          an: number
+          created_at?: string
+          id?: string
+          parcela_id: string
+          sistem_conducere?: string | null
+          tenant_id: string
+          tip_ciclu_soi?: string | null
+          updated_at?: string
+        }
+        Update: {
+          an?: number
+          created_at?: string
+          id?: string
+          parcela_id?: string
+          sistem_conducere?: string | null
+          tenant_id?: string
+          tip_ciclu_soi?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configurari_parcela_sezon_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configurari_parcela_sezon_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       planuri_tratament_linii: {
         Row: {
+          cohort_trigger: string | null
           created_at: string
           doza_l_per_ha: number | null
           doza_ml_per_hl: number | null
@@ -1945,6 +2022,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cohort_trigger?: string | null
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
@@ -1959,6 +2037,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cohort_trigger?: string | null
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
@@ -2414,6 +2493,7 @@ export type Database = {
       stadii_fenologice_parcela: {
         Row: {
           an: number
+          cohort: string | null
           created_at: string
           created_by: string | null
           data_observata: string
@@ -2427,6 +2507,7 @@ export type Database = {
         }
         Insert: {
           an: number
+          cohort?: string | null
           created_at?: string
           created_by?: string | null
           data_observata: string
@@ -2440,6 +2521,7 @@ export type Database = {
         }
         Update: {
           an?: number
+          cohort?: string | null
           created_at?: string
           created_by?: string | null
           data_observata?: string

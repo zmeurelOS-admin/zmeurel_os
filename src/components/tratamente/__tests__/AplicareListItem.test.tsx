@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 
 import { AplicareListItem } from '@/components/tratamente/AplicareListItem'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
+import { getLabelRo } from '@/lib/tratamente/stadii-canonic'
 
 function buildAplicare(tip: string, status: AplicareTratamentDetaliu['status']): AplicareTratamentDetaliu {
   return {
@@ -21,7 +22,8 @@ function buildAplicare(tip: string, status: AplicareTratamentDetaliu['status']):
     stoc_mutatie_id: null,
     status,
     meteo_snapshot: null,
-    stadiu_la_aplicare: 'la înflorit',
+    stadiu_la_aplicare: 'inflorit',
+    cohort_la_aplicare: null,
     observatii: null,
     operator: null,
     created_at: '2026-04-18T08:00:00Z',
@@ -45,6 +47,7 @@ function buildAplicare(tip: string, status: AplicareTratamentDetaliu['status']):
       plan_id: 'plan1',
       ordine: 1,
       stadiu_trigger: 'inflorit',
+      cohort_trigger: null,
       produs_id: 'prod1',
       produs_nume_manual: null,
       doza_ml_per_hl: 80,
@@ -70,6 +73,7 @@ describe('AplicareListItem', () => {
     expect(article).toHaveStyle({ borderLeftColor: '#3B82F6' })
     expect(screen.getByText('Planificată')).toBeInTheDocument()
     expect(screen.getByText(/apr/i)).toBeInTheDocument()
+    expect(screen.getByText(`la ${getLabelRo('inflorit')}`)).toBeInTheDocument()
   })
 
   it('folosește accent portocaliu pentru insecticid și afișează badge aplicată', () => {
@@ -84,5 +88,32 @@ describe('AplicareListItem', () => {
     render(<AplicareListItem aplicare={buildAplicare('fungicid', 'omisa')} parcelaId="p1" />)
 
     expect(screen.getByText('Omisă')).toBeInTheDocument()
+  })
+
+  it('afișează label contextual pentru post-recoltare la solanacee nedeterminat', () => {
+    const aplicare = buildAplicare('fungicid', 'planificata')
+    aplicare.stadiu_la_aplicare = 'post_recoltare'
+    if (aplicare.linie) {
+      aplicare.linie.stadiu_trigger = 'post_recoltare'
+    }
+
+    render(
+      <AplicareListItem
+        aplicare={aplicare}
+        parcelaId="p1"
+        configurareSezon={{
+          id: 'cfg-1',
+          tenant_id: 't1',
+          parcela_id: 'p1',
+          an: 2026,
+          sistem_conducere: null,
+          tip_ciclu_soi: 'nedeterminat',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        }}
+      />,
+    )
+
+    expect(screen.getByText('la Producție în curs')).toBeInTheDocument()
   })
 })

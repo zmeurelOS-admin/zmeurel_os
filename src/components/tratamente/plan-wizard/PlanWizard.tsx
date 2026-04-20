@@ -26,7 +26,10 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { queryKeys } from '@/lib/query-keys'
 import type { PlanTratamentComplet } from '@/lib/supabase/queries/tratamente'
 
-import { buildWizardWarnings } from '@/components/tratamente/plan-wizard/helpers'
+import {
+  buildWizardWarnings,
+  getGrupBiologicDinCultura,
+} from '@/components/tratamente/plan-wizard/helpers'
 import { PlanWizardStepInfo } from '@/components/tratamente/plan-wizard/PlanWizardStepInfo'
 import { PlanWizardStepLinii } from '@/components/tratamente/plan-wizard/PlanWizardStepLinii'
 import { PlanWizardStepRevizuire } from '@/components/tratamente/plan-wizard/PlanWizardStepRevizuire'
@@ -39,9 +42,13 @@ import {
   type PlanWizardLinieDraft,
   type PlanWizardRevizuireData,
 } from '@/components/tratamente/plan-wizard/types'
+import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import { needsCohortSelection } from '@/lib/tratamente/configurare-sezon'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 
 interface PlanWizardProps {
   initialData?: PlanTratamentComplet
+  configurareSezon?: ConfigurareSezon | null
   onSave: (result: PlanTratamentComplet) => Promise<void> | void
   onCancel: () => void
   preselectedParcelaId?: string
@@ -80,6 +87,7 @@ function isLineValid(linie: PlanWizardLinieDraft) {
 }
 
 export function PlanWizard({
+  configurareSezon,
   initialData,
   onSave,
   onCancel,
@@ -97,7 +105,7 @@ export function PlanWizard({
             },
             linii: [],
             revizuire: {
-              an: new Date().getFullYear(),
+              an: getCurrentSezon(),
               parcele_ids: [],
             },
           },
@@ -158,9 +166,17 @@ export function PlanWizard({
 
   const infoErrors = useMemo(() => getInfoErrors(infoData), [infoData])
   const reviewErrors = useMemo(() => asociereSchema.safeParse(reviewData), [reviewData])
+  const grupBiologic = useMemo(
+    () => getGrupBiologicDinCultura(infoData.cultura_tip),
+    [infoData.cultura_tip]
+  )
   const warnings = useMemo(
-    () => buildWizardWarnings(liniiData, produse, reviewData.an),
-    [liniiData, produse, reviewData.an]
+    () => buildWizardWarnings(liniiData, produse, reviewData.an, grupBiologic),
+    [grupBiologic, liniiData, produse, reviewData.an]
+  )
+  const allowCohortTrigger = useMemo(
+    () => needsCohortSelection(grupBiologic, configurareSezon),
+    [configurareSezon, grupBiologic]
   )
 
   const stepValid = {
@@ -230,7 +246,9 @@ export function PlanWizard({
 
       {currentStep === 2 ? (
         <PlanWizardStepLinii
+          allowCohortTrigger={allowCohortTrigger}
           culturaTip={infoData.cultura_tip}
+          grupBiologic={grupBiologic}
           linii={liniiData}
           produse={produse}
           onChange={setLiniiData}

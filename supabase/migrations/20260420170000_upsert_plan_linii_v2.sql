@@ -1,0 +1,279 @@
+-- Faza 5: păstrăm același nume de funcție pentru a evita schimbări de call-site.
+-- RPC-ul devine explicit cohort-aware pentru planuri de tratament.
+CREATE OR REPLACE FUNCTION public.upsert_plan_tratament_cu_linii(
+  p_plan_id uuid,
+  p_plan_data jsonb,
+  p_linii jsonb,
+  p_parcele_ids uuid[],
+  p_an integer
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_tenant_id uuid;
+  v_plan_id uuid;
+  v_linie jsonb;
+  v_parcela_id uuid;
+  v_selected_parcele uuid[] := COALESCE(p_parcele_ids, ARRAY[]::uuid[]);
+  v_existing_assoc_id uuid;
+  v_line_items jsonb;
+  v_parcele_json jsonb;
+  v_plan_json jsonb;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Neautorizat';
+  END IF;
+
+  SELECT public.current_tenant_id()
+  INTO v_tenant_id;
+
+  IF v_tenant_id IS NULL THEN
+    RAISE EXCEPTION 'Tenant invalid pentru utilizatorul curent.';
+  END IF;
+
+  IF p_plan_data IS NULL OR jsonb_typeof(p_plan_data) <> 'object' THEN
+    RAISE EXCEPTION 'Datele planului sunt invalide.';
+  END IF;
+
+  IF p_linii IS NULL OR jsonb_typeof(p_linii) <> 'array' THEN
+    RAISE EXCEPTION 'Liniile planului sunt invalide.';
+  END IF;
+
+  IF p_an IS NULL OR p_an < 2020 OR p_an > 2100 THEN
+    RAISE EXCEPTION 'Anul de asociere este invalid.';
+  END IF;
+
+  IF p_plan_id IS NULL THEN
+    INSERT INTO public.planuri_tratament (
+      tenant_id,
+      nume,
+      cultura_tip,
+      descriere,
+      activ,
+      arhivat,
+      created_by,
+      updated_by
+    )
+    VALUES (
+      v_tenant_id,
+      NULLIF(BTRIM(p_plan_data ->> 'nume'), ''),
+      NULLIF(BTRIM(p_plan_data ->> 'cultura_tip'), ''),
+      NULLIF(BTRIM(p_plan_data ->> 'descriere'), ''),
+      COALESCE((p_plan_data ->> 'activ')::boolean, true),
+      COALESCE((p_plan_data ->> 'arhivat')::boolean, false),
+      v_user_id,
+      v_user_id
+    )
+    RETURNING id INTO v_plan_id;
+  ELSE
+    PERFORM 1
+    FROM public.planuri_tratament
+    WHERE id = p_plan_id
+      AND tenant_id = v_tenant_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Planul de tratament nu există în tenantul curent.';
+    END IF;
+
+    UPDATE public.planuri_tratament
+    SET
+      nume = NULLIF(BTRIM(p_plan_data ->> 'nume'), ''),
+      cultura_tip = NULLIF(BTRIM(p_plan_data ->> 'cultura_tip'), ''),
+      descriere = NULLIF(BTRIM(p_plan_data ->> 'descriere'), ''),
+      activ = COALESCE((p_plan_data ->> 'activ')::boolean, activ),
+      arhivat = COALESCE((p_plan_data ->> 'arhivat')::boolean, arhivat),
+      updated_by = v_user_id
+    WHERE id = p_plan_id
+      AND tenant_id = v_tenant_id;
+
+    v_plan_id := p_plan_id;
+  END IF;
+
+  IF v_plan_id IS NULL THEN
+    RAISE EXCEPTION 'Planul nu a putut fi salvat.';
+  END IF;
+
+  DELETE FROM public.planuri_tratament_linii
+  WHERE plan_id = v_plan_id
+    AND tenant_id = v_tenant_id;
+
+  FOR v_linie IN
+    SELECT value
+    FROM jsonb_array_elements(p_linii)
+  LOOP
+    INSERT INTO public.planuri_tratament_linii (
+      tenant_id,
+      plan_id,
+      ordine,
+      stadiu_trigger,
+      cohort_trigger,
+      produs_id,
+      produs_nume_manual,
+      doza_ml_per_hl,
+      doza_l_per_ha,
+      observatii
+    )
+    VALUES (
+      v_tenant_id,
+      v_plan_id,
+      COALESCE((v_linie ->> 'ordine')::integer, 0),
+      NULLIF(BTRIM(v_linie ->> 'stadiu_trigger'), ''),
+      NULLIF(BTRIM(v_linie ->> 'cohort_trigger'), ''),
+      NULLIF(v_linie ->> 'produs_id', '')::uuid,
+      NULLIF(BTRIM(v_linie ->> 'produs_nume_manual'), ''),
+      NULLIF(v_linie ->> 'doza_ml_per_hl', '')::numeric,
+      NULLIF(v_linie ->> 'doza_l_per_ha', '')::numeric,
+      NULLIF(BTRIM(v_linie ->> 'observatii'), '')
+    );
+  END LOOP;
+
+  UPDATE public.parcele_planuri
+  SET activ = false
+  WHERE tenant_id = v_tenant_id
+    AND plan_id = v_plan_id
+    AND an = p_an
+    AND activ = true;
+
+  IF p_parcele_ids IS NOT NULL THEN
+    FOREACH v_parcela_id IN ARRAY v_selected_parcele
+    LOOP
+      PERFORM 1
+      FROM public.parcele
+      WHERE id = v_parcela_id
+        AND tenant_id = v_tenant_id;
+
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Parcela % nu aparține tenantului curent.', v_parcela_id;
+      END IF;
+
+      UPDATE public.parcele_planuri
+      SET activ = false
+      WHERE tenant_id = v_tenant_id
+        AND parcela_id = v_parcela_id
+        AND an = p_an
+        AND activ = true;
+
+      SELECT id
+      INTO v_existing_assoc_id
+      FROM public.parcele_planuri
+      WHERE tenant_id = v_tenant_id
+        AND parcela_id = v_parcela_id
+        AND plan_id = v_plan_id
+        AND an = p_an
+      LIMIT 1;
+
+      IF v_existing_assoc_id IS NULL THEN
+        INSERT INTO public.parcele_planuri (
+          tenant_id,
+          parcela_id,
+          plan_id,
+          an,
+          activ
+        )
+        VALUES (
+          v_tenant_id,
+          v_parcela_id,
+          v_plan_id,
+          p_an,
+          true
+        );
+      ELSE
+        UPDATE public.parcele_planuri
+        SET activ = true
+        WHERE id = v_existing_assoc_id
+          AND tenant_id = v_tenant_id;
+      END IF;
+
+      v_existing_assoc_id := NULL;
+    END LOOP;
+  END IF;
+
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', l.id,
+        'tenant_id', l.tenant_id,
+        'plan_id', l.plan_id,
+        'ordine', l.ordine,
+        'stadiu_trigger', l.stadiu_trigger,
+        'cohort_trigger', l.cohort_trigger,
+        'produs_id', l.produs_id,
+        'produs_nume_manual', l.produs_nume_manual,
+        'doza_ml_per_hl', l.doza_ml_per_hl,
+        'doza_l_per_ha', l.doza_l_per_ha,
+        'observatii', l.observatii,
+        'created_at', l.created_at,
+        'updated_at', l.updated_at
+      )
+      ORDER BY l.ordine ASC, l.created_at ASC
+    ),
+    '[]'::jsonb
+  )
+  INTO v_line_items
+  FROM public.planuri_tratament_linii l
+  WHERE l.tenant_id = v_tenant_id
+    AND l.plan_id = v_plan_id;
+
+  SELECT COALESCE(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', pp.id,
+        'tenant_id', pp.tenant_id,
+        'parcela_id', pp.parcela_id,
+        'plan_id', pp.plan_id,
+        'an', pp.an,
+        'activ', pp.activ,
+        'created_at', pp.created_at,
+        'updated_at', pp.updated_at,
+        'parcela_nume', p.nume_parcela,
+        'parcela_cod', p.id_parcela,
+        'suprafata_m2', p.suprafata_m2
+      )
+      ORDER BY pp.an DESC, p.nume_parcela ASC
+    ),
+    '[]'::jsonb
+  )
+  INTO v_parcele_json
+  FROM public.parcele_planuri pp
+  JOIN public.parcele p
+    ON p.id = pp.parcela_id
+   AND p.tenant_id = v_tenant_id
+  WHERE pp.tenant_id = v_tenant_id
+    AND pp.plan_id = v_plan_id
+    AND pp.activ = true;
+
+  SELECT jsonb_build_object(
+    'id', pt.id,
+    'tenant_id', pt.tenant_id,
+    'nume', pt.nume,
+    'cultura_tip', pt.cultura_tip,
+    'descriere', pt.descriere,
+    'activ', pt.activ,
+    'arhivat', pt.arhivat,
+    'created_at', pt.created_at,
+    'updated_at', pt.updated_at,
+    'created_by', pt.created_by,
+    'updated_by', pt.updated_by
+  )
+  INTO v_plan_json
+  FROM public.planuri_tratament pt
+  WHERE pt.id = v_plan_id
+    AND pt.tenant_id = v_tenant_id;
+
+  RETURN jsonb_build_object(
+    'plan', v_plan_json,
+    'linii', v_line_items,
+    'parcele_asociate', v_parcele_json
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.upsert_plan_tratament_cu_linii(uuid, jsonb, jsonb, uuid[], integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.upsert_plan_tratament_cu_linii(uuid, jsonb, jsonb, uuid[], integer) TO service_role;
+
+NOTIFY pgrst, 'reload schema';

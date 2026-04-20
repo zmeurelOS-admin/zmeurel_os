@@ -1,6 +1,9 @@
+import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import type { UnitateTip } from '@/lib/parcele/unitate'
+import { getGrupBiologicForCropCod } from '@/lib/tratamente/stadii-canonic'
+import { normalizeForSearch } from '@/lib/utils/string'
 import type { Tables } from '@/types/supabase'
 
 export type Crop = Tables<'crops'>
@@ -12,6 +15,14 @@ async function getCurrentTenantId(): Promise<string | null> {
 
 function normalizeName(value: string): string {
   return value.trim().toLowerCase()
+}
+
+function resolveCropCode(name: string): string {
+  return normalizeCropCod(name) ?? normalizeForSearch(name)
+}
+
+function resolveCropGroup(name: string) {
+  return getGrupBiologicForCropCod(normalizeCropCod(name))
 }
 
 function pickPreferredCrop(rows: Crop[], normalizedName: string): Crop | null {
@@ -28,7 +39,7 @@ export async function getCropsForUnitType(unitType: UnitateTip): Promise<Crop[]>
 
   let query = supabase
     .from('crops')
-    .select('id,name,unit_type,tenant_id,created_at')
+    .select('id,cod,name,unit_type,tenant_id,grup_biologic,created_at')
     .eq('unit_type', unitType)
 
   if (tenantId) {
@@ -74,7 +85,7 @@ export async function ensureCropForUnitType(name: string, unitType: UnitateTip):
   const normalizedName = normalizeName(cropName)
   const { data: existingRows, error: existingError } = await supabase
     .from('crops')
-    .select('id,name,unit_type,tenant_id,created_at')
+    .select('id,cod,name,unit_type,tenant_id,grup_biologic,created_at')
     .eq('unit_type', unitType)
     .ilike('name', cropName)
     .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
@@ -87,18 +98,20 @@ export async function ensureCropForUnitType(name: string, unitType: UnitateTip):
   const { data: inserted, error: insertError } = await supabase
     .from('crops')
     .insert({
+      cod: resolveCropCode(cropName),
+      grup_biologic: resolveCropGroup(cropName),
       name: cropName,
       unit_type: unitType,
       tenant_id: tenantId,
     })
-    .select('id,name,unit_type,tenant_id,created_at')
+    .select('id,cod,name,unit_type,tenant_id,grup_biologic,created_at')
     .single()
 
   if (!insertError && inserted) return inserted
 
   const { data: refetched, error: refetchError } = await supabase
     .from('crops')
-    .select('id,name,unit_type,tenant_id,created_at')
+    .select('id,cod,name,unit_type,tenant_id,grup_biologic,created_at')
     .eq('unit_type', unitType)
     .ilike('name', cropName)
     .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)

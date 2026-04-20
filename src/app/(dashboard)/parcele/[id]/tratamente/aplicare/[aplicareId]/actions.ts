@@ -10,6 +10,7 @@ import {
   markAplicareAsAplicata,
   reprogrameazaAplicare,
 } from '@/lib/supabase/queries/tratamente'
+import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import type { MeteoSnapshot } from '@/lib/tratamente/meteo'
 import type { Json } from '@/types/supabase'
 
@@ -22,6 +23,7 @@ const markSchema = z.object({
   cantitate_totala_ml: z.string().optional(),
   operator: z.string().optional(),
   stadiu_la_aplicare: z.string().optional(),
+  cohort_la_aplicare: z.enum(['floricane', 'primocane']).optional().nullable(),
   observatii: z.string().optional(),
   meteo_snapshot: z.string().optional(),
 })
@@ -68,6 +70,7 @@ export async function markAplicataAction(formData: FormData): Promise<ActionResu
     cantitate_totala_ml: getFormValue(formData, 'cantitate_totala_ml'),
     operator: getFormValue(formData, 'operator'),
     stadiu_la_aplicare: getFormValue(formData, 'stadiu_la_aplicare'),
+    cohort_la_aplicare: (formData.get('cohort_la_aplicare') as Cohorta | string | null | undefined) ?? undefined,
     observatii: getFormValue(formData, 'observatii'),
     meteo_snapshot: getFormValue(formData, 'meteo_snapshot'),
   })
@@ -87,6 +90,7 @@ export async function markAplicataAction(formData: FormData): Promise<ActionResu
       operator: parsed.data.operator,
       observatii: parsed.data.observatii,
       stadiuLaAplicare: parsed.data.stadiu_la_aplicare,
+      cohortLaAplicare: parsed.data.cohort_la_aplicare ?? undefined,
     })
 
     revalidateAplicarePaths(parsed.data.parcelaId, parsed.data.aplicareId)
@@ -110,7 +114,7 @@ export async function reprogrameazaAction(formData: FormData): Promise<ActionRes
   if (!parsed.success) {
     return {
       ok: false,
-      error: parsed.error.issues[0]?.message ?? 'Nu am putut reprogama aplicarea.',
+      error: parsed.error.issues[0]?.message ?? 'Nu am putut reprograma aplicarea.',
     }
   }
 
@@ -126,7 +130,7 @@ export async function reprogrameazaAction(formData: FormData): Promise<ActionRes
   } catch (error) {
     return {
       ok: false,
-      error: mapTratamenteError(error, 'Nu am putut reprogama aplicarea.').message,
+      error: mapTratamenteError(error, 'Nu am putut reprograma aplicarea.').message,
     }
   }
 }

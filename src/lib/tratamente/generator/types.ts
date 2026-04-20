@@ -1,3 +1,5 @@
+import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+
 export interface GeneratorInput {
   parcelaId: string
   an: number
@@ -9,6 +11,8 @@ export interface GeneratorInput {
 export interface PropunereAplicare {
   linieId: string
   stadiuTrigger: string
+  cohortTrigger?: Cohorta | null
+  cohortLaAplicare?: Cohorta | null
   dataPlanificata: string
   produsId: string | null
   produsNumeManual: string | null
@@ -30,6 +34,7 @@ export interface PlanLinie {
   planId?: string
   ordine?: number
   stadiuTrigger: string
+  cohortTrigger?: Cohorta | null
   produsId: string | null
   produsNumeManual: string | null
   dozaMlPerHl: number | null
@@ -48,6 +53,7 @@ export interface StadiuInregistrat {
   parcelaId?: string
   an?: number
   stadiu: string
+  cohort?: Cohorta | null
   dataObservata: string
   sursa?: string
   observatii?: string | null
@@ -55,4 +61,5 @@ export interface StadiuInregistrat {
 
 export interface LinieCuData extends PlanLinie {
   dataPlanificata: string
+  cohortLaAplicare?: Cohorta | null
 }

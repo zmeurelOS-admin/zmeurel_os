@@ -1,47 +1,73 @@
+import { CROP_CODES, normalizeCropCod, type CropCod } from '@/lib/crops/crop-codes'
+import {
+  getLabelRo,
+  listAllStadiiCanonice,
+  normalizeStadiu,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 import { normalizeForSearch } from '@/lib/utils/string'
 
-export const CULTURI_ACCEPTATE = ['zmeur', 'capsun', 'mur', 'afin', 'aronia', 'catina'] as const
+const IMPORT_CROP_CODES = [...CROP_CODES, 'aronia', 'catina'] as const
 
-export const STADII_VALIDE = [
-  'repaus_vegetativ',
-  'umflare_muguri',
-  'dezmugurire',
-  'inmugurire',
-  'prefloral',
-  'inflorire',
-  'cadere_petale',
-  'legare_fruct',
-  'crestere_fruct',
-  'parguire',
-  'maturare',
-  'post_recoltare',
-] as const
-
-export type CulturaImport = (typeof CULTURI_ACCEPTATE)[number]
-export type StadiuImport = (typeof STADII_VALIDE)[number]
-
-export const STADIU_LABELS: Record<StadiuImport, string> = {
-  repaus_vegetativ: 'Repaus vegetativ',
-  umflare_muguri: 'Umflare muguri',
-  dezmugurire: 'Dezmugurire',
-  inmugurire: 'Înmugurire',
-  prefloral: 'Prefloral',
-  inflorire: 'Înflorire',
-  cadere_petale: 'Cădere petale',
-  legare_fruct: 'Legare fruct',
-  crestere_fruct: 'Creștere fruct',
-  parguire: 'Pârguire',
-  maturare: 'Maturare',
-  post_recoltare: 'Post-recoltare',
+const IMPORT_CROP_LABELS: Record<(typeof IMPORT_CROP_CODES)[number], string> = {
+  agris: 'Agriș',
+  afin: 'Afin',
+  ardei: 'Ardei',
+  aronia: 'Aronia',
+  cais: 'Cais',
+  capsun: 'Căpșun',
+  castravete: 'Castravete',
+  catina: 'Cătină',
+  cires: 'Cireș',
+  coacaz: 'Coacăz',
+  dovlecel: 'Dovlecel',
+  mar: 'Măr',
+  mur: 'Mur',
+  nuc: 'Nuc',
+  par: 'Păr',
+  piersic: 'Piersic',
+  prun: 'Prun',
+  ridiche: 'Ridiche',
+  rosie: 'Roșie',
+  salata: 'Salată',
+  spanac: 'Spanac',
+  vanata: 'Vânătă',
+  visin: 'Vișin',
+  zmeur: 'Zmeur',
 }
 
-export const CULTURA_LABELS: Record<CulturaImport, string> = {
-  zmeur: 'Zmeur',
-  capsun: 'Căpșun',
-  mur: 'Mur',
-  afin: 'Afin',
-  aronia: 'Aronia',
-  catina: 'Cătină',
+const LEGACY_IMPORT_CULTURE_MAP: Record<string, CulturaImport> = {
+  aronia: 'aronia',
+  catina: 'catina',
+}
+
+export const CULTURI_ACCEPTATE = IMPORT_CROP_CODES
+export const STADII_VALIDE = listAllStadiiCanonice() as readonly StadiuCod[]
+
+export type CulturaImport = (typeof CULTURI_ACCEPTATE)[number]
+export type StadiuImport = StadiuCod
+export type CohortTriggerImport = 'floricane' | 'primocane'
+
+export const STADIU_LABELS: Record<StadiuImport, string> = STADII_VALIDE.reduce<Record<StadiuImport, string>>(
+  (accumulator, stadiu) => {
+    accumulator[stadiu] = getLabelRo(stadiu)
+    return accumulator
+  },
+  {} as Record<StadiuImport, string>
+)
+
+export const CULTURA_LABELS: Record<CulturaImport, string> = IMPORT_CROP_CODES.reduce<Record<CulturaImport, string>>(
+  (accumulator, cultura) => {
+    accumulator[cultura] = IMPORT_CROP_LABELS[cultura]
+    return accumulator
+  },
+  {} as Record<CulturaImport, string>
+)
+
+export const COHORT_TRIGGER_VALUES = ['floricane', 'primocane'] as const
+export const COHORT_TRIGGER_LABELS: Record<CohortTriggerImport, string> = {
+  floricane: 'floricane',
+  primocane: 'primocane',
 }
 
 export const SHEET_NAMES_RESERVED = [
@@ -64,15 +90,39 @@ function buildLookup<const T extends readonly string[]>(
   }, {})
 }
 
-export const CULTURA_LOOKUP_MAP = buildLookup(CULTURI_ACCEPTATE, CULTURA_LABELS)
-export const STADIU_LOOKUP_MAP = buildLookup(STADII_VALIDE, STADIU_LABELS)
+export const CULTURA_LOOKUP_MAP: Record<string, CulturaImport> = {
+  ...buildLookup(CULTURI_ACCEPTATE, CULTURA_LABELS),
+  rosii: 'rosie',
+  castraveti: 'castravete',
+  vinete: 'vanata',
+  ridichi: 'ridiche',
+  afine: 'afin',
+  capsuni: 'capsun',
+  coacaze: 'coacaz',
+  mure: 'mur',
+  zmeura: 'zmeur',
+}
+
+export function mapImportCohortTrigger(value: string | null | undefined): CohortTriggerImport | null {
+  const normalized = normalizeForSearch(value)
+  if (!normalized) return null
+  if (normalized === 'floricane') return 'floricane'
+  if (normalized === 'primocane') return 'primocane'
+  return null
+}
 
 export function mapImportCulture(value: string | null | undefined): CulturaImport | null {
+  const normalizedCrop = normalizeCropCod(value)
+  if (normalizedCrop) {
+    return normalizedCrop as Extract<CulturaImport, CropCod>
+  }
+
   const normalized = normalizeForSearch(value)
-  return normalized ? CULTURA_LOOKUP_MAP[normalized] ?? null : null
+  if (!normalized) return null
+  return LEGACY_IMPORT_CULTURE_MAP[normalized] ?? CULTURA_LOOKUP_MAP[normalized] ?? null
 }
 
 export function mapImportStage(value: string | null | undefined): StadiuImport | null {
-  const normalized = normalizeForSearch(value)
-  return normalized ? STADIU_LOOKUP_MAP[normalized] ?? null : null
+  if (!value) return null
+  return normalizeStadiu(value)
 }

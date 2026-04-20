@@ -12,6 +12,11 @@ import {
   DEMO_FIXTURE_TAG,
   DEMO_FIXED_IDS,
 } from './demo-fixtures'
+import {
+  buildDemoTratamenteFixture,
+  DEMO_TRATAMENTE_PRODUCT_NAMES,
+  isDemoTratamenteFallbackRow,
+} from './tratamente-demo'
 
 const DEMO_CULEGATOR_TARIF_LEI_KG = 2.5
 const DEMO_LEGAL_DOC_PNG_BASE64 =
@@ -217,6 +222,12 @@ type DemoTable =
   | 'activitati_agricole'
   | 'solar_climate_logs'
   | 'culture_stage_logs'
+  | 'configurari_parcela_sezon'
+  | 'planuri_tratament'
+  | 'planuri_tratament_linii'
+  | 'parcele_planuri'
+  | 'stadii_fenologice_parcela'
+  | 'aplicari_tratament'
 
 type DemoColumnsSupport = Record<DemoTable, boolean>
 type DemoType = 'berries' | 'solar' | 'orchard' | 'fieldcrop'
@@ -235,6 +246,12 @@ export type DemoSeedSummary = {
   activitati: number
   stocuri: number
   culturi: number
+  tratamente_planuri: number
+  tratamente_linii: number
+  tratamente_asignari: number
+  tratamente_configurari_sezon: number
+  tratamente_stadii: number
+  tratamente_aplicari: number
 }
 
 export type DemoSeedError = {
@@ -268,9 +285,20 @@ const DEMO_TABLES: DemoTable[] = [
   'activitati_agricole',
   'solar_climate_logs',
   'culture_stage_logs',
+  'configurari_parcela_sezon',
+  'aplicari_tratament',
+  'stadii_fenologice_parcela',
+  'parcele_planuri',
+  'planuri_tratament_linii',
+  'planuri_tratament',
 ]
 
 const DELETE_ORDER: DemoTable[] = [
+  'aplicari_tratament',
+  'stadii_fenologice_parcela',
+  'parcele_planuri',
+  'planuri_tratament_linii',
+  'planuri_tratament',
   'miscari_stoc',
   'vanzari',
   'recoltari',
@@ -282,6 +310,7 @@ const DELETE_ORDER: DemoTable[] = [
   'culturi',
   'solar_climate_logs',
   'culture_stage_logs',
+  'configurari_parcela_sezon',
   'clienti',
   'culegatori',
   'parcele',
@@ -300,6 +329,12 @@ const EMPTY_SUMMARY: DemoSeedSummary = {
   activitati: 0,
   stocuri: 0,
   culturi: 0,
+  tratamente_planuri: 0,
+  tratamente_linii: 0,
+  tratamente_asignari: 0,
+  tratamente_configurari_sezon: 0,
+  tratamente_stadii: 0,
+  tratamente_aplicari: 0,
 }
 const LEGACY_DEMO_DATA_ORIGIN = 'demo'
 
@@ -327,6 +362,25 @@ async function tableSupportsDemoColumns(
   supabaseAdmin: SupabaseClient<Database>,
   table: DemoTable
 ): Promise<boolean> {
+  if (table === 'configurari_parcela_sezon') {
+    const { error } = await ((((supabaseAdmin as unknown) as { from: (name: string) => unknown }).from(table)) as {
+      select: (columns: string) => {
+        limit: (
+          value: number
+        ) => Promise<{
+          error: { code?: string; message?: string } | null
+        }>
+      }
+    })
+      .select('id')
+      .limit(1)
+
+    if (!error) return true
+    if (error.code === 'PGRST205') return false
+    if (isMissingColumnError(error)) return false
+    throw new Error(`Table check failed for ${table}: ${error.message ?? 'Unknown error'}`)
+  }
+
   const { error } = await ((((supabaseAdmin as unknown) as { from: (name: string) => unknown }).from(table)) as {
     select: (columns: string) => {
       limit: (
@@ -377,6 +431,12 @@ async function collectFallbackRows(
     activitati_agricole: 'id,id_activitate,observatii',
     solar_climate_logs: 'id,observatii',
     culture_stage_logs: 'id,etapa,observatii',
+    configurari_parcela_sezon: 'id,parcela_id,an,sistem_conducere,tip_ciclu_soi',
+    planuri_tratament: 'id,nume,descriere',
+    planuri_tratament_linii: 'id,observatii',
+    parcele_planuri: 'id,plan_id,parcela_id',
+    stadii_fenologice_parcela: 'id,stadiu,observatii',
+    aplicari_tratament: 'id,observatii,operator',
   }
 
   const { data, error } = await ((((supabaseAdmin as unknown) as { from: (name: string) => unknown }).from(table)) as {
@@ -444,6 +504,12 @@ function isFallbackDemoRow(table: DemoTable, row: Record<string, unknown>): bool
       return hasFixtureTag(row.observatii)
     case 'culture_stage_logs':
       return hasFixtureTag(row.observatii) || String(row.etapa ?? '').toLowerCase().startsWith('demo_')
+    case 'planuri_tratament':
+    case 'planuri_tratament_linii':
+    case 'parcele_planuri':
+    case 'stadii_fenologice_parcela':
+    case 'aplicari_tratament':
+      return isDemoTratamenteFallbackRow(table, row)
     default:
       return false
   }
@@ -474,6 +540,12 @@ async function collectDemoRowIds(params: {
       activitati_agricole: 'id,id_activitate,observatii,data_origin,demo_seed_id',
       solar_climate_logs: 'id,observatii,data_origin,demo_seed_id',
       culture_stage_logs: 'id,etapa,observatii,data_origin,demo_seed_id',
+      configurari_parcela_sezon: 'id,parcela_id,an,sistem_conducere,tip_ciclu_soi',
+      planuri_tratament: 'id,nume,descriere',
+      planuri_tratament_linii: 'id,observatii',
+      parcele_planuri: 'id,plan_id,parcela_id',
+      stadii_fenologice_parcela: 'id,stadiu,observatii',
+      aplicari_tratament: 'id,observatii,operator',
     }
 
     const { data, error } = await ((((supabaseAdmin as unknown) as { from: (name: string) => unknown }).from(table)) as {
@@ -629,6 +701,129 @@ function logSeedInsertError(
 ) {
   const normalizedError = normalizeSeedError(table, error, sentData)
   errors.push(normalizedError)
+}
+
+async function seedDemoTratamente(params: {
+  supabaseAdmin: SupabaseClient<Database>
+  tenantId: string
+  seedId: string
+  demoColumnsSupport: DemoColumnsSupport
+  insertedParcele: Array<{ id: string; nume_parcela: string | null; rol: string | null }>
+  parcelaRowByParcelaId: Map<string, Record<string, unknown>>
+  summary: DemoSeedSummary
+}): Promise<void> {
+  const {
+    supabaseAdmin,
+    tenantId,
+    seedId,
+    demoColumnsSupport,
+    insertedParcele,
+    parcelaRowByParcelaId,
+    summary,
+  } = params
+
+  const parcelaZmeur =
+    insertedParcele.find((parcela) => {
+      if (!parcela.id) return false
+      const row = parcelaRowByParcelaId.get(parcela.id)
+      const cultura = String(row?.cultura ?? '').toLowerCase()
+      const tipFruct = String(row?.tip_fruct ?? '').toLowerCase()
+      return cultura.includes('zmeur') || tipFruct.includes('zmeur')
+    }) ?? null
+
+  if (!parcelaZmeur?.id) {
+    return
+  }
+
+  const { data: produse, error: produseError } = await supabaseAdmin
+    .from('produse_fitosanitare')
+    .select('id,nume_comercial')
+    .in('nume_comercial', DEMO_TRATAMENTE_PRODUCT_NAMES)
+
+  if (produseError) {
+    throw new Error(`Seed demo tratamente: produsele fitosanitare nu au putut fi încărcate (${produseError.message})`)
+  }
+
+  const produseByName = Object.fromEntries(
+    (produse ?? []).map((produs) => [produs.nume_comercial, produs.id])
+  ) as Partial<Record<(typeof DEMO_TRATAMENTE_PRODUCT_NAMES)[number], string>>
+
+  const produseLipsa = DEMO_TRATAMENTE_PRODUCT_NAMES.filter((name) => !produseByName[name])
+  if (produseLipsa.length > 0) {
+    throw new Error(`Seed demo tratamente: lipsesc produse din catalog (${produseLipsa.join(', ')})`)
+  }
+
+  const fixture = buildDemoTratamenteFixture({
+    tenantId,
+    parcelaId: parcelaZmeur.id,
+    produseByName: produseByName as Record<(typeof DEMO_TRATAMENTE_PRODUCT_NAMES)[number], string>,
+    seedId,
+    parcelaMeta: parcelaRowByParcelaId.get(parcelaZmeur.id) ?? null,
+    supportDemoColumns: {
+      aplicari_tratament: demoColumnsSupport.aplicari_tratament,
+      configurari_parcela_sezon: demoColumnsSupport.configurari_parcela_sezon,
+      parcele_planuri: demoColumnsSupport.parcele_planuri,
+      planuri_tratament: demoColumnsSupport.planuri_tratament,
+      planuri_tratament_linii: demoColumnsSupport.planuri_tratament_linii,
+      stadii_fenologice_parcela: demoColumnsSupport.stadii_fenologice_parcela,
+    },
+  })
+
+  const upsertOptions = { onConflict: 'id', ignoreDuplicates: true }
+
+  const planuriResult = await supabaseAdmin.from('planuri_tratament').upsert(fixture.planuri, upsertOptions).select('id')
+  if (planuriResult.error) {
+    throw new Error(`Seed demo tratamente: ${planuriResult.error.message ?? 'eroare la planuri'}`)
+  }
+
+  const liniiResult = await supabaseAdmin
+    .from('planuri_tratament_linii')
+    .upsert(fixture.linii, upsertOptions)
+    .select('id')
+  if (liniiResult.error) {
+    throw new Error(`Seed demo tratamente: ${liniiResult.error.message ?? 'eroare la linii'}`)
+  }
+
+  const asignariResult = await supabaseAdmin
+    .from('parcele_planuri')
+    .upsert(fixture.asignari, upsertOptions)
+    .select('id')
+  if (asignariResult.error) {
+    throw new Error(`Seed demo tratamente: ${asignariResult.error.message ?? 'eroare la asignări'}`)
+  }
+
+  const stadiiResult = await supabaseAdmin
+    .from('stadii_fenologice_parcela')
+    .upsert(fixture.stadii, upsertOptions)
+    .select('id')
+  if (stadiiResult.error) {
+    throw new Error(`Seed demo tratamente: ${stadiiResult.error.message ?? 'eroare la stadii'}`)
+  }
+
+  if (demoColumnsSupport.configurari_parcela_sezon) {
+    const configurariResult = await supabaseAdmin
+      .from('configurari_parcela_sezon')
+      .upsert(fixture.configurariSezon, upsertOptions)
+      .select('id')
+    if (configurariResult.error) {
+      throw new Error(`Seed demo tratamente: ${configurariResult.error.message ?? 'eroare la configurări sezoniere'}`)
+    }
+  }
+
+  const aplicariResult = await supabaseAdmin
+    .from('aplicari_tratament')
+    .upsert(fixture.aplicari, upsertOptions)
+    .select('id')
+  if (aplicariResult.error) {
+    throw new Error(`Seed demo tratamente: ${aplicariResult.error.message ?? 'eroare la aplicări'}`)
+  }
+
+  summary.tratamente_planuri = fixture.summary.planuri
+  summary.tratamente_linii = fixture.summary.linii
+  summary.tratamente_asignari = fixture.summary.asignari
+  summary.tratamente_configurari_sezon = fixture.summary.configurariSezon
+  summary.tratamente_stadii = fixture.summary.stadii
+  summary.tratamente_aplicari = fixture.summary.aplicari
 }
 
 function logSeedInsertSuccess(_table: string, _rows: Array<Record<string, unknown>> | null | undefined) {
@@ -1273,6 +1468,21 @@ export async function seedDemoDataForTenant(
       }
     }
   }
+
+  try {
+    await seedDemoTratamente({
+      supabaseAdmin,
+      tenantId,
+      seedId,
+      demoColumnsSupport,
+      insertedParcele,
+      parcelaRowByParcelaId,
+      summary,
+    })
+  } catch {
+    // Seed-ul demo tratamente este best-effort; restul demo-ului trebuie să rămână utilizabil.
+  }
+
   if (errors.length > 0) {
     await updateTenantDemoFlags(supabaseAdmin, tenantId, {
       demo_seeded: false,

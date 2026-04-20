@@ -6,6 +6,7 @@ import { ClipboardList } from 'lucide-react'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import type { PlanActivParcela } from '@/lib/supabase/queries/tratamente'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 
 interface PlanActivCardProps {
   createHref?: string | null
@@ -36,7 +37,7 @@ export function PlanActivCard({
           <div className="min-w-0 flex-1">
             <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Plan asignat</p>
             <p className="mt-1 text-base font-medium text-[var(--text-primary)]">
-              Nicio parcelă asignată pentru 2026
+              Nicio parcelă asignată pentru {getCurrentSezon()}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button type="button" size="sm" className="bg-[var(--agri-primary)] text-white" onClick={onAssign}>

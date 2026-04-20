@@ -5,6 +5,10 @@ import {
   listAplicariParcela,
   listStadiiPentruParcela,
 } from '@/lib/supabase/queries/tratamente'
+import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
+import { isRubusMixt, type Cohorta } from '@/lib/tratamente/configurare-sezon'
+import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
+import { getStadiuOrdine } from '@/lib/tratamente/stadiu-ordering'
 
 import { detectDuplicates } from './deduplication'
 import { matchLiniiCuStadii } from './stadiu-matcher'
@@ -16,6 +20,10 @@ import type {
   PropunereAplicare,
   StadiuInregistrat,
 } from './types'
+
+function normalizeCohorta(value: string | null | undefined): Cohorta | null {
+  return value === 'floricane' || value === 'primocane' ? value : null
+}
 
 function buildYearDateRange(an: number): { from: Date; to: Date } {
   return {
@@ -34,6 +42,7 @@ function toPlanLinie(linie: Awaited<ReturnType<typeof getPlanTratamentCuLinii>> 
     planId: linie.plan_id,
     ordine: linie.ordine,
     stadiuTrigger: linie.stadiu_trigger,
+    cohortTrigger: normalizeCohorta(linie.cohort_trigger),
     produsId: linie.produs_id,
     produsNumeManual: linie.produs_nume_manual,
     dozaMlPerHl: linie.doza_ml_per_hl,
@@ -50,6 +59,7 @@ function toStadiuInregistrat(
     parcelaId: stadiu.parcela_id,
     an: stadiu.an,
     stadiu: stadiu.stadiu,
+    cohort: normalizeCohorta(stadiu.cohort),
     dataObservata: stadiu.data_observata,
     sursa: stadiu.sursa,
     observatii: stadiu.observatii,
@@ -67,12 +77,14 @@ function toAplicareExistenta(
 }
 
 function toPropunereAplicare(
-  linie: PlanLinie & { dataPlanificata: string },
+  linie: PlanLinie & { dataPlanificata: string; cohortLaAplicare?: PlanLinie['cohortTrigger'] },
   motivSkip?: PropunereAplicare['motivSkip']
 ): PropunereAplicare {
   return {
     linieId: linie.id,
     stadiuTrigger: linie.stadiuTrigger,
+    cohortTrigger: linie.cohortTrigger,
+    cohortLaAplicare: linie.cohortLaAplicare,
     dataPlanificata: linie.dataPlanificata,
     produsId: linie.produsId,
     produsNumeManual: linie.produsNumeManual,
@@ -81,6 +93,38 @@ function toPropunereAplicare(
     observatii: linie.observatii,
     motivSkip,
   }
+}
+
+function getCurrentStageForCohort(
+  stadii: StadiuInregistrat[],
+  cohort: 'floricane' | 'primocane'
+): string | null {
+  const filtered = stadii.filter((stadiu) => stadiu.cohort === cohort)
+  if (filtered.length === 0) return null
+
+  return [...filtered].sort((first, second) => {
+    const ordineDiff = getStadiuOrdine(second.stadiu) - getStadiuOrdine(first.stadiu)
+    if (ordineDiff !== 0) return ordineDiff
+
+    const dataDiff = new Date(second.dataObservata).getTime() - new Date(first.dataObservata).getTime()
+    if (dataDiff !== 0) return dataDiff
+
+    return 0
+  })[0]?.stadiu ?? null
+}
+
+function getCurrentStage(stadii: StadiuInregistrat[]): string | null {
+  if (stadii.length === 0) return null
+
+  return [...stadii].sort((first, second) => {
+    const ordineDiff = getStadiuOrdine(second.stadiu) - getStadiuOrdine(first.stadiu)
+    if (ordineDiff !== 0) return ordineDiff
+
+    const dataDiff = new Date(second.dataObservata).getTime() - new Date(first.dataObservata).getTime()
+    if (dataDiff !== 0) return dataDiff
+
+    return 0
+  })[0]?.stadiu ?? null
 }
 
 /**
@@ -102,7 +146,8 @@ export async function genereazaAplicariPentruParcela(input: GeneratorInput): Pro
   }
 
   const { from, to } = buildYearDateRange(input.an)
-  const [stadiiRaw, aplicariPlanificate, aplicariAplicate] = await Promise.all([
+  const [configurareSezon, stadiiRaw, aplicariPlanificate, aplicariAplicate] = await Promise.all([
+    getConfigurareSezon(input.parcelaId, input.an),
     listStadiiPentruParcela(input.parcelaId, input.an),
     listAplicariParcela(input.parcelaId, { status: 'planificata', from, to }),
     listAplicariParcela(input.parcelaId, { status: 'aplicata', from, to }),
@@ -111,8 +156,20 @@ export async function genereazaAplicariPentruParcela(input: GeneratorInput): Pro
   const linii = planComplet.linii.map(toPlanLinie)
   const stadii = stadiiRaw.map(toStadiuInregistrat)
   const aplicariExistente = [...aplicariPlanificate, ...aplicariAplicate].map(toAplicareExistenta)
+  const rubusMixt = isRubusMixt(configurareSezon)
 
-  const potriviri = matchLiniiCuStadii(linii, stadii, input.stadiuFiltru, offsetZile)
+  const stadiuContext = {
+    isRubusMixt: rubusMixt,
+    stadiuFloricane: rubusMixt ? getCurrentStageForCohort(stadii, 'floricane') : null,
+    stadiuPrimocane: rubusMixt ? getCurrentStageForCohort(stadii, 'primocane') : null,
+    stadiu: rubusMixt ? null : getCurrentStage(stadii),
+  }
+
+  const stadiuFiltruNormalizat = input.stadiuFiltru ? normalizeStadiu(input.stadiuFiltru) : null
+  const potriviri = matchLiniiCuStadii(linii, stadii, stadiuContext, offsetZile).filter((linie) => {
+    if (!stadiuFiltruNormalizat) return true
+    return linie.stadiuTrigger === stadiuFiltruNormalizat
+  })
   const { noi, duplicate } = detectDuplicates(potriviri, aplicariExistente)
   const duplicateIds = new Set(duplicate.map((linie) => linie.id))
   const propuneri = potriviri.map((linie) =>
@@ -140,6 +197,7 @@ export async function genereazaAplicariPentruParcela(input: GeneratorInput): Pro
       doza_l_per_ha: linie.dozaLPerHa,
       observatii: linie.observatii,
       stadiu_la_aplicare: linie.stadiuTrigger,
+      cohort_la_aplicare: linie.cohortLaAplicare,
       status: 'planificata',
     })
     createdCount += 1

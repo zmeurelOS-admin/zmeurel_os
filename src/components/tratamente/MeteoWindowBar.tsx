@@ -41,20 +41,19 @@ export function MeteoWindowBar({ dateLabel, ferestre }: MeteoWindowBarProps) {
     <AppCard className="rounded-2xl">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Ferestre meteo pentru aplicare</h3>
+          <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Ferestre meteo</h3>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">{dateLabel}</p>
         </div>
       </div>
 
       <TooltipProvider delayDuration={120}>
-        <div className="mt-4" role="list" aria-label="Bară meteo 24h">
+        <div className="mt-4" role="img" aria-label="Bară meteo 24h">
           <div className="grid grid-cols-24 gap-1">
             {ferestre.map((fereastra, index) => (
               <Tooltip key={`${fereastra.ora_start}-${index}`}>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    role="listitem"
                     data-testid="meteo-segment"
                     aria-label={`Ora ${format(parseISO(fereastra.ora_start), 'HH:mm')} ${fereastra.safe ? 'sigură' : 'nesigură'}`}
                     className={`h-8 rounded-md transition-colors active:scale-[0.98] ${
@@ -87,7 +86,7 @@ export function MeteoWindowBar({ dateLabel, ferestre }: MeteoWindowBarProps) {
       <div className="mt-4 grid gap-2 text-sm text-[var(--text-secondary)] sm:grid-cols-3">
         <p>{`Temp: ${round(stats.minTemp)}°C - ${round(stats.maxTemp)}°C`}</p>
         <p>{`Vânt max: ${round(stats.maxWind)} km/h`}</p>
-        <p>{`Precipitații: ${round(stats.totalPrecip)} mm`}</p>
+        <p>{`Precipitații total: ${round(stats.totalPrecip)} mm`}</p>
       </div>
     </AppCard>
   )

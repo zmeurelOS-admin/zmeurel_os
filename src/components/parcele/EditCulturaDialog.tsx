@@ -1,5 +1,10 @@
 'use client'
 
+// FLUX LEGACY SOLAR — decuplat de modulul Tratamente.
+// Scrie în culturi.stadiu și culture_stage_logs.
+// Nu modifica fără plan explicit de migrare.
+// Vezi AGENTS.md secțiunea "Fluxuri legacy".
+
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'

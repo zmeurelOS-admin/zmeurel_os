@@ -16,7 +16,11 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { getActivityOptionsForUnitate, withCurrentActivityOption } from '@/lib/activitati/activity-options'
+import {
+  getActivityOptionsForUnitate,
+  isTipActivitateDeprecata,
+  withCurrentActivityOption,
+} from '@/lib/activitati/activity-options'
 import { generateClientId } from '@/lib/offline/generateClientId'
 import { createActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -187,7 +191,10 @@ export function AddActivitateAgricolaDialog({
     appliedAiPrefillRef.current = signature
 
     if (aiPrefill.tip) {
-      form.setValue('tip_activitate', aiPrefill.tip, { shouldDirty: false, shouldValidate: false })
+      form.setValue('tip_activitate', isTipActivitateDeprecata(aiPrefill.tip) ? '' : aiPrefill.tip, {
+        shouldDirty: false,
+        shouldValidate: false,
+      })
     }
     if (aiPrefill.produs) {
       form.setValue('produs_utilizat', aiPrefill.produs, { shouldDirty: false, shouldValidate: false })
@@ -214,7 +221,11 @@ export function AddActivitateAgricolaDialog({
   useEffect(() => {
     if (!dialogOpen || aiPrefill) return
     if (defaultTipActivitate) {
-      form.setValue('tip_activitate', defaultTipActivitate, { shouldDirty: false, shouldValidate: false })
+      form.setValue(
+        'tip_activitate',
+        isTipActivitateDeprecata(defaultTipActivitate) ? '' : defaultTipActivitate,
+        { shouldDirty: false, shouldValidate: false }
+      )
     }
     if (defaultParcelaId) {
       form.setValue('parcela_id', defaultParcelaId, { shouldDirty: false, shouldValidate: false })

@@ -17,6 +17,8 @@ import { MeteoWindowBar } from '@/components/tratamente/MeteoWindowBar'
 import { ReprogrameazaSheet, type ReprogrameazaFormValues } from '@/components/tratamente/ReprogrameazaSheet'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { getCohortaLabel, getLabelStadiuContextual, isRubusMixt, type ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
+import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
 import { cn } from '@/lib/utils'
 import type { AplicareCrossParcelItem } from '@/lib/supabase/queries/tratamente'
 import type { MeteoZi } from '@/lib/tratamente/meteo'
@@ -24,6 +26,7 @@ import { toast } from '@/lib/ui/toast'
 
 interface HubAplicareCardProps {
   aplicare: AplicareCrossParcelItem
+  configurareSezon?: ConfigurareSezon | null
   meteoLoading?: boolean
   meteoZi: MeteoZi | null
   showMeteoBar: boolean
@@ -45,9 +48,14 @@ function formatDoza(aplicare: AplicareCrossParcelItem): string | null {
   return null
 }
 
-function formatStadiuLabel(value: string | null): string | null {
+function formatStadiuLabel(value: string | null, configurareSezon: ConfigurareSezon | null): string | null {
   if (!value) return null
-  return value.replaceAll('_', ' ')
+  const cod = normalizeStadiu(value)
+  return cod ? getLabelStadiuContextual(cod, configurareSezon) : value
+}
+
+function normalizeCohorta(value: string | null | undefined) {
+  return value === 'floricane' || value === 'primocane' ? value : null
 }
 
 function getMeteoStats(meteoZi: MeteoZi | null) {
@@ -80,6 +88,7 @@ function stopCardNavigation(event: MouseEvent<HTMLElement>) {
 
 export function HubAplicareCard({
   aplicare,
+  configurareSezon,
   meteoLoading = false,
   meteoZi,
   showMeteoBar,
@@ -92,9 +101,15 @@ export function HubAplicareCard({
   const parcelaHref = `/parcele/${aplicare.parcela_id}/tratamente`
   const dateLabel = formatHubDate(aplicare.data_programata ?? aplicare.data_aplicata)
   const doza = formatDoza(aplicare)
-  const stadiu = formatStadiuLabel(aplicare.stadiu_trigger)
+  const stadiu = formatStadiuLabel(aplicare.stadiu_trigger, configurareSezon ?? null)
+  const cohortLabel = normalizeCohorta(aplicare.cohort_la_aplicare)
+    ? `Pentru ${getCohortaLabel(normalizeCohorta(aplicare.cohort_la_aplicare) as 'floricane' | 'primocane')}`
+    : null
   const meteoStats = getMeteoStats(meteoZi)
   const canEdit = isAplicareProgramata(aplicare.status)
+  const rubusMixt = isRubusMixt(configurareSezon)
+  const cohortBlocata = normalizeCohorta(aplicare.cohort_trigger)
+  const cohortImplicita = normalizeCohorta(aplicare.cohort_la_aplicare) ?? cohortBlocata ?? null
 
   const handleOpenDetail = () => {
     router.push(detailHref)
@@ -116,6 +131,9 @@ export function HubAplicareCard({
       formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
       formData.set('operator', values.operator ?? '')
       formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
+      if (values.cohort_la_aplicare) {
+        formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
+      }
       formData.set('observatii', values.observatii ?? '')
       if (values.meteoSnapshot) {
         formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
@@ -189,6 +207,7 @@ export function HubAplicareCard({
             {stadiu ? ` · ${stadiu}` : ''}
           </p>
           {doza ? <p className="text-sm text-[var(--text-secondary)]">{doza}</p> : null}
+          {cohortLabel ? <p className="text-sm text-[var(--text-secondary)]">{cohortLabel}</p> : null}
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -284,9 +303,12 @@ export function HubAplicareCard({
       </article>
 
       <MarkAplicataSheet
+        cohortLaAplicareBlocata={cohortBlocata}
         defaultCantitateMl={null}
+        defaultCohortLaAplicare={cohortImplicita}
         defaultOperator={aplicare.operator ?? ''}
         defaultStadiu={aplicare.stadiu_trigger}
+        isRubusMixt={rubusMixt}
         meteoSnapshot={meteoZi?.snapshot_curent ?? null}
         onOpenChange={setMarkOpen}
         onSubmit={handleMarkAplicata}
