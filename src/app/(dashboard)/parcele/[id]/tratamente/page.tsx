@@ -19,8 +19,10 @@ import {
   type PlanTratament,
   type StadiuFenologicParcela,
 } from '@/lib/supabase/queries/tratamente'
-import { getOrCreateConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
-import { getParcelaById } from '@/lib/supabase/queries/parcele'
+import {
+  getOrCreateConfigurareSezon,
+  getParcelaPentruConfigurareSezon,
+} from '@/lib/supabase/queries/configurari-sezon'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import { isRubusMixt } from '@/lib/tratamente/configurare-sezon'
 import { genereazaAplicariPentruParcela } from '@/lib/tratamente/generator/generator'
@@ -38,6 +40,8 @@ import { getCurrentSezon } from '@/lib/utils/sezon'
 type PageProps = {
   params: Promise<{ id: string }>
 }
+
+export const dynamic = 'force-dynamic'
 
 function normalizeText(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? ''
@@ -152,7 +156,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
 
   const [parcela, parcelaSezon, planActiv, stadii, aplicari, toatePlanurile, grupBiologic] = await Promise.all([
     getParcelaTratamenteContext(parcelaId),
-    getParcelaById(parcelaId),
+    getParcelaPentruConfigurareSezon(parcelaId),
     getPlanActivPentruParcela(parcelaId, an),
     listStadiiPentruParcela(parcelaId, an),
     listAplicariParcela(parcelaId, { from, to }),

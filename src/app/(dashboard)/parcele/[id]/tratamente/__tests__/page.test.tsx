@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   getParcelaTratamenteContext: vi.fn(),
-  getParcelaById: vi.fn(),
+  getParcelaPentruConfigurareSezon: vi.fn(),
   getPlanActivPentruParcela: vi.fn(),
   listStadiiPentruParcela: vi.fn(),
   listAplicariParcela: vi.fn(),
@@ -22,11 +22,8 @@ vi.mock('@/lib/supabase/queries/tratamente', () => ({
   getGrupBiologicParcela: (...args: unknown[]) => mocks.getGrupBiologicParcela(...args),
 }))
 
-vi.mock('@/lib/supabase/queries/parcele', () => ({
-  getParcelaById: (...args: unknown[]) => mocks.getParcelaById(...args),
-}))
-
 vi.mock('@/lib/supabase/queries/configurari-sezon', () => ({
+  getParcelaPentruConfigurareSezon: (...args: unknown[]) => mocks.getParcelaPentruConfigurareSezon(...args),
   getOrCreateConfigurareSezon: (...args: unknown[]) => mocks.getOrCreateConfigurareSezon(...args),
 }))
 
@@ -163,7 +160,7 @@ describe('parcela tratamente page', () => {
     mocks.listAplicariParcela.mockResolvedValue([])
     mocks.listPlanuriTratament.mockResolvedValue([])
     mocks.getGrupBiologicParcela.mockResolvedValue('rubus')
-    mocks.getParcelaById.mockResolvedValue(parcela)
+    mocks.getParcelaPentruConfigurareSezon.mockResolvedValue(parcela)
     mocks.getOrCreateConfigurareSezon.mockResolvedValue({
       id: 'cfg-1',
       tenant_id: 't1',
@@ -243,7 +240,7 @@ describe('parcela tratamente page', () => {
   })
 
   it('afișează bannerul de configurare când rubus nu are sistem de conducere definit', async () => {
-    mocks.getParcelaById.mockResolvedValue({
+    mocks.getParcelaPentruConfigurareSezon.mockResolvedValue({
       ...parcela,
       soi: 'Soi necunoscut',
       soi_plantat: 'Soi necunoscut',

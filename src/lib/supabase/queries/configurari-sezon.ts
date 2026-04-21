@@ -12,6 +12,7 @@ import type {
 } from '@/lib/tratamente/configurare-sezon'
 
 type ServerSupabase = Awaited<ReturnType<typeof createClient>>
+type ParcelaConfigurareSezon = Pick<Parcela, 'id' | 'tenant_id' | 'cultura' | 'tip_fruct' | 'soi_plantat' | 'soi'>
 
 interface QueryContext {
   supabase: ServerSupabase
@@ -40,7 +41,7 @@ function normalizeSoiCandidate(value: string | null | undefined): string | null 
   return normalized.length > 0 ? normalized : null
 }
 
-function detectSistemConducere(parcela: Parcela): SistemConducere | null {
+function detectSistemConducere(parcela: ParcelaConfigurareSezon): SistemConducere | null {
   const soiValues = [parcela.soi_plantat, parcela.soi]
     .map((value) => normalizeSoiCandidate(value))
     .filter((value): value is string => Boolean(value))
@@ -56,13 +57,13 @@ function detectSistemConducere(parcela: Parcela): SistemConducere | null {
   return null
 }
 
-function resolveGrupBiologic(parcela: Parcela): GrupBiologic | null {
+function resolveGrupBiologic(parcela: ParcelaConfigurareSezon): GrupBiologic | null {
   const cropCod = normalizeCropCod(parcela.cultura) ?? normalizeCropCod(parcela.tip_fruct)
   return getGrupBiologicForCropCod(cropCod)
 }
 
 function buildInsertPayload(
-  parcela: Parcela,
+  parcela: ParcelaConfigurareSezon,
   an: number,
   tenantId: string
 ): UpsertConfigurareSezon & { tenant_id: string } {
@@ -124,6 +125,20 @@ export async function getConfigurareSezon(
   return data ? toConfigurareSezon(data as Record<string, unknown>) : null
 }
 
+export async function getParcelaPentruConfigurareSezon(parcelaId: string): Promise<ParcelaConfigurareSezon | null> {
+  const { supabase, tenantId } = await getQueryContext()
+
+  const { data, error } = await supabase
+    .from('parcele')
+    .select('id,tenant_id,cultura,tip_fruct,soi_plantat,soi')
+    .eq('id', parcelaId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data ?? null
+}
+
 export async function upsertConfigurareSezon(
   data: UpsertConfigurareSezon
 ): Promise<ConfigurareSezon> {
@@ -148,7 +163,7 @@ export async function upsertConfigurareSezon(
 }
 
 export async function getOrCreateConfigurareSezon(
-  parcela: Parcela,
+  parcela: ParcelaConfigurareSezon,
   an: number
 ): Promise<ConfigurareSezon> {
   const ctx = await getQueryContext()
