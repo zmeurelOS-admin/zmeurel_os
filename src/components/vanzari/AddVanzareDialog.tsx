@@ -8,15 +8,14 @@ import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { VanzareFormSummary } from '@/components/vanzari/VanzareFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { generateClientId } from '@/lib/offline/generateClientId'
 import { queryKeys } from '@/lib/query-keys'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import { CALITATI_VANZARE, createVanzare, STATUS_PLATA, type Vanzare } from '@/lib/supabase/queries/vanzari'
@@ -70,12 +69,6 @@ function formatStatusPlataLabel(status: string): string {
 
 function calitateLabel(cal: string): string {
   return cal === 'cal1' ? 'Calitatea 1' : 'Calitatea 2'
-}
-
-function clipNote(text: string | undefined, max = 100): string {
-  const t = (text ?? '').trim()
-  if (!t) return '—'
-  return t.length <= max ? t : `${t.slice(0, max)}…`
 }
 
 export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tenantVanzari }: AddVanzareDialogProps) {
@@ -195,7 +188,6 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tena
     if (createMutation.isPending) return
 
     createMutation.mutate({
-      client_sync_id: generateClientId(),
       data: data.data,
       client_id: data.client_id || undefined,
       calitate: data.calitate,
@@ -241,8 +233,26 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tena
         }
       >
         <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(280px,30%)] md:items-start md:gap-6 lg:gap-8">
-            <div className="min-w-0 space-y-4 md:space-y-6">
+          <DesktopFormGrid
+            aside={
+              <VanzareFormSummary
+                clientName={selectedClient?.nume_client}
+                clientPhone={selectedClient?.telefon ?? undefined}
+                clientAddress={selectedClient?.adresa ?? undefined}
+                qualityLabel={calitateLabel(watchedCalitate || 'cal1')}
+                quantity={watchedQty}
+                unitPrice={watchedPret}
+                totalRon={totalRon}
+                statusLabel={formatStatusPlataLabel(watchedStatus || '')}
+                statusVariant={statusVariant}
+                dateLabel={dataAsideLabel}
+                notes={watchedObs}
+                mode="create"
+                relatedSalesCount={vanzariClientCount}
+                relatedSalesLabel="Vânzări existente (acest client)"
+              />
+            }
+          >
               <FormDialogSection label="Client">
                 <div className="space-y-2">
                   <Label htmlFor="v_client">Client</Label>
@@ -348,66 +358,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tena
                   {...form.register('observatii_ladite')}
                 />
               </FormDialogSection>
-            </div>
-
-            <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-              <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Previzualizare</p>
-                  <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
-                    {selectedClient?.nume_client?.trim() || 'Fără client'}
-                  </p>
-                </div>
-                <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Telefon</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)]">{selectedClient?.telefon?.trim() || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Locație</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)] line-clamp-3">{selectedClient?.adresa?.trim() || '—'}</dd>
-                  </div>
-                  <div className="border-t border-[var(--divider)] pt-3">
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Calitate</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)]">{calitateLabel(watchedCalitate || 'cal1')}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cantitate / Preț</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)]">
-                      {watchedQty ? `${watchedQty} kg` : '—'} ·{' '}
-                      {watchedPret ? `${watchedPret} lei/kg` : '—'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total</dt>
-                    <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
-                      {totalRon !== null ? `${totalRon.toLocaleString('ro-RO', { maximumFractionDigits: 0 })} lei` : '—'}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5">Status plată</dt>
-                    <dd>
-                      <StatusBadge variant={statusVariant} text={formatStatusPlataLabel(watchedStatus || '')} />
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)]">{dataAsideLabel}</dd>
-                  </div>
-                  {vanzariClientCount !== null ? (
-                    <div className="border-t border-[var(--divider)] pt-3 text-xs text-[var(--text-secondary)]">
-                      <span className="font-medium text-[var(--text-tertiary)]">Vânzări existente (acest client): </span>
-                      <span className="font-semibold text-[var(--text-primary)]">{vanzariClientCount}</span>
-                    </div>
-                  ) : null}
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Observații lădițe</dt>
-                    <dd className="mt-0.5 text-xs leading-relaxed text-[var(--text-primary)]">{clipNote(watchedObs)}</dd>
-                  </div>
-                </dl>
-              </div>
-            </aside>
-          </div>
+          </DesktopFormGrid>
         </form>
       </AppDrawer>
     </>

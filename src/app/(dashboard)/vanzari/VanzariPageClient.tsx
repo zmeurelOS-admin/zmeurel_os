@@ -260,6 +260,8 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
   const router = useRouter()
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const hasInitialVanzari = initialVanzari.length > 0
+  const hasInitialClienti = initialClienți.length > 0
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Vanzare; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
@@ -279,7 +281,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
   } = useQuery({
     queryKey: queryKeys.vanzari,
     queryFn: getVanzari,
-    initialData: initialVanzari,
+    initialData: hasInitialVanzari ? initialVanzari : undefined,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
@@ -301,7 +303,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
         telefon: client.telefon,
       }))
     },
-    initialData: initialClienți,
+    initialData: hasInitialClienti ? initialClienți : undefined,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })

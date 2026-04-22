@@ -9,9 +9,10 @@ import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
+import { RecoltareFormSummary } from '@/components/recoltari/RecoltareFormSummary'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -243,6 +244,9 @@ export function AddRecoltareDialog({
   const dataAsideLabel = formDataValue
     ? new Date(formDataValue + 'T12:00:00').toLocaleDateString('ro-RO')
     : '—'
+  const cropAsideLabel = selectedCrop
+    ? `${selectedCrop.culture || '—'} · ${selectedCrop.variety || '—'}`
+    : '—'
 
   useEffect(() => {
     if (!selectedParcela) {
@@ -407,8 +411,25 @@ export function AddRecoltareDialog({
     >
       {isInitialDataLoading ? <DialogInitialDataSkeleton /> : (
       <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(272px,32%)] md:items-start md:gap-6 lg:gap-8">
-          <div className="min-w-0 space-y-4 md:space-y-6">
+        <DesktopFormGrid
+          aside={
+            <RecoltareFormSummary
+              parcelaLabel={parcelaAsideLabel}
+              dataLabel={dataAsideLabel}
+              culegatorName={selectedCulegator?.nume_prenume}
+              cropLabel={cropAsideLabel}
+              kgCal1={kgCal1}
+              kgCal2={kgCal2}
+              totalKg={totalKg}
+              pctCal1={pctCal1}
+              pctCal2={pctCal2}
+              hasValidTarif={hasValidTarif}
+              tarifLeiKg={tarifLeiKg}
+              valoareMunca={valoareMunca}
+              observatii={formObservatii}
+            />
+          }
+        >
             <FormDialogSection label="Context">
               <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
                 <div className="space-y-2">
@@ -617,85 +638,7 @@ export function AddRecoltareDialog({
                 {...form.register('observatii')}
               />
             </FormDialogSection>
-          </div>
-
-          <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-            <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
-                  Rezumat live
-                </p>
-                <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
-                  {parcelaAsideLabel}
-                </p>
-              </div>
-              <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data recoltării</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{dataAsideLabel}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Culegător</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">
-                    {selectedCulegator?.nume_prenume?.trim() || '—'}
-                  </dd>
-                </div>
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cultură / soi</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">
-                    {selectedCrop
-                      ? `${selectedCrop.culture || '—'} · ${selectedCrop.variety || '—'}`
-                      : '—'}
-                  </dd>
-                </div>
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total recoltat</dt>
-                  <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
-                    {totalKg.toFixed(2)} kg
-                  </dd>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-[var(--text-tertiary)]">Cal I</span>
-                    <p className="font-medium tabular-nums text-[var(--text-primary)]">
-                      {kgCal1.toFixed(2)} kg
-                      {totalKg > 0 ? ` (${pctCal1}%)` : ''}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-[var(--text-tertiary)]">Cal II</span>
-                    <p className="font-medium tabular-nums text-[var(--text-primary)]">
-                      {kgCal2.toFixed(2)} kg
-                      {totalKg > 0 ? ` (${pctCal2}%)` : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Tarif (profil)</dt>
-                  <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
-                    {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">De plată (estim.)</dt>
-                  <dd className="mt-1 text-base font-semibold tabular-nums text-[var(--text-primary)]">
-                    {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '—'}
-                  </dd>
-                </div>
-              </dl>
-              {String(formObservatii).trim() ? (
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
-                  <p className="mt-1 max-h-24 overflow-y-auto text-xs leading-relaxed text-[var(--text-secondary)]">
-                    {String(formObservatii).trim().length > 200
-                      ? `${String(formObservatii).trim().slice(0, 200)}…`
-                      : String(formObservatii).trim()}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </aside>
-        </div>
+        </DesktopFormGrid>
       </form>
       )}
     </AppDrawer>

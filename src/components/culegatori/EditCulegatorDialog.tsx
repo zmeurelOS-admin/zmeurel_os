@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { CulegatorFormSummary, type CulegatorDialogActivitySummary } from '@/components/culegatori/CulegatorFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import type { Culegator } from '@/lib/supabase/queries/culegatori'
 
@@ -25,13 +25,6 @@ const culegatorSchema = z.object({
 })
 
 type CulegatorFormData = z.infer<typeof culegatorSchema>
-
-/** Date agregate deja pe pagina Culegători (fără query în dialog). */
-type CulegatorDialogActivitySummary = {
-  seasonKg: number
-  seasonCount: number
-  lastRecoltare: { date: string; parcela: string; kg: number } | null
-}
 
 interface EditCulegatorDialogProps {
   culegator: Culegator | null
@@ -51,23 +44,6 @@ const defaults = (): CulegatorFormData => ({
   status_activ: true,
   observatii: '',
 })
-
-function formatDateRo(iso: string | undefined | null): string {
-  if (!iso?.trim()) return '—'
-  const raw = iso.slice(0, 10)
-  const d = new Date(`${raw}T12:00:00`)
-  return Number.isNaN(d.getTime()) ? raw : d.toLocaleDateString('ro-RO')
-}
-
-function clipNote(text: string | undefined, max = 120): string {
-  const t = (text ?? '').trim()
-  if (!t) return '—'
-  return t.length <= max ? t : `${t.slice(0, max)}…`
-}
-
-function formatKg(value: number): string {
-  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(value)
-}
 
 export function EditCulegatorDialog({
   culegator,
@@ -114,19 +90,6 @@ export function EditCulegatorDialog({
     onOpenChange(false)
   }
 
-  const tarifNum = useMemo(() => {
-    const n = Number(String(watched.tarif_lei_kg ?? '').replace(',', '.'))
-    return Number.isFinite(n) && n >= 0 ? n : 0
-  }, [watched.tarif_lei_kg])
-
-  const estimatPlataSezon = useMemo(() => {
-    if (!activitySummary || activitySummary.seasonKg <= 0 || tarifNum <= 0) return null
-    return activitySummary.seasonKg * tarifNum
-  }, [activitySummary, tarifNum])
-
-  const asideTitle = watched.nume_prenume?.trim() || culegator?.nume_prenume?.trim() || '—'
-  const statusActiv = Boolean(watched.status_activ)
-
   if (!culegator) return null
 
   return (
@@ -148,8 +111,22 @@ export function EditCulegatorDialog({
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(handleSubmit)}>
-        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(280px,30%)] md:items-start md:gap-6 lg:gap-8">
-          <div className="min-w-0 space-y-4 md:space-y-6">
+        <DesktopFormGrid
+          aside={
+            <CulegatorFormSummary
+              title={watched.nume_prenume || culegator.nume_prenume}
+              phone={watched.telefon}
+              employmentType={watched.tip_angajare}
+              rate={watched.tarif_lei_kg}
+              startDate={watched.data_angajare}
+              active={Boolean(watched.status_activ)}
+              observations={watched.observatii}
+              mode="edit"
+              recordCode={culegator.id_culegator || culegator.id.slice(0, 8)}
+              activitySummary={activitySummary}
+            />
+          }
+        >
             <FormDialogSection label="Identificare">
               <div className="space-y-2">
                 <Label htmlFor="edit_culegator_nume">Nume și prenume</Label>
@@ -219,76 +196,7 @@ export function EditCulegatorDialog({
                 {...form.register('observatii')}
               />
             </FormDialogSection>
-          </div>
-
-          <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-            <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Context</p>
-                <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{asideTitle}</p>
-              </div>
-              <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cod înregistrare</dt>
-                  <dd className="mt-0.5 font-mono text-xs text-[var(--text-primary)]">{culegator.id_culegator || culegator.id.slice(0, 8)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Telefon</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{watched.telefon?.trim() || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Tip / tarif</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">
-                    {watched.tip_angajare || '—'}
-                    {tarifNum > 0 ? ` · ${tarifNum.toLocaleString('ro-RO')} lei/kg` : ''}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data angajării</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{formatDateRo(watched.data_angajare)}</dd>
-                </div>
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5">Status</dt>
-                  <dd>
-                    <StatusBadge variant={statusActiv ? 'success' : 'neutral'} text={statusActiv ? 'Activ' : 'Inactiv'} />
-                  </dd>
-                </div>
-              </dl>
-
-              {activitySummary ? (
-                <div className="space-y-2 border-t border-[var(--divider)] pt-3 text-sm">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Activitate (sezon curent)</p>
-                  <p>
-                    <span className="text-[var(--text-tertiary)]">Kg sezon: </span>
-                    <span className="font-semibold text-[var(--text-primary)]">{formatKg(activitySummary.seasonKg)} kg</span>
-                  </p>
-                  <p>
-                    <span className="text-[var(--text-tertiary)]">Recoltări: </span>
-                    <span className="font-semibold text-[var(--text-primary)]">{activitySummary.seasonCount}</span>
-                  </p>
-                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    Ultima:{' '}
-                    {activitySummary.lastRecoltare
-                      ? `${activitySummary.lastRecoltare.date} · ${activitySummary.lastRecoltare.parcela} · ${formatKg(activitySummary.lastRecoltare.kg)} kg`
-                      : '—'}
-                  </p>
-                  {estimatPlataSezon !== null ? (
-                    <p>
-                      <span className="text-[var(--text-tertiary)]">Estimat plată sezon: </span>
-                      <span className="font-semibold text-[var(--text-primary)]">{estimatPlataSezon.toLocaleString('ro-RO', { maximumFractionDigits: 0 })} lei</span>
-                      <span className="block text-[10px] text-[var(--text-tertiary)] mt-0.5">kg sezon × tarif din formular</span>
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <div className="border-t border-[var(--divider)] pt-3">
-                <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)]">{clipNote(watched.observatii)}</p>
-              </div>
-            </div>
-          </aside>
-        </div>
+        </DesktopFormGrid>
       </form>
     </AppDialog>
   )

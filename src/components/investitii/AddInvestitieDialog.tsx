@@ -2,16 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
+import { InvestitieFormSummary } from '@/components/investitii/InvestitieFormSummary'
 import { Button } from '@/components/ui/button'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -70,6 +71,16 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
     resolver: zodResolver(investitieSchema),
     defaultValues: defaultValues(),
   })
+
+  const watchedData = useWatch({ control: form.control, name: 'data' })
+  const watchedParcelaId = useWatch({ control: form.control, name: 'parcela_id' })
+  const watchedCategorie = useWatch({ control: form.control, name: 'categorie' })
+  const watchedFurnizor = useWatch({ control: form.control, name: 'furnizor' })
+  const watchedDescriere = useWatch({ control: form.control, name: 'descriere' })
+  const watchedSuma = useWatch({ control: form.control, name: 'suma_lei' })
+  const selectedParcelaName = watchedParcelaId
+    ? parcele.find((parcela) => parcela.id === watchedParcelaId)?.nume_parcela
+    : null
 
   useEffect(() => {
     if (dialogOpen) {
@@ -138,6 +149,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
         onOpenChange={setDialogOpen}
         title="Adaugă investitie (CAPEX)"
         desktopFormWide
+        contentClassName="lg:max-w-[min(94vw,60rem)] xl:max-w-[min(92vw,64rem)]"
         footer={
           <DialogFormActions
             className="w-full"
@@ -152,7 +164,19 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
       >
         {isInitialDataLoading ? <DialogInitialDataSkeleton compact /> : (
         <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="space-y-6 md:space-y-8">
+          <DesktopFormGrid
+            aside={
+              <InvestitieFormSummary
+                amount={watchedSuma}
+                category={watchedCategorie}
+                date={watchedData}
+                parcelaName={selectedParcelaName}
+                supplier={watchedFurnizor}
+                description={watchedDescriere}
+                mode="create"
+              />
+            }
+          >
             <FormDialogSection label="Înregistrare">
               <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
                 <div className="space-y-2">
@@ -233,7 +257,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                 />
               </div>
             </FormDialogSection>
-          </div>
+          </DesktopFormGrid>
         </form>
         )}
       </AppDrawer>

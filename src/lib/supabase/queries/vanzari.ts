@@ -116,13 +116,18 @@ const toReadableError = (error: unknown, fallbackMessage: string) => {
   })
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const normalizeClientSyncId = (value?: string) => (value && UUID_RE.test(value) ? value : crypto.randomUUID())
+
+const selectWithComanda =
+  'id,id_vanzare,data,client_id,comanda_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
+const selectLegacy =
+  'id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
+
 export async function getVanzari(): Promise<Vanzare[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
-  const selectWithComanda =
-    'id,id_vanzare,data,client_id,comanda_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
-  const selectLegacy =
-    'id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
 
   const { data, error } = await supabase
     .from('vanzari')
@@ -155,6 +160,7 @@ export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare>
   const supabase = getSupabase()
   const tenantId = input.tenant_id ?? (await getTenantId(supabase))
   const rpcClient = supabase as VanzareRpcClient
+  const clientSyncId = normalizeClientSyncId(input.client_sync_id)
   const { data, error } = await rpcClient.rpc('create_vanzare_with_stock', {
     p_data: input.data,
     p_client_id: input.client_id || null,
@@ -164,7 +170,7 @@ export async function createVanzare(input: CreateVanzareInput): Promise<Vanzare>
     p_pret_lei_kg: Number(input.pret_lei_kg || 0),
     p_status_plata: input.status_plata || 'platit',
     p_observatii_ladite: input.observatii_ladite || null,
-    p_client_sync_id: input.client_sync_id ?? crypto.randomUUID(),
+    p_client_sync_id: clientSyncId,
     p_sync_status: input.sync_status ?? 'synced',
     p_tenant_id: tenantId,
   })

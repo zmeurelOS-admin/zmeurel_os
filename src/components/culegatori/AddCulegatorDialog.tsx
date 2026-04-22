@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { CulegatorFormSummary } from '@/components/culegatori/CulegatorFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 
 const culegatorSchema = z.object({
@@ -41,19 +41,6 @@ const defaults = (): CulegatorFormData => ({
   observatii: '',
 })
 
-function formatDateRo(iso: string | undefined | null): string {
-  if (!iso?.trim()) return '—'
-  const raw = iso.slice(0, 10)
-  const d = new Date(`${raw}T12:00:00`)
-  return Number.isNaN(d.getTime()) ? raw : d.toLocaleDateString('ro-RO')
-}
-
-function clipNote(text: string | undefined, max = 120): string {
-  const t = (text ?? '').trim()
-  if (!t) return '—'
-  return t.length <= max ? t : `${t.slice(0, max)}…`
-}
-
 export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegatorDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -83,14 +70,6 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
     onOpenChange(false)
   }
 
-  const tarifNum = useMemo(() => {
-    const n = Number(String(watched.tarif_lei_kg ?? '').replace(',', '.'))
-    return Number.isFinite(n) && n >= 0 ? n : 0
-  }, [watched.tarif_lei_kg])
-
-  const asideTitle = watched.nume_prenume?.trim() || 'Culegător nou'
-  const statusActiv = Boolean(watched.status_activ)
-
   return (
     <AppDrawer
       open={open}
@@ -110,8 +89,20 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(handleSubmit)}>
-        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(280px,30%)] md:items-start md:gap-6 lg:gap-8">
-          <div className="min-w-0 space-y-4 md:space-y-6">
+        <DesktopFormGrid
+          aside={
+            <CulegatorFormSummary
+              title={watched.nume_prenume}
+              phone={watched.telefon}
+              employmentType={watched.tip_angajare}
+              rate={watched.tarif_lei_kg}
+              startDate={watched.data_angajare}
+              active={Boolean(watched.status_activ)}
+              observations={watched.observatii}
+              mode="create"
+            />
+          }
+        >
             <FormDialogSection label="Identificare">
               <div className="space-y-2">
                 <Label htmlFor="culegator_nume">Nume și prenume</Label>
@@ -182,45 +173,7 @@ export function AddCulegatorDialog({ open, onOpenChange, onSubmit }: AddCulegato
                 {...form.register('observatii')}
               />
             </FormDialogSection>
-          </div>
-
-          <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-            <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Previzualizare</p>
-                <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{asideTitle}</p>
-              </div>
-              <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Telefon</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{watched.telefon?.trim() || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Tip angajare</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{watched.tip_angajare || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Tarif</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{tarifNum > 0 ? `${tarifNum.toLocaleString('ro-RO')} lei/kg` : '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data angajării</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{formatDateRo(watched.data_angajare)}</dd>
-                </div>
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5">Status</dt>
-                  <dd>
-                    <StatusBadge variant={statusActiv ? 'success' : 'neutral'} text={statusActiv ? 'Activ' : 'Inactiv'} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Observații</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)] text-xs leading-relaxed">{clipNote(watched.observatii)}</dd>
-                </div>
-              </dl>
-            </div>
-          </aside>
-        </div>
+        </DesktopFormGrid>
       </form>
     </AppDrawer>
   )

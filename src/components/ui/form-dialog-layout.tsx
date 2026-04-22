@@ -23,6 +23,50 @@ export function FormDialogSection({
   )
 }
 
+export function DesktopFormGrid({
+  children,
+  aside,
+  className,
+}: {
+  children: ReactNode
+  aside?: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'space-y-6 md:grid md:grid-cols-[minmax(0,1fr)_17rem] md:items-start md:gap-7 md:space-y-0 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8',
+        className,
+      )}
+    >
+      <div className="min-w-0 space-y-6 md:space-y-8">{children}</div>
+      {aside ? <aside className="hidden md:sticky md:top-2 md:block md:self-start">{aside}</aside> : null}
+    </div>
+  )
+}
+
+export function DesktopFormAside({
+  title,
+  children,
+  className,
+}: {
+  title: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]',
+        className,
+      )}
+    >
+      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">{title}</p>
+      {children}
+    </div>
+  )
+}
+
 interface FormDialogLayoutProps {
   title: string
   description?: string

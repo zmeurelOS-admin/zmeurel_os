@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { CheltuialaFormSummary } from '@/components/cheltuieli/CheltuialaFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -58,6 +59,12 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
     resolver: zodResolver(cheltuialaSchema),
     defaultValues: defaultValues(),
   })
+
+  const watchedData = useWatch({ control: form.control, name: 'data' })
+  const watchedCategorie = useWatch({ control: form.control, name: 'categorie' })
+  const watchedSuma = useWatch({ control: form.control, name: 'suma_lei' })
+  const watchedFurnizor = useWatch({ control: form.control, name: 'furnizor' })
+  const watchedDescriere = useWatch({ control: form.control, name: 'descriere' })
 
   useEffect(() => {
     if (open) {
@@ -121,6 +128,7 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
       onOpenChange={onOpenChange}
       title="Adaugă cheltuială"
       desktopFormWide
+      contentClassName="lg:max-w-[min(94vw,60rem)] xl:max-w-[min(92vw,64rem)]"
       footer={
         <DialogFormActions
           className="w-full"
@@ -133,7 +141,18 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(handleSubmit)}>
-        <div className="space-y-6 md:space-y-8">
+        <DesktopFormGrid
+          aside={
+            <CheltuialaFormSummary
+              amount={watchedSuma}
+              category={watchedCategorie}
+              date={watchedData}
+              supplier={watchedFurnizor}
+              description={watchedDescriere}
+              mode="create"
+            />
+          }
+        >
           <FormDialogSection label="Înregistrare">
             <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
               <div className="space-y-2">
@@ -208,7 +227,7 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
               </p>
             </div>
           </FormDialogSection>
-        </div>
+        </DesktopFormGrid>
       </form>
     </AppDrawer>
   )

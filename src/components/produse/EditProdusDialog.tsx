@@ -8,11 +8,11 @@ import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
+import { ProdusFormSummary } from '@/components/produse/ProdusFormSummary'
 import { toast } from '@/lib/ui/toast'
 import { hapticError } from '@/lib/utils/haptic'
 import {
@@ -51,12 +51,6 @@ const CATEGORIE_LABEL: Record<string, string> = {
   leguma: 'Legumă',
   procesat: 'Procesat',
   altele: 'Altele',
-}
-
-function clipNote(text: string | undefined, max = 120): string {
-  const t = (text ?? '').trim()
-  if (!t) return '—'
-  return t.length <= max ? t : `${t.slice(0, max)}…`
 }
 
 export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: EditProdusDialogProps) {
@@ -232,138 +226,106 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(handleSubmit)}>
-        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(280px,30%)] md:items-start md:gap-6 lg:gap-8">
-          <div className="min-w-0 space-y-4 md:space-y-6">
-            <FormDialogSection label="General">
+        <DesktopFormGrid
+          aside={
+            <ProdusFormSummary
+              title={wNume || produs.nume}
+              categoryLabel={CATEGORIE_LABEL[wCat || 'fruct']}
+              unit={wUnit}
+              priceLabel={pretDisplay}
+              gramaj={wGramaj}
+              approximateWeight={wApprox}
+              statusLabel={wStatus === 'activ' ? 'Activ' : 'Inactiv'}
+              statusVariant={statusVariant}
+              description={wDesc}
+              mode="edit"
+            />
+          }
+        >
+          <FormDialogSection label="General">
+            <div className="space-y-2">
+              <Label htmlFor="edit_produs_nume">Nume produs</Label>
+              <Input id="edit_produs_nume" className="agri-control h-12 md:h-11" {...form.register('nume')} />
+              {form.formState.errors.nume ? <p className="text-xs text-red-600">{form.formState.errors.nume.message}</p> : null}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_produs_cat">Categorie</Label>
+              <select id="edit_produs_cat" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('categorie')}>
+                {CATEGORII_PRODUSE.map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORIE_LABEL[c] ?? c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </FormDialogSection>
+
+          <FormDialogSection label="Comercial">
+            <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
               <div className="space-y-2">
-                <Label htmlFor="edit_produs_nume">Nume produs</Label>
-                <Input id="edit_produs_nume" className="agri-control h-12 md:h-11" {...form.register('nume')} />
-                {form.formState.errors.nume ? <p className="text-xs text-red-600">{form.formState.errors.nume.message}</p> : null}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_produs_cat">Categorie</Label>
-                <select id="edit_produs_cat" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('categorie')}>
-                  {CATEGORII_PRODUSE.map((c) => (
-                    <option key={c} value={c}>
-                      {CATEGORIE_LABEL[c] ?? c}
+                <Label htmlFor="edit_produs_unit">unit_label</Label>
+                <select id="edit_produs_unit" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('unitate_vanzare')}>
+                  {UNITATI_VANZARE.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
                     </option>
                   ))}
+                  <option value="altul">Altul</option>
                 </select>
-              </div>
-            </FormDialogSection>
-
-            <FormDialogSection label="Comercial">
-              <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit_produs_unit">unit_label</Label>
-                  <select id="edit_produs_unit" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('unitate_vanzare')}>
-                    {UNITATI_VANZARE.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                    <option value="altul">Altul</option>
-                  </select>
-                  {wUnit === 'altul' ? (
-                    <Input
-                      className="agri-control h-12 md:h-11"
-                      placeholder="ex: borcan, casetă, sticlă"
-                      {...form.register('unitate_vanzare_custom')}
-                    />
-                  ) : null}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_produs_pret">Preț unitar (lei)</Label>
+                {wUnit === 'altul' ? (
                   <Input
-                    id="edit_produs_pret"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
                     className="agri-control h-12 md:h-11"
-                    {...form.register('pret_unitar')}
+                    placeholder="ex: borcan, casetă, sticlă"
+                    {...form.register('unitate_vanzare_custom')}
                   />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="edit_produs_approx">approximate_weight</Label>
-                  <Input
-                    id="edit_produs_approx"
-                    className="agri-control h-12 md:h-11 md:max-w-md"
-                    placeholder="ex: ~300g"
-                    {...form.register('approximate_weight')}
-                  />
-                </div>
+                ) : null}
               </div>
-            </FormDialogSection>
-
-            <FormDialogSection label="Status">
               <div className="space-y-2">
-                <Label htmlFor="edit_produs_status">Activ în catalog</Label>
-                <select id="edit_produs_status" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('status')}>
-                  <option value="activ">Activ</option>
-                  <option value="inactiv">Inactiv</option>
-                </select>
+                <Label htmlFor="edit_produs_pret">Preț unitar (lei)</Label>
+                <Input
+                  id="edit_produs_pret"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  className="agri-control h-12 md:h-11"
+                  {...form.register('pret_unitar')}
+                />
               </div>
-            </FormDialogSection>
-
-            <FormDialogSection label="Observații">
-              <Textarea id="edit_produs_desc" rows={3} className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6rem]" {...form.register('descriere')} />
-            </FormDialogSection>
-
-            <FormDialogSection label="Imagini">
-              <div className="flex gap-3">
-                <PhotoSlot slot={1} preview={preview1} inputRef={input1Ref} onFile={(f) => handleFileChange(1, f)} onClear={() => clearPhoto(1)} />
-                <PhotoSlot slot={2} preview={preview2} inputRef={input2Ref} onFile={(f) => handleFileChange(2, f)} onClear={() => clearPhoto(2)} />
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="edit_produs_approx">approximate_weight</Label>
+                <Input
+                  id="edit_produs_approx"
+                  className="agri-control h-12 md:h-11 md:max-w-md"
+                  placeholder="ex: ~300g"
+                  {...form.register('approximate_weight')}
+                />
               </div>
-              <p className="text-xs text-[var(--agri-text-muted)]">Max 2 fotografii (JPEG/PNG/WebP)</p>
-            </FormDialogSection>
-          </div>
-
-          <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-            <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Previzualizare</p>
-                <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">{wNume?.trim() || produs.nume}</p>
-              </div>
-              <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Categorie</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{CATEGORIE_LABEL[wCat || 'fruct']}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Unitate</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{wUnit || '—'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Preț</dt>
-                  <dd className="mt-0.5 font-semibold tabular-nums text-[var(--text-primary)]">{pretDisplay}</dd>
-                </div>
-                {wGramaj?.trim() ? (
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Gramaj</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)]">{wGramaj} g</dd>
-                  </div>
-                ) : null}
-                {wApprox?.trim() ? (
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Greutate aproximativă</dt>
-                    <dd className="mt-0.5 text-[var(--text-primary)]">{wApprox}</dd>
-                  </div>
-                ) : null}
-                <div className="border-t border-[var(--divider)] pt-3">
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5">Status</dt>
-                  <dd>
-                    <StatusBadge variant={statusVariant} text={wStatus === 'activ' ? 'Activ' : 'Inactiv'} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Descriere</dt>
-                  <dd className="mt-0.5 text-xs leading-relaxed text-[var(--text-primary)]">{clipNote(wDesc)}</dd>
-                </div>
-              </dl>
             </div>
-          </aside>
-        </div>
+          </FormDialogSection>
+
+          <FormDialogSection label="Status">
+            <div className="space-y-2">
+              <Label htmlFor="edit_produs_status">Activ în catalog</Label>
+              <select id="edit_produs_status" className="agri-control h-12 w-full px-3 text-base md:h-11" {...form.register('status')}>
+                <option value="activ">Activ</option>
+                <option value="inactiv">Inactiv</option>
+              </select>
+            </div>
+          </FormDialogSection>
+
+          <FormDialogSection label="Observații">
+            <Textarea id="edit_produs_desc" rows={3} className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6rem]" {...form.register('descriere')} />
+          </FormDialogSection>
+
+          <FormDialogSection label="Imagini">
+            <div className="flex gap-3">
+              <PhotoSlot slot={1} preview={preview1} inputRef={input1Ref} onFile={(f) => handleFileChange(1, f)} onClear={() => clearPhoto(1)} />
+              <PhotoSlot slot={2} preview={preview2} inputRef={input2Ref} onFile={(f) => handleFileChange(2, f)} onClear={() => clearPhoto(2)} />
+            </div>
+            <p className="text-xs text-[var(--agri-text-muted)]">Max 2 fotografii (JPEG/PNG/WebP)</p>
+          </FormDialogSection>
+        </DesktopFormGrid>
       </form>
     </AppDialog>
   )

@@ -8,11 +8,11 @@ import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { VanzareFormSummary } from '@/components/vanzari/VanzareFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import { track } from '@/lib/analytics/track'
 import { queryKeys } from '@/lib/query-keys'
@@ -62,12 +62,6 @@ const defaults = (): EditVanzareFormData => ({
 
 function formatStatusPlataLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1)
-}
-
-function clipNote(text: string | undefined, max = 100): string {
-  const t = (text ?? '').trim()
-  if (!t) return '—'
-  return t.length <= max ? t : `${t.slice(0, max)}…`
 }
 
 export function EditVanzareDialog({ vanzare, open, onOpenChange, tenantVanzari }: EditVanzareDialogProps) {
@@ -195,8 +189,25 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange, tenantVanzari }
       }
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(280px,30%)] md:items-start md:gap-6 lg:gap-8">
-          <div className="min-w-0 space-y-4 md:space-y-6">
+        <DesktopFormGrid
+          aside={
+            <VanzareFormSummary
+              clientName={selectedClient?.nume_client}
+              quantity={watchedQty}
+              unitPrice={watchedPret}
+              totalRon={totalRon}
+              statusLabel={formatStatusPlataLabel(watchedStatus || '')}
+              statusVariant={statusVariant}
+              dateLabel={dataAsideLabel}
+              notes={watchedObs}
+              mode="edit"
+              recordCode={vanzare.id_vanzare || vanzare.id.slice(0, 8)}
+              isFromOrder={Boolean(vanzare.comanda_id)}
+              relatedSalesCount={alteVanzariClient}
+              relatedSalesLabel="Alte vânzări (acest client)"
+            />
+          }
+        >
             <FormDialogSection label="Client">
               <div className="space-y-2">
                 <Label htmlFor="ev_client">Client</Label>
@@ -266,65 +277,7 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange, tenantVanzari }
             <FormDialogSection label="Observații">
               <Textarea id="ev_obs" rows={3} className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6rem]" {...form.register('observatii_ladite')} />
             </FormDialogSection>
-          </div>
-
-          <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-            <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">Previzualizare</p>
-                <p className="mt-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
-                  {selectedClient?.nume_client?.trim() || 'Fără client'}
-                </p>
-              </div>
-              <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cod vânzare</dt>
-                  <dd className="mt-0.5 font-mono text-xs text-[var(--text-primary)]">{vanzare.id_vanzare || vanzare.id.slice(0, 8)}</dd>
-                </div>
-                {vanzare.comanda_id ? (
-                  <div>
-                    <dt className="text-xs font-medium text-[var(--text-tertiary)]">Comandă</dt>
-                    <dd className="mt-0.5">
-                      <StatusBadge variant="info" text="Din comandă" />
-                    </dd>
-                  </div>
-                ) : null}
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cantitate / Preț</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">
-                    {watchedQty ? `${watchedQty} kg` : '—'} · {watchedPret ? `${watchedPret} lei/kg` : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total</dt>
-                  <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
-                    {totalRon !== null ? `${totalRon.toLocaleString('ro-RO', { maximumFractionDigits: 0 })} lei` : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)] mb-1.5">Status plată</dt>
-                  <dd>
-                    <StatusBadge variant={statusVariant} text={formatStatusPlataLabel(watchedStatus || '')} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data</dt>
-                  <dd className="mt-0.5 text-[var(--text-primary)]">{dataAsideLabel}</dd>
-                </div>
-                {alteVanzariClient !== null ? (
-                  <div className="border-t border-[var(--divider)] pt-3 text-xs text-[var(--text-secondary)]">
-                    <span className="font-medium text-[var(--text-tertiary)]">Alte vânzări (acest client): </span>
-                    <span className="font-semibold text-[var(--text-primary)]">{alteVanzariClient}</span>
-                  </div>
-                ) : null}
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Observații</dt>
-                  <dd className="mt-0.5 text-xs leading-relaxed text-[var(--text-primary)]">{clipNote(watchedObs)}</dd>
-                </div>
-              </dl>
-            </div>
-          </aside>
-        </div>
+        </DesktopFormGrid>
       </form>
     </AppDialog>
   )
