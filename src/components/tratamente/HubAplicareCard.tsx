@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, type KeyboardEvent, type MouseEvent } from 'react'
-import { CheckCircle2, CloudSun, Droplets, FlaskConical, MapPin, Wind } from 'lucide-react'
+import { CheckCircle2, CloudSun, Droplets, MapPin, Wind } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
 
@@ -48,10 +48,14 @@ function formatDoza(aplicare: AplicareCrossParcelItem): string | null {
   return null
 }
 
-function formatStadiuLabel(value: string | null, configurareSezon: ConfigurareSezon | null): string | null {
+function formatStadiuLabel(
+  value: string | null,
+  configurareSezon: ConfigurareSezon | null,
+  cohort: 'floricane' | 'primocane' | null
+): string | null {
   if (!value) return null
   const cod = normalizeStadiu(value)
-  return cod ? getLabelStadiuContextual(cod, configurareSezon) : value
+  return cod ? getLabelStadiuContextual(cod, configurareSezon, { cohort }) : value
 }
 
 function normalizeCohorta(value: string | null | undefined) {
@@ -101,15 +105,15 @@ export function HubAplicareCard({
   const parcelaHref = `/parcele/${aplicare.parcela_id}/tratamente`
   const dateLabel = formatHubDate(aplicare.data_programata ?? aplicare.data_aplicata)
   const doza = formatDoza(aplicare)
-  const stadiu = formatStadiuLabel(aplicare.stadiu_trigger, configurareSezon ?? null)
+  const cohortBlocata = normalizeCohorta(aplicare.cohort_trigger)
+  const cohortImplicita = normalizeCohorta(aplicare.cohort_la_aplicare) ?? cohortBlocata ?? null
+  const stadiu = formatStadiuLabel(aplicare.stadiu_trigger, configurareSezon ?? null, cohortImplicita)
   const cohortLabel = normalizeCohorta(aplicare.cohort_la_aplicare)
     ? `Pentru ${getCohortaLabel(normalizeCohorta(aplicare.cohort_la_aplicare) as 'floricane' | 'primocane')}`
     : null
   const meteoStats = getMeteoStats(meteoZi)
   const canEdit = isAplicareProgramata(aplicare.status)
   const rubusMixt = isRubusMixt(configurareSezon)
-  const cohortBlocata = normalizeCohorta(aplicare.cohort_trigger)
-  const cohortImplicita = normalizeCohorta(aplicare.cohort_la_aplicare) ?? cohortBlocata ?? null
 
   const handleOpenDetail = () => {
     router.push(detailHref)
@@ -304,6 +308,7 @@ export function HubAplicareCard({
 
       <MarkAplicataSheet
         cohortLaAplicareBlocata={cohortBlocata}
+        configurareSezon={configurareSezon}
         defaultCantitateMl={null}
         defaultCohortLaAplicare={cohortImplicita}
         defaultOperator={aplicare.operator ?? ''}

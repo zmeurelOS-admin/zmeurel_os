@@ -21,16 +21,23 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import type { CropCod } from '@/lib/crops/crop-codes'
+import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
 import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
 import { buildLatestActivityByParcela, getActivityDaysAgo, getActivityPauseRemainingDays } from '@/lib/activitati/timeline'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+import {
+  createParcelaStadiuCanonic,
+  getConfigurareSezonParcela,
+  getStadiiCanoniceParcela,
+  type ConfigurareParcelaSezon,
+  type ParcelaStadiuCanonic,
+} from '@/lib/supabase/queries/parcela-stadii'
 import { getSolarClimateLogs } from '@/lib/supabase/queries/solar-tracking'
 import {
-  createEtapaCultura,
-  deleteEtapaCultura,
   getActiveCulturiCountsByParcela,
   getEtapeCulturaById,
   type Cultura,
@@ -38,8 +45,21 @@ import {
 } from '@/lib/supabase/queries/culturi'
 import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
+import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import {
+  getGrupBiologicForCropCod,
+  getLabelPentruGrup,
+  getOrdine,
+  getOrdineInGrup,
+  listAllStadiiCanonice,
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { toast } from '@/lib/ui/toast'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 import {
   coerceParcelaScopFromDb,
   coerceStatusOperationalFromDb,
@@ -92,14 +112,6 @@ const PILL_FILTERS: Array<{ key: UnitFilter; label: string }> = [
   { key: 'cultura_mare', label: 'Cultură mare' },
   { key: 'solar', label: 'Solarii' },
   { key: 'livada', label: 'Livadă' },
-]
-
-const ETAPA_PILLS = [
-  { value: 'plantare', label: '🌱 Plantare' },
-  { value: 'primele_flori', label: '🌸 Primele flori' },
-  { value: 'fructificare', label: '🍅 Fructificare' },
-  { value: 'cules', label: '🧺 Cules' },
-  { value: 'altele', label: '📋 Altele' },
 ]
 
 function resolveUnitFilterParam(searchParams: ReturnType<typeof useSearchParams>): UnitFilter {
@@ -155,17 +167,53 @@ function operationalToneForCard(statusOperational: StatusOperational): 'neutral'
 }
 
 function etapaDotColor(etapa: string): string {
-  const e = etapa.toLowerCase()
+  const cod = normalizeStadiu(etapa)
+  const e = (cod ?? etapa).toLowerCase()
   if (e.includes('plantare') || e.includes('flori') || e.includes('fructif') || e.includes('cules')) return '#2D6A4F'
   if (e.includes('seceta') || e.includes('daun') || e.includes('problem') || e.includes('desfiin')) return '#e85d5d'
   return '#95b8a0'
 }
 
-function formatEtapaLabel(value: string | null | undefined): string {
+function formatEtapaLabel(
+  value: string | null | undefined,
+  grupBiologic?: GrupBiologic | null,
+  cohort?: string | null
+): string {
   const raw = (value ?? '').trim()
-  if (!raw) return 'Plantare'
+  if (!raw) return 'Stadiu nedefinit'
+  const cod = normalizeStadiu(raw)
+  if (cod) return getLabelPentruGrup(cod, grupBiologic, { cohort })
   const normalized = raw.replaceAll('_', ' ').trim()
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
+function getStadiuOrder(cod: StadiuCod, grupBiologic: GrupBiologic | null): number {
+  if (grupBiologic) {
+    const indexInGroup = getOrdineInGrup(cod, grupBiologic)
+    if (indexInGroup >= 0) return indexInGroup
+  }
+  return getOrdine(cod) + 100
+}
+
+function getCurrentCanonicalStage(
+  stages: ParcelaStadiuCanonic[],
+  grupBiologic: GrupBiologic | null
+): ParcelaStadiuCanonic | null {
+  if (stages.length === 0) return null
+
+  return [...stages].sort((a, b) => {
+    const codA = normalizeStadiu(a.stadiu)
+    const codB = normalizeStadiu(b.stadiu)
+    const orderA = codA ? getStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
+    const orderB = codB ? getStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
+    const orderDiff = orderB - orderA
+    if (orderDiff !== 0) return orderDiff
+
+    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
+    if (observedDiff !== 0) return observedDiff
+
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })[0] ?? null
 }
 
 function toErrorMessage(error: unknown): string {
@@ -260,63 +308,97 @@ function buildParcelaSummaryLine(parcela: Parcela, activeCulturiCount: number): 
 
 function CulturaCard({
   cultura,
+  parcelaId,
+  parcelaCropCodHint,
+  seasonConfig,
+  canonicalStages,
   onDesfiintaCultura,
 }: {
   cultura: Cultura
+  parcelaId: string
+  parcelaCropCodHint: CropCod | null
+  seasonConfig: ConfigurareParcelaSezon | null
+  canonicalStages: ParcelaStadiuCanonic[]
   onDesfiintaCultura: (c: Cultura) => void
 }) {
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [selectedEtapa, setSelectedEtapa] = useState('')
-  const [customEtapa, setCustomEtapa] = useState('')
+  const [selectedStadiu, setSelectedStadiu] = useState('')
+  const [selectedCohort, setSelectedCohort] = useState<Cohorta | ''>('')
   const [observatii, setObservatii] = useState('')
   const [dataEtapa, setDataEtapa] = useState(new Date().toISOString().slice(0, 10))
+  const currentSezon = getCurrentSezon()
 
   const fallbackStage = (() => {
     const normalized = normalizeStr(cultura.stadiu)
-    if (!normalized || normalized === 'crestere' || normalized === 'creștere') return 'Plantare'
+    if (!normalized || normalized === 'crestere' || normalized === 'creștere') return 'Stadiu nedefinit'
     return formatEtapaLabel(cultura.stadiu)
   })()
   const name = [cultura.tip_planta, cultura.soi].filter(Boolean).join(' · ')
   const isActive = cultura.activa !== false
 
-  const { data: etape = [], isLoading: etapeLoading } = useQuery({
+  const { data: etapeLegacy = [], isLoading: etapeLegacyLoading } = useQuery({
     queryKey: queryKeys.etapeCultura(cultura.id),
     queryFn: () => getEtapeCulturaById(cultura.id),
-    enabled: true,
+    enabled: expanded,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
-  const latestStageLabel = formatEtapaLabel(etape[0]?.etapa ?? fallbackStage)
+  const culturaCropCod = useMemo(() => normalizeCropCod(cultura.tip_planta), [cultura.tip_planta])
+  const grupBiologic = useMemo(
+    () => getGrupBiologicForCropCod(culturaCropCod ?? parcelaCropCodHint),
+    [culturaCropCod, parcelaCropCodHint]
+  )
+  const stageOptions = useMemo(() => {
+    const values = grupBiologic ? listStadiiPentruGrup(grupBiologic) : listAllStadiiCanonice()
+    return values.map((cod) => ({
+      value: cod,
+      label: getLabelPentruGrup(cod, grupBiologic, { cohort: selectedCohort || null }),
+    }))
+  }, [grupBiologic, selectedCohort])
+  const firstStageValue = stageOptions[0]?.value ?? 'repaus_vegetativ'
+  const hasCanonicalCohorts = useMemo(
+    () => canonicalStages.some((entry) => entry.cohort === 'floricane' || entry.cohort === 'primocane'),
+    [canonicalStages]
+  )
+  const isRubusMixt =
+    grupBiologic === 'rubus' &&
+    (
+      seasonConfig?.sistem_conducere === 'mixt_floricane_primocane' ||
+      hasCanonicalCohorts
+    )
+  const currentCanonicalStage = useMemo(
+    () => getCurrentCanonicalStage(canonicalStages, grupBiologic),
+    [canonicalStages, grupBiologic]
+  )
+  const latestLegacyStage = etapeLegacy[0]?.etapa ?? fallbackStage
+  const latestStageLabel = currentCanonicalStage
+    ? formatEtapaLabel(currentCanonicalStage.stadiu, grupBiologic, currentCanonicalStage.cohort)
+    : formatEtapaLabel(latestLegacyStage)
 
   const addMutation = useMutation({
     mutationFn: () => {
-      const etapa = selectedEtapa === 'altele' ? customEtapa.trim() : selectedEtapa
-      if (!etapa) throw new Error('Selectează o etapă')
-      return createEtapaCultura({
-        cultura_id: cultura.id,
-        etapa,
+      if (!selectedStadiu) throw new Error('Selectează un stadiu')
+      if (isRubusMixt && !selectedCohort) throw new Error('Selectează cohorta')
+
+      return createParcelaStadiuCanonic({
+        parcela_id: parcelaId,
+        an: currentSezon,
+        stadiu: selectedStadiu,
+        cohort: selectedCohort ? (selectedCohort as Cohorta) : null,
+        data_observata: dataEtapa,
         observatii: observatii || undefined,
-        data_etapa: dataEtapa,
       })
     },
     onSuccess: () => {
-      toast.success('Etapă salvată')
-      queryClient.invalidateQueries({ queryKey: queryKeys.etapeCultura(cultura.id) })
+      toast.success('Stadiu salvat')
+      queryClient.invalidateQueries({ queryKey: queryKeys.parcelaCultureStages(parcelaId) })
       setShowAddForm(false)
-      setSelectedEtapa('')
-      setCustomEtapa('')
+      setSelectedStadiu(firstStageValue)
+      setSelectedCohort('')
       setObservatii('')
       setDataEtapa(new Date().toISOString().slice(0, 10))
-    },
-    onError: (err: unknown) => toast.error(toErrorMessage(err)),
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteEtapaCultura(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.etapeCultura(cultura.id) })
     },
     onError: (err: unknown) => toast.error(toErrorMessage(err)),
   })
@@ -371,9 +453,58 @@ function CulturaCard({
       {expanded ? (
         <div style={{ marginTop: 10 }}>
           {/* Timeline */}
-          {etapeLoading ? (
+          {canonicalStages.length === 0 && etapeLegacyLoading ? (
             <div style={{ fontSize: 11, color: 'var(--text-hint)', marginBottom: 8 }}>Se încarcă...</div>
-          ) : etape.length === 0 ? (
+          ) : canonicalStages.length > 0 ? (
+            <div style={{ marginBottom: 8 }}>
+              {canonicalStages.map((etapa) => (
+                <div
+                  key={etapa.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 8,
+                    paddingBottom: 8,
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: 2 }}>
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: etapaDotColor(etapa.stadiu),
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ width: 1, flex: 1, background: 'var(--surface-divider)', minHeight: 12, marginTop: 2 }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--agri-text)', lineHeight: 1.3 }}>
+                      {formatEtapaLabel(etapa.stadiu, grupBiologic, etapa.cohort)}
+                      {isRubusMixt && etapa.cohort ? (
+                        <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--agri-text-muted)' }}>
+                          · {etapa.cohort === 'floricane' ? 'Floricane' : 'Primocane'}
+                        </span>
+                      ) : null}
+                    </div>
+                    {etapa.observatii ? (
+                      <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 1 }}>{etapa.observatii}</div>
+                    ) : null}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-hint)' }}>{etapa.data_observata}</span>
+                  </div>
+                </div>
+              ))}
+              {etapeLegacy.length > 0 ? (
+                <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-hint)' }}>
+                  Istoric vechi disponibil ({etapeLegacy.length})
+                </div>
+              ) : null}
+            </div>
+          ) : etapeLegacy.length === 0 ? (
             <div
               style={{
                 fontSize: 11,
@@ -387,7 +518,7 @@ function CulturaCard({
             </div>
           ) : (
             <div style={{ marginBottom: 8 }}>
-              {etape.map((etapa: EtapaCultura) => (
+              {etapeLegacy.map((etapa: EtapaCultura) => (
                 <div
                   key={etapa.id}
                   style={{
@@ -414,7 +545,8 @@ function CulturaCard({
                   {/* Content */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--agri-text)', lineHeight: 1.3 }}>
-                      {etapa.etapa}
+                      {formatEtapaLabel(etapa.etapa)}
+                      <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-hint)' }}>· Istoric vechi</span>
                     </div>
                     {etapa.observatii ? (
                       <div style={{ fontSize: 10, color: 'var(--agri-text-muted)', marginTop: 1 }}>{etapa.observatii}</div>
@@ -423,23 +555,6 @@ function CulturaCard({
                   {/* Date + delete */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
                     <span style={{ fontSize: 10, color: 'var(--text-hint)' }}>{etapa.data_etapa}</span>
-                    <button
-                      type="button"
-                      onClick={() => deleteMutation.mutate(etapa.id)}
-                      disabled={deleteMutation.isPending}
-                      style={{
-                        fontSize: 10,
-                        color: 'var(--text-hint)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: 0,
-                        lineHeight: 1,
-                      }}
-                      aria-label="Șterge etapă"
-                    >
-                      🗑
-                    </button>
                   </div>
                 </div>
               ))}
@@ -450,7 +565,11 @@ function CulturaCard({
           {isActive && !showAddForm ? (
             <button
               type="button"
-              onClick={() => setShowAddForm(true)}
+              onClick={() => {
+                setSelectedStadiu(firstStageValue)
+                setSelectedCohort('')
+                setShowAddForm(true)
+              }}
               style={{
                 width: '100%',
                 padding: '8px 0',
@@ -464,7 +583,7 @@ function CulturaCard({
                 marginBottom: 8,
               }}
             >
-              ＋ Adaugă etapă
+              ＋ Actualizează stadiu
             </button>
           ) : null}
 
@@ -474,12 +593,12 @@ function CulturaCard({
               onOpenChange={(nextOpen) => {
                 setShowAddForm(nextOpen)
                 if (!nextOpen) {
-                  setSelectedEtapa('')
-                  setCustomEtapa('')
+                  setSelectedStadiu(firstStageValue)
+                  setSelectedCohort('')
                   setObservatii('')
                 }
               }}
-              title="Adaugă etapă"
+              title="Actualizează stadiu"
               desktopClassName="max-w-xl"
             >
               <div
@@ -491,35 +610,31 @@ function CulturaCard({
                   marginBottom: 8,
                 }}
               >
-                {/* Pills */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                  {ETAPA_PILLS.map((p) => (
-                    <button
-                      key={p.value}
-                      type="button"
-                      onClick={() => setSelectedEtapa(p.value)}
-                      style={{
-                        padding: '4px 10px',
-                        fontSize: 10,
-                        fontWeight: 600,
-                        borderRadius: 20,
-                        border: `1px solid ${selectedEtapa === p.value ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
-                        background: selectedEtapa === p.value ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                        color: selectedEtapa === p.value ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {p.label}
-                    </button>
+                <select
+                  value={selectedStadiu}
+                  onChange={(e) => setSelectedStadiu(e.target.value)}
+                  style={{
+                    width: '100%',
+                    fontSize: 12,
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    border: '1px solid var(--input)',
+                    background: 'var(--agri-surface)',
+                    color: 'var(--agri-text)',
+                    marginBottom: 6,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {stageOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
                   ))}
-                </div>
-                {/* Custom etapa field (if "Altele") */}
-                {selectedEtapa === 'altele' ? (
-                  <input
-                    type="text"
-                    value={customEtapa}
-                    onChange={(e) => setCustomEtapa(e.target.value)}
-                    placeholder="Descrie etapa..."
+                </select>
+                {isRubusMixt ? (
+                  <select
+                    value={selectedCohort}
+                    onChange={(e) => setSelectedCohort((e.target.value as Cohorta | '') || '')}
                     style={{
                       width: '100%',
                       fontSize: 12,
@@ -531,7 +646,11 @@ function CulturaCard({
                       marginBottom: 6,
                       boxSizing: 'border-box',
                     }}
-                  />
+                  >
+                    <option value="">Selectează cohorta</option>
+                    <option value="floricane">Floricane</option>
+                    <option value="primocane">Primocane</option>
+                  </select>
                 ) : null}
                 {/* Observatii */}
                 <textarea
@@ -573,7 +692,12 @@ function CulturaCard({
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     type="button"
-                    onClick={() => { setShowAddForm(false); setSelectedEtapa(''); setCustomEtapa(''); setObservatii('') }}
+                    onClick={() => {
+                      setShowAddForm(false)
+                      setSelectedStadiu(firstStageValue)
+                      setSelectedCohort('')
+                      setObservatii('')
+                    }}
                     style={{
                       flex: 1,
                       padding: '7px 0',
@@ -591,17 +715,27 @@ function CulturaCard({
                   <button
                     type="button"
                     onClick={() => addMutation.mutate()}
-                    disabled={addMutation.isPending || !selectedEtapa}
+                    disabled={addMutation.isPending || !selectedStadiu || (isRubusMixt && !selectedCohort)}
                     style={{
                       flex: 1,
                       padding: '7px 0',
                       fontSize: 11,
                       fontWeight: 600,
-                      background: addMutation.isPending || !selectedEtapa ? 'var(--agri-surface-muted)' : 'var(--pill-active-bg)',
-                      color: addMutation.isPending || !selectedEtapa ? 'var(--text-hint)' : 'var(--pill-active-text)',
-                      border: `1px solid ${addMutation.isPending || !selectedEtapa ? 'var(--agri-border)' : 'var(--pill-active-border)'}`,
+                      background:
+                        addMutation.isPending || !selectedStadiu || (isRubusMixt && !selectedCohort)
+                          ? 'var(--agri-surface-muted)'
+                          : 'var(--pill-active-bg)',
+                      color:
+                        addMutation.isPending || !selectedStadiu || (isRubusMixt && !selectedCohort)
+                          ? 'var(--text-hint)'
+                          : 'var(--pill-active-text)',
+                      border: `1px solid ${
+                        addMutation.isPending || !selectedStadiu || (isRubusMixt && !selectedCohort)
+                          ? 'var(--agri-border)'
+                          : 'var(--pill-active-border)'
+                      }`,
                       borderRadius: 8,
-                      cursor: addMutation.isPending || !selectedEtapa ? 'default' : 'pointer',
+                      cursor: addMutation.isPending || !selectedStadiu || (isRubusMixt && !selectedCohort) ? 'default' : 'pointer',
                     }}
                   >
                     {addMutation.isPending ? 'Se salvează...' : 'Salvează'}
@@ -638,6 +772,7 @@ function CulturaCard({
 }
 
 function SolarCulturiSection({
+  parcela,
   solarId,
   tipUnitate,
   onAddCultura,
@@ -645,6 +780,7 @@ function SolarCulturiSection({
   onDesfiintaCultura,
   withTopBorder = true,
 }: {
+  parcela: Parcela
   solarId: string
   tipUnitate: string | null | undefined
   onAddCultura: () => void
@@ -653,6 +789,7 @@ function SolarCulturiSection({
   withTopBorder?: boolean
 }) {
   const [showMicroHistory, setShowMicroHistory] = useState(false)
+  const currentSezon = getCurrentSezon()
   const { data: culturi = [], isLoading } = useQuery({
     queryKey: queryKeys.culturi(solarId),
     queryFn: () => getCulturiForSolar(solarId),
@@ -667,11 +804,29 @@ function SolarCulturiSection({
     refetchOnWindowFocus: false,
     enabled: Boolean(solarId),
   })
+  const { data: canonicalStages = [] } = useQuery({
+    queryKey: queryKeys.parcelaCultureStages(solarId),
+    queryFn: () => getStadiiCanoniceParcela(solarId, currentSezon, 50),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(solarId),
+  })
+  const { data: seasonConfig = null } = useQuery({
+    queryKey: queryKeys.parcelaSeasonConfig(solarId, currentSezon),
+    queryFn: () => getConfigurareSezonParcela(solarId, currentSezon),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(solarId),
+  })
 
   const activeCulturi = culturi.filter((c) => c.activa !== false)
   const inactiveCulturi = culturi.filter((c) => c.activa === false)
   const conditiiLabel = getConditiiMediuLabel(tipUnitate)
   const latestMicroclimat = microclimatLogs[0]
+  const parcelaCropCodHint = useMemo(
+    () => normalizeCropCod(parcela.cultura) ?? normalizeCropCod(parcela.tip_fruct),
+    [parcela.cultura, parcela.tip_fruct]
+  )
 
   return (
     <div style={withTopBorder ? { marginTop: 10, borderTop: '1px solid var(--surface-divider)', paddingTop: 10 } : undefined}>
@@ -793,6 +948,10 @@ function SolarCulturiSection({
             <CulturaCard
               key={c.id}
               cultura={c}
+              parcelaId={solarId}
+              parcelaCropCodHint={parcelaCropCodHint}
+              seasonConfig={seasonConfig}
+              canonicalStages={canonicalStages}
               onDesfiintaCultura={onDesfiintaCultura}
             />
           ))}
@@ -805,6 +964,10 @@ function SolarCulturiSection({
             <CulturaCard
               key={c.id}
               cultura={c}
+              parcelaId={solarId}
+              parcelaCropCodHint={parcelaCropCodHint}
+              seasonConfig={seasonConfig}
+              canonicalStages={canonicalStages}
               onDesfiintaCultura={onDesfiintaCultura}
             />
           ))}
@@ -934,6 +1097,7 @@ function TerenCard({
         </div>
 
         <SolarCulturiSection
+          parcela={parcela}
           solarId={parcela.id}
           tipUnitate={parcela.tip_unitate}
           onAddCultura={onAddCultura}
@@ -1132,6 +1296,7 @@ function TerenCard({
             ) : null}
 
             <SolarCulturiSection
+              parcela={parcela}
               solarId={parcela.id}
               tipUnitate={parcela.tip_unitate}
               onAddCultura={onAddCultura}

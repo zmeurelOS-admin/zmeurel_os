@@ -3,7 +3,7 @@ import { calculeazaCupruCumulatAnual } from '@/lib/tratamente/cupru-cumulat'
 import { detectConsecutiveFrac, extractFracHistory } from '@/lib/tratamente/rotatie-frac'
 import {
   getGrupBiologicForCropCod,
-  getLabelRo,
+  getLabelPentruGrup,
   getOrdine,
   getOrdineInGrup,
   listAllStadiiCanonice,
@@ -52,18 +52,22 @@ export function getGrupBiologicDinCultura(culturaTip: string | null | undefined)
 export function getStadiuOptions(grupBiologic?: GrupBiologic | null) {
   return listStadiiPentruGrup(grupBiologic).map((value) => ({
     value,
-    label: getLabelRo(value),
+    label: getLabelPentruGrup(value, grupBiologic),
     emoji: STADIU_EMOJI[value] ?? '🌿',
   }))
 }
 
-export function getStadiuMeta(stadiu: string) {
+export function getStadiuMeta(
+  stadiu: string,
+  grupBiologic?: GrupBiologic | null,
+  cohort?: string | null
+) {
   const cod = normalizeStadiu(stadiu)
 
   if (cod) {
     return {
       value: cod,
-      label: getLabelRo(cod),
+      label: getLabelPentruGrup(cod, grupBiologic, { cohort }),
       emoji: STADIU_EMOJI[cod] ?? '🌿',
     }
   }

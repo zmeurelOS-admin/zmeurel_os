@@ -1,4 +1,9 @@
-import { getLabelRo, type GrupBiologic, type StadiuCod } from '@/lib/tratamente/stadii-canonic'
+import {
+  getLabelPentruGrup,
+  getLabelRo,
+  type GrupBiologic,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 
 export type SistemConducere = 'primocane_only' | 'mixt_floricane_primocane'
 
@@ -58,8 +63,14 @@ export function needsCohortSelection(
 
 export function getLabelStadiuContextual(
   cod: StadiuCod,
-  configurare: ConfigurareSezon | null
+  configurare: ConfigurareSezon | null,
+  options?: { grupBiologic?: GrupBiologic | null; cohort?: string | null }
 ): string {
+  const grupBiologic = options?.grupBiologic ?? (configurare?.sistem_conducere ? RUBUS_GROUP : null)
+  if (grupBiologic === RUBUS_GROUP) {
+    return getLabelPentruGrup(cod, RUBUS_GROUP, { cohort: options?.cohort ?? null })
+  }
+
   if (cod === 'post_recoltare' && configurare?.tip_ciclu_soi === 'nedeterminat') {
     return 'Producție în curs'
   }

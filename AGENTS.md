@@ -214,6 +214,7 @@ Actualizată:
 - Fișierul expune și `ManagementCategory` + `getManagementCategory(...)` pentru logica semantică de management; categoriile sunt ordonate intern ca `repaus < vegetativ < prefloral < inflorit < fruct_mic < coacere < post_recoltare`, iar helper-ele de grupare trebuie să rămână pure și fără efecte secundare.
 - Din Faza 2, catalogul `crops` are `cod` canonic singular (`zmeur`, `capsun`, `rosie` etc.) și `grup_biologic`; `parcele.cultura` rămâne text liber, dar consumatorii din Tratamente trebuie să treacă prin `normalizeCropCod(...)` înainte să compare sau să facă lookup în `crops`.
 - `src/lib/tratamente/stadii-canonic.ts` mai expune profilurile de stadii per `GrupBiologic`; regula de compatibilitate este importantă: `listStadiiInOrdine()` și `getOrdine()` rămân wrapper-ele legacy pe profilul implicit Rubus, iar ordonarea contextuală nouă se face exclusiv prin `listStadiiPentruGrup(...)`, `getOrdineInGrup(...)` și `getStadiuUrmatorInGrup(...)`.
+- Pentru Rubus, codurile canonice rămân stabile, dar UI-ul trebuie să folosească label-uri contextualizate prin `getLabelPentruGrup(...)` / `getLabelStadiuContextual(...)`; cohorta (`floricane` / `primocane`) poate schimba doar vocabularul afișat, nu codul salvat.
 - `activitati_agricole.tip_activitate` rămâne `varchar` liber pentru istoric și compatibilitate, dar tipurile care țin acum de modulul `Protecție & Nutriție` sunt marcate prin `tip_deprecat = true` (migrare `20260419120000_deprecate_activitati_pn.sql`). UI-ul din `/activitati-agricole` nu mai oferă aceste tipuri la creare/editare nouă, iar înregistrările vechi apar ca „Arhivat” și nu mai pot fi editate din modulul generic.
 - CRUD-ul principal pentru planuri de tratament folosește acum wizard-ul `src/components/tratamente/plan-wizard/PlanWizard.tsx`, lista `/tratamente/planuri` și RPC-ul atomic `public.upsert_plan_tratament_cu_linii(...)`. Arhivarea este soft (`planuri_tratament.arhivat = true`), iar planurile arhivate nu mai trebuie oferite în fluxurile de asociere noi.
 - Configurarea sezonieră per parcelă este noul strat de input în `configurari_parcela_sezon`; helper-ul `src/lib/tratamente/configurare-sezon.ts` decide sistemul de conducere / tipul de ciclu și label-ul contextual folosit în UI-ul de tratamente.
@@ -236,7 +237,12 @@ Actualizată:
 ## Fluxuri Legacy
 
 - **Fluxul legacy solar** este vechiul traseu de stadii pentru culturi din solar/greenhouse, separat de modulul Tratamente.
-- Fluxul scrie în `culturi.stadiu` și în `culture_stage_logs`, nu în `stadii_fenologice_parcela`.
+- `AddCulturaDialog` nu mai cere și nu mai trimite stadiu la creare; crearea unei culturi nu este considerată observație fenologică. `createCultura` păstrează doar un fallback tehnic intern pentru `culturi.stadiu` cât timp coloana legacy există, fără semantică de produs.
+- `updateCultura` nu mai acceptă `stadiu` în contractul activ; editarea culturii nu mai este o poartă de scriere pentru `culturi.stadiu`.
+- Helper-ele legacy pentru `culture_stage_logs` / `etape_cultura` rămân compatibilitate latentă, nu sursă de scrieri noi în UI.
+- Pilotul din `/parcele/[id]` (secțiunea „Etape de cultură”) citește și scrie **canonic** în `stadii_fenologice_parcela`; `culture_stage_logs` rămâne acolo doar ca fallback vizual pentru istoric vechi.
+- În `ParcelePageClient` (cardurile de culturi din solar), stadiul curent este acum citit cu prioritate din modelul canonic pe parcelă (`stadii_fenologice_parcela`), iar `etape_cultura` / `culturi.stadiu` rămân fallback vizual pentru istoric vechi.
+- `AddStadiuDialog` scrie stadii noi doar în modelul canonic, iar `EditCulturaDialog` nu mai editează `culturi.stadiu`; în dialogul de editare stadiul este doar informativ, cu prioritate canonică și fallback legacy discret.
 - Rămâne decuplat intenționat deoarece modulul nou are deja propriul model canonic pe stadii, profiluri, cohorte și configurare sezonieră, iar amestecarea lor ar crea ambiguități și migrații riscante.
 - Nu se modifică funcționalitatea acestui flux fără un plan explicit de migrare și validare end-to-end.
 - Decizia asupra viitorului lui se ia post-v1, după ce modulul Tratamente rămâne stabil pe fluxul canonic nou.

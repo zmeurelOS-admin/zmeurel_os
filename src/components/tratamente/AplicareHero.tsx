@@ -64,7 +64,8 @@ function getTriggerLabel(aplicare: AplicareTratamentDetaliu, configurareSezon: C
   if (!trigger) return '—'
 
   const cod = normalizeStadiu(trigger)
-  return cod ? `la ${getLabelStadiuContextual(cod, configurareSezon)}` : `la ${trigger}`
+  const cohort = aplicare.cohort_la_aplicare ?? aplicare.linie?.cohort_trigger ?? null
+  return cod ? `la ${getLabelStadiuContextual(cod, configurareSezon, { cohort })}` : `la ${trigger}`
 }
 
 function getCohortLabel(aplicare: AplicareTratamentDetaliu): string | null {

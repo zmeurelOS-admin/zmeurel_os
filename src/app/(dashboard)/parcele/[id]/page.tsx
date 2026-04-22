@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import dynamic from 'next/dynamic'
@@ -18,17 +18,35 @@ import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getConditiiMediuLabel, getConditiiMediuLabelLower } from '@/lib/parcele/culturi'
 import { queryKeys } from '@/lib/query-keys'
 import { getParcelaById } from '@/lib/supabase/queries/parcele'
+import {
+  createParcelaStadiuCanonic,
+  getConfigurareSezonParcela,
+  getStadiiCanoniceParcela,
+} from '@/lib/supabase/queries/parcela-stadii'
 import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import {
-  createCultureStageLog,
   createSolarClimateLog,
   getCultureStageLogs,
   getSolarClimateLogs,
 } from '@/lib/supabase/queries/solar-tracking'
+import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import {
+  getGrupBiologicForCropCod,
+  getLabelPentruGrup,
+  getOrdine,
+  getOrdineInGrup,
+  listAllStadiiCanonice,
+  listStadiiPentruGrup,
+  normalizeStadiu,
+  type GrupBiologic,
+  type StadiuCod,
+} from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 
 const AddCulturaDialog = dynamic(
   () => import('@/components/parcele/AddCulturaDialog').then((mod) => mod.AddCulturaDialog),
@@ -57,22 +75,14 @@ const climateSchema = z.object({
 })
 
 const stageSchema = z.object({
-  etapa: z.string().min(1, 'Etapa este obligatorie'),
-  etapa_custom: z.string().optional(),
+  stadiu: z.string().min(1, 'Stadiul este obligatoriu'),
+  cohort: z.enum(['floricane', 'primocane']).optional(),
   data: z.string().min(1, 'Data este obligatorie'),
   observatii: z.string().optional(),
 })
 
 type ClimateFormValues = z.infer<typeof climateSchema>
 type StageFormValues = z.infer<typeof stageSchema>
-
-const STAGE_OPTIONS = [
-  { value: 'plantare', label: 'Plantare' },
-  { value: '2_frunze', label: '2 frunze' },
-  { value: 'primele_flori', label: 'Primele flori' },
-  { value: 'prima_recolta', label: 'Prima recoltă' },
-  { value: '__custom__', label: 'Etapă personalizată' },
-]
 
 function toDateLabel(value: string | null | undefined): string {
   if (!value) return '-'
@@ -113,11 +123,52 @@ function toDateOnlyKey(value: string | null | undefined): string {
   return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`
 }
 
-function formatEtapaLabel(value: string | null | undefined): string {
+function formatLegacyEtapaLabel(value: string | null | undefined): string {
   const normalized = (value ?? '').trim()
-  if (!normalized) return 'Plantare'
+  if (!normalized) return 'Etapa nedefinita'
   const withSpaces = normalized.replaceAll('_', ' ')
   return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1)
+}
+
+function getStadiuLabel(
+  value: string | null | undefined,
+  grupBiologic?: GrupBiologic | null,
+  cohort?: string | null
+): string {
+  if (!value) return 'Stadiu nedefinit'
+  const cod = normalizeStadiu(value)
+  return cod ? getLabelPentruGrup(cod, grupBiologic, { cohort }) : value
+}
+
+function getStadiuOrder(cod: StadiuCod, grupBiologic: GrupBiologic | null): number {
+  if (grupBiologic) {
+    const indexInGroup = getOrdineInGrup(cod, grupBiologic)
+    if (indexInGroup >= 0) {
+      return indexInGroup
+    }
+  }
+  return getOrdine(cod) + 100
+}
+
+function getCurrentCanonicalStage<T extends { stadiu: string; data_observata: string; created_at: string }>(
+  entries: T[],
+  grupBiologic: GrupBiologic | null
+): T | null {
+  if (entries.length === 0) return null
+
+  return [...entries].sort((a, b) => {
+    const codA = normalizeStadiu(a.stadiu)
+    const codB = normalizeStadiu(b.stadiu)
+    const orderA = codA ? getStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
+    const orderB = codB ? getStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
+    const orderDiff = orderB - orderA
+    if (orderDiff !== 0) return orderDiff
+
+    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
+    if (observedDiff !== 0) return observedDiff
+
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })[0] ?? null
 }
 
 function toErrorMessage(error: unknown): string {
@@ -151,6 +202,7 @@ export default function ParcelaDetailPage() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [stageOpen, setStageOpen] = useState(false)
   const [addCulturaOpen, setAddCulturaOpen] = useState(false)
+  const currentSezon = getCurrentSezon()
 
   const climateForm = useForm<ClimateFormValues>({
     resolver: zodResolver(climateSchema),
@@ -164,8 +216,8 @@ export default function ParcelaDetailPage() {
   const stageForm = useForm<StageFormValues>({
     resolver: zodResolver(stageSchema),
     defaultValues: {
-      etapa: 'plantare',
-      etapa_custom: '',
+      stadiu: 'repaus_vegetativ',
+      cohort: undefined,
       data: new Date().toISOString().slice(0, 10),
       observatii: '',
     },
@@ -183,9 +235,21 @@ export default function ParcelaDetailPage() {
     enabled: Boolean(parcelaId),
   })
 
-  const stageQuery = useQuery({
+  const canonicalStageQuery = useQuery({
     queryKey: queryKeys.parcelaCultureStages(parcelaId),
+    queryFn: () => getStadiiCanoniceParcela(parcelaId, currentSezon, 50),
+    enabled: Boolean(parcelaId),
+  })
+
+  const legacyStageQuery = useQuery({
+    queryKey: queryKeys.parcelaCultureStagesLegacy(parcelaId),
     queryFn: () => getCultureStageLogs(parcelaId, 30),
+    enabled: Boolean(parcelaId),
+  })
+
+  const seasonConfigQuery = useQuery({
+    queryKey: queryKeys.parcelaSeasonConfig(parcelaId, currentSezon),
+    queryFn: () => getConfigurareSezonParcela(parcelaId, currentSezon),
     enabled: Boolean(parcelaId),
   })
 
@@ -213,14 +277,14 @@ export default function ParcelaDetailPage() {
   })
 
   const createStageMutation = useMutation({
-    mutationFn: createCultureStageLog,
+    mutationFn: createParcelaStadiuCanonic,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.parcelaCultureStages(parcelaId) })
-      toast.success('Etapa culturii a fost salvată.')
+      toast.success('Stadiul fenologic a fost salvat.')
       setStageOpen(false)
       stageForm.reset({
-        etapa: 'plantare',
-        etapa_custom: '',
+        stadiu: canonicFirstStadiu,
+        cohort: undefined,
         data: new Date().toISOString().slice(0, 10),
         observatii: '',
       })
@@ -239,16 +303,44 @@ export default function ParcelaDetailPage() {
   const todayDateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const hasClimateToday = toDateOnlyKey(latestClimate?.created_at) === todayDateKey
   const sincePlanting = daysSincePlanting(parcela?.data_plantarii)
-  const selectedStageOption = useWatch({ control: stageForm.control, name: 'etapa' }) ?? 'plantare'
-  const requiresCustomStage = selectedStageOption === '__custom__'
+  const selectedStageCohort = useWatch({ control: stageForm.control, name: 'cohort' }) ?? undefined
+  const cropCod = useMemo(
+    () => normalizeCropCod(parcela?.cultura) ?? normalizeCropCod(parcela?.tip_fruct),
+    [parcela?.cultura, parcela?.tip_fruct]
+  )
+  const grupBiologic = useMemo(() => getGrupBiologicForCropCod(cropCod), [cropCod])
+  const stageOptions = useMemo(() => {
+    const values = grupBiologic ? listStadiiPentruGrup(grupBiologic) : listAllStadiiCanonice()
+    return values.map((cod) => ({
+      value: cod,
+      label: getLabelPentruGrup(cod, grupBiologic, { cohort: selectedStageCohort }),
+    }))
+  }, [grupBiologic, selectedStageCohort])
+  const canonicFirstStadiu = stageOptions[0]?.value ?? 'repaus_vegetativ'
+  const hasCanonicalCohorts = useMemo(
+    () => (canonicalStageQuery.data ?? []).some((entry) => entry.cohort === 'floricane' || entry.cohort === 'primocane'),
+    [canonicalStageQuery.data]
+  )
+  const isRubusMixt =
+    grupBiologic === 'rubus' &&
+    (
+      seasonConfigQuery.data?.sistem_conducere === 'mixt_floricane_primocane' ||
+      hasCanonicalCohorts
+    )
+  const showCohort = grupBiologic === 'rubus' && isRubusMixt
+  const currentCanonicalStage = useMemo(
+    () => getCurrentCanonicalStage(canonicalStageQuery.data ?? [], grupBiologic),
+    [canonicalStageQuery.data, grupBiologic]
+  )
+  const currentLegacyStage = legacyStageQuery.data?.[0] ?? null
   const latestStageByCulturaId = useMemo(() => {
     const map = new Map<string, string>()
-    for (const stage of stageQuery.data ?? []) {
+    for (const stage of legacyStageQuery.data ?? []) {
       if (!stage.cultura_id || map.has(stage.cultura_id)) continue
-      map.set(stage.cultura_id, formatEtapaLabel(stage.etapa))
+      map.set(stage.cultura_id, formatLegacyEtapaLabel(stage.etapa))
     }
     return map
-  }, [stageQuery.data])
+  }, [legacyStageQuery.data])
 
   const sectionClasses = useMemo(
     () => ({
@@ -260,6 +352,16 @@ export default function ParcelaDetailPage() {
     []
   )
 
+  useEffect(() => {
+    if (!stageOpen) return
+    stageForm.reset({
+      stadiu: canonicFirstStadiu,
+      cohort: undefined,
+      data: new Date().toISOString().slice(0, 10),
+      observatii: '',
+    })
+  }, [canonicFirstStadiu, stageForm, stageOpen])
+
   const onClimateSubmit = (values: ClimateFormValues) => {
     createClimateMutation.mutate({
       unitate_id: parcelaId,
@@ -270,18 +372,18 @@ export default function ParcelaDetailPage() {
   }
 
   const onStageSubmit = (values: StageFormValues) => {
-    const etapa =
-      values.etapa === '__custom__' ? values.etapa_custom?.trim() || '' : values.etapa
-
-    if (!etapa) {
-      stageForm.setError('etapa_custom', { message: 'Completează etapa personalizată.' })
+    const cohort = showCohort ? values.cohort : undefined
+    if (showCohort && !cohort) {
+      stageForm.setError('cohort', { message: 'Selectează cohorta.' })
       return
     }
 
     createStageMutation.mutate({
-      unitate_id: parcelaId,
-      etapa,
-      data: values.data,
+      parcela_id: parcelaId,
+      an: currentSezon,
+      stadiu: values.stadiu,
+      cohort: cohort ?? null,
+      data_observata: values.data,
       observatii: values.observatii?.trim() || undefined,
     })
   }
@@ -501,22 +603,57 @@ export default function ParcelaDetailPage() {
                   onClick={() => setStageOpen(true)}
                   className="inline-flex h-9 items-center rounded-xl bg-[var(--agri-primary)] px-3 text-xs font-semibold text-white"
                 >
-                  Adaugă etapă
+                  Actualizează stadiu
                 </button>
               </div>
 
-              {(stageQuery.data?.length ?? 0) === 0 ? (
-                <p className={sectionClasses.label}>Nu există încă etape înregistrate.</p>
+              <div className="mb-3 rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
+                <p className={sectionClasses.label}>Stadiu curent</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className={sectionClasses.value}>
+                    {currentCanonicalStage
+                      ? getStadiuLabel(currentCanonicalStage.stadiu, grupBiologic, currentCanonicalStage.cohort)
+                      : currentLegacyStage
+                        ? formatLegacyEtapaLabel(currentLegacyStage.etapa)
+                        : 'Fără stadiu înregistrat'}
+                  </p>
+                  {currentCanonicalStage?.cohort && showCohort ? (
+                    <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--agri-text)]">
+                      {currentCanonicalStage.cohort === 'floricane' ? 'Floricane' : 'Primocane'}
+                    </span>
+                  ) : null}
+                  {!currentCanonicalStage && currentLegacyStage ? (
+                    <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">
+                      Istoric vechi
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
+                  {currentCanonicalStage
+                    ? `Observat la ${toDateLabel(currentCanonicalStage.data_observata)}`
+                    : currentLegacyStage
+                      ? `Preluat din istoricul existent la ${toDateLabel(currentLegacyStage.data)}`
+                      : 'Înregistrează primul stadiu pentru anul curent.'}
+                </p>
+              </div>
+
+              {(canonicalStageQuery.data?.length ?? 0) === 0 && (legacyStageQuery.data?.length ?? 0) === 0 ? (
+                <p className={sectionClasses.label}>Nu există încă stadii înregistrate.</p>
               ) : null}
               <div className="space-y-2">
-                {(stageQuery.data ?? []).map((entry) => (
+                {(canonicalStageQuery.data ?? []).map((entry) => (
                   <div key={entry.id} className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <ListChecks className="h-4 w-4 text-emerald-700" />
-                        <p className={sectionClasses.value}>{entry.etapa}</p>
+                        <p className={sectionClasses.value}>{getStadiuLabel(entry.stadiu, grupBiologic, entry.cohort)}</p>
+                        {entry.cohort && showCohort ? (
+                          <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--agri-text)]">
+                            {entry.cohort === 'floricane' ? 'Floricane' : 'Primocane'}
+                          </span>
+                        ) : null}
                       </div>
-                      <p className={sectionClasses.label}>{toDateLabel(entry.data)}</p>
+                      <p className={sectionClasses.label}>{toDateLabel(entry.data_observata)}</p>
                     </div>
                     {entry.observatii ? (
                       <p className="mt-2 text-xs text-[var(--agri-text-muted)]">{entry.observatii}</p>
@@ -524,6 +661,33 @@ export default function ParcelaDetailPage() {
                   </div>
                 ))}
               </div>
+              {(canonicalStageQuery.data?.length ?? 0) > 0 && (legacyStageQuery.data?.length ?? 0) > 0 ? (
+                <p className="mt-3 text-xs text-[var(--agri-text-muted)]">
+                  Există și {(legacyStageQuery.data ?? []).length} înregistrări istorice din versiunea veche.
+                </p>
+              ) : null}
+              {(canonicalStageQuery.data?.length ?? 0) === 0 && (legacyStageQuery.data?.length ?? 0) > 0 ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-[var(--agri-text-muted)]">Istoric existent (versiune veche)</p>
+                  {(legacyStageQuery.data ?? []).map((entry) => (
+                    <div key={entry.id} className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface)] p-3 opacity-85">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <ListChecks className="h-4 w-4 text-[var(--agri-text-muted)]" />
+                          <p className={sectionClasses.value}>{formatLegacyEtapaLabel(entry.etapa)}</p>
+                          <span className="rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)]">
+                            Istoric vechi
+                          </span>
+                        </div>
+                        <p className={sectionClasses.label}>{toDateLabel(entry.data)}</p>
+                      </div>
+                      {entry.observatii ? (
+                        <p className="mt-2 text-xs text-[var(--agri-text-muted)]">{entry.observatii}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </>
       </div>
@@ -593,7 +757,7 @@ export default function ParcelaDetailPage() {
       <AppDialog
         open={stageOpen}
         onOpenChange={setStageOpen}
-        title="Adaugă etapă de cultură"
+        title="Actualizează stadiu fenologic"
         footer={
           <DialogFormActions
             onCancel={() => setStageOpen(false)}
@@ -605,38 +769,54 @@ export default function ParcelaDetailPage() {
         }
       >
         <form className="space-y-4" onSubmit={stageForm.handleSubmit(onStageSubmit)}>
-          <div className="space-y-2">
-            <Label htmlFor="etapa_select">Etapă</Label>
-            <select id="etapa_select" aria-label="Etapă de cultură" className="agri-control h-12 w-full px-3 text-base" {...stageForm.register('etapa')}>
-              {STAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {requiresCustomStage ? (
+          {showCohort ? (
             <div className="space-y-2">
-              <Label htmlFor="etapa_custom">Etapă personalizată</Label>
-              <Input id="etapa_custom" aria-label="Etapă personalizată" className="agri-control h-12" {...stageForm.register('etapa_custom')} />
-              {stageForm.formState.errors.etapa_custom ? (
-                <p className="text-xs text-red-600">{stageForm.formState.errors.etapa_custom.message}</p>
+              <Label htmlFor="cohort_select">Coortă</Label>
+              <select
+                id="cohort_select"
+                aria-label="Coorta stadiului"
+                className="agri-control h-12 w-full px-3 text-base"
+                value={selectedStageCohort ?? ''}
+                onChange={(event) => {
+                  const value = event.target.value
+                  stageForm.setValue('cohort', value ? (value as Cohorta) : undefined, { shouldValidate: true })
+                }}
+              >
+                <option value="">Selectează cohorta</option>
+                <option value="floricane">Floricane</option>
+                <option value="primocane">Primocane</option>
+              </select>
+              {stageForm.formState.errors.cohort ? (
+                <p className="text-xs text-red-600">{stageForm.formState.errors.cohort.message}</p>
               ) : null}
             </div>
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor="etapa_data">Data</Label>
-            <Input id="etapa_data" aria-label="Data etapei" type="date" className="agri-control h-12" {...stageForm.register('data')} />
+            <Label htmlFor="stadiu_select">Stadiu</Label>
+            <select id="stadiu_select" aria-label="Stadiu fenologic" className="agri-control h-12 w-full px-3 text-base" {...stageForm.register('stadiu')}>
+              {stageOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {stageForm.formState.errors.stadiu ? (
+              <p className="text-xs text-red-600">{stageForm.formState.errors.stadiu.message}</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="stadiu_data">Data</Label>
+            <Input id="stadiu_data" aria-label="Data observării stadiului" type="date" className="agri-control h-12" {...stageForm.register('data')} />
             {stageForm.formState.errors.data ? (
               <p className="text-xs text-red-600">{stageForm.formState.errors.data.message}</p>
             ) : null}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="etapa_observatii">Observații</Label>
-            <Textarea id="etapa_observatii" aria-label="Observații pentru etapă" rows={3} className="agri-control w-full px-3 py-2 text-base" {...stageForm.register('observatii')} />
+            <Label htmlFor="stadiu_observatii">Observații</Label>
+            <Textarea id="stadiu_observatii" aria-label="Observații pentru stadiu" rows={3} className="agri-control w-full px-3 py-2 text-base" {...stageForm.register('observatii')} />
           </div>
         </form>
       </AppDialog>

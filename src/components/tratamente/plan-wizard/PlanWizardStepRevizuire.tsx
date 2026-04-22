@@ -8,6 +8,7 @@ import type { PlanWizardParcelaOption, ProdusFitosanitar } from '@/lib/supabase/
 
 import {
   formatDoza,
+  getGrupBiologicDinCultura,
   getProdusDisplayName,
   getStadiuMeta,
   sortLiniiForReview,
@@ -44,7 +45,8 @@ export function PlanWizardStepRevizuire({
   warnings,
   onChange,
 }: PlanWizardStepRevizuireProps) {
-  const sortedLinii = sortLiniiForReview(linii)
+  const grupBiologic = getGrupBiologicDinCultura(info.cultura_tip)
+  const sortedLinii = sortLiniiForReview(linii, grupBiologic)
 
   return (
     <div className="space-y-4">
@@ -80,7 +82,7 @@ export function PlanWizardStepRevizuire({
         </h2>
         <div className="mt-4 space-y-3">
           {sortedLinii.map((linie, index) => {
-            const stadiu = getStadiuMeta(linie.stadiu_trigger)
+            const stadiu = getStadiuMeta(linie.stadiu_trigger, grupBiologic, linie.cohort_trigger)
 
             return (
               <div key={linie.id} className="rounded-[18px] border border-[var(--border-default)] p-3">

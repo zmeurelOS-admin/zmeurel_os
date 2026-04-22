@@ -33,10 +33,15 @@ interface StadiuCurentCardProps {
   onRecord: (cohort?: Cohorta) => void
 }
 
-function getStadiuLabel(stadiu: string | null | undefined, configurareSezon: ConfigurareSezon | null): string {
+function getStadiuLabel(
+  stadiu: string | null | undefined,
+  configurareSezon: ConfigurareSezon | null,
+  grupBiologic?: GrupBiologic | null,
+  cohort?: Cohorta | null
+): string {
   if (!stadiu) return 'Fără stadiu'
   const cod = normalizeStadiu(stadiu)
-  return cod ? getLabelStadiuContextual(cod, configurareSezon) : stadiu
+  return cod ? getLabelStadiuContextual(cod, configurareSezon, { grupBiologic, cohort }) : stadiu
 }
 
 function formatObservedLabel(stadiuCurent: StadiuFenologicParcela): string {
@@ -78,11 +83,17 @@ function renderEmptyStageCard(
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             Începe cu{' '}
             <span className="font-medium text-[var(--text-primary)]">
-              {getLabelStadiuContextual(primaryStart, configurareSezon ?? null)}
+              {getLabelStadiuContextual(primaryStart, configurareSezon ?? null, {
+                grupBiologic,
+                cohort,
+              })}
             </span>{' '}
             sau{' '}
             <span className="font-medium text-[var(--text-primary)]">
-              {getLabelStadiuContextual(secondaryStart, configurareSezon ?? null)}
+              {getLabelStadiuContextual(secondaryStart, configurareSezon ?? null, {
+                grupBiologic,
+                cohort,
+              })}
             </span>
             .
           </p>
@@ -97,6 +108,7 @@ function renderEmptyStageCard(
 
 function renderStageCard(
   stage: StageState,
+  grupBiologic: GrupBiologic | null | undefined,
   configurareSezon: ConfigurareSezon | null | undefined,
   onRecord: (cohort?: Cohorta) => void
 ) {
@@ -112,7 +124,7 @@ function renderStageCard(
             {stage.cohort ? `Stadiu curent · ${getCohortaLabel(stage.cohort)}` : 'Stadiu curent'}
           </p>
           <h2 className="mt-1 text-xl leading-tight text-[var(--text-primary)] [font-weight:750]">
-            {getStadiuLabel(stage.stadiuCurent.stadiu, configurareSezon ?? null)}
+            {getStadiuLabel(stage.stadiuCurent.stadiu, configurareSezon ?? null, grupBiologic, stage.cohort)}
           </h2>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">{formatObservedLabel(stage.stadiuCurent)}</p>
         </div>
@@ -137,7 +149,7 @@ function renderStageCard(
         </div>
         <p className="mt-2 text-xs text-[var(--text-secondary)]">
           {stage.stadiuUrmator
-            ? `Următorul stadiu: ${getStadiuLabel(stage.stadiuUrmator, configurareSezon ?? null)}`
+            ? `Următorul stadiu: ${getStadiuLabel(stage.stadiuUrmator, configurareSezon ?? null, grupBiologic, stage.cohort)}`
             : 'Parcela este deja în ultimul stadiu definit pentru acest an.'}
         </p>
       </div>
@@ -168,10 +180,10 @@ export function StadiuCurentCard({
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {dualStageState.floricane.stadiuCurent
-          ? renderStageCard(dualStageState.floricane, configurareSezon, onRecord)
+          ? renderStageCard(dualStageState.floricane, grupBiologic, configurareSezon, onRecord)
           : renderEmptyStageCard(grupBiologic, configurareSezon, 'floricane', onRecord)}
         {dualStageState.primocane.stadiuCurent
-          ? renderStageCard(dualStageState.primocane, configurareSezon, onRecord)
+          ? renderStageCard(dualStageState.primocane, grupBiologic, configurareSezon, onRecord)
           : renderEmptyStageCard(grupBiologic, configurareSezon, 'primocane', onRecord)}
       </div>
     )
@@ -181,5 +193,5 @@ export function StadiuCurentCard({
     return renderEmptyStageCard(grupBiologic, configurareSezon, null, onRecord)
   }
 
-  return renderStageCard(fallbackSingleState, configurareSezon, onRecord)
+  return renderStageCard(fallbackSingleState, grupBiologic, configurareSezon, onRecord)
 }

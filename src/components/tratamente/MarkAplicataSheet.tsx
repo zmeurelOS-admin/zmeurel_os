@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -125,15 +125,7 @@ export function MarkAplicataSheet({
 }: MarkAplicataSheetProps) {
   const isMobile = useMediaQuery('(max-width: 767px)')
   const [editMeteo, setEditMeteo] = useState(false)
-  const stadiiOptions = useMemo(
-    () =>
-      listStadiiPentruGrup(grupBiologic).map((value) => ({
-        value,
-        label: getLabelStadiuContextual(value, configurareSezon ?? null),
-      })),
-    [configurareSezon, grupBiologic]
-  )
-  const stadiiValide = useMemo(() => stadiiOptions.map((option) => option.value), [stadiiOptions])
+  const stadiiValide = useMemo(() => listStadiiPentruGrup(grupBiologic), [grupBiologic])
   const defaultValues = useMemo(
     () =>
       buildDefaultValues(
@@ -151,6 +143,19 @@ export function MarkAplicataSheet({
     resolver: zodResolver(formSchema),
     defaultValues,
   })
+  const selectedCohort = useWatch({ control: form.control, name: 'cohort_la_aplicare' }) ?? null
+  const selectedStadiu = useWatch({ control: form.control, name: 'stadiu_la_aplicare' }) ?? ''
+  const stadiiOptions = useMemo(
+    () =>
+      stadiiValide.map((value) => ({
+        value,
+        label: getLabelStadiuContextual(value, configurareSezon ?? null, {
+          grupBiologic,
+          cohort: selectedCohort,
+        }),
+      })),
+    [configurareSezon, grupBiologic, selectedCohort, stadiiValide]
+  )
 
   useEffect(() => {
     if (open) {
@@ -164,7 +169,7 @@ export function MarkAplicataSheet({
           meteoSnapshot
         )
       )
-      setEditMeteo(false)
+      queueMicrotask(() => setEditMeteo(false))
     }
   }, [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultOperator, defaultStadiu, form, meteoSnapshot, open, stadiiValide])
 
@@ -197,7 +202,7 @@ export function MarkAplicataSheet({
         <div className="space-y-2">
           <Label>Aplicare pentru cohorta</Label>
           <Select
-            value={form.watch('cohort_la_aplicare') || undefined}
+            value={selectedCohort || undefined}
             onValueChange={(value) => form.setValue('cohort_la_aplicare', value as Cohorta)}
             disabled={Boolean(cohortLaAplicareBlocata)}
           >
@@ -233,7 +238,7 @@ export function MarkAplicataSheet({
       <div className="space-y-2">
         <Label>Stadiu la aplicare</Label>
         <Select
-          value={form.watch('stadiu_la_aplicare') || undefined}
+          value={selectedStadiu || undefined}
           onValueChange={(value) => form.setValue('stadiu_la_aplicare', value)}
         >
           <SelectTrigger className="w-full">

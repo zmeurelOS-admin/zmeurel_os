@@ -103,18 +103,7 @@ export function RecordStadiuSheet({
   suggestedStadiu,
 }: RecordStadiuSheetProps) {
   const isMobile = useMediaQuery('(max-width: 767px)')
-  const stadiiOptions = useMemo(
-    () =>
-      listStadiiPentruGrup(grupBiologic).map((value) => ({
-        value,
-        label: getLabelStadiuContextual(value, configurareSezon ?? null),
-      })),
-    [configurareSezon, grupBiologic]
-  )
-  const availableStadii = useMemo(
-    () => stadiiOptions.map((option) => option.value),
-    [stadiiOptions]
-  )
+  const availableStadii = useMemo(() => listStadiiPentruGrup(grupBiologic), [grupBiologic])
   const defaultValues = useMemo(
     () => getDefaultValues(availableStadii, suggestedStadiu, cohortPreselectat),
     [availableStadii, cohortPreselectat, suggestedStadiu]
@@ -125,6 +114,18 @@ export function RecordStadiuSheet({
   })
   const selectedStadiu = useWatch({ control: form.control, name: 'stadiu' })
   const selectedSursa = useWatch({ control: form.control, name: 'sursa' })
+  const selectedCohort = useWatch({ control: form.control, name: 'cohort' })
+  const stadiiOptions = useMemo(
+    () =>
+      availableStadii.map((value) => ({
+        value,
+        label: getLabelStadiuContextual(value, configurareSezon ?? null, {
+          grupBiologic,
+          cohort: selectedCohort ?? null,
+        }),
+      })),
+    [availableStadii, configurareSezon, grupBiologic, selectedCohort]
+  )
 
   useEffect(() => {
     if (open) {
@@ -139,8 +140,6 @@ export function RecordStadiuSheet({
     }
     await onSubmit(values)
   })
-
-  const selectedCohort = useWatch({ control: form.control, name: 'cohort' })
 
   const content = (
     <form className="space-y-4" onSubmit={save}>

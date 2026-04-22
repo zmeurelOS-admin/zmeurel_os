@@ -55,6 +55,8 @@ export type StadiuMetaEntry = {
   management_category: ManagementCategory
 }
 
+export type StadiuLabelCohorta = 'floricane' | 'primocane'
+
 const DEFAULT_GRUP_BIOLOGIC: GrupBiologic = 'rubus'
 
 const DEFAULT_STADII_IN_ORDINE: readonly StadiuCod[] = [
@@ -374,6 +376,46 @@ export const GRUP_BIOLOGIC_BY_CROP_COD: Record<CropCod, GrupBiologic> = {
   busuioc: 'frunzoase',
 }
 
+const RUBUS_LABELS: Partial<Record<StadiuCod, string>> = {
+  repaus_vegetativ: 'Repausul tufei',
+  umflare_muguri: 'Pornire în vegetație',
+  buton_verde: 'Inflorescențe vizibile',
+  buton_roz: 'Boboci florali',
+  inflorit: 'Înflorit',
+  scuturare_petale: 'Sfârșit de înflorit',
+  fruct_verde: 'Fructe verzi în creștere',
+  parga: 'Început de coacere',
+  maturitate: 'Recoltare / fruct copt',
+  post_recoltare: 'După recoltare',
+}
+
+const RUBUS_LABELS_BY_COHORT: Record<StadiuLabelCohorta, Partial<Record<StadiuCod, string>>> = {
+  floricane: {
+    repaus_vegetativ: 'Floricane în repaus',
+    umflare_muguri: 'Pornire muguri pe floricane',
+    buton_verde: 'Inflorescențe pe floricane',
+    buton_roz: 'Boboci pe floricane',
+    inflorit: 'Înflorit pe floricane',
+    scuturare_petale: 'Sfârșit înflorit pe floricane',
+    fruct_verde: 'Fructe verzi pe floricane',
+    parga: 'Primele fructe colorate',
+    maturitate: 'Recoltare pe floricane',
+    post_recoltare: 'După recoltare floricane',
+  },
+  primocane: {
+    repaus_vegetativ: 'Primocane în repaus',
+    umflare_muguri: 'Pornire lăstari noi',
+    buton_verde: 'Creștere lăstari primocane',
+    buton_roz: 'Boboci pe primocane',
+    inflorit: 'Înflorit pe primocane',
+    scuturare_petale: 'Sfârșit înflorit pe primocane',
+    fruct_verde: 'Fructe verzi pe primocane',
+    parga: 'Primele fructe colorate',
+    maturitate: 'Recoltare pe primocane',
+    post_recoltare: 'După recoltare primocane',
+  },
+}
+
 const ALL_STADII_CANONICE: readonly StadiuCod[] = [
   'rasad',
   'semanat',
@@ -466,6 +508,18 @@ const STADII_LOOKUP = (() => {
 
 export function getLabelRo(cod: StadiuCod): string {
   return STADII_META[cod].label_ro
+}
+
+export function getLabelPentruGrup(
+  cod: StadiuCod,
+  grup: GrupBiologic | null | undefined,
+  options?: { cohort?: string | null }
+): string {
+  if (grup !== 'rubus') return getLabelRo(cod)
+
+  const cohort = options?.cohort === 'floricane' || options?.cohort === 'primocane' ? options.cohort : null
+  const cohortLabel = cohort ? RUBUS_LABELS_BY_COHORT[cohort][cod] : null
+  return cohortLabel ?? RUBUS_LABELS[cod] ?? getLabelRo(cod)
 }
 
 export function getOrdine(cod: StadiuCod): number {

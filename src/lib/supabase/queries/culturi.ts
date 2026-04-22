@@ -64,6 +64,8 @@ export type CulturaUpdate = TablesUpdate<'culturi'>
 const CULTURA_COLUMNS =
   'id,tenant_id,solar_id,tip_planta,soi,suprafata_ocupata,nr_plante,nr_randuri,distanta_intre_randuri,sistem_irigare,data_plantarii,stadiu,interval_tratament_zile,activa,data_desfiintare,motiv_desfiintare,observatii,created_at,updated_at,data_origin,demo_seed_id'
 
+const CULTURA_STADIU_COMPAT_FALLBACK = 'plantare'
+
 export async function getCulturiForSolar(solarId: string): Promise<Cultura[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
@@ -135,7 +137,6 @@ export interface CreateCulturaInput {
   distanta_intre_randuri?: number
   sistem_irigare?: string
   data_plantarii?: string
-  stadiu?: string
   interval_tratament_zile?: number
   observatii?: string
 }
@@ -162,12 +163,9 @@ export async function createCultura(input: CreateCulturaInput): Promise<Cultura>
       distanta_intre_randuri: input.distanta_intre_randuri ?? null,
       sistem_irigare: input.sistem_irigare?.trim() || null,
       data_plantarii: input.data_plantarii || null,
-      // FLUX LEGACY SOLAR — decuplat de modulul Tratamente.
-      // Scrie în culturi.stadiu și culture_stage_logs.
-      // Nu modifica fără plan explicit de migrare.
-      // Vezi AGENTS.md secțiunea "Fluxuri legacy".
-      // Default stage for new cultura should reflect earliest life-cycle: 'plantare'
-      stadiu: input.stadiu || 'plantare',
+      // Compat legacy DB: crearea culturii nu reprezintă o observație fenologică reală.
+      // Stadiile noi se înregistrează canonic prin stadii_fenologice_parcela.
+      stadiu: CULTURA_STADIU_COMPAT_FALLBACK,
       interval_tratament_zile: input.interval_tratament_zile ?? 14,
       activa: true,
       observatii: input.observatii?.trim() || null,
@@ -188,7 +186,6 @@ export interface UpdateCulturaInput {
   distanta_intre_randuri?: number | null
   sistem_irigare?: string | null
   data_plantarii?: string | null
-  stadiu?: string
   interval_tratament_zile?: number | null
   observatii?: string | null
 }
@@ -206,11 +203,6 @@ export async function updateCultura(id: string, input: UpdateCulturaInput): Prom
   if (input.distanta_intre_randuri !== undefined) payload.distanta_intre_randuri = input.distanta_intre_randuri
   if (input.sistem_irigare !== undefined) payload.sistem_irigare = input.sistem_irigare?.trim() || null
   if (input.data_plantarii !== undefined) payload.data_plantarii = input.data_plantarii || null
-  // FLUX LEGACY SOLAR — decuplat de modulul Tratamente.
-  // Scrie în culturi.stadiu și culture_stage_logs.
-  // Nu modifica fără plan explicit de migrare.
-  // Vezi AGENTS.md secțiunea "Fluxuri legacy".
-  if (input.stadiu !== undefined) payload.stadiu = input.stadiu
   if (input.interval_tratament_zile !== undefined) payload.interval_tratament_zile = input.interval_tratament_zile
   if (input.observatii !== undefined) payload.observatii = input.observatii?.trim() || null
 

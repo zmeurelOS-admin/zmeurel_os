@@ -4,6 +4,7 @@ import {
   PROFILURI_STADII_PER_GRUP,
   STADII_META,
   getGrupBiologicForCropCod,
+  getLabelPentruGrup,
   getLabelRo,
   getManagementCategory,
   getOrdine,
@@ -282,6 +283,19 @@ describe('stadii-canonic', () => {
     expect(getGrupBiologicForCropCod('rucola')).toBe('frunzoase')
     expect(getGrupBiologicForCropCod('busuioc')).toBe('frunzoase')
     expect(getGrupBiologicForCropCod('ridiche')).toBe('radacinoase')
+  })
+
+  it('afișează label-uri Rubus mai naturale fără să schimbe codurile canonice', () => {
+    expect(getLabelPentruGrup('buton_verde', 'rubus')).toBe('Inflorescențe vizibile')
+    expect(getLabelPentruGrup('buton_roz', 'rubus')).toBe('Boboci florali')
+    expect(getLabelPentruGrup('maturitate', 'rubus')).toBe('Recoltare / fruct copt')
+    expect(getLabelPentruGrup('buton_roz', 'pomi_samanoase')).toBe('Buton roz')
+  })
+
+  it('contextualizează label-urile Rubus pe cohortă când cohorta este relevantă', () => {
+    expect(getLabelPentruGrup('buton_verde', 'rubus', { cohort: 'floricane' })).toBe('Inflorescențe pe floricane')
+    expect(getLabelPentruGrup('buton_verde', 'rubus', { cohort: 'primocane' })).toBe('Creștere lăstari primocane')
+    expect(getLabelPentruGrup('maturitate', 'rubus', { cohort: 'primocane' })).toBe('Recoltare pe primocane')
   })
 
   it('normalizează codurile canonice, etichetele RO și aliasurile legacy pentru stadii noi și vechi', () => {

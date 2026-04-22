@@ -39,6 +39,15 @@ describe('configurare sezonieră', () => {
     expect(getLabelStadiuContextual('inflorit', configurareNedeterminata)).toBe('Înflorit')
   })
 
+  it('folosește vocabular Rubus când există sistem de conducere sezonier', () => {
+    expect(getLabelStadiuContextual('buton_verde', configurareMixta)).toBe('Inflorescențe vizibile')
+    expect(
+      getLabelStadiuContextual('buton_verde', configurareMixta, {
+        cohort: 'primocane',
+      })
+    ).toBe('Creștere lăstari primocane')
+  })
+
   it('activează configurarea sezonieră doar pentru rubus și solanacee', () => {
     expect(needsConfigurareSezon('rubus')).toBe(true)
     expect(needsConfigurareSezon('solanacee')).toBe(true)

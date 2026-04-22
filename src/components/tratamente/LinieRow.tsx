@@ -7,10 +7,12 @@ import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { PlanTratamentLinieCuProdus } from '@/lib/supabase/queries/tratamente'
+import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 
 import { formatDoza, getStadiuMeta } from '@/components/tratamente/plan-wizard/helpers'
 
 interface LinieRowProps {
+  grupBiologic?: GrupBiologic | null
   index: number
   linie: PlanTratamentLinieCuProdus
   onDelete: () => void
@@ -29,6 +31,7 @@ function resolveDoza(linie: PlanTratamentLinieCuProdus): string {
 }
 
 export function LinieRow({
+  grupBiologic,
   index,
   linie,
   onDelete,
@@ -38,7 +41,7 @@ export function LinieRow({
   total,
 }: LinieRowProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const stadiu = getStadiuMeta(linie.stadiu_trigger)
+  const stadiu = getStadiuMeta(linie.stadiu_trigger, grupBiologic, linie.cohort_trigger)
   const isManual = !linie.produs && Boolean(linie.produs_nume_manual?.trim())
   const displayName =
     linie.produs?.nume_comercial ?? linie.produs_nume_manual?.trim() ?? 'Produs fără nume'

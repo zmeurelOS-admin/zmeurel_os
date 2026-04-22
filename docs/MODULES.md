@@ -110,7 +110,7 @@ _Last updated: 2026-03-21_
 - Triggerul standard pentru tabelele noi este `public.touch_updated_at()`.
 - Seed-ul pentru `produse_fitosanitare` este global (`tenant_id = NULL`) și idempotent.
 - Faza 5 a închis datoriile tehnice rămase: anul curent de sezon este dinamic prin `getCurrentSezon()`, RPC-ul atomic `upsert_plan_tratament_cu_linii(...)` persistă `cohort_trigger` direct, `allowCohortTrigger` consultă explicit `configurareSezon.sistem_conducere`, iar `parcele.stadiu` este marcat clar ca deprecate.
-- Fluxul legacy solar rămâne separat și documentat: scrie în `culturi.stadiu` și `culture_stage_logs`, dar nu participă la modelul canonic al Tratamente.
+- Fluxul legacy solar rămâne separat și documentat: `AddCulturaDialog` nu mai cere/trimite stadiu la creare, `updateCultura` nu mai acceptă stadiu la editare, iar `createCultura` păstrează doar fallback tehnic intern pentru `culturi.stadiu` cât timp coloana legacy există; stadiile noi se scriu canonic în `stadii_fenologice_parcela`, nu în `culture_stage_logs` / `etape_cultura`.
 - Regula de cod finală: în Tratamente stocăm doar codul canonic al stadiului; UI-ul afișează label-ul RO, iar logica nu trebuie să depindă de string literal de stadiu.
 - Arhitectura completă a modulului este: stadii canonice → profiluri pe grup biologic → categorii de management → cohorte → configurare sezonieră → generator/import/RPC atomic.
 

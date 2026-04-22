@@ -195,6 +195,7 @@ export function PlanLiniiList({
           {orderedLinii.map((linie, index) => (
             <LinieRow
               key={linie.id}
+              grupBiologic={grupBiologic}
               index={index}
               linie={linie}
               total={orderedLinii.length}
@@ -241,7 +242,7 @@ export function PlanLiniiList({
         }}
         onConfirm={handleDeleteLinie}
         pending={isPending}
-        stadiuLabel={pendingDeleteLinie ? getStadiuMeta(pendingDeleteLinie.stadiu_trigger).label : 'selectat'}
+        stadiuLabel={pendingDeleteLinie ? getStadiuMeta(pendingDeleteLinie.stadiu_trigger, grupBiologic, pendingDeleteLinie.cohort_trigger).label : 'selectat'}
       />
     </section>
   )

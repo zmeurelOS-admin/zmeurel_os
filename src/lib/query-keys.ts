@@ -19,6 +19,8 @@ export const queryKeys = {
   currentUserProfile: ['current-user-profile'] as const,
   parcela: (parcelaId: string) => ['parcela', parcelaId] as const,
   parcelaCultureStages: (parcelaId: string) => ['parcela', parcelaId, 'culture-stages'] as const,
+  parcelaCultureStagesLegacy: (parcelaId: string) => ['parcela', parcelaId, 'culture-stages-legacy'] as const,
+  parcelaSeasonConfig: (parcelaId: string, an: number) => ['parcela', parcelaId, 'season-config', an] as const,
   parcelaSolarClimate: (parcelaId: string) => ['parcela', parcelaId, 'solar-climate'] as const,
   parcele: ['parcele'] as const,
   recoltari: ['recoltari'] as const,
