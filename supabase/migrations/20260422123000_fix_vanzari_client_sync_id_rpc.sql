@@ -169,7 +169,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $deliver_order_atomic$
+as $$
 declare
   v_user_id uuid := auth.uid();
   v_tenant_id uuid;
@@ -445,10 +445,4 @@ begin
     'deducted_stock_kg', v_deducted_stock
   );
 end;
-$deliver_order_atomic$;
-
-revoke all on function public.deliver_order_atomic(uuid, numeric, text, date) from public;
-grant execute on function public.deliver_order_atomic(uuid, numeric, text, date) to authenticated;
-grant execute on function public.deliver_order_atomic(uuid, numeric, text, date) to service_role;
-
-notify pgrst, 'reload schema';
+$$;
