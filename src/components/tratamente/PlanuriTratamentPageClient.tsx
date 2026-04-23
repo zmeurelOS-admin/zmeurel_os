@@ -12,16 +12,20 @@ import {
   FolderOpen,
   PencilLine,
   RotateCcw,
+  Trash2,
 } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import {
   arhiveazaPlanTratamentAction,
+  getPlanDeleteInfoAction,
   dezarhiveazaPlanTratamentAction,
   listPlanuriTratamentCompletAction,
 } from '@/app/(dashboard)/tratamente/planuri/actions'
+import { hardDeletePlanAction } from '@/app/(dashboard)/tratamente/planuri/[planId]/actions'
 import { AppShell } from '@/components/app/AppShell'
 import { PageHeader } from '@/components/app/PageHeader'
+import { PlanDeleteDialog } from '@/components/tratamente/PlanDeleteDialog'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import {
@@ -70,9 +74,11 @@ function renderParceleChips(plan: PlanTratamentListItem) {
 function PlanTratamentCard({
   plan,
   onArchiveToggle,
+  onDelete,
 }: {
   plan: PlanTratamentListItem
   onArchiveToggle: (plan: PlanTratamentListItem) => void
+  onDelete: (plan: PlanTratamentListItem) => void
 }) {
   return (
     <MobileEntityCard
@@ -102,6 +108,16 @@ function PlanTratamentCard({
               {plan.arhivat ? <RotateCcw className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
               {plan.arhivat ? 'Dezarhivează' : 'Arhivează'}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-[var(--soft-danger-text)]"
+              onClick={() => onDelete(plan)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Șterge
+            </Button>
           </div>
         </div>
       }
@@ -119,6 +135,10 @@ export function PlanuriTratamentPageClient() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
   const [cultureFilter, setCultureFilter] = useState<string>('all')
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deletePlanId, setDeletePlanId] = useState<string | null>(null)
+  const [deletePlanName, setDeletePlanName] = useState('')
+  const [deleteApplicariCount, setDeleteApplicariCount] = useState(0)
 
   useEffect(() => {
     const importedRaw = searchParams.get('imported')
@@ -177,6 +197,43 @@ export function PlanuriTratamentPageClient() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Nu am putut actualiza planul.')
+    },
+  })
+
+  const deleteInfoMutation = useMutation({
+    mutationFn: async (plan: PlanTratamentListItem) => {
+      const result = await getPlanDeleteInfoAction(plan.id)
+      return { ...result, plan }
+    },
+    onSuccess: ({ countAplicari, plan }) => {
+      setDeletePlanId(plan.id)
+      setDeletePlanName(plan.nume)
+      setDeleteApplicariCount(countAplicari)
+      setDeleteOpen(true)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Nu am putut verifica dacă planul poate fi șters.')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const result = await hardDeletePlanAction(planId)
+      if (!result.ok) {
+        throw new Error(result.error)
+      }
+    },
+    onSuccess: async () => {
+      toast.success('Planul a fost șters.')
+      setDeleteOpen(false)
+      setDeletePlanId(null)
+      setDeletePlanName('')
+      setDeleteApplicariCount(0)
+      setSelectedPlanId(null)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.planuriTratament })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Nu am putut șterge planul.')
     },
   })
 
@@ -274,17 +331,30 @@ export function PlanuriTratamentPageClient() {
             >
               {row.original.arhivat ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="text-[var(--soft-danger-text)]"
+              aria-label="Șterge plan"
+              onClick={(event) => {
+                event.stopPropagation()
+                deleteInfoMutation.mutate(row.original)
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
         ),
         meta: {
           searchable: false,
           sticky: 'right',
           headerClassName: 'w-[110px] text-right',
-          cellClassName: 'w-[110px] text-right',
+          cellClassName: 'w-[144px] text-right',
         },
       },
     ],
-    [archiveMutation]
+    [archiveMutation, deleteInfoMutation]
   )
 
   return (
@@ -463,6 +533,7 @@ export function PlanuriTratamentPageClient() {
                   <PlanTratamentCard
                     plan={plan}
                     onArchiveToggle={(selected) => archiveMutation.mutate(selected)}
+                    onDelete={(selected) => deleteInfoMutation.mutate(selected)}
                   />
                 )}
               />
@@ -496,12 +567,21 @@ export function PlanuriTratamentPageClient() {
                             <RotateCcw className="h-4 w-4" />
                             Dezarhivează
                           </>
-                        ) : (
-                          <>
-                            <Archive className="h-4 w-4" />
-                            Arhivează
-                          </>
-                        )}
+                      ) : (
+                        <>
+                          <Archive className="h-4 w-4" />
+                          Arhivează
+                        </>
+                      )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="text-[var(--soft-danger-text)]"
+                        onClick={() => deleteInfoMutation.mutate(resolvedSelectedPlan)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Șterge
                       </Button>
                     </div>
                   ) : null
@@ -532,6 +612,24 @@ export function PlanuriTratamentPageClient() {
           />
         ) : null}
       </div>
+
+      {deletePlanId ? (
+        <PlanDeleteDialog
+          countAplicari={deleteApplicariCount}
+          onConfirm={() => deleteMutation.mutate(deletePlanId)}
+          onOpenChange={(open) => {
+            setDeleteOpen(open)
+            if (!open) {
+              setDeletePlanId(null)
+              setDeletePlanName('')
+              setDeleteApplicariCount(0)
+            }
+          }}
+          open={deleteOpen}
+          pending={deleteMutation.isPending}
+          planName={deletePlanName}
+        />
+      ) : null}
     </AppShell>
   )
 }

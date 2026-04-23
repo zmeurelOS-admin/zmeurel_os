@@ -100,7 +100,7 @@ describe('PlanLiniiList', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /mută sus linia 2/i }))
+    await user.click(screen.getByRole('button', { name: /mută sus intervenția 2/i }))
 
     await waitFor(() => {
       expect(reorderLiniiActionMock).toHaveBeenCalledWith('plan-1', ['linie-2', 'linie-1', 'linie-3'])

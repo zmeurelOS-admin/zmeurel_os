@@ -88,7 +88,7 @@ describe('LinieRow', () => {
     expect(screen.getByText('manual')).toBeInTheDocument()
   })
 
-  it('dezactivează butonul up pe prima linie', () => {
+  it('dezactivează butonul up pe prima intervenție', () => {
     render(
       <LinieRow
         index={0}
@@ -101,10 +101,10 @@ describe('LinieRow', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: /mută sus linia 1/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /mută sus intervenția 1/i })).toBeDisabled()
   })
 
-  it('dezactivează butonul down pe ultima linie', () => {
+  it('dezactivează butonul down pe ultima intervenție', () => {
     render(
       <LinieRow
         index={1}
@@ -117,7 +117,7 @@ describe('LinieRow', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: /mută jos linia 2/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /mută jos intervenția 2/i })).toBeDisabled()
   })
 
   it('meniul 3-dots emite callback pentru editează și șterge', async () => {
@@ -137,11 +137,11 @@ describe('LinieRow', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /acțiuni pentru linia 1/i }))
+    await user.click(screen.getByRole('button', { name: /acțiuni pentru intervenția 1/i }))
     await user.click(screen.getByRole('button', { name: /editează/i }))
     expect(onEdit).toHaveBeenCalledTimes(1)
 
-    await user.click(screen.getByRole('button', { name: /acțiuni pentru linia 1/i }))
+    await user.click(screen.getByRole('button', { name: /acțiuni pentru intervenția 1/i }))
     await user.click(screen.getByRole('button', { name: /șterge/i }))
     expect(onDelete).toHaveBeenCalledTimes(1)
   })

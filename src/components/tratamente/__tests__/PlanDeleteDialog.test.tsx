@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 
 import { PlanDeleteDialog } from '@/components/tratamente/PlanDeleteDialog'
 
@@ -16,6 +17,25 @@ describe('PlanDeleteDialog', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Șterge' })).toBeEnabled()
+  })
+
+  it('cu countAplicari=0 confirmarea apelează handlerul de ștergere', async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+
+    render(
+      <PlanDeleteDialog
+        countAplicari={0}
+        onConfirm={onConfirm}
+        onOpenChange={() => undefined}
+        open
+        planName="Plan test"
+      />
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Șterge' }))
+
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('cu countAplicari>0 afișează mesaj explicativ și buton dezactivat', () => {

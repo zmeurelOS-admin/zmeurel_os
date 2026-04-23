@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 const mocks = vi.hoisted(() => ({
   getParcelaTratamenteContext: vi.fn(),
@@ -34,6 +35,10 @@ vi.mock('@/lib/supabase/queries/configurari-sezon', () => ({
 
 vi.mock('@/lib/tratamente/generator/generator', () => ({
   genereazaAplicariPentruParcela: (...args: unknown[]) => mocks.genereazaAplicariPentruParcela(...args),
+}))
+
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useMediaQuery: () => false,
 }))
 
 vi.mock('@/contexts/AddActionContext', () => ({
@@ -306,5 +311,22 @@ describe('parcela tratamente page', () => {
 
     expect(screen.getByText(/Configurează sistemul de conducere pentru 2026/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Configurează' })).toBeInTheDocument()
+  })
+
+  it('afișează CTA-ul inline pentru intervenție manuală și deschide fluxul existent', async () => {
+    const user = userEvent.setup()
+    const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>)
+
+    await user.click(screen.getByRole('button', { name: 'Intervenție manuală' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Adaugă intervenție manuală' })).toBeInTheDocument()
   })
 })

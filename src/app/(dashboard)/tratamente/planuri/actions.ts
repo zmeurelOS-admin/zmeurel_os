@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import {
   arhiveazaPlanTratament,
   dezarhiveazaPlanTratament,
+  countAplicariPlan,
   listCulturiPentruPlanWizard,
   listParcelePentruPlanWizard,
   listPlanuriTratamentComplet,
@@ -33,6 +34,12 @@ export async function listPlanuriTratamentCompletAction(opts?: {
   arhivat?: boolean
 }): Promise<PlanTratamentListItem[]> {
   return listPlanuriTratamentComplet(opts)
+}
+
+export async function getPlanDeleteInfoAction(planId: string): Promise<{ countAplicari: number }> {
+  return {
+    countAplicari: await countAplicariPlan(planId),
+  }
 }
 
 export async function listCulturiPentruPlanWizardAction(): Promise<string[]> {

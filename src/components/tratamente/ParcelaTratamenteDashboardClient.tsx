@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import {
@@ -288,6 +288,32 @@ export function ParcelaTratamenteDashboardClient({
           grupBiologic={grupBiologic ?? null}
           onConfigure={() => setSeasonOpen(true)}
         />
+
+        <AppCard className="space-y-3 rounded-2xl bg-[var(--surface-card)]">
+          <div className="space-y-1">
+            <h2 className="text-base text-[var(--text-primary)] [font-weight:650]">Acțiuni rapide</h2>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Actualizează stadiul, asociază un plan sau adaugă o intervenție ad-hoc.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setRecordOpen(true)}>
+              Actualizează fenofaza
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
+              Asociază plan
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setManualOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Intervenție manuală
+            </Button>
+          </div>
+        </AppCard>
 
         <StadiuCurentCard
           grupBiologic={grupBiologic}
