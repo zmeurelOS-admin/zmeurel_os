@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { MarkAplicataSheet } from '@/components/tratamente/MarkAplicataSheet'
@@ -7,9 +9,24 @@ vi.mock('@/hooks/useMediaQuery', () => ({
   useMediaQuery: () => false,
 }))
 
+function renderSheet(component: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {component}
+    </QueryClientProvider>
+  )
+}
+
 describe('MarkAplicataSheet', () => {
   it('afișează doar stadiile valide pentru grupul biologic curent', async () => {
-    render(
+    renderSheet(
       <MarkAplicataSheet
         defaultCantitateMl={null}
         defaultOperator="ion"
@@ -22,7 +39,7 @@ describe('MarkAplicataSheet', () => {
       />
     )
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Răsad')
+    expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('Răsad')
     const nativeSelect = document.querySelector('select[aria-hidden="true"]') as HTMLSelectElement
     const optionValues = Array.from(nativeSelect.options).map((option) => option.value)
 
@@ -32,7 +49,7 @@ describe('MarkAplicataSheet', () => {
   })
 
   it('afișează label contextual pentru post-recoltare la solanacee nedeterminat', async () => {
-    render(
+    renderSheet(
       <MarkAplicataSheet
         configurareSezon={{
           id: 'cfg-1',
@@ -55,6 +72,6 @@ describe('MarkAplicataSheet', () => {
       />
     )
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Producție în curs')
+    expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('Producție în curs')
   })
 })

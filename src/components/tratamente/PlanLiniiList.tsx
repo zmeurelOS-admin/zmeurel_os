@@ -23,9 +23,26 @@ import {
   getGrupBiologicDinCultura,
   getStadiuMeta,
 } from '@/components/tratamente/plan-wizard/helpers'
+import type { PlanWizardLinieProdusDraft } from '@/components/tratamente/plan-wizard/types'
 
 function normalizeCohorta(value: string | null | undefined): 'floricane' | 'primocane' | null {
   return value === 'floricane' || value === 'primocane' ? value : null
+}
+
+function normalizeTipInterventie(value: string | null | undefined): LinieEditValue['tip_interventie'] {
+  return value === 'protectie' ||
+    value === 'nutritie' ||
+    value === 'biostimulare' ||
+    value === 'erbicidare' ||
+    value === 'igiena' ||
+    value === 'monitorizare' ||
+    value === 'altul'
+    ? value
+    : 'protectie'
+}
+
+function normalizeRegulaRepetare(value: string | null | undefined): LinieEditValue['regula_repetare'] {
+  return value === 'interval' ? 'interval' : 'fara_repetare'
 }
 
 interface PlanLiniiListProps {
@@ -56,22 +73,81 @@ function toEditValue(linie?: PlanTratamentLinieCuProdus | null): LinieEditValue 
     return {
       stadiu_trigger: '',
       cohort_trigger: null,
+      tip_interventie: 'protectie',
+      scop: null,
+      regula_repetare: 'fara_repetare',
+      interval_repetare_zile: null,
+      numar_repetari_max: null,
       produs_id: null,
       produs_nume_manual: null,
       doza_ml_per_hl: null,
       doza_l_per_ha: null,
       observatii: null,
+      produse: [
+        {
+          id: crypto.randomUUID(),
+          ordine: 1,
+          produs_id: null,
+          produs_nume_manual: '',
+          produs_nume_snapshot: null,
+          substanta_activa_snapshot: '',
+          tip_snapshot: '',
+          frac_irac_snapshot: '',
+          phi_zile_snapshot: null,
+          doza_ml_per_hl: null,
+          doza_l_per_ha: null,
+          observatii: '',
+        },
+      ],
     }
   }
+
+  const produse: PlanWizardLinieProdusDraft[] = linie.produse?.length
+    ? linie.produse.map((produs, index) => ({
+        id: produs.id || `${linie.id}-produs-${index + 1}`,
+        ordine: produs.ordine ?? index + 1,
+        produs_id: produs.produs_id ?? null,
+        produs_nume_manual: produs.produs_nume_manual ?? '',
+        produs_nume_snapshot: produs.produs_nume_snapshot ?? produs.produs?.nume_comercial ?? null,
+        substanta_activa_snapshot: produs.substanta_activa_snapshot ?? produs.produs?.substanta_activa ?? '',
+        tip_snapshot: produs.tip_snapshot ?? produs.produs?.tip ?? '',
+        frac_irac_snapshot: produs.frac_irac_snapshot ?? produs.produs?.frac_irac ?? '',
+        phi_zile_snapshot: produs.phi_zile_snapshot ?? produs.produs?.phi_zile ?? null,
+        doza_ml_per_hl: produs.doza_ml_per_hl ?? null,
+        doza_l_per_ha: produs.doza_l_per_ha ?? null,
+        observatii: produs.observatii ?? '',
+      }))
+    : [
+        {
+          id: `${linie.id}-produs-1`,
+          ordine: 1,
+          produs_id: linie.produs_id ?? null,
+          produs_nume_manual: linie.produs_nume_manual ?? '',
+          produs_nume_snapshot: linie.produs?.nume_comercial ?? null,
+          substanta_activa_snapshot: linie.produs?.substanta_activa ?? '',
+          tip_snapshot: linie.produs?.tip ?? '',
+          frac_irac_snapshot: linie.produs?.frac_irac ?? '',
+          phi_zile_snapshot: linie.produs?.phi_zile ?? null,
+          doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
+          doza_l_per_ha: linie.doza_l_per_ha ?? null,
+          observatii: '',
+        },
+      ]
 
   return {
     stadiu_trigger: linie.stadiu_trigger,
     cohort_trigger: normalizeCohorta(linie.cohort_trigger),
-    produs_id: linie.produs_id,
-    produs_nume_manual: linie.produs_nume_manual,
-    doza_ml_per_hl: linie.doza_ml_per_hl,
-    doza_l_per_ha: linie.doza_l_per_ha,
+    tip_interventie: normalizeTipInterventie(linie.tip_interventie),
+    scop: linie.scop ?? null,
+    regula_repetare: normalizeRegulaRepetare(linie.regula_repetare),
+    interval_repetare_zile: linie.interval_repetare_zile ?? null,
+    numar_repetari_max: linie.numar_repetari_max ?? null,
+    produs_id: produse[0]?.produs_id ?? null,
+    produs_nume_manual: produse[0]?.produs_nume_manual ?? null,
+    doza_ml_per_hl: produse[0]?.doza_ml_per_hl ?? null,
+    doza_l_per_ha: produse[0]?.doza_l_per_ha ?? null,
     observatii: linie.observatii,
+    produse,
   }
 }
 
@@ -125,11 +201,29 @@ export function PlanLiniiList({
     const payload: LinieInput = {
       stadiu_trigger: data.stadiu_trigger,
       cohort_trigger: data.cohort_trigger,
+      tip_interventie: data.tip_interventie,
+      scop: data.scop,
+      regula_repetare: data.regula_repetare,
+      interval_repetare_zile: data.interval_repetare_zile,
+      numar_repetari_max: data.numar_repetari_max,
       produs_id: data.produs_id,
       produs_nume_manual: data.produs_nume_manual,
       doza_ml_per_hl: data.doza_ml_per_hl,
       doza_l_per_ha: data.doza_l_per_ha,
       observatii: data.observatii,
+      produse: data.produse.map((produs, index) => ({
+        ordine: index + 1,
+        produs_id: produs.produs_id,
+        produs_nume_manual: produs.produs_nume_manual,
+        produs_nume_snapshot: produs.produs_nume_snapshot,
+        substanta_activa_snapshot: produs.substanta_activa_snapshot,
+        tip_snapshot: produs.tip_snapshot,
+        frac_irac_snapshot: produs.frac_irac_snapshot,
+        phi_zile_snapshot: produs.phi_zile_snapshot,
+        doza_ml_per_hl: produs.doza_ml_per_hl,
+        doza_l_per_ha: produs.doza_l_per_ha,
+        observatii: produs.observatii,
+      })),
     }
 
     const result = editingLinie
@@ -141,7 +235,7 @@ export function PlanLiniiList({
       return
     }
 
-    toast.success(editingLinie ? 'Linia a fost actualizată.' : 'Linia a fost adăugată.')
+    toast.success(editingLinie ? 'Intervenția a fost actualizată.' : 'Intervenția a fost adăugată.')
     setEditorOpen(false)
     setEditingLinie(null)
     router.refresh()
@@ -156,7 +250,7 @@ export function PlanLiniiList({
       return
     }
 
-    toast.success('Linia a fost ștearsă.')
+    toast.success('Intervenția a fost ștearsă.')
     setDeleteOpen(false)
     setPendingDeleteLinie(null)
     router.refresh()
@@ -168,15 +262,15 @@ export function PlanLiniiList({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-lg tracking-[-0.02em] text-[var(--text-primary)] [font-weight:650]">
-              Linii tratament ({orderedLinii.length})
+              Intervenții planificate ({orderedLinii.length})
             </h2>
             <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-              Editează, reordonează sau adaugă linii noi direct din detaliul planului.
+              Editează, reordonează sau adaugă intervenții direct din detaliul planului.
             </p>
           </div>
           <Button type="button" className="bg-[var(--agri-primary)] text-white" onClick={openAddDialog}>
-            <Plus className="h-4 w-4" aria-label="Adaugă linie" />
-            <span className="hidden sm:inline">Adaugă linie</span>
+            <Plus className="h-4 w-4" aria-label="Adaugă intervenție" />
+            <span className="hidden sm:inline">Adaugă intervenție</span>
           </Button>
         </div>
       </AppCard>
@@ -184,10 +278,10 @@ export function PlanLiniiList({
       {orderedLinii.length === 0 ? (
         <AppCard className="rounded-[22px] border-dashed p-6 text-center">
           <p className="text-sm text-[var(--text-secondary)]">
-            Nu există încă linii în acest plan.
+            Nu există încă intervenții în acest plan.
           </p>
           <Button type="button" variant="outline" className="mt-4" onClick={openAddDialog}>
-            + Adaugă linie tratament
+            + Adaugă intervenție
           </Button>
         </AppCard>
       ) : (
@@ -229,7 +323,7 @@ export function PlanLiniiList({
         open={editorOpen}
         pending={isPending}
         produse={produse}
-        title={editingLinie ? 'Editează linia' : 'Adaugă linie tratament'}
+        title={editingLinie ? 'Editează intervenția' : 'Adaugă intervenție'}
       />
 
       <LinieDeleteDialog

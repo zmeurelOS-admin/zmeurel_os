@@ -27,6 +27,9 @@ export type PlanTratamentUpdate = TablesUpdate<'planuri_tratament'>
 export type PlanTratamentLinie = Tables<'planuri_tratament_linii'>
 export type PlanTratamentLinieInsert = TablesInsert<'planuri_tratament_linii'>
 export type PlanTratamentLinieUpdate = TablesUpdate<'planuri_tratament_linii'>
+export type PlanTratamentLinieProdus = Tables<'planuri_tratament_linie_produse'>
+export type PlanTratamentLinieProdusInsert = TablesInsert<'planuri_tratament_linie_produse'>
+export type PlanTratamentLinieProdusUpdate = TablesUpdate<'planuri_tratament_linie_produse'>
 
 export type ParcelaPlan = Tables<'parcele_planuri'>
 export type ParcelaPlanInsert = TablesInsert<'parcele_planuri'>
@@ -39,6 +42,9 @@ export type StadiuFenologicParcelaUpdate = TablesUpdate<'stadii_fenologice_parce
 export type AplicareTratament = Tables<'aplicari_tratament'>
 export type AplicareTratamentInsert = TablesInsert<'aplicari_tratament'>
 export type AplicareTratamentUpdate = TablesUpdate<'aplicari_tratament'>
+export type AplicareTratamentProdus = Tables<'aplicari_tratament_produse'>
+export type AplicareTratamentProdusInsert = TablesInsert<'aplicari_tratament_produse'>
+export type AplicareTratamentProdusUpdate = TablesUpdate<'aplicari_tratament_produse'>
 
 export type AplicareTratamentMeteoSnapshot = Json
 
@@ -54,7 +60,10 @@ const PLAN_SELECT =
   'id,tenant_id,nume,cultura_tip,descriere,activ,arhivat,created_at,updated_at,created_by,updated_by'
 
 const LINIE_SELECT =
-  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
+  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,tip_interventie,scop,regula_repetare,interval_repetare_zile,numar_repetari_max,fereastra_start_offset_zile,fereastra_end_offset_zile,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
+
+const PLAN_LINIE_PRODUS_SELECT =
+  'id,tenant_id,plan_linie_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
 
 const PARCELA_PLAN_SELECT =
   'id,tenant_id,parcela_id,plan_id,an,activ,created_at,updated_at'
@@ -63,7 +72,16 @@ const STADIU_SELECT =
   'id,tenant_id,parcela_id,an,stadiu,cohort,data_observata,sursa,observatii,created_at,updated_at,created_by'
 
 const APLICARE_SELECT =
-  'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,meteo_snapshot,stadiu_la_aplicare,cohort_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
+  'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,sursa,tip_interventie,scop,stadiu_fenologic_id,diferente_fata_de_plan,meteo_snapshot,stadiu_la_aplicare,cohort_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
+
+const APLICARE_PRODUS_SELECT =
+  'id,tenant_id,aplicare_id,plan_linie_produs_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_totala,unitate_cantitate,stoc_mutatie_id,observatii,created_at,updated_at'
+
+const APLICARE_PRODUSE_RELATION_SELECT =
+  `produse_aplicare:aplicari_tratament_produse(${APLICARE_PRODUS_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), plan_linie_produs:planuri_tratament_linie_produse(${PLAN_LINIE_PRODUS_SELECT}))`
+
+const LINIE_WITH_PRODUCTS_SELECT =
+  `${LINIE_SELECT}, produs:produse_fitosanitare(${PRODUS_SELECT}), produse:planuri_tratament_linie_produse(${PLAN_LINIE_PRODUS_SELECT}, produs:produse_fitosanitare(${PRODUS_SELECT}))`
 
 const CROP_SELECT = 'id,cod,name,unit_type,tenant_id,grup_biologic,created_at'
 
@@ -83,12 +101,44 @@ export interface InsertTenantProdus {
   activ?: boolean
 }
 
-export interface PlanTratamentLinieCuProdus extends PlanTratamentLinie {
+type PlanTratamentLinieV2Fields =
+  | 'tip_interventie'
+  | 'scop'
+  | 'regula_repetare'
+  | 'interval_repetare_zile'
+  | 'numar_repetari_max'
+  | 'fereastra_start_offset_zile'
+  | 'fereastra_end_offset_zile'
+
+type PlanTratamentLinieCompat =
+  Omit<PlanTratamentLinie, PlanTratamentLinieV2Fields> &
+  Partial<Pick<PlanTratamentLinie, PlanTratamentLinieV2Fields>>
+
+export interface PlanTratamentLinieCuProdus extends PlanTratamentLinieCompat {
+  produs?: ProdusFitosanitar | null
+  produse?: InterventieProdusV2[]
+}
+
+type ProdusFitosanitarLookup = Pick<
+  ProdusFitosanitar,
+  'id' | 'tenant_id' | 'nume_comercial' | 'substanta_activa' | 'tip' | 'frac_irac' | 'phi_zile' | 'nr_max_aplicari_per_sezon' | 'activ'
+>
+
+export interface InterventieProdusV2 extends PlanTratamentLinieProdus {
   produs: ProdusFitosanitar | null
 }
 
-export interface PlanTratamentCuLinii extends PlanTratament {
-  linii: PlanTratamentLinieCuProdus[]
+export interface InterventiePlanV2 extends PlanTratamentLinieCompat {
+  produs: ProdusFitosanitar | null
+  produse: InterventieProdusV2[]
+}
+
+export interface PlanTratamentV2 extends PlanTratament {
+  interventii: InterventiePlanV2[]
+}
+
+export interface PlanTratamentCuLinii extends PlanTratamentV2 {
+  linii: InterventiePlanV2[]
 }
 
 export interface CreatePlanTratamentInput {
@@ -103,11 +153,19 @@ export interface CreatePlanTratamentLinieInput {
   ordine?: number
   stadiu_trigger: string
   cohort_trigger?: Cohorta | null
+  tip_interventie?: string | null
+  scop?: string | null
+  regula_repetare?: 'fara_repetare' | 'interval'
+  interval_repetare_zile?: number | null
+  numar_repetari_max?: number | null
+  fereastra_start_offset_zile?: number | null
+  fereastra_end_offset_zile?: number | null
   produs_id?: string | null
   produs_nume_manual?: string | null
   doza_ml_per_hl?: number | null
   doza_l_per_ha?: number | null
   observatii?: string | null
+  produse?: InterventieProdusPayload[]
 }
 
 export interface ParcelaCuPlanActiv extends ParcelaPlan {
@@ -134,7 +192,8 @@ export interface PlanTratamentParcelaAsociata {
 }
 
 export interface PlanTratamentComplet extends PlanTratament {
-  linii: PlanTratamentLinieCuProdus[]
+  linii: InterventiePlanV2[]
+  interventii?: InterventiePlanV2[]
   parcele_asociate: PlanTratamentParcelaAsociata[]
 }
 
@@ -149,6 +208,20 @@ export interface PlanTratamentRpcPayload {
   parcele_asociate: PlanTratamentParcelaAsociata[]
 }
 
+export interface InterventieProdusPayload {
+  ordine?: number
+  produs_id?: string | null
+  produs_nume_manual?: string | null
+  produs_nume_snapshot?: string | null
+  substanta_activa_snapshot?: string | null
+  tip_snapshot?: ProdusFitosanitar['tip'] | null
+  frac_irac_snapshot?: string | null
+  phi_zile_snapshot?: number | null
+  doza_ml_per_hl?: number | null
+  doza_l_per_ha?: number | null
+  observatii?: string | null
+}
+
 export interface UpsertPlanTratamentPayload {
   id?: string | null
   nume: string
@@ -159,14 +232,23 @@ export interface UpsertPlanTratamentPayload {
 }
 
 export interface PlanTratamentLiniePayload {
+  id?: string | null
   ordine: number
   stadiu_trigger: string
   cohort_trigger?: Cohorta | null
+  tip_interventie?: string | null
+  scop?: string | null
+  regula_repetare?: 'fara_repetare' | 'interval'
+  interval_repetare_zile?: number | null
+  numar_repetari_max?: number | null
+  fereastra_start_offset_zile?: number | null
+  fereastra_end_offset_zile?: number | null
   produs_id?: string | null
   produs_nume_manual?: string | null
   doza_ml_per_hl?: number | null
   doza_l_per_ha?: number | null
   observatii?: string | null
+  produse?: InterventieProdusPayload[]
 }
 
 export interface LiniePlanContext {
@@ -197,11 +279,36 @@ export interface ParcelaTratamenteContext {
   suprafata_m2: number | null
 }
 
-export interface AplicareTratamentDetaliu extends AplicareTratament {
-  produs: Pick<ProdusFitosanitar, 'id' | 'tenant_id' | 'nume_comercial' | 'substanta_activa' | 'tip' | 'frac_irac' | 'phi_zile' | 'nr_max_aplicari_per_sezon' | 'activ'> | null
-  linie: PlanTratamentLinie | null
+export interface ParcelaTratamenteSelectOption {
+  id: string
+  id_parcela: string | null
+  nume_parcela: string | null
+}
+
+export interface AplicareProdusV2 extends AplicareTratamentProdus {
+  produs: ProdusFitosanitarLookup | null
+  plan_linie_produs: PlanTratamentLinieProdus | null
+}
+
+type AplicareTratamentV2Fields =
+  | 'sursa'
+  | 'tip_interventie'
+  | 'scop'
+  | 'stadiu_fenologic_id'
+  | 'diferente_fata_de_plan'
+
+type AplicareTratamentCompat =
+  Omit<AplicareTratament, AplicareTratamentV2Fields> &
+  Partial<Pick<AplicareTratament, AplicareTratamentV2Fields>>
+
+export interface AplicareTratamentV2 extends AplicareTratamentCompat {
+  produs: ProdusFitosanitarLookup | null
+  produse_aplicare?: AplicareProdusV2[]
+  linie: PlanTratamentLinieCuProdus | null
   parcela: Pick<Database['public']['Tables']['parcele']['Row'], 'id' | 'id_parcela' | 'nume_parcela' | 'suprafata_m2'> | null
 }
+
+export type AplicareTratamentDetaliu = AplicareTratamentV2
 
 export interface AplicareCrossParcelItem {
   id: string
@@ -209,12 +316,15 @@ export interface AplicareCrossParcelItem {
   parcela_id: string
   cultura_id: string | null
   plan_linie_id: string | null
+  sursa: AplicareTratament['sursa'] | null
   produs_id: string | null
   produs_nume_manual: string | null
   data_programata: string | null
   data_planificata: string | null
   data_aplicata: string | null
   status: AplicareTratament['status']
+  tip_interventie: string | null
+  scop: string | null
   parcela_nume: string | null
   parcela_cod: string | null
   parcela_suprafata_m2: number | null
@@ -236,8 +346,48 @@ export interface AplicareCrossParcelItem {
   observatii: string | null
   operator: string | null
   meteo_snapshot: Json | null
+  produse_aplicare: AplicareProdusV2[]
+  produse_planificate: InterventieProdusV2[]
   phi_warning: boolean
   urmatoarea_recoltare: string | null
+}
+
+export type InterventieStatusOperational =
+  | 'de_facut_azi'
+  | 'urmeaza'
+  | 'intarziata'
+  | 'completata_pentru_moment'
+  | 'neaplicabila_fara_stadiu'
+
+export interface FenofazaCurentaParcela {
+  parcela_id: string
+  an: number
+  cohort: Cohorta | null
+  stadiu_id: string | null
+  stadiu: StadiuCod | null
+  data_observata: string | null
+  sursa: StadiuFenologicParcela['sursa'] | null
+  observatii: string | null
+}
+
+export interface InterventieRelevantaV2 {
+  parcela_id: string
+  parcela_nume: string | null
+  parcela_cod: string | null
+  plan: Pick<PlanTratament, 'id' | 'nume' | 'cultura_tip' | 'activ' | 'arhivat'>
+  interventie: InterventiePlanV2
+  produse_planificate: InterventieProdusV2[]
+  fenofaza_curenta: FenofazaCurentaParcela | null
+  ultima_aplicare: Pick<AplicareTratamentDetaliu, 'id' | 'status' | 'data_planificata' | 'data_aplicata' | 'cohort_la_aplicare'> | null
+  aplicare_planificata: Pick<AplicareTratamentDetaliu, 'id' | 'status' | 'data_planificata' | 'data_aplicata' | 'cohort_la_aplicare'> | null
+  aplicari_efectuate_count: number
+  regula_repetare: InterventiePlanV2['regula_repetare']
+  interval_repetare_zile: number | null
+  numar_repetari_max: number | null
+  urmatoarea_data_estimata: string | null
+  zile_ramase: number | null
+  status_operational: InterventieStatusOperational
+  motiv: string
 }
 
 export interface AplicareAgregata {
@@ -293,6 +443,11 @@ export interface InsertAplicarePlanificata {
   parcela_id: string
   cultura_id?: string | null
   plan_linie_id?: string | null
+  sursa?: 'din_plan' | 'manuala'
+  tip_interventie?: string | null
+  scop?: string | null
+  stadiu_fenologic_id?: string | null
+  diferente_fata_de_plan?: Json | null
   produs_id?: string | null
   produs_nume_manual?: string | null
   data_planificata: string
@@ -306,6 +461,36 @@ export interface InsertAplicarePlanificata {
   observatii?: string | null
   operator?: string | null
   status?: 'planificata' | 'reprogramata'
+  produse?: Array<InterventieProdusPayload & {
+    plan_linie_produs_id?: string | null
+    cantitate_totala?: number | null
+    unitate_cantitate?: AplicareTratamentProdus['unitate_cantitate']
+    stoc_mutatie_id?: string | null
+  }>
+}
+
+export interface CreateAplicareManualaInput {
+  parcela_id: string
+  cultura_id?: string | null
+  status?: 'planificata' | 'aplicata'
+  data_planificata?: string | null
+  data_aplicata?: string | null
+  tip_interventie?: string | null
+  scop?: string | null
+  stadiu_fenologic_id?: string | null
+  diferente_fata_de_plan?: Json | null
+  produs_id?: string | null
+  produs_nume_manual?: string | null
+  doza_ml_per_hl?: number | null
+  doza_l_per_ha?: number | null
+  cantitate_totala_ml?: number | null
+  stoc_mutatie_id?: string | null
+  meteo_snapshot?: Json | null
+  stadiu_la_aplicare?: string | null
+  cohort_la_aplicare?: Cohorta | null
+  observatii?: string | null
+  operator?: string | null
+  produse?: InsertAplicarePlanificata['produse']
 }
 
 export interface ListAplicariOpts {
@@ -351,6 +536,8 @@ export interface MarkAplicareAsAplicataPayload {
   observatii?: string | null
   stadiuLaAplicare?: string | null
   cohortLaAplicare?: Cohorta | null
+  produse?: InsertAplicarePlanificata['produse']
+  diferenteFataDePlan?: Json | null
 }
 
 interface QueryContext {
@@ -428,7 +615,7 @@ function combineObservatii(current: string | null | undefined, extra: string | n
   return `${currentText}\n${extraText}`
 }
 
-function effectiveAplicareDate(aplicare: AplicareTratament): Date | null {
+function effectiveAplicareDate(aplicare: Pick<AplicareTratament, 'data_aplicata' | 'data_planificata'>): Date | null {
   const value = aplicare.data_aplicata ?? aplicare.data_planificata
   if (!value) return null
   const parsed = new Date(value)
@@ -443,6 +630,219 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null
 }
 
+function relationArray<T>(value: T | Array<T | null> | null | undefined): T[] {
+  if (Array.isArray(value)) return value.filter((item): item is T => Boolean(item))
+  return value ? [value] : []
+}
+
+function normalizeOptionalPositiveNumber(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
+}
+
+type PlanLinieProdusRelationRow = PlanTratamentLinieProdus & {
+  produs: ProdusFitosanitar | ProdusFitosanitar[] | null
+}
+
+type PlanLinieWithV2ProductsRow = PlanTratamentLinie & {
+  produs: ProdusFitosanitar | ProdusFitosanitar[] | null
+  produse: PlanLinieProdusRelationRow | PlanLinieProdusRelationRow[] | null
+}
+
+type AplicareProdusRelationRow = AplicareTratamentProdus & {
+  produs: ProdusFitosanitarLookup | ProdusFitosanitarLookup[] | null
+  plan_linie_produs: PlanTratamentLinieProdus | PlanTratamentLinieProdus[] | null
+}
+
+type AplicareWithV2ProductsRow = AplicareTratament & {
+  produs: ProdusFitosanitarLookup | Array<ProdusFitosanitarLookup | null> | null
+  produse_aplicare: AplicareProdusRelationRow | Array<AplicareProdusRelationRow | null> | null
+}
+
+function toInterventieProdusV2(row: PlanLinieProdusRelationRow): InterventieProdusV2 {
+  return {
+    ...row,
+    produs: firstRelation(row.produs),
+  }
+}
+
+function buildLegacyInterventieProdus(
+  linie: PlanTratamentLinie,
+  produs: ProdusFitosanitar | null
+): InterventieProdusV2 | null {
+  const produsManual = normalizeText(linie.produs_nume_manual)
+  if (!linie.produs_id && !produsManual) return null
+
+  const produsNumeSnapshot = produs?.nume_comercial ?? produsManual
+  if (!produsNumeSnapshot) return null
+
+  return {
+    id: `legacy:${linie.id}:1`,
+    tenant_id: linie.tenant_id,
+    plan_linie_id: linie.id,
+    ordine: 1,
+    produs_id: linie.produs_id,
+    produs_nume_manual: produs ? null : produsManual,
+    produs_nume_snapshot: produsNumeSnapshot,
+    substanta_activa_snapshot: produs?.substanta_activa ?? null,
+    tip_snapshot: produs?.tip ?? null,
+    frac_irac_snapshot: produs?.frac_irac ?? null,
+    phi_zile_snapshot: produs?.phi_zile ?? null,
+    doza_ml_per_hl: linie.doza_ml_per_hl,
+    doza_l_per_ha: linie.doza_l_per_ha,
+    observatii: linie.observatii,
+    created_at: linie.created_at,
+    updated_at: linie.updated_at,
+    produs,
+  }
+}
+
+function hydrateLinieFromPrimaryProdus(
+  linie: PlanTratamentLinie,
+  produse: InterventieProdusV2[],
+  legacyProdus: ProdusFitosanitar | null
+): InterventiePlanV2 {
+  const firstProdus = produse[0] ?? null
+
+  return {
+    ...linie,
+    produs_id: firstProdus ? firstProdus.produs_id : linie.produs_id,
+    produs_nume_manual: firstProdus
+      ? firstProdus.produs_nume_manual
+      : linie.produs_nume_manual,
+    doza_ml_per_hl: firstProdus ? firstProdus.doza_ml_per_hl : linie.doza_ml_per_hl,
+    doza_l_per_ha: firstProdus ? firstProdus.doza_l_per_ha : linie.doza_l_per_ha,
+    produs: firstProdus?.produs ?? legacyProdus,
+    produse,
+  }
+}
+
+function normalizeInterventiePlan(row: PlanLinieWithV2ProductsRow): InterventiePlanV2 {
+  const legacyProdus = firstRelation(row.produs)
+  const produseV2 = relationArray(row.produse)
+    .map(toInterventieProdusV2)
+    .sort((first, second) => first.ordine - second.ordine)
+  const produse = produseV2.length > 0
+    ? produseV2
+    : relationArray(buildLegacyInterventieProdus(row, legacyProdus))
+
+  return hydrateLinieFromPrimaryProdus(row, produse, legacyProdus)
+}
+
+function toAplicareProdusV2(row: AplicareProdusRelationRow): AplicareProdusV2 {
+  return {
+    ...row,
+    produs: firstRelation(row.produs),
+    plan_linie_produs: firstRelation(row.plan_linie_produs),
+  }
+}
+
+function buildLegacyAplicareProdus(
+  aplicare: AplicareTratament,
+  produs: ProdusFitosanitarLookup | null
+): AplicareProdusV2 | null {
+  const produsManual = normalizeText(aplicare.produs_nume_manual)
+  if (!aplicare.produs_id && !produsManual) return null
+
+  const produsNumeSnapshot = produs?.nume_comercial ?? produsManual
+  if (!produsNumeSnapshot) return null
+
+  return {
+    id: `legacy:${aplicare.id}:1`,
+    tenant_id: aplicare.tenant_id,
+    aplicare_id: aplicare.id,
+    plan_linie_produs_id: null,
+    ordine: 1,
+    produs_id: aplicare.produs_id,
+    produs_nume_manual: produs ? null : produsManual,
+    produs_nume_snapshot: produsNumeSnapshot,
+    substanta_activa_snapshot: produs?.substanta_activa ?? null,
+    tip_snapshot: produs?.tip ?? null,
+    frac_irac_snapshot: produs?.frac_irac ?? null,
+    phi_zile_snapshot: produs?.phi_zile ?? null,
+    doza_ml_per_hl: aplicare.doza_ml_per_hl,
+    doza_l_per_ha: aplicare.doza_l_per_ha,
+    cantitate_totala: aplicare.cantitate_totala_ml,
+    unitate_cantitate: aplicare.cantitate_totala_ml == null ? null : 'ml',
+    stoc_mutatie_id: aplicare.stoc_mutatie_id,
+    observatii: aplicare.observatii,
+    created_at: aplicare.created_at,
+    updated_at: aplicare.updated_at,
+    produs,
+    plan_linie_produs: null,
+  }
+}
+
+function normalizeAplicareProduse(row: AplicareWithV2ProductsRow): AplicareProdusV2[] {
+  const legacyProdus = firstRelation(row.produs)
+  const produseV2 = relationArray(row.produse_aplicare)
+    .map(toAplicareProdusV2)
+    .sort((first, second) => first.ordine - second.ordine)
+
+  if (produseV2.length > 0) return produseV2
+  return relationArray(buildLegacyAplicareProdus(row, legacyProdus))
+}
+
+function hydrateAplicareFromPrimaryProdus<T extends AplicareWithV2ProductsRow>(
+  row: T,
+  produse: AplicareProdusV2[]
+): Omit<T, 'produs' | 'produse_aplicare'> & {
+  produs: ProdusFitosanitarLookup | null
+  produse_aplicare: AplicareProdusV2[]
+} {
+  const legacyProdus = firstRelation(row.produs)
+  const firstProdus = produse[0] ?? null
+
+  return {
+    ...row,
+    produs_id: firstProdus ? firstProdus.produs_id : row.produs_id,
+    produs_nume_manual: firstProdus
+      ? firstProdus.produs_nume_manual
+      : row.produs_nume_manual,
+    doza_ml_per_hl: firstProdus ? firstProdus.doza_ml_per_hl : row.doza_ml_per_hl,
+    doza_l_per_ha: firstProdus ? firstProdus.doza_l_per_ha : row.doza_l_per_ha,
+    cantitate_totala_ml:
+      typeof firstProdus?.cantitate_totala === 'number' && firstProdus.unitate_cantitate === 'ml'
+        ? firstProdus.cantitate_totala
+        : row.cantitate_totala_ml,
+    stoc_mutatie_id: firstProdus ? firstProdus.stoc_mutatie_id : row.stoc_mutatie_id,
+    produs: firstProdus?.produs ?? legacyProdus,
+    produse_aplicare: produse,
+  }
+}
+
+function produsePrimary(produse: AplicareProdusV2[]): ProdusFitosanitarLookup | null {
+  return produseFirst(produse)?.produs ?? null
+}
+
+function produseFirst(produse: AplicareProdusV2[]): AplicareProdusV2 | null {
+  return produse.length > 0 ? produse[0] : null
+}
+
+function produseLabel(produse: AplicareProdusV2[]): string {
+  if (produse.length === 0) return 'Produs nespecificat'
+  const first = produseFirst(produse)
+  const firstName = first?.produs?.nume_comercial ?? first?.produs_nume_snapshot ?? first?.produs_nume_manual ?? 'Produs nespecificat'
+  return produse.length > 1 ? `${firstName} +${produse.length - 1}` : firstName
+}
+
+function normalizeAplicareDetaliuRow(
+  row: AplicareWithV2ProductsRow & {
+    linie: PlanLinieWithV2ProductsRow | PlanLinieWithV2ProductsRow[] | null
+    parcela: AplicareTratamentDetaliu['parcela'] | AplicareTratamentDetaliu['parcela'][]
+  }
+): AplicareTratamentDetaliu {
+  const produse = normalizeAplicareProduse(row)
+  const aplicare = hydrateAplicareFromPrimaryProdus(row, produse)
+  const linie = firstRelation(row.linie)
+
+  return {
+    ...aplicare,
+    sursa: row.sursa ?? (row.plan_linie_id ? 'din_plan' : 'manuala'),
+    linie: linie ? normalizeInterventiePlan(linie) : null,
+    parcela: firstRelation(row.parcela),
+  }
+}
+
 type CrossParcelParcelaRelation = Pick<
   Database['public']['Tables']['parcele']['Row'],
   'id' | 'id_parcela' | 'nume_parcela' | 'suprafata_m2' | 'latitudine' | 'longitudine' | 'gps_lat' | 'gps_lng'
@@ -450,7 +850,7 @@ type CrossParcelParcelaRelation = Pick<
 
 type CrossParcelPlanRelation = Pick<PlanTratament, 'id' | 'nume' | 'cultura_tip' | 'activ' | 'arhivat'>
 
-type CrossParcelLinieRelation = PlanTratamentLinie & {
+type CrossParcelLinieRelation = PlanLinieWithV2ProductsRow & {
   plan: CrossParcelPlanRelation | CrossParcelPlanRelation[] | null
 }
 
@@ -459,6 +859,7 @@ type CrossParcelAplicareRow = AplicareTratament & {
     | AplicareTratamentDetaliu['produs']
     | AplicareTratamentDetaliu['produs'][]
     | null
+  produse_aplicare: AplicareProdusRelationRow | AplicareProdusRelationRow[] | null
   linie: CrossParcelLinieRelation | CrossParcelLinieRelation[] | null
   parcela: CrossParcelParcelaRelation | CrossParcelParcelaRelation[] | null
 }
@@ -473,6 +874,7 @@ type AplicareAgregataRow = AplicareTratament & {
     | AplicareTratamentDetaliu['produs']
     | AplicareTratamentDetaliu['produs'][]
     | null
+  produse_aplicare: AplicareProdusRelationRow | AplicareProdusRelationRow[] | null
   linie: CrossParcelLinieRelation | CrossParcelLinieRelation[] | null
   parcela: AplicareAgregataParcelaRelation | AplicareAgregataParcelaRelation[] | null
 }
@@ -482,6 +884,7 @@ type TratamenteGlobalStatsAplicareRow = AplicareTratament & {
     | AplicareTratamentDetaliu['produs']
     | AplicareTratamentDetaliu['produs'][]
     | null
+  produse_aplicare: AplicareProdusRelationRow | AplicareProdusRelationRow[] | null
   linie: CrossParcelLinieRelation | CrossParcelLinieRelation[] | null
   parcela: AplicareAgregataParcelaRelation | AplicareAgregataParcelaRelation[] | null
 }
@@ -573,8 +976,11 @@ function mapAplicariCrossParcel(
   nextHarvestMap: Map<string, string>
 ): AplicareCrossParcelItem[] {
   return rows.map((row) => {
-    const produs = firstRelation(row.produs)
+    const produseAplicare = normalizeAplicareProduse(row)
+    const produsPrincipal = produseLabel(produseAplicare)
+    const produs = produsePrimary(produseAplicare) ?? firstRelation(row.produs)
     const linie = firstRelation(row.linie)
+    const produsePlanificate = linie ? normalizeInterventiePlan(linie).produse : []
     const plan = firstRelation(linie?.plan)
     const parcela = firstRelation(row.parcela)
     const urmatoareaRecoltare = nextHarvestMap.get(row.parcela_id) ?? null
@@ -585,12 +991,15 @@ function mapAplicariCrossParcel(
       parcela_id: row.parcela_id,
       cultura_id: row.cultura_id,
       plan_linie_id: row.plan_linie_id,
+      sursa: row.sursa ?? (row.plan_linie_id ? 'din_plan' : 'manuala'),
       produs_id: row.produs_id,
       produs_nume_manual: row.produs_nume_manual,
       data_programata: row.data_planificata,
       data_planificata: row.data_planificata,
       data_aplicata: row.data_aplicata,
       status: row.status,
+      tip_interventie: row.tip_interventie ?? linie?.tip_interventie ?? null,
+      scop: row.scop ?? linie?.scop ?? null,
       parcela_nume: parcela?.nume_parcela ?? null,
       parcela_cod: parcela?.id_parcela ?? null,
       parcela_suprafata_m2: parcela?.suprafata_m2 ?? null,
@@ -603,24 +1012,31 @@ function mapAplicariCrossParcel(
       stadiu_trigger: linie?.stadiu_trigger ?? row.stadiu_la_aplicare ?? null,
       cohort_trigger: normalizeOptionalCohorta(linie?.cohort_trigger ?? null),
       cohort_la_aplicare: normalizeOptionalCohorta(row.cohort_la_aplicare ?? null),
-      produs_nume: produs?.nume_comercial ?? row.produs_nume_manual ?? 'Produs nespecificat',
-      produs_tip: produs?.tip ?? null,
-      produs_frac: produs?.frac_irac ?? null,
-      produs_phi_zile: produs?.phi_zile ?? null,
+      produs_nume: produsPrincipal,
+      produs_tip: produs?.tip ?? produseAplicare[0]?.tip_snapshot ?? null,
+      produs_frac: produs?.frac_irac ?? produseAplicare[0]?.frac_irac_snapshot ?? null,
+      produs_phi_zile: produs?.phi_zile ?? produseAplicare[0]?.phi_zile_snapshot ?? null,
       doza_ml_per_hl: row.doza_ml_per_hl,
       doza_l_per_ha: row.doza_l_per_ha,
       observatii: row.observatii ?? linie?.observatii ?? null,
       operator: row.operator,
       meteo_snapshot: row.meteo_snapshot,
-      phi_warning: isPhiWarning(row.data_planificata, produs?.phi_zile ?? null, urmatoareaRecoltare),
+      produse_aplicare: produseAplicare,
+      produse_planificate: produsePlanificate,
+      phi_warning: produseAplicare.some((item) =>
+        isPhiWarning(row.data_planificata, item.produs?.phi_zile ?? item.phi_zile_snapshot, urmatoareaRecoltare)
+      ),
       urmatoarea_recoltare: urmatoareaRecoltare,
     }
   })
 }
 
 function mapAplicariAgregate(rows: AplicareAgregataRow[]): AplicareAgregata[] {
-  return rows.map((row) => {
-    const produs = firstRelation(row.produs)
+  return rows.flatMap((row) => {
+    const produseAplicare = normalizeAplicareProduse(row)
+    const produse = produseAplicare.length > 0
+      ? produseAplicare
+      : relationArray(buildLegacyAplicareProdus(row, firstRelation(row.produs)))
     const linie = firstRelation(row.linie)
     const plan = firstRelation(linie?.plan)
     const parcela = firstRelation(row.parcela)
@@ -629,7 +1045,9 @@ function mapAplicariAgregate(rows: AplicareAgregataRow[]): AplicareAgregata[] {
         ? Math.round((parcela.suprafata_m2 / 10000) * 10000) / 10000
         : null
 
-    return {
+    return produse.map((produsAplicare) => {
+      const produs = produsAplicare.produs
+      return {
       id: row.id,
       tenant_id: row.tenant_id,
       parcela_id: row.parcela_id,
@@ -637,12 +1055,12 @@ function mapAplicariAgregate(rows: AplicareAgregataRow[]): AplicareAgregata[] {
       parcela_cod: parcela?.id_parcela ?? null,
       parcela_suprafata_m2: parcela?.suprafata_m2 ?? null,
       suprafata_ha: suprafataHa,
-      produs_id: row.produs_id,
-      produs_nume: produs?.nume_comercial ?? row.produs_nume_manual ?? 'Produs nespecificat',
-      produs_tip: produs?.tip ?? null,
-      produs_frac: produs?.frac_irac ?? null,
-      produs_phi_zile: produs?.phi_zile ?? null,
-      substanta_activa: produs?.substanta_activa ?? null,
+      produs_id: produsAplicare.produs_id,
+      produs_nume: produs?.nume_comercial ?? produsAplicare.produs_nume_snapshot ?? 'Produs nespecificat',
+      produs_tip: produs?.tip ?? produsAplicare.tip_snapshot ?? null,
+      produs_frac: produs?.frac_irac ?? produsAplicare.frac_irac_snapshot ?? null,
+      produs_phi_zile: produs?.phi_zile ?? produsAplicare.phi_zile_snapshot ?? null,
+      substanta_activa: produs?.substanta_activa ?? produsAplicare.substanta_activa_snapshot ?? null,
       plan_id: plan?.id ?? linie?.plan_id ?? null,
       plan_nume: plan?.nume ?? null,
       linie_id: linie?.id ?? row.plan_linie_id,
@@ -653,12 +1071,14 @@ function mapAplicariAgregate(rows: AplicareAgregataRow[]): AplicareAgregata[] {
       data_planificata: row.data_planificata,
       data_aplicata: row.data_aplicata,
       status: row.status,
-      doza_ml_per_hl: row.doza_ml_per_hl,
-      doza_l_per_ha: row.doza_l_per_ha,
-      cantitate_totala_ml: row.cantitate_totala_ml,
-      observatii: row.observatii ?? linie?.observatii ?? null,
+      doza_ml_per_hl: produsAplicare.doza_ml_per_hl,
+      doza_l_per_ha: produsAplicare.doza_l_per_ha,
+      cantitate_totala_ml:
+        produsAplicare.unitate_cantitate === 'ml' ? produsAplicare.cantitate_totala : row.cantitate_totala_ml,
+      observatii: row.observatii ?? produsAplicare.observatii ?? linie?.observatii ?? null,
       operator: row.operator,
-    }
+      }
+    })
   })
 }
 
@@ -774,6 +1194,7 @@ export async function listProduseFitosanitare(opts?: {
   tip?: string
   activ?: boolean
   omologatPentru?: string
+  includeInactive?: boolean
 }): Promise<ProdusFitosanitar[]> {
   const { supabase, tenantId } = await getQueryContext()
 
@@ -781,7 +1202,8 @@ export async function listProduseFitosanitare(opts?: {
     .from('produse_fitosanitare')
     .select(PRODUS_SELECT)
     .or(`tenant_id.is.null,tenant_id.eq.${tenantId}`)
-    .order('tenant_id', { ascending: true, nullsFirst: true })
+    .order('activ', { ascending: false })
+    .order('tenant_id', { ascending: false, nullsFirst: false })
     .order('nume_comercial', { ascending: true })
 
   if (opts?.tip) {
@@ -790,6 +1212,8 @@ export async function listProduseFitosanitare(opts?: {
 
   if (typeof opts?.activ === 'boolean') {
     query = query.eq('activ', opts.activ)
+  } else if (opts?.includeInactive === false) {
+    query = query.eq('activ', true)
   }
 
   if (opts?.omologatPentru) {
@@ -901,6 +1325,16 @@ export async function upsertProdusTenantCustom(data: InsertTenantProdus): Promis
 }
 
 /**
+ * Creează sau actualizează un produs tenant-first după numele comercial normalizat.
+ * Folosit de quick-create în editori/import pentru a evita duplicatele evidente.
+ */
+export async function saveProdusFitosanitarInLibrary(
+  data: InsertTenantProdus
+): Promise<ProdusFitosanitar> {
+  return upsertProdusTenantCustom(data)
+}
+
+/**
  * Listează planurile de tratament din tenantul curent.
  * Exemplu: `listPlanuriTratament({ culturaTip: 'zmeur', activ: true })`
  */
@@ -948,7 +1382,7 @@ export async function getPlanTratamentCuLinii(planId: string): Promise<PlanTrata
 
   const { data: linii, error: liniiError } = await supabase
     .from('planuri_tratament_linii')
-    .select(`${LINIE_SELECT}, produs:produse_fitosanitare(${PRODUS_SELECT})`)
+    .select(LINIE_WITH_PRODUCTS_SELECT)
     .eq('plan_id', planId)
     .eq('tenant_id', tenantId)
     .order('ordine', { ascending: true })
@@ -957,11 +1391,255 @@ export async function getPlanTratamentCuLinii(planId: string): Promise<PlanTrata
 
   return {
     ...plan,
-    linii: ((linii ?? []) as Array<PlanTratamentLinie & { produs: ProdusFitosanitar | ProdusFitosanitar[] | null }>).map((linie) => ({
-      ...linie,
-      produs: firstRelation(linie.produs),
-    })),
+    interventii: ((linii ?? []) as PlanLinieWithV2ProductsRow[]).map(normalizeInterventiePlan),
+    linii: ((linii ?? []) as PlanLinieWithV2ProductsRow[]).map(normalizeInterventiePlan),
   }
+}
+
+function normalizeInterventieProdusPayloads(
+  linie: PlanTratamentLiniePayload | CreatePlanTratamentLinieInput
+): InterventieProdusPayload[] {
+  const produse = Array.isArray(linie.produse) && linie.produse.length > 0
+    ? linie.produse
+    : [{
+        ordine: 1,
+        produs_id: linie.produs_id ?? null,
+        produs_nume_manual: linie.produs_nume_manual ?? null,
+        doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
+        doza_l_per_ha: linie.doza_l_per_ha ?? null,
+        observatii: linie.observatii ?? null,
+      }]
+
+  return produse
+    .map((produs, index) => ({
+      ordine: produs.ordine ?? index + 1,
+      produs_id: produs.produs_id ?? null,
+      produs_nume_manual: normalizeText(produs.produs_nume_manual),
+      produs_nume_snapshot: normalizeText(produs.produs_nume_snapshot),
+      substanta_activa_snapshot: normalizeText(produs.substanta_activa_snapshot),
+      tip_snapshot: produs.tip_snapshot ?? null,
+      frac_irac_snapshot: normalizeText(produs.frac_irac_snapshot),
+      phi_zile_snapshot: produs.phi_zile_snapshot ?? null,
+      doza_ml_per_hl: produs.doza_ml_per_hl ?? null,
+      doza_l_per_ha: produs.doza_l_per_ha ?? null,
+      observatii: normalizeText(produs.observatii),
+    }))
+    .filter((produs) => Boolean(produs.produs_id || produs.produs_nume_manual || produs.produs_nume_snapshot))
+}
+
+function firstProdusPayload(produse: InterventieProdusPayload[]): InterventieProdusPayload | null {
+  return [...produse].sort((first, second) => (first.ordine ?? 0) - (second.ordine ?? 0))[0] ?? null
+}
+
+type AplicareProdusInput = NonNullable<InsertAplicarePlanificata['produse']>[number]
+
+async function getProduseById(ctx: QueryContext, produsIds: string[]): Promise<Map<string, ProdusFitosanitarLookup>> {
+  const uniqueIds = [...new Set(produsIds.filter(Boolean))]
+  if (uniqueIds.length === 0) return new Map()
+
+  const { data, error } = await ctx.supabase
+    .from('produse_fitosanitare')
+    .select(PRODUS_LOOKUP_SELECT)
+    .in('id', uniqueIds)
+
+  if (error) throw error
+
+  return new Map((data ?? []).map((produs) => [produs.id, produs]))
+}
+
+async function loadPlanLinieProduseForAplicare(
+  ctx: QueryContext,
+  planLinieId: string
+): Promise<AplicareProdusInput[]> {
+  const { data, error } = await ctx.supabase
+    .from('planuri_tratament_linie_produse')
+    .select(PLAN_LINIE_PRODUS_SELECT)
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_linie_id', planLinieId)
+    .order('ordine', { ascending: true })
+
+  if (error) throw error
+
+  return (data ?? []).map((produs) => ({
+    plan_linie_produs_id: produs.id,
+    ordine: produs.ordine,
+    produs_id: produs.produs_id,
+    produs_nume_manual: produs.produs_nume_manual,
+    produs_nume_snapshot: produs.produs_nume_snapshot,
+    substanta_activa_snapshot: produs.substanta_activa_snapshot,
+    tip_snapshot: produs.tip_snapshot as ProdusFitosanitar['tip'] | null,
+    frac_irac_snapshot: produs.frac_irac_snapshot,
+    phi_zile_snapshot: produs.phi_zile_snapshot,
+    doza_ml_per_hl: produs.doza_ml_per_hl,
+    doza_l_per_ha: produs.doza_l_per_ha,
+    observatii: produs.observatii,
+  }))
+}
+
+async function normalizeAplicareProdusInputs(
+  ctx: QueryContext,
+  data: InsertAplicarePlanificata
+): Promise<AplicareProdusInput[]> {
+  if (Array.isArray(data.produse) && data.produse.length > 0) {
+    return data.produse
+  }
+
+  if (data.plan_linie_id) {
+    const produsePlan = await loadPlanLinieProduseForAplicare(ctx, data.plan_linie_id)
+    if (produsePlan.length > 0) return produsePlan
+  }
+
+  if (data.produs_id || normalizeText(data.produs_nume_manual)) {
+    return [{
+      ordine: 1,
+      produs_id: data.produs_id ?? null,
+      produs_nume_manual: normalizeText(data.produs_nume_manual),
+      doza_ml_per_hl: data.doza_ml_per_hl ?? null,
+      doza_l_per_ha: data.doza_l_per_ha ?? null,
+      cantitate_totala: data.cantitate_totala_ml ?? null,
+      unitate_cantitate: data.cantitate_totala_ml == null ? null : 'ml',
+      stoc_mutatie_id: data.stoc_mutatie_id ?? null,
+      observatii: data.observatii ?? null,
+    }]
+  }
+
+  return []
+}
+
+async function buildAplicareProdusInserts(
+  ctx: QueryContext,
+  aplicareId: string,
+  produse: AplicareProdusInput[]
+): Promise<AplicareTratamentProdusInsert[]> {
+  const produseById = await getProduseById(
+    ctx,
+    produse.map((produs) => produs.produs_id).filter((produsId): produsId is string => Boolean(produsId))
+  )
+
+  return produse
+    .map<AplicareTratamentProdusInsert | null>((produs, index) => {
+      const produsCatalog = produs.produs_id ? produseById.get(produs.produs_id) ?? null : null
+      const produsNumeManual = normalizeText(produs.produs_nume_manual)
+      const produsNumeSnapshot =
+        produsCatalog?.nume_comercial ??
+        normalizeText(produs.produs_nume_snapshot) ??
+        produsNumeManual
+
+      if (!produsNumeSnapshot) return null
+
+      const row: AplicareTratamentProdusInsert = {
+        tenant_id: ctx.tenantId,
+        aplicare_id: aplicareId,
+        plan_linie_produs_id: produs.plan_linie_produs_id ?? null,
+        ordine: produs.ordine ?? index + 1,
+        produs_id: produs.produs_id ?? null,
+        produs_nume_manual: produs.produs_id ? null : produsNumeManual,
+        produs_nume_snapshot: produsNumeSnapshot,
+        substanta_activa_snapshot:
+          produsCatalog?.substanta_activa ?? normalizeText(produs.substanta_activa_snapshot),
+        tip_snapshot: produsCatalog?.tip ?? produs.tip_snapshot ?? null,
+        frac_irac_snapshot: produsCatalog?.frac_irac ?? normalizeText(produs.frac_irac_snapshot),
+        phi_zile_snapshot: produsCatalog?.phi_zile ?? produs.phi_zile_snapshot ?? null,
+        doza_ml_per_hl: normalizeOptionalPositiveNumber(produs.doza_ml_per_hl),
+        doza_l_per_ha: normalizeOptionalPositiveNumber(produs.doza_l_per_ha),
+        cantitate_totala: normalizeOptionalPositiveNumber(produs.cantitate_totala),
+        unitate_cantitate: produs.unitate_cantitate ?? null,
+        stoc_mutatie_id: produs.stoc_mutatie_id ?? null,
+        observatii: normalizeText(produs.observatii),
+      }
+
+      return row
+    })
+    .filter((produs): produs is AplicareTratamentProdusInsert => Boolean(produs))
+}
+
+async function replaceAplicareProduse(
+  ctx: QueryContext,
+  aplicareId: string,
+  produse: AplicareProdusInput[]
+): Promise<void> {
+  const inserts = await buildAplicareProdusInserts(ctx, aplicareId, produse)
+
+  const { error: deleteError } = await ctx.supabase
+    .from('aplicari_tratament_produse')
+    .delete()
+    .eq('tenant_id', ctx.tenantId)
+    .eq('aplicare_id', aplicareId)
+
+  if (deleteError) throw deleteError
+  if (inserts.length === 0) return
+
+  const { error } = await ctx.supabase
+    .from('aplicari_tratament_produse')
+    .insert(inserts)
+
+  if (error) throw error
+}
+
+async function buildPlanLinieProdusInserts(
+  ctx: QueryContext,
+  linieId: string,
+  produse: InterventieProdusPayload[]
+): Promise<PlanTratamentLinieProdusInsert[]> {
+  const produseById = await getProduseById(
+    ctx,
+    produse.map((produs) => produs.produs_id).filter((produsId): produsId is string => Boolean(produsId))
+  )
+
+  return produse
+    .map<PlanTratamentLinieProdusInsert | null>((produs, index) => {
+      const produsCatalog = produs.produs_id ? produseById.get(produs.produs_id) ?? null : null
+      const produsNumeManual = normalizeText(produs.produs_nume_manual)
+      const produsNumeSnapshot =
+        produsCatalog?.nume_comercial ??
+        normalizeText(produs.produs_nume_snapshot) ??
+        produsNumeManual
+
+      if (!produsNumeSnapshot) return null
+
+      const row: PlanTratamentLinieProdusInsert = {
+        tenant_id: ctx.tenantId,
+        plan_linie_id: linieId,
+        ordine: produs.ordine ?? index + 1,
+        produs_id: produs.produs_id ?? null,
+        produs_nume_manual: produs.produs_id ? null : produsNumeManual,
+        produs_nume_snapshot: produsNumeSnapshot,
+        substanta_activa_snapshot:
+          produsCatalog?.substanta_activa ?? normalizeText(produs.substanta_activa_snapshot),
+        tip_snapshot: produsCatalog?.tip ?? produs.tip_snapshot ?? null,
+        frac_irac_snapshot: produsCatalog?.frac_irac ?? normalizeText(produs.frac_irac_snapshot),
+        phi_zile_snapshot: produsCatalog?.phi_zile ?? produs.phi_zile_snapshot ?? null,
+        doza_ml_per_hl: normalizeOptionalPositiveNumber(produs.doza_ml_per_hl),
+        doza_l_per_ha: normalizeOptionalPositiveNumber(produs.doza_l_per_ha),
+        observatii: normalizeText(produs.observatii),
+      }
+
+      return row
+    })
+    .filter((produs): produs is PlanTratamentLinieProdusInsert => Boolean(produs))
+}
+
+async function replacePlanLinieProduse(
+  ctx: QueryContext,
+  linieId: string,
+  produse: InterventieProdusPayload[]
+): Promise<void> {
+  const inserts = await buildPlanLinieProdusInserts(ctx, linieId, produse)
+
+  const { error: deleteError } = await ctx.supabase
+    .from('planuri_tratament_linie_produse')
+    .delete()
+    .eq('tenant_id', ctx.tenantId)
+    .eq('plan_linie_id', linieId)
+
+  if (deleteError) throw deleteError
+  if (inserts.length === 0) return
+
+  const { error } = await ctx.supabase
+    .from('planuri_tratament_linie_produse')
+    .insert(inserts)
+
+  if (error) throw error
 }
 
 /**
@@ -1064,6 +1742,7 @@ export async function getPlanTratamentComplet(planId: string): Promise<PlanTrata
 
   return {
     ...planCuLinii,
+    interventii: planCuLinii.interventii,
     parcele_asociate: mapPlanParceleAsociate((parcele ?? []) as Array<
       ParcelaPlan & {
         parcela: Pick<Database['public']['Tables']['parcele']['Row'], 'id' | 'id_parcela' | 'nume_parcela' | 'suprafata_m2'> | Array<Pick<Database['public']['Tables']['parcele']['Row'], 'id' | 'id_parcela' | 'nume_parcela' | 'suprafata_m2'>> | null
@@ -1092,16 +1771,30 @@ export async function upsertPlanTratamentCuLinii(
     arhivat: planData.arhivat ?? false,
   }
 
-  const rpcLinii = liniiData.map((linie, index) => ({
-    ordine: linie.ordine ?? index + 1,
-    stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
-    cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
-    produs_id: linie.produs_id ?? null,
-    produs_nume_manual: normalizeText(linie.produs_nume_manual),
-    doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
-    doza_l_per_ha: linie.doza_l_per_ha ?? null,
-    observatii: normalizeText(linie.observatii),
-  }))
+  const rpcLinii = liniiData.map((linie, index) => {
+    const produse = normalizeInterventieProdusPayloads(linie)
+    const firstProdus = firstProdusPayload(produse)
+
+    return {
+      id: linie.id ?? null,
+      ordine: linie.ordine ?? index + 1,
+      stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
+      cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
+      tip_interventie: normalizeText(linie.tip_interventie),
+      scop: normalizeText(linie.scop),
+      regula_repetare: linie.regula_repetare ?? 'fara_repetare',
+      interval_repetare_zile: linie.interval_repetare_zile ?? null,
+      numar_repetari_max: linie.numar_repetari_max ?? null,
+      fereastra_start_offset_zile: linie.fereastra_start_offset_zile ?? null,
+      fereastra_end_offset_zile: linie.fereastra_end_offset_zile ?? null,
+      produse,
+      produs_id: firstProdus?.produs_id ?? null,
+      produs_nume_manual: normalizeText(firstProdus?.produs_nume_manual),
+      doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? null,
+      doza_l_per_ha: firstProdus?.doza_l_per_ha ?? null,
+      observatii: normalizeText(linie.observatii),
+    }
+  })
 
   const { data, error } = await ctx.supabase.rpc('upsert_plan_tratament_cu_linii', {
     p_plan_id: planData.id ?? null,
@@ -1315,22 +2008,38 @@ export async function createPlanTratament(
   if (planError) throw planError
 
   if (linii.length > 0) {
-    const payload: PlanTratamentLinieInsert[] = linii.map((linie, index) => ({
-      tenant_id: ctx.tenantId,
-      plan_id: plan.id,
-      ordine: linie.ordine ?? index + 1,
-      stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
-      cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
-      produs_id: linie.produs_id ?? null,
-      produs_nume_manual: normalizeText(linie.produs_nume_manual),
-      doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
-      doza_l_per_ha: linie.doza_l_per_ha ?? null,
-      observatii: normalizeText(linie.observatii),
-    }))
+    const normalizedLinii = linii.map((linie, index) => {
+      const produse = normalizeInterventieProdusPayloads(linie)
+      const firstProdus = firstProdusPayload(produse)
+
+      return {
+        linie,
+        produse,
+        payload: {
+          tenant_id: ctx.tenantId,
+          plan_id: plan.id,
+          ordine: linie.ordine ?? index + 1,
+          stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
+          cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
+          tip_interventie: normalizeText(linie.tip_interventie),
+          scop: normalizeText(linie.scop),
+          regula_repetare: linie.regula_repetare ?? 'fara_repetare',
+          interval_repetare_zile: linie.interval_repetare_zile ?? null,
+          numar_repetari_max: linie.numar_repetari_max ?? null,
+          fereastra_start_offset_zile: linie.fereastra_start_offset_zile ?? null,
+          fereastra_end_offset_zile: linie.fereastra_end_offset_zile ?? null,
+          produs_id: firstProdus?.produs_id ?? null,
+          produs_nume_manual: firstProdus?.produs_id ? null : normalizeText(firstProdus?.produs_nume_manual),
+          doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? null,
+          doza_l_per_ha: firstProdus?.doza_l_per_ha ?? null,
+          observatii: normalizeText(linie.observatii),
+        } satisfies PlanTratamentLinieInsert,
+      }
+    })
 
     const { error: liniiError } = await ctx.supabase
       .from('planuri_tratament_linii')
-      .insert(payload)
+      .insert(normalizedLinii.map((linie) => linie.payload))
 
     if (liniiError) {
       await ctx.supabase
@@ -1341,6 +2050,19 @@ export async function createPlanTratament(
 
       throw new Error(`Eroare la inserarea liniilor planului: ${liniiError.message}`)
     }
+
+    const { data: insertedLinii, error: reloadLiniiError } = await ctx.supabase
+      .from('planuri_tratament_linii')
+      .select('id,ordine')
+      .eq('tenant_id', ctx.tenantId)
+      .eq('plan_id', plan.id)
+      .order('ordine', { ascending: true })
+
+    if (reloadLiniiError) throw reloadLiniiError
+
+    await Promise.all((insertedLinii ?? []).map((linie, index) =>
+      replacePlanLinieProduse(ctx, linie.id, normalizedLinii[index]?.produse ?? [])
+    ))
   }
 
   const planComplet = await getPlanTratamentCuLinii(plan.id)
@@ -1403,16 +2125,25 @@ export async function addLinieToPlan(
   await ensurePlanExists(ctx, planId)
 
   const ordine = await getNextLinieOrdine(ctx, planId)
+  const produse = normalizeInterventieProdusPayloads({ ...linie, ordine })
+  const firstProdus = firstProdusPayload(produse)
   const payload: PlanTratamentLinieInsert = {
     tenant_id: ctx.tenantId,
     plan_id: planId,
     ordine,
     stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
     cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
-    produs_id: linie.produs_id ?? null,
-    produs_nume_manual: normalizeText(linie.produs_nume_manual),
-    doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
-    doza_l_per_ha: linie.doza_l_per_ha ?? null,
+    tip_interventie: normalizeText(linie.tip_interventie),
+    scop: normalizeText(linie.scop),
+    regula_repetare: linie.regula_repetare ?? 'fara_repetare',
+    interval_repetare_zile: linie.interval_repetare_zile ?? null,
+    numar_repetari_max: linie.numar_repetari_max ?? null,
+    fereastra_start_offset_zile: linie.fereastra_start_offset_zile ?? null,
+    fereastra_end_offset_zile: linie.fereastra_end_offset_zile ?? null,
+    produs_id: firstProdus?.produs_id ?? null,
+    produs_nume_manual: firstProdus?.produs_id ? null : normalizeText(firstProdus?.produs_nume_manual),
+    doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? null,
+    doza_l_per_ha: firstProdus?.doza_l_per_ha ?? null,
     observatii: normalizeText(linie.observatii),
   }
 
@@ -1423,6 +2154,7 @@ export async function addLinieToPlan(
     .single()
 
   if (error) throw error
+  await replacePlanLinieProduse(ctx, data.id, produse)
   return data
 }
 
@@ -1437,13 +2169,41 @@ export async function updateLiniePlan(
   const ctx = await getQueryContext()
 
   const payload: PlanTratamentLinieUpdate = {}
+  let produsePentruUpdate: InterventieProdusPayload[] | null = null
   if (data.ordine !== undefined) payload.ordine = data.ordine
   if (data.stadiu_trigger !== undefined) payload.stadiu_trigger = requireStadiuCod(data.stadiu_trigger, 'stadiu_trigger')
   if (data.cohort_trigger !== undefined) payload.cohort_trigger = normalizeOptionalCohorta(data.cohort_trigger)
-  if (data.produs_id !== undefined) payload.produs_id = data.produs_id
-  if (data.produs_nume_manual !== undefined) payload.produs_nume_manual = normalizeText(data.produs_nume_manual)
-  if (data.doza_ml_per_hl !== undefined) payload.doza_ml_per_hl = data.doza_ml_per_hl
-  if (data.doza_l_per_ha !== undefined) payload.doza_l_per_ha = data.doza_l_per_ha
+  if (data.tip_interventie !== undefined) payload.tip_interventie = normalizeText(data.tip_interventie)
+  if (data.scop !== undefined) payload.scop = normalizeText(data.scop)
+  if (data.regula_repetare !== undefined) payload.regula_repetare = data.regula_repetare
+  if (data.interval_repetare_zile !== undefined) payload.interval_repetare_zile = data.interval_repetare_zile
+  if (data.numar_repetari_max !== undefined) payload.numar_repetari_max = data.numar_repetari_max
+  if (data.fereastra_start_offset_zile !== undefined) payload.fereastra_start_offset_zile = data.fereastra_start_offset_zile
+  if (data.fereastra_end_offset_zile !== undefined) payload.fereastra_end_offset_zile = data.fereastra_end_offset_zile
+  if (
+    data.produse !== undefined ||
+    data.produs_id !== undefined ||
+    data.produs_nume_manual !== undefined ||
+    data.doza_ml_per_hl !== undefined ||
+    data.doza_l_per_ha !== undefined
+  ) {
+    const produse = normalizeInterventieProdusPayloads({
+      ordine: data.ordine ?? 1,
+      stadiu_trigger: data.stadiu_trigger ?? 'repaus',
+      produs_id: data.produs_id ?? null,
+      produs_nume_manual: data.produs_nume_manual ?? null,
+      doza_ml_per_hl: data.doza_ml_per_hl ?? null,
+      doza_l_per_ha: data.doza_l_per_ha ?? null,
+      observatii: data.observatii ?? null,
+      produse: data.produse,
+    })
+    const firstProdus = firstProdusPayload(produse)
+    produsePentruUpdate = produse
+    payload.produs_id = firstProdus?.produs_id ?? null
+    payload.produs_nume_manual = firstProdus?.produs_id ? null : normalizeText(firstProdus?.produs_nume_manual)
+    payload.doza_ml_per_hl = firstProdus?.doza_ml_per_hl ?? null
+    payload.doza_l_per_ha = firstProdus?.doza_l_per_ha ?? null
+  }
   if (data.observatii !== undefined) payload.observatii = normalizeText(data.observatii)
 
   const { data: updated, error } = await ctx.supabase
@@ -1455,6 +2215,9 @@ export async function updateLiniePlan(
     .single()
 
   if (error) throw error
+  if (produsePentruUpdate) {
+    await replacePlanLinieProduse(ctx, linieId, produsePentruUpdate)
+  }
   return updated
 }
 
@@ -1559,11 +2322,31 @@ export async function duplicatePlanTratament(
       ordine: linie.ordine,
       stadiu_trigger: linie.stadiu_trigger,
       cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
+      tip_interventie: linie.tip_interventie,
+      scop: linie.scop,
+      regula_repetare: linie.regula_repetare === 'interval' ? 'interval' : 'fara_repetare',
+      interval_repetare_zile: linie.interval_repetare_zile,
+      numar_repetari_max: linie.numar_repetari_max,
+      fereastra_start_offset_zile: linie.fereastra_start_offset_zile,
+      fereastra_end_offset_zile: linie.fereastra_end_offset_zile,
       produs_id: linie.produs_id,
       produs_nume_manual: linie.produs_nume_manual,
       doza_ml_per_hl: linie.doza_ml_per_hl,
       doza_l_per_ha: linie.doza_l_per_ha,
       observatii: linie.observatii,
+      produse: linie.produse.map((produs) => ({
+        ordine: produs.ordine,
+        produs_id: produs.produs_id,
+        produs_nume_manual: produs.produs_nume_manual,
+        produs_nume_snapshot: produs.produs_nume_snapshot,
+        substanta_activa_snapshot: produs.substanta_activa_snapshot,
+        tip_snapshot: produs.tip_snapshot as ProdusFitosanitar['tip'] | null,
+        frac_irac_snapshot: produs.frac_irac_snapshot,
+        phi_zile_snapshot: produs.phi_zile_snapshot,
+        doza_ml_per_hl: produs.doza_ml_per_hl,
+        doza_l_per_ha: produs.doza_l_per_ha,
+        observatii: produs.observatii,
+      })),
     }))
   )
 }
@@ -1730,6 +2513,24 @@ export async function getParcelaTratamenteContext(parcelaId: string): Promise<Pa
 }
 
 /**
+ * Returnează parcelele disponibile pentru selectorul de intervenție manuală.
+ * Exemplu: `listParceleTratamenteSelector()`
+ */
+export async function listParceleTratamenteSelector(): Promise<ParcelaTratamenteSelectOption[]> {
+  const { supabase, tenantId } = await getQueryContext()
+
+  const { data, error } = await supabase
+    .from('parcele')
+    .select('id,id_parcela,nume_parcela')
+    .eq('tenant_id', tenantId)
+    .order('nume_parcela', { ascending: true })
+    .order('id_parcela', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as ParcelaTratamenteSelectOption[]
+}
+
+/**
  * Atribuie un plan unei parcele și dezactivează celelalte planuri active pentru aceeași pereche parcelă+an.
  * Exemplu: `assignPlanToParcela('uuid-parcela', 'uuid-plan', 2026)`
  * @remarks Rollback manual: dacă insertul noului plan eșuează, planul anterior este reactivat.
@@ -1891,6 +2692,427 @@ export async function getStadiuCurentParcela(
   })[0] ?? null
 }
 
+function parseDateOnlyUtc(value: string | null | undefined): Date | null {
+  if (!value) return null
+  const dateOnly = value.slice(0, 10)
+  const parsed = new Date(`${dateOnly}T00:00:00.000Z`)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function addDaysIsoDate(value: string, days: number): string | null {
+  const date = parseDateOnlyUtc(value)
+  if (!date) return null
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function diffDaysIsoDate(from: string, to: string): number | null {
+  const fromDate = parseDateOnlyUtc(from)
+  const toDate = parseDateOnlyUtc(to)
+  if (!fromDate || !toDate) return null
+  return Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000)
+}
+
+function latestStadiuByDate(stadii: StadiuFenologicParcela[]): StadiuFenologicParcela | null {
+  if (stadii.length === 0) return null
+
+  return [...stadii].sort((first, second) => {
+    const observedDiff = new Date(second.data_observata).getTime() - new Date(first.data_observata).getTime()
+    if (observedDiff !== 0) return observedDiff
+    return new Date(second.created_at).getTime() - new Date(first.created_at).getTime()
+  })[0] ?? null
+}
+
+function toFenofazaCurenta(
+  stadiu: StadiuFenologicParcela | null,
+  parcelaId: string,
+  an: number,
+  cohort: Cohorta | null
+): FenofazaCurentaParcela {
+  const stadiuCod = stadiu ? normalizeStadiu(stadiu.stadiu) : null
+
+  return {
+    parcela_id: parcelaId,
+    an,
+    cohort,
+    stadiu_id: stadiu?.id ?? null,
+    stadiu: stadiuCod,
+    data_observata: stadiu?.data_observata ?? null,
+    sursa: stadiu?.sursa ?? null,
+    observatii: stadiu?.observatii ?? null,
+  }
+}
+
+function buildFenofazeCurente(
+  stadii: StadiuFenologicParcela[],
+  parcelaId: string,
+  an: number
+): FenofazaCurentaParcela[] {
+  const fenofaze: FenofazaCurentaParcela[] = []
+  const single = latestStadiuByDate(stadii.filter((stadiu) => stadiu.cohort == null))
+  if (single) {
+    fenofaze.push(toFenofazaCurenta(single, parcelaId, an, null))
+  }
+
+  for (const cohort of ['floricane', 'primocane'] satisfies Cohorta[]) {
+    const current = latestStadiuByDate(stadii.filter((stadiu) => stadiu.cohort === cohort))
+    if (current) {
+      fenofaze.push(toFenofazaCurenta(current, parcelaId, an, cohort))
+    }
+  }
+
+  if (fenofaze.length === 0) {
+    fenofaze.push(toFenofazaCurenta(null, parcelaId, an, null))
+  }
+
+  return fenofaze
+}
+
+function matchesInterventieFenofaza(
+  interventie: InterventiePlanV2,
+  fenofaza: FenofazaCurentaParcela
+): boolean {
+  const trigger = normalizeStadiu(interventie.stadiu_trigger)
+  if (!trigger || !fenofaza.stadiu || trigger !== fenofaza.stadiu) return false
+
+  const cohortTrigger = normalizeOptionalCohorta(interventie.cohort_trigger)
+  if (cohortTrigger && cohortTrigger !== fenofaza.cohort) return false
+  return true
+}
+
+function aplicareRelevantDate(aplicare: AplicareTratamentDetaliu): string | null {
+  return (aplicare.data_aplicata ?? aplicare.data_planificata)?.slice(0, 10) ?? null
+}
+
+function sortAplicariRelevantDesc(aplicari: AplicareTratamentDetaliu[]): AplicareTratamentDetaliu[] {
+  return [...aplicari].sort((first, second) => {
+    const firstDate = aplicareRelevantDate(first) ?? ''
+    const secondDate = aplicareRelevantDate(second) ?? ''
+    if (firstDate !== secondDate) return secondDate.localeCompare(firstDate)
+    return second.created_at.localeCompare(first.created_at)
+  })
+}
+
+function sameCohortScope(aplicare: AplicareTratamentDetaliu, fenofaza: FenofazaCurentaParcela): boolean {
+  const aplicareCohort = normalizeOptionalCohorta(aplicare.cohort_la_aplicare)
+  if (!fenofaza.cohort) return !aplicareCohort
+  return aplicareCohort === fenofaza.cohort
+}
+
+function getInterventieProdusLabel(interventie: InterventiePlanV2): string {
+  const first = interventie.produse[0]
+  const name = first?.produs?.nume_comercial ?? first?.produs_nume_snapshot ?? first?.produs_nume_manual
+  if (!name) return 'Intervenție fără produs'
+  return interventie.produse.length > 1 ? `${name} +${interventie.produse.length - 1}` : name
+}
+
+function buildInterventieOperationalState(params: {
+  interventie: InterventiePlanV2
+  fenofaza: FenofazaCurentaParcela
+  aplicari: AplicareTratamentDetaliu[]
+  todayIso: string
+}): Pick<
+  InterventieRelevantaV2,
+  | 'ultima_aplicare'
+  | 'aplicare_planificata'
+  | 'aplicari_efectuate_count'
+  | 'urmatoarea_data_estimata'
+  | 'zile_ramase'
+  | 'status_operational'
+  | 'motiv'
+> {
+  const scopedAplicari = params.aplicari.filter((aplicare) => sameCohortScope(aplicare, params.fenofaza))
+  const aplicariAplicate = sortAplicariRelevantDesc(scopedAplicari.filter((aplicare) => aplicare.status === 'aplicata'))
+  const aplicariPlanificate = sortAplicariRelevantDesc(
+    scopedAplicari.filter((aplicare) => aplicare.status === 'planificata' || aplicare.status === 'reprogramata')
+  )
+  const ultimaAplicare = aplicariAplicate[0] ?? null
+  const aplicarePlanificata = aplicariPlanificate[0] ?? null
+  const aplicariEfectuateCount = aplicariAplicate.length
+  const regulaRepetare = params.interventie.regula_repetare === 'interval' ? 'interval' : 'fara_repetare'
+  const intervalZile = normalizeOptionalPositiveNumber(params.interventie.interval_repetare_zile)
+  const maxRepetari = normalizeOptionalPositiveNumber(params.interventie.numar_repetari_max)
+
+  if (!params.fenofaza.stadiu) {
+    return {
+      ultima_aplicare: null,
+      aplicare_planificata: null,
+      aplicari_efectuate_count: 0,
+      urmatoarea_data_estimata: null,
+      zile_ramase: null,
+      status_operational: 'neaplicabila_fara_stadiu',
+      motiv: 'Lipsește fenofaza curentă pentru parcelă.',
+    }
+  }
+
+  if (maxRepetari !== null && aplicariEfectuateCount >= maxRepetari) {
+    return {
+      ultima_aplicare: ultimaAplicare,
+      aplicare_planificata: aplicarePlanificata,
+      aplicari_efectuate_count: aplicariEfectuateCount,
+      urmatoarea_data_estimata: null,
+      zile_ramase: null,
+      status_operational: 'completata_pentru_moment',
+      motiv: `A fost atins numărul maxim de ${maxRepetari} repetări pentru această intervenție.`,
+    }
+  }
+
+  const plannedDate = aplicarePlanificata ? aplicareRelevantDate(aplicarePlanificata) : null
+  const lastAppliedDate = ultimaAplicare ? aplicareRelevantDate(ultimaAplicare) : null
+  const dueDate =
+    plannedDate ??
+    (regulaRepetare === 'interval' && lastAppliedDate && intervalZile
+      ? addDaysIsoDate(lastAppliedDate, intervalZile)
+      : lastAppliedDate
+        ? null
+        : params.todayIso)
+
+  if (!dueDate) {
+    return {
+      ultima_aplicare: ultimaAplicare,
+      aplicare_planificata: aplicarePlanificata,
+      aplicari_efectuate_count: aplicariEfectuateCount,
+      urmatoarea_data_estimata: null,
+      zile_ramase: null,
+      status_operational: 'completata_pentru_moment',
+      motiv: 'Intervenția fără repetare are deja o aplicare efectuată pentru fenofaza curentă.',
+    }
+  }
+
+  const zileRamase = diffDaysIsoDate(params.todayIso, dueDate)
+  const statusOperational: InterventieStatusOperational =
+    typeof zileRamase === 'number' && zileRamase < 0
+      ? 'intarziata'
+      : typeof zileRamase === 'number' && zileRamase > 0
+        ? 'urmeaza'
+        : 'de_facut_azi'
+
+  const motiv =
+    statusOperational === 'intarziata'
+      ? `Scadența estimată a fost pe ${dueDate}.`
+      : statusOperational === 'urmeaza'
+        ? `Următoarea aplicare este estimată peste ${zileRamase} zile.`
+        : aplicarePlanificata
+          ? 'Există o aplicare planificată pentru intervenția din plan.'
+          : 'Fenofaza curentă se potrivește cu intervenția din plan.'
+
+  return {
+    ultima_aplicare: ultimaAplicare,
+    aplicare_planificata: aplicarePlanificata,
+    aplicari_efectuate_count: aplicariEfectuateCount,
+    urmatoarea_data_estimata: dueDate,
+    zile_ramase: zileRamase,
+    status_operational: statusOperational,
+    motiv,
+  }
+}
+
+function toAplicareSummary(
+  aplicare: AplicareTratamentDetaliu | null
+): InterventieRelevantaV2['ultima_aplicare'] {
+  if (!aplicare) return null
+  return {
+    id: aplicare.id,
+    status: aplicare.status,
+    data_planificata: aplicare.data_planificata,
+    data_aplicata: aplicare.data_aplicata,
+    cohort_la_aplicare: aplicare.cohort_la_aplicare,
+  }
+}
+
+/**
+ * Calculează intervențiile din plan care sunt relevante operațional pentru fenofaza curentă a parcelei.
+ * Doar aplicările `din_plan` legate prin `plan_linie_id` influențează acoperirea și repetarea.
+ */
+export async function listInterventiiRelevanteParcela(
+  parcelaId: string,
+  an: number
+): Promise<InterventieRelevantaV2[]> {
+  const [parcela, planActiv, stadii, aplicari] = await Promise.all([
+    getParcelaTratamenteContext(parcelaId),
+    getPlanActivPentruParcela(parcelaId, an),
+    listStadiiPentruParcela(parcelaId, an),
+    listAplicariParcela(parcelaId, {
+      from: new Date(Date.UTC(an, 0, 1)),
+      to: new Date(Date.UTC(an, 11, 31, 23, 59, 59, 999)),
+    }),
+  ])
+
+  if (!planActiv?.plan?.id || !planActiv.plan.activ || planActiv.plan.arhivat) {
+    return []
+  }
+
+  const planComplet = await getPlanTratamentCuLinii(planActiv.plan.id)
+  if (!planComplet) return []
+
+  const fenofaze = buildFenofazeCurente(stadii, parcelaId, an)
+  const todayIso = toIsoDate(new Date())
+  const aplicariDinPlan = aplicari.filter((aplicare) => aplicare.sursa !== 'manuala' && aplicare.plan_linie_id)
+
+  return planComplet.interventii
+    .flatMap((interventie) => {
+      const matchingFenofaze = fenofaze.filter((fenofaza) => matchesInterventieFenofaza(interventie, fenofaza))
+      if (matchingFenofaze.length === 0) return []
+
+      return matchingFenofaze.map((fenofaza) => {
+        const aplicariInterventie = aplicariDinPlan.filter((aplicare) => aplicare.plan_linie_id === interventie.id)
+        const state = buildInterventieOperationalState({
+          interventie,
+          fenofaza,
+          aplicari: aplicariInterventie,
+          todayIso,
+        })
+
+        return {
+          parcela_id: parcelaId,
+          parcela_nume: parcela?.nume_parcela ?? null,
+          parcela_cod: parcela?.id_parcela ?? null,
+          plan: {
+            id: planComplet.id,
+            nume: planComplet.nume,
+            cultura_tip: planComplet.cultura_tip,
+            activ: planComplet.activ,
+            arhivat: planComplet.arhivat,
+          },
+          interventie,
+          produse_planificate: interventie.produse,
+          fenofaza_curenta: fenofaza,
+          ultima_aplicare: state.ultima_aplicare,
+          aplicare_planificata: state.aplicare_planificata,
+          aplicari_efectuate_count: state.aplicari_efectuate_count,
+          regula_repetare: interventie.regula_repetare,
+          interval_repetare_zile: normalizeOptionalPositiveNumber(interventie.interval_repetare_zile),
+          numar_repetari_max: normalizeOptionalPositiveNumber(interventie.numar_repetari_max),
+          urmatoarea_data_estimata: state.urmatoarea_data_estimata,
+          zile_ramase: state.zile_ramase,
+          status_operational: state.status_operational,
+          motiv: state.motiv,
+        } satisfies InterventieRelevantaV2
+      })
+    })
+    .sort((first, second) => {
+      const statusOrder: Record<InterventieStatusOperational, number> = {
+        intarziata: 0,
+        de_facut_azi: 1,
+        urmeaza: 2,
+        completata_pentru_moment: 3,
+        neaplicabila_fara_stadiu: 4,
+      }
+      const statusDiff = statusOrder[first.status_operational] - statusOrder[second.status_operational]
+      if (statusDiff !== 0) return statusDiff
+      const dateA = first.urmatoarea_data_estimata ?? '9999-12-31'
+      const dateB = second.urmatoarea_data_estimata ?? '9999-12-31'
+      if (dateA !== dateB) return dateA.localeCompare(dateB)
+      return first.interventie.ordine - second.interventie.ordine
+    })
+}
+
+export async function listInterventiiRelevanteHub(an: number): Promise<InterventieRelevantaV2[]> {
+  const parcele = await listParceleTratamenteSelector()
+  const results = await Promise.all(
+    parcele.map((parcela) =>
+      listInterventiiRelevanteParcela(parcela.id, an).catch((error) => {
+        console.warn(
+          '[tratamente] relevanță operațională indisponibilă pentru parcelă',
+          sanitizeForLog({
+            parcelaId: parcela.id,
+            error: toSafeErrorContext(error),
+          }),
+        )
+        return []
+      })
+    )
+  )
+
+  return results.flat()
+}
+
+export interface CreateAplicareDinInterventieInput {
+  parcela_id: string
+  plan_linie_id: string
+  data_planificata?: string | null
+  cohort_la_aplicare?: Cohorta | null
+}
+
+/**
+ * Creează aplicarea planificată pentru o intervenție relevantă sau returnează aplicarea deja planificată.
+ */
+export async function createAplicarePlanificataDinInterventie(
+  input: CreateAplicareDinInterventieInput
+): Promise<AplicareTratament> {
+  const ctx = await getQueryContext()
+
+  const { data: row, error } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .select(`${LINIE_WITH_PRODUCTS_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)`)
+    .eq('tenant_id', ctx.tenantId)
+    .eq('id', input.plan_linie_id)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!row) throw new Error('Intervenția din plan nu a fost găsită.')
+
+  const linie = normalizeInterventiePlan(row as PlanLinieWithV2ProductsRow)
+  const plan = firstRelation((row as PlanLinieWithV2ProductsRow & {
+    plan: Pick<PlanTratament, 'id' | 'nume' | 'cultura_tip' | 'activ' | 'arhivat'> | Array<Pick<PlanTratament, 'id' | 'nume' | 'cultura_tip' | 'activ' | 'arhivat'>> | null
+  }).plan)
+
+  if (!plan?.activ || plan.arhivat) {
+    throw new Error('Planul intervenției nu este activ.')
+  }
+
+  const effectiveCohort = input.cohort_la_aplicare ?? normalizeOptionalCohorta(linie.cohort_trigger)
+  let existingQuery = ctx.supabase
+    .from('aplicari_tratament')
+    .select(APLICARE_SELECT)
+    .eq('tenant_id', ctx.tenantId)
+    .eq('parcela_id', input.parcela_id)
+    .eq('plan_linie_id', input.plan_linie_id)
+    .in('status', ['planificata', 'reprogramata'])
+
+  existingQuery = effectiveCohort
+    ? existingQuery.eq('cohort_la_aplicare', effectiveCohort)
+    : existingQuery.is('cohort_la_aplicare', null)
+
+  const { data: existing, error: existingError } = await existingQuery
+    .order('data_planificata', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+  if (existing) return existing
+
+  if (linie.produse.length === 0) {
+    throw new Error('Intervenția din plan nu are produse planificate.')
+  }
+
+  return createAplicarePlanificata({
+    parcela_id: input.parcela_id,
+    plan_linie_id: linie.id,
+    sursa: 'din_plan',
+    tip_interventie: linie.tip_interventie ?? null,
+    scop: linie.scop ?? null,
+    data_planificata: input.data_planificata?.slice(0, 10) ?? toIsoDate(new Date()),
+    stadiu_la_aplicare: linie.stadiu_trigger,
+    cohort_la_aplicare: effectiveCohort,
+    observatii: linie.observatii,
+    produse: linie.produse.map((produs) => ({
+      plan_linie_produs_id: produs.id.startsWith('legacy:') ? null : produs.id,
+      ordine: produs.ordine,
+      produs_id: produs.produs_id,
+      produs_nume_manual: produs.produs_nume_manual,
+      produs_nume_snapshot: produs.produs_nume_snapshot,
+      substanta_activa_snapshot: produs.substanta_activa_snapshot,
+      tip_snapshot: produs.tip_snapshot,
+      frac_irac_snapshot: produs.frac_irac_snapshot,
+      phi_zile_snapshot: produs.phi_zile_snapshot,
+      doza_ml_per_hl: produs.doza_ml_per_hl,
+      doza_l_per_ha: produs.doza_l_per_ha,
+      observatii: produs.observatii,
+    })),
+  })
+}
+
 /**
  * Înregistrează un stadiu fenologic prin upsert pe cheia unică `(parcela_id, an, stadiu, sursa)`.
  * Exemplu: `recordStadiu({ parcela_id: 'uuid', an: 2026, stadiu: 'inflorit', cohort: 'floricane', data_observata: '2026-05-10', sursa: 'manual' })`
@@ -1933,7 +3155,7 @@ export async function listAplicariParcela(
   let query = supabase
     .from('aplicari_tratament')
     .select(
-      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2)`
+      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2)`
     )
     .eq('tenant_id', tenantId)
     .eq('parcela_id', parcelaId)
@@ -1948,17 +3170,11 @@ export async function listAplicariParcela(
   if (error) throw error
 
   const aplicari = ((data ?? []) as Array<
-    AplicareTratament & {
-      produs: AplicareTratamentDetaliu['produs'] | AplicareTratamentDetaliu['produs'][]
-      linie: PlanTratamentLinie | PlanTratamentLinie[] | null
+    AplicareWithV2ProductsRow & {
+      linie: PlanLinieWithV2ProductsRow | PlanLinieWithV2ProductsRow[] | null
       parcela: AplicareTratamentDetaliu['parcela'] | AplicareTratamentDetaliu['parcela'][]
     }
-  >).map((row) => ({
-    ...row,
-    produs: firstRelation(row.produs),
-    linie: firstRelation(row.linie),
-    parcela: firstRelation(row.parcela),
-  }))
+  >).map(normalizeAplicareDetaliuRow)
   if (!opts?.from && !opts?.to) return aplicari
 
   return aplicari.filter((aplicare) => {
@@ -1984,7 +3200,7 @@ export async function listAplicariPlanificateDashboard(
   const { data, error } = await supabase
     .from('aplicari_tratament')
     .select(
-      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2)`
+      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2)`
     )
     .eq('tenant_id', tenantId)
     .eq('status', 'planificata')
@@ -1994,17 +3210,11 @@ export async function listAplicariPlanificateDashboard(
 
   if (error) throw error
   return ((data ?? []) as Array<
-    AplicareTratament & {
-      produs: AplicareTratamentDetaliu['produs'] | AplicareTratamentDetaliu['produs'][]
-      linie: PlanTratamentLinie | PlanTratamentLinie[] | null
+    AplicareWithV2ProductsRow & {
+      linie: PlanLinieWithV2ProductsRow | PlanLinieWithV2ProductsRow[] | null
       parcela: AplicareTratamentDetaliu['parcela'] | AplicareTratamentDetaliu['parcela'][]
     }
-  >).map((row) => ({
-    ...row,
-    produs: firstRelation(row.produs),
-    linie: firstRelation(row.linie),
-    parcela: firstRelation(row.parcela),
-  }))
+  >).map(normalizeAplicareDetaliuRow)
 }
 
 /**
@@ -2019,7 +3229,7 @@ export async function listAplicariCrossParcelPentruInterval(
   let query = ctx.supabase
     .from('aplicari_tratament')
     .select(
-      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,latitudine,longitudine,gps_lat,gps_lng)`
+      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,latitudine,longitudine,gps_lat,gps_lng)`
     )
     .eq('tenant_id', ctx.tenantId)
     .order('data_planificata', { ascending: true })
@@ -2080,7 +3290,7 @@ export async function getAplicareById(id: string): Promise<AplicareTratamentDeta
   const { data, error } = await supabase
     .from('aplicari_tratament')
     .select(
-      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2)`
+      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2)`
     )
     .eq('id', id)
     .eq('tenant_id', tenantId)
@@ -2089,18 +3299,12 @@ export async function getAplicareById(id: string): Promise<AplicareTratamentDeta
   if (error) throw error
   if (!data) return null
 
-  const row = data as AplicareTratament & {
-    produs: AplicareTratamentDetaliu['produs'] | AplicareTratamentDetaliu['produs'][]
-    linie: PlanTratamentLinie | PlanTratamentLinie[] | null
+  const row = data as AplicareWithV2ProductsRow & {
+    linie: PlanLinieWithV2ProductsRow | PlanLinieWithV2ProductsRow[] | null
     parcela: AplicareTratamentDetaliu['parcela'] | AplicareTratamentDetaliu['parcela'][]
   }
 
-  return {
-    ...row,
-    produs: firstRelation(row.produs),
-    linie: firstRelation(row.linie),
-    parcela: firstRelation(row.parcela),
-  }
+  return normalizeAplicareDetaliuRow(row)
 }
 
 /**
@@ -2116,6 +3320,19 @@ export async function getAplicariProdusInAn(
 
   const from = `${an}-01-01`
   const to = `${an}-12-31`
+
+  const { count: v2Count, error: v2Error } = await supabase
+    .from('aplicari_tratament_produse')
+    .select('id, aplicare:aplicari_tratament!inner(id)', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+    .eq('produs_id', produsId)
+    .eq('aplicare.parcela_id', parcelaId)
+    .eq('aplicare.status', 'aplicata')
+    .gte('aplicare.data_aplicata', from)
+    .lte('aplicare.data_aplicata', to)
+
+  if (v2Error) throw v2Error
+  if ((v2Count ?? 0) > 0) return v2Count ?? 0
 
   const { count, error } = await supabase
     .from('aplicari_tratament')
@@ -2146,7 +3363,7 @@ export async function getAplicariAnualAgregate(
   const { data, error } = await supabase
     .from('aplicari_tratament')
     .select(
-      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
+      `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
     )
     .eq('tenant_id', tenantId)
     .eq('parcela_id', parcelaId)
@@ -2181,7 +3398,7 @@ export async function getAplicariAnualToateParcelele(an: number): Promise<Aplica
     supabase
       .from('aplicari_tratament')
       .select(
-        `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
+        `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
       )
       .eq('tenant_id', tenantId)
       .order('data_planificata', { ascending: true })
@@ -2245,7 +3462,7 @@ export async function getTratamenteGlobalStats(an = new Date().getUTCFullYear())
     ctx.supabase
       .from('aplicari_tratament')
       .select(
-        `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), linie:planuri_tratament_linii(${LINIE_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
+        `${APLICARE_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), ${APLICARE_PRODUSE_RELATION_SELECT}, linie:planuri_tratament_linii(${LINIE_WITH_PRODUCTS_SELECT}, plan:planuri_tratament(id,nume,cultura_tip,activ,arhivat)), parcela:parcele(id,id_parcela,nume_parcela,suprafata_m2,cultura,tip_fruct,soi,tip_unitate)`
       )
       .eq('tenant_id', ctx.tenantId)
       .order('data_planificata', { ascending: true })
@@ -2273,8 +3490,13 @@ export async function getTratamenteGlobalStats(an = new Date().getUTCFullYear())
   const produseById = new Map<string, ProdusFitosanitar>()
   for (const row of aplicariRows) {
     const produs = firstRelation(row.produs)
-    if (!produs || produseById.has(produs.id)) continue
-    produseById.set(produs.id, toProdusCatalogItem(produs))
+    if (produs && !produseById.has(produs.id)) {
+      produseById.set(produs.id, toProdusCatalogItem(produs))
+    }
+    for (const produsAplicare of normalizeAplicareProduse(row)) {
+      if (!produsAplicare.produs || produseById.has(produsAplicare.produs.id)) continue
+      produseById.set(produsAplicare.produs.id, toProdusCatalogItem(produsAplicare.produs))
+    }
   }
 
   let alerteFracTotal = 0
@@ -2328,20 +3550,32 @@ export async function createAplicarePlanificata(
   data: InsertAplicarePlanificata
 ): Promise<AplicareTratament> {
   const ctx = await getQueryContext()
+  const produse = await normalizeAplicareProdusInputs(ctx, data)
+  const firstProdus = produse[0] ?? null
 
   const payload: AplicareTratamentInsert = {
     tenant_id: ctx.tenantId,
     parcela_id: data.parcela_id,
     cultura_id: data.cultura_id ?? null,
     plan_linie_id: data.plan_linie_id ?? null,
-    produs_id: data.produs_id ?? null,
-    produs_nume_manual: normalizeText(data.produs_nume_manual),
+    sursa: data.sursa ?? (data.plan_linie_id ? 'din_plan' : 'manuala'),
+    tip_interventie: normalizeText(data.tip_interventie),
+    scop: normalizeText(data.scop),
+    stadiu_fenologic_id: data.stadiu_fenologic_id ?? null,
+    diferente_fata_de_plan: data.diferente_fata_de_plan ?? null,
+    produs_id: firstProdus?.produs_id ?? data.produs_id ?? null,
+    produs_nume_manual: firstProdus?.produs_id
+      ? null
+      : normalizeText(firstProdus?.produs_nume_manual ?? data.produs_nume_manual),
     data_planificata: data.data_planificata,
     data_aplicata: null,
-    doza_ml_per_hl: data.doza_ml_per_hl ?? null,
-    doza_l_per_ha: data.doza_l_per_ha ?? null,
-    cantitate_totala_ml: data.cantitate_totala_ml ?? null,
-    stoc_mutatie_id: data.stoc_mutatie_id ?? null,
+    doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? data.doza_ml_per_hl ?? null,
+    doza_l_per_ha: firstProdus?.doza_l_per_ha ?? data.doza_l_per_ha ?? null,
+    cantitate_totala_ml:
+      firstProdus?.unitate_cantitate === 'ml'
+        ? firstProdus.cantitate_totala ?? null
+        : data.cantitate_totala_ml ?? null,
+    stoc_mutatie_id: firstProdus?.stoc_mutatie_id ?? data.stoc_mutatie_id ?? null,
     status: data.status ?? 'planificata',
     meteo_snapshot: data.meteo_snapshot ?? null,
     stadiu_la_aplicare: normalizeOptionalStadiu(data.stadiu_la_aplicare),
@@ -2359,6 +3593,79 @@ export async function createAplicarePlanificata(
     .single()
 
   if (error) throw error
+  await replaceAplicareProduse(ctx, inserted.id, produse)
+  return inserted
+}
+
+/**
+ * Creează o intervenție manuală în afara planului.
+ * Exemplu: `createAplicareManuala({ parcela_id: 'uuid', status: 'aplicata', data_aplicata: '2026-05-12T10:00:00Z', produse: [...] })`
+ */
+export async function createAplicareManuala(
+  data: CreateAplicareManualaInput
+): Promise<AplicareTratament> {
+  const ctx = await getQueryContext()
+  const produse = Array.isArray(data.produse) && data.produse.length > 0
+    ? data.produse
+    : data.produs_id || normalizeText(data.produs_nume_manual)
+      ? [{
+          ordine: 1,
+          produs_id: data.produs_id ?? null,
+          produs_nume_manual: normalizeText(data.produs_nume_manual),
+          doza_ml_per_hl: data.doza_ml_per_hl ?? null,
+          doza_l_per_ha: data.doza_l_per_ha ?? null,
+          cantitate_totala: data.cantitate_totala_ml ?? null,
+          unitate_cantitate: data.cantitate_totala_ml == null ? null : 'ml',
+          stoc_mutatie_id: data.stoc_mutatie_id ?? null,
+          observatii: data.observatii ?? null,
+        }]
+      : []
+
+  if (produse.length === 0) {
+    throw new Error('O intervenție manuală trebuie să aibă cel puțin un produs.')
+  }
+
+  const firstProdus = produse[0] ?? null
+  const status = data.status ?? 'planificata'
+  const payload: AplicareTratamentInsert = {
+    tenant_id: ctx.tenantId,
+    parcela_id: data.parcela_id,
+    cultura_id: data.cultura_id ?? null,
+    plan_linie_id: null,
+    sursa: 'manuala',
+    tip_interventie: normalizeText(data.tip_interventie),
+    scop: normalizeText(data.scop),
+    stadiu_fenologic_id: data.stadiu_fenologic_id ?? null,
+    diferente_fata_de_plan: data.diferente_fata_de_plan ?? null,
+    produs_id: firstProdus?.produs_id ?? null,
+    produs_nume_manual: firstProdus?.produs_id ? null : normalizeText(firstProdus?.produs_nume_manual),
+    data_planificata: status === 'planificata' ? (data.data_planificata ?? null) : null,
+    data_aplicata: status === 'aplicata' ? (data.data_aplicata ?? data.data_planificata ?? null) : null,
+    doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? data.doza_ml_per_hl ?? null,
+    doza_l_per_ha: firstProdus?.doza_l_per_ha ?? data.doza_l_per_ha ?? null,
+    cantitate_totala_ml:
+      firstProdus?.unitate_cantitate === 'ml'
+        ? firstProdus.cantitate_totala ?? null
+        : data.cantitate_totala_ml ?? null,
+    stoc_mutatie_id: firstProdus?.stoc_mutatie_id ?? data.stoc_mutatie_id ?? null,
+    status,
+    meteo_snapshot: data.meteo_snapshot ?? null,
+    stadiu_la_aplicare: normalizeOptionalStadiu(data.stadiu_la_aplicare),
+    cohort_la_aplicare: normalizeOptionalCohorta(data.cohort_la_aplicare),
+    observatii: normalizeText(data.observatii),
+    operator: normalizeText(data.operator),
+    created_by: ctx.userId,
+    updated_by: ctx.userId,
+  }
+
+  const { data: inserted, error } = await ctx.supabase
+    .from('aplicari_tratament')
+    .insert(payload)
+    .select(APLICARE_SELECT)
+    .single()
+
+  if (error) throw error
+  await replaceAplicareProduse(ctx, inserted.id, produse)
   return inserted
 }
 
@@ -2397,6 +3704,7 @@ export async function markAplicareAsAplicata(
     status: 'aplicata',
     data_aplicata: payload.dataAplicata.toISOString(),
     cantitate_totala_ml: payload.cantitateTotala ?? null,
+    diferente_fata_de_plan: payload.diferenteFataDePlan ?? undefined,
     meteo_snapshot: meteoSnapshot ?? null,
     operator: normalizeText(payload.operator),
     observatii: normalizeText(payload.observatii),
@@ -2408,6 +3716,17 @@ export async function markAplicareAsAplicata(
     updatePayload.cohort_la_aplicare = normalizeOptionalCohorta(payload.cohortLaAplicare)
   }
 
+  if (payload.produse) {
+    const firstProdus = payload.produse[0] ?? null
+    updatePayload.produs_id = firstProdus?.produs_id ?? null
+    updatePayload.produs_nume_manual = firstProdus?.produs_id
+      ? null
+      : normalizeText(firstProdus?.produs_nume_manual)
+    updatePayload.doza_ml_per_hl = firstProdus?.doza_ml_per_hl ?? null
+    updatePayload.doza_l_per_ha = firstProdus?.doza_l_per_ha ?? null
+    updatePayload.stoc_mutatie_id = firstProdus?.stoc_mutatie_id ?? null
+  }
+
   const { data, error } = await ctx.supabase
     .from('aplicari_tratament')
     .update(updatePayload)
@@ -2417,6 +3736,9 @@ export async function markAplicareAsAplicata(
     .single()
 
   if (error) throw error
+  if (payload.produse) {
+    await replaceAplicareProduse(ctx, id, payload.produse)
+  }
   return data
 }
 
@@ -2609,24 +3931,50 @@ export async function isProdusFolositInPlanActiv(
 ): Promise<{ folosit: boolean; planuri: Array<{ id: string; denumire: string }> }> {
   const { supabase, tenantId } = await getQueryContext()
 
-  const { data, error } = await supabase
-    .from('planuri_tratament_linii')
-    .select('plan_id, plan:planuri_tratament!inner(id,nume,activ)')
-    .eq('produs_id', produsId)
-    .eq('tenant_id', tenantId)
+  const [legacyResult, v2Result] = await Promise.all([
+    supabase
+      .from('planuri_tratament_linii')
+      .select('plan_id, plan:planuri_tratament!inner(id,nume,activ)')
+      .eq('produs_id', produsId)
+      .eq('tenant_id', tenantId),
+    supabase
+      .from('planuri_tratament_linie_produse')
+      .select('linie:planuri_tratament_linii!inner(plan_id, plan:planuri_tratament!inner(id,nume,activ))')
+      .eq('produs_id', produsId)
+      .eq('tenant_id', tenantId),
+  ])
 
-  if (error) throw error
+  if (legacyResult.error) throw legacyResult.error
+  if (v2Result.error) throw v2Result.error
 
-  const linii = (data ?? []) as Array<{
+  const legacyLinii = (legacyResult.data ?? []) as Array<{
     plan_id: string
     plan: { id: string; nume: string; activ: boolean } | Array<{ id: string; nume: string; activ: boolean }>
+  }>
+  const v2Linii = (v2Result.data ?? []) as Array<{
+    linie: {
+      plan_id: string
+      plan: { id: string; nume: string; activ: boolean } | Array<{ id: string; nume: string; activ: boolean }>
+    } | Array<{
+      plan_id: string
+      plan: { id: string; nume: string; activ: boolean } | Array<{ id: string; nume: string; activ: boolean }>
+    }> | null
   }>
 
   const planuri: Array<{ id: string; denumire: string }> = []
   const seenIds = new Set<string>()
 
-  for (const linie of linii) {
+  for (const linie of legacyLinii) {
     const plan = Array.isArray(linie.plan) ? linie.plan[0] : linie.plan
+    if (plan && !seenIds.has(plan.id)) {
+      seenIds.add(plan.id)
+      planuri.push({ id: plan.id, denumire: plan.nume })
+    }
+  }
+
+  for (const produsLinie of v2Linii) {
+    const linie = firstRelation(produsLinie.linie)
+    const plan = firstRelation(linie?.plan)
     if (plan && !seenIds.has(plan.id)) {
       seenIds.add(plan.id)
       planuri.push({ id: plan.id, denumire: plan.nume })

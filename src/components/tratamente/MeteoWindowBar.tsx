@@ -68,13 +68,13 @@ export function MeteoWindowBar({ dateLabel, ferestre }: MeteoWindowBarProps) {
                   <p>Temp: {round(fereastra.temperatura_c)}°C</p>
                   <p>Vânt: {round(fereastra.vant_kmh)} km/h</p>
                   <p>Ploaie: {round(fereastra.precipitatii_mm)} mm</p>
-                  {fereastra.motiv_blocaj ? <p>{fereastra.motiv_blocaj}</p> : <p>Fereastră sigură</p>}
+                  {fereastra.motiv_blocaj ? <p>{fereastra.motiv_blocaj}</p> : <p>Fereastră sigură pentru aplicare</p>}
                 </TooltipContent>
               </Tooltip>
             ))}
           </div>
           <div className="mt-2 grid grid-cols-5 text-[11px] text-[var(--text-secondary)]">
-            <span>00</span>
+          <span>00</span>
             <span className="text-center">06</span>
             <span className="text-center">12</span>
             <span className="text-center">18</span>

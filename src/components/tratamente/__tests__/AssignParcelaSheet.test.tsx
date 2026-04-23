@@ -56,7 +56,7 @@ describe('AssignParcelaSheet', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: 'Asignează' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Asociază' })).toBeDisabled()
   })
 
   it('submit cu date valide apelează action', async () => {
@@ -76,7 +76,7 @@ describe('AssignParcelaSheet', () => {
     )
 
     await user.click(screen.getByText('Parcela Nord'))
-    await user.click(screen.getByRole('button', { name: 'Asignează' }))
+    await user.click(screen.getByRole('button', { name: 'Asociază' }))
 
     expect(onSubmit).toHaveBeenCalledWith({ an: 2026, parcelaId: 'p1' })
   })

@@ -37,6 +37,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { queryKeys } from '@/lib/query-keys'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import { sortProduseFitosanitareForLibrary } from '@/lib/tratamente/produse-fitosanitare-ui'
 import { toast } from '@/lib/ui/toast'
 import { hapticError } from '@/lib/utils/haptic'
 import {
@@ -544,7 +545,7 @@ function ProdusUzatDialog({ open, onOpenChange, produsNume, planuri }: ProdusUza
         <strong className="text-[var(--agri-text)]">{planuri.map((p) => p.denumire).join(', ')}</strong>.
       </p>
       <p className="mt-2 text-sm text-[var(--agri-text-muted)]">
-        Șterge linia din plan înainte sau dezactivează planul, apoi încearcă din nou.
+        Șterge intervenția din plan înainte sau dezactivează planul, apoi încearcă din nou.
       </p>
     </AppDialog>
   )
@@ -590,19 +591,23 @@ export function ProduseFitosanitarePageClient() {
 
   // Filters
   const filtered = useMemo(() => {
-    return produse.filter((p) => {
-      if (filterTip !== 'toate' && p.tip !== filterTip) return false
-      if (filterSursa === 'standard' && !isShared(p)) return false
-      if (filterSursa === 'proprii' && isShared(p)) return false
-      if (search.trim()) {
-        const q = normalizeSearch(search.trim())
-        return (
-          normalizeSearch(p.nume_comercial).includes(q) ||
-          normalizeSearch(p.substanta_activa).includes(q)
-        )
-      }
-      return true
-    })
+    return sortProduseFitosanitareForLibrary(
+      produse.filter((p) => {
+        if (filterTip !== 'toate' && p.tip !== filterTip) return false
+        if (filterSursa === 'standard' && !isShared(p)) return false
+        if (filterSursa === 'proprii' && isShared(p)) return false
+        if (search.trim()) {
+          const q = normalizeSearch(search.trim())
+          return (
+            normalizeSearch(p.nume_comercial).includes(q) ||
+            normalizeSearch(p.substanta_activa).includes(q) ||
+            normalizeSearch(p.frac_irac ?? '').includes(q) ||
+            normalizeSearch(p.tip).includes(q)
+          )
+        }
+        return true
+      })
+    )
   }, [produse, filterTip, filterSursa, search])
 
   // Delete mutation

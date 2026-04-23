@@ -17,8 +17,15 @@ import { MeteoSnapshotCard } from '@/components/tratamente/MeteoSnapshotCard'
 import { MeteoWindowBar } from '@/components/tratamente/MeteoWindowBar'
 import { ReprogrameazaSheet, type ReprogrameazaFormValues } from '@/components/tratamente/ReprogrameazaSheet'
 import { VerificariAutomate, type VerificareAutomataState } from '@/components/tratamente/VerificariAutomate'
+import { AplicareSourceBadge } from '@/components/tratamente/AplicareSourceBadge'
 import { AppCard } from '@/components/ui/app-card'
-import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
+import {
+  formatDifferencesSummary,
+  getAplicareContextLabel,
+  getAplicareInterventieLabel,
+  getAplicareProduseSummary,
+} from '@/components/tratamente/aplicare-ui'
+import type { AplicareTratamentDetaliu, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
 import { isRubusMixt, type ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import type { MeteoSnapshot, MeteoZi } from '@/lib/tratamente/meteo'
 import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
@@ -31,6 +38,7 @@ interface AplicareDetaliuClientProps {
   meteoDateLabel: string
   meteoZi: MeteoZi | null
   parcelaId: string
+  produseFitosanitare: ProdusFitosanitar[]
   configurareSezon?: ConfigurareSezon | null
   grupBiologic?: GrupBiologic | null
   stadiuImplicit: string | null
@@ -51,6 +59,60 @@ function normalizeCohorta(value: string | null | undefined) {
   return value === 'floricane' || value === 'primocane' ? value : null
 }
 
+function getStadiuAplicareLabel(aplicare: AplicareTratamentDetaliu): string {
+  const value = aplicare.stadiu_la_aplicare ?? aplicare.linie?.stadiu_trigger ?? null
+  if (!value?.trim()) return '—'
+  return value.replaceAll('_', ' ')
+}
+
+function getPlanLink(aplicare: AplicareTratamentDetaliu): string | null {
+  const planId = aplicare.linie?.plan_id
+  return planId ? `/tratamente/planuri/${planId}` : null
+}
+
+function getProductLabel(produs: NonNullable<AplicareTratamentDetaliu['produse_aplicare']>[number]): string {
+  return (
+    produs.produs?.nume_comercial ??
+    produs.produs_nume_snapshot ??
+    produs.produs_nume_manual ??
+    'Produs nespecificat'
+  )
+}
+
+function getVisualProduse(
+  aplicare: AplicareTratamentDetaliu
+): NonNullable<AplicareTratamentDetaliu['produse_aplicare']> {
+  const produse = aplicare.produse_aplicare ?? []
+  if (produse.length > 0) return produse
+
+  return [
+    {
+      id: `legacy-${aplicare.id}`,
+      tenant_id: aplicare.tenant_id,
+      aplicare_id: aplicare.id,
+      plan_linie_produs_id: null,
+      ordine: 1,
+      produs_id: aplicare.produs_id,
+      produs_nume_manual: aplicare.produs_nume_manual ?? '',
+      produs_nume_snapshot: aplicare.produs?.nume_comercial ?? aplicare.produs_nume_manual ?? '',
+      substanta_activa_snapshot: aplicare.produs?.substanta_activa ?? '',
+      tip_snapshot: aplicare.produs?.tip ?? '',
+      frac_irac_snapshot: aplicare.produs?.frac_irac ?? '',
+      phi_zile_snapshot: aplicare.produs?.phi_zile ?? null,
+      doza_ml_per_hl: aplicare.doza_ml_per_hl ?? null,
+      doza_l_per_ha: aplicare.doza_l_per_ha ?? null,
+      cantitate_totala: aplicare.cantitate_totala_ml ?? null,
+      unitate_cantitate: aplicare.cantitate_totala_ml == null ? null : 'ml',
+      stoc_mutatie_id: aplicare.stoc_mutatie_id,
+      observatii: aplicare.observatii ?? '',
+      created_at: aplicare.created_at,
+      updated_at: aplicare.updated_at,
+      produs: aplicare.produs,
+      plan_linie_produs: null,
+    },
+  ]
+}
+
 export function AplicareDetaliuClient({
   aplicare,
   currentOperator,
@@ -58,6 +120,7 @@ export function AplicareDetaliuClient({
   meteoDateLabel,
   meteoZi,
   parcelaId,
+  produseFitosanitare,
   configurareSezon,
   grupBiologic,
   stadiuImplicit,
@@ -75,6 +138,11 @@ export function AplicareDetaliuClient({
   const rubusMixt = isRubusMixt(configurareSezon)
   const cohortBlocata = normalizeCohorta(aplicare.linie?.cohort_trigger)
   const cohortImplicita = normalizeCohorta(aplicare.cohort_la_aplicare) ?? cohortBlocata ?? null
+  const productsSummary = getAplicareProduseSummary(aplicare)
+  const contextLabel = getAplicareContextLabel(aplicare)
+  const differenceItems = formatDifferencesSummary(aplicare.diferente_fata_de_plan ?? null)
+  const planHref = getPlanLink(aplicare)
+  const visualProduse = getVisualProduse(aplicare)
 
   const handleMarkAplicata = async (values: MarkAplicataFormValues) => {
     startTransition(async () => {
@@ -91,6 +159,10 @@ export function AplicareDetaliuClient({
       formData.set('observatii', values.observatii ?? '')
       if (values.meteoSnapshot) {
         formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
+      }
+      formData.set('produse', JSON.stringify(values.produse))
+      if (values.diferenteFataDePlan) {
+        formData.set('diferente_fata_de_plan', JSON.stringify(values.diferenteFataDePlan))
       }
 
       const result = await markAplicataAction(formData)
@@ -144,6 +216,49 @@ export function AplicareDetaliuClient({
       <div className="mx-auto w-full max-w-5xl space-y-4 py-3 pb-32 md:py-4 md:pb-10">
         <AplicareHero aplicare={aplicare} configurareSezon={configurareSezon} />
 
+        <AppCard className="rounded-2xl bg-[var(--surface-card)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Context operațional</p>
+              <p className="mt-1 text-base text-[var(--text-primary)] [font-weight:700]">{contextLabel}</p>
+              <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                {aplicare.parcela?.nume_parcela ?? 'Parcelă'}
+                {aplicare.data_planificata ? ` · Programată ${aplicare.data_planificata}` : ''}
+                {aplicare.data_aplicata ? ` · Aplicată ${aplicare.data_aplicata}` : ''}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <AplicareSourceBadge source={aplicare.sursa ?? (aplicare.plan_linie_id ? 'din_plan' : 'manuala')} />
+              {planHref ? (
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <Link href={planHref}>Vezi planul</Link>
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
+              <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Intervenție</p>
+              <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">{getAplicareInterventieLabel(aplicare)}</p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                {getStadiuAplicareLabel(aplicare)}
+                {cohortImplicita ? ` · ${cohortImplicita === 'floricane' ? 'Floricane' : 'Primocane'}` : ''}
+              </p>
+            </div>
+            <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
+              <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Produse efective</p>
+              <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">
+                {productsSummary.count > 1 ? `${productsSummary.count} produse` : '1 produs'}
+              </p>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                {productsSummary.title}
+                {productsSummary.detail ? ` · ${productsSummary.detail}` : ''}
+              </p>
+            </div>
+          </div>
+        </AppCard>
+
         {aplicare.status === 'aplicata' ? (
           <MeteoSnapshotCard snapshot={snapshotSalvat} />
         ) : isPlanificata && meteoZi ? (
@@ -158,6 +273,73 @@ export function AplicareDetaliuClient({
         ) : null}
 
         <VerificariAutomate phi={verificari.phi} sezon={verificari.sezon} stoc={verificari.stoc} />
+
+        <AppCard className="rounded-2xl bg-[var(--surface-card)]">
+          <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Produse efective</h3>
+          {visualProduse.length === 0 ? (
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">Nu există produse salvate pentru această aplicare.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {visualProduse.map((produs) => {
+                const name = getProductLabel(produs)
+                const dosage =
+                  typeof produs.doza_ml_per_hl === 'number'
+                    ? `${produs.doza_ml_per_hl} ml/hl`
+                    : typeof produs.doza_l_per_ha === 'number'
+                      ? `${produs.doza_l_per_ha} l/ha`
+                      : null
+                const meta = [
+                  produs.substanta_activa_snapshot ?? produs.produs?.substanta_activa ?? null,
+                  produs.tip_snapshot ?? produs.produs?.tip ?? null,
+                  produs.frac_irac_snapshot ? `FRAC ${produs.frac_irac_snapshot}` : null,
+                  typeof produs.phi_zile_snapshot === 'number' ? `PHI ${produs.phi_zile_snapshot} zile` : null,
+                ].filter(Boolean)
+
+                return (
+                  <div
+                    key={produs.id}
+                    className="rounded-xl bg-[var(--surface-card-muted)] p-3"
+                  >
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm text-[var(--text-primary)] [font-weight:650]">{name}</p>
+                        {meta.length > 0 ? (
+                          <p className="mt-1 text-sm text-[var(--text-secondary)]">{meta.join(' · ')}</p>
+                        ) : null}
+                      </div>
+                      {dosage ? (
+                        <p className="text-sm text-[var(--text-primary)] [font-weight:650]">{dosage}</p>
+                      ) : null}
+                    </div>
+                    {produs.observatii ? (
+                      <p className="mt-2 text-sm text-[var(--text-secondary)]">{produs.observatii}</p>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </AppCard>
+
+        {differenceItems.length > 0 ? (
+          <AppCard className="rounded-2xl bg-[var(--surface-card)]">
+            <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Diferențe față de plan</h3>
+            <ul className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+              {differenceItems.map((item, index) => (
+                <li key={`${item}-${index}`} className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </AppCard>
+        ) : null}
+
+        {aplicare.observatii ? (
+          <AppCard className="rounded-2xl bg-[var(--surface-card)]">
+            <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Observații</h3>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">{aplicare.observatii}</p>
+          </AppCard>
+        ) : null}
       </div>
 
       {!isPlanificata ? (
@@ -196,6 +378,9 @@ export function AplicareDetaliuClient({
         onSubmit={handleMarkAplicata}
         open={markOpen}
         pending={isPending}
+        produseEfective={aplicare.produse_aplicare ?? []}
+        produseFitosanitare={produseFitosanitare}
+        produsePlanificate={aplicare.linie?.produse ?? []}
       />
 
       <ReprogrameazaSheet

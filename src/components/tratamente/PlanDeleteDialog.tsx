@@ -37,8 +37,8 @@ export function PlanDeleteDialog({
           <AlertDialogTitle>Ștergi planul?</AlertDialogTitle>
           <AlertDialogDescription>
             {blocked
-              ? 'Plan cu aplicări istorice nu poate fi șters. Dezactivează-l în schimb.'
-              : `Planul „${planName}” va fi șters definitiv împreună cu liniile și asocierile lui active.`}
+              ? 'Planul cu aplicări istorice nu poate fi șters. Dezactivează-l în schimb.'
+              : `Planul „${planName}” va fi șters definitiv împreună cu intervențiile și asocierile lui active.`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {blocked ? (

@@ -113,7 +113,7 @@ export function AssignParcelaSheet({
       }}
       saving={pending}
       disabled={saveDisabled}
-      saveLabel="Asignează"
+      saveLabel="Asociază"
     />
   )
 
@@ -122,7 +122,7 @@ export function AssignParcelaSheet({
       <AppDrawer
         open={open}
         onOpenChange={onOpenChange}
-        title="Asignează la parcelă"
+        title="Asociază la parcelă"
         description="Selectează parcela și anul pentru această asociere."
         footer={footer}
       >
@@ -135,7 +135,7 @@ export function AssignParcelaSheet({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Asignează la parcelă"
+      title="Asociază la parcelă"
       description="Selectează parcela și anul pentru această asociere."
       footer={footer}
     >

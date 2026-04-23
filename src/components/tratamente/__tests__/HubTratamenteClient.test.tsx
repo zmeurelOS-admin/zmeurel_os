@@ -12,11 +12,13 @@ import type {
 } from '@/lib/supabase/queries/tratamente'
 
 const pushMock = vi.fn()
+const replaceMock = vi.fn()
 const refreshMock = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: replaceMock,
     refresh: refreshMock,
   }),
 }))
@@ -37,6 +39,15 @@ vi.mock('@/components/app/PageHeader', () => ({
   ),
 }))
 
+vi.mock('@/contexts/AddActionContext', () => ({
+  useAddAction: () => ({
+    registerAddAction: vi.fn(() => vi.fn()),
+    triggerAddAction: vi.fn(),
+    currentLabel: '+ Intervenție manuală',
+    hasAction: true,
+  }),
+}))
+
 vi.mock('@/components/app/AppShell', () => ({
   AppShell: ({ header, children }: { header: ReactNode; children: ReactNode }) => (
     <div>
@@ -55,6 +66,7 @@ function createAplicare(
     parcela_id: overrides.parcela_id ?? 'parcela-1',
     cultura_id: null,
     plan_linie_id: 'linie-1',
+    sursa: overrides.sursa ?? 'din_plan',
     produs_id: 'produs-1',
     produs_nume_manual: null,
     data_programata: overrides.data_programata ?? '2026-04-17',
@@ -71,6 +83,8 @@ function createAplicare(
     plan_arhivat: false,
     linie_id: 'linie-1',
     stadiu_trigger: 'inflorit',
+    tip_interventie: overrides.tip_interventie ?? 'fungicid',
+    scop: overrides.scop ?? 'Protecție fitosanitară',
     produs_nume: overrides.produs_nume ?? 'Switch 62.5 WG',
     produs_tip: 'fungicid',
     produs_frac: '9+12',
@@ -80,6 +94,8 @@ function createAplicare(
     observatii: null,
     operator: null,
     meteo_snapshot: null,
+    produse_aplicare: [],
+    produse_planificate: [],
     phi_warning: overrides.phi_warning ?? false,
     urmatoarea_recoltare: null,
   }
@@ -123,8 +139,8 @@ describe('HubTratamenteClient', () => {
   it('afișează empty state când nu există aplicări', () => {
     renderHub([])
 
-    expect(screen.getByText('Niciun tratament programat')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Creează plan tratament' })).toBeInTheDocument()
+    expect(screen.getByText('Nicio aplicare programată')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Creează plan nou' })).toBeInTheDocument()
   })
 
   it('afișează aplicările din tabul Astăzi și KPI-urile de bază', () => {
@@ -147,7 +163,7 @@ describe('HubTratamenteClient', () => {
 
     await user.click(screen.getByRole('button', { name: 'Săptămâna asta' }))
     await user.click(screen.getByRole('button', { name: 'Parcela Sud' }))
-    await user.click(screen.getByRole('button', { name: 'Omise' }))
+    await user.selectOptions(screen.getByLabelText('Filtru status'), 'omisa')
 
     expect(screen.queryByRole('link', { name: 'Parcela Nord' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Parcela Sud' })).toBeInTheDocument()
@@ -162,8 +178,8 @@ describe('HubTratamenteClient', () => {
       createAplicare({ id: 'a3', parcela_id: 'p2', parcela_nume: 'Parcela Sud', status: 'planificata', data_programata: inTwoDaysIso }),
     ])
 
-    await user.click(screen.getByRole('button', { name: 'Omise' }))
     await user.click(screen.getByRole('button', { name: 'Toate' }))
+    await user.selectOptions(screen.getByLabelText('Filtru status'), 'omisa')
 
     await waitFor(() => {
       expect(screen.getAllByText('Omisă')).toHaveLength(2)

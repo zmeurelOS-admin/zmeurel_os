@@ -30,10 +30,10 @@ export function LinieDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Ștergi linia?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Ești sigur că vrei să ștergi linia pentru stadiul {stadiuLabel}? Această acțiune nu afectează aplicările deja create.
-          </AlertDialogDescription>
+        <AlertDialogTitle>Ștergi intervenția?</AlertDialogTitle>
+        <AlertDialogDescription>
+            Ești sigur că vrei să ștergi intervenția pentru fenofaza {stadiuLabel}? Această acțiune nu afectează aplicările deja create.
+        </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Renunță</AlertDialogCancel>
@@ -45,7 +45,7 @@ export function LinieDeleteDialog({
               void onConfirm()
             }}
           >
-            {pending ? 'Se șterge...' : 'Șterge linia'}
+            {pending ? 'Se șterge...' : 'Șterge intervenția'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

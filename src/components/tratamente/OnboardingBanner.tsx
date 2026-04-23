@@ -38,7 +38,7 @@ export function OnboardingBanner({
       <div className="mt-4 grid gap-3">
         <OnboardingStep
           step={1}
-          label="Creează primul plan de tratament"
+          label="Creează primul plan"
           description="Poți porni din wizard sau dintr-un import Excel existent."
           status={arePlan ? 'completed' : 'active'}
           ctaHref="/tratamente/planuri/nou"
@@ -46,13 +46,13 @@ export function OnboardingBanner({
         />
         <OnboardingStep
           step={2}
-          label="Asignează planul la o parcelă"
+          label="Asociază planul la o parcelă"
           description="Leagă planul de parcela potrivită și sezonul curent."
           status={areParceleCuPlan ? 'completed' : arePlan ? 'active' : 'pending'}
         />
         <OnboardingStep
           step={3}
-          label="Înregistrează stadiul fenologic curent"
+          label="Înregistrează fenofaza curentă"
           description="După primul stadiu observat, dashboard-ul poate propune aplicările relevante."
           status={areStadii ? 'completed' : areParceleCuPlan ? 'active' : 'pending'}
         />

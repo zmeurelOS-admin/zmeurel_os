@@ -37,7 +37,7 @@ import {
 const sursaValues = ['manual', 'gdd', 'poza'] as const
 
 const formSchema = z.object({
-  stadiu: z.string().trim().min(1, 'Selectează un stadiu.'),
+  stadiu: z.string().trim().min(1, 'Selectează o fenofază.'),
   cohort: z.enum(['floricane', 'primocane']).optional(),
   data_observata: z.string().trim().min(1, 'Data observării este obligatorie.'),
   sursa: z.enum(sursaValues, {
@@ -165,13 +165,13 @@ export function RecordStadiuSheet({
       ) : null}
 
       <div className="space-y-2">
-        <Label>Stadiu</Label>
+        <Label>Fenofază</Label>
         <Select
           value={selectedStadiu}
           onValueChange={(value) => form.setValue('stadiu', value, { shouldValidate: true })}
         >
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selectează stadiul" />
+            <SelectValue placeholder="Selectează fenofaza" />
           </SelectTrigger>
           <SelectContent>
             {stadiiOptions.map((option) => (
@@ -234,7 +234,7 @@ export function RecordStadiuSheet({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-2xl">
           <SheetHeader>
-            <SheetTitle>Actualizează stadiu</SheetTitle>
+        <SheetTitle>Actualizează fenofaza</SheetTitle>
             <p className="text-sm text-[var(--text-secondary)]">Înregistrare pentru anul {an}</p>
           </SheetHeader>
           <div className="px-4 pb-4">{content}</div>
@@ -265,7 +265,7 @@ export function RecordStadiuSheet({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Actualizează stadiu"
+      title="Actualizează fenofaza"
       description={`Înregistrare pentru anul ${an}`}
       footer={
         <DialogFormActions

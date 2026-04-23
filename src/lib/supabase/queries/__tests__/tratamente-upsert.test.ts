@@ -178,7 +178,7 @@ describe('upsertPlanTratamentCuLinii', () => {
         arhivat: false,
       },
       p_linii: [
-        {
+        expect.objectContaining({
           ordine: 1,
           stadiu_trigger: 'buton_verde',
           cohort_trigger: null,
@@ -187,7 +187,18 @@ describe('upsertPlanTratamentCuLinii', () => {
           doza_ml_per_hl: 200,
           doza_l_per_ha: null,
           observatii: 'Test',
-        },
+          regula_repetare: 'fara_repetare',
+          produse: [
+            expect.objectContaining({
+              ordine: 1,
+              produs_id: 'prod-1',
+              produs_nume_manual: null,
+              doza_ml_per_hl: 200,
+              doza_l_per_ha: null,
+              observatii: 'Test',
+            }),
+          ],
+        }),
       ],
       p_parcele_ids: ['parcela-1'],
       p_an: 2026,

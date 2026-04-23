@@ -9,14 +9,40 @@ import {
 } from '@/lib/supabase/queries/tratamente'
 import type { PlanSaveInput } from '@/lib/tratamente/import/types'
 
+function normalizeImportKey(value: string | null | undefined) {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function validateImportLineProducts(line: PlanSaveInput['linii'][number]) {
+  if (line.produse.length === 0) {
+    throw new Error(`Intervenția ${line.ordine} nu are produse de importat.`)
+  }
+
+  for (const produs of line.produse) {
+    const hasCatalogProduct = Boolean(produs.produs_id)
+    const hasManualProduct = Boolean(produs.produs_nume_manual?.trim() || produs.produs_nume_snapshot?.trim())
+    const hasProductToCreate = Boolean(produs.produs_de_creat?.nume_comercial?.trim())
+
+    if (!hasCatalogProduct && !hasManualProduct && !hasProductToCreate) {
+      throw new Error(`Produsul ${produs.ordine} din intervenția ${line.ordine} nu are nume sau produs din bibliotecă.`)
+    }
+  }
+}
+
 export type {
   DraftProdusImport,
   FuzzySuggestion,
   ParseResult,
   ParsedLine,
+  ParsedInterventieProdus,
   ParsedPlan,
   PlanSaveInput,
   PlanSaveLineInput,
+  PlanSaveLineProductInput,
   ProdusMatch,
 } from '@/lib/tratamente/import/types'
 
@@ -38,37 +64,57 @@ export async function saveImportedPlansAction(
 
         const resolvedLines = []
         for (const line of plan.linii) {
-          let produsId = line.produs_id
+          validateImportLineProducts(line)
+          const produse = []
+          for (const produs of line.produse) {
+            let produsId = produs.produs_id
 
-          if (line.produs_de_creat) {
-            const cacheKey = [
-              line.produs_de_creat.nume_comercial.trim().toLowerCase(),
-              line.produs_de_creat.substanta_activa.trim().toLowerCase(),
-              line.produs_de_creat.tip,
-            ].join('|')
+            if (produs.produs_de_creat) {
+              const cacheKey = [
+                normalizeImportKey(produs.produs_de_creat.nume_comercial),
+                normalizeImportKey(produs.produs_de_creat.substanta_activa),
+                produs.produs_de_creat.tip,
+              ].join('|')
 
-            const cachedProdusId = createdProduseCache.get(cacheKey)
-            if (cachedProdusId) {
-              produsId = cachedProdusId
-            } else {
-              const createdProdus = await createProdusFitosanitar({
-                ...line.produs_de_creat,
-                activ: line.produs_de_creat.activ ?? true,
-              })
-              produsId = createdProdus.id
-              createdProduseCache.set(cacheKey, createdProdus.id)
+              const cachedProdusId = createdProduseCache.get(cacheKey)
+              if (cachedProdusId) {
+                produsId = cachedProdusId
+              } else {
+                const createdProdus = await createProdusFitosanitar({
+                  ...produs.produs_de_creat,
+                  activ: produs.produs_de_creat.activ ?? true,
+                })
+                produsId = createdProdus.id
+                createdProduseCache.set(cacheKey, createdProdus.id)
+              }
             }
+
+            produse.push({
+              ordine: produs.ordine,
+              produs_id: produsId ?? null,
+              produs_nume_manual: produs.produs_nume_manual,
+              produs_nume_snapshot: produs.produs_nume_snapshot,
+              substanta_activa_snapshot: produs.substanta_activa_snapshot,
+              tip_snapshot: produs.tip_snapshot,
+              frac_irac_snapshot: produs.frac_irac_snapshot,
+              phi_zile_snapshot: produs.phi_zile_snapshot,
+              doza_ml_per_hl: produs.doza_ml_per_hl,
+              doza_l_per_ha: produs.doza_l_per_ha,
+              observatii: produs.observatii,
+            })
           }
 
         resolvedLines.push({
           ordine: line.ordine,
           stadiu_trigger: line.stadiu_trigger,
           cohort_trigger: line.cohort_trigger,
-          produs_id: produsId ?? null,
-          produs_nume_manual: line.produs_nume_manual,
-          doza_ml_per_hl: line.doza_ml_per_hl,
-          doza_l_per_ha: line.doza_l_per_ha,
+          tip_interventie: line.tip_interventie,
+          scop: line.scop,
+          regula_repetare: line.regula_repetare,
+          interval_repetare_zile: line.interval_repetare_zile,
+          numar_repetari_max: line.numar_repetari_max,
           observatii: line.observatii,
+          produse,
         })
       }
 

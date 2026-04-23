@@ -203,6 +203,40 @@ describe('duplicatePlanTratament', () => {
           }
         }
 
+        if (table === 'planuri_tratament_linie_produse') {
+          return {
+            delete: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(async () => ({ data: null, error: null })),
+              })),
+            })),
+            insert: vi.fn(async () => ({ data: null, error: null })),
+          }
+        }
+
+        if (table === 'produse_fitosanitare') {
+          return {
+            select: vi.fn(() => ({
+              in: vi.fn(async () => ({
+                data: [
+                  {
+                    id: 'prod-1',
+                    tenant_id: 'tenant-1',
+                    nume_comercial: 'Produs 1',
+                    substanta_activa: 'sub',
+                    tip: 'fungicid',
+                    frac_irac: null,
+                    phi_zile: null,
+                    nr_max_aplicari_per_sezon: null,
+                    activ: true,
+                  },
+                ],
+                error: null,
+              })),
+            })),
+          }
+        }
+
         throw new Error(`Unexpected table: ${table}`)
       }),
     }

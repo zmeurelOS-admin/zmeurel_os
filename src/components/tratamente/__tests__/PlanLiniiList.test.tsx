@@ -107,7 +107,7 @@ describe('PlanLiniiList', () => {
     })
   })
 
-  it('add linie deschide dialogul', async () => {
+  it('add intervenție deschide dialogul', async () => {
     const user = userEvent.setup()
 
     render(
@@ -119,12 +119,12 @@ describe('PlanLiniiList', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /adaugă linie/i }))
+    await user.click(screen.getByRole('button', { name: /adaugă intervenție/i }))
 
-    expect(screen.getByText('Adaugă linie tratament')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Adaugă intervenție' })).toBeInTheDocument()
   })
 
-  it('afișează empty state la 0 linii', () => {
+  it('afișează empty state la 0 intervenții', () => {
     render(
       <PlanLiniiList
         culturaTip="zmeur"
@@ -134,6 +134,6 @@ describe('PlanLiniiList', () => {
       />
     )
 
-    expect(screen.getByText('Nu există încă linii în acest plan.')).toBeInTheDocument()
+    expect(screen.getByText('Nu există încă intervenții în acest plan.')).toBeInTheDocument()
   })
 })

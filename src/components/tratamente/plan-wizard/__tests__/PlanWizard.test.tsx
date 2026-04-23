@@ -101,12 +101,13 @@ describe('PlanWizard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Continuă' }))
 
-    expect(screen.getByText('Linii de tratament')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Intervenții planificate', level: 1 })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Adaugă linie' }))
-    await user.selectOptions(screen.getByLabelText('Stadiu fenologic *'), 'buton_verde')
-    await user.click(screen.getByRole('button', { name: /cupru standard/i }))
-    await user.click(screen.getByRole('button', { name: 'Salvează linia' }))
+    await user.click(screen.getByRole('button', { name: 'Adaugă intervenție' }))
+    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'buton_verde')
+    await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
+    await user.click(screen.getByText('Cupru Standard'))
+    await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
 
     expect(screen.getByText('Cupru Standard')).toBeInTheDocument()
 

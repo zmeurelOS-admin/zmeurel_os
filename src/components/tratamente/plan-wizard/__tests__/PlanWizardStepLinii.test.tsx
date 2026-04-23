@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -54,6 +55,13 @@ function renderStep(
   initialLinii: PlanWizardLinieDraft[] = [],
   options?: { culturaTip?: string; grupBiologic?: 'rubus' | 'solanacee' }
 ) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
   const TestHost = () => {
     const [linii, setLinii] = React.useState<PlanWizardLinieDraft[]>(initialLinii)
 
@@ -71,7 +79,11 @@ function renderStep(
     )
   }
 
-  return render(<TestHost />)
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <TestHost />
+    </QueryClientProvider>
+  )
 }
 
 describe('PlanWizardStepLinii', () => {
@@ -80,34 +92,36 @@ describe('PlanWizardStepLinii', () => {
 
     renderStep()
 
-    await user.click(screen.getByRole('button', { name: /adaugă linie tratament/i }))
-    await user.selectOptions(screen.getByLabelText('Stadiu fenologic *'), 'buton_verde')
-    await user.click(screen.getByRole('button', { name: /cupru standard/i }))
-    await user.click(screen.getByRole('button', { name: 'Salvează linia' }))
+    await user.click(screen.getAllByRole('button', { name: /adaugă intervenție/i })[0])
+    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'buton_verde')
+    await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
+    await user.click(screen.getByText('Cupru Standard'))
+    await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
 
     expect(screen.getByText('Cupru Standard')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /adaugă linie/i }))
-    await user.selectOptions(screen.getByLabelText('Stadiu fenologic *'), 'inflorit')
-    await user.click(screen.getByRole('button', { name: /sulf rapid/i }))
-    await user.click(screen.getByRole('button', { name: 'Salvează linia' }))
+    await user.click(screen.getByRole('button', { name: 'Adaugă intervenție' }))
+    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'inflorit')
+    await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
+    await user.click(screen.getByText('Sulf Rapid'))
+    await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
 
     const cardsBeforeMove = screen.getAllByText(/Cupru Standard|Sulf Rapid/)
     expect(cardsBeforeMove[0]).toHaveTextContent('Cupru Standard')
 
-    await user.click(screen.getByRole('button', { name: 'Mută sus linia 2' }))
+    await user.click(screen.getByRole('button', { name: 'Mută sus intervenția 2' }))
 
-    const stateAfterMove = JSON.parse(screen.getByTestId('state').textContent ?? '[]') as Array<{ produs_id: string | null }>
-    expect(stateAfterMove[0]?.produs_id).toBe('prod-2')
+    const stateAfterMove = JSON.parse(screen.getByTestId('state').textContent ?? '[]') as Array<{ produse: Array<{ produs_id: string | null }> }>
+    expect(stateAfterMove[0]?.produse[0]?.produs_id).toBe('prod-2')
 
-    await user.click(screen.getByRole('button', { name: 'Editează linia 1' }))
-    await user.clear(screen.getByLabelText('Observații'))
-    await user.type(screen.getByLabelText('Observații'), 'Aplicare după ploaie')
-    await user.click(screen.getByRole('button', { name: 'Salvează linia' }))
+    await user.click(screen.getByRole('button', { name: 'Editează intervenția 1' }))
+    await user.clear(screen.getByLabelText('Observații intervenție'))
+    await user.type(screen.getByLabelText('Observații intervenție'), 'Aplicare după ploaie')
+    await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
 
     expect(screen.getByText('Aplicare după ploaie')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Șterge linia 1' }))
+    await user.click(screen.getByRole('button', { name: 'Șterge intervenția 1' }))
     await user.click(screen.getByRole('button', { name: 'Confirmă' }))
 
     expect(screen.queryByText('Sulf Rapid')).not.toBeInTheDocument()
@@ -119,9 +133,9 @@ describe('PlanWizardStepLinii', () => {
 
     renderStep([], { culturaTip: 'rosie', grupBiologic: 'solanacee' })
 
-    await user.click(screen.getByRole('button', { name: /adaugă linie tratament/i }))
+    await user.click(screen.getAllByRole('button', { name: /adaugă intervenție/i })[0])
 
-    const select = screen.getByLabelText('Stadiu fenologic *') as HTMLSelectElement
+    const select = screen.getByLabelText('Fenofază *') as HTMLSelectElement
     const optionValues = Array.from(select.options).map((option) => option.value)
 
     expect(optionValues).toContain('rasad')

@@ -62,7 +62,7 @@ export function PlanDuplicateDialog({
         open={open}
         onOpenChange={onOpenChange}
         title="Duplică planul"
-        description="Creează o copie a planului cu toate liniile lui."
+        description="Creează o copie a planului cu toate intervențiile lui."
         footer={footer}
       >
         {content}
@@ -75,7 +75,7 @@ export function PlanDuplicateDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Duplică planul"
-      description="Creează o copie a planului cu toate liniile lui."
+      description="Creează o copie a planului cu toate intervențiile lui."
       footer={footer}
     >
       {content}

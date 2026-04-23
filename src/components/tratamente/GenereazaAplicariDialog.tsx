@@ -37,9 +37,9 @@ export function GenereazaAplicariDialog({
           <AlertDialogTitle>Generează aplicări</AlertDialogTitle>
           <AlertDialogDescription>
             {hasAplicari
-              ? `Se vor crea ${creatableCount} aplicări planificate pe baza planului și stadiilor înregistrate. Continui?`
-              : 'Nu există aplicări noi de generat pentru planul și stadiile înregistrate acum.'}
-            {skippedCount > 0 ? ` ${skippedCount} aplicări au fost deja create și vor fi ignorate.` : ''}
+              ? `Se vor crea ${creatableCount} aplicări planificate pe baza planului și a fenofazelor înregistrate. Continui?`
+              : 'Nu există aplicări noi de generat pentru planul și fenofazele înregistrate acum.'}
+            {skippedCount > 0 ? ` ${skippedCount} aplicări existau deja și vor fi ignorate.` : ''}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

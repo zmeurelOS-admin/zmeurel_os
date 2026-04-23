@@ -35,9 +35,10 @@ import { PlanWizardStepLinii } from '@/components/tratamente/plan-wizard/PlanWiz
 import { PlanWizardStepRevizuire } from '@/components/tratamente/plan-wizard/PlanWizardStepRevizuire'
 import {
   asociereSchema,
-  lineToPayload,
+  linieDraftSchema,
   planInfoSchema,
   planToWizardValues,
+  lineToPayload,
   type PlanWizardInfoData,
   type PlanWizardLinieDraft,
   type PlanWizardRevizuireData,
@@ -64,9 +65,9 @@ const STEPS: Array<{
   subtitle: string
   title: string
 }> = [
-  { id: 1, icon: Sprout, title: 'Info plan', subtitle: 'Nume și cultură' },
-  { id: 2, icon: Layers3, title: 'Linii tratament', subtitle: 'Aplicări și ordine' },
-  { id: 3, icon: ShieldCheck, title: 'Revizuire', subtitle: 'Warnings și asociere' },
+  { id: 1, icon: Sprout, title: 'Informații plan', subtitle: 'Nume și cultură' },
+  { id: 2, icon: Layers3, title: 'Intervenții planificate', subtitle: 'Produse și ordine' },
+  { id: 3, icon: ShieldCheck, title: 'Revizuire', subtitle: 'Avertismente și asociere' },
 ]
 
 function getInfoErrors(value: PlanWizardInfoData): InfoErrors {
@@ -83,7 +84,7 @@ function getInfoErrors(value: PlanWizardInfoData): InfoErrors {
 }
 
 function isLineValid(linie: PlanWizardLinieDraft) {
-  return lineToPayload(linie).stadiu_trigger.trim().length > 0 && (linie.produs_id?.trim() || linie.produs_nume_manual?.trim()) && Number.isFinite(linie.doza) && linie.doza > 0
+  return linieDraftSchema.safeParse(linie).success
 }
 
 export function PlanWizard({
@@ -419,7 +420,7 @@ export function PlanWizard({
           <AlertDialogHeader>
             <AlertDialogTitle>Planul are avertismente</AlertDialogTitle>
             <AlertDialogDescription>
-              Planul are {warnings.length} avertisment{warnings.length === 1 ? '' : 'e'}. Poți reveni pentru revizuire sau îl poți salva acum.
+              Planul are {warnings.length} avertisment{warnings.length === 1 ? '' : 'e'}. Poți reveni la revizuire sau îl poți salva acum.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

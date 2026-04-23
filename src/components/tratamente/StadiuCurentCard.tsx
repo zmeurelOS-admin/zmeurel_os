@@ -75,10 +75,10 @@ function renderEmptyStageCard(
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">
-            {cohort ? `Stadiu curent · ${getCohortaLabel(cohort)}` : 'Stadiu curent'}
+            {cohort ? `Fenofază curentă · ${getCohortaLabel(cohort)}` : 'Fenofază curentă'}
           </p>
           <p className="mt-1 text-base font-medium text-[var(--text-primary)]">
-            Nu ai înregistrat niciun stadiu anul acesta.
+            Nu ai înregistrat încă nicio fenofază anul acesta.
           </p>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             Începe cu{' '}
@@ -98,7 +98,7 @@ function renderEmptyStageCard(
             .
           </p>
           <Button type="button" size="sm" className="mt-4 bg-[var(--agri-primary)] text-white" onClick={() => onRecord(cohort ?? undefined)}>
-            Înregistrează primul stadiu
+            Înregistrează prima fenofază
           </Button>
         </div>
       </div>
@@ -121,15 +121,15 @@ function renderStageCard(
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">
-            {stage.cohort ? `Stadiu curent · ${getCohortaLabel(stage.cohort)}` : 'Stadiu curent'}
+            {stage.cohort ? `Fenofază curentă · ${getCohortaLabel(stage.cohort)}` : 'Fenofază curentă'}
           </p>
           <h2 className="mt-1 text-xl leading-tight text-[var(--text-primary)] [font-weight:750]">
             {getStadiuLabel(stage.stadiuCurent.stadiu, configurareSezon ?? null, grupBiologic, stage.cohort)}
           </h2>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">{formatObservedLabel(stage.stadiuCurent)}</p>
         </div>
-        <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={() => onRecord(stage.cohort ?? undefined)}>
-          Actualizează stadiu
+          <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={() => onRecord(stage.cohort ?? undefined)}>
+          Actualizează fenofaza
         </Button>
       </div>
 
@@ -148,8 +148,8 @@ function renderStageCard(
           />
         </div>
         <p className="mt-2 text-xs text-[var(--text-secondary)]">
-          {stage.stadiuUrmator
-            ? `Următorul stadiu: ${getStadiuLabel(stage.stadiuUrmator, configurareSezon ?? null, grupBiologic, stage.cohort)}`
+            {stage.stadiuUrmator
+            ? `Următoarea fenofază: ${getStadiuLabel(stage.stadiuUrmator, configurareSezon ?? null, grupBiologic, stage.cohort)}`
             : 'Parcela este deja în ultimul stadiu definit pentru acest an.'}
         </p>
       </div>

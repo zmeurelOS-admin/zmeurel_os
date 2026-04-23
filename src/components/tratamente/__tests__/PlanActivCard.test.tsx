@@ -11,8 +11,8 @@ describe('PlanActivCard', () => {
 
     render(<PlanActivCard detailsHref={null} onAssign={onAssign} planActiv={null} />)
 
-    expect(screen.getByText(`Nicio parcelă asignată pentru ${currentYear}`)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Atribuie plan' })).toBeInTheDocument()
+    expect(screen.getByText(`Nicio parcelă asociată pentru ${currentYear}`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Asociază plan' })).toBeInTheDocument()
   })
 
   it('afișează numele planului, cultura_tip și link-ul corect', () => {

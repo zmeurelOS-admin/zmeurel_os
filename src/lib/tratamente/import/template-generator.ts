@@ -2,10 +2,16 @@ import ExcelJS from 'exceljs'
 
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
 import {
+  COHORT_TRIGGER_VALUES,
   CULTURA_LABELS,
   CULTURI_ACCEPTATE,
+  REGULA_REPETARE_LABELS,
+  REGULA_REPETARE_VALUES,
   STADIU_LABELS,
   STADII_VALIDE,
+  TIP_INTERVENTIE_LABELS,
+  TIP_INTERVENTIE_VALUES,
+  TIP_PRODUS_VALUES,
 } from '@/lib/tratamente/import/template-spec'
 
 const HEADER_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF9C4' } } as const
@@ -18,11 +24,40 @@ const BORDER = {
   right: { style: 'thin' as const, color: { argb: 'FFD9D9D9' } },
 }
 
+const INTERVENTII_HEADERS = [
+  'plan_nume',
+  'cultura',
+  'interventie_key',
+  'ordine',
+  'stadiu',
+  'cohorta_trigger',
+  'tip_interventie',
+  'scop',
+  'regula_repetare',
+  'interval_repetare_zile',
+  'numar_repetari_max',
+  'observatii',
+] as const
+
+const PRODUSE_HEADERS = [
+  'interventie_key',
+  'ordine_produs',
+  'produs',
+  'substanta_activa',
+  'tip_produs',
+  'doza_ml_per_hl',
+  'doza_l_per_ha',
+  'phi_zile',
+  'frac_irac',
+  'salveaza_in_biblioteca',
+  'observatii',
+] as const
+
 function styleHeaderCell(cell: ExcelJS.Cell, fill: ExcelJS.Fill = HEADER_FILL) {
   cell.fill = fill
   cell.font = { bold: true }
   cell.border = BORDER
-  cell.alignment = { vertical: 'middle', horizontal: 'left' }
+  cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true }
 }
 
 async function protectWorksheet(worksheet: ExcelJS.Worksheet) {
@@ -43,119 +78,160 @@ async function protectWorksheet(worksheet: ExcelJS.Worksheet) {
   })
 }
 
+function addValidation(sheet: ExcelJS.Worksheet, range: string, formula: string, allowBlank = true) {
+  for (let row = 2; row <= 250; row += 1) {
+    sheet.getCell(`${range}${row}`).dataValidation = {
+      type: 'list',
+      allowBlank,
+      formulae: [`"${formula}"`],
+    }
+  }
+}
+
+function addDecimalValidation(sheet: ExcelJS.Worksheet, column: string) {
+  for (let row = 2; row <= 250; row += 1) {
+    sheet.getCell(`${column}${row}`).dataValidation = {
+      type: 'decimal',
+      operator: 'greaterThanOrEqual',
+      allowBlank: true,
+      formulae: ['0'],
+    }
+  }
+}
+
+function addWholeValidation(sheet: ExcelJS.Worksheet, column: string, allowBlank = false) {
+  for (let row = 2; row <= 250; row += 1) {
+    sheet.getCell(`${column}${row}`).dataValidation = {
+      type: 'whole',
+      operator: 'greaterThanOrEqual',
+      allowBlank,
+      formulae: ['1'],
+    }
+  }
+}
+
 async function createInstructionsSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('Instructions')
   sheet.columns = [
-    { width: 24 },
-    { width: 90 },
+    { width: 28 },
+    { width: 96 },
   ]
 
   sheet.mergeCells('A1:B1')
   const title = sheet.getCell('A1')
-  title.value = 'Template import plan de tratament'
+  title.value = 'Template import plan tratament V2'
   title.font = { size: 16, bold: true }
 
   const lines: Array<[string, string]> = [
-    ['1. Cum completezi planul', 'Redenumește tabul foii „Plan” cu un nume descriptiv (ex. „Zmeur 2026”) — acesta devine numele planului.'],
-    ['', 'Selectează cultura din dropdown-ul din celula B1.'],
-    ['', 'Opțional, adaugă o descriere în B2.'],
-    ['', 'Completează liniile începând de pe rândul 5.'],
-    ['', 'Pentru fiecare linie: Ordine, Stadiu (cod canonic snake_case din dropdown), cohortă trigger opțională, Produs (nume comercial), doză (ml/hl SAU l/ha, NU ambele), observații.'],
-    ['2. Cum se interpretează coloanele', 'A = Ordine, B = Stadiu, C = Cohortă trigger, D = Produs, E = Doză ml/hl, F = Doză l/ha, G = Observații.'],
-    ['3. Doze', 'Exact una dintre ml/hl sau l/ha trebuie completată pentru fiecare linie.'],
-    ['4. Produse necunoscute', 'Produsele necunoscute sunt detectate automat — le vei putea rezolva în ecranul de review.'],
-    ['5. Mai multe planuri', 'Poți adăuga foi noi pentru mai multe planuri: copiază foaia „Plan”, apoi redenumește-o.'],
-    ['6. Foi ignorate la import', 'Stadii valide, Culturi acceptate, Produse standard și Exemplu zmeur sunt foi de referință și nu sunt importate.'],
-    ['7. Erori comune', 'Stadiu scris greșit → folosește dropdown-ul din coloană.'],
-    ['', 'Ambele doze completate → doar una este permisă.'],
-    ['', 'Produs gol → linia va fi respinsă la import.'],
+    ['1. Structură', 'Completează foaia „Interventii” pentru intervențiile planificate și foaia „Produse interventii” pentru produsele fiecărei intervenții.'],
+    ['2. Cheie legătură', 'interventie_key trebuie să fie unic în „Interventii” și folosit identic în „Produse interventii”. Exemplu: zmeur-inflorit-01.'],
+    ['3. Planuri multiple', 'Poți importa mai multe planuri în același fișier: schimbă plan_nume și cultura pe rândurile din „Interventii”.'],
+    ['4. Produse multiple', 'Pentru aceeași intervenție, adaugă mai multe rânduri în „Produse interventii” cu aceeași interventie_key și ordine_produs diferită.'],
+    ['5. Produse necunoscute', 'Dacă produsul nu există în biblioteca fermei, importul îl va marca pentru review. Poate rămâne manual sau poate fi creat la salvarea finală.'],
+    ['6. Repetare', 'Folosește regula_repetare = fara_repetare sau interval. Pentru interval, completează interval_repetare_zile.'],
+    ['7. Fallback legacy', 'Fișierele vechi pot fi citite temporar, dar template-ul oficial este V2.'],
   ]
 
   lines.forEach(([label, description], index) => {
     const rowNumber = index + 3
     sheet.getCell(`A${rowNumber}`).value = label
     sheet.getCell(`B${rowNumber}`).value = description
-    if (label) {
-      sheet.getCell(`A${rowNumber}`).font = { bold: true }
-    }
+    sheet.getCell(`A${rowNumber}`).font = { bold: true }
     sheet.getCell(`B${rowNumber}`).alignment = { wrapText: true, vertical: 'top' }
   })
 
   await protectWorksheet(sheet)
 }
 
-function createPlanSheet(workbook: ExcelJS.Workbook) {
-  const sheet = workbook.addWorksheet('Plan')
-  sheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }]
+function createInterventiiSheet(workbook: ExcelJS.Workbook) {
+  const sheet = workbook.addWorksheet('Interventii')
+  sheet.views = [{ state: 'frozen', ySplit: 1 }]
   sheet.columns = [
-    { width: 8 },
-    { width: 25 },
+    { width: 28 },
+    { width: 16 },
+    { width: 26 },
+    { width: 10 },
+    { width: 24 },
     { width: 18 },
-    { width: 35 },
-    { width: 14 },
-    { width: 14 },
-    { width: 45 },
+    { width: 18 },
+    { width: 34 },
+    { width: 18 },
+    { width: 18 },
+    { width: 18 },
+    { width: 42 },
   ]
 
-  sheet.getCell('A1').value = 'Cultură'
-  sheet.getCell('A2').value = 'Descriere'
-  styleHeaderCell(sheet.getCell('A1'), META_FILL)
-  styleHeaderCell(sheet.getCell('A2'), META_FILL)
-  sheet.getCell('B1').dataValidation = {
-    type: 'list',
-    allowBlank: false,
-    formulae: [`"${CULTURI_ACCEPTATE.map((item) => CULTURA_LABELS[item]).join(',')}"`],
-  }
-
-  ;([
-    ['A4', 'Ordine', HEADER_FILL],
-    ['B4', 'Stadiu', HEADER_FILL],
-    ['C4', 'Cohortă trigger', OPTIONAL_FILL],
-    ['D4', 'Produs', HEADER_FILL],
-    ['E4', 'Doză ml/hl', OPTIONAL_FILL],
-    ['F4', 'Doză l/ha', OPTIONAL_FILL],
-    ['G4', 'Observații', OPTIONAL_FILL],
-  ] as const).forEach(([cellRef, label, fill]) => {
-    const cell = sheet.getCell(cellRef)
-    cell.value = label
-    styleHeaderCell(cell, fill)
+  INTERVENTII_HEADERS.forEach((header, index) => {
+    const cell = sheet.getCell(1, index + 1)
+    cell.value = header
+    styleHeaderCell(cell, index <= 4 ? HEADER_FILL : OPTIONAL_FILL)
   })
 
-  for (let row = 5; row <= 100; row += 1) {
-    sheet.getCell(`A${row}`).dataValidation = {
-      type: 'whole',
-      operator: 'greaterThanOrEqual',
-      allowBlank: false,
-      formulae: ['1'],
-    }
-    sheet.getCell(`B${row}`).dataValidation = {
-      type: 'list',
-      allowBlank: false,
-      formulae: [`"${STADII_VALIDE.join(',')}"`],
-    }
-    sheet.getCell(`C${row}`).dataValidation = {
-      type: 'list',
-      allowBlank: true,
-      formulae: ['"floricane,primocane"'],
-    }
-    sheet.getCell(`E${row}`).dataValidation = {
-      type: 'decimal',
-      operator: 'greaterThanOrEqual',
-      allowBlank: true,
-      formulae: ['0'],
-    }
-    sheet.getCell(`F${row}`).dataValidation = {
-      type: 'decimal',
-      operator: 'greaterThanOrEqual',
-      allowBlank: true,
-      formulae: ['0'],
-    }
-  }
+  addValidation(sheet, 'B', CULTURI_ACCEPTATE.join(','), false)
+  addWholeValidation(sheet, 'D')
+  addValidation(sheet, 'E', STADII_VALIDE.join(','), false)
+  addValidation(sheet, 'F', COHORT_TRIGGER_VALUES.join(','))
+  addValidation(sheet, 'G', TIP_INTERVENTIE_VALUES.join(','))
+  addValidation(sheet, 'I', REGULA_REPETARE_VALUES.join(','), false)
+  addWholeValidation(sheet, 'J', true)
+  addWholeValidation(sheet, 'K', true)
+
+  const exampleRows = [
+    ['Plan zmeur 2026', 'zmeur', 'zmeur-buton-verde-01', 1, 'buton_verde', '', 'protectie', 'Protecție preventivă', 'fara_repetare', null, null, 'Exemplu intervenție cu un produs'],
+    ['Plan zmeur 2026', 'zmeur', 'zmeur-inflorit-01', 2, 'inflorit', 'floricane', 'protectie', 'Protecție înflorit', 'interval', 7, 2, 'Exemplu intervenție cu două produse'],
+  ] as const
+
+  exampleRows.forEach((rowValues, index) => {
+    const row = sheet.getRow(index + 2)
+    row.values = [...rowValues]
+  })
+}
+
+function createProduseInterventiiSheet(workbook: ExcelJS.Workbook) {
+  const sheet = workbook.addWorksheet('Produse interventii')
+  sheet.views = [{ state: 'frozen', ySplit: 1 }]
+  sheet.columns = [
+    { width: 26 },
+    { width: 14 },
+    { width: 30 },
+    { width: 30 },
+    { width: 18 },
+    { width: 15 },
+    { width: 15 },
+    { width: 12 },
+    { width: 14 },
+    { width: 22 },
+    { width: 42 },
+  ]
+
+  PRODUSE_HEADERS.forEach((header, index) => {
+    const cell = sheet.getCell(1, index + 1)
+    cell.value = header
+    styleHeaderCell(cell, index <= 2 ? HEADER_FILL : OPTIONAL_FILL)
+  })
+
+  addWholeValidation(sheet, 'B')
+  addValidation(sheet, 'E', TIP_PRODUS_VALUES.join(','))
+  addDecimalValidation(sheet, 'F')
+  addDecimalValidation(sheet, 'G')
+  addWholeValidation(sheet, 'H', true)
+  addValidation(sheet, 'J', 'da,nu', true)
+
+  const exampleRows = [
+    ['zmeur-buton-verde-01', 1, 'Thiovit Jet', 'sulf', 'fungicid', 500, null, 0, 'M02', 'nu', 'Produs exemplu'],
+    ['zmeur-inflorit-01', 1, 'Signum', 'boscalid + piraclostrobin', 'fungicid', 50, null, 7, '7+11', 'nu', 'Primul produs'],
+    ['zmeur-inflorit-01', 2, 'Aminoacizi', 'aminoacizi liberi', 'foliar', 150, null, null, '', 'da', 'Produs manual de salvat în bibliotecă'],
+  ] as const
+
+  exampleRows.forEach((rowValues, index) => {
+    const row = sheet.getRow(index + 2)
+    row.values = [...rowValues]
+  })
 }
 
 async function createStageReferenceSheet(workbook: ExcelJS.Workbook) {
   const sheet = workbook.addWorksheet('Stadii valide')
-  sheet.columns = [{ width: 24 }, { width: 28 }]
+  sheet.columns = [{ width: 24 }, { width: 30 }]
   styleHeaderCell(sheet.getCell('A1'), META_FILL)
   styleHeaderCell(sheet.getCell('B1'), META_FILL)
   sheet.getCell('A1').value = 'Cod'
@@ -182,6 +258,24 @@ async function createCultureReferenceSheet(workbook: ExcelJS.Workbook) {
     sheet.getCell(`B${index + 2}`).value = CULTURA_LABELS[cultura]
   })
 
+  await protectWorksheet(sheet)
+}
+
+async function createSimpleReferenceSheet(
+  workbook: ExcelJS.Workbook,
+  name: string,
+  rows: Array<[string, string]>
+) {
+  const sheet = workbook.addWorksheet(name)
+  sheet.columns = [{ width: 24 }, { width: 30 }]
+  sheet.getCell('A1').value = 'Valoare'
+  sheet.getCell('B1').value = 'Label'
+  styleHeaderCell(sheet.getCell('A1'), META_FILL)
+  styleHeaderCell(sheet.getCell('B1'), META_FILL)
+  rows.forEach(([value, label], index) => {
+    sheet.getCell(index + 2, 1).value = value
+    sheet.getCell(index + 2, 2).value = label
+  })
   await protectWorksheet(sheet)
 }
 
@@ -228,7 +322,6 @@ async function createStandardProductsSheet(
     .forEach((produs, index) => {
       const row = sheet.getRow(index + 2)
       row.values = [
-        undefined,
         produs.nume_comercial,
         produs.substanta_activa,
         produs.tip,
@@ -245,72 +338,6 @@ async function createStandardProductsSheet(
   await protectWorksheet(sheet)
 }
 
-async function createExampleSheet(workbook: ExcelJS.Workbook) {
-  const sheet = workbook.addWorksheet('Exemplu zmeur')
-  sheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }]
-  sheet.columns = [
-    { width: 8 },
-    { width: 25 },
-    { width: 18 },
-    { width: 35 },
-    { width: 14 },
-    { width: 14 },
-    { width: 45 },
-  ]
-
-  sheet.getCell('A1').value = 'Cultură'
-  styleHeaderCell(sheet.getCell('A1'), META_FILL)
-  sheet.getCell('B1').value = 'Zmeur'
-
-  sheet.getCell('A2').value = 'Descriere'
-  styleHeaderCell(sheet.getCell('A2'), META_FILL)
-  sheet.getCell('B2').value = 'Exemplu — copiază foaia și redenumește-o'
-
-  const headers: Array<[string, string, ExcelJS.Fill]> = [
-    ['A4', 'Ordine', HEADER_FILL],
-    ['B4', 'Stadiu', HEADER_FILL],
-    ['C4', 'Cohortă trigger', OPTIONAL_FILL],
-    ['D4', 'Produs', HEADER_FILL],
-    ['E4', 'Doză ml/hl', OPTIONAL_FILL],
-    ['F4', 'Doză l/ha', OPTIONAL_FILL],
-    ['G4', 'Observații', OPTIONAL_FILL],
-  ]
-  headers.forEach(([ref, label, fill]) => {
-    const cell = sheet.getCell(ref)
-    cell.value = label
-    styleHeaderCell(cell, fill)
-  })
-
-  const exampleRows: Array<[
-    number,
-    string,
-    string,
-    string,
-    number | null,
-    number | null,
-    string,
-  ]> = [
-    [1, 'umflare_muguri', '', 'Thiovit Jet', 500, null, 'Prevenție făinare'],
-    [2, 'buton_roz', '', 'Mospilan 20 SG', 20, null, 'Afide'],
-    [3, 'inflorit', 'floricane', 'Signum', 50, null, 'Doar pe floricane în timpul înfloririi'],
-    [4, 'crestere_vegetativa', 'primocane', 'Kocide 2000', null, 3, 'Doar pe primocane'],
-  ]
-
-  exampleRows.forEach(([ordine, stadiu, cohorta, produs, dozaMl, dozaL, obs], i) => {
-    const row = sheet.getRow(i + 5)
-    sheet.getCell(`A${i + 5}`).value = ordine
-    sheet.getCell(`B${i + 5}`).value = stadiu
-    sheet.getCell(`C${i + 5}`).value = cohorta
-    sheet.getCell(`D${i + 5}`).value = produs
-    if (dozaMl !== null) sheet.getCell(`E${i + 5}`).value = dozaMl
-    if (dozaL !== null) sheet.getCell(`F${i + 5}`).value = dozaL
-    sheet.getCell(`G${i + 5}`).value = obs
-    void row
-  })
-
-  await protectWorksheet(sheet)
-}
-
 export async function generateTratamentTemplateWorkbook(
   produse: ProdusFitosanitar[]
 ): Promise<Buffer> {
@@ -320,11 +347,26 @@ export async function generateTratamentTemplateWorkbook(
   workbook.created = new Date()
 
   await createInstructionsSheet(workbook)
-  createPlanSheet(workbook)
+  createInterventiiSheet(workbook)
+  createProduseInterventiiSheet(workbook)
   await createStageReferenceSheet(workbook)
   await createCultureReferenceSheet(workbook)
+  await createSimpleReferenceSheet(
+    workbook,
+    'Cohorte valide',
+    COHORT_TRIGGER_VALUES.map((value) => [value, value])
+  )
+  await createSimpleReferenceSheet(
+    workbook,
+    'Tipuri interventie',
+    TIP_INTERVENTIE_VALUES.map((value) => [value, TIP_INTERVENTIE_LABELS[value]])
+  )
+  await createSimpleReferenceSheet(
+    workbook,
+    'Reguli repetare',
+    REGULA_REPETARE_VALUES.map((value) => [value, REGULA_REPETARE_LABELS[value]])
+  )
   await createStandardProductsSheet(workbook, produse)
-  await createExampleSheet(workbook)
 
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }

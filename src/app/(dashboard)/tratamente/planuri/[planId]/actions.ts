@@ -47,19 +47,49 @@ const linieSchema = z
   .object({
     stadiu_trigger: z.string().trim().min(1, 'Stadiul fenologic este obligatoriu.'),
     cohort_trigger: z.enum(['floricane', 'primocane']).optional().nullable(),
+    tip_interventie: z.enum(['protectie', 'nutritie', 'biostimulare', 'erbicidare', 'igiena', 'monitorizare', 'altul']).optional().nullable(),
+    scop: z.string().trim().max(240, 'Scopul poate avea cel mult 240 de caractere.').optional().nullable(),
+    regula_repetare: z.enum(['fara_repetare', 'interval']).optional(),
+    interval_repetare_zile: z.number().int().min(1).optional().nullable(),
+    numar_repetari_max: z.number().int().min(1).optional().nullable(),
     produs_id: z.string().uuid().optional().nullable(),
     produs_nume_manual: z.string().trim().max(120, 'Numele manual poate avea cel mult 120 de caractere.').optional().nullable(),
     doza_ml_per_hl: z.number().positive('Doza trebuie să fie mai mare decât 0.').optional().nullable(),
     doza_l_per_ha: z.number().positive('Doza trebuie să fie mai mare decât 0.').optional().nullable(),
     observatii: z.string().trim().max(500, 'Observațiile pot avea cel mult 500 de caractere.').optional().nullable(),
+    produse: z.array(
+      z.object({
+        ordine: z.number().int().positive().optional(),
+        produs_id: z.string().uuid().optional().nullable(),
+        produs_nume_manual: z.string().trim().max(120).optional().nullable(),
+        produs_nume_snapshot: z.string().trim().max(120).optional().nullable(),
+        substanta_activa_snapshot: z.string().trim().max(160).optional().nullable(),
+        tip_snapshot: z.string().trim().max(40).optional().nullable(),
+        frac_irac_snapshot: z.string().trim().max(40).optional().nullable(),
+        phi_zile_snapshot: z.number().int().min(0).optional().nullable(),
+        doza_ml_per_hl: z.number().min(0).optional().nullable(),
+        doza_l_per_ha: z.number().min(0).optional().nullable(),
+        observatii: z.string().trim().max(500).optional().nullable(),
+      }).superRefine((value, ctx) => {
+        const hasProdusId = typeof value.produs_id === 'string' && value.produs_id.trim().length > 0
+        const hasManual = typeof value.produs_nume_manual === 'string' && value.produs_nume_manual.trim().length > 0
+
+        if (!hasProdusId && !hasManual) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['produs_id'],
+            message: 'Alege un produs sau completează numele manual.',
+          })
+        }
+      })
+    ).min(1, 'Intervenția trebuie să aibă cel puțin un produs.').optional(),
   })
   .superRefine((value, ctx) => {
+    const hasV2Products = Array.isArray(value.produse) && value.produse.length > 0
     const hasProdusId = typeof value.produs_id === 'string' && value.produs_id.trim().length > 0
     const hasManual = typeof value.produs_nume_manual === 'string' && value.produs_nume_manual.trim().length > 0
-    const hasMl = typeof value.doza_ml_per_hl === 'number'
-    const hasL = typeof value.doza_l_per_ha === 'number'
 
-    if (!hasProdusId && !hasManual) {
+    if (!hasV2Products && !hasProdusId && !hasManual) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['produs_id'],
@@ -67,11 +97,15 @@ const linieSchema = z
       })
     }
 
-    if (hasMl === hasL) {
+    if (
+      value.regula_repetare === 'interval' &&
+      typeof value.interval_repetare_zile !== 'number' &&
+      typeof value.numar_repetari_max !== 'number'
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['doza_ml_per_hl'],
-        message: 'Completează o singură doză: ml/hl sau l/ha.',
+        path: ['regula_repetare'],
+        message: 'Completează intervalul sau numărul maxim de repetări.',
       })
     }
   })

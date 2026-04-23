@@ -35,13 +35,13 @@ export function PlanActivCard({
             <ClipboardList className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Plan asignat</p>
+            <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Plan asociat</p>
             <p className="mt-1 text-base font-medium text-[var(--text-primary)]">
-              Nicio parcelă asignată pentru {getCurrentSezon()}
+              Nicio parcelă asociată pentru {getCurrentSezon()}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button type="button" size="sm" className="bg-[var(--agri-primary)] text-white" onClick={onAssign}>
-                Atribuie plan
+                Asociază plan
               </Button>
               {createHref ? (
                 <Button type="button" size="sm" variant="outline" asChild>
@@ -59,7 +59,7 @@ export function PlanActivCard({
     <AppCard className="rounded-2xl">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Plan asignat</p>
+          <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Plan asociat</p>
           <h2 className="mt-1 text-lg leading-tight text-[var(--text-primary)] [font-weight:650]">
             {planActiv.plan.nume}
           </h2>
@@ -71,7 +71,7 @@ export function PlanActivCard({
               <Link href={editHref}>Editează plan</Link>
             </Button>
           ) : null}
-          <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={onAssign}>
+            <Button type="button" size="sm" variant="outline" className="shrink-0" onClick={onAssign}>
             Schimbă plan
           </Button>
         </div>

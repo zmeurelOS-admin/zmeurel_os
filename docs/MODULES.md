@@ -379,11 +379,13 @@ Path-uri cheie:
 - `src/lib/tratamente/import/fuzzy-match.ts`
 
 Flux:
-- utilizatorul descarcă template-ul XLSX generat server-side
-- completează una sau mai multe foi de plan și încarcă fișierul în flux separat de wizard
+- utilizatorul descarcă template-ul XLSX V2 generat server-side
+- completează foaia `Interventii` (un rând = intervenție planificată) și foaia `Produse interventii` (un rând = produs din intervenție)
+- `interventie_key` este cheia obligatorie care leagă produsele copil de intervenția din plan
 - parserul rulează server-side prin `POST /api/tratamente/import/parse` cu `xlsx`
-- review-ul permite mapare produs exact / fuzzy / bibliotecă / produs nou / text liber / skip
-- salvarea finală creează eventualele produse noi și apoi reutilizează RPC-ul `public.upsert_plan_tratament_cu_linii(...)`
+- review-ul afișează intervenții cu `produse[]` copil și permite mapare produs exact / fuzzy / bibliotecă / produs nou / text liber / skip per produs
+- salvarea finală creează eventualele produse noi și apoi reutilizează RPC-ul `public.upsert_plan_tratament_cu_linii(...)` cu payload V2
+- parserul păstrează temporar fallback legacy pentru fișiere vechi 1 rând = 1 produs, dar template-ul oficial din UI este V2
 
 Dependințe noi:
 - `exceljs` pentru generarea template-ului XLSX cu styling și data validation

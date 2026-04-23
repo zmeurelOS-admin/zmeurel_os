@@ -22,7 +22,20 @@ interface LinieRowProps {
   total: number
 }
 
-function resolveDoza(linie: PlanTratamentLinieCuProdus): string {
+function resolveProductName(produs: NonNullable<PlanTratamentLinieCuProdus['produse']>[number]) {
+  return produs.produs?.nume_comercial ?? produs.produs_nume_manual?.trim() ?? produs.produs_nume_snapshot?.trim() ?? 'Produs fără nume'
+}
+
+function resolveProductDose(produs: NonNullable<PlanTratamentLinieCuProdus['produse']>[number]): string {
+  const doses = [
+    typeof produs.doza_ml_per_hl === 'number' ? formatDoza(produs.doza_ml_per_hl, 'ml/hl') : null,
+    typeof produs.doza_l_per_ha === 'number' ? formatDoza(produs.doza_l_per_ha, 'l/ha') : null,
+  ].filter(Boolean)
+
+  return doses.length > 0 ? doses.join(' · ') : 'Doză necompletată'
+}
+
+function resolveLegacyDoza(linie: PlanTratamentLinieCuProdus): string {
   if (typeof linie.doza_l_per_ha === 'number' && linie.doza_l_per_ha > 0) {
     return formatDoza(linie.doza_l_per_ha, 'l/ha')
   }
@@ -42,9 +55,13 @@ export function LinieRow({
 }: LinieRowProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const stadiu = getStadiuMeta(linie.stadiu_trigger, grupBiologic, linie.cohort_trigger)
-  const isManual = !linie.produs && Boolean(linie.produs_nume_manual?.trim())
-  const displayName =
-    linie.produs?.nume_comercial ?? linie.produs_nume_manual?.trim() ?? 'Produs fără nume'
+  const produse = linie.produse?.length ? linie.produse : []
+  const isManual = produse.length > 0
+    ? produse.some((produs) => !produs.produs && Boolean(produs.produs_nume_manual?.trim()))
+    : !linie.produs && Boolean(linie.produs_nume_manual?.trim())
+  const displayName = produse.length > 0
+    ? `${resolveProductName(produse[0])}${produse.length > 1 ? ` +${produse.length - 1}` : ''}`
+    : linie.produs?.nume_comercial ?? linie.produs_nume_manual?.trim() ?? 'Produs fără nume'
 
   return (
     <AppCard className="rounded-[22px] p-4">
@@ -67,7 +84,17 @@ export function LinieRow({
           <p className="mt-3 text-base text-[var(--text-primary)] [font-weight:650]">
             {displayName}
           </p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">{resolveDoza(linie)}</p>
+          <div className="mt-1 space-y-1">
+            {produse.length > 0 ? (
+              produse.map((produs) => (
+                <p key={produs.id} className="text-sm text-[var(--text-secondary)]">
+                  {resolveProductName(produs)} · {resolveProductDose(produs)}
+                </p>
+              ))
+            ) : (
+              <p className="text-sm text-[var(--text-secondary)]">{resolveLegacyDoza(linie)}</p>
+            )}
+          </div>
 
           {linie.observatii?.trim() ? (
             <p
@@ -86,7 +113,7 @@ export function LinieRow({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label={`Mută sus linia ${index + 1}`}
+                aria-label={`Mută sus intervenția ${index + 1}`}
             disabled={index === 0}
             onClick={onMoveUp}
           >
@@ -96,7 +123,7 @@ export function LinieRow({
             type="button"
             variant="ghost"
             size="icon-sm"
-            aria-label={`Mută jos linia ${index + 1}`}
+                aria-label={`Mută jos intervenția ${index + 1}`}
             disabled={index === total - 1}
             onClick={onMoveDown}
           >
@@ -109,7 +136,7 @@ export function LinieRow({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Acțiuni pentru linia ${index + 1}`}
+                aria-label={`Acțiuni pentru intervenția ${index + 1}`}
               >
                 <EllipsisVertical className="h-4 w-4" />
               </Button>
@@ -124,8 +151,8 @@ export function LinieRow({
                     onEdit()
                   }}
                 >
-                  <PencilLine className="h-4 w-4" aria-label="Editează linia" />
-                  Editează
+                <PencilLine className="h-4 w-4" aria-label="Editează intervenția" />
+                Editează
                 </button>
                 <button
                   type="button"
@@ -135,8 +162,8 @@ export function LinieRow({
                     onDelete()
                   }}
                 >
-                  <Trash2 className="h-4 w-4" aria-label="Șterge linia" />
-                  Șterge
+                <Trash2 className="h-4 w-4" aria-label="Șterge intervenția" />
+                Șterge
                 </button>
               </div>
             </PopoverContent>

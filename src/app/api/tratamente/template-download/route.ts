@@ -50,7 +50,7 @@ export async function GET() {
         'Content-Type':
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition':
-          'attachment; filename="zmeurel-template-plan-tratament.xlsx"',
+          'attachment; filename="zmeurel-template-plan-tratament-v2.xlsx"',
         'Cache-Control': 'no-store',
       },
     })

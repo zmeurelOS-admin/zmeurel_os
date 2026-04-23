@@ -19,8 +19,8 @@ describe('StadiuCurentCard', () => {
       />,
     )
 
-    expect(screen.getByText('Nu ai înregistrat niciun stadiu anul acesta.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Înregistrează primul stadiu' })).toBeInTheDocument()
+    expect(screen.getByText('Nu ai înregistrat încă nicio fenofază anul acesta.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Înregistrează prima fenofază' })).toBeInTheDocument()
   })
 
   it('afișează stadiul curent și progress bar-ul pentru un stadiu înregistrat', async () => {
@@ -57,7 +57,7 @@ describe('StadiuCurentCard', () => {
     const progressFill = container.querySelector('div[style*="width: 33%"]')
     expect(progressFill).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Actualizează stadiu' }))
+    await user.click(screen.getByRole('button', { name: 'Actualizează fenofaza' }))
     expect(onUpdate).toHaveBeenCalledTimes(1)
   })
 

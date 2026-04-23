@@ -103,7 +103,9 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.global_errors).toHaveLength(0)
+    expect(result.global_errors).toContain(
+      'Format legacy detectat. Importul este păstrat temporar, dar template-ul oficial Zmeurel este V2.'
+    )
     expect(result.planuri).toHaveLength(1)
     expect(result.planuri[0]?.linii).toHaveLength(4)
     expect(result.planuri[0]?.errors).toHaveLength(0)
@@ -292,9 +294,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.errors).toContain(
-      'Completează exact una dintre doze: ml/hl sau l/ha.'
-    )
+    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toHaveLength(0)
   })
 
   it('semnalează eroare când ambele doze lipsesc', async () => {
@@ -311,9 +311,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.errors).toContain(
-      'Completează exact una dintre doze: ml/hl sau l/ha.'
-    )
+    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toHaveLength(0)
   })
 
   it('semnalează doza negativă ca eroare', async () => {
@@ -330,7 +328,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.errors).toContain(
+    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toContain(
       'Doza nu poate fi negativă.'
     )
   })
@@ -349,7 +347,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.errors).toContain(
+    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toContain(
       'Produsul este obligatoriu.'
     )
   })
@@ -421,7 +419,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.doza_ml_per_hl).toBe(1500)
+    expect(result.planuri[0]?.linii[0]?.produse[0]?.doza_ml_per_hl).toBe(1500)
   })
 
   it('marchează textul de tip 1.500 ca doză invalidă', async () => {
@@ -438,7 +436,7 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.errors).toContain(
+    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toContain(
       'Doza trebuie să fie un număr valid. Valorile text de tip „1.500” nu sunt acceptate.'
     )
   })

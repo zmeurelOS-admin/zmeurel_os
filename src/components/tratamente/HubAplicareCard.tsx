@@ -15,12 +15,14 @@ import { getAplicareStatusLabel, getAplicareStatusTone, isAplicareProgramata } f
 import { MarkAplicataSheet, type MarkAplicataFormValues } from '@/components/tratamente/MarkAplicataSheet'
 import { MeteoWindowBar } from '@/components/tratamente/MeteoWindowBar'
 import { ReprogrameazaSheet, type ReprogrameazaFormValues } from '@/components/tratamente/ReprogrameazaSheet'
+import { AplicareSourceBadge } from '@/components/tratamente/AplicareSourceBadge'
+import { getAplicareContextLabel, getAplicareProduseSummary } from '@/components/tratamente/aplicare-ui'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { getCohortaLabel, getLabelStadiuContextual, isRubusMixt, type ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
 import { cn } from '@/lib/utils'
-import type { AplicareCrossParcelItem } from '@/lib/supabase/queries/tratamente'
+import type { AplicareCrossParcelItem, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
 import type { MeteoZi } from '@/lib/tratamente/meteo'
 import { toast } from '@/lib/ui/toast'
 
@@ -29,6 +31,7 @@ interface HubAplicareCardProps {
   configurareSezon?: ConfigurareSezon | null
   meteoLoading?: boolean
   meteoZi: MeteoZi | null
+  produseFitosanitare?: ProdusFitosanitar[]
   showMeteoBar: boolean
 }
 
@@ -95,6 +98,7 @@ export function HubAplicareCard({
   configurareSezon,
   meteoLoading = false,
   meteoZi,
+  produseFitosanitare = [],
   showMeteoBar,
 }: HubAplicareCardProps) {
   const router = useRouter()
@@ -111,6 +115,8 @@ export function HubAplicareCard({
   const cohortLabel = normalizeCohorta(aplicare.cohort_la_aplicare)
     ? `Pentru ${getCohortaLabel(normalizeCohorta(aplicare.cohort_la_aplicare) as 'floricane' | 'primocane')}`
     : null
+  const produseSummary = getAplicareProduseSummary(aplicare)
+  const contextLabel = getAplicareContextLabel(aplicare)
   const meteoStats = getMeteoStats(meteoZi)
   const canEdit = isAplicareProgramata(aplicare.status)
   const rubusMixt = isRubusMixt(configurareSezon)
@@ -141,6 +147,10 @@ export function HubAplicareCard({
       formData.set('observatii', values.observatii ?? '')
       if (values.meteoSnapshot) {
         formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
+      }
+      formData.set('produse', JSON.stringify(values.produse))
+      if (values.diferenteFataDePlan) {
+        formData.set('diferente_fata_de_plan', JSON.stringify(values.diferenteFataDePlan))
       }
 
       const result = await markAplicataAction(formData)
@@ -198,23 +208,34 @@ export function HubAplicareCard({
               </Link>
             </div>
           </div>
-          <StatusBadge
-            text={getAplicareStatusLabel(aplicare.status)}
-            variant={getAplicareStatusTone(aplicare.status)}
-          />
+          <div className="flex flex-col items-end gap-2">
+            <StatusBadge
+              text={getAplicareStatusLabel(aplicare.status)}
+              variant={getAplicareStatusTone(aplicare.status)}
+            />
+            <AplicareSourceBadge source={aplicare.sursa ?? (aplicare.plan_linie_id ? 'din_plan' : 'manuala')} />
+          </div>
         </div>
 
         <div className="mt-3 space-y-1">
-          <h3 className="text-lg leading-tight text-[var(--text-primary)] [font-weight:650]">{aplicare.produs_nume}</h3>
+          <h3 className="text-lg leading-tight text-[var(--text-primary)] [font-weight:650]">{produseSummary.title}</h3>
+          {produseSummary.detail ? (
+            <p className="text-sm text-[var(--text-secondary)]">{produseSummary.detail}</p>
+          ) : null}
           <p className="text-sm text-[var(--text-secondary)]">
-            {aplicare.plan_nume ?? 'Plan fără nume'}
-            {stadiu ? ` · ${stadiu}` : ''}
+            {contextLabel}
           </p>
+          <p className="text-sm text-[var(--text-secondary)]">{stadiu ? stadiu : '—'}</p>
           {doza ? <p className="text-sm text-[var(--text-secondary)]">{doza}</p> : null}
           {cohortLabel ? <p className="text-sm text-[var(--text-secondary)]">{cohortLabel}</p> : null}
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
+          {produseSummary.count > 1 ? (
+            <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
+              {produseSummary.count} produse
+            </span>
+          ) : null}
           {aplicare.produs_frac ? (
             <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
               FRAC {aplicare.produs_frac}
@@ -319,6 +340,9 @@ export function HubAplicareCard({
         onSubmit={handleMarkAplicata}
         open={markOpen}
         pending={isPending}
+        produseEfective={aplicare.produse_aplicare}
+        produseFitosanitare={produseFitosanitare}
+        produsePlanificate={aplicare.produse_planificate}
       />
 
       <ReprogrameazaSheet

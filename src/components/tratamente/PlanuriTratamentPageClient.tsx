@@ -78,7 +78,7 @@ function PlanTratamentCard({
     <MobileEntityCard
       title={plan.nume}
       subtitle={plan.cultura_tip}
-      meta={`${plan.linii_count} linii`}
+      meta={`${plan.linii_count} intervenții`}
       statusLabel={plan.arhivat ? 'Arhivat' : 'Activ'}
       statusTone={plan.arhivat ? 'neutral' : 'success'}
       showChevron={false}
@@ -237,7 +237,7 @@ export function PlanuriTratamentPageClient() {
       },
       {
         accessorKey: 'linii_count',
-        header: 'Linii',
+        header: 'Intervenții',
         cell: ({ row }) => `${row.original.linii_count}`,
         meta: { numeric: true, headerClassName: 'w-[72px]' },
       },
@@ -513,7 +513,7 @@ export function PlanuriTratamentPageClient() {
                       <p>{resolvedSelectedPlan.descriere?.trim() || 'Fără descriere suplimentară.'}</p>
                     </DesktopInspectorSection>
                     <DesktopInspectorSection label="Structură">
-                      <p>{resolvedSelectedPlan.linii_count} linii de tratament</p>
+                      <p>{resolvedSelectedPlan.linii_count} intervenții planificate</p>
                       <p>{resolvedSelectedPlan.arhivat ? 'Plan arhivat' : 'Plan activ'}</p>
                     </DesktopInspectorSection>
                     <DesktopInspectorSection label="Parcele asociate">

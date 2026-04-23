@@ -64,25 +64,13 @@ async function bufferToArrayBuffer(buffer: Buffer): Promise<ArrayBuffer> {
 
 describe('parseImportedPlansWorkbook e2e realist', () => {
   it(
-    'parsează o copie realistă a foii Exemplu zmeur și ignoră foaia Plan goală',
+    'parsează template-ul oficial V2 cu intervenții și produse copil',
     async () => {
       const templateBuffer = await generateTratamentTemplateWorkbook(produseMock)
       const workbook = XLSX.read(templateBuffer, { type: 'buffer' })
 
-      const exampleSheet = workbook.Sheets['Exemplu zmeur']
-      if (!exampleSheet) {
-        throw new Error('Foaia „Exemplu zmeur” lipsește din template.')
-      }
-
-      const clonedSheet = JSON.parse(JSON.stringify(exampleSheet)) as XLSX.WorkSheet
-      clonedSheet.B1 = { t: 's', v: 'Zmeur' }
-      clonedSheet.B2 = { t: 's', v: 'Test e2e' }
-      clonedSheet.D6 = { t: 's', v: 'Mospilan typo' }
-      clonedSheet.C7 = { t: 's', v: 'floricane' }
-      clonedSheet.D7 = { t: 's', v: 'Signum' }
-
-      workbook.SheetNames.push('Zmeur 2026')
-      workbook.Sheets['Zmeur 2026'] = clonedSheet
+      expect(workbook.SheetNames).toContain('Interventii')
+      expect(workbook.SheetNames).toContain('Produse interventii')
 
       const finalBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
       const finalArrayBuffer = await bufferToArrayBuffer(Buffer.from(finalBuffer))
@@ -93,22 +81,23 @@ describe('parseImportedPlansWorkbook e2e realist', () => {
         produseMock
       )
 
-      expect(sheetJsWorkbook.SheetNames).toContain('Zmeur 2026')
-      expect(sheetJsWorkbookFromArray.SheetNames).toContain('Zmeur 2026')
+      expect(sheetJsWorkbook.SheetNames).toContain('Interventii')
+      expect(sheetJsWorkbookFromArray.SheetNames).toContain('Produse interventii')
       expect(parseResult.planuri.length).toBe(1)
       const plan = parseResult.planuri[0]
-      expect(plan?.foaie_nume).toBe('Zmeur 2026')
+      expect(plan?.foaie_nume).toBe('Interventii')
+      expect(plan?.plan_metadata.nume_sugerat).toBe('Plan zmeur 2026')
       expect(plan?.plan_metadata.cultura_tip_detectat).toBe('zmeur')
-      expect(plan?.plan_metadata.descriere).toBe('Test e2e')
-      expect(plan?.linii.length).toBe(4)
-      expect(plan?.linii[0]?.produs_match.tip).toBe('exact')
-      expect(['fuzzy', 'none']).toContain(plan?.linii[1]?.produs_match.tip)
-      expect(plan?.linii[2]?.cohort_trigger).toBe('floricane')
-      expect(plan?.linii[2]?.produs_match.tip).toBe('exact')
-      expect(plan?.linii[3]?.produs_match.tip).toBe('exact')
-      expect(parseResult.global_errors).toContain(
-        'Foaia «Plan» a fost lăsată goală și a fost ignorată.'
-      )
+      expect(plan?.linii.length).toBe(2)
+      expect(plan?.linii[0]?.produse).toHaveLength(1)
+      expect(plan?.linii[1]?.cohort_trigger).toBe('floricane')
+      expect(plan?.linii[1]?.regula_repetare).toBe('interval')
+      expect(plan?.linii[1]?.produse).toHaveLength(2)
+      expect(plan?.linii[0]?.produse[0]?.produs_match.tip).toBe('exact')
+      expect(plan?.linii[1]?.produse[0]?.produs_match.tip).toBe('exact')
+      expect(plan?.linii[1]?.produse[1]?.produs_match.tip).toBe('none')
+      expect(plan?.linii[1]?.produse[1]?.salveaza_in_biblioteca).toBe(true)
+      expect(parseResult.global_errors).toHaveLength(0)
     },
     30_000
   )

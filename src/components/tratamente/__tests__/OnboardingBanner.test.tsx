@@ -15,8 +15,8 @@ describe('OnboardingBanner', () => {
   it('marchează primul pas completat și activează vizual pasul al doilea', () => {
     render(<OnboardingBanner arePlan areParceleCuPlan={false} areStadii={false} />)
 
-    expect(screen.getByText('Asignează planul la o parcelă')).toBeInTheDocument()
-    expect(screen.getByText('Creează primul plan de tratament')).toBeInTheDocument()
+    expect(screen.getByText('Asociază planul la o parcelă')).toBeInTheDocument()
+    expect(screen.getByText('Creează primul plan')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Începe/i })).not.toBeInTheDocument()
   })
 

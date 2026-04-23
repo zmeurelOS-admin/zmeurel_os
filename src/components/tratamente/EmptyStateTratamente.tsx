@@ -12,9 +12,9 @@ interface EmptyStateTratamenteProps {
 }
 
 const steps = [
-  'Creează primul plan de tratament',
-  'Asignează planul la parcela curentă',
-  'Înregistrează primul stadiu fenologic',
+  'Creează primul plan',
+  'Asociază planul la parcela curentă',
+  'Înregistrează prima fenofază',
 ] as const
 
 export function EmptyStateTratamente({
@@ -27,11 +27,11 @@ export function EmptyStateTratamente({
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--agri-primary)_14%,var(--surface-card))] text-[var(--agri-primary)] shadow-[var(--shadow-soft)]">
           <Sprout className="h-7 w-7" aria-hidden="true" />
         </div>
-        <h2 className="mt-4 text-lg text-[var(--text-primary)] [font-weight:750]">
-          Începe modulul de tratamente pentru această parcelă
+          <h2 className="mt-4 text-lg text-[var(--text-primary)] [font-weight:750]">
+          Începe modulul de protecție și nutriție pentru această parcelă
         </h2>
         <p className="mt-2 max-w-xl text-sm text-[var(--text-secondary)]">
-          Urmează pașii de mai jos ca să vezi aplicările recomandate și controalele de conformitate pentru anul curent.
+          Urmează pașii de mai jos ca să vezi aplicările relevante și controalele de conformitate pentru anul curent.
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export function EmptyStateTratamente({
 
       <div className="mt-5 grid gap-3 sm:max-w-sm">
         <Button asChild className="w-full bg-[var(--agri-primary)] text-white">
-          <Link href={createPlanHref}>Creează primul plan</Link>
+          <Link href={createPlanHref}>Creează plan</Link>
         </Button>
         <Button asChild variant="outline" className="w-full">
           <Link href={importPlanHref}>

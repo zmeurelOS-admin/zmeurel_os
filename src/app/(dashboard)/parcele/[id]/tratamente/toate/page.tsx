@@ -17,7 +17,7 @@ export default async function ToateAplicarilePlaceholderPage({ params }: PagePro
         <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
           <h2 className="text-lg text-[var(--text-primary)] [font-weight:650]">În lucru</h2>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
-            Lista completă și filtrele pentru toate aplicările vin în următorul pas al fazei de tratamente.
+            Lista completă și filtrele pentru toate aplicările vor fi disponibile în pasul următor.
           </p>
           <Button type="button" variant="outline" size="sm" className="mt-4" asChild>
             <Link href={`/parcele/${id}/tratamente`}>Înapoi la dashboard-ul de tratamente</Link>

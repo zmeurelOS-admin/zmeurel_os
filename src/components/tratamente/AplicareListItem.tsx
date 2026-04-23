@@ -5,6 +5,12 @@ import { format, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
 
 import { getAplicareStatusLabel, getAplicareStatusTone } from '@/components/tratamente/aplicare-status'
+import { AplicareSourceBadge } from '@/components/tratamente/AplicareSourceBadge'
+import {
+  getAplicareContextLabel,
+  getAplicareInterventieLabel,
+  getAplicareProduseSummary,
+} from '@/components/tratamente/aplicare-ui'
 import StatusBadge from '@/components/ui/StatusBadge'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
 import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
@@ -47,10 +53,6 @@ function formatDoza(aplicare: AplicareTratamentDetaliu): string | null {
   return null
 }
 
-function getProductName(aplicare: AplicareTratamentDetaliu): string {
-  return aplicare.produs?.nume_comercial ?? aplicare.produs_nume_manual ?? 'Produs nespecificat'
-}
-
 function getTriggerLabel(aplicare: AplicareTratamentDetaliu, configurareSezon: ConfigurareSezon | null): string | null {
   const trigger = aplicare.linie?.stadiu_trigger ?? aplicare.stadiu_la_aplicare
   if (!trigger) return null
@@ -76,6 +78,8 @@ export function AplicareListItem({
   const triggerLabel = getTriggerLabel(aplicare, configurareSezon ?? null)
   const cohortLabel = getCohortLabel(aplicare)
   const frac = aplicare.produs?.frac_irac?.trim() || null
+  const productsSummary = getAplicareProduseSummary(aplicare)
+  const contextLabel = getAplicareContextLabel(aplicare)
 
   return (
     <Link
@@ -90,21 +94,36 @@ export function AplicareListItem({
           <div className="min-w-0">
             <p className="text-sm font-medium capitalize text-[var(--text-primary)]">{dateLabel}</p>
           </div>
-          <StatusBadge
-            text={getAplicareStatusLabel(aplicare.status)}
-            variant={getAplicareStatusTone(aplicare.status)}
-          />
+          <div className="flex flex-col items-end gap-2">
+            <StatusBadge
+              text={getAplicareStatusLabel(aplicare.status)}
+              variant={getAplicareStatusTone(aplicare.status)}
+            />
+            <AplicareSourceBadge source={aplicare.sursa ?? (aplicare.plan_linie_id ? 'din_plan' : 'manuala')} />
+          </div>
         </div>
 
         <div className="mt-2">
           <h3 className="text-base leading-tight text-[var(--text-primary)] [font-weight:650]">
-            {getProductName(aplicare)}
+            {productsSummary.title}
           </h3>
+          {productsSummary.detail ? (
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{productsSummary.detail}</p>
+          ) : null}
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{contextLabel}</p>
           {doza ? <p className="mt-1 text-sm text-[var(--text-secondary)]">{doza}</p> : null}
         </div>
 
         {triggerLabel || cohortLabel || frac ? (
           <div className="mt-3 flex flex-wrap gap-2">
+            {productsSummary.count > 1 ? (
+              <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
+                {productsSummary.count} produse efective
+              </span>
+            ) : null}
+            <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
+              {getAplicareInterventieLabel(aplicare)}
+            </span>
             {triggerLabel ? (
               <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)]">
                 {triggerLabel}

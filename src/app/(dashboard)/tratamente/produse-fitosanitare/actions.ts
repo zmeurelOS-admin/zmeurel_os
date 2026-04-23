@@ -6,6 +6,7 @@ import {
   updateProdusFitosanitar,
   deleteProdusFitosanitar,
   isProdusFolositInPlanActiv,
+  saveProdusFitosanitarInLibrary,
   type InsertTenantProdus,
   type ProdusFitosanitar,
 } from '@/lib/supabase/queries/tratamente'
@@ -41,4 +42,10 @@ export async function duplicaProdusFitosanitarAction(
   data: InsertTenantProdus
 ): Promise<ProdusFitosanitar> {
   return createProdusFitosanitar(data)
+}
+
+export async function saveProdusFitosanitarInLibraryAction(
+  data: InsertTenantProdus
+): Promise<ProdusFitosanitar> {
+  return saveProdusFitosanitarInLibrary(data)
 }

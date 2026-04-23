@@ -10,6 +10,7 @@ import {
   formatDoza,
   getGrupBiologicDinCultura,
   getProdusDisplayName,
+  getProdusDraftDisplayName,
   getStadiuMeta,
   sortLiniiForReview,
 } from '@/components/tratamente/plan-wizard/helpers'
@@ -64,7 +65,7 @@ export function PlanWizardStepRevizuire({
             <p className="mt-1 text-sm text-[var(--text-primary)] [font-weight:650]">{info.cultura_tip}</p>
           </div>
           <div className="rounded-[18px] bg-[var(--surface-card-muted)] p-3">
-            <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Linii</p>
+            <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Intervenții</p>
             <p className="mt-1 text-sm text-[var(--text-primary)] [font-weight:650]">{linii.length} aplicări planificate</p>
           </div>
           <div className="rounded-[18px] bg-[var(--surface-card-muted)] p-3">
@@ -78,7 +79,7 @@ export function PlanWizardStepRevizuire({
 
       <AppCard className="rounded-[22px] p-4 sm:p-5">
         <h2 className="text-lg tracking-[-0.02em] text-[var(--text-primary)] [font-weight:650]">
-          Linii în ordine cronologică
+          Intervenții în ordine cronologică
         </h2>
         <div className="mt-4 space-y-3">
           {sortedLinii.map((linie, index) => {
@@ -97,9 +98,20 @@ export function PlanWizardStepRevizuire({
                 <p className="mt-3 text-sm text-[var(--text-primary)] [font-weight:650]">
                   {getProdusDisplayName(linie, produse)}
                 </p>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  {formatDoza(linie.doza, linie.dozaUnitate)}
-                </p>
+                <div className="mt-1 space-y-1">
+                  {linie.produse.map((produs) => {
+                    const doses = [
+                      typeof produs.doza_ml_per_hl === 'number' ? formatDoza(produs.doza_ml_per_hl, 'ml/hl') : null,
+                      typeof produs.doza_l_per_ha === 'number' ? formatDoza(produs.doza_l_per_ha, 'l/ha') : null,
+                    ].filter(Boolean)
+
+                    return (
+                      <p key={produs.id} className="text-sm text-[var(--text-secondary)]">
+                        {getProdusDraftDisplayName(produs, produse)} · {doses.length > 0 ? doses.join(' · ') : 'Doză necompletată'}
+                      </p>
+                    )
+                  })}
+                </div>
                 {linie.observatii?.trim() ? (
                   <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{linie.observatii}</p>
                 ) : null}
@@ -120,7 +132,7 @@ export function PlanWizardStepRevizuire({
             <div>
               <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Plan fără conflicte detectate</p>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Nu am găsit repetiții FRAC consecutive sau depășiri de cupru în setul curent de linii.
+                Nu am găsit repetiții FRAC consecutive sau depășiri de cupru în setul curent de intervenții.
               </p>
             </div>
           </div>

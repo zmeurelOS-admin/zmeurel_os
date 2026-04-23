@@ -10,6 +10,7 @@ import {
   getAplicareById,
   getAplicariProdusInAn,
   getGrupBiologicParcela,
+  listProduseFitosanitare,
 } from '@/lib/supabase/queries/tratamente'
 import { createClient } from '@/lib/supabase/server'
 import { calculeazaCantitateTotala } from '@/lib/tratamente/doza-calculator'
@@ -38,10 +39,11 @@ function buildOperatorDefault(email: string | null | undefined): string {
 export default async function AplicareDetaliuPage({ params }: PageProps) {
   const { id: parcelaId, aplicareId } = await params
   const supabase = await createClient()
-  const [aplicare, { data: authData }, grupBiologic] = await Promise.all([
+  const [aplicare, { data: authData }, grupBiologic, produseFitosanitare] = await Promise.all([
     getAplicareById(aplicareId),
     supabase.auth.getUser(),
     getGrupBiologicParcela(parcelaId),
+    listProduseFitosanitare({ activ: true }),
   ])
 
   if (!aplicare || aplicare.parcela_id !== parcelaId) {
@@ -146,6 +148,7 @@ export default async function AplicareDetaliuPage({ params }: PageProps) {
         meteoDateLabel={aplicare.data_planificata ? formatDateRo(aplicare.data_planificata) : 'Următoarele 24h'}
         meteoZi={meteoZi}
         parcelaId={parcelaId}
+        produseFitosanitare={produseFitosanitare}
         stadiuImplicit={aplicare.stadiu_la_aplicare ?? aplicare.linie?.stadiu_trigger ?? null}
         verificari={verificari}
       />

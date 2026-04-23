@@ -22,7 +22,7 @@ export function AplicareDetaliuHeader({
           <Button type="button" variant="outline" size="sm" asChild>
             <Link href={backHref}>
               <ArrowLeft className="h-4 w-4" />
-              Înapoi la tratamente
+              Înapoi la hub
             </Link>
           </Button>
         </div>

@@ -3,17 +3,32 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
-import { assignPlanToParcela, mapTratamenteError, recordStadiu } from '@/lib/supabase/queries/tratamente'
+import {
+  assignPlanToParcela,
+  createAplicareManuala,
+  createAplicarePlanificataDinInterventie,
+  mapTratamenteError,
+  recordStadiu,
+} from '@/lib/supabase/queries/tratamente'
 import { upsertConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
 import { genereazaAplicariPentruParcela } from '@/lib/tratamente/generator/generator'
+import { parseManualInterventieFormData } from '@/lib/tratamente/manual-interventie-action'
 import type { Cohorta, SistemConducere, TipCicluSoi } from '@/lib/tratamente/configurare-sezon'
 
 export type TratamenteActionResult =
   | { ok: true }
   | { ok: false; error: string }
 
+export type ManualInterventieActionResult =
+  | { ok: true }
+  | { ok: false; error: string }
+
 export type GenerateAplicariActionResult =
   | { ok: true; createdCount: number; skippedCount: number }
+  | { ok: false; error: string }
+
+export type PlanificaInterventieActionResult =
+  | { ok: true; aplicareId: string }
   | { ok: false; error: string }
 
 export type ConfigurareSezonActionResult =
@@ -43,6 +58,13 @@ const generateAplicariSchema = z.object({
   an: z.number().int().min(2020).max(2100),
 })
 
+const planificaInterventieSchema = z.object({
+  parcelaId: z.string().uuid('Parcela selectată nu este validă.'),
+  planLinieId: z.string().uuid('Intervenția selectată nu este validă.'),
+  dataPlanificata: z.string().trim().optional(),
+  cohortLaAplicare: z.enum(['floricane', 'primocane']).optional().nullable(),
+})
+
 const upsertConfigurareSezonSchema = z.object({
   parcelaId: z.string().uuid('Parcela selectată nu este validă.'),
   an: z.coerce.number().int().min(2020).max(2100),
@@ -52,6 +74,7 @@ const upsertConfigurareSezonSchema = z.object({
 
 function revalidateTratamentePath(parcelaId: string) {
   revalidatePath(`/parcele/${parcelaId}/tratamente`)
+  revalidatePath('/tratamente')
 }
 
 function getFormValue(formData: FormData, key: string): string {
@@ -154,6 +177,69 @@ export async function generateAplicariAction(
     return {
       ok: false,
       error: mapTratamenteError(error, 'Nu am putut genera aplicările planificate.').message,
+    }
+  }
+}
+
+export async function planificaInterventieRelevantaAction(formData: FormData): Promise<PlanificaInterventieActionResult> {
+  const parsed = planificaInterventieSchema.safeParse({
+    parcelaId: getFormValue(formData, 'parcelaId'),
+    planLinieId: getFormValue(formData, 'planLinieId'),
+    dataPlanificata: getFormValue(formData, 'dataPlanificata'),
+    cohortLaAplicare: (formData.get('cohortLaAplicare') as Cohorta | string | null | undefined) ?? undefined,
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? 'Nu am putut pregăti aplicarea.',
+    }
+  }
+
+  try {
+    const aplicare = await createAplicarePlanificataDinInterventie({
+      parcela_id: parsed.data.parcelaId,
+      plan_linie_id: parsed.data.planLinieId,
+      data_planificata: parsed.data.dataPlanificata?.trim() || null,
+      cohort_la_aplicare: parsed.data.cohortLaAplicare ?? null,
+    })
+
+    revalidateTratamentePath(parsed.data.parcelaId)
+    return { ok: true, aplicareId: aplicare.id }
+  } catch (error) {
+    return {
+      ok: false,
+      error: mapTratamenteError(error, 'Nu am putut pregăti aplicarea din plan.').message,
+    }
+  }
+}
+
+export async function createManualInterventieAction(formData: FormData): Promise<ManualInterventieActionResult> {
+  try {
+    const parsed = parseManualInterventieFormData(formData)
+
+    await createAplicareManuala({
+      parcela_id: parsed.parcelaId,
+      status: parsed.status,
+      data_planificata: parsed.status === 'planificata' ? parsed.data.slice(0, 10) : null,
+      data_aplicata: parsed.status === 'aplicata' ? new Date(parsed.data).toISOString() : null,
+      tip_interventie: parsed.tip_interventie,
+      scop: parsed.scop,
+      stadiu_la_aplicare: parsed.stadiu_la_aplicare,
+      cohort_la_aplicare: parsed.cohort_la_aplicare,
+      operator: parsed.operator,
+      observatii: parsed.observatii,
+      cantitate_totala_ml: parsed.cantitate_totala_ml,
+      produse: parsed.produse,
+      diferente_fata_de_plan: parsed.diferenteFataDePlan,
+    })
+
+    revalidateTratamentePath(parsed.parcelaId)
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error: mapTratamenteError(error, 'Nu am putut salva intervenția manuală.').message,
     }
   }
 }

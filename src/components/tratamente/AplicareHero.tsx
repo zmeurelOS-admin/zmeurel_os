@@ -5,6 +5,12 @@ import { ro } from 'date-fns/locale'
 
 import StatusBadge from '@/components/ui/StatusBadge'
 import { AppCard } from '@/components/ui/app-card'
+import { AplicareSourceBadge } from '@/components/tratamente/AplicareSourceBadge'
+import {
+  getAplicareContextLabel,
+  getAplicareInterventieLabel,
+  getAplicareProduseSummary,
+} from '@/components/tratamente/aplicare-ui'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
 import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
@@ -29,10 +35,6 @@ function getStatusLabel(status: AplicareTratamentDetaliu['status']): string {
   if (status === 'reprogramata') return 'Reprogramată'
   if (status === 'anulata') return 'Anulată'
   return 'Planificată'
-}
-
-function getProductName(aplicare: AplicareTratamentDetaliu): string {
-  return aplicare.produs?.nume_comercial ?? aplicare.produs_nume_manual ?? 'Produs nespecificat'
 }
 
 function getTypeLabel(aplicare: AplicareTratamentDetaliu): string {
@@ -81,6 +83,8 @@ export interface AplicareHeroProps {
 export function AplicareHero({ aplicare, configurareSezon }: AplicareHeroProps) {
   const frac = aplicare.produs?.frac_irac?.trim()
   const cohortLabel = getCohortLabel(aplicare)
+  const productsSummary = getAplicareProduseSummary(aplicare)
+  const contextLabel = getAplicareContextLabel(aplicare)
   const appliedAt =
     aplicare.status === 'aplicata' && aplicare.data_aplicata
       ? format(parseISO(aplicare.data_aplicata), 'd MMM yyyy, HH:mm', { locale: ro })
@@ -90,19 +94,40 @@ export function AplicareHero({ aplicare, configurareSezon }: AplicareHeroProps) 
     <AppCard className="rounded-2xl bg-[var(--surface-card)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Produs</p>
+          <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Intervenție</p>
           <h2 className="mt-1 text-[1.45rem] leading-tight text-[var(--text-primary)] [font-weight:750]">
-            {getProductName(aplicare)}
+            {productsSummary.title}
           </h2>
-          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+          {productsSummary.detail ? (
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">{productsSummary.detail}</p>
+          ) : null}
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">{contextLabel}</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
             {getTypeLabel(aplicare)}
             {frac ? ` · FRAC ${frac}` : ''}
           </p>
         </div>
-        <StatusBadge text={getStatusLabel(aplicare.status)} variant={getStatusTone(aplicare.status)} />
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge text={getStatusLabel(aplicare.status)} variant={getStatusTone(aplicare.status)} />
+          <AplicareSourceBadge source={aplicare.sursa ?? (aplicare.plan_linie_id ? 'din_plan' : 'manuala')} />
+        </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-secondary)]">
+        <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 font-medium">
+          {getAplicareInterventieLabel(aplicare)}
+        </span>
+        <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 font-medium">
+          {aplicare.parcela?.nume_parcela ?? 'Parcelă'}
+        </span>
+        {productsSummary.count > 1 ? (
+          <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 font-medium">
+            {productsSummary.count} produse
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-3">
           <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Doză</p>
           <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">{getDozaLabel(aplicare)}</p>
@@ -112,9 +137,15 @@ export function AplicareHero({ aplicare, configurareSezon }: AplicareHeroProps) 
           <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">{getPhiLabel(aplicare)}</p>
         </div>
         <div className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-3">
-          <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Stadiu</p>
+          <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Fenofază</p>
           <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">
             {getTriggerLabel(aplicare, configurareSezon ?? null)}
+          </p>
+        </div>
+        <div className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-3">
+          <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Produse efective</p>
+          <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">
+            {productsSummary.count > 1 ? `${productsSummary.count} în listă` : '1 produs'}
           </p>
         </div>
       </div>

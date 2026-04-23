@@ -197,6 +197,7 @@ export type Database = {
           cultura_id: string | null
           data_aplicata: string | null
           data_planificata: string | null
+          diferente_fata_de_plan: Json | null
           doza_l_per_ha: number | null
           doza_ml_per_hl: number | null
           id: string
@@ -209,8 +210,12 @@ export type Database = {
           produs_nume_manual: string | null
           status: string
           stadiu_la_aplicare: string | null
+          stadiu_fenologic_id: string | null
           stoc_mutatie_id: string | null
+          scop: string | null
+          sursa: string
           tenant_id: string
+          tip_interventie: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -222,6 +227,7 @@ export type Database = {
           cultura_id?: string | null
           data_aplicata?: string | null
           data_planificata?: string | null
+          diferente_fata_de_plan?: Json | null
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
           id?: string
@@ -234,8 +240,12 @@ export type Database = {
           produs_nume_manual?: string | null
           status?: string
           stadiu_la_aplicare?: string | null
+          stadiu_fenologic_id?: string | null
           stoc_mutatie_id?: string | null
+          scop?: string | null
+          sursa?: string
           tenant_id: string
+          tip_interventie?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -247,6 +257,7 @@ export type Database = {
           cultura_id?: string | null
           data_aplicata?: string | null
           data_planificata?: string | null
+          diferente_fata_de_plan?: Json | null
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
           id?: string
@@ -259,8 +270,12 @@ export type Database = {
           produs_nume_manual?: string | null
           status?: string
           stadiu_la_aplicare?: string | null
+          stadiu_fenologic_id?: string | null
           stoc_mutatie_id?: string | null
+          scop?: string | null
+          sursa?: string
           tenant_id?: string
+          tip_interventie?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -301,6 +316,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "aplicari_tratament_stadiu_fenologic_id_fkey"
+            columns: ["stadiu_fenologic_id"]
+            isOneToOne: false
+            referencedRelation: "stadii_fenologice_parcela"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "aplicari_tratament_stoc_mutatie_id_fkey"
             columns: ["stoc_mutatie_id"]
             isOneToOne: false
@@ -309,6 +331,111 @@ export type Database = {
           },
           {
             foreignKeyName: "aplicari_tratament_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aplicari_tratament_produse: {
+        Row: {
+          aplicare_id: string
+          cantitate_totala: number | null
+          created_at: string
+          doza_l_per_ha: number | null
+          doza_ml_per_hl: number | null
+          frac_irac_snapshot: string | null
+          id: string
+          observatii: string | null
+          ordine: number
+          phi_zile_snapshot: number | null
+          plan_linie_produs_id: string | null
+          produs_id: string | null
+          produs_nume_manual: string | null
+          produs_nume_snapshot: string
+          stoc_mutatie_id: string | null
+          substanta_activa_snapshot: string | null
+          tenant_id: string
+          tip_snapshot: string | null
+          unitate_cantitate: string | null
+          updated_at: string
+        }
+        Insert: {
+          aplicare_id: string
+          cantitate_totala?: number | null
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          frac_irac_snapshot?: string | null
+          id?: string
+          observatii?: string | null
+          ordine: number
+          phi_zile_snapshot?: number | null
+          plan_linie_produs_id?: string | null
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          produs_nume_snapshot: string
+          stoc_mutatie_id?: string | null
+          substanta_activa_snapshot?: string | null
+          tenant_id: string
+          tip_snapshot?: string | null
+          unitate_cantitate?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aplicare_id?: string
+          cantitate_totala?: number | null
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          frac_irac_snapshot?: string | null
+          id?: string
+          observatii?: string | null
+          ordine?: number
+          phi_zile_snapshot?: number | null
+          plan_linie_produs_id?: string | null
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          produs_nume_snapshot?: string
+          stoc_mutatie_id?: string | null
+          substanta_activa_snapshot?: string | null
+          tenant_id?: string
+          tip_snapshot?: string | null
+          unitate_cantitate?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aplicari_tratament_produse_aplicare_id_fkey"
+            columns: ["aplicare_id"]
+            isOneToOne: false
+            referencedRelation: "aplicari_tratament"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_plan_linie_produs_id_fkey"
+            columns: ["plan_linie_produs_id"]
+            isOneToOne: false
+            referencedRelation: "planuri_tratament_linie_produse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_produs_id_fkey"
+            columns: ["produs_id"]
+            isOneToOne: false
+            referencedRelation: "produse_fitosanitare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_stoc_mutatie_id_fkey"
+            columns: ["stoc_mutatie_id"]
+            isOneToOne: false
+            referencedRelation: "miscari_stoc"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -2011,14 +2138,21 @@ export type Database = {
           created_at: string
           doza_l_per_ha: number | null
           doza_ml_per_hl: number | null
+          fereastra_end_offset_zile: number | null
+          fereastra_start_offset_zile: number | null
           id: string
+          interval_repetare_zile: number | null
+          numar_repetari_max: number | null
           observatii: string | null
           ordine: number
           plan_id: string
           produs_id: string | null
           produs_nume_manual: string | null
+          regula_repetare: string
+          scop: string | null
           stadiu_trigger: string
           tenant_id: string
+          tip_interventie: string | null
           updated_at: string
         }
         Insert: {
@@ -2026,14 +2160,21 @@ export type Database = {
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
+          fereastra_end_offset_zile?: number | null
+          fereastra_start_offset_zile?: number | null
           id?: string
+          interval_repetare_zile?: number | null
+          numar_repetari_max?: number | null
           observatii?: string | null
           ordine: number
           plan_id: string
           produs_id?: string | null
           produs_nume_manual?: string | null
+          regula_repetare?: string
+          scop?: string | null
           stadiu_trigger: string
           tenant_id: string
+          tip_interventie?: string | null
           updated_at?: string
         }
         Update: {
@@ -2041,14 +2182,21 @@ export type Database = {
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
+          fereastra_end_offset_zile?: number | null
+          fereastra_start_offset_zile?: number | null
           id?: string
+          interval_repetare_zile?: number | null
+          numar_repetari_max?: number | null
           observatii?: string | null
           ordine?: number
           plan_id?: string
           produs_id?: string | null
           produs_nume_manual?: string | null
+          regula_repetare?: string
+          scop?: string | null
           stadiu_trigger?: string
           tenant_id?: string
+          tip_interventie?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2068,6 +2216,85 @@ export type Database = {
           },
           {
             foreignKeyName: "planuri_tratament_linii_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planuri_tratament_linie_produse: {
+        Row: {
+          created_at: string
+          doza_l_per_ha: number | null
+          doza_ml_per_hl: number | null
+          frac_irac_snapshot: string | null
+          id: string
+          observatii: string | null
+          ordine: number
+          phi_zile_snapshot: number | null
+          plan_linie_id: string
+          produs_id: string | null
+          produs_nume_manual: string | null
+          produs_nume_snapshot: string
+          substanta_activa_snapshot: string | null
+          tenant_id: string
+          tip_snapshot: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          frac_irac_snapshot?: string | null
+          id?: string
+          observatii?: string | null
+          ordine: number
+          phi_zile_snapshot?: number | null
+          plan_linie_id: string
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          produs_nume_snapshot: string
+          substanta_activa_snapshot?: string | null
+          tenant_id: string
+          tip_snapshot?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          frac_irac_snapshot?: string | null
+          id?: string
+          observatii?: string | null
+          ordine?: number
+          phi_zile_snapshot?: number | null
+          plan_linie_id?: string
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          produs_nume_snapshot?: string
+          substanta_activa_snapshot?: string | null
+          tenant_id?: string
+          tip_snapshot?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planuri_tratament_linie_produse_plan_linie_id_fkey"
+            columns: ["plan_linie_id"]
+            isOneToOne: false
+            referencedRelation: "planuri_tratament_linii"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planuri_tratament_linie_produse_produs_id_fkey"
+            columns: ["produs_id"]
+            isOneToOne: false
+            referencedRelation: "produse_fitosanitare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planuri_tratament_linie_produse_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"

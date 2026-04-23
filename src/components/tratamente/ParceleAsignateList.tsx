@@ -40,7 +40,7 @@ export function ParceleAsignateList({
       return
     }
 
-    toast.success('Planul a fost asignat parcelei.')
+    toast.success('Planul a fost asociat parcelei.')
     setAssignOpen(false)
     router.refresh()
   }
@@ -63,15 +63,15 @@ export function ParceleAsignateList({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <h2 className="text-lg tracking-[-0.02em] text-[var(--text-primary)] [font-weight:650]">
-              Parcele asignate
+              Parcele asociate
             </h2>
             <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-              Asignează planul pe una sau mai multe parcele și gestionează anii activi.
+              Asociază planul pe una sau mai multe parcele și gestionează anii activi.
             </p>
           </div>
           <Button type="button" className="bg-[var(--agri-primary)] text-white" onClick={() => setAssignOpen(true)}>
-            <Plus className="h-4 w-4" aria-label="Asignează la parcelă" />
-            <span className="hidden sm:inline">Asignează la parcelă</span>
+            <Plus className="h-4 w-4" aria-label="Asociază la parcelă" />
+            <span className="hidden sm:inline">Asociază la parcelă</span>
           </Button>
         </div>
       </AppCard>
@@ -79,7 +79,7 @@ export function ParceleAsignateList({
       {parceleAsociate.length === 0 ? (
         <AppCard className="rounded-[22px] border-dashed p-6 text-center">
           <p className="text-sm text-[var(--text-secondary)]">
-            Planul nu este asignat încă niciunei parcele active.
+            Planul nu este asociat încă niciunei parcele active.
           </p>
         </AppCard>
       ) : (

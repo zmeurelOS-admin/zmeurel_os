@@ -18,10 +18,12 @@ import {
 import { useRouter } from 'next/navigation'
 
 import { listProduseFitosanitareAction } from '@/app/(dashboard)/tratamente/produse-fitosanitare/actions'
+import { sortProduseFitosanitareForLibrary } from '@/lib/tratamente/produse-fitosanitare-ui'
 import {
   saveImportedPlansAction,
   type DraftProdusImport,
   type ParseResult,
+  type ParsedInterventieProdus,
   type ParsedLine,
   type PlanSaveInput,
   type ProdusMatch,
@@ -106,6 +108,10 @@ type LineAction =
   | 'skip'
 
 interface ReviewLineState extends ParsedLine {
+  produse: ReviewProductState[]
+}
+
+interface ReviewProductState extends ParsedInterventieProdus {
   actiune: LineAction | null
   produs_id: string | null
   produs_nume_manual: string | null
@@ -125,6 +131,7 @@ interface ReviewPlanState {
 interface ProductEditorState {
   planIndex: number
   lineIndex: number
+  productIndex: number
   draft: DraftProdusImport
 }
 
@@ -156,34 +163,85 @@ function toNullableNumber(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function formatDose(line: Pick<ReviewLineState, 'doza_ml_per_hl' | 'doza_l_per_ha'>) {
-  if (typeof line.doza_ml_per_hl === 'number') {
-    return `${line.doza_ml_per_hl} ml/hl`
+function formatProductDose(product: Pick<ReviewProductState, 'doza_ml_per_hl' | 'doza_l_per_ha'>) {
+  if (typeof product.doza_ml_per_hl === 'number') {
+    return `${product.doza_ml_per_hl} ml/hl`
   }
-  if (typeof line.doza_l_per_ha === 'number') {
-    return `${line.doza_l_per_ha} l/ha`
+  if (typeof product.doza_l_per_ha === 'number') {
+    return `${product.doza_l_per_ha} l/ha`
   }
   return 'Doză lipsă'
 }
 
-function countDoseValues(line: Pick<ReviewLineState, 'doza_ml_per_hl' | 'doza_l_per_ha'>) {
-  return Number(line.doza_ml_per_hl != null) + Number(line.doza_l_per_ha != null)
+function countDoseValues(product: Pick<ReviewProductState, 'doza_ml_per_hl' | 'doza_l_per_ha'>) {
+  return Number(product.doza_ml_per_hl != null) + Number(product.doza_l_per_ha != null)
 }
 
 function buildDefaultDraftProdus(
-  line: ReviewLineState,
+  product: ReviewProductState,
   culturaTip: string
 ): DraftProdusImport {
   return {
-    nume_comercial: line.produs_input.trim() || 'Produs nou',
-    substanta_activa: '',
-    tip: 'fungicid',
-    phi_zile: null,
-    doza_min_ml_per_hl: null,
-    doza_max_ml_per_hl: null,
-    doza_min_l_per_ha: null,
-    doza_max_l_per_ha: null,
+    nume_comercial: product.produs_input.trim() || 'Produs nou',
+    substanta_activa: product.substanta_activa ?? '',
+    tip: product.tip_produs ?? 'fungicid',
+    frac_irac: product.frac_irac ?? null,
+    phi_zile: product.phi_zile,
+    doza_min_ml_per_hl: product.doza_ml_per_hl,
+    doza_max_ml_per_hl: product.doza_ml_per_hl,
+    doza_min_l_per_ha: product.doza_l_per_ha,
+    doza_max_l_per_ha: product.doza_l_per_ha,
     omologat_culturi: culturaTip ? [culturaTip] : [],
+  }
+}
+
+function buildInitialProduct(product: ParsedInterventieProdus): ReviewProductState {
+  if (product.produs_match.tip === 'exact') {
+    return {
+      ...product,
+      actiune: 'use_exact',
+      produs_id: product.produs_match.produs_id,
+      produs_nume_manual: null,
+      selectedSuggestionIndex: null,
+    }
+  }
+
+  if (product.salveaza_in_biblioteca && product.produs_input.trim()) {
+    return {
+      ...product,
+      actiune: 'create_new',
+      produs_id: null,
+      produs_nume_manual: null,
+      produs_de_creat: {
+        nume_comercial: product.produs_input.trim(),
+        substanta_activa: product.substanta_activa ?? '',
+        tip: product.tip_produs ?? 'fungicid',
+        frac_irac: product.frac_irac,
+        phi_zile: product.phi_zile,
+        doza_min_ml_per_hl: product.doza_ml_per_hl,
+        doza_max_ml_per_hl: product.doza_ml_per_hl,
+        doza_min_l_per_ha: product.doza_l_per_ha,
+        doza_max_l_per_ha: product.doza_l_per_ha,
+        omologat_culturi: [],
+      },
+      selectedSuggestionIndex: null,
+    }
+  }
+
+  return {
+    ...product,
+    actiune:
+      product.produs_match.tip === 'fuzzy'
+        ? null
+        : product.produs_input.trim()
+          ? 'free_text'
+          : null,
+    produs_id: null,
+    produs_nume_manual:
+      product.produs_match.tip === 'fuzzy'
+        ? null
+        : product.produs_input.trim() || null,
+    selectedSuggestionIndex: null,
   }
 }
 
@@ -194,25 +252,10 @@ function buildInitialPlans(parseResult: ParseResult): ReviewPlanState[] {
     cultura_tip: plan.plan_metadata.cultura_tip_detectat ?? '',
     descriere: plan.plan_metadata.descriere ?? '',
     parse_errors: plan.errors,
-    linii: plan.linii.map((line) => {
-      if (line.produs_match.tip === 'exact') {
-        return {
-          ...line,
-          actiune: 'use_exact' as const,
-          produs_id: line.produs_match.produs_id,
-          produs_nume_manual: null,
-          selectedSuggestionIndex: null,
-        }
-      }
-
-      return {
-        ...line,
-        actiune: null,
-        produs_id: null,
-        produs_nume_manual: null,
-        selectedSuggestionIndex: null,
-      }
-    }),
+    linii: plan.linii.map((line) => ({
+      ...line,
+      produse: line.produse.map(buildInitialProduct),
+    })),
   }))
 }
 
@@ -223,51 +266,45 @@ function resolveSuggestionLabel(match: ProdusMatch, index: number) {
   return `Folosește „${suggestion.produs_nume}” (${suggestion.scor}%)`
 }
 
-function getLineBlockingIssues(line: ReviewLineState): string[] {
+function getProductBlockingIssues(product: ReviewProductState): string[] {
   const issues: string[] = []
 
-  if (!Number.isInteger(line.ordine) || line.ordine < 1) {
-    issues.push('Ordinea este invalidă.')
+  if (!Number.isInteger(product.ordine_produs) || product.ordine_produs < 1) {
+    issues.push('Ordinea produsului este invalidă.')
   }
-  if (!line.stadiu_trigger.trim()) {
-    issues.push('Stadiul trebuie selectat.')
-  }
-  const doseCount = countDoseValues(line)
+  const doseCount = countDoseValues(product)
   const hasNegativeDose =
-    (typeof line.doza_ml_per_hl === 'number' && line.doza_ml_per_hl < 0) ||
-    (typeof line.doza_l_per_ha === 'number' && line.doza_l_per_ha < 0)
+    (typeof product.doza_ml_per_hl === 'number' && product.doza_ml_per_hl < 0) ||
+    (typeof product.doza_l_per_ha === 'number' && product.doza_l_per_ha < 0)
 
   if (hasNegativeDose) {
     issues.push('Doza nu poate fi negativă.')
   }
-  if (doseCount !== 1) {
-    issues.push('Completează exact una dintre doze: ml/hl sau l/ha.')
-  }
 
-  if (line.actiune === 'skip') {
+  if (product.actiune === 'skip') {
     return issues
   }
 
-  if (!line.actiune) {
-    issues.push('Alege cum se rezolvă produsul pentru această linie.')
+  if (!product.actiune) {
+    issues.push('Alege cum se rezolvă produsul.')
     return issues
   }
 
   if (
-    (line.actiune === 'use_exact' ||
-      line.actiune === 'use_suggestion' ||
-      line.actiune === 'use_library') &&
-    !line.produs_id
+    (product.actiune === 'use_exact' ||
+      product.actiune === 'use_suggestion' ||
+      product.actiune === 'use_library') &&
+    !product.produs_id
   ) {
     issues.push('Produsul din bibliotecă nu este selectat.')
   }
 
-  if (line.actiune === 'free_text' && !toNullableText(line.produs_nume_manual)) {
+  if (product.actiune === 'free_text' && !toNullableText(product.produs_nume_manual)) {
     issues.push('Textul liber pentru produs este gol.')
   }
 
-  if (line.actiune === 'create_new') {
-    const draft = line.produs_de_creat
+  if (product.actiune === 'create_new') {
+    const draft = product.produs_de_creat
     if (!draft) {
       issues.push('Produsul nou nu este configurat.')
     } else {
@@ -290,38 +327,38 @@ function getLineBlockingIssues(line: ReviewLineState): string[] {
 }
 
 function getMatchBadge(
-  line: ReviewLineState,
+  product: ReviewProductState,
   produseById: Map<string, ProdusFitosanitar>
 ): { text: string; variant: ComponentProps<typeof Badge>['variant'] } {
-  if (line.actiune === 'skip') {
+  if (product.actiune === 'skip') {
     return { text: 'Skip', variant: 'secondary' }
   }
 
-  if (line.actiune === 'free_text') {
+  if (product.actiune === 'free_text') {
     return {
-      text: `Text liber — ${line.produs_nume_manual ?? line.produs_input}`,
+      text: `Text liber — ${product.produs_nume_manual ?? product.produs_input}`,
       variant: 'info',
     }
   }
 
-  if (line.actiune === 'create_new' && line.produs_de_creat) {
+  if (product.actiune === 'create_new' && product.produs_de_creat) {
     return {
-      text: `Produs nou — ${line.produs_de_creat.nume_comercial}`,
+      text: `Produs nou — ${product.produs_de_creat.nume_comercial}`,
       variant: 'info',
     }
   }
 
   if (
-    (line.actiune === 'use_exact' ||
-      line.actiune === 'use_suggestion' ||
-      line.actiune === 'use_library') &&
-    line.produs_id
+    (product.actiune === 'use_exact' ||
+      product.actiune === 'use_suggestion' ||
+      product.actiune === 'use_library') &&
+    product.produs_id
   ) {
-    const produs = produseById.get(line.produs_id)
-    if (line.actiune === 'use_suggestion') {
+    const produs = produseById.get(product.produs_id)
+    if (product.actiune === 'use_suggestion') {
       const score =
-        line.produs_match.tip === 'fuzzy' && line.selectedSuggestionIndex != null
-          ? line.produs_match.sugestii[line.selectedSuggestionIndex]?.scor
+        product.produs_match.tip === 'fuzzy' && product.selectedSuggestionIndex != null
+          ? product.produs_match.sugestii[product.selectedSuggestionIndex]?.scor
           : null
 
       return {
@@ -332,7 +369,7 @@ function getMatchBadge(
       }
     }
 
-    if (line.actiune === 'use_library') {
+    if (product.actiune === 'use_library') {
       return {
         text: `Bibliotecă — ${produs?.nume_comercial ?? 'Produs selectat'}`,
         variant: 'default',
@@ -345,8 +382,8 @@ function getMatchBadge(
     }
   }
 
-  if (line.produs_match.tip === 'fuzzy') {
-    const top = line.produs_match.sugestii[0]
+  if (product.produs_match.tip === 'fuzzy') {
+    const top = product.produs_match.sugestii[0]
     return {
       text: `Sugestie — ${top?.produs_nume ?? 'Produs'}${
         top?.scor ? ` (${top.scor}%)` : ''
@@ -356,6 +393,31 @@ function getMatchBadge(
   }
 
   return { text: 'Necunoscut', variant: 'destructive' }
+}
+
+function getLineBlockingIssues(line: ReviewLineState): string[] {
+  const issues: string[] = []
+
+  if (!Number.isInteger(line.ordine) || line.ordine < 1) {
+    issues.push('Ordinea intervenției este invalidă.')
+  }
+  if (!line.stadiu_trigger.trim()) {
+    issues.push('Stadiul trebuie selectat.')
+  }
+  if (line.regula_repetare === 'interval' && !line.interval_repetare_zile) {
+    issues.push('Pentru repetare la interval, interval_repetare_zile este obligatoriu.')
+  }
+
+  const activeProducts = line.produse.filter((product) => product.actiune !== 'skip')
+  if (activeProducts.length === 0) {
+    issues.push('Intervenția trebuie să aibă minimum un produs activ.')
+  }
+
+  for (const product of activeProducts) {
+    issues.push(...getProductBlockingIssues(product))
+  }
+
+  return issues
 }
 
 function ProductLibraryPopover({
@@ -369,6 +431,8 @@ function ProductLibraryPopover({
   produse: ProdusFitosanitar[]
   onSelect: (produs: ProdusFitosanitar) => void
 }) {
+  const orderedProduse = useMemo(() => sortProduseFitosanitareForLibrary(produse), [produse])
+
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
@@ -386,20 +450,29 @@ function ProductLibraryPopover({
           <CommandList>
             <CommandEmpty>Nu am găsit produse care să se potrivească.</CommandEmpty>
             <CommandGroup heading="Bibliotecă produse">
-              {produse.map((produs) => (
+              {orderedProduse.map((produs) => (
                 <CommandItem
                   key={produs.id}
-                  value={`${produs.nume_comercial} ${produs.substanta_activa ?? ''}`}
+                  value={`${produs.nume_comercial} ${produs.substanta_activa ?? ''} ${produs.frac_irac ?? ''} ${produs.tip ?? ''}`}
                   onSelect={() => onSelect(produs)}
                   className="items-start py-3"
                 >
                   <Database className="mt-0.5 h-4 w-4" />
                   <div className="min-w-0 space-y-1">
-                    <p className="line-clamp-1 font-medium text-[var(--text-primary)]">
-                      {produs.nume_comercial}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="line-clamp-1 font-medium text-[var(--text-primary)]">
+                        {produs.nume_comercial}
+                      </p>
+                      {!produs.activ ? (
+                        <span className="inline-flex items-center rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                          Inactiv
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="line-clamp-2 text-xs text-[var(--text-secondary)]">
                       {produs.substanta_activa || 'Substanță activă nespecificată'}
+                      {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
+                      {produs.tip ? ` · ${produs.tip}` : ''}
                     </p>
                   </div>
                 </CommandItem>
@@ -622,6 +695,7 @@ export function ReviewStep({
   const [libraryTarget, setLibraryTarget] = useState<{
     planIndex: number
     lineIndex: number
+    productIndex: number
   } | null>(null)
   const [productEditor, setProductEditor] = useState<ProductEditorState | null>(
     null
@@ -690,6 +764,20 @@ export function ReviewStep({
     )
   }
 
+  function updateProduct(
+    planIndex: number,
+    lineIndex: number,
+    productIndex: number,
+    updater: (product: ReviewProductState) => ReviewProductState
+  ) {
+    updateLine(planIndex, lineIndex, (line) => ({
+      ...line,
+      produse: line.produse.map((product, currentProductIndex) =>
+        currentProductIndex === productIndex ? updater(product) : product
+      ),
+    }))
+  }
+
   function updatePlan(
     planIndex: number,
     updater: (plan: ReviewPlanState) => ReviewPlanState
@@ -699,25 +787,26 @@ export function ReviewStep({
     )
   }
 
-  function setLineAction(
+  function setProductAction(
     planIndex: number,
     lineIndex: number,
+    productIndex: number,
     value: string
   ) {
-    const line = planuriEditate[planIndex]?.linii[lineIndex]
-    if (!line) return
+    const product = planuriEditate[planIndex]?.linii[lineIndex]?.produse[productIndex]
+    if (!product) return
 
     if (value.startsWith('suggestion:')) {
       const suggestionIndex = Number(value.split(':')[1] ?? '-1')
       if (
-        line.produs_match.tip !== 'fuzzy' ||
-        !line.produs_match.sugestii[suggestionIndex]
+        product.produs_match.tip !== 'fuzzy' ||
+        !product.produs_match.sugestii[suggestionIndex]
       ) {
         return
       }
-      const suggestion = line.produs_match.sugestii[suggestionIndex]
-      updateLine(planIndex, lineIndex, (currentLine) => ({
-        ...currentLine,
+      const suggestion = product.produs_match.sugestii[suggestionIndex]
+      updateProduct(planIndex, lineIndex, productIndex, (currentProduct) => ({
+        ...currentProduct,
         actiune: 'use_suggestion',
         produs_id: suggestion.produs_id,
         produs_nume_manual: null,
@@ -728,7 +817,7 @@ export function ReviewStep({
     }
 
     if (value === 'library') {
-      setLibraryTarget({ planIndex, lineIndex })
+      setLibraryTarget({ planIndex, lineIndex, productIndex })
       return
     }
 
@@ -737,19 +826,20 @@ export function ReviewStep({
       setProductEditor({
         planIndex,
         lineIndex,
+        productIndex,
         draft:
-          line.produs_de_creat ??
-          buildDefaultDraftProdus(line, plan?.cultura_tip ?? ''),
+          product.produs_de_creat ??
+          buildDefaultDraftProdus(product, plan?.cultura_tip ?? ''),
       })
       return
     }
 
     if (value === 'free_text') {
-      updateLine(planIndex, lineIndex, (currentLine) => ({
-        ...currentLine,
+      updateProduct(planIndex, lineIndex, productIndex, (currentProduct) => ({
+        ...currentProduct,
         actiune: 'free_text',
         produs_id: null,
-        produs_nume_manual: currentLine.produs_input.trim() || null,
+        produs_nume_manual: currentProduct.produs_input.trim() || null,
         produs_de_creat: undefined,
         selectedSuggestionIndex: null,
       }))
@@ -757,8 +847,8 @@ export function ReviewStep({
     }
 
     if (value === 'skip') {
-      updateLine(planIndex, lineIndex, (currentLine) => ({
-        ...currentLine,
+      updateProduct(planIndex, lineIndex, productIndex, (currentProduct) => ({
+        ...currentProduct,
         actiune: 'skip',
         produs_id: null,
         produs_nume_manual: null,
@@ -772,32 +862,35 @@ export function ReviewStep({
     setPlanuriEditate((current) =>
       current.map((plan) => ({
         ...plan,
-        linii: plan.linii.map((line) => {
-          if (
-            line.actiune ||
-            line.produs_match.tip !== 'fuzzy' ||
-            line.produs_match.sugestii.length === 0
-          ) {
-            return line
-          }
+        linii: plan.linii.map((line) => ({
+          ...line,
+          produse: line.produse.map((product) => {
+            if (
+              product.actiune ||
+              product.produs_match.tip !== 'fuzzy' ||
+              product.produs_match.sugestii.length === 0
+            ) {
+              return product
+            }
 
-          const firstSuggestion = line.produs_match.sugestii[0]
-          return {
-            ...line,
-            actiune: 'use_suggestion',
-            produs_id: firstSuggestion.produs_id,
-            produs_nume_manual: null,
-            selectedSuggestionIndex: 0,
-          }
-        }),
+            const firstSuggestion = product.produs_match.sugestii[0]
+            return {
+              ...product,
+              actiune: 'use_suggestion',
+              produs_id: firstSuggestion.produs_id,
+              produs_nume_manual: null,
+              selectedSuggestionIndex: 0,
+            }
+          }),
+        })),
       }))
     )
   }
 
   function handleLibrarySelection(produs: ProdusFitosanitar) {
     if (!libraryTarget) return
-    updateLine(libraryTarget.planIndex, libraryTarget.lineIndex, (line) => ({
-      ...line,
+    updateProduct(libraryTarget.planIndex, libraryTarget.lineIndex, libraryTarget.productIndex, (product) => ({
+      ...product,
       actiune: 'use_library',
       produs_id: produs.id,
       produs_nume_manual: null,
@@ -810,8 +903,8 @@ export function ReviewStep({
   function handleSaveDraftProduct() {
     if (!productEditor) return
 
-    updateLine(productEditor.planIndex, productEditor.lineIndex, (line) => ({
-      ...line,
+    updateProduct(productEditor.planIndex, productEditor.lineIndex, productEditor.productIndex, (product) => ({
+      ...product,
       actiune: 'create_new',
       produs_id: null,
       produs_nume_manual: null,
@@ -835,26 +928,45 @@ export function ReviewStep({
           descriere: toNullableText(plan.descriere),
         },
         linii: plan.linii
-          .filter((line) => line.actiune !== 'skip')
           .map((line) => ({
             ordine: line.ordine,
             stadiu_trigger: line.stadiu_trigger,
             cohort_trigger: line.cohort_trigger ?? null,
-            produs_id:
-              line.actiune === 'use_exact' ||
-              line.actiune === 'use_suggestion' ||
-              line.actiune === 'use_library'
-                ? line.produs_id
-                : null,
-            produs_nume_manual:
-              line.actiune === 'free_text'
-                ? toNullableText(line.produs_nume_manual)
-                : null,
-            doza_ml_per_hl: line.doza_ml_per_hl,
-            doza_l_per_ha: line.doza_l_per_ha,
+            tip_interventie: line.tip_interventie,
+            scop: toNullableText(line.scop),
+            regula_repetare: line.regula_repetare,
+            interval_repetare_zile: line.regula_repetare === 'interval' ? line.interval_repetare_zile : null,
+            numar_repetari_max: line.numar_repetari_max,
             observatii: toNullableText(line.observatii),
-            produs_de_creat:
-              line.actiune === 'create_new' ? line.produs_de_creat : undefined,
+            produse: line.produse
+              .filter((product) => product.actiune !== 'skip')
+              .map((product) => ({
+                ordine: product.ordine_produs,
+                produs_id:
+                  product.actiune === 'use_exact' ||
+                  product.actiune === 'use_suggestion' ||
+                  product.actiune === 'use_library'
+                    ? product.produs_id
+                    : null,
+                produs_nume_manual:
+                  product.actiune === 'free_text'
+                    ? toNullableText(product.produs_nume_manual)
+                    : product.actiune === 'create_new'
+                      ? null
+                      : product.produs_id
+                        ? null
+                        : toNullableText(product.produs_input),
+                produs_nume_snapshot: toNullableText(product.produs_input),
+                substanta_activa_snapshot: toNullableText(product.substanta_activa),
+                tip_snapshot: product.tip_produs,
+                frac_irac_snapshot: toNullableText(product.frac_irac),
+                phi_zile_snapshot: product.phi_zile,
+                doza_ml_per_hl: product.doza_ml_per_hl,
+                doza_l_per_ha: product.doza_l_per_ha,
+                observatii: toNullableText(product.observatii),
+                produs_de_creat:
+                  product.actiune === 'create_new' ? product.produs_de_creat : undefined,
+              })),
           })),
       }))
       .filter((plan) => plan.linii.length > 0)
@@ -868,7 +980,7 @@ export function ReviewStep({
 
     const payload = buildSavePayload()
     if (payload.length === 0) {
-      toast.error('Nu mai există linii de importat după skip-urile alese.')
+      toast.error('Nu mai există intervenții de importat după opțiunile alese.')
       return
     }
 
@@ -895,6 +1007,176 @@ export function ReviewStep({
         )
       }
     })
+  }
+
+  function getProductSelectValue(product: ReviewProductState) {
+    if (product.actiune === 'use_suggestion' && product.selectedSuggestionIndex != null) {
+      return `suggestion:${product.selectedSuggestionIndex}`
+    }
+    if (product.actiune === 'use_library') return 'use_library'
+    if (product.actiune === 'create_new') return 'configured_create_new'
+    if (product.actiune === 'free_text') return 'free_text'
+    if (product.actiune === 'skip') return 'skip'
+    return 'pending'
+  }
+
+  function renderProductReview({
+    plan,
+    planIndex,
+    lineIndex,
+    product,
+    productIndex,
+  }: {
+    plan: ReviewPlanState
+    planIndex: number
+    lineIndex: number
+    product: ReviewProductState
+    productIndex: number
+  }) {
+    const badge = getMatchBadge(product, produseById)
+    const productIssues = getProductBlockingIssues(product)
+    const libraryOpen =
+      libraryTarget?.planIndex === planIndex &&
+      libraryTarget?.lineIndex === lineIndex &&
+      libraryTarget?.productIndex === productIndex
+
+    return (
+      <div
+        key={`${product.ordine_produs}-${product.produs_input}-${productIndex}`}
+        className="space-y-3 rounded-[16px] border border-[var(--border-default)]/70 bg-[var(--surface-card-muted)] p-3"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">#{product.ordine_produs || productIndex + 1}</Badge>
+              <Badge variant={badge.variant}>{badge.text}</Badge>
+            </div>
+            <p className="break-words text-sm [font-weight:650] text-[var(--text-primary)]">
+              {product.produs_input || 'Fără produs în fișier'}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {formatProductDose(product)}
+              {product.substanta_activa ? ` · ${product.substanta_activa}` : ''}
+              {product.frac_irac ? ` · ${product.frac_irac}` : ''}
+              {typeof product.phi_zile === 'number' ? ` · PHI ${product.phi_zile} zile` : ''}
+            </p>
+          </div>
+
+          {product.actiune === 'create_new' ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setProductEditor({
+                  planIndex,
+                  lineIndex,
+                  productIndex,
+                  draft:
+                    product.produs_de_creat ??
+                    buildDefaultDraftProdus(product, plan.cultura_tip),
+                })
+              }
+            >
+              <PlusCircle className="h-4 w-4" />
+              Editează produsul
+            </Button>
+          ) : null}
+        </div>
+
+        {product.produs_match.tip === 'exact' ? (
+          <Select value="use_exact" disabled>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="use_exact">
+                Folosește „{product.produs_match.produs_nume}”
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+            <Select
+              value={getProductSelectValue(product)}
+              onValueChange={(value) =>
+                setProductAction(planIndex, lineIndex, productIndex, value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">
+                  Alege acțiunea pentru acest produs
+                </SelectItem>
+                {product.produs_match.tip === 'fuzzy'
+                  ? product.produs_match.sugestii.map((_suggestion, suggestionIndex) => (
+                      <SelectItem
+                        key={suggestionIndex}
+                        value={`suggestion:${suggestionIndex}`}
+                      >
+                        {resolveSuggestionLabel(product.produs_match, suggestionIndex)}
+                      </SelectItem>
+                    ))
+                  : null}
+                {product.actiune === 'use_library' && product.produs_id ? (
+                  <SelectItem value="use_library">
+                    Produs din bibliotecă:{' '}
+                    {produseById.get(product.produs_id)?.nume_comercial ?? 'Selectat'}
+                  </SelectItem>
+                ) : null}
+                <SelectItem value="library">Selectează din bibliotecă...</SelectItem>
+                {product.actiune === 'create_new' && product.produs_de_creat ? (
+                  <SelectItem value="configured_create_new">
+                    Produs nou: {product.produs_de_creat.nume_comercial}
+                  </SelectItem>
+                ) : null}
+                <SelectItem value="create_new">Creează produs nou...</SelectItem>
+                <SelectItem value="free_text" disabled={!product.produs_input.trim()}>
+                  Salvează ca text liber („{product.produs_input || 'fără text'}”)
+                </SelectItem>
+                <SelectItem value="skip">Skip acest produs</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <ProductLibraryPopover
+              open={libraryOpen}
+              onOpenChange={(open) =>
+                setLibraryTarget(open ? { planIndex, lineIndex, productIndex } : null)
+              }
+              produse={produseBiblioteca}
+              onSelect={handleLibrarySelection}
+            />
+          </div>
+        )}
+
+        {product.observatii?.trim() ? (
+          <p className="text-xs text-[var(--text-secondary)]">
+            Observații produs: {product.observatii.trim()}
+          </p>
+        ) : null}
+
+        {product.warnings.length > 0 ? (
+          <div className="space-y-1 text-xs text-[var(--warning-text)]">
+            {product.warnings.map((warning) => (
+              <p key={warning} className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{warning}</span>
+              </p>
+            ))}
+          </div>
+        ) : null}
+
+        {productIssues.length > 0 ? (
+          <div className="space-y-1 text-xs text-[var(--soft-danger-text)]">
+            {productIssues.map((issue) => (
+              <p key={issue}>{issue}</p>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    )
   }
 
   return (
@@ -1139,21 +1421,14 @@ export function ReviewStep({
                         <TableRow>
                           <TableHead>Ordine</TableHead>
                           <TableHead>Stadiu</TableHead>
-                          <TableHead>Produs input</TableHead>
-                          <TableHead>Match</TableHead>
-                          <TableHead>Acțiune</TableHead>
-                          <TableHead>Doză</TableHead>
-                          <TableHead>Observații</TableHead>
+                          <TableHead>Intervenție</TableHead>
+                          <TableHead>Produse</TableHead>
                           <TableHead>Warnings</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {plan.linii.map((line, lineIndex) => {
-                          const badge = getMatchBadge(line, produseById)
                           const issues = getLineBlockingIssues(line)
-                          const libraryOpen =
-                            libraryTarget?.planIndex === planIndex &&
-                            libraryTarget?.lineIndex === lineIndex
 
                           return (
                             <TableRow key={`${plan.foaie_nume}-${lineIndex}`}>
@@ -1198,138 +1473,29 @@ export function ReviewStep({
                               </TableCell>
                               <TableCell className="align-top">
                                 <div className="space-y-2">
-                                  <Badge variant="outline">
-                                    {line.produs_input || 'Fără produs în fișier'}
+                                  <Badge variant="secondary">
+                                    {line.tip_interventie || 'interventie'}
                                   </Badge>
-                                  {line.actiune === 'create_new' ? (
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setProductEditor({
-                                          planIndex,
-                                          lineIndex,
-                                          draft:
-                                            line.produs_de_creat ??
-                                            buildDefaultDraftProdus(
-                                              line,
-                                              plan.cultura_tip
-                                            ),
-                                        })
-                                      }
-                                    >
-                                      <PlusCircle className="h-4 w-4" />
-                                      Editează produsul nou
-                                    </Button>
+                                  {line.scop ? (
+                                    <p className="max-w-[240px] whitespace-normal text-sm text-[var(--text-primary)]">
+                                      {line.scop}
+                                    </p>
                                   ) : null}
-                                </div>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                <Badge variant={badge.variant}>{badge.text}</Badge>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                <div className="space-y-2">
-                                  {line.produs_match.tip === 'exact' ? (
-                                    <Select value="use_exact" disabled>
-                                      <SelectTrigger className="min-w-[240px]">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="use_exact">
-                                          Folosește „{line.produs_match.produs_nume}”
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  ) : (
-                                    <Select
-                                      value={
-                                        line.actiune === 'use_suggestion' &&
-                                        line.selectedSuggestionIndex != null
-                                          ? `suggestion:${line.selectedSuggestionIndex}`
-                                          : line.actiune === 'use_library'
-                                            ? 'use_library'
-                                            : line.actiune === 'create_new'
-                                              ? 'configured_create_new'
-                                              : line.actiune === 'free_text'
-                                                ? 'free_text'
-                                                : line.actiune === 'skip'
-                                                  ? 'skip'
-                                                  : 'pending'
-                                      }
-                                      onValueChange={(value) =>
-                                        setLineAction(planIndex, lineIndex, value)
-                                      }
-                                    >
-                                      <SelectTrigger className="min-w-[260px]">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="pending">
-                                          Alege acțiunea pentru această linie
-                                        </SelectItem>
-                                        {line.produs_match.tip === 'fuzzy'
-                                          ? line.produs_match.sugestii.map(
-                                              (_suggestion, suggestionIndex) => (
-                                                <SelectItem
-                                                  key={suggestionIndex}
-                                                  value={`suggestion:${suggestionIndex}`}
-                                                >
-                                                  {resolveSuggestionLabel(
-                                                    line.produs_match,
-                                                    suggestionIndex
-                                                  )}
-                                                </SelectItem>
-                                              )
-                                            )
-                                          : null}
-                                        {line.actiune === 'use_library' &&
-                                        line.produs_id ? (
-                                          <SelectItem value="use_library">
-                                            Produs din bibliotecă: {' '}
-                                            {produseById.get(line.produs_id)?.nume_comercial ??
-                                              'Selectat'}
-                                          </SelectItem>
-                                        ) : null}
-                                        <SelectItem value="library">
-                                          Selectează din bibliotecă…
-                                        </SelectItem>
-                                        {line.actiune === 'create_new' &&
-                                        line.produs_de_creat ? (
-                                          <SelectItem value="configured_create_new">
-                                            Produs nou: {line.produs_de_creat.nume_comercial}
-                                          </SelectItem>
-                                        ) : null}
-                                        <SelectItem value="create_new">
-                                          Creează produs nou…
-                                        </SelectItem>
-                                        <SelectItem
-                                          value="free_text"
-                                          disabled={!line.produs_input.trim()}
-                                        >
-                                          Salvează ca text liber („
-                                          {line.produs_input || 'fără text'}”)
-                                        </SelectItem>
-                                        <SelectItem value="skip">
-                                          Skip această linie
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-
-                                  <ProductLibraryPopover
-                                    open={libraryOpen}
-                                    onOpenChange={(open) =>
-                                      setLibraryTarget(
-                                        open
-                                          ? { planIndex, lineIndex }
-                                          : null
-                                      )
-                                    }
-                                    produse={produseBiblioteca}
-                                    onSelect={handleLibrarySelection}
-                                  />
-
+                                  <p className="text-xs text-[var(--text-secondary)]">
+                                    Repetare: {line.regula_repetare}
+                                    {line.regula_repetare === 'interval' &&
+                                    line.interval_repetare_zile
+                                      ? ` la ${line.interval_repetare_zile} zile`
+                                      : ''}
+                                    {line.numar_repetari_max
+                                      ? ` · max ${line.numar_repetari_max}`
+                                      : ''}
+                                  </p>
+                                  {line.observatii?.trim() ? (
+                                    <p className="max-w-[240px] whitespace-normal text-xs text-[var(--text-secondary)]">
+                                      {line.observatii.trim()}
+                                    </p>
+                                  ) : null}
                                   {issues.length > 0 ? (
                                     <div className="space-y-1 text-xs text-[var(--soft-danger-text)]">
                                       {issues.map((issue) => (
@@ -1339,9 +1505,18 @@ export function ReviewStep({
                                   ) : null}
                                 </div>
                               </TableCell>
-                              <TableCell>{formatDose(line)}</TableCell>
-                              <TableCell className="max-w-[220px] whitespace-normal">
-                                {line.observatii?.trim() || '—'}
+                              <TableCell className="min-w-[360px] align-top">
+                                <div className="space-y-3">
+                                  {line.produse.map((product, productIndex) =>
+                                    renderProductReview({
+                                      plan,
+                                      planIndex,
+                                      lineIndex,
+                                      product,
+                                      productIndex,
+                                    })
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell className="max-w-[220px] whitespace-normal">
                                 {line.warnings.length > 0 ? (
@@ -1369,11 +1544,7 @@ export function ReviewStep({
                   ) : (
                     <div className="space-y-3">
                       {plan.linii.map((line, lineIndex) => {
-                        const badge = getMatchBadge(line, produseById)
                         const issues = getLineBlockingIssues(line)
-                        const libraryOpen =
-                          libraryTarget?.planIndex === planIndex &&
-                          libraryTarget?.lineIndex === lineIndex
 
                         return (
                           <AppCard
@@ -1389,7 +1560,9 @@ export function ReviewStep({
                                   Ordine {line.ordine || '—'}
                                 </h4>
                               </div>
-                              <Badge variant={badge.variant}>{badge.text}</Badge>
+                              <Badge variant="secondary">
+                                {line.produse.length} produse
+                              </Badge>
                             </div>
 
                             <div className="grid gap-3">
@@ -1429,154 +1602,36 @@ export function ReviewStep({
 
                               <div className="space-y-1">
                                 <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                                  Produs din fișier
+                                  Intervenție
                                 </span>
-                                <Badge variant="outline">
-                                  {line.produs_input || 'Fără produs în fișier'}
-                                </Badge>
+                                <div className="mt-1 flex flex-wrap gap-2">
+                                  <Badge variant="secondary">
+                                    {line.tip_interventie || 'interventie'}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    repetare: {line.regula_repetare}
+                                  </Badge>
+                                </div>
+                                {line.scop ? (
+                                  <p className="mt-2 text-sm text-[var(--text-primary)]">
+                                    {line.scop}
+                                  </p>
+                                ) : null}
                               </div>
 
-                              <div className="space-y-1">
+                              <div className="space-y-2">
                                 <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                                  Acțiune
+                                  Produse intervenție
                                 </span>
-                                {line.produs_match.tip === 'exact' ? (
-                                  <Select value="use_exact" disabled>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="use_exact">
-                                        Folosește „{line.produs_match.produs_nume}”
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Select
-                                    value={
-                                      line.actiune === 'use_suggestion' &&
-                                      line.selectedSuggestionIndex != null
-                                        ? `suggestion:${line.selectedSuggestionIndex}`
-                                        : line.actiune === 'use_library'
-                                          ? 'use_library'
-                                          : line.actiune === 'create_new'
-                                            ? 'configured_create_new'
-                                            : line.actiune === 'free_text'
-                                              ? 'free_text'
-                                              : line.actiune === 'skip'
-                                                ? 'skip'
-                                                : 'pending'
-                                    }
-                                    onValueChange={(value) =>
-                                      setLineAction(planIndex, lineIndex, value)
-                                    }
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="pending">
-                                        Alege acțiunea pentru această linie
-                                      </SelectItem>
-                                      {line.produs_match.tip === 'fuzzy'
-                                        ? line.produs_match.sugestii.map(
-                                            (_suggestion, suggestionIndex) => (
-                                              <SelectItem
-                                                key={suggestionIndex}
-                                                value={`suggestion:${suggestionIndex}`}
-                                              >
-                                                {resolveSuggestionLabel(
-                                                  line.produs_match,
-                                                  suggestionIndex
-                                                )}
-                                              </SelectItem>
-                                            )
-                                          )
-                                        : null}
-                                      {line.actiune === 'use_library' && line.produs_id ? (
-                                        <SelectItem value="use_library">
-                                          Produs din bibliotecă: {' '}
-                                          {produseById.get(line.produs_id)?.nume_comercial ??
-                                            'Selectat'}
-                                        </SelectItem>
-                                      ) : null}
-                                      <SelectItem value="library">
-                                        Selectează din bibliotecă…
-                                      </SelectItem>
-                                      {line.actiune === 'create_new' &&
-                                      line.produs_de_creat ? (
-                                        <SelectItem value="configured_create_new">
-                                          Produs nou: {line.produs_de_creat.nume_comercial}
-                                        </SelectItem>
-                                      ) : null}
-                                      <SelectItem value="create_new">
-                                        Creează produs nou…
-                                      </SelectItem>
-                                      <SelectItem
-                                        value="free_text"
-                                        disabled={!line.produs_input.trim()}
-                                      >
-                                        Salvează ca text liber („
-                                        {line.produs_input || 'fără text'}”)
-                                      </SelectItem>
-                                      <SelectItem value="skip">
-                                        Skip această linie
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                {line.produse.map((product, productIndex) =>
+                                  renderProductReview({
+                                    plan,
+                                    planIndex,
+                                    lineIndex,
+                                    product,
+                                    productIndex,
+                                  })
                                 )}
-                              </div>
-
-                              <div className="flex flex-wrap gap-2">
-                                <ProductLibraryPopover
-                                  open={libraryOpen}
-                                  onOpenChange={(open) =>
-                                    setLibraryTarget(
-                                      open ? { planIndex, lineIndex } : null
-                                    )
-                                  }
-                                  produse={produseBiblioteca}
-                                  onSelect={handleLibrarySelection}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    setProductEditor({
-                                      planIndex,
-                                      lineIndex,
-                                      draft:
-                                        line.produs_de_creat ??
-                                        buildDefaultDraftProdus(
-                                          line,
-                                          plan.cultura_tip
-                                        ),
-                                    })
-                                  }
-                                >
-                                  <PlusCircle className="h-4 w-4" />
-                                  Creează produs nou
-                                </Button>
-                              </div>
-
-                              <div className="grid gap-2 sm:grid-cols-2">
-                                <div>
-                                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                                    Doză
-                                  </span>
-                                  <p className="mt-1 text-sm text-[var(--text-primary)]">
-                                    {formatDose(line)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                                    Observații
-                                  </span>
-                                  <p className="mt-1 text-sm text-[var(--text-primary)]">
-                                    {line.observatii?.trim() || '—'}
-                                  </p>
-                                </div>
                               </div>
 
                               {line.warnings.length > 0 ? (

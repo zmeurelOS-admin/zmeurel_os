@@ -80,11 +80,28 @@ export function getStadiuMeta(
 }
 
 export function getProdusDisplayName(
-  linie: Pick<PlanWizardLinieDraft, 'produs_id' | 'produs_nume_manual'>,
+  linie: Pick<PlanWizardLinieDraft, 'produs_id' | 'produs_nume_manual' | 'produse'>,
   produse: ProdusFitosanitar[]
 ) {
-  const produs = produse.find((item) => item.id === linie.produs_id)
-  return produs?.nume_comercial ?? linie.produs_nume_manual?.trim() ?? 'Produs fără nume'
+  const firstProdus = linie.produse[0]
+  const produsId = firstProdus?.produs_id ?? linie.produs_id
+  const produs = produse.find((item) => item.id === produsId)
+  const firstName =
+    produs?.nume_comercial ??
+    firstProdus?.produs_nume_manual?.trim() ??
+    firstProdus?.produs_nume_snapshot?.trim() ??
+    linie.produs_nume_manual?.trim() ??
+    'Produs fără nume'
+
+  return linie.produse.length > 1 ? `${firstName} +${linie.produse.length - 1}` : firstName
+}
+
+export function getProdusDraftDisplayName(
+  produsDraft: PlanWizardLinieDraft['produse'][number],
+  produse: ProdusFitosanitar[]
+) {
+  const produs = produse.find((item) => item.id === produsDraft.produs_id)
+  return produs?.nume_comercial ?? produsDraft.produs_nume_manual?.trim() ?? produsDraft.produs_nume_snapshot?.trim() ?? 'Produs fără nume'
 }
 
 export function formatDoza(doza: number | null | undefined, unitate: LinieDozaUnitate) {
@@ -181,12 +198,14 @@ export function buildWizardWarnings(
   const sorted = sortLiniiForReview(linii, grupBiologic)
 
   const fracTimeline = extractFracHistory(
-    sorted.map((linie, index) => ({
-      aplicareId: linie.id || `linie-${index + 1}`,
-      produsId: linie.produs_id ?? null,
-      produsNume: getProdusDisplayName(linie, produse),
-      dataAplicata: new Date(Date.UTC(an, 0, index + 1)),
-    })),
+    sorted.flatMap((linie, index) =>
+      linie.produse.map((produs, produsIndex) => ({
+        aplicareId: `${linie.id || `linie-${index + 1}`}-produs-${produsIndex + 1}`,
+        produsId: produs.produs_id ?? null,
+        produsNume: getProdusDraftDisplayName(produs, produse),
+        dataAplicata: new Date(Date.UTC(an, 0, index + 1)),
+      }))
+    ),
     produse
   )
 
@@ -199,19 +218,21 @@ export function buildWizardWarnings(
       id: `frac-${violation.firstAplicareId}-${index}`,
       tip: 'frac',
       titlu: 'Rotație FRAC repetată',
-      descriere: `Linia ${firstIndex + 1} și ${lastIndex + 1} folosesc același grup FRAC (${violation.code}). Consideră rotația.`,
+      descriere: `Intervenția ${firstIndex + 1} și ${lastIndex + 1} folosesc același grup FRAC (${violation.code}). Consideră rotația.`,
     }
   })
 
   const cupru = calculeazaCupruCumulatAnual(
-    sorted.map((linie, index) => ({
-      aplicareId: linie.id || `cupru-${index + 1}`,
-      produsId: linie.produs_id ?? null,
-      produsNume: getProdusDisplayName(linie, produse),
-      dataAplicata: new Date(Date.UTC(an, 0, index + 1)),
-      dozaMlPerHl: linie.dozaUnitate === 'ml/hl' ? linie.doza : null,
-      dozaLPerHa: linie.dozaUnitate === 'l/ha' ? linie.doza : null,
-    })),
+    sorted.flatMap((linie, index) =>
+      linie.produse.map((produs, produsIndex) => ({
+        aplicareId: `${linie.id || `cupru-${index + 1}`}-produs-${produsIndex + 1}`,
+        produsId: produs.produs_id ?? null,
+        produsNume: getProdusDraftDisplayName(produs, produse),
+        dataAplicata: new Date(Date.UTC(an, 0, index + 1)),
+        dozaMlPerHl: produs.doza_ml_per_hl ?? null,
+        dozaLPerHa: produs.doza_l_per_ha ?? null,
+      }))
+    ),
     produse,
     an
   )

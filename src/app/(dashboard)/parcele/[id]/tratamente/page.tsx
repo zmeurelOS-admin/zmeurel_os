@@ -11,12 +11,16 @@ import {
   getParcelaTratamenteContext,
   getPlanActivPentruParcela,
   listAplicariParcela,
+  listInterventiiRelevanteParcela,
   listPlanuriTratament,
+  listProduseFitosanitare,
   listStadiiPentruParcela,
   type AplicareTratamentDetaliu,
+  type InterventieRelevantaV2,
   type ParcelaTratamenteContext,
   type PlanActivParcela,
   type PlanTratament,
+  type ProdusFitosanitar,
   type StadiuFenologicParcela,
 } from '@/lib/supabase/queries/tratamente'
 import {
@@ -74,15 +78,15 @@ function getStadiuCurent(
   if (stadiiFiltrate.length === 0) return null
 
   return [...stadiiFiltrate].sort((a, b) => {
+    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
+    if (observedDiff !== 0) return observedDiff
+
     const codA = normalizeStadiu(a.stadiu)
     const codB = normalizeStadiu(b.stadiu)
     const ordineA = codA ? resolveStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
     const ordineB = codB ? resolveStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
     const ordineDiff = ordineB - ordineA
     if (ordineDiff !== 0) return ordineDiff
-
-    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
-    if (observedDiff !== 0) return observedDiff
 
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })[0] ?? null
@@ -154,7 +158,17 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
   const from = startOfYear(new Date(Date.UTC(an, 0, 1)))
   const to = endOfYear(new Date(Date.UTC(an, 0, 1)))
 
-  const [parcela, parcelaSezon, planActiv, stadii, aplicari, toatePlanurile, grupBiologic] = await Promise.all([
+  const [
+    parcela,
+    parcelaSezon,
+    planActiv,
+    stadii,
+    aplicari,
+    toatePlanurile,
+    grupBiologic,
+    produseFitosanitare,
+    interventiiRelevante,
+  ] = await Promise.all([
     getParcelaTratamenteContext(parcelaId),
     getParcelaPentruConfigurareSezon(parcelaId),
     getPlanActivPentruParcela(parcelaId, an),
@@ -162,6 +176,8 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
     listAplicariParcela(parcelaId, { from, to }),
     listPlanuriTratament({ activ: true }),
     getGrupBiologicParcela(parcelaId),
+    listProduseFitosanitare({ activ: true }),
+    listInterventiiRelevanteParcela(parcelaId, an),
   ])
 
   if (!parcela) {
@@ -238,6 +254,8 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
         parcelaId={parcelaId}
         planActiv={planActiv}
         planuriDisponibile={planuriDisponibile}
+        produseFitosanitare={produseFitosanitare as ProdusFitosanitar[]}
+        interventiiRelevante={interventiiRelevante as InterventieRelevantaV2[]}
         stadii={stadii}
         isRubusMixt={rubusMixt}
         singleStageState={singleStageState}

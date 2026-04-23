@@ -83,10 +83,57 @@ export const COHORT_TRIGGER_LABELS: Record<CohortTriggerImport, string> = {
   primocane: 'primocane',
 }
 
+export const TIP_INTERVENTIE_VALUES = [
+  'protectie',
+  'nutritie',
+  'biostimulare',
+  'erbicidare',
+  'igiena',
+  'monitorizare',
+  'altul',
+] as const
+
+export type TipInterventieImport = (typeof TIP_INTERVENTIE_VALUES)[number]
+
+export const TIP_INTERVENTIE_LABELS: Record<TipInterventieImport, string> = {
+  protectie: 'Protecție',
+  nutritie: 'Nutriție',
+  biostimulare: 'Biostimulare',
+  erbicidare: 'Erbicidare',
+  igiena: 'Igienă',
+  monitorizare: 'Monitorizare',
+  altul: 'Altul',
+}
+
+export const REGULA_REPETARE_VALUES = ['fara_repetare', 'interval'] as const
+
+export type RegulaRepetareImport = (typeof REGULA_REPETARE_VALUES)[number]
+
+export const REGULA_REPETARE_LABELS: Record<RegulaRepetareImport, string> = {
+  fara_repetare: 'Fără repetare',
+  interval: 'Interval',
+}
+
+export const TIP_PRODUS_VALUES = [
+  'fungicid',
+  'insecticid',
+  'erbicid',
+  'acaricid',
+  'foliar',
+  'ingrasamant',
+  'bioregulator',
+  'altul',
+] as const
+
 export const SHEET_NAMES_RESERVED = [
   'Instructions',
+  'Interventii',
+  'Produse interventii',
   'Stadii valide',
   'Culturi acceptate',
+  'Cohorte valide',
+  'Tipuri interventie',
+  'Reguli repetare',
   'Produse standard',
   'Exemplu zmeur',
 ] as const
@@ -122,6 +169,20 @@ export function mapImportCohortTrigger(value: string | null | undefined): Cohort
   if (normalized === 'floricane') return 'floricane'
   if (normalized === 'primocane') return 'primocane'
   return null
+}
+
+export function mapImportTipInterventie(value: string | null | undefined): TipInterventieImport | null {
+  const normalized = normalizeForSearch(value)
+  if (!normalized) return null
+  const lookup = buildLookup(TIP_INTERVENTIE_VALUES, TIP_INTERVENTIE_LABELS)
+  return lookup[normalized] ?? null
+}
+
+export function mapImportRegulaRepetare(value: string | null | undefined): RegulaRepetareImport | null {
+  const normalized = normalizeForSearch(value)
+  if (!normalized) return 'fara_repetare'
+  const lookup = buildLookup(REGULA_REPETARE_VALUES, REGULA_REPETARE_LABELS)
+  return lookup[normalized] ?? null
 }
 
 export function mapImportCulture(value: string | null | undefined): CulturaImport | null {

@@ -84,7 +84,7 @@ export function PlanInfoEditDialog({
       <AppDrawer
         open={open}
         onOpenChange={onOpenChange}
-        title="Editează informațiile planului"
+        title="Editează planul"
         description="Actualizează numele și descrierea planului."
         footer={footer}
       >
@@ -97,7 +97,7 @@ export function PlanInfoEditDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editează informațiile planului"
+      title="Editează planul"
       description="Actualizează numele și descrierea planului."
       footer={footer}
     >

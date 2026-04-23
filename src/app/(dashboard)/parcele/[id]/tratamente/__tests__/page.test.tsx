@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
@@ -8,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   listStadiiPentruParcela: vi.fn(),
   listAplicariParcela: vi.fn(),
   listPlanuriTratament: vi.fn(),
+  listProduseFitosanitare: vi.fn(),
+  listInterventiiRelevanteParcela: vi.fn(),
   getGrupBiologicParcela: vi.fn(),
   getOrCreateConfigurareSezon: vi.fn(),
   genereazaAplicariPentruParcela: vi.fn(),
@@ -19,6 +22,8 @@ vi.mock('@/lib/supabase/queries/tratamente', () => ({
   listStadiiPentruParcela: (...args: unknown[]) => mocks.listStadiiPentruParcela(...args),
   listAplicariParcela: (...args: unknown[]) => mocks.listAplicariParcela(...args),
   listPlanuriTratament: (...args: unknown[]) => mocks.listPlanuriTratament(...args),
+  listProduseFitosanitare: (...args: unknown[]) => mocks.listProduseFitosanitare(...args),
+  listInterventiiRelevanteParcela: (...args: unknown[]) => mocks.listInterventiiRelevanteParcela(...args),
   getGrupBiologicParcela: (...args: unknown[]) => mocks.getGrupBiologicParcela(...args),
 }))
 
@@ -29,6 +34,15 @@ vi.mock('@/lib/supabase/queries/configurari-sezon', () => ({
 
 vi.mock('@/lib/tratamente/generator/generator', () => ({
   genereazaAplicariPentruParcela: (...args: unknown[]) => mocks.genereazaAplicariPentruParcela(...args),
+}))
+
+vi.mock('@/contexts/AddActionContext', () => ({
+  useAddAction: () => ({
+    registerAddAction: vi.fn(() => vi.fn()),
+    triggerAddAction: vi.fn(),
+    currentLabel: '+ Intervenție manuală',
+    hasAction: true,
+  }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -101,6 +115,7 @@ const buildAplicare = (id: string, tip: string) => ({
   parcela_id: parcela.id,
   cultura_id: null,
   plan_linie_id: `lin-${id}`,
+  sursa: 'din_plan',
   produs_id: `prod-${id}`,
   produs_nume_manual: null,
   data_planificata: '2026-04-20',
@@ -159,6 +174,8 @@ describe('parcela tratamente page', () => {
     mocks.listStadiiPentruParcela.mockResolvedValue([])
     mocks.listAplicariParcela.mockResolvedValue([])
     mocks.listPlanuriTratament.mockResolvedValue([])
+    mocks.listProduseFitosanitare.mockResolvedValue([])
+    mocks.listInterventiiRelevanteParcela.mockResolvedValue([])
     mocks.getGrupBiologicParcela.mockResolvedValue('rubus')
     mocks.getParcelaPentruConfigurareSezon.mockResolvedValue(parcela)
     mocks.getOrCreateConfigurareSezon.mockResolvedValue({
@@ -176,12 +193,19 @@ describe('parcela tratamente page', () => {
 
   it('afișează empty state global și nu arată FAB când nu există nimic', async () => {
     const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
-    render(element)
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>)
 
     expect(screen.getAllByText('Protecție & Nutriție').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Începe modulul de tratamente pentru această parcelă')).toBeInTheDocument()
-    expect(screen.getByText('Creează primul plan de tratament')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Creează primul plan' })).toHaveAttribute(
+    expect(screen.getByText('Începe modulul de protecție și nutriție pentru această parcelă')).toBeInTheDocument()
+    expect(screen.getByText('Creează plan')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Creează plan' })).toHaveAttribute(
       'href',
       `/tratamente/planuri/nou?parcela_id=${parcela.id}`
     )
@@ -189,8 +213,8 @@ describe('parcela tratamente page', () => {
       'href',
       '/tratamente/planuri/import'
     )
-    expect(screen.getByText('Nu ai înregistrat niciun stadiu anul acesta.')).toBeInTheDocument()
-    expect(screen.getByText('Nicio parcelă asignată pentru 2026')).toBeInTheDocument()
+    expect(screen.getByText('Nu ai înregistrat încă nicio fenofază anul acesta.')).toBeInTheDocument()
+    expect(screen.getByText('Nicio parcelă asociată pentru 2026')).toBeInTheDocument()
     expect(screen.getByText('Nu există încă aplicări planificate pentru această parcelă în anul curent.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generează aplicări' })).not.toBeInTheDocument()
   })
@@ -199,10 +223,17 @@ describe('parcela tratamente page', () => {
     mocks.listStadiiPentruParcela.mockResolvedValue([stadiu])
 
     const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
-    render(element)
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
 
-    expect(screen.getByText('Buton verde')).toBeInTheDocument()
-    expect(screen.getByText('Nicio parcelă asignată pentru 2026')).toBeInTheDocument()
+    render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>)
+
+    expect(screen.getByText(/Buton verde|Inflorescențe vizibile/i)).toBeInTheDocument()
+    expect(screen.getByText('Nicio parcelă asociată pentru 2026')).toBeInTheDocument()
     expect(screen.getByText('Nu există încă aplicări planificate pentru această parcelă în anul curent.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generează aplicări' })).not.toBeInTheDocument()
   })
@@ -228,7 +259,14 @@ describe('parcela tratamente page', () => {
     mocks.listPlanuriTratament.mockResolvedValue([plan])
 
     const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
-    render(element)
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>)
 
     expect(screen.getByText('Plan zmeur primăvară 2026')).toBeInTheDocument()
     expect(screen.getByText('zmeur')).toBeInTheDocument()
@@ -257,7 +295,14 @@ describe('parcela tratamente page', () => {
     })
 
     const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
-    render(element)
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>)
 
     expect(screen.getByText(/Configurează sistemul de conducere pentru 2026/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Configurează' })).toBeInTheDocument()

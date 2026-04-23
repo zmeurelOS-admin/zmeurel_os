@@ -70,9 +70,9 @@ export function VerificariAutomate({
           <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Verificări automate</h3>
         </div>
 
-        <VerificareRow label="PHI vs recoltare" state={phi} />
-        <VerificareRow label="Nr aplicări sezon" state={sezon} />
-        <VerificareRow label="Stoc magazie" state={stoc} />
+        <VerificareRow label="PHI înainte de recoltare" state={phi} />
+        <VerificareRow label="Aplicări în sezon" state={sezon} />
+        <VerificareRow label="Stoc în magazie" state={stoc} />
       </div>
     </AppCard>
   )

@@ -41,7 +41,7 @@ export function AssignPlanSheet({
 
   const content = plans.length === 0 ? (
     <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 py-5 text-sm text-[var(--text-secondary)]">
-      Nu există planuri active disponibile pentru această parcelă.
+      Nu există planuri active disponibile.
     </div>
   ) : (
     <div className="space-y-3">
@@ -87,8 +87,8 @@ export function AssignPlanSheet({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-2xl">
           <SheetHeader>
-            <SheetTitle>Atribuie plan</SheetTitle>
-            <p className="text-sm text-[var(--text-secondary)]">Selectează planul activ pentru anul {an}</p>
+          <SheetTitle>Asociază plan</SheetTitle>
+          <p className="text-sm text-[var(--text-secondary)]">Selectează planul activ pentru anul {an}</p>
           </SheetHeader>
           <div className="px-4 pb-4">{content}</div>
           <SheetFooter>
@@ -108,7 +108,7 @@ export function AssignPlanSheet({
                 await onSubmit(selectedPlanId)
               }}
             >
-              {pending ? 'Se salvează...' : 'Atribuie plan'}
+              {pending ? 'Se salvează...' : 'Asociază plan'}
             </button>
           </SheetFooter>
         </SheetContent>
@@ -120,7 +120,7 @@ export function AssignPlanSheet({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Atribuie plan"
+      title="Asociază plan"
       description={`Selectează planul activ pentru anul ${an}`}
       footer={
         <DialogFormActions
@@ -130,7 +130,7 @@ export function AssignPlanSheet({
           }}
           saving={pending}
           disabled={saveDisabled}
-          saveLabel="Atribuie plan"
+          saveLabel="Asociază plan"
         />
       }
     >
