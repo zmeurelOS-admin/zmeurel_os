@@ -16,6 +16,8 @@ interface AppDrawerProps {
   showHandle?: boolean
   /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
   desktopFormWide?: boolean
+  /** Variantă compactă desktop pentru formulare scurte (header/content/footer mai dense). */
+  desktopFormCompact?: boolean
 }
 
 export function AppDrawer({
@@ -30,6 +32,7 @@ export function AppDrawer({
   hideHeader,
   showHandle,
   desktopFormWide,
+  desktopFormCompact,
 }: AppDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange} disableHistory={disableHistory}>
@@ -41,6 +44,7 @@ export function AppDrawer({
         hideHeader={hideHeader}
         showHandle={showHandle}
         desktopFormWide={desktopFormWide}
+        desktopFormCompact={desktopFormCompact}
       >
         {children}
       </FormDialogLayout>

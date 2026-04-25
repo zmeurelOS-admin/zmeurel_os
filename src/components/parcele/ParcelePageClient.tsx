@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, ChevronUp, Map as MapIcon, SprayCan } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronUp, Clock3, CloudRain, CloudSun, Droplets, ListChecks, Map as MapIcon, MoreHorizontal, SprayCan, Sprout, Wind } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -21,6 +21,7 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { useMeteo } from '@/hooks/useMeteo'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
@@ -28,7 +29,7 @@ import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
 import { buildLatestActivityByParcela, getActivityDaysAgo, getActivityPauseRemainingDays } from '@/lib/activitati/timeline'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
-import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
+import { getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import {
   createParcelaStadiuCanonic,
   getConfigurareSezonParcela,
@@ -45,6 +46,7 @@ import {
 } from '@/lib/supabase/queries/culturi'
 import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
+import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import {
   getGrupBiologicForCropCod,
@@ -103,6 +105,8 @@ interface ParcelePageClientProps {
 }
 
 type UnitFilter = 'toate' | UnitateTip
+type JournalTypeFilter = 'all' | 'activitati' | 'tratamente' | 'recoltari' | 'stadii'
+type JournalPeriodFilter = '7d' | '30d' | 'sezon' | 'tot'
 
 const SOIURI_DISPONIBILE = ['Delniwa', 'Maravilla', 'Enrosadira', 'Husaria']
 
@@ -273,6 +277,19 @@ function formatActivityDateShort(dateStr: string | null | undefined): string | n
   }).format(parsed)
 }
 
+function asFiniteCoord(value: unknown): number | null {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function resolveParcelaMeteoCoords(parcela: Parcela | null | undefined): { lat: number; lon: number } | null {
+  if (!parcela) return null
+  const lat = asFiniteCoord(parcela.latitudine) ?? asFiniteCoord(parcela.gps_lat)
+  const lon = asFiniteCoord(parcela.longitudine) ?? asFiniteCoord(parcela.gps_lng)
+  if (lat === null || lon === null) return null
+  return { lat, lon }
+}
+
 function buildParcelaDesktopMeta(parcela: Parcela): string {
   const scop: ParcelaScop = coerceParcelaScopFromDb(parcela.rol)
   const meta = [
@@ -304,6 +321,90 @@ function buildParcelaSummaryLine(parcela: Parcela, activeCulturiCount: number): 
   ].filter(Boolean)
 
   return summary.join(' · ')
+}
+
+function isTreatmentLikeActivity(activity: ActivitateAgricola): boolean {
+  const tip = normalizeStr(activity.tip_activitate)
+  return (
+    Number(activity.timp_pauza_zile || 0) > 0 ||
+    Boolean((activity.produs_utilizat ?? '').trim()) ||
+    tip.includes('trat') ||
+    tip.includes('strop') ||
+    tip.includes('fitosan') ||
+    tip.includes('erbicid') ||
+    tip.includes('fungicid') ||
+    tip.includes('insecticid')
+  )
+}
+
+function getJournalTypeLabel(value: JournalTypeFilter): string {
+  if (value === 'activitati') return 'Activități'
+  if (value === 'tratamente') return 'Tratamente'
+  if (value === 'recoltari') return 'Recoltări'
+  if (value === 'stadii') return 'Stadii'
+  return 'Toate'
+}
+
+function getJournalPeriodLabel(value: JournalPeriodFilter): string {
+  if (value === '7d') return '7 zile'
+  if (value === '30d') return '30 zile'
+  if (value === 'sezon') return 'Sezon'
+  return 'Tot'
+}
+
+function getJournalPeriodStart(period: JournalPeriodFilter, seasonYear: number): Date | null {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (period === 'tot') return null
+  if (period === 'sezon') return new Date(seasonYear, 0, 1)
+
+  const days = period === '7d' ? 7 : 30
+  const start = new Date(today)
+  start.setDate(start.getDate() - (days - 1))
+  return start
+}
+
+function getJournalEntryKind(entry: { id: string }): 'activitate' | 'tratament' | 'recoltare' | 'stadiu' {
+  if (entry.id.startsWith('recoltare:')) return 'recoltare'
+  if (entry.id.startsWith('stadiu:')) return 'stadiu'
+  if (entry.id.startsWith('activitate:tratament:')) return 'tratament'
+  if (entry.id.startsWith('activitate:')) return 'activitate'
+  return 'activitate'
+}
+
+function getJournalKindMeta(kind: 'activitate' | 'tratament' | 'recoltare' | 'stadiu'): {
+  icon: React.ReactNode
+  label: string
+  toneClass: string
+} {
+  if (kind === 'tratament') {
+    return {
+      icon: <SprayCan className="h-3.5 w-3.5" aria-hidden />,
+      label: 'Tratament',
+      toneClass: 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
+    }
+  }
+  if (kind === 'recoltare') {
+    return {
+      icon: <CalendarDays className="h-3.5 w-3.5" aria-hidden />,
+      label: 'Recoltare',
+      toneClass: 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
+    }
+  }
+  if (kind === 'stadiu') {
+    return {
+      icon: <ListChecks className="h-3.5 w-3.5" aria-hidden />,
+      label: 'Stadiu',
+      toneClass: 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)]',
+    }
+  }
+
+  return {
+    icon: <Sprout className="h-3.5 w-3.5" aria-hidden />,
+    label: 'Activitate',
+    toneClass: 'border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
+  }
 }
 
 function CulturaCard({
@@ -1331,6 +1432,13 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const [search, setSearch] = useState('')
   const [unitFilter, setUnitFilter] = useState<UnitFilter>(() => resolveUnitFilterParam(searchParams))
   const [isDesktop, setIsDesktop] = useState(false)
+  const [desktopSelectedParcelaId, setDesktopSelectedParcelaId] = useState<string | null>(null)
+  const [desktopMoreOpen, setDesktopMoreOpen] = useState(false)
+  const [desktopInspectorTab, setDesktopInspectorTab] = useState<'prezentare' | 'jurnal' | 'tratamente' | 'microclimat'>(
+    'prezentare'
+  )
+  const [desktopJournalTypeFilter, setDesktopJournalTypeFilter] = useState<JournalTypeFilter>('all')
+  const [desktopJournalPeriodFilter, setDesktopJournalPeriodFilter] = useState<JournalPeriodFilter>('30d')
 
   const [addCulturaParcelaId, setAddCulturaParcelaId] = useState<string | null>(null)
   const [addMicroclimatParcelaId, setAddMicroclimatParcelaId] = useState<string | null>(null)
@@ -1352,6 +1460,12 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const { data: activitati = [] } = useQuery({
     queryKey: queryKeys.activitati,
     queryFn: getActivitatiAgricole,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  })
+  const { data: recoltari = [] } = useQuery({
+    queryKey: queryKeys.recoltari,
+    queryFn: getRecoltari,
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
@@ -1470,6 +1584,37 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     return map
   }, [activitati, today])
 
+  const tratamenteByParcela = useMemo(() => {
+    const map = new Map<string, Array<{ date: string; type: string; product: string; dose: string }>>()
+    const ordered = [...activitati]
+      .filter((row) => Boolean(row.parcela_id) && isTreatmentLikeActivity(row))
+      .sort((a, b) => {
+        const left = new Date(b.data_aplicare || b.created_at || 0).getTime()
+        const right = new Date(a.data_aplicare || a.created_at || 0).getTime()
+        return left - right
+      })
+
+    for (const row of ordered) {
+      if (!row.parcela_id) continue
+      const current = map.get(row.parcela_id) ?? []
+      current.push({
+        date: row.data_aplicare || row.created_at || '',
+        type: row.tip_activitate || 'Tratament',
+        product: row.produs_utilizat || '',
+        dose: row.doza || '',
+      })
+      map.set(row.parcela_id, current)
+    }
+
+    return map
+  }, [activitati])
+  const latestTreatmentByParcela = useMemo(() => {
+    const map = new Map<string, { date: string; type: string; product: string; dose: string }>()
+    for (const [parcelaId, rows] of tratamenteByParcela.entries()) {
+      if (rows[0]) map.set(parcelaId, rows[0])
+    }
+    return map
+  }, [tratamenteByParcela])
   const filteredParcele = useMemo(() => {
     let base = unitFilter === 'toate'
       ? parcele
@@ -1540,6 +1685,208 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     () => parcele.find((parcela) => parcela.id === addMicroclimatParcelaId) ?? null,
     [parcele, addMicroclimatParcelaId]
   )
+  const desktopSelectedParcela = useMemo(
+    () => filteredParcele.find((parcela) => parcela.id === desktopSelectedParcelaId) ?? filteredParcele[0] ?? null,
+    [desktopSelectedParcelaId, filteredParcele]
+  )
+  const desktopSelectedParcelaIdResolved = desktopSelectedParcela?.id ?? null
+  const meteoCoordsSelection = useMemo(() => {
+    const selectedCoords = resolveParcelaMeteoCoords(desktopSelectedParcela)
+    if (selectedCoords) {
+      return {
+        coords: selectedCoords,
+        locationSource: 'parcela' as const,
+        locationLabel: desktopSelectedParcela?.nume_parcela || 'Parcela selectată',
+      }
+    }
+
+    const fallbackComercial = parcele.find((parcela) => {
+      if (parcela.id === desktopSelectedParcela?.id) return false
+      if (coerceParcelaScopFromDb(parcela.rol) !== 'comercial') return false
+      return Boolean(resolveParcelaMeteoCoords(parcela))
+    })
+
+    if (fallbackComercial) {
+      const fallbackCoords = resolveParcelaMeteoCoords(fallbackComercial)
+      if (fallbackCoords) {
+        return {
+          coords: fallbackCoords,
+          locationSource: 'fallback' as const,
+          locationLabel: fallbackComercial.nume_parcela || 'Parcelă comercială',
+        }
+      }
+    }
+
+    const fallbackAny = parcele.find((parcela) => {
+      if (parcela.id === desktopSelectedParcela?.id) return false
+      return Boolean(resolveParcelaMeteoCoords(parcela))
+    })
+
+    if (fallbackAny) {
+      const fallbackCoords = resolveParcelaMeteoCoords(fallbackAny)
+      if (fallbackCoords) {
+        return {
+          coords: fallbackCoords,
+          locationSource: 'fallback' as const,
+          locationLabel: fallbackAny.nume_parcela || 'Parcelă',
+        }
+      }
+    }
+
+    return {
+      coords: null,
+      locationSource: 'none' as const,
+      locationLabel: null,
+    }
+  }, [desktopSelectedParcela, parcele])
+  const meteoAuto = useMeteo({
+    coords: meteoCoordsSelection.coords ?? undefined,
+    enabled: Boolean(meteoCoordsSelection.coords),
+  })
+  const meteoAutoSummary = useMemo(() => {
+    if (!meteoCoordsSelection.coords) {
+      return {
+        state: 'empty' as const,
+        reason: 'Date automate indisponibile: parcela selectată și fallback-ul fermei nu au coordonate.',
+      }
+    }
+    if (meteoAuto.loading) {
+      return {
+        state: 'loading' as const,
+        reason: 'Se încarcă datele automate meteo.',
+      }
+    }
+    if (!meteoAuto.data?.available) {
+      const edgeError = (meteoAuto.data?.error ?? meteoAuto.error ?? '').trim()
+      return {
+        state: 'empty' as const,
+        reason: edgeError
+          ? `Date automate indisponibile: ${edgeError}`
+          : 'Date automate indisponibile momentan pentru coordonatele selectate.',
+      }
+    }
+
+    return {
+      state: 'ready' as const,
+      temperature: meteoAuto.data.current?.temp ?? null,
+      humidity: meteoAuto.data.current?.humidity ?? null,
+      rainChance: meteoAuto.data.forecastTomorrow?.pop ?? null,
+      wind: meteoAuto.data.current?.windSpeed ?? null,
+      fetchedAt: meteoAuto.data.fetchedAt ?? null,
+      source: meteoAuto.data.source ?? null,
+      locationSource: meteoCoordsSelection.locationSource,
+      locationLabel: meteoCoordsSelection.locationLabel,
+    }
+  }, [meteoAuto.data, meteoAuto.error, meteoAuto.loading, meteoCoordsSelection])
+  const { data: desktopMicroclimatLogs = [] } = useQuery({
+    queryKey: ['solar_climate_logs', 'desktop-inspector', desktopSelectedParcelaIdResolved],
+    queryFn: () => getSolarClimateLogs(desktopSelectedParcelaIdResolved ?? '', 12),
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(desktopSelectedParcelaIdResolved) && normalizeUnitateTip(desktopSelectedParcela?.tip_unitate) === 'solar',
+  })
+  const currentSezon = getCurrentSezon()
+  const { data: desktopStadiiCanonice = [] } = useQuery({
+    queryKey: ['desktop-inspector', ...queryKeys.parcelaCultureStages(desktopSelectedParcelaIdResolved ?? '')],
+    queryFn: () => getStadiiCanoniceParcela(desktopSelectedParcelaIdResolved ?? '', currentSezon, 30),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(desktopSelectedParcelaIdResolved),
+  })
+  const desktopSelectedCropCod = useMemo(
+    () =>
+      normalizeCropCod(desktopSelectedParcela?.cultura) ??
+      normalizeCropCod(desktopSelectedParcela?.tip_fruct),
+    [desktopSelectedParcela?.cultura, desktopSelectedParcela?.tip_fruct]
+  )
+  const desktopSelectedGrupBiologic = useMemo(
+    () => getGrupBiologicForCropCod(desktopSelectedCropCod),
+    [desktopSelectedCropCod]
+  )
+  const desktopCurrentStage = useMemo(
+    () => getCurrentCanonicalStage(desktopStadiiCanonice, desktopSelectedGrupBiologic),
+    [desktopStadiiCanonice, desktopSelectedGrupBiologic]
+  )
+  const selectedParcelaTratamente = useMemo(
+    () => (desktopSelectedParcelaIdResolved ? tratamenteByParcela.get(desktopSelectedParcelaIdResolved) ?? [] : []),
+    [desktopSelectedParcelaIdResolved, tratamenteByParcela]
+  )
+  const lastTreatmentEntry = selectedParcelaTratamente[0] ?? null
+  const lastTreatmentDays = lastTreatmentEntry
+    ? Math.max(0, Math.floor((today.getTime() - new Date(lastTreatmentEntry.date).getTime()) / 86_400_000))
+    : null
+  const selectedParcelaRecoltari = useMemo(
+    () =>
+      desktopSelectedParcelaIdResolved
+        ? recoltari.filter((item) => item.parcela_id === desktopSelectedParcelaIdResolved)
+        : [],
+    [desktopSelectedParcelaIdResolved, recoltari]
+  )
+  const latestDesktopMicroclimat = desktopMicroclimatLogs[0] ?? null
+  const jurnalEntries = useMemo(() => {
+    if (!desktopSelectedParcelaIdResolved) return []
+    const activities = activitati
+      .filter((activity) => activity.parcela_id === desktopSelectedParcelaIdResolved)
+      .map((activity) => ({
+        id: `activitate:${activity.id}`,
+        date: activity.data_aplicare || activity.created_at || '',
+        kind: isTreatmentLikeActivity(activity) ? ('tratament' as const) : ('activitate' as const),
+        title: activity.tip_activitate || 'Activitate',
+        details: [activity.produs_utilizat, activity.doza].filter(Boolean).join(' · ') || null,
+      }))
+    const harvests = selectedParcelaRecoltari.map((recoltare) => ({
+      id: `recoltare:${recoltare.id}`,
+      date: recoltare.data || recoltare.created_at || '',
+      kind: 'recoltare' as const,
+      title: 'Recoltare înregistrată',
+      details: `${Number(recoltare.kg_cal1 || 0) + Number(recoltare.kg_cal2 || 0)} kg`,
+    }))
+    const stages = desktopStadiiCanonice.map((stage) => ({
+      id: `stadiu:${stage.id}`,
+      date: stage.data_observata || stage.created_at || '',
+      kind: 'stadiu' as const,
+      title: formatEtapaLabel(stage.stadiu, desktopSelectedGrupBiologic, stage.cohort),
+      details: stage.observatii || null,
+    }))
+
+    return [...activities, ...harvests, ...stages].sort((a, b) => {
+      const left = new Date(b.date).getTime()
+      const right = new Date(a.date).getTime()
+      return left - right
+    })
+  }, [
+    activitati,
+    desktopSelectedGrupBiologic,
+    desktopSelectedParcelaIdResolved,
+    desktopStadiiCanonice,
+    selectedParcelaRecoltari,
+  ])
+  const filteredJournalEntries = useMemo(() => {
+    const periodStart = getJournalPeriodStart(desktopJournalPeriodFilter, currentSezon)
+    return jurnalEntries.filter((entry) => {
+      const kind = getJournalEntryKind(entry)
+      if (desktopJournalTypeFilter !== 'all') {
+        if (desktopJournalTypeFilter === 'activitati' && kind !== 'activitate') return false
+        if (desktopJournalTypeFilter === 'tratamente' && kind !== 'tratament') return false
+        if (desktopJournalTypeFilter === 'recoltari' && kind !== 'recoltare') return false
+        if (desktopJournalTypeFilter === 'stadii' && kind !== 'stadiu') return false
+      }
+      if (!periodStart) return true
+      const entryDate = new Date(entry.date)
+      return !Number.isNaN(entryDate.getTime()) && entryDate.getTime() >= periodStart.getTime()
+    })
+  }, [currentSezon, desktopJournalPeriodFilter, desktopJournalTypeFilter, jurnalEntries])
+  const journalKindCounts = useMemo(
+    () =>
+      jurnalEntries.reduce(
+        (acc, entry) => {
+          acc[getJournalEntryKind(entry)] += 1
+          return acc
+        },
+        { activitate: 0, tratament: 0, recoltare: 0, stadiu: 0 }
+      ),
+    [jurnalEntries]
+  )
 
   return (
     <AppShell
@@ -1596,6 +1943,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Caută terenuri"
+                className="md:hidden"
               />
             ) : null}
 
@@ -1615,40 +1963,744 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                 hint={unitFilter === 'solar' ? 'Solariile vor apărea aici' : 'Modifică filtrul sau căutarea'}
               />
             ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {filteredParcele.map((parcela) => {
-                  const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
-                  return (
-                    <TerenCard
-                      key={parcela.id}
-                      parcela={parcela}
-                      latestActivity={latestActivityByParcela.get(parcela.id)}
-                      activeCulturiCount={activeCulturiCounts[parcela.id] ?? 0}
-                      isExpanded={expandedId === parcela.id}
-                      onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
-                      onAddActivity={(id) => {
-                        setAddActivityParcelaId(id)
-                        setAddActivityOpen(true)
-                      }}
-                      onTratamente={(id) => {
-                        router.push(`/parcele/${id}/tratamente`)
-                      }}
-                      onHistoric={() => {
-                        if (isSolar) {
-                          router.push(`/parcele/${parcela.id}`)
-                        } else {
-                          router.push('/activitati-agricole')
-                        }
-                      }}
-                      onEdit={(p) => { setSelectedParcela(p); setEditOpen(true) }}
-                      onDelete={(p) => { setSelectedParcela(p); setDeleteOpen(true) }}
-                      onAddCultura={() => setAddCulturaParcelaId(parcela.id)}
-                      onAddMicroclimat={() => setAddMicroclimatParcelaId(parcela.id)}
-                      onDesfiintaCultura={(c) => setDesfiintaState({ cultura: c, parcelaId: parcela.id })}
-                    />
-                  )
-                })}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-3 md:hidden">
+                  {filteredParcele.map((parcela) => {
+                    const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
+                    return (
+                      <TerenCard
+                        key={parcela.id}
+                        parcela={parcela}
+                        latestActivity={latestActivityByParcela.get(parcela.id)}
+                        activeCulturiCount={activeCulturiCounts[parcela.id] ?? 0}
+                        isExpanded={expandedId === parcela.id}
+                        onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
+                        onAddActivity={(id) => {
+                          setAddActivityParcelaId(id)
+                          setAddActivityOpen(true)
+                        }}
+                        onTratamente={(id) => {
+                          router.push(`/parcele/${id}/tratamente`)
+                        }}
+                        onHistoric={() => {
+                          if (isSolar) {
+                            router.push(`/parcele/${parcela.id}`)
+                          } else {
+                            router.push('/activitati-agricole')
+                          }
+                        }}
+                        onEdit={(p) => { setSelectedParcela(p); setEditOpen(true) }}
+                        onDelete={(p) => { setSelectedParcela(p); setDeleteOpen(true) }}
+                        onAddCultura={() => setAddCulturaParcelaId(parcela.id)}
+                        onAddMicroclimat={() => setAddMicroclimatParcelaId(parcela.id)}
+                        onDesfiintaCultura={(c) => setDesfiintaState({ cultura: c, parcelaId: parcela.id })}
+                      />
+                    )
+                  })}
+                </div>
+
+                <div className="hidden md:grid md:grid-cols-[minmax(320px,360px)_minmax(0,1fr)] md:gap-4">
+                  <section className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-[var(--agri-shadow)]">
+                    <div className="border-b border-[var(--surface-divider)] px-4 py-3">
+                      {parcele.length > 5 ? (
+                        <SearchField
+                          placeholder="Caută după nume, soi sau cultură..."
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          aria-label="Caută terenuri"
+                        />
+                      ) : (
+                        <p className="text-sm font-semibold text-[var(--agri-text)]">
+                          {filteredParcele.length} parcele
+                        </p>
+                      )}
+                    </div>
+                    <div className="max-h-[calc(100dvh-280px)] overflow-y-auto p-2">
+                      {filteredParcele.map((parcela) => {
+                        const isSelected = desktopSelectedParcela?.id === parcela.id
+                        const operational = coerceStatusOperationalFromDb(parcela.status_operational)
+                        const badge = operationalBadge(operational)
+                        const latestActivity = latestActivityByParcela.get(parcela.id)
+                        const activityText = latestActivity
+                          ? activityRelativeTime(latestActivity.date, today)
+                          : 'Nicio activitate'
+
+                        return (
+                          <button
+                            key={parcela.id}
+                            type="button"
+                            onClick={() => {
+                              setDesktopSelectedParcelaId(parcela.id)
+                              setDesktopMoreOpen(false)
+                              setDesktopInspectorTab('prezentare')
+                            }}
+                            className={cn(
+                              'relative mb-2 w-full rounded-xl border p-3 text-left transition-all',
+                              isSelected
+                                ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] shadow-[0_2px_10px_rgba(12,15,19,0.08)]'
+                                : 'border-[var(--agri-border)] bg-[var(--agri-surface)] hover:border-[var(--surface-divider)] hover:bg-[var(--agri-surface-muted)]'
+                            )}
+                          >
+                            <span
+                              aria-hidden
+                              className={cn(
+                                'absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-opacity',
+                                isSelected
+                                  ? 'opacity-100 bg-[var(--pill-active-border)]'
+                                  : 'opacity-0 bg-[var(--faint)]'
+                              )}
+                            />
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 pl-2">
+                                <p className={cn(
+                                  'truncate text-sm',
+                                  isSelected ? 'font-bold text-[var(--agri-text)]' : 'font-semibold text-[var(--agri-text)]'
+                                )}>
+                                  {parcela.nume_parcela || 'Teren'}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs text-[var(--agri-text-muted)]">
+                                  {buildParcelaDesktopMeta(parcela)}
+                                </p>
+                                <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
+                                  Ultima activitate: {activityText}
+                                </p>
+                              </div>
+                              <span
+                                className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
+                                style={{
+                                  background: badge.bg,
+                                  color: badge.color,
+                                  border: `1px solid ${badge.color}`,
+                                }}
+                              >
+                                {badge.text}
+                              </span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </section>
+
+                  <section className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-[var(--agri-shadow)]">
+                    {!desktopSelectedParcela ? (
+                      <div className="flex min-h-[360px] items-center justify-center p-6 text-sm text-[var(--agri-text-muted)]">
+                        Selectează o parcelă pentru detalii.
+                      </div>
+                    ) : (
+                      <div className="flex h-full flex-col">
+                        <div className="border-b border-[var(--surface-divider)] px-5 py-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h2 className="truncate text-xl font-bold text-[var(--agri-text)]">
+                                {desktopSelectedParcela.nume_parcela || 'Teren'}
+                              </h2>
+                              <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
+                                {unitTypeLabel(desktopSelectedParcela.tip_unitate)} · {formatSuprafata(desktopSelectedParcela.suprafata_m2) || '-'}
+                              </p>
+                            </div>
+                            <span
+                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold"
+                              style={{
+                                background: operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).bg,
+                                color: operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).color,
+                                border: `1px solid ${operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).color}`,
+                              }}
+                            >
+                              {operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).text}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--agri-text-muted)] lg:grid-cols-4">
+                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
+                              <p>Rol</p>
+                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
+                                {SCOP_LABELS[coerceParcelaScopFromDb(desktopSelectedParcela.rol)]}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
+                              <p>Culturi active</p>
+                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
+                                {activeCulturiCounts[desktopSelectedParcela.id] ?? 0}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
+                              <p>Ultima activitate</p>
+                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
+                                {latestActivityByParcela.get(desktopSelectedParcela.id)
+                                  ? activityRelativeTime(latestActivityByParcela.get(desktopSelectedParcela.id)?.date, today)
+                                  : 'Nicio activitate'}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
+                              <p>Ultimul tratament</p>
+                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
+                                {latestTreatmentByParcela.get(desktopSelectedParcela.id)
+                                  ? activityRelativeTime(latestTreatmentByParcela.get(desktopSelectedParcela.id)?.date, today)
+                                  : 'Nedisponibil'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAddActivityParcelaId(desktopSelectedParcela.id)
+                                setAddActivityOpen(true)
+                              }}
+                              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-3 text-xs font-semibold text-[var(--pill-active-text)] transition-opacity hover:opacity-90"
+                            >
+                              + Activitate
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDesktopInspectorTab('jurnal')
+                              }}
+                              className={cn(
+                                'inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors',
+                                desktopInspectorTab === 'jurnal'
+                                  ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
+                                  : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)] hover:bg-[var(--agri-surface-muted)]'
+                              )}
+                            >
+                              Jurnal
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDesktopInspectorTab('tratamente')}
+                              className={cn(
+                                'inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors',
+                                desktopInspectorTab === 'tratamente'
+                                  ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
+                                  : 'border-[var(--agri-border)] bg-[var(--agri-surface)] text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]'
+                              )}
+                            >
+                              <SprayCan className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                              Tratamente
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDesktopMoreOpen((current) => !current)}
+                              className={cn(
+                                'inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors',
+                                desktopMoreOpen
+                                  ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
+                                  : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)] hover:bg-[var(--agri-surface-muted)]'
+                              )}
+                            >
+                              <MoreHorizontal className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                              Mai multe
+                              <ChevronDown
+                                className={cn(
+                                  'ml-1 h-3.5 w-3.5 transition-transform',
+                                  desktopMoreOpen ? 'rotate-180' : 'rotate-0'
+                                )}
+                                aria-hidden
+                              />
+                            </button>
+                          </div>
+
+                          {desktopMoreOpen ? (
+                            <div className="mt-2 rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-2 shadow-[inset_0_1px_0_rgba(13,155,92,0.14)]">
+                              <div className="mb-2 flex items-center gap-1.5 px-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+                                Acțiuni extinse
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedParcela(desktopSelectedParcela)
+                                  setEditOpen(true)
+                                }}
+                                className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)]"
+                              >
+                                Editează parcelă
+                              </button>
+                              {normalizeUnitateTip(desktopSelectedParcela.tip_unitate) === 'solar' ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddCulturaParcelaId(desktopSelectedParcela.id)}
+                                    className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-xs font-semibold text-[var(--agri-text)]"
+                                  >
+                                    + Cultură
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAddMicroclimatParcelaId(desktopSelectedParcela.id)}
+                                    className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-3 text-xs font-semibold text-[var(--status-info-text)]"
+                                  >
+                                    + Microclimat
+                                  </button>
+                                </>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedParcela(desktopSelectedParcela)
+                                  setDeleteOpen(true)
+                                }}
+                                className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-xs font-semibold text-[var(--status-danger-text)]"
+                              >
+                                Șterge parcelă
+                              </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                          <div className="mb-4 flex flex-wrap gap-2 border-b border-[var(--surface-divider)] pb-3">
+                            {[
+                              ['prezentare', 'Prezentare'],
+                              ['jurnal', 'Jurnal'],
+                              ['tratamente', 'Tratamente'],
+                              ['microclimat', 'Microclimat'],
+                            ].map(([key, label]) => (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => setDesktopInspectorTab(key as 'prezentare' | 'jurnal' | 'tratamente' | 'microclimat')}
+                                className={cn(
+                                  'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors',
+                                  desktopInspectorTab === key
+                                    ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
+                                    : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)] hover:bg-[var(--agri-surface-muted)]'
+                                )}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="mb-3 h-1 w-20 rounded-full bg-[var(--pill-active-border)]" aria-hidden />
+
+                          {desktopInspectorTab === 'prezentare' ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                  <p className="text-xs text-[var(--agri-text-muted)]">Rezumat parcelă</p>
+                                  <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
+                                    {buildParcelaSummaryLine(desktopSelectedParcela, activeCulturiCounts[desktopSelectedParcela.id] ?? 0) || 'Fără sumar disponibil'}
+                                  </p>
+                                  <p className="mt-2 text-xs text-[var(--agri-text-muted)]">
+                                    Tip: {unitTypeLabel(desktopSelectedParcela.tip_unitate)} · Rol: {SCOP_LABELS[coerceParcelaScopFromDb(desktopSelectedParcela.rol)]}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                  <p className="text-xs text-[var(--agri-text-muted)]">Stadiu curent</p>
+                                  <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
+                                    {desktopCurrentStage
+                                      ? formatEtapaLabel(desktopCurrentStage.stadiu, desktopSelectedGrupBiologic, desktopCurrentStage.cohort)
+                                      : 'Niciun stadiu înregistrat'}
+                                  </p>
+                                  <p className="mt-2 text-xs text-[var(--agri-text-muted)]">
+                                    {desktopCurrentStage
+                                      ? `Observat la ${new Date(desktopCurrentStage.data_observata).toLocaleDateString('ro-RO')}`
+                                      : 'Poți actualiza stadiul din fluxul existent pe parcelă.'}
+                                  </p>
+                                </div>
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                  <p className="text-xs text-[var(--agri-text-muted)]">Ultima activitate</p>
+                                  {latestActivityByParcela.get(desktopSelectedParcela.id) ? (
+                                    <>
+                                      <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
+                                        {latestActivityByParcela.get(desktopSelectedParcela.id)?.type}
+                                      </p>
+                                      <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
+                                        {latestActivityByParcela.get(desktopSelectedParcela.id)?.product || 'Fără produs specificat'}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="mt-1 text-sm text-[var(--agri-text-muted)]">Nicio activitate înregistrată.</p>
+                                  )}
+                                </div>
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                  <p className="text-xs text-[var(--agri-text-muted)]">Ultimul tratament</p>
+                                  {latestTreatmentByParcela.get(desktopSelectedParcela.id) ? (
+                                    <>
+                                      <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
+                                        {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.type}
+                                      </p>
+                                      <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
+                                        {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.product || 'Fără produs specificat'}
+                                        {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.dose
+                                          ? ` · Doză: ${latestTreatmentByParcela.get(desktopSelectedParcela.id)?.dose}`
+                                          : ''}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="mt-1 text-sm text-[var(--agri-text-muted)]">Nu există tratamente disponibile în datele curente.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {desktopInspectorTab === 'jurnal' ? (
+                            <div className="space-y-2.5">
+                              <div className="flex flex-wrap gap-1.5">
+                                {(
+                                  [
+                                    ['all', 'Toate'],
+                                    ['activitati', 'Activități'],
+                                    ['tratamente', 'Tratamente'],
+                                    ['recoltari', 'Recoltări'],
+                                    ['stadii', 'Stadii'],
+                                  ] as const
+                                ).map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setDesktopJournalTypeFilter(value)}
+                                    className={cn(
+                                      'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                      desktopJournalTypeFilter === value
+                                        ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
+                                        : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)]'
+                                    )}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-wrap gap-1.5">
+                                {(
+                                  [
+                                    ['7d', '7 zile'],
+                                    ['30d', '30 zile'],
+                                    ['sezon', 'Sezon'],
+                                    ['tot', 'Tot'],
+                                  ] as const
+                                ).map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setDesktopJournalPeriodFilter(value)}
+                                    className={cn(
+                                      'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                      desktopJournalPeriodFilter === value
+                                        ? 'border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]'
+                                        : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)]'
+                                    )}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--agri-text-muted)]">
+                                <span>{jurnalEntries.length} evenimente totale</span>
+                                <span className="text-[var(--faint)]">·</span>
+                                <span>Filtru: {getJournalTypeLabel(desktopJournalTypeFilter)}</span>
+                                <span className="text-[var(--faint)]">·</span>
+                                <span>Perioadă: {getJournalPeriodLabel(desktopJournalPeriodFilter)}</span>
+                              </div>
+
+                              {filteredJournalEntries.length === 0 ? (
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-4 text-sm text-[var(--agri-text-muted)]">
+                                  {jurnalEntries.length === 0
+                                    ? 'Nu există încă evenimente în jurnal pentru această parcelă.'
+                                    : desktopJournalTypeFilter !== 'all' &&
+                                        journalKindCounts[
+                                          desktopJournalTypeFilter === 'activitati'
+                                            ? 'activitate'
+                                            : desktopJournalTypeFilter === 'tratamente'
+                                              ? 'tratament'
+                                              : desktopJournalTypeFilter === 'recoltari'
+                                                ? 'recoltare'
+                                                : 'stadiu'
+                                        ] === 0
+                                      ? `Nu există încă ${getJournalTypeLabel(desktopJournalTypeFilter).toLowerCase()} pentru această parcelă.`
+                                      : `Nu există evenimente în ${getJournalPeriodLabel(desktopJournalPeriodFilter)} pentru filtrul selectat.`}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {filteredJournalEntries.slice(0, 20).map((entry) => {
+                                    const kind = getJournalEntryKind(entry)
+                                    const meta = getJournalKindMeta(kind)
+                                    return (
+                                      <div
+                                        key={entry.id}
+                                        className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-2"
+                                      >
+                                        <div className="flex items-start gap-2.5">
+                                          <div
+                                            className={cn(
+                                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border',
+                                              meta.toneClass
+                                            )}
+                                          >
+                                            {meta.icon}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">{meta.label}</p>
+                                                </div>
+                                                <p className="truncate text-sm font-semibold leading-5 text-[var(--agri-text)]">{entry.title}</p>
+                                                {entry.details ? (
+                                                  <p className="mt-0.5 truncate text-[11px] text-[var(--agri-text-muted)]">{entry.details}</p>
+                                                ) : null}
+                                              </div>
+                                              <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                                {new Date(entry.date).toLocaleDateString('ro-RO', {
+                                                  day: '2-digit',
+                                                  month: 'short',
+                                                })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ) : null}
+
+                          {desktopInspectorTab === 'tratamente' ? (
+                            <div className="space-y-2.5">
+                              <div className="grid gap-2 sm:grid-cols-[minmax(0,1.1fr)_auto]">
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ultimul tratament</p>
+                                  {lastTreatmentEntry ? (
+                                    <>
+                                      <p className="mt-1 truncate text-sm font-semibold leading-5 text-[var(--agri-text)]">
+                                        {lastTreatmentEntry.type}
+                                      </p>
+                                      <p className="mt-0.5 truncate text-[11px] text-[var(--agri-text-muted)]">
+                                        {lastTreatmentEntry.product || 'Fără produs specificat'}
+                                        {lastTreatmentEntry.dose ? ` · Doză: ${lastTreatmentEntry.dose}` : ''}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="mt-1 text-sm text-[var(--agri-text-muted)]">Nu există tratamente înregistrate pentru această parcelă.</p>
+                                  )}
+                                </div>
+                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ritm</p>
+                                  <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
+                                    {lastTreatmentDays !== null ? `${lastTreatmentDays} zile` : 'N/A'}
+                                  </p>
+                                  <p className="mt-0.5 text-[11px] text-[var(--agri-text-muted)]">
+                                    De la ultima intervenție înregistrată.
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1.5">
+                                {selectedParcelaTratamente.slice(0, 8).map((item, index) => (
+                                  <div
+                                    key={`${item.date}:${item.type}:${index}`}
+                                    className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-2"
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold leading-5 text-[var(--agri-text)]">{item.type}</p>
+                                        <p className="mt-0.5 truncate text-[11px] text-[var(--agri-text-muted)]">
+                                          {item.product || 'Fără produs'}{item.dose ? ` · ${item.dose}` : ''}
+                                        </p>
+                                      </div>
+                                      <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                        {new Date(item.date).toLocaleDateString('ro-RO', {
+                                          day: '2-digit',
+                                          month: 'short',
+                                        })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {selectedParcelaTratamente.length === 0 ? null : (
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}/tratamente`)}
+                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-[11px] font-semibold text-[var(--agri-text)]"
+                                  >
+                                    <SprayCan className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                                    Deschide fluxul complet de tratamente
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {desktopInspectorTab === 'microclimat' ? (
+                            <div className="space-y-2.5">
+                              <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                <div className="flex items-center gap-2">
+                                  <CloudSun className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Date automate</p>
+                                </div>
+                                {meteoAutoSummary.state === 'ready' ? (
+                                  <div className="mt-2 space-y-2">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
+                                        <p className="text-[11px] text-[var(--agri-text-muted)]">Temperatură</p>
+                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
+                                          {typeof meteoAutoSummary.temperature === 'number'
+                                            ? `${meteoAutoSummary.temperature.toFixed(1)}°C`
+                                            : '—'}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
+                                        <p className="text-[11px] text-[var(--agri-text-muted)]">Umiditate</p>
+                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
+                                          {typeof meteoAutoSummary.humidity === 'number'
+                                            ? `${Math.round(meteoAutoSummary.humidity)}%`
+                                            : '—'}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
+                                        <p className="flex items-center gap-1 text-[11px] text-[var(--agri-text-muted)]">
+                                          <CloudRain className="h-3 w-3" aria-hidden />
+                                          Ploaie (mâine)
+                                        </p>
+                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
+                                          {typeof meteoAutoSummary.rainChance === 'number'
+                                            ? `${Math.round(meteoAutoSummary.rainChance * 100)}%`
+                                            : '—'}
+                                        </p>
+                                      </div>
+                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
+                                        <p className="flex items-center gap-1 text-[11px] text-[var(--agri-text-muted)]">
+                                          <Wind className="h-3 w-3" aria-hidden />
+                                          Vânt
+                                        </p>
+                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
+                                          {typeof meteoAutoSummary.wind === 'number'
+                                            ? `${meteoAutoSummary.wind.toFixed(1)} km/h`
+                                            : '—'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <p className="text-[11px] text-[var(--agri-text-muted)]">
+                                      Sursă: OpenWeather{meteoAutoSummary.source ? ` (${meteoAutoSummary.source})` : ''} ·{' '}
+                                      Sursă locație:{' '}
+                                      {meteoAutoSummary.locationSource === 'parcela'
+                                        ? 'parcelă selectată'
+                                        : 'fermă (fallback)'}
+                                      {meteoAutoSummary.locationLabel ? ` (${meteoAutoSummary.locationLabel})` : ''} ·{' '}
+                                      {meteoAutoSummary.fetchedAt
+                                        ? `actualizat la ${new Date(meteoAutoSummary.fetchedAt).toLocaleString('ro-RO', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                          })}`
+                                        : 'actualizare indisponibilă'}
+                                    </p>
+                                    <p className="text-[11px] text-[var(--agri-text-muted)]">
+                                      Date automate estimative la nivel de locație; observațiile din solar rămân în `Date manuale`.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text-muted)]">
+                                    {meteoAutoSummary.reason}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <Droplets className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Date manuale</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}`)}
+                                    className="inline-flex h-7 items-center rounded-md border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2.5 text-[11px] font-semibold text-[var(--button-muted-text)]"
+                                  >
+                                    Vezi istoric meteo
+                                  </button>
+                                </div>
+
+                                {normalizeUnitateTip(desktopSelectedParcela.tip_unitate) !== 'solar' ? (
+                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text-muted)]">
+                                    Microclimatul manual este disponibil în principal pentru solarii.
+                                  </div>
+                                ) : desktopMicroclimatLogs.length === 0 ? (
+                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text-muted)]">
+                                    Nu există încă înregistrări manuale de microclimat.
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 space-y-1.5">
+                                    {latestDesktopMicroclimat ? (
+                                      <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 py-2">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--status-success-text)]">Ultima înregistrare</p>
+                                            <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
+                                              {Number(latestDesktopMicroclimat.temperatura).toFixed(1)}°C · {Number(latestDesktopMicroclimat.umiditate).toFixed(0)}%
+                                            </p>
+                                          </div>
+                                          <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                            {new Date(latestDesktopMicroclimat.created_at).toLocaleDateString('ro-RO', {
+                                              day: '2-digit',
+                                              month: 'short',
+                                            })}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ) : null}
+
+                                    {desktopMicroclimatLogs.slice(1, 5).map((log) => (
+                                      <div key={log.id} className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p className="text-sm font-semibold leading-5 text-[var(--agri-text)]">
+                                              {Number(log.temperatura).toFixed(1)}°C · {Number(log.umiditate).toFixed(0)}%
+                                            </p>
+                                            <p className="mt-0.5 text-[11px] text-[var(--agri-text-muted)]">
+                                              Înregistrare manuală
+                                            </p>
+                                          </div>
+                                          <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                            {new Date(log.created_at).toLocaleDateString('ro-RO', {
+                                              day: '2-digit',
+                                              month: 'short',
+                                            })}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <Clock3 className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Istoric</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}`)}
+                                    className="inline-flex h-7 items-center rounded-md border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2.5 text-[11px] font-semibold text-[var(--button-muted-text)]"
+                                  >
+                                    Vezi istoric meteo
+                                  </button>
+                                </div>
+                                <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
+                                  Istoricul complet rămâne disponibil în pagina parcelei, fără a introduce un istoric persistent nou aici.
+                                </p>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                </div>
+              </>
             )}
           </>
         ) : null}
@@ -1698,6 +2750,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         }}
         hideTrigger
         defaultParcelaId={addActivityParcelaId}
+        contextParcelaLabel={parcele.find((parcela) => parcela.id === addActivityParcelaId)?.nume_parcela ?? undefined}
       />
 
       <AddCulturaDialog

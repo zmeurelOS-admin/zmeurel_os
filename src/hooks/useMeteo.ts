@@ -37,7 +37,12 @@ type MeteoResponse = {
   }
 }
 
-async function fetchMeteo(tenantId: string | null): Promise<MeteoResponse> {
+interface MeteoCoords {
+  lat?: number | null
+  lon?: number | null
+}
+
+async function fetchMeteo(tenantId: string | null, coords?: MeteoCoords): Promise<MeteoResponse> {
   const supabase = getSupabase()
   const {
     data: { session },
@@ -60,9 +65,13 @@ async function fetchMeteo(tenantId: string | null): Promise<MeteoResponse> {
     headers.Authorization = `Bearer ${session.access_token}`
   }
 
-  const body: { tenant_id?: string } = {}
+  const body: { tenant_id?: string; lat?: number; lon?: number } = {}
   if (resolvedTenantId) {
     body.tenant_id = resolvedTenantId
+  }
+  if (typeof coords?.lat === 'number' && Number.isFinite(coords.lat) && typeof coords?.lon === 'number' && Number.isFinite(coords.lon)) {
+    body.lat = coords.lat
+    body.lon = coords.lon
   }
 
   const tryInvoke = async (name: 'get-meteo' | 'fetch-meteo') => {
@@ -94,17 +103,24 @@ async function fetchMeteo(tenantId: string | null): Promise<MeteoResponse> {
   }
 }
 
-export function useMeteo() {
+export function useMeteo(options?: {
+  coords?: MeteoCoords
+  enabled?: boolean
+}) {
   const { tenantId } = useDashboardAuth()
+  const lat = options?.coords?.lat ?? null
+  const lon = options?.coords?.lon ?? null
+  const enabled = options?.enabled ?? true
 
   const query = useQuery({
-    queryKey: [...queryKeys.meteo, tenantId],
-    queryFn: () => fetchMeteo(tenantId),
+    queryKey: [...queryKeys.meteo, tenantId, lat, lon],
+    queryFn: () => fetchMeteo(tenantId, { lat, lon }),
     staleTime: THREE_HOURS_MS,
     gcTime: THREE_HOURS_MS,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
+    enabled,
   })
 
   return {

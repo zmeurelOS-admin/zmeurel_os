@@ -77,6 +77,8 @@ interface FormDialogLayoutProps {
   showHandle?: boolean
   /** De la `md+`: modal centrat mai lat, padding generos — mobilul rămâne pe lățimea compactă existentă. */
   desktopFormWide?: boolean
+  /** De la `md+`: variantă compactă pentru formulare scurte (padding/înălțime reduse). */
+  desktopFormCompact?: boolean
 }
 
 export function FormDialogLayout({
@@ -88,6 +90,7 @@ export function FormDialogLayout({
   hideHeader,
   showHandle,
   desktopFormWide = false,
+  desktopFormCompact = false,
 }: FormDialogLayoutProps) {
   return (
     <DialogContent
@@ -96,6 +99,7 @@ export function FormDialogLayout({
       className={cn(
         'w-[min(96vw,720px)] overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-lg',
         desktopFormWide && 'md:w-[min(92vw,56rem)] md:max-w-4xl md:rounded-2xl',
+        desktopFormCompact && 'md:rounded-[20px]',
         contentClassName
       )}
     >
@@ -103,6 +107,7 @@ export function FormDialogLayout({
         className={cn(
           'flex max-h-[min(88dvh,860px)] flex-col',
           desktopFormWide && 'md:max-h-[min(90dvh,56rem)]',
+          desktopFormCompact && 'md:max-h-[min(82dvh,40rem)]',
         )}
       >
         {showHandle && (
@@ -115,19 +120,28 @@ export function FormDialogLayout({
             className={cn(
               'border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] px-6 pb-5 pt-5 sm:px-7',
               desktopFormWide && 'md:px-8 md:pb-6 md:pt-6',
+              desktopFormCompact && 'md:px-6 md:pb-4 md:pt-4',
             )}
           >
-            <div className={cn('space-y-2 pr-8', desktopFormWide && 'md:space-y-2.5 md:pr-10')}>
+            <div className={cn(
+              'space-y-2 pr-8',
+              desktopFormWide && 'md:space-y-2.5 md:pr-10',
+              desktopFormCompact && 'md:space-y-1.5 md:pr-9',
+            )}>
               <DialogTitle
                 className={cn(
                   'text-left text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]',
                   desktopFormWide && 'md:text-xl',
+                  desktopFormCompact && 'md:text-[1.1rem]',
                 )}
               >
                 {title}
               </DialogTitle>
               {description ? (
-                <DialogDescription className="text-left text-sm leading-relaxed text-[var(--agri-text-muted)] md:text-[15px]">
+                <DialogDescription className={cn(
+                  'text-left text-sm leading-relaxed text-[var(--agri-text-muted)] md:text-[15px]',
+                  desktopFormCompact && 'md:text-[13px] md:leading-snug',
+                )}>
                   {description}
                 </DialogDescription>
               ) : null}
@@ -144,6 +158,8 @@ export function FormDialogLayout({
             'flex-1 overflow-y-auto p-6 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] sm:p-7 sm:pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]',
             desktopFormWide &&
               'md:px-8 md:py-6 md:pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]',
+            desktopFormCompact &&
+              'md:px-6 md:py-4 md:pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]',
           )}
         >
           {children}
@@ -154,6 +170,7 @@ export function FormDialogLayout({
             className={cn(
               'shrink-0 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--agri-surface-muted)_40%,var(--agri-surface))] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] pt-4 sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pt-5',
               desktopFormWide && 'md:px-8 md:py-5',
+              desktopFormCompact && 'md:px-6 md:py-3.5',
             )}
           >
             <div

@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Check, ChevronDown, Search } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 import { Label } from '@/components/ui/label'
 import { isTipActivitateDeprecata } from '@/lib/activitati/activity-options'
 import type { ActivityOption } from '@/lib/activitati/activity-options'
+import { cn } from '@/lib/utils'
 
 function normalizeText(value: string): string {
   return value
@@ -23,6 +25,11 @@ interface ActivityTypeComboboxProps {
   value: string
   error?: string
   onChange: (value: string) => void
+  showSearchThreshold?: number
+  triggerClassName?: string
+  menuClassName?: string
+  listClassName?: string
+  getOptionLeadingIcon?: (option: ActivityOption) => ReactNode
 }
 
 export function ActivityTypeCombobox({
@@ -33,6 +40,11 @@ export function ActivityTypeCombobox({
   value,
   error,
   onChange,
+  showSearchThreshold = 6,
+  triggerClassName,
+  menuClassName,
+  listClassName,
+  getOptionLeadingIcon,
 }: ActivityTypeComboboxProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -44,7 +56,11 @@ export function ActivityTypeCombobox({
     () => options.find((option) => option.value === value) ?? null,
     [options, value]
   )
-  const showSearch = options.length > 6
+  const selectedOptionIcon = useMemo(
+    () => (selectedOption && getOptionLeadingIcon ? getOptionLeadingIcon(selectedOption) : null),
+    [getOptionLeadingIcon, selectedOption]
+  )
+  const showSearch = options.length > showSearchThreshold
   const effectiveQuery = showSearch ? query : ''
   const filteredOptions = useMemo(() => {
     if (!effectiveQuery.trim()) return options
@@ -67,17 +83,12 @@ export function ActivityTypeCombobox({
     const handlePointerDown = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpen(false)
+        setDeprecatedMessage(null)
       }
     }
 
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) {
-      setDeprecatedMessage(null)
-    }
   }, [open])
 
   useEffect(() => {
@@ -117,20 +128,38 @@ export function ActivityTypeCombobox({
               const nextOpen = !current
               if (nextOpen) {
                 setQuery(selectedOption ? '' : value)
+              } else {
+                setDeprecatedMessage(null)
               }
               return nextOpen
             })
           }
-          className="agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm"
+          className={cn(
+            'agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm',
+            triggerClassName
+          )}
         >
-          <span className={selectedOption || value ? 'truncate' : 'truncate text-[var(--agri-text-muted)]'}>
-            {selectedOption?.label || value || placeholder}
+          <span
+            className={cn(
+              'flex min-w-0 items-center gap-2',
+              selectedOption || value ? 'text-[var(--agri-text)]' : 'text-[var(--agri-text-muted)]'
+            )}
+          >
+            {selectedOptionIcon ? (
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
+                {selectedOptionIcon}
+              </span>
+            ) : null}
+            <span className="truncate">{selectedOption?.label || value || placeholder}</span>
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-[var(--agri-text-muted)]" />
         </button>
 
         {open ? (
-          <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-lg">
+          <div className={cn(
+            'absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-lg',
+            menuClassName
+          )}>
             {showSearch ? (
               <div className="border-b border-[var(--agri-border)] p-2">
                 <div className="relative">
@@ -164,9 +193,10 @@ export function ActivityTypeCombobox({
               </div>
             ) : null}
 
-            <div className="max-h-64 overflow-y-auto p-1">
+            <div className={cn('max-h-64 overflow-y-auto p-1', listClassName)}>
               {filteredOptions.map((option) => {
                 const isSelected = option.value === value
+                const optionIcon = getOptionLeadingIcon?.(option) ?? null
                 return (
                   <button
                     key={option.value}
@@ -177,7 +207,14 @@ export function ActivityTypeCombobox({
                     }}
                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[var(--agri-text)] transition-colors hover:bg-[var(--agri-surface-muted)]"
                   >
-                    <span>{option.label}</span>
+                    <span className="flex min-w-0 items-center gap-2">
+                      {optionIcon ? (
+                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
+                          {optionIcon}
+                        </span>
+                      ) : null}
+                      <span className="truncate">{option.label}</span>
+                    </span>
                     {isSelected ? <Check className="h-4 w-4 text-[var(--agri-primary)]" /> : null}
                   </button>
                 )
