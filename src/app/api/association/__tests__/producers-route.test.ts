@@ -113,6 +113,12 @@ function clientForPost(opts: { role: 'admin' | 'moderator' | 'viewer' | null; te
       }
       throw new Error(`unexpected ${table}`)
     },
+    rpc: async (fn: string) => {
+      if (fn === 'is_legal_docs_complete') {
+        return { data: true, error: null }
+      }
+      throw new Error(`unexpected rpc ${fn}`)
+    },
   }
 }
 

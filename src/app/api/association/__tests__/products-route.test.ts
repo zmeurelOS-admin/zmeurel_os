@@ -27,6 +27,7 @@ function buildProduseApi(opts: {
   fetchError?: unknown
   updateData: Record<string, unknown> | null
   updateError?: unknown
+  legalDocsComplete?: boolean
 }) {
   return {
     auth: {
@@ -52,6 +53,12 @@ function buildProduseApi(opts: {
         }),
       }),
     }),
+    rpc: async (fn: string) => {
+      if (fn === 'is_legal_docs_complete') {
+        return { data: opts.legalDocsComplete ?? true, error: null }
+      }
+      throw new Error(`unexpected rpc ${fn}`)
+    },
   }
 }
 
@@ -77,6 +84,7 @@ describe('PATCH /api/association/products', () => {
         fetchData: {
           id: PID,
           tenant_id: TID,
+          association_category: 'fructe_legume',
           tenants: { is_association_approved: true },
         },
         updateData: updated,

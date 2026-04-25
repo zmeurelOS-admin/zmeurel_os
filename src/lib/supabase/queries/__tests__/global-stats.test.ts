@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { createClientMock, getTenantIdByUserIdMock } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
@@ -108,6 +108,12 @@ function buildAplicareRow(overrides: Record<string, unknown> = {}) {
 describe('getTratamenteGlobalStats', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-18T12:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('pentru tenant fără date întoarce toate valorile 0', async () => {

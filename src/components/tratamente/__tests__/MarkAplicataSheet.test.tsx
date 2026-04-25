@@ -91,8 +91,8 @@ describe('MarkAplicataSheet', () => {
       />
     )
 
-    expect(screen.getAllByRole('combobox')[0]).toHaveTextContent('Răsad')
     const nativeSelect = document.querySelector('select[aria-hidden="true"]') as HTMLSelectElement
+    expect(nativeSelect.value).toBe('rasad')
     const optionValues = Array.from(nativeSelect.options).map((option) => option.value)
 
     expect(optionValues).toContain('transplant')

@@ -133,7 +133,7 @@ describe('PATCH /api/association/orders — tranziții și grupuri', () => {
     expect(res.status).toBe(400)
   })
 
-  it('respinge grupuri cu statusuri mixte', async () => {
+  it('acceptă grupuri cu statusuri mixte și normalizează la statusul țintă', async () => {
     getAssociationRole.mockResolvedValue('admin')
     orderMocks.createClient.mockResolvedValue(
       buildOrdersClient({
@@ -141,7 +141,10 @@ describe('PATCH /api/association/orders — tranziții și grupuri', () => {
           { id: OID, data_origin: 'magazin_asociatie', tenant_id: T1, status: 'noua' },
           { id: L2, data_origin: 'magazin_asociatie', tenant_id: T1, status: 'confirmata' },
         ],
-        updateData: null,
+        updateData: [
+          { id: OID, tenant_id: T1 },
+          { id: L2, tenant_id: T1 },
+        ],
       }),
     )
 
@@ -151,7 +154,9 @@ describe('PATCH /api/association/orders — tranziții și grupuri', () => {
     })
     const res = await PATCH(req)
 
-    expect(res.status).toBe(409)
+    expect(res.status).toBe(200)
+    const j = (await res.json()) as { data?: { status?: string } }
+    expect(j.data?.status).toBe('confirmata')
   })
 
   it('viewer nu poate actualiza', async () => {

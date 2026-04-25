@@ -1,9 +1,13 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactElement } from 'react'
 
+import { AssociationShopProvider } from '@/components/shop/association/association-shop-context'
 import { GustCheckoutForm } from '@/components/shop/association/cart/GustCheckoutForm'
 import type { GustCartItem } from '@/components/shop/association/cart/gustCartTypes'
+import { DEFAULT_ASSOCIATION_CATEGORY_DEFINITIONS } from '@/components/shop/association/tokens'
+import { DEFAULT_ASSOCIATION_SETTINGS } from '@/lib/association/public-settings'
 
 const postShopOrderWithRetry = vi.fn()
 vi.mock('@/lib/shop/association/checkout-fetch', () => ({
@@ -34,6 +38,18 @@ const cartItems: GustCartItem[] = [
   },
 ]
 
+function renderWithAssociationShop(component: ReactElement) {
+  return render(
+    <AssociationShopProvider
+      products={[]}
+      publicSettings={DEFAULT_ASSOCIATION_SETTINGS}
+      categoryDefinitions={DEFAULT_ASSOCIATION_CATEGORY_DEFINITIONS}
+    >
+      {component}
+    </AssociationShopProvider>,
+  )
+}
+
 describe('GustCheckoutForm — flux checkout', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -60,7 +76,7 @@ describe('GustCheckoutForm — flux checkout', () => {
       ),
     )
 
-    render(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={onComplete} />)
+    renderWithAssociationShop(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={onComplete} />)
 
     fireEvent.change(document.querySelector('input[autocomplete="name"]')!, {
       target: { value: 'Maria Ionescu' },
@@ -116,7 +132,7 @@ describe('GustCheckoutForm — flux checkout', () => {
       }),
     )
 
-    render(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={onComplete} />)
+    renderWithAssociationShop(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={onComplete} />)
 
     fireEvent.change(document.querySelector('input[autocomplete="name"]')!, {
       target: { value: 'Maria Ionescu' },
@@ -136,7 +152,7 @@ describe('GustCheckoutForm — flux checkout', () => {
   })
 
   it('butonul ramane dezactivat pana este ales un canal de comunicare', () => {
-    render(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={vi.fn()} />)
+    renderWithAssociationShop(<GustCheckoutForm items={cartItems} onBack={vi.fn()} onComplete={vi.fn()} />)
 
     expect(
       screen.getByRole('button', { name: /Plaseaz[ăa] comanda cu obliga[țt]ie de plat[ăa]/i }),
