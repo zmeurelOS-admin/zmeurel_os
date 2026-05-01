@@ -76,6 +76,10 @@ interface ProdusFitosanitarPickerProps {
   onChange: (produs: ProdusFitosanitar | null) => void
   onCreateProduct?: (data: InsertTenantProdus) => Promise<ProdusFitosanitar>
   placeholder?: string
+  /** Padding față de marginile viewportului la poziționare (dialog îngust / footer vizibil). */
+  popoverCollisionPadding?: number
+  /** De ex. max-height mai mic în dialoguri ca lista să nu acopere butoanele finale. */
+  popoverContentClassName?: string
   selectedLabel?: string | null
   produse: ProdusFitosanitar[]
   value: string | null
@@ -91,6 +95,8 @@ export function ProdusFitosanitarPicker({
   onChange,
   onCreateProduct,
   placeholder = 'Alege din bibliotecă',
+  popoverCollisionPadding = 16,
+  popoverContentClassName,
   selectedLabel,
   produse,
   value,
@@ -216,17 +222,29 @@ export function ProdusFitosanitarPicker({
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent align="start" className="w-[min(94vw,460px)] p-0">
-              <PopoverHeader className="border-b px-4 py-3">
+            <PopoverContent
+              align="start"
+              collisionPadding={popoverCollisionPadding}
+              className={cn(
+                'z-[1200] flex max-h-[min(70vh,28rem)] w-[min(94vw,460px)] flex-col overflow-hidden p-0',
+                popoverContentClassName,
+              )}
+            >
+              <PopoverHeader className="shrink-0 border-b px-4 py-3">
                 <PopoverTitle>Alege produsul din bibliotecă</PopoverTitle>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">
                   {helpText}
                 </p>
               </PopoverHeader>
 
-              <Command>
+              <Command className="flex min-h-0 flex-1 flex-col overflow-hidden !h-auto [&_[data-slot=command-input-wrapper]]:shrink-0">
                 <CommandInput placeholder="Caută după nume sau substanță activă…" />
-                <CommandList>
+                <CommandList
+                  className="min-h-0 max-h-none flex-1 overflow-y-auto overscroll-contain pr-1"
+                  onWheel={(event) => {
+                    event.stopPropagation()
+                  }}
+                >
                   <CommandEmpty>Nu am găsit produse care să se potrivească.</CommandEmpty>
 
                   <CommandGroup heading="Bibliotecă activă">
@@ -321,7 +339,7 @@ export function ProdusFitosanitarPicker({
                 </CommandList>
               </Command>
 
-              <div className="flex items-center justify-between gap-3 border-t px-4 py-3 text-xs text-[var(--text-secondary)]">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-t px-4 py-3 text-xs text-[var(--text-secondary)]">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"

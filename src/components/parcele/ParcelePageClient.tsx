@@ -1,9 +1,9 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronDown, ChevronUp, Clock3, Droplets, ListChecks, Map as MapIcon, MoreHorizontal, SprayCan, Sprout } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronUp, Clock3, Droplets, ListChecks, Map as MapIcon, SprayCan, Sprout } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -263,6 +263,13 @@ function unitTypeLabel(tipUnitate: string | null | undefined): string {
   return 'Câmp'
 }
 
+function formatCampPlanteCount(parcela: Parcela): string | null {
+  if (normalizeUnitateTip(parcela.tip_unitate) !== 'camp') return null
+  const n = parcela.nr_plante
+  if (n == null || n <= 0) return null
+  return `${new Intl.NumberFormat('ro-RO').format(n)} pl.`
+}
+
 function formatSuprafata(suprafataMp: number | null | undefined): string | null {
   if (!suprafataMp || suprafataMp <= 0) return null
 
@@ -316,6 +323,46 @@ function buildParcelaDesktopMeta(parcela: Parcela): string {
   ].filter(Boolean)
 
   return meta.join(' · ')
+}
+
+function buildParcelaCulturaSoiLine(parcela: Parcela): string | null {
+  const raw =
+    parcela.soi_plantat?.trim() ||
+    parcela.soi?.trim() ||
+    parcela.cultura?.trim() ||
+    parcela.tip_fruct?.trim() ||
+    ''
+  return raw || null
+}
+
+/** Subtitlu inspector: tip + suprafață + cultură/soi (fără query-uri noi). */
+function buildParcelaInspectorSubtitle(parcela: Parcela): string {
+  const culturaSoi = buildParcelaCulturaSoiLine(parcela)
+  const parts = [
+    unitTypeLabel(parcela.tip_unitate),
+    formatSuprafata(parcela.suprafata_m2),
+    culturaSoi,
+    formatCampPlanteCount(parcela),
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+/** Linie secundară listă desktop: tip + cultură/soi + suprafață. */
+function buildParcelaListSecondaryLine(parcela: Parcela): string {
+  const culturaSoi = buildParcelaCulturaSoiLine(parcela)
+  const parts = [
+    unitTypeLabel(parcela.tip_unitate),
+    culturaSoi,
+    formatSuprafata(parcela.suprafata_m2),
+    formatCampPlanteCount(parcela),
+  ].filter(Boolean)
+  return parts.join(' · ')
+}
+
+function journalEventCountLabel(total: number): string {
+  if (total === 0) return 'Nicio înregistrare în jurnal'
+  if (total === 1) return '1 eveniment în jurnal'
+  return `${total} evenimente în jurnal`
 }
 
 function getCulturiCountLabel(count: number, withActiveSuffix = false): string {
@@ -1095,6 +1142,123 @@ function SolarCulturiSection({
   )
 }
 
+/** Pastile compacte pentru bara desktop /parcele (fără fundal verde pe activ). */
+function DesktopParcelToolbarPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition-colors md:px-3 md:py-1',
+        active
+          ? 'border-[var(--pill-active-border)] bg-white text-[var(--pill-active-border)] shadow-[inset_0_0_0_1px_rgba(13,155,92,0.12)]'
+          : 'border-[var(--surface-divider)] bg-white text-[var(--agri-text-muted)] hover:border-[var(--agri-border)] hover:text-[var(--agri-text)] dark:bg-[var(--agri-surface)]',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function DesktopParcelStripCard({
+  parcela,
+  isSelected,
+  latestActivity,
+  today,
+  onSelect,
+}: {
+  parcela: Parcela
+  isSelected: boolean
+  latestActivity:
+    | { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }
+    | undefined
+  today: Date
+  onSelect: () => void
+}) {
+  const operational = coerceStatusOperationalFromDb(parcela.status_operational)
+  const badge = operationalBadge(operational)
+  const isActivOperational = operational === 'activ'
+  const activityText = latestActivity ? activityRelativeTime(latestActivity.date, today) : '—'
+  const statusTitle = STATUS_OPERATIONAL_LABELS[operational]
+  const shortActivity = latestActivity
+    ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
+    : 'Nicio activitate'
+
+  return (
+    <button
+      type="button"
+      title={isActivOperational ? `${statusTitle}. ${shortActivity}` : statusTitle}
+      aria-label={`${parcela.nume_parcela || 'Teren'}${isSelected ? ', selectată' : ''}${isActivOperational ? `, ${statusTitle}` : `, ${badge.text}`}`}
+      onClick={onSelect}
+      className={cn(
+        'relative h-full min-h-[4rem] w-full rounded-lg border py-1.5 pl-2.5 pr-7 text-left transition-[box-shadow,border-color]',
+        isSelected
+          ? 'z-[1] border-2 border-[var(--pill-active-border)] bg-white shadow-[0_1px_4px_rgba(12,15,19,0.07),0_0_0_1px_rgba(13,155,92,0.14)] dark:bg-[var(--agri-surface)]'
+          : 'border border-[var(--surface-divider)]/80 bg-white shadow-none hover:border-[var(--agri-border)]/35 dark:border-[var(--surface-divider)] dark:bg-[var(--agri-surface)]',
+      )}
+    >
+      {isSelected ? (
+        <span
+          aria-hidden
+          className="absolute bottom-1.5 left-0 top-1.5 w-1 rounded-sm bg-[var(--pill-active-border)]"
+        />
+      ) : null}
+      <span className="absolute right-1.5 top-1.5">
+        {isActivOperational ? (
+          <span className="flex h-4 w-4 items-center justify-center" title={statusTitle}>
+            <span
+              className="h-1.5 w-1.5 rounded-full bg-[var(--status-success-text)] ring-1 ring-[var(--surface-divider)]"
+              aria-hidden
+            />
+          </span>
+        ) : (
+          <span
+            className="inline-flex max-w-[4.5rem] items-center justify-center rounded-full px-1.5 py-0.5 text-center text-[9px] font-bold leading-tight"
+            style={{
+              background: badge.bg,
+              color: badge.color,
+              border: `1px solid ${badge.color}`,
+            }}
+          >
+            {badge.text}
+          </span>
+        )}
+      </span>
+      <div className={cn('min-w-0 pl-0.5', isSelected && 'pl-1.5')}>
+        <p
+          className={cn(
+            'truncate text-[13px] leading-tight',
+            isSelected ? 'font-extrabold text-[var(--agri-text)]' : 'font-semibold text-[var(--agri-text)]',
+          )}
+        >
+          {parcela.nume_parcela || 'Teren'}
+        </p>
+        <p
+          className={cn(
+            'mt-0.5 truncate text-[10px]',
+            isSelected ? 'text-[var(--agri-text-muted)]' : 'text-[var(--agri-text-muted)]/75',
+          )}
+        >
+          {buildParcelaListSecondaryLine(parcela)}
+        </p>
+        <p
+          className={cn('mt-0.5 truncate text-[10px]', isSelected ? 'text-[var(--agri-text-muted)]' : 'text-[var(--agri-text-muted)]/70')}
+        >
+          {latestActivity ? `${activityText} · ${latestActivity.type}` : 'Nicio activitate'}
+        </p>
+      </div>
+    </button>
+  )
+}
+
 function TerenCard({
   parcela,
   latestActivity,
@@ -1313,7 +1477,7 @@ function TerenCard({
       </div>
 
       <div
-        className="hidden w-full overflow-hidden rounded-2xl bg-[var(--agri-surface)] shadow-[var(--agri-shadow)] transition-all duration-200 md:block md:hover:bg-[color:color-mix(in_srgb,var(--agri-surface-muted)_35%,var(--agri-surface))]"
+        className="hidden w-full overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-[0_2px_8px_-2px_rgba(12,15,19,0.08)] transition-[box-shadow] duration-200 md:block md:hover:shadow-[0_4px_14px_-4px_rgba(12,15,19,0.12)] dark:bg-[var(--agri-surface)] dark:shadow-[var(--agri-shadow)]"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
@@ -1409,9 +1573,9 @@ function TerenCard({
               <button
                 type="button"
                 onClick={() => onTratamente(parcela.id)}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-xs font-semibold text-[var(--agri-text)] transition-colors hover:bg-[var(--agri-surface-muted)]"
+                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-white px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[0_1px_2px_rgba(12,15,19,0.04)] transition-colors hover:bg-[var(--agri-surface-muted)] dark:bg-[var(--agri-surface)]"
               >
-                <SprayCan className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                <SprayCan className="mr-1.5 h-3.5 w-3.5 text-[var(--pill-active-border)]" aria-hidden />
                 Tratamente
               </button>
               <button
@@ -1463,6 +1627,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Parcela; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
+  const lastUrlSelectedRef = useRef<string | null>(null)
 
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -1475,12 +1640,12 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const [unitFilter, setUnitFilter] = useState<UnitFilter>(() => resolveUnitFilterParam(searchParams))
   const [isDesktop, setIsDesktop] = useState(false)
   const [desktopSelectedParcelaId, setDesktopSelectedParcelaId] = useState<string | null>(null)
-  const [desktopMoreOpen, setDesktopMoreOpen] = useState(false)
   const [desktopInspectorTab, setDesktopInspectorTab] = useState<'prezentare' | 'jurnal' | 'tratamente' | 'microclimat'>(
     'prezentare'
   )
   const [desktopJournalTypeFilter, setDesktopJournalTypeFilter] = useState<JournalTypeFilter>('all')
   const [desktopJournalPeriodFilter, setDesktopJournalPeriodFilter] = useState<JournalPeriodFilter>('30d')
+  const [desktopDockScrolled, setDesktopDockScrolled] = useState(false)
 
   const [addCulturaParcelaId, setAddCulturaParcelaId] = useState<string | null>(null)
   const [addMicroclimatParcelaId, setAddMicroclimatParcelaId] = useState<string | null>(null)
@@ -1673,6 +1838,37 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   }, [parcele, unitFilter, search])
 
   useEffect(() => {
+    const raw = searchParams.get('selected')?.trim()
+    if (!raw) {
+      lastUrlSelectedRef.current = null
+      return
+    }
+    if (parcele.length === 0) return
+    if (lastUrlSelectedRef.current === raw) return
+
+    const match = parcele.find((parcela) => parcela.id === raw)
+    if (!match) return
+
+    const term = normalizeStr(search)
+    const typeOk = unitFilter === 'toate' || normalizeUnitateTip(match.tip_unitate) === unitFilter
+    const nameOk =
+      !term ||
+      [match.nume_parcela, match.soi_plantat, match.soi, match.tip_unitate].some((v) =>
+        normalizeStr(v).includes(term)
+      )
+
+    queueMicrotask(() => {
+      lastUrlSelectedRef.current = raw
+      setDesktopSelectedParcelaId(match.id)
+      setExpandedId(match.id)
+      if (!typeOk || !nameOk) {
+        setUnitFilter('toate')
+        setSearch('')
+      }
+    })
+  }, [parcele, search, searchParams, unitFilter])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
     const media = window.matchMedia('(min-width: 768px)')
     const sync = () => setIsDesktop(media.matches)
@@ -1732,6 +1928,15 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     [desktopSelectedParcelaId, filteredParcele]
   )
   const desktopSelectedParcelaIdResolved = desktopSelectedParcela?.id ?? null
+
+  useEffect(() => {
+    if (!isDesktop || typeof window === 'undefined') return
+    const onScroll = () => setDesktopDockScrolled(window.scrollY > 12)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [isDesktop])
+
   const activeMeteoParcelaId = expandedId ?? desktopSelectedParcelaId ?? filteredParcele[0]?.id ?? null
   const activeMeteoParcela = useMemo(
     () => filteredParcele.find((parcela) => parcela.id === activeMeteoParcelaId) ?? null,
@@ -1940,7 +2145,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       header={<PageHeader title="Terenuri" subtitle="Administrare terenuri cultivate" rightSlot={<MapIcon className="h-5 w-5" />} />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-2 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
+      <div className="mt-2 w-full max-w-none space-y-3 px-3 py-2.5 sm:mt-0 sm:space-y-4 sm:py-3 sm:px-4 md:space-y-2.5 md:py-2.5 md:px-4 lg:px-6 xl:px-8">
         {resolvedError ? (
           <ErrorState
             title="Eroare la încărcare"
@@ -1970,89 +2175,71 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
         {!isLoading && !resolvedError && parcele.length > 0 ? (
           <>
-            {/* Pills filtrare */}
-            <ModulePillRow>
-              {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => (
-                <ModulePillFilterButton
-                  key={f.key}
-                  active={unitFilter === f.key}
-                  onClick={() => setUnitFilter(f.key)}
-                >
-                  {f.label}
-                </ModulePillFilterButton>
-              ))}
-            </ModulePillRow>
-
-            {/* Search (doar dacă > 5 terenuri) */}
-            {parcele.length > 5 ? (
-              <SearchField
-                placeholder="Caută după nume, soi sau cultură..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Caută terenuri"
-                className="md:hidden"
-              />
-            ) : null}
-
-            {/* Lista carduri */}
             {filteredParcele.length === 0 ? (
-              <ModuleEmptyCard
-                emoji={unitFilter === 'solar' ? '🏡' : unitFilter === 'livada' ? '🍎' : unitFilter === 'cultura_mare' ? '🚜' : '🌿'}
-                title={
-                  unitFilter === 'solar'
-                    ? 'Niciun solar adăugat'
-                    : unitFilter === 'livada'
-                      ? 'Nicio livadă adăugată'
-                      : unitFilter === 'cultura_mare'
-                        ? 'Nicio cultură mare adăugată'
-                        : 'Niciun teren găsit'
-                }
-                hint={unitFilter === 'solar' ? 'Solariile vor apărea aici' : 'Modifică filtrul sau căutarea'}
-              />
-            ) : (
               <>
-                <div className="grid grid-cols-1 gap-3 md:hidden">
-                  {filteredParcele.map((parcela) => {
-                    const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
-                    const isActiveForMeteo = parcela.id === activeMeteoParcelaId
-                    return (
-                      <TerenCard
-                        key={parcela.id}
-                        parcela={parcela}
-                        latestActivity={latestActivityByParcela.get(parcela.id)}
-                        activeCulturiCount={activeCulturiCounts[parcela.id] ?? 0}
-                        isExpanded={expandedId === parcela.id}
-                        onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
-                        onAddActivity={(id) => {
-                          setAddActivityParcelaId(id)
-                          setAddActivityOpen(true)
-                        }}
-                        onTratamente={(id) => {
-                          router.push(`/parcele/${id}/tratamente`)
-                        }}
-                        onHistoric={() => {
-                          if (isSolar) {
-                            router.push(`/parcele/${parcela.id}`)
-                          } else {
-                            router.push('/activitati-agricole')
-                          }
-                        }}
-                        onEdit={(p) => { setSelectedParcela(p); setEditOpen(true) }}
-                        onDelete={(p) => { setSelectedParcela(p); setDeleteOpen(true) }}
-                        onAddCultura={() => setAddCulturaParcelaId(parcela.id)}
-                        onAddMicroclimat={() => setAddMicroclimatParcelaId(parcela.id)}
-                        onDesfiintaCultura={(c) => setDesfiintaState({ cultura: c, parcelaId: parcela.id })}
-                        meteoAutoSummary={meteoAutoSummary}
-                        hasManualMicroclimat={isActiveForMeteo && isSolar && desktopMicroclimatLogs.length > 0}
-                        onOpenManualMicroclimat={() => router.push(`/parcele/${parcela.id}`)}
-                      />
-                    )
-                  })}
+                <div className="space-y-3 md:hidden">
+                  <ModulePillRow>
+                    {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => (
+                      <ModulePillFilterButton
+                        key={f.key}
+                        active={unitFilter === f.key}
+                        onClick={() => setUnitFilter(f.key)}
+                      >
+                        {f.label}
+                      </ModulePillFilterButton>
+                    ))}
+                  </ModulePillRow>
+                  {parcele.length > 5 ? (
+                    <SearchField
+                      placeholder="Caută după nume, soi sau cultură..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      aria-label="Caută terenuri"
+                    />
+                  ) : null}
+                  <ModuleEmptyCard
+                    emoji={unitFilter === 'solar' ? '🏡' : unitFilter === 'livada' ? '🍎' : unitFilter === 'cultura_mare' ? '🚜' : '🌿'}
+                    title={
+                      unitFilter === 'solar'
+                        ? 'Niciun solar adăugat'
+                        : unitFilter === 'livada'
+                          ? 'Nicio livadă adăugată'
+                          : unitFilter === 'cultura_mare'
+                            ? 'Nicio cultură mare adăugată'
+                            : 'Niciun teren găsit'
+                    }
+                    hint={unitFilter === 'solar' ? 'Solariile vor apărea aici' : 'Modifică filtrul sau căutarea'}
+                  />
                 </div>
-
-                <div className="hidden md:grid md:grid-cols-[minmax(320px,360px)_minmax(0,1fr)] md:gap-4">
-                  <section className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-[var(--agri-shadow)]">
-                    <div className="border-b border-[var(--surface-divider)] px-4 py-3">
+                <div className="hidden md:block md:space-y-3">
+                  <div
+                    className={cn(
+                      'sticky top-0 z-30 border-b border-[var(--surface-divider)] bg-white transition-[box-shadow,padding] duration-200 dark:bg-[var(--agri-surface)]',
+                      desktopDockScrolled ? 'py-2 shadow-[0_6px_20px_-14px_rgba(12,15,19,0.1)]' : 'py-2.5 shadow-none',
+                    )}
+                  >
+                    <div className={cn('flex flex-col gap-2', desktopDockScrolled && 'gap-1.5')}>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--agri-text-muted)]">
+                            Terenuri
+                          </span>
+                          <span className="tabular-nums rounded-md border border-[var(--surface-divider)] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
+                            {filteredParcele.length}
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                          {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => (
+                            <DesktopParcelToolbarPill
+                              key={f.key}
+                              active={unitFilter === f.key}
+                              onClick={() => setUnitFilter(f.key)}
+                            >
+                              {f.label}
+                            </DesktopParcelToolbarPill>
+                          ))}
+                        </div>
+                      </div>
                       {parcele.length > 5 ? (
                         <SearchField
                           placeholder="Caută după nume, soi sau cultură..."
@@ -2060,400 +2247,478 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                           onChange={(e) => setSearch(e.target.value)}
                           aria-label="Caută terenuri"
                         />
-                      ) : (
-                        <p className="text-sm font-semibold text-[var(--agri-text)]">
-                          {filteredParcele.length} parcele
-                        </p>
-                      )}
+                      ) : null}
                     </div>
-                    <div className="max-h-[calc(100dvh-280px)] overflow-y-auto p-2">
-                      {filteredParcele.map((parcela) => {
-                        const isSelected = desktopSelectedParcela?.id === parcela.id
-                        const operational = coerceStatusOperationalFromDb(parcela.status_operational)
-                        const badge = operationalBadge(operational)
-                        const latestActivity = latestActivityByParcela.get(parcela.id)
-                        const activityText = latestActivity
-                          ? activityRelativeTime(latestActivity.date, today)
-                          : 'Nicio activitate'
+                  </div>
+                  <ModuleEmptyCard
+                    emoji={unitFilter === 'solar' ? '🏡' : unitFilter === 'livada' ? '🍎' : unitFilter === 'cultura_mare' ? '🚜' : '🌿'}
+                    title={
+                      unitFilter === 'solar'
+                        ? 'Niciun solar adăugat'
+                        : unitFilter === 'livada'
+                          ? 'Nicio livadă adăugată'
+                          : unitFilter === 'cultura_mare'
+                            ? 'Nicio cultură mare adăugată'
+                            : 'Niciun teren găsit'
+                    }
+                    hint={unitFilter === 'solar' ? 'Solariile vor apărea aici' : 'Modifică filtrul sau căutarea'}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-3 md:hidden">
+                  <ModulePillRow>
+                    {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => (
+                      <ModulePillFilterButton
+                        key={f.key}
+                        active={unitFilter === f.key}
+                        onClick={() => setUnitFilter(f.key)}
+                      >
+                        {f.label}
+                      </ModulePillFilterButton>
+                    ))}
+                  </ModulePillRow>
+                  {parcele.length > 5 ? (
+                    <SearchField
+                      placeholder="Caută după nume, soi sau cultură..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      aria-label="Caută terenuri"
+                    />
+                  ) : null}
+                  <div className="grid grid-cols-1 gap-3">
+                    {filteredParcele.map((parcela) => {
+                      const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
+                      const isActiveForMeteo = parcela.id === activeMeteoParcelaId
+                      return (
+                        <TerenCard
+                          key={parcela.id}
+                          parcela={parcela}
+                          latestActivity={latestActivityByParcela.get(parcela.id)}
+                          activeCulturiCount={activeCulturiCounts[parcela.id] ?? 0}
+                          isExpanded={expandedId === parcela.id}
+                          onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
+                          onAddActivity={(id) => {
+                            setAddActivityParcelaId(id)
+                            setAddActivityOpen(true)
+                          }}
+                          onTratamente={(id) => {
+                            router.push(`/parcele/${id}/tratamente`)
+                          }}
+                          onHistoric={() => {
+                            if (isSolar) {
+                              router.push(`/parcele?selected=${encodeURIComponent(parcela.id)}`)
+                            } else {
+                              router.push('/activitati-agricole')
+                            }
+                          }}
+                          onEdit={(p) => { setSelectedParcela(p); setEditOpen(true) }}
+                          onDelete={(p) => { setSelectedParcela(p); setDeleteOpen(true) }}
+                          onAddCultura={() => setAddCulturaParcelaId(parcela.id)}
+                          onAddMicroclimat={() => setAddMicroclimatParcelaId(parcela.id)}
+                          onDesfiintaCultura={(c) => setDesfiintaState({ cultura: c, parcelaId: parcela.id })}
+                          meteoAutoSummary={meteoAutoSummary}
+                          hasManualMicroclimat={isActiveForMeteo && isSolar && desktopMicroclimatLogs.length > 0}
+                          onOpenManualMicroclimat={() =>
+                            router.push(`/parcele?selected=${encodeURIComponent(parcela.id)}`)
+                          }
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
 
-                        return (
-                          <button
-                            key={parcela.id}
-                            type="button"
-                            onClick={() => {
-                              setDesktopSelectedParcelaId(parcela.id)
-                              setDesktopMoreOpen(false)
-                              setDesktopInspectorTab('prezentare')
-                            }}
-                            className={cn(
-                              'relative mb-2 w-full rounded-xl border p-3 text-left transition-all',
-                              isSelected
-                                ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] shadow-[0_2px_10px_rgba(12,15,19,0.08)]'
-                                : 'border-[var(--agri-border)] bg-[var(--agri-surface)] hover:border-[var(--surface-divider)] hover:bg-[var(--agri-surface-muted)]'
-                            )}
-                          >
-                            <span
-                              aria-hidden
-                              className={cn(
-                                'absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-opacity',
-                                isSelected
-                                  ? 'opacity-100 bg-[var(--pill-active-border)]'
-                                  : 'opacity-0 bg-[var(--faint)]'
-                              )}
-                            />
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 pl-2">
-                                <p className={cn(
-                                  'truncate text-sm',
-                                  isSelected ? 'font-bold text-[var(--agri-text)]' : 'font-semibold text-[var(--agri-text)]'
-                                )}>
-                                  {parcela.nume_parcela || 'Teren'}
-                                </p>
-                                <p className="mt-0.5 truncate text-xs text-[var(--agri-text-muted)]">
-                                  {buildParcelaDesktopMeta(parcela)}
-                                </p>
-                                <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
-                                  Ultima activitate: {activityText}
-                                </p>
+                <div className="hidden md:block md:space-y-3">
+                  <div
+                    className={cn(
+                      'sticky top-0 z-30 border-b border-[var(--surface-divider)] bg-white transition-[box-shadow,padding] duration-200 dark:bg-[var(--agri-surface)]',
+                      desktopDockScrolled ? 'py-2 shadow-[0_6px_20px_-14px_rgba(12,15,19,0.1)]' : 'py-2.5 shadow-none',
+                    )}
+                  >
+                    <div className={cn('flex flex-col gap-2', desktopDockScrolled && 'gap-1.5')}>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--agri-text-muted)]">
+                            Terenuri
+                          </span>
+                          <span className="tabular-nums rounded-md border border-[var(--surface-divider)] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
+                            {filteredParcele.length}
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                          {PILL_FILTERS.filter((f) => f.key === 'toate' || unitFilterCounts[f.key] > 0).map((f) => (
+                            <DesktopParcelToolbarPill
+                              key={f.key}
+                              active={unitFilter === f.key}
+                              onClick={() => setUnitFilter(f.key)}
+                            >
+                              {f.label}
+                            </DesktopParcelToolbarPill>
+                          ))}
+                        </div>
+                      </div>
+                      {parcele.length > 5 ? (
+                        <SearchField
+                          placeholder="Caută după nume, soi sau cultură..."
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          aria-label="Caută terenuri"
+                        />
+                      ) : null}
+                    {(() => {
+                      const n = filteredParcele.length
+                      return (
+                        <div
+                          className={cn(
+                            'min-w-0 w-full',
+                            n > 6
+                              ? 'flex gap-3 overflow-x-auto pb-1 pt-0.5 [scrollbar-gutter:stable]'
+                              : n <= 2
+                                ? 'flex w-full flex-wrap gap-3 md:gap-4'
+                                : 'grid w-full gap-3'
+                          )}
+                          style={n > 2 && n <= 6 ? { gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` } : undefined}
+                        >
+                          {filteredParcele.map((parcela) => {
+                            const isSelected = desktopSelectedParcela?.id === parcela.id
+                            const wrapClass =
+                              n > 6
+                                ? 'min-w-[160px] max-w-[220px] shrink-0'
+                                : n <= 2
+                                  ? 'min-w-0 flex-1 basis-0 md:min-w-[12rem]'
+                                  : 'min-w-0'
+                            return (
+                              <div key={parcela.id} className={wrapClass}>
+                                <DesktopParcelStripCard
+                                  parcela={parcela}
+                                  isSelected={isSelected}
+                                  latestActivity={latestActivityByParcela.get(parcela.id)}
+                                  today={today}
+                                  onSelect={() => {
+                                    setDesktopSelectedParcelaId(parcela.id)
+                                    setDesktopInspectorTab('prezentare')
+                                  }}
+                                />
                               </div>
-                              <span
-                                className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
-                                style={{
-                                  background: badge.bg,
-                                  color: badge.color,
-                                  border: `1px solid ${badge.color}`,
-                                }}
-                              >
-                                {badge.text}
-                              </span>
-                            </div>
-                          </button>
-                        )
-                      })}
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                     </div>
-                  </section>
+                  </div>
 
-                  <section className="rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-[var(--agri-shadow)]">
+                  <section className="rounded-xl border border-[var(--surface-divider)] bg-white shadow-[0_1px_4px_-1px_rgba(12,15,19,0.06)] dark:bg-[var(--agri-surface)] dark:shadow-none">
                     {!desktopSelectedParcela ? (
                       <div className="flex min-h-[360px] items-center justify-center p-6 text-sm text-[var(--agri-text-muted)]">
                         Selectează o parcelă pentru detalii.
                       </div>
                     ) : (
-                      <div className="flex h-full flex-col">
-                        <div className="border-b border-[var(--surface-divider)] px-5 py-4">
+                      <div className="flex h-full min-h-[360px] flex-col">
+                        <div className="shrink-0 border-b border-[var(--surface-divider)] bg-white px-4 py-3 md:px-6 lg:px-8 dark:bg-[var(--agri-surface)]">
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <h2 className="truncate text-xl font-bold text-[var(--agri-text)]">
+                              <h2 className="truncate text-2xl font-bold tracking-tight text-[var(--agri-text)]">
                                 {desktopSelectedParcela.nume_parcela || 'Teren'}
                               </h2>
                               <p className="mt-1 text-sm text-[var(--agri-text-muted)]">
-                                {unitTypeLabel(desktopSelectedParcela.tip_unitate)} · {formatSuprafata(desktopSelectedParcela.suprafata_m2) || '-'}
+                                {buildParcelaInspectorSubtitle(desktopSelectedParcela)}
                               </p>
                             </div>
-                            <span
-                              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold"
-                              style={{
-                                background: operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).bg,
-                                color: operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).color,
-                                border: `1px solid ${operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).color}`,
-                              }}
-                            >
-                              {operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational)).text}
-                            </span>
+                            {(() => {
+                              const b = operationalBadge(coerceStatusOperationalFromDb(desktopSelectedParcela.status_operational))
+                              return (
+                                <span
+                                  className="inline-flex shrink-0 items-center rounded-full border bg-white px-2.5 py-0.5 text-[11px] font-bold"
+                                  style={{ borderColor: b.color, color: b.color }}
+                                >
+                                  {b.text}
+                                </span>
+                              )
+                            })()}
                           </div>
 
-                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-[var(--agri-text-muted)] lg:grid-cols-4">
-                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
-                              <p>Rol</p>
-                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
-                                {SCOP_LABELS[coerceParcelaScopFromDb(desktopSelectedParcela.rol)]}
-                              </p>
-                            </div>
-                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
-                              <p>Culturi active</p>
-                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
-                                {activeCulturiCounts[desktopSelectedParcela.id] ?? 0}
-                              </p>
-                            </div>
-                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
-                              <p>Ultima activitate</p>
-                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
-                                {latestActivityByParcela.get(desktopSelectedParcela.id)
-                                  ? activityRelativeTime(latestActivityByParcela.get(desktopSelectedParcela.id)?.date, today)
-                                  : 'Nicio activitate'}
-                              </p>
-                            </div>
-                            <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2.5 py-2">
-                              <p>Ultimul tratament</p>
-                              <p className="mt-1 font-semibold text-[var(--agri-text)]">
-                                {latestTreatmentByParcela.get(desktopSelectedParcela.id)
-                                  ? activityRelativeTime(latestTreatmentByParcela.get(desktopSelectedParcela.id)?.date, today)
-                                  : 'Nedisponibil'}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAddActivityParcelaId(desktopSelectedParcela.id)
-                                setAddActivityOpen(true)
-                              }}
-                              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-3 text-xs font-semibold text-[var(--pill-active-text)] transition-opacity hover:opacity-90"
-                            >
-                              + Activitate
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDesktopInspectorTab('jurnal')
-                              }}
-                              className={cn(
-                                'inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors',
-                                desktopInspectorTab === 'jurnal'
-                                  ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
-                                  : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)] hover:bg-[var(--agri-surface-muted)]'
-                              )}
-                            >
-                              Jurnal
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDesktopInspectorTab('tratamente')}
-                              className={cn(
-                                'inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors',
-                                desktopInspectorTab === 'tratamente'
-                                  ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
-                                  : 'border-[var(--agri-border)] bg-[var(--agri-surface)] text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]'
-                              )}
-                            >
-                              <SprayCan className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                              Tratamente
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDesktopMoreOpen((current) => !current)}
-                              className={cn(
-                                'inline-flex h-9 items-center justify-center rounded-lg border px-3 text-xs font-semibold transition-colors',
-                                desktopMoreOpen
-                                  ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
-                                  : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)] hover:bg-[var(--agri-surface-muted)]'
-                              )}
-                            >
-                              <MoreHorizontal className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                              Mai multe
-                              <ChevronDown
-                                className={cn(
-                                  'ml-1 h-3.5 w-3.5 transition-transform',
-                                  desktopMoreOpen ? 'rotate-180' : 'rotate-0'
-                                )}
-                                aria-hidden
-                              />
-                            </button>
-                          </div>
-
-                          {desktopMoreOpen ? (
-                            <div className="mt-2 rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-2 shadow-[inset_0_1px_0_rgba(13,155,92,0.14)]">
-                              <div className="mb-2 flex items-center gap-1.5 px-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">
-                                <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
-                                Acțiuni extinse
+                          <div className="mt-3 grid grid-cols-2 gap-2 md:gap-2.5 lg:grid-cols-4">
+                            {(
+                              [
+                                {
+                                  label: 'Rol',
+                                  value: SCOP_LABELS[coerceParcelaScopFromDb(desktopSelectedParcela.rol)],
+                                },
+                                {
+                                  label: 'Culturi active',
+                                  value: String(activeCulturiCounts[desktopSelectedParcela.id] ?? 0),
+                                },
+                                {
+                                  label: 'Ultima activitate',
+                                  value: latestActivityByParcela.get(desktopSelectedParcela.id)
+                                    ? activityRelativeTime(latestActivityByParcela.get(desktopSelectedParcela.id)?.date, today)
+                                    : 'Nicio activitate',
+                                },
+                                {
+                                  label: 'Ultimul tratament',
+                                  value: latestTreatmentByParcela.get(desktopSelectedParcela.id)
+                                    ? activityRelativeTime(latestTreatmentByParcela.get(desktopSelectedParcela.id)?.date, today)
+                                    : 'Nedisponibil',
+                                },
+                              ] as const
+                            ).map((cell) => (
+                              <div
+                                key={cell.label}
+                                className="rounded-lg border border-[var(--surface-divider)] bg-white px-2.5 py-2 dark:bg-[var(--agri-surface)]"
+                              >
+                                <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--agri-text-muted)]">{cell.label}</p>
+                                <p className="mt-0.5 text-sm font-semibold leading-snug text-[var(--agri-text)]">{cell.value}</p>
                               </div>
-                              <div className="flex flex-wrap gap-2">
+                            ))}
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--surface-divider)] pt-3">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setSelectedParcela(desktopSelectedParcela)
-                                  setEditOpen(true)
+                                  setAddActivityParcelaId(desktopSelectedParcela.id)
+                                  setAddActivityOpen(true)
                                 }}
-                                className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)]"
+                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--agri-primary)] px-3 text-xs font-semibold text-[var(--agri-primary-contrast)] shadow-[var(--shadow-soft)] transition-opacity hover:opacity-95"
                               >
-                                Editează parcelă
+                                + Activitate
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}/tratamente`)}
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)] dark:bg-[var(--agri-surface)]"
+                              >
+                                <SprayCan className="mr-1.5 h-3.5 w-3.5 text-[var(--agri-primary)]" aria-hidden />
+                                + Tratament
                               </button>
                               {normalizeUnitateTip(desktopSelectedParcela.tip_unitate) === 'solar' ? (
                                 <>
                                   <button
                                     type="button"
                                     onClick={() => setAddCulturaParcelaId(desktopSelectedParcela.id)}
-                                    className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-xs font-semibold text-[var(--agri-text)]"
+                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)] dark:bg-[var(--agri-surface)]"
                                   >
                                     + Cultură
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => setAddMicroclimatParcelaId(desktopSelectedParcela.id)}
-                                    className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-3 text-xs font-semibold text-[var(--status-info-text)]"
+                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[color:color-mix(in_srgb,var(--status-info-text)_28%,var(--border-default))] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--status-info-text)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
                                   >
                                     + Microclimat
                                   </button>
                                 </>
                               ) : null}
+                            </div>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedParcela(desktopSelectedParcela)
+                                  setEditOpen(true)
+                                }}
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
+                              >
+                                Editează
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setSelectedParcela(desktopSelectedParcela)
                                   setDeleteOpen(true)
                                 }}
-                                className="inline-flex h-8 items-center justify-center rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-xs font-semibold text-[var(--status-danger-text)]"
+                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[color:color-mix(in_srgb,var(--destructive)_35%,var(--border-default))] bg-transparent px-3 text-xs font-semibold text-[var(--destructive)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--destructive)_08%,transparent)]"
                               >
-                                Șterge parcelă
+                                Șterge
                               </button>
-                              </div>
                             </div>
-                          ) : null}
+                          </div>
                         </div>
 
-                        <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                          <div className="mb-4 flex flex-wrap gap-2 border-b border-[var(--surface-divider)] pb-3">
-                            {[
-                              ['prezentare', 'Prezentare'],
-                              ['jurnal', 'Jurnal'],
-                              ['tratamente', 'Tratamente'],
-                              ['microclimat', 'Microclimat'],
-                            ].map(([key, label]) => (
-                              <button
-                                key={key}
-                                type="button"
-                                onClick={() => setDesktopInspectorTab(key as 'prezentare' | 'jurnal' | 'tratamente' | 'microclimat')}
-                                className={cn(
-                                  'rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors',
-                                  desktopInspectorTab === key
-                                    ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)] shadow-[0_1px_4px_rgba(12,15,19,0.06)]'
-                                    : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)] hover:bg-[var(--agri-surface-muted)]'
-                                )}
-                              >
-                                {label}
-                              </button>
-                            ))}
+                        <div className="shrink-0 border-b border-[var(--surface-divider)] bg-white px-4 pb-0 pt-2 md:px-6 lg:px-8 dark:bg-[var(--agri-surface)]">
+                          <div className="flex flex-wrap gap-0.5">
+                            {(
+                              [
+                                ['prezentare', 'Prezentare'],
+                                ['jurnal', 'Jurnal'],
+                                ['tratamente', 'Tratamente'],
+                                ['microclimat', 'Microclimat'],
+                              ] as const
+                            ).map(([key, label]) => {
+                              const active = desktopInspectorTab === key
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => setDesktopInspectorTab(key)}
+                                  className={cn(
+                                    'relative rounded-t-md px-3 py-2 text-xs font-semibold transition-colors',
+                                    active
+                                      ? 'text-[var(--pill-active-border)]'
+                                      : 'text-[var(--agri-text-muted)] hover:text-[var(--agri-text)]'
+                                  )}
+                                >
+                                  {active ? (
+                                    <span
+                                      className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-[var(--pill-active-border)]"
+                                      aria-hidden
+                                    />
+                                  ) : null}
+                                  <span className={cn('relative', active && 'font-bold')}>{label}</span>
+                                </button>
+                              )
+                            })}
                           </div>
+                        </div>
 
-                          <div className="mb-3 h-1 w-20 rounded-full bg-[var(--pill-active-border)]" aria-hidden />
-
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white p-3.5 md:p-5 lg:px-8 lg:pb-5 lg:pt-4 dark:bg-[var(--agri-surface)]">
                           {desktopInspectorTab === 'prezentare' ? (
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
-                                  <p className="text-xs text-[var(--agri-text-muted)]">Rezumat parcelă</p>
-                                  <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
-                                    {buildParcelaSummaryLine(desktopSelectedParcela, activeCulturiCounts[desktopSelectedParcela.id] ?? 0) || 'Fără sumar disponibil'}
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 xl:grid-cols-3 xl:gap-4">
+                              <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
+                                <p className="text-xs font-medium text-[var(--agri-text-muted)]">Rezumat agronomic</p>
+                                <p className="mt-1.5 text-sm font-semibold leading-snug text-[var(--agri-text)]">
+                                  {buildParcelaSummaryLine(desktopSelectedParcela, activeCulturiCounts[desktopSelectedParcela.id] ?? 0) ||
+                                    'Fără sumar disponibil'}
+                                </p>
+                                <p className="mt-2 text-[11px] leading-snug text-[var(--agri-text-muted)]">
+                                  Pentru istoric detaliat, vezi tabul Jurnal.
+                                </p>
+                              </div>
+                              <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
+                                <p className="text-xs font-medium text-[var(--agri-text-muted)]">Stadiu fenologic curent</p>
+                                <p className="mt-1.5 text-sm font-semibold text-[var(--agri-text)]">
+                                  {desktopCurrentStage
+                                    ? formatEtapaLabel(
+                                        desktopCurrentStage.stadiu,
+                                        desktopSelectedGrupBiologic,
+                                        desktopCurrentStage.cohort
+                                      )
+                                    : 'Niciun stadiu înregistrat'}
+                                </p>
+                                <p className="mt-2 text-[11px] leading-snug text-[var(--agri-text-muted)]">
+                                  {desktopCurrentStage
+                                    ? `Observat la ${new Date(desktopCurrentStage.data_observata).toLocaleDateString('ro-RO')}`
+                                    : 'Actualizează stadiul din fluxul existent (parcelă / tratamente).'}
+                                </p>
+                              </div>
+                              <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
+                                <p className="text-xs font-medium text-[var(--agri-text-muted)]">Culturi și soiuri</p>
+                                <p className="mt-1.5 text-sm font-semibold leading-snug text-[var(--agri-text)]">
+                                  {buildParcelaCulturaSoiLine(desktopSelectedParcela) || 'Nu sunt completate cultură/soi la nivel de teren.'}
+                                </p>
+                                {desktopSelectedParcela.tip_fruct?.trim() ? (
+                                  <p className="mt-2 text-[11px] text-[var(--agri-text-muted)]">
+                                    Tip fruct: {desktopSelectedParcela.tip_fruct.trim()}
                                   </p>
-                                  <p className="mt-2 text-xs text-[var(--agri-text-muted)]">
-                                    Tip: {unitTypeLabel(desktopSelectedParcela.tip_unitate)} · Rol: {SCOP_LABELS[coerceParcelaScopFromDb(desktopSelectedParcela.rol)]}
+                                ) : null}
+                                <p className="mt-2 text-[11px] text-[var(--agri-text-muted)]">
+                                  {getCulturiCountLabel(activeCulturiCounts[desktopSelectedParcela.id] ?? 0, true)}
+                                </p>
+                              </div>
+                              <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
+                                <p className="text-xs font-medium text-[var(--agri-text-muted)]">Ultimele intervenții</p>
+                                {latestActivityByParcela.get(desktopSelectedParcela.id) ? (
+                                  <p className="mt-1.5 text-sm font-semibold text-[var(--agri-text)]">
+                                    Activitate: {latestActivityByParcela.get(desktopSelectedParcela.id)?.type}
+                                    {latestActivityByParcela.get(desktopSelectedParcela.id)?.product
+                                      ? ` · ${latestActivityByParcela.get(desktopSelectedParcela.id)?.product}`
+                                      : ''}
                                   </p>
-                                </div>
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
-                                  <p className="text-xs text-[var(--agri-text-muted)]">Stadiu curent</p>
-                                  <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
-                                    {desktopCurrentStage
-                                      ? formatEtapaLabel(desktopCurrentStage.stadiu, desktopSelectedGrupBiologic, desktopCurrentStage.cohort)
-                                      : 'Niciun stadiu înregistrat'}
+                                ) : (
+                                  <p className="mt-1.5 text-sm text-[var(--agri-text-muted)]">Nicio activitate recentă în datele încărcate.</p>
+                                )}
+                                {latestTreatmentByParcela.get(desktopSelectedParcela.id) ? (
+                                  <p className="mt-2 text-sm text-[var(--agri-text)]">
+                                    Tratament: {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.type}
+                                    {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.product
+                                      ? ` · ${latestTreatmentByParcela.get(desktopSelectedParcela.id)?.product}`
+                                      : ''}
                                   </p>
-                                  <p className="mt-2 text-xs text-[var(--agri-text-muted)]">
-                                    {desktopCurrentStage
-                                      ? `Observat la ${new Date(desktopCurrentStage.data_observata).toLocaleDateString('ro-RO')}`
-                                      : 'Poți actualiza stadiul din fluxul existent pe parcelă.'}
-                                  </p>
+                                ) : (
+                                  <p className="mt-2 text-sm text-[var(--agri-text-muted)]">Niciun tratament recent în datele încărcate.</p>
+                                )}
+                              </div>
+                              <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
+                                <p className="text-xs font-medium text-[var(--agri-text-muted)]">Microclimat / date automate</p>
+                                <div className="mt-1.5">
+                                  <MicroclimatAutoCard summary={meteoAutoSummary} compact surfaceTone="clean" />
                                 </div>
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
-                                  <p className="text-xs text-[var(--agri-text-muted)]">Ultima activitate</p>
-                                  {latestActivityByParcela.get(desktopSelectedParcela.id) ? (
-                                    <>
-                                      <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
-                                        {latestActivityByParcela.get(desktopSelectedParcela.id)?.type}
-                                      </p>
-                                      <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
-                                        {latestActivityByParcela.get(desktopSelectedParcela.id)?.product || 'Fără produs specificat'}
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <p className="mt-1 text-sm text-[var(--agri-text-muted)]">Nicio activitate înregistrată.</p>
-                                  )}
-                                </div>
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
-                                  <p className="text-xs text-[var(--agri-text-muted)]">Ultimul tratament</p>
-                                  {latestTreatmentByParcela.get(desktopSelectedParcela.id) ? (
-                                    <>
-                                      <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
-                                        {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.type}
-                                      </p>
-                                      <p className="mt-1 text-xs text-[var(--agri-text-muted)]">
-                                        {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.product || 'Fără produs specificat'}
-                                        {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.dose
-                                          ? ` · Doză: ${latestTreatmentByParcela.get(desktopSelectedParcela.id)?.dose}`
-                                          : ''}
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <p className="mt-1 text-sm text-[var(--agri-text-muted)]">Nu există tratamente disponibile în datele curente.</p>
-                                  )}
-                                </div>
+                              </div>
+                              <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
+                                <p className="text-xs font-medium text-[var(--agri-text-muted)]">Observații / note</p>
+                                <p className="mt-1.5 text-sm leading-snug text-[var(--agri-text)]">
+                                  {(desktopSelectedParcela.observatii ?? '').trim() || 'Nu există observații salvate pe acest teren.'}
+                                </p>
                               </div>
                             </div>
                           ) : null}
 
                           {desktopInspectorTab === 'jurnal' ? (
-                            <div className="space-y-2.5">
-                              <div className="flex flex-wrap gap-1.5">
-                                {(
-                                  [
-                                    ['all', 'Toate'],
-                                    ['activitati', 'Activități'],
-                                    ['tratamente', 'Tratamente'],
-                                    ['recoltari', 'Recoltări'],
-                                    ['stadii', 'Stadii'],
-                                  ] as const
-                                ).map(([value, label]) => (
-                                  <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => setDesktopJournalTypeFilter(value)}
-                                    className={cn(
-                                      'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                      desktopJournalTypeFilter === value
-                                        ? 'border-[var(--pill-active-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
-                                        : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)]'
-                                    )}
-                                  >
-                                    {label}
-                                  </button>
-                                ))}
+                            <div className="space-y-3">
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Tip</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(
+                                    [
+                                      ['all', 'Toate'],
+                                      ['activitati', 'Activități'],
+                                      ['tratamente', 'Tratamente'],
+                                      ['recoltari', 'Recoltări'],
+                                      ['stadii', 'Stadii'],
+                                    ] as const
+                                  ).map(([value, label]) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => setDesktopJournalTypeFilter(value)}
+                                      className={cn(
+                                        'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                        desktopJournalTypeFilter === value
+                                          ? 'border-[var(--pill-active-border)] bg-white text-[var(--pill-active-border)] dark:bg-[var(--agri-surface)]'
+                                          : 'border-[var(--surface-divider)] bg-white text-[var(--button-muted-text)] hover:border-[var(--agri-border)] dark:bg-[var(--agri-surface)]'
+                                      )}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
 
-                              <div className="flex flex-wrap gap-1.5">
-                                {(
-                                  [
-                                    ['7d', '7 zile'],
-                                    ['30d', '30 zile'],
-                                    ['sezon', 'Sezon'],
-                                    ['tot', 'Tot'],
-                                  ] as const
-                                ).map(([value, label]) => (
-                                  <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => setDesktopJournalPeriodFilter(value)}
-                                    className={cn(
-                                      'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                      desktopJournalPeriodFilter === value
-                                        ? 'border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]'
-                                        : 'border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] text-[var(--button-muted-text)]'
-                                    )}
-                                  >
-                                    {label}
-                                  </button>
-                                ))}
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">Perioadă</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(
+                                    [
+                                      ['7d', '7 zile'],
+                                      ['30d', '30 zile'],
+                                      ['sezon', 'Sezon'],
+                                      ['tot', 'Tot'],
+                                    ] as const
+                                  ).map(([value, label]) => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => setDesktopJournalPeriodFilter(value)}
+                                      className={cn(
+                                        'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                        desktopJournalPeriodFilter === value
+                                          ? 'border-[var(--pill-active-border)] bg-white text-[var(--pill-active-border)] dark:bg-[var(--agri-surface)]'
+                                          : 'border-[var(--surface-divider)] bg-white text-[var(--button-muted-text)] hover:border-[var(--agri-border)] dark:bg-[var(--agri-surface)]'
+                                      )}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
 
-                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--agri-text-muted)]">
-                                <span>{jurnalEntries.length} evenimente totale</span>
-                                <span className="text-[var(--faint)]">·</span>
-                                <span>Filtru: {getJournalTypeLabel(desktopJournalTypeFilter)}</span>
-                                <span className="text-[var(--faint)]">·</span>
-                                <span>Perioadă: {getJournalPeriodLabel(desktopJournalPeriodFilter)}</span>
-                              </div>
+                              <p className="text-[11px] text-[var(--agri-text-muted)]">{journalEventCountLabel(jurnalEntries.length)}</p>
 
                               {filteredJournalEntries.length === 0 ? (
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-4 text-sm text-[var(--agri-text-muted)]">
+                                <div className="rounded-lg border border-[var(--surface-divider)] bg-white p-3.5 text-sm text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
                                   {jurnalEntries.length === 0
                                     ? 'Nu există încă evenimente în jurnal pentru această parcelă.'
                                     : desktopJournalTypeFilter !== 'all' &&
@@ -2477,7 +2742,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                     return (
                                       <div
                                         key={entry.id}
-                                        className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-2"
+                                        className="rounded-lg border border-[var(--surface-divider)] bg-white px-3 py-2 dark:bg-[var(--agri-surface)]"
                                       >
                                         <div className="flex items-start gap-2.5">
                                           <div
@@ -2518,8 +2783,8 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
                           {desktopInspectorTab === 'tratamente' ? (
                             <div className="space-y-2.5">
-                              <div className="grid gap-2 sm:grid-cols-[minmax(0,1.1fr)_auto]">
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                              <div className="grid gap-4 md:grid-cols-2 md:gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] xl:gap-6">
+                                <div className="rounded-lg border border-[var(--surface-divider)] bg-white p-3 dark:bg-[var(--agri-surface)]">
                                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ultimul tratament</p>
                                   {lastTreatmentEntry ? (
                                     <>
@@ -2535,7 +2800,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                     <p className="mt-1 text-sm text-[var(--agri-text-muted)]">Nu există tratamente înregistrate pentru această parcelă.</p>
                                   )}
                                 </div>
-                                <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                                <div className="rounded-lg border border-[var(--surface-divider)] bg-white p-3 dark:bg-[var(--agri-surface)]">
                                   <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ritm</p>
                                   <p className="mt-1 text-sm font-semibold text-[var(--agri-text)]">
                                     {lastTreatmentDays !== null ? `${lastTreatmentDays} zile` : 'N/A'}
@@ -2550,7 +2815,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 {selectedParcelaTratamente.slice(0, 8).map((item, index) => (
                                   <div
                                     key={`${item.date}:${item.type}:${index}`}
-                                    className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-2"
+                                    className="rounded-lg border border-[var(--surface-divider)] bg-white px-3 py-2 dark:bg-[var(--agri-surface)]"
                                   >
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="min-w-0">
@@ -2572,9 +2837,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                   <button
                                     type="button"
                                     onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}/tratamente`)}
-                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-[11px] font-semibold text-[var(--agri-text)]"
+                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--surface-divider)] bg-white px-3 text-[11px] font-semibold text-[var(--agri-text)] transition-colors hover:border-[var(--agri-border)] dark:bg-[var(--agri-surface)]"
                                   >
-                                    <SprayCan className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                                    <SprayCan className="mr-1.5 h-3.5 w-3.5 text-[var(--pill-active-border)]" aria-hidden />
                                     Deschide fluxul complet de tratamente
                                   </button>
                                 )}
@@ -2584,17 +2849,21 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
                           {desktopInspectorTab === 'microclimat' ? (
                             <div className="space-y-2.5">
-                              <MicroclimatAutoCard summary={meteoAutoSummary} />
+                              <MicroclimatAutoCard summary={meteoAutoSummary} surfaceTone="clean" />
 
-                              <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                              <div className="rounded-lg border border-[var(--surface-divider)] bg-white p-3 dark:bg-[var(--agri-surface)]">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="flex items-center gap-2">
-                                    <Droplets className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
+                                    <Droplets className="h-3.5 w-3.5 text-[var(--pill-active-border)]" aria-hidden />
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Date manuale</p>
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}`)}
+                                    onClick={() =>
+                                      router.push(
+                                        `/parcele?selected=${encodeURIComponent(desktopSelectedParcela.id)}`
+                                      )
+                                    }
                                     className="inline-flex h-7 items-center rounded-md border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2.5 text-[11px] font-semibold text-[var(--button-muted-text)]"
                                   >
                                     Vezi istoric meteo
@@ -2602,25 +2871,25 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 </div>
 
                                 {normalizeUnitateTip(desktopSelectedParcela.tip_unitate) !== 'solar' ? (
-                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text-muted)]">
+                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-white px-3 py-2 text-sm text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
                                     Microclimatul manual este disponibil în principal pentru solarii.
                                   </div>
                                 ) : desktopMicroclimatLogs.length === 0 ? (
-                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text-muted)]">
+                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-white px-3 py-2 text-sm text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
                                     Nu există încă înregistrări manuale de microclimat.
                                   </div>
                                 ) : (
                                   <div className="mt-2 space-y-1.5">
                                     {latestDesktopMicroclimat ? (
-                                      <div className="rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-3 py-2">
+                                      <div className="rounded-md border border-[var(--surface-divider)] bg-white px-3 py-2 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="min-w-0">
-                                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--status-success-text)]">Ultima înregistrare</p>
-                                            <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ultima înregistrare</p>
+                                            <p className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--agri-text)]">
                                               {Number(latestDesktopMicroclimat.temperatura).toFixed(1)}°C · {Number(latestDesktopMicroclimat.umiditate).toFixed(0)}%
                                             </p>
                                           </div>
-                                          <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                          <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-white px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
                                             {new Date(latestDesktopMicroclimat.created_at).toLocaleDateString('ro-RO', {
                                               day: '2-digit',
                                               month: 'short',
@@ -2631,7 +2900,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                     ) : null}
 
                                     {desktopMicroclimatLogs.slice(1, 5).map((log) => (
-                                      <div key={log.id} className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2">
+                                      <div key={log.id} className="rounded-lg border border-[var(--surface-divider)] bg-white px-3 py-2 dark:bg-[var(--agri-surface)]">
                                         <div className="flex items-start justify-between gap-3">
                                           <div className="min-w-0">
                                             <p className="text-sm font-semibold leading-5 text-[var(--agri-text)]">
@@ -2641,7 +2910,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                               Înregistrare manuală
                                             </p>
                                           </div>
-                                          <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)]">
+                                          <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-white px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-text-muted)] dark:bg-[var(--agri-surface)]">
                                             {new Date(log.created_at).toLocaleDateString('ro-RO', {
                                               day: '2-digit',
                                               month: 'short',
@@ -2654,15 +2923,19 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 )}
                               </div>
 
-                              <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
+                              <div className="rounded-lg border border-[var(--surface-divider)] bg-white p-3 dark:bg-[var(--agri-surface)]">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="flex items-center gap-2">
-                                    <Clock3 className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
+                                    <Clock3 className="h-3.5 w-3.5 text-[var(--pill-active-border)]" aria-hidden />
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Istoric</p>
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}`)}
+                                    onClick={() =>
+                                      router.push(
+                                        `/parcele?selected=${encodeURIComponent(desktopSelectedParcela.id)}`
+                                      )
+                                    }
                                     className="inline-flex h-7 items-center rounded-md border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2.5 text-[11px] font-semibold text-[var(--button-muted-text)]"
                                   >
                                     Vezi istoric meteo
@@ -2737,6 +3010,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         onOpenChange={(open) => { if (!open) setAddCulturaParcelaId(null) }}
         parcelaId={addCulturaParcelaId ?? ''}
         tipUnitate={addCulturaParcela?.tip_unitate}
+        parcelaLabel={addCulturaParcela?.nume_parcela ?? undefined}
         onCreated={() => {
           if (addCulturaParcelaId) {
             queryClient.invalidateQueries({ queryKey: queryKeys.culturi(addCulturaParcelaId) })

@@ -161,11 +161,19 @@ export function SidebarLink({ href, label, emoji, collapsed, active, onNavigate,
       aria-label={label}
       onClick={onNavigate}
       className={cn(
-        "group flex items-center rounded-2xl text-sm font-semibold transition-all duration-200",
+        "group flex items-center rounded-2xl text-sm transition-all duration-200",
         collapsed ? "justify-center px-2 py-[10px]" : "gap-3 px-3 py-[11px]",
         active
-          ? "bg-[var(--success-bg)] text-[var(--success-text)]"
-          : "text-[var(--agri-text)] hover:bg-[var(--agri-surface-muted)]"
+          ? cn(
+              "border border-[var(--border-default)] bg-[var(--surface-card)] font-bold text-[var(--success-text)]",
+              "shadow-[inset_3px_0_0_0_var(--success-text),var(--shadow-soft)]",
+              collapsed &&
+                "shadow-[var(--shadow-soft)] ring-2 ring-[color:color-mix(in_srgb,var(--success-text)_22%,transparent)]"
+            )
+          : cn(
+              "font-semibold text-[var(--text-secondary)]",
+              "hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-primary)]"
+            )
       )}
     >
       <span
@@ -173,8 +181,8 @@ export function SidebarLink({ href, label, emoji, collapsed, active, onNavigate,
           "flex h-10 w-10 items-center justify-center rounded-xl text-[22px] transition-transform duration-200",
           collapsed ? "h-10 w-10" : "h-10 w-10",
           active
-            ? "bg-[color:color-mix(in_srgb,var(--success-bg)_86%,var(--surface-card))]"
-            : "bg-transparent group-hover:bg-[var(--surface-card-muted)]"
+            ? "border border-[color:color-mix(in_srgb,var(--success-border)_38%,var(--border-default))] bg-[var(--surface-card)]"
+            : "bg-transparent opacity-90 group-hover:bg-[var(--surface-card-muted)] group-hover:opacity-100"
         )}
       >
         {emoji}
@@ -249,7 +257,8 @@ function SidebarGroup({
           <button
             type="button"
             className={cn(
-              "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--agri-text-muted)] transition-colors hover:bg-[var(--agri-surface-muted)] hover:text-[var(--agri-text)]",
+              "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors",
+              "hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-secondary)]",
               group.key === activeGroup ? "text-[var(--success-text)]" : ""
             )}
           >
@@ -354,7 +363,8 @@ function AdminDesktopNav({
           <button
             type="button"
             className={cn(
-              "flex w-full items-center justify-between rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[var(--agri-text-muted)] transition-colors hover:bg-[var(--agri-surface-muted)] hover:text-[var(--agri-text)] data-[state=open]:[&>svg]:rotate-180",
+              "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary)] transition-colors",
+              "hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-secondary)] data-[state=open]:[&>svg]:rotate-180",
               inAdminZone ? "text-[var(--success-text)]" : ""
             )}
           >
@@ -440,7 +450,7 @@ export function Sidebar() {
   return (
     <>
       <aside
-        className="fixed left-0 top-0 z-40 hidden border-r border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[var(--shadow-elevated)] transition-[width] duration-300 ease-in-out md:flex"
+        className="fixed left-0 top-0 z-40 hidden border-r border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition-[width] duration-300 ease-in-out md:flex"
         style={{
           top: bannerOffset,
           height: `calc(100vh - ${bannerOffset}px)`,
@@ -454,7 +464,7 @@ export function Sidebar() {
               type="button"
               aria-label={collapsed ? "Extinde sidebar" : "Restrânge sidebar"}
               onClick={() => setCollapsed((current) => !current)}
-              className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
+              className="absolute right-2 top-2 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-card-muted)]"
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </button>
@@ -465,8 +475,8 @@ export function Sidebar() {
                 collapsed ? "px-2" : "pr-12"
               )}
             >
-              <Link href="/dashboard" className="flex items-center gap-3 rounded-2xl px-2 py-1.5">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_85%,var(--surface-card))] shadow-[inset_0_1px_0_color:color-mix(in_srgb,var(--surface-card)_70%,transparent)]">
+              <Link href="/dashboard" className="flex items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-[var(--surface-card-muted)]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
                   <Image src="/icons/icon.svg" alt="Zmeurel" width={28} height={28} className="h-7 w-7" />
                 </span>
                 {!collapsed ? (

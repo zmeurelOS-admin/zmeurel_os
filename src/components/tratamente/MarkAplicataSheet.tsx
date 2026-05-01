@@ -805,6 +805,8 @@ export function MarkAplicataSheet({
                   <ProdusFitosanitarPicker
                     produse={availableProducts}
                     value={produsDraft.produs_id ?? null}
+                    popoverCollisionPadding={24}
+                    popoverContentClassName="max-h-[min(48vh,20rem)]"
                     selectedLabel={
                       (produsDraft.produs_nume_snapshot || produsDraft.produs_nume_manual || '').trim() || null
                     }

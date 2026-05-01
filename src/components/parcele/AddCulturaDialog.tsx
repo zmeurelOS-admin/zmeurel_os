@@ -6,8 +6,14 @@ import { useMutation } from '@tanstack/react-query'
 import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 
-import { AppDialog } from '@/components/app/AppDialog'
+import { AppDrawer } from '@/components/app/AppDrawer'
 import { NumericField } from '@/components/app/NumericField'
+import { CulturaFormSummary } from '@/components/parcele/CulturaFormSummary'
+import {
+  DesktopFormGrid,
+  DesktopFormPanel,
+  FormDialogSection,
+} from '@/components/ui/form-dialog-layout'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -80,7 +86,28 @@ interface AddCulturaDialogProps {
   onOpenChange: (open: boolean) => void
   parcelaId: string
   tipUnitate?: string | null
+  /** Nume parcelă pentru rezumat (opțional). */
+  parcelaLabel?: string
   onCreated: () => void
+}
+
+function formatSummaryDate(iso: string): string {
+  const t = iso.trim()
+  if (!t) return '—'
+  const d = new Date(t)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('ro-RO')
+}
+
+function truncateSummaryObs(text: string, max = 120): string {
+  const t = text.trim()
+  if (!t) return ''
+  return t.length > max ? `${t.slice(0, max)}…` : t
+}
+
+function dashOrTrimmed(value: string): string {
+  const t = value.trim()
+  return t ? t : '—'
 }
 
 const defaultValues: FormValues = {
@@ -101,6 +128,7 @@ export function AddCulturaDialog({
   onOpenChange,
   parcelaId,
   tipUnitate,
+  parcelaLabel,
   onCreated,
 }: AddCulturaDialogProps) {
   const submittedRef = useRef(false)
@@ -110,11 +138,33 @@ export function AddCulturaDialog({
     resolver: zodResolver(schema),
     defaultValues,
   })
-  const tipPlanta = useWatch({ control: form.control, name: 'tip_planta' })
+  const watched = useWatch({ control: form.control })
+  const tipPlanta = (watched ?? defaultValues).tip_planta
   const tipPlantaOptions = useMemo(() => getCulturiOptions(tipUnitate), [tipUnitate])
   const tipPlantaSelectValue =
     isCustomTipPlanta ? CUSTOM_CULTURA_OPTION : getTipPlantaSelectValue(tipPlanta, tipUnitate)
   const fieldConfig = useMemo(() => getCulturaFieldConfig(tipUnitate), [tipUnitate])
+
+  const culturaSummary = useMemo(() => {
+    const v = (watched ?? defaultValues) as FormValues
+    const tipTrim = v.tip_planta.trim()
+    const tipPlantaDisplay = tipTrim ? tipTrim : 'Neselectat'
+    const soiDisplay = v.soi.trim() ? v.soi.trim() : 'Nespecificat'
+    const obsShort = truncateSummaryObs(v.observatii)
+    const observatiiDisplay = obsShort || '—'
+
+    return {
+      tipPlantaDisplay,
+      soiDisplay,
+      suprafataDisplay: dashOrTrimmed(v.suprafata_ocupata),
+      plantCountDisplay: dashOrTrimmed(v.nr_plante),
+      rowCountDisplay: dashOrTrimmed(v.nr_randuri),
+      rowSpacingDisplay: dashOrTrimmed(v.distanta_intre_randuri),
+      dataPlantariiDisplay: formatSummaryDate(v.data_plantarii),
+      intervalTratamentDisplay: dashOrTrimmed(v.interval_tratament_zile),
+      observatiiDisplay,
+    }
+  }, [watched])
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -150,7 +200,7 @@ export function AddCulturaDialog({
   })
 
   return (
-    <AppDialog
+    <AppDrawer
       open={open}
       onOpenChange={(next) => {
         if (!next && !submittedRef.current) {
@@ -164,9 +214,13 @@ export function AddCulturaDialog({
         onOpenChange(next)
       }}
       title="Adaugă cultură"
-      contentClassName="md:max-w-2xl"
+      description="Definește cultura, soiul și parametrii tehnici ai terenului."
+      desktopFormWide
+      showCloseButton
+      contentClassName="md:w-[min(96vw,94rem)] md:max-w-none"
       footer={
         <DialogFormActions
+          className="w-full"
           onCancel={() => onOpenChange(false)}
           onSave={form.handleSubmit((values) => mutation.mutate(values))}
           saving={mutation.isPending}
@@ -175,11 +229,33 @@ export function AddCulturaDialog({
         />
       }
     >
-      <form
-        className="pb-4"
-        onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
-      >
-        <div className="grid gap-4 md:grid-cols-2">
+      <form className="space-y-0" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
+        <DesktopFormGrid
+          className="md:grid-cols-[minmax(0,1fr)_17.5rem] md:gap-3.5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-4 xl:grid-cols-[minmax(0,1fr)_18.5rem]"
+          aside={
+            <CulturaFormSummary
+              parcelaLabel={parcelaLabel}
+              tipPlantaDisplay={culturaSummary.tipPlantaDisplay}
+              soiDisplay={culturaSummary.soiDisplay}
+              suprafataDisplay={culturaSummary.suprafataDisplay}
+              plantCountFieldTitle={fieldConfig.plantCountLabel}
+              plantCountDisplay={culturaSummary.plantCountDisplay}
+              rowCountFieldTitle={fieldConfig.rowCountLabel}
+              rowCountDisplay={culturaSummary.rowCountDisplay}
+              rowSpacingFieldTitle={fieldConfig.rowSpacingLabel}
+              rowSpacingDisplay={culturaSummary.rowSpacingDisplay}
+              showRowCount={fieldConfig.showRowCount}
+              showRowSpacing={fieldConfig.showRowSpacing}
+              dataPlantariiDisplay={culturaSummary.dataPlantariiDisplay}
+              intervalTratamentDisplay={culturaSummary.intervalTratamentDisplay}
+              observatiiDisplay={culturaSummary.observatiiDisplay}
+              className="md:rounded-[22px] md:p-4 lg:p-[1.125rem]"
+            />
+          }
+        >
+          <FormDialogSection label="Detalii cultură">
+            <DesktopFormPanel>
+              <div className="grid gap-4 md:grid-cols-2 md:gap-x-5 md:gap-y-4">
           {/* Row 1: Tip plantă + Soi */}
           <div className="space-y-2">
             <Label>Tip plantă *</Label>
@@ -324,8 +400,11 @@ export function AddCulturaDialog({
               {...form.register('observatii')}
             />
           </div>
-        </div>
+              </div>
+            </DesktopFormPanel>
+          </FormDialogSection>
+        </DesktopFormGrid>
       </form>
-    </AppDialog>
+    </AppDrawer>
   )
 }

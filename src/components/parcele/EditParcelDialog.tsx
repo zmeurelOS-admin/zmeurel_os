@@ -54,6 +54,8 @@ const toFormValues = (parcela: Parcela): ParcelFormValues => {
     status_operational: coerceStatusOperationalFromDb(parcela.status_operational),
     status: parcela.status ?? 'Activ',
     observatii: parcela.observatii ?? '',
+    nr_plante:
+      parcela.nr_plante != null && parcela.nr_plante > 0 ? String(parcela.nr_plante) : '',
   }
 }
 
@@ -103,6 +105,12 @@ export function EditParcelDialog({
         status_operational: values.status_operational,
         status: values.status,
         observatii: values.observatii?.trim() || null,
+        nr_plante:
+          values.tip_unitate === 'camp'
+            ? values.nr_plante.trim()
+              ? Number(values.nr_plante)
+              : null
+            : null,
       })
     },
     onSuccess: () => {

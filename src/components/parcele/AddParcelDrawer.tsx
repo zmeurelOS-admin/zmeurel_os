@@ -84,6 +84,9 @@ export function AddParcelDrawer({
         soi_plantat: serializeParcelLegacyCropLabel(values.cultura, values.soi) || undefined,
         status: values.status,
         observatii: values.observatii?.trim() || undefined,
+        ...(values.tip_unitate === 'camp' && values.nr_plante.trim()
+          ? { nr_plante: Number(values.nr_plante) }
+          : {}),
       })
 
       return parcela

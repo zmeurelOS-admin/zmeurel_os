@@ -233,7 +233,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
       header={
         <ParcelaTratamenteHeader
           an={an}
-          backHref={`/parcele/${parcelaId}`}
+          backHref={`/parcele?selected=${encodeURIComponent(parcelaId)}`}
           parcelaName={parcela.nume_parcela ?? 'Parcelă'}
         />
       }

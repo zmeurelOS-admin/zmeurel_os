@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, UserRound } from 'lucide-react'
+import { MapPin, Pencil, Trash2, UserCheck, UserRound, Users, Wallet } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DesktopKpiStrip } from '@/components/app/DesktopKpiStrip'
 import { AppDialog } from '@/components/app/AppDialog'
 import { ModuleEmptyCard, ModuleScoreboard } from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
@@ -16,12 +17,7 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
 import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
 import { Button } from '@/components/ui/button'
-import {
-  DesktopInspectorPanel,
-  DesktopInspectorSection,
-  DesktopSplitPane,
-  DesktopToolbar,
-} from '@/components/ui/desktop'
+import { DesktopInspectorPanel, DesktopInspectorSection, DesktopSplitPane } from '@/components/ui/desktop'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
@@ -378,6 +374,64 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
       (c.telefon ?? '').toLowerCase().includes(term)
     )
   }, [culegatori, searchTerm])
+
+  const kpiActiviAziFiltered = useMemo(
+    () =>
+      filteredCulegatori.filter((c) => (workerStats.get(c.id)?.todayCount ?? 0) > 0).length,
+    [filteredCulegatori, workerStats],
+  )
+
+  const kpiPlatiSezonFiltered = useMemo(() => {
+    let sum = 0
+    filteredCulegatori.forEach((c) => {
+      const s = workerStats.get(c.id)
+      if (!s) return
+      sum += s.seasonKg * Number(c.tarif_lei_kg ?? 0)
+    })
+    return sum
+  }, [filteredCulegatori, workerStats])
+
+  const kpiParceleAlocateFiltered = useMemo(() => {
+    const ids = new Set(filteredCulegatori.map((c) => c.id))
+    const parc = new Set<string>()
+    recoltari.forEach((r) => {
+      if (r.culegator_id && ids.has(r.culegator_id) && r.parcela_id) parc.add(r.parcela_id)
+    })
+    return parc.size
+  }, [filteredCulegatori, recoltari])
+
+  const culegatoriDesktopKpiItems = useMemo(() => {
+    if (culegatori.length === 0) return []
+    return [
+      {
+        icon: Users,
+        label: 'Total culegători',
+        value: String(filteredCulegatori.length),
+      },
+      {
+        icon: UserCheck,
+        label: 'Activi azi',
+        value: String(kpiActiviAziFiltered),
+      },
+      {
+        icon: Wallet,
+        label: 'Plăți sezon',
+        value: `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(kpiPlatiSezonFiltered)} lei`,
+      },
+      {
+        icon: MapPin,
+        label: 'Parcele alocate',
+        value: String(kpiParceleAlocateFiltered),
+      },
+    ]
+  }, [
+    culegatori.length,
+    filteredCulegatori.length,
+    kpiActiviAziFiltered,
+    kpiPlatiSezonFiltered,
+    kpiParceleAlocateFiltered,
+  ])
+
   const desktopRows = useMemo<DesktopCulegatorRow[]>(() => {
     return filteredCulegatori.map((culegator) => {
       const stats = workerStats.get(culegator.id)
@@ -491,22 +545,22 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         />
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3 md:max-w-7xl">
-
-        {/* Scoreboard compact */}
-        <ModuleScoreboard tone="tinted" className="gap-x-3.5 gap-y-1">
-          <span className="text-[15px] font-bold text-[var(--pill-active-text)]">{culegatori.length} culegători</span>
+      <div className="mt-2 w-full space-y-3 px-4 py-3 sm:mt-0 sm:py-3 lg:px-6 xl:px-8">
+        <ModuleScoreboard
+          tone="surface"
+          className="gap-x-3.5 gap-y-1 border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] md:hidden"
+        >
+          <span className="text-[15px] font-bold text-[var(--text-primary)]">{culegatori.length} culegători</span>
           {activeTodayCount > 0 ? (
             <>
-              <span className="text-[var(--pill-active-text)]/25">·</span>
-              <span className="text-[13px] text-[color-mix(in_srgb,var(--pill-active-text)_72%,transparent)]">
-                {activeTodayCount} activi azi
-              </span>
+              <span className="text-[var(--text-tertiary)]">·</span>
+              <span className="text-[13px] text-[var(--text-secondary)]">{activeTodayCount} activi azi</span>
             </>
           ) : null}
         </ModuleScoreboard>
 
-        {/* Search */}
+        <DesktopKpiStrip items={culegatoriDesktopKpiItems} />
+
         <SearchField
           containerClassName="md:hidden"
           placeholder="Caută culegător..."
@@ -515,25 +569,27 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
           aria-label="Caută culegători"
         />
 
-        <DesktopToolbar
-          className="hidden md:flex"
-          trailing={
+        <div className="hidden flex-col gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:flex">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
+              {filteredCulegatori.length}{' '}
+              {filteredCulegatori.length === 1 ? 'culegător' : 'culegători'}
+            </span>
             <span className="text-sm text-[var(--text-secondary)]">
               <span className="font-semibold text-[var(--text-primary)]">{filteredCulegatori.length}</span>
               <span className="ml-1">
                 {filteredCulegatori.length === 1 ? 'culegător în listă' : 'culegători în listă'}
               </span>
             </span>
-          }
-        >
+          </div>
           <SearchField
-            containerClassName="w-full max-w-md min-w-[200px]"
+            containerClassName="w-full max-w-2xl"
             placeholder="Caută culegător..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             aria-label="Caută culegători (desktop)"
           />
-        </DesktopToolbar>
+        </div>
 
         {/* Error */}
         {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
@@ -545,8 +601,19 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         {!isLoading && !isError && filteredCulegatori.length === 0 ? (
           <ModuleEmptyCard
             emoji="👤"
-            title="Niciun culegător adăugat"
-            hint="Adaugă primul culegător pentru a începe"
+            title={culegatori.length === 0 ? 'Niciun culegător adăugat' : 'Niciun rezultat'}
+            hint={
+              culegatori.length === 0
+                ? 'Adaugă primul culegător pentru a începe'
+                : 'Încearcă alt termen de căutare'
+            }
+            action={
+              culegatori.length === 0 ? (
+                <Button type="button" className="agri-cta" onClick={() => setShowAdd(true)}>
+                  Adaugă culegător
+                </Button>
+              ) : undefined
+            }
           />
         ) : null}
 
@@ -566,6 +633,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
                 desktopContainerClassName="md:min-w-0"
                 skipDesktopDataFilter
                 hideDesktopSearchRow
+                desktopRowSelectionTone="accent"
                 onDesktopRowClick={(row) => setDesktopSelectedCulegatorId(row.id)}
                 isDesktopRowSelected={(row) => desktopSelectedRow?.id === row.id}
                 renderCard={(culegator) => (

@@ -120,19 +120,13 @@ export function FormDialogLayout({
       aria-describedby={undefined}
       showCloseButton={showCloseButton}
       className={cn(
-        'w-[min(96vw,720px)] overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-lg',
-        desktopFormWide && 'md:w-[min(96vw,84rem)] md:max-w-none md:rounded-2xl',
-        desktopFormCompact && 'md:rounded-[20px]',
+        'flex min-h-0 w-[min(96vw,720px)] max-h-[min(88dvh,860px)] flex-col gap-0 overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-lg',
+        desktopFormWide && 'md:w-[min(96vw,84rem)] md:max-w-none md:max-h-[min(92dvh,60rem)] md:rounded-2xl',
+        desktopFormCompact && 'md:max-h-[min(82dvh,40rem)] md:rounded-[20px]',
         contentClassName,
       )}
     >
-      <div
-        className={cn(
-          'flex max-h-[min(88dvh,860px)] flex-col',
-          desktopFormWide && 'md:max-h-[min(92dvh,60rem)]',
-          desktopFormCompact && 'md:max-h-[min(82dvh,40rem)]',
-        )}
-      >
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {showHandle && (
           <div className="flex justify-center pb-1 pt-3 md:pt-4">
             <div className="h-1 w-10 rounded-full bg-[var(--text-hint)]" />
@@ -141,7 +135,7 @@ export function FormDialogLayout({
         {!hideHeader ? (
           <DialogHeader
             className={cn(
-              'border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] px-4 pb-3 pt-3 sm:px-5',
+              'shrink-0 border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] px-4 pb-3 pt-3 sm:px-5',
               desktopFormWide && 'md:px-5 md:pb-3 md:pt-3',
               desktopFormCompact && 'md:px-5 md:pb-3 md:pt-3',
             )}
@@ -182,11 +176,11 @@ export function FormDialogLayout({
 
         <div
           className={cn(
-            'flex-1 overflow-y-auto p-4 pb-[calc(3rem+env(safe-area-inset-bottom,0px))] sm:p-4 sm:pb-[calc(3.2rem+env(safe-area-inset-bottom,0px))]',
+            'min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:p-4 sm:pb-[max(1.1rem,env(safe-area-inset-bottom,0px))]',
             desktopFormWide &&
-              'md:px-5 md:py-3.5 md:pb-[calc(3.2rem+env(safe-area-inset-bottom,0px))]',
+              'md:px-5 md:py-3.5 md:pb-[max(1rem,env(safe-area-inset-bottom,0px))]',
             desktopFormCompact &&
-              'md:px-5 md:py-3 md:pb-[calc(3.1rem+env(safe-area-inset-bottom,0px))]',
+              'md:px-5 md:py-3 md:pb-[max(1rem,env(safe-area-inset-bottom,0px))]',
           )}
         >
           {children}

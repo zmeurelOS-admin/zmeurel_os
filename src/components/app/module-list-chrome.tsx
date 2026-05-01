@@ -38,12 +38,15 @@ export function ModulePillFilterButton({
   onClick,
   children,
   activeTone = 'primary',
+  activeStyle = 'solid',
 }: {
   active: boolean
   onClick: () => void
   children: ReactNode
   /** `danger` = stil accent pentru filtre „critice” (ex. neîncasat). */
   activeTone?: 'primary' | 'danger'
+  /** `minimal` = contur + text accent, fără bloc verde plin (dashboard curat). */
+  activeStyle?: 'solid' | 'minimal'
 }) {
   return (
     <button
@@ -53,9 +56,11 @@ export function ModulePillFilterButton({
         'cursor-pointer rounded-full px-3.5 py-1.5 text-[11px] font-semibold transition-colors',
         active && activeTone === 'danger'
           ? 'border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
-          : active
-            ? 'border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] text-[var(--pill-active-text)]'
-            : 'border border-[var(--pill-inactive-border)] bg-[var(--pill-inactive-bg)] text-[var(--pill-inactive-text)]',
+          : active && activeStyle === 'minimal' && activeTone === 'primary'
+            ? 'border-2 border-[var(--agri-primary)] bg-[var(--surface-card)] text-[var(--agri-primary)]'
+            : active
+              ? 'border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] text-[var(--pill-active-text)]'
+              : 'border border-[var(--pill-inactive-border)] bg-[var(--pill-inactive-bg)] text-[var(--pill-inactive-text)]',
       )}
     >
       {children}
@@ -68,16 +73,20 @@ export function ModuleEmptyCard({
   emoji,
   title,
   hint,
+  action,
 }: {
   emoji: ReactNode
   title: string
   hint: string
+  /** CTA opțional (ex. buton principal) — afișat sub subtitlu. */
+  action?: ReactNode
 }) {
   return (
-    <div className="rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] px-4 py-5 text-center shadow-[var(--agri-shadow)]">
-      <div className="mb-2 text-4xl leading-none">{emoji}</div>
-      <div className="mb-1 text-sm font-bold text-[var(--agri-text)]">{title}</div>
-      <div className="text-xs text-[var(--agri-text-muted)]">{hint}</div>
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-6 py-10 text-center shadow-[var(--shadow-soft)] md:px-10 md:py-12">
+      <div className="mb-3 text-5xl leading-none">{emoji}</div>
+      <div className="mb-1 text-base font-bold text-[var(--text-primary)]">{title}</div>
+      <div className="text-sm text-[var(--text-secondary)]">{hint}</div>
+      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
   )
 }

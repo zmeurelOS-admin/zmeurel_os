@@ -3,11 +3,13 @@
 import dynamic from 'next/dynamic'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CircleDot, Scale, Users, Layers2 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DesktopKpiStrip } from '@/components/app/DesktopKpiStrip'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -20,12 +22,7 @@ import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { Button } from '@/components/ui/button'
-import {
-  DesktopInspectorPanel,
-  DesktopInspectorSection,
-  DesktopSplitPane,
-  DesktopToolbar,
-} from '@/components/ui/desktop'
+import { DesktopInspectorPanel, DesktopInspectorSection, DesktopSplitPane } from '@/components/ui/desktop'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
@@ -479,6 +476,48 @@ export function RecoltariPageClient({
     }
   }, [filteredRecoltari])
 
+  const kpiCal1Kg = useMemo(
+    () => filteredRecoltari.reduce((sum, row) => sum + Number(row.kg_cal1 ?? 0), 0),
+    [filteredRecoltari],
+  )
+  const kpiCal2Kg = useMemo(
+    () => filteredRecoltari.reduce((sum, row) => sum + Number(row.kg_cal2 ?? 0), 0),
+    [filteredRecoltari],
+  )
+  const kpiCulegatoriImplicati = useMemo(() => {
+    const ids = new Set<string>()
+    filteredRecoltari.forEach((row) => {
+      if (row.culegator_id) ids.add(row.culegator_id)
+    })
+    return ids.size
+  }, [filteredRecoltari])
+
+  const recoltariDesktopKpiItems = useMemo(() => {
+    if (recoltari.length === 0) return []
+    return [
+      {
+        icon: Scale,
+        label: 'Total recoltat',
+        value: formatKg(totalCantitateKg, 2),
+      },
+      {
+        icon: CircleDot,
+        label: 'Calitate CAL 1',
+        value: formatKg(kpiCal1Kg, 2),
+      },
+      {
+        icon: Layers2,
+        label: 'Calitate CAL 2',
+        value: formatKg(kpiCal2Kg, 2),
+      },
+      {
+        icon: Users,
+        label: 'Culegători implicați',
+        value: String(kpiCulegatoriImplicati),
+      },
+    ]
+  }, [recoltari.length, totalCantitateKg, kpiCal1Kg, kpiCal2Kg, kpiCulegatoriImplicati])
+
   const desktopColumns = useMemo<ColumnDef<Recoltare>[]>(() => {
     return [
       {
@@ -585,18 +624,18 @@ export function RecoltariPageClient({
         </div>
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
+      <div className="mt-2 w-full space-y-3 px-4 py-3 sm:mt-0 sm:space-y-4 sm:py-3 lg:px-6 xl:px-8">
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
         {!initialError && !isError ? (
           <>
-            {/* Scoreboard compact */}
+            {/* Scoreboard compact — doar mobil */}
             {recoltari.length > 0 ? (
-              <ModuleScoreboard className="items-center justify-between gap-3">
+              <ModuleScoreboard className="items-center justify-between gap-3 border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] md:hidden">
                 <div className="flex flex-wrap items-baseline gap-2.5">
                   <span>
-                    <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--agri-text)]">
+                    <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--text-primary)]">
                       {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(todayTotalKg)}
                     </span>
                     <span className="ml-1 text-[11px] font-medium text-[var(--text-secondary)]">kg azi</span>
@@ -621,35 +660,46 @@ export function RecoltariPageClient({
               </ModuleScoreboard>
             ) : null}
 
-            <ModulePillRow>
-              {timeFilterOptions.map((option) => (
-                <ModulePillFilterButton
-                  key={option.key}
-                  active={timeFilter === option.key}
-                  onClick={() => setTimeFilter(option.key)}
-                >
-                  {option.label}
-                </ModulePillFilterButton>
-              ))}
-            </ModulePillRow>
+            <DesktopKpiStrip items={recoltariDesktopKpiItems} />
 
-            {/* Search mobil */}
-            <SearchField
-              containerClassName="md:hidden"
-              placeholder="Caută după parcelă, soi, culegător sau observații..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              aria-label="Caută recoltări"
-            />
+            <div className="space-y-3 md:hidden">
+              <ModulePillRow>
+                {timeFilterOptions.map((option) => (
+                  <ModulePillFilterButton
+                    key={option.key}
+                    active={timeFilter === option.key}
+                    activeStyle="minimal"
+                    onClick={() => setTimeFilter(option.key)}
+                  >
+                    {option.label}
+                  </ModulePillFilterButton>
+                ))}
+              </ModulePillRow>
+              <SearchField
+                placeholder="Caută după parcelă, soi, culegător sau observații..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                aria-label="Caută recoltări"
+              />
+            </div>
 
-            <DesktopToolbar
-              className="hidden md:flex"
-              trailing={
-                <div className="flex flex-wrap items-center justify-end gap-x-2 text-sm text-[var(--text-secondary)]">
+            <div className="hidden space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:block">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <ModulePillRow>
+                  {timeFilterOptions.map((option) => (
+                    <ModulePillFilterButton
+                      key={option.key}
+                      active={timeFilter === option.key}
+                      activeStyle="minimal"
+                      onClick={() => setTimeFilter(option.key)}
+                    >
+                      {option.label}
+                    </ModulePillFilterButton>
+                  ))}
+                </ModulePillRow>
+                <div className="flex flex-shrink-0 flex-wrap items-center gap-x-2 text-sm text-[var(--text-secondary)]">
                   <span>
-                    <span className="font-semibold text-[var(--text-primary)]">
-                      {formatKg(totalCantitateKg, 2)}
-                    </span>
+                    <span className="font-semibold text-[var(--text-primary)]">{formatKg(totalCantitateKg, 2)}</span>
                     <span className="ml-1 text-xs text-[var(--text-tertiary)]">în filtru</span>
                   </span>
                   <span className="text-[var(--text-tertiary)]">·</span>
@@ -658,16 +708,15 @@ export function RecoltariPageClient({
                     {filteredRecoltari.length === 1 ? 'recoltare' : 'recoltări'}
                   </span>
                 </div>
-              }
-            >
+              </div>
               <SearchField
-                containerClassName="w-full max-w-md min-w-[200px]"
+                containerClassName="w-full max-w-2xl"
                 placeholder="Caută după parcelă, soi, culegător sau observații..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 aria-label="Caută recoltări (desktop)"
               />
-            </DesktopToolbar>
+            </div>
           </>
         ) : null}
 
@@ -678,6 +727,11 @@ export function RecoltariPageClient({
             emoji="🌿"
             title="Nicio recoltare încă"
             hint="Adaugă prima recoltare pentru a începe"
+            action={
+              <Button type="button" className="agri-cta" onClick={() => setAddOpen(true)}>
+                Adaugă recoltare
+              </Button>
+            }
           />
         ) : null}
 
@@ -702,6 +756,7 @@ export function RecoltariPageClient({
                 desktopContainerClassName="md:min-w-0"
                 skipDesktopDataFilter
                 hideDesktopSearchRow
+                desktopRowSelectionTone="accent"
                 onDesktopRowClick={(row) => setDesktopSelectedRecoltareId(row.id)}
                 isDesktopRowSelected={(row) => desktopSelectedRecoltare?.id === row.id}
                 renderCard={(recoltare) => {

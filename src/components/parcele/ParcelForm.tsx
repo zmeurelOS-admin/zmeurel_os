@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { ParcelFormSummary } from '@/components/parcele/ParcelFormSummary'
 import { applyScopDefaults, ParcelUsageToggleCard } from '@/components/parcele/ParcelUsageFields'
+import { NumericField } from '@/components/app/NumericField'
 import { Button } from '@/components/ui/button'
 import {
   DesktopFormGrid,
@@ -121,9 +122,13 @@ export const parcelFormSchema = z.object({
     message: 'Numărul de rânduri trebuie să fie un număr întreg',
   }),
   an_plantare: z.string(),
-  nr_plante: z.string().trim().refine((value) => !value || Number.isInteger(Number(value)), {
-    message: 'Numărul de plante trebuie să fie un număr întreg',
-  }),
+  nr_plante: z
+    .string()
+    .trim()
+    .refine(
+      (value) => !value || (Number.isInteger(Number(value)) && Number(value) > 0),
+      { message: 'Numărul de plante trebuie să fie un număr întreg pozitiv' },
+    ),
   distanta_intre_randuri: z
     .string()
     .trim()
@@ -197,11 +202,22 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
     state: 'idle',
   })
 
+  const nrPlanteValue = form.watch('nr_plante').trim()
   const validArea = suprafataValue.trim() ? parseLocalizedNumber(suprafataValue) : 0
   const areaLabel =
     suprafataValue.trim() && validArea > 0
       ? `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(validArea)} m² · ${formatM2ToHa(suprafataValue)}`
       : '—'
+  const isCamp = tipUnitate === 'camp'
+  const campPlantCountSummary =
+    isCamp &&
+    nrPlanteValue &&
+    Number.isInteger(Number(nrPlanteValue)) &&
+    Number(nrPlanteValue) > 0
+      ? `${new Intl.NumberFormat('ro-RO').format(Number(nrPlanteValue))} plante`
+      : isCamp
+        ? '—'
+        : null
   const locationLabel =
     latitudine && longitudine ? `${latitudine}, ${longitudine}` : latitudine || longitudine || 'Coordonate necompletate'
   const isSolar = tipUnitate === 'solar'
@@ -296,6 +312,7 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
           areaLabel={areaLabel}
           locationLabel={locationLabel}
           solarCultureMessage={isSolar ? SOLAR_CULTURA_MESSAGE : null}
+          campPlantCountLabel={campPlantCountSummary}
           className="md:rounded-[22px] md:p-4 lg:p-[1.125rem]"
         />
       }
@@ -323,6 +340,10 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                   value={tipUnitate}
                   onValueChange={(value: 'camp' | 'solar' | 'livada' | 'cultura_mare') => {
                     form.setValue('tip_unitate', value, { shouldDirty: true, shouldValidate: true })
+
+                    if (value !== 'camp') {
+                      form.setValue('nr_plante', '', { shouldDirty: true, shouldValidate: true })
+                    }
 
                     if (value === 'solar') {
                       setManualCultureSelected(false)
@@ -607,6 +628,16 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                   <p className="text-xs text-[var(--text-tertiary)]">≈ {formatM2ToHa(suprafataValue)}</p>
                 )}
               </div>
+
+              {isCamp ? (
+                <NumericField
+                  id="parcela_nr_plante"
+                  label="Număr plante"
+                  placeholder="Ex: 1500"
+                  {...form.register('nr_plante')}
+                  error={form.formState.errors.nr_plante?.message}
+                />
+              ) : null}
 
               <ParcelUsageToggleCard
                 label="Contribuie la producție și vânzări"

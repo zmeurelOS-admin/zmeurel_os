@@ -11,6 +11,8 @@ interface ParcelFormSummaryProps {
   areaLabel: string
   locationLabel: string
   solarCultureMessage?: string | null
+  /** Doar teren Câmp: valoare formatată sau „—”. Dacă e `null`, rândul e ascuns. */
+  campPlantCountLabel?: string | null
   className?: string
 }
 
@@ -23,9 +25,11 @@ export function ParcelFormSummary({
   areaLabel,
   locationLabel,
   solarCultureMessage,
+  campPlantCountLabel,
   className,
 }: ParcelFormSummaryProps) {
   const showsSolarMessage = Boolean(solarCultureMessage)
+  const showsCampPlants = campPlantCountLabel != null
 
   return (
     <DesktopFormAside title="Rezumat teren" className={className}>
@@ -63,6 +67,12 @@ export function ParcelFormSummary({
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Suprafață</dt>
           <dd className="mt-0.5 text-[var(--text-primary)]">{areaLabel}</dd>
         </div>
+        {showsCampPlants ? (
+          <div>
+            <dt className="text-xs font-medium text-[var(--text-tertiary)]">Număr plante</dt>
+            <dd className="mt-0.5 text-[var(--text-primary)]">{campPlantCountLabel}</dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Locație</dt>
           <dd className="mt-0.5 break-words text-[var(--text-primary)]">{locationLabel}</dd>

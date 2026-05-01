@@ -47,6 +47,8 @@ interface ResponsiveDataViewProps<TData, TMobileData = TData> {
   getDesktopRowClassName?: (row: TData, index: number, rows: TData[]) => string | undefined
   desktopTableContainerClassName?: string
   stickyDesktopHeader?: boolean
+  /** `accent` = bară verde + fundal neutru (liste ERP curate). Implicit păstrează stilul info albastru. */
+  desktopRowSelectionTone?: 'info' | 'accent'
 }
 
 function normalizeSearchValue(value: string): string {
@@ -125,6 +127,7 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
   getDesktopRowClassName,
   desktopTableContainerClassName,
   stickyDesktopHeader = false,
+  desktopRowSelectionTone = 'info',
 }: ResponsiveDataViewProps<TData, TMobileData>) {
   const [desktopSearch, setDesktopSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
@@ -268,7 +271,9 @@ export function ResponsiveDataView<TData, TMobileData = TData>({
                           ? 'cursor-pointer hover:bg-[color:color-mix(in_srgb,var(--surface-card-muted)_72%,var(--surface-card))]'
                           : '',
                         isSelected
-                          ? 'border-l-[3px] border-l-[var(--focus-ring)] bg-[var(--soft-info-bg)] hover:bg-[var(--soft-info-bg)]'
+                          ? desktopRowSelectionTone === 'accent'
+                            ? 'border-l-[3px] border-l-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--surface-card-muted)_48%,var(--surface-card))] hover:bg-[color:color-mix(in_srgb,var(--surface-card-muted)_62%,var(--surface-card))]'
+                            : 'border-l-[3px] border-l-[var(--focus-ring)] bg-[var(--soft-info-bg)] hover:bg-[var(--soft-info-bg)]'
                           : getDesktopRowClassName?.(row.original, row.index, filteredData) ?? '',
                       )}
                       onClick={onDesktopRowClick ? () => onDesktopRowClick(row.original) : undefined}

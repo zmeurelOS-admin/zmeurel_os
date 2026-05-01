@@ -9,12 +9,19 @@ import { toast } from '@/lib/ui/toast'
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
 import { EditActivitateAgricolaDialog } from '@/components/activitati-agricole/EditActivitateAgricolaDialog'
 import { AppShell } from '@/components/app/AppShell'
+import {
+  ModuleEmptyCard,
+  ModulePillFilterButton,
+  ModulePillRow,
+} from '@/components/app/module-list-chrome'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
+import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/ui/SearchField'
+import { cn } from '@/lib/utils'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
@@ -146,15 +153,8 @@ const QUICK_ADD_PILLS = [
   { emoji: '📋', label: 'Altele', value: 'altele' },
 ]
 
-const SECTION_LABEL_STYLE: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  color: 'var(--text-tertiary)',
-  letterSpacing: '0.07em',
-  textTransform: 'uppercase',
-  marginBottom: 8,
-  display: 'block',
-}
+const SECTION_LABEL_CLASS =
+  'mb-2 block text-[10px] font-bold uppercase tracking-[0.07em] text-[var(--text-tertiary)]'
 
 function hasAiActivityOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
   return searchParams.get('openForm') === '1'
@@ -325,7 +325,7 @@ export default function ActivitatiPage() {
       }
       return { parcela, latest }
     })
-  }, [activitati, parcele, today])
+  }, [activitati, parcele])
 
   const filteredActivitati = useMemo(() => {
     const term = normalizeText(searchQuery)
@@ -359,55 +359,51 @@ export default function ActivitatiPage() {
     <AppShell
       header={<PageHeader title="Activități Agricole" subtitle="Istoric lucrări și tratamente" />}
       bottomBar={
-        <StickyActionBar>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-[var(--text-secondary)]">Total activități: {activitati.length}</p>
-          </div>
-        </StickyActionBar>
+        <div className="md:hidden">
+          <StickyActionBar>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-[var(--text-secondary)]">Total activități: {activitati.length}</p>
+            </div>
+          </StickyActionBar>
+        </div>
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-7xl space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
-
+      <div className="mt-2 w-full space-y-4 px-4 py-3 sm:mt-0 sm:space-y-5 sm:py-3 lg:px-6 xl:px-8">
         {/* STARE TERENURI */}
         {stareParceleRows.length > 0 ? (
           <div>
-            <span style={SECTION_LABEL_STYLE}>Stare terenuri</span>
-            <div style={{ background: 'var(--surface-card)', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border-default)' }}>
+            <span className={SECTION_LABEL_CLASS}>Stare terenuri</span>
+            <div className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
               {stareParceleRows.map((row) => {
                 const badge = row.latest ? temporalBadgeForActivity(row.latest, today) : null
                 const emoji = activityEmojiByTip(row.latest?.tip_activitate)
                 const archivedLabel = row.latest?.tip_deprecat ? getArchivedActivityLabel(row.latest) : null
+                const isSel = selectedParcelaId === row.parcela.id
                 return (
                   <button
                     key={row.parcela.id}
                     type="button"
                     onClick={() => setSelectedParcelaId((prev) => (prev === row.parcela.id ? null : row.parcela.id))}
-                    className="w-full cursor-pointer border-b border-[var(--divider)] px-3 py-2.5 text-left last:border-b-0"
-                    style={{
-                      width: '100%',
-                      textAlign: 'left',
-                      border: 'none',
-                      background: selectedParcelaId === row.parcela.id ? 'var(--soft-success-bg)' : undefined,
-                      padding: '10px 14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      cursor: 'pointer',
-                    }}
+                    className={cn(
+                      'flex w-full cursor-pointer items-center gap-2.5 border-b border-[var(--divider)] px-3.5 py-2.5 text-left transition-colors last:border-b-0 md:gap-3',
+                      isSel
+                        ? 'border-l-[3px] border-l-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--surface-card-muted)_40%,var(--surface-card))]'
+                        : 'hover:bg-[color:color-mix(in_srgb,var(--surface-card-muted)_35%,var(--surface-card))]',
+                    )}
                   >
-                    <span style={{ fontSize: 15, flexShrink: 0 }}>{row.latest ? emoji : '📋'}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <span className="shrink-0 text-base md:text-[15px]">{row.latest ? emoji : '📋'}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-[var(--text-primary)]">
                         {row.parcela.nume_parcela || 'Teren'}
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 1 }}>
+                      <div className="mt-0.5 text-[10px] text-[var(--text-secondary)]">
                         {row.latest
                           ? `${activityDisplayLabel(row.latest.tip_activitate)} · ${formatDateShort(row.latest.data_aplicare)}`
                           : 'Nicio activitate'}
                       </div>
                       {archivedLabel ? (
                         <div
-                          className="mt-1 max-w-full truncate text-xs text-amber-700"
+                          className="mt-1 max-w-full truncate text-xs text-[var(--warning-text)]"
                           title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
                         >
                           {archivedLabel}
@@ -415,9 +411,11 @@ export default function ActivitatiPage() {
                       ) : null}
                     </div>
                     {badge ? (
-                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
+                      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>
+                        {badge.label}
+                      </span>
                     ) : (
-                      <span className="rounded-full border border-[var(--neutral-border)] bg-[var(--neutral-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--neutral-text)]">
+                      <span className="shrink-0 rounded-full border border-[var(--neutral-border)] bg-[var(--neutral-bg)] px-2 py-1 text-[10px] font-semibold text-[var(--neutral-text)]">
                         Nicio activitate
                       </span>
                     )}
@@ -428,34 +426,31 @@ export default function ActivitatiPage() {
           </div>
         ) : null}
 
-        {/* ADAUGĂ RAPID — ascuns pe mobil (FAB / flux principal rămân) */}
         {QUICK_ADD_PILLS.length > 0 ? (
           <div className="hidden md:block">
-            <span style={{ ...SECTION_LABEL_STYLE, marginTop: 6 }}>Adaugă rapid</span>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span className={cn(SECTION_LABEL_CLASS, 'mt-1')}>Adaugă rapid</span>
+            <div className="flex flex-wrap gap-2">
               {QUICK_ADD_PILLS.map((pill) => (
                 <button
                   key={pill.value}
                   type="button"
                   onClick={() => {
-                    setAiPrefill({ tip: pill.value, parcela_id: '', parcela_label: '', produs: '', doza: '', data: '', observatii: '' })
+                    setAiPrefill({
+                      tip: pill.value,
+                      parcela_id: '',
+                      parcela_label: '',
+                      produs: '',
+                      doza: '',
+                      data: '',
+                      observatii: '',
+                    })
                     setAddOpen(true)
                   }}
-                  style={{
-                    padding: '8px 14px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: 'var(--button-muted-bg)',
-                    border: '1px solid var(--button-muted-border)',
-                    color: 'var(--button-muted-text)',
-                    borderRadius: 12,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    cursor: 'pointer',
-                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3.5 py-2 text-xs font-semibold text-[var(--text-primary)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
                 >
-                  <span style={{ fontSize: 14 }}>{pill.emoji}</span>
+                  <span className="text-sm" aria-hidden>
+                    {pill.emoji}
+                  </span>
                   {pill.label}
                 </button>
               ))}
@@ -463,84 +458,119 @@ export default function ActivitatiPage() {
           </div>
         ) : null}
 
-        {/* RECENTE */}
         <div>
-          <span style={{ ...SECTION_LABEL_STYLE, marginTop: 6 }}>Recente</span>
+          <span className={cn(SECTION_LABEL_CLASS, 'mt-1')}>Recente</span>
 
-          {/* Filters */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-            {([
-              { key: 'toate', label: 'Toate' },
-              {
-                key: 'arhivate_pn',
-                label: (
-                  <span className="inline-flex items-center gap-1">
-                    <Archive className="h-3.5 w-3.5" aria-hidden />
-                    Arhivate P&N
-                  </span>
-                ),
-              },
-              { key: 'taiere', label: '✂️ Tăiere' },
-              { key: 'altele', label: 'Altele' },
-            ] as Array<{ key: TipFilter; label: React.ReactNode }>).map(({ key, label }) => {
-              const active = tipFilter === key
-              return (
-                <button
+          <div className="space-y-3 md:hidden">
+            <ModulePillRow className="gap-1.5">
+              {(
+                [
+                  { key: 'toate' as const, label: 'Toate' },
+                  {
+                    key: 'arhivate_pn' as const,
+                    label: (
+                      <span className="inline-flex items-center gap-1">
+                        <Archive className="h-3.5 w-3.5" aria-hidden />
+                        Arhivate P&N
+                      </span>
+                    ),
+                  },
+                  { key: 'taiere' as const, label: '✂️ Tăiere' },
+                  { key: 'altele' as const, label: 'Altele' },
+                ] as const
+              ).map(({ key, label }) => (
+                <ModulePillFilterButton
                   key={key}
-                  type="button"
+                  active={tipFilter === key}
+                  activeStyle="minimal"
                   onClick={() => setTipFilter(key)}
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    borderRadius: 20,
-                    border: `1px solid ${active ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
-                    background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                    color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                    cursor: 'pointer',
-                  }}
                 >
                   {label}
-                </button>
-              )
-            })}
-            {selectedParcelaId ? (
-              <button
-                type="button"
-                onClick={() => setSelectedParcelaId(null)}
-                style={{
-                  padding: '6px 12px',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  borderRadius: 20,
-                  border: '1px solid var(--status-danger-border)',
-                  background: 'var(--status-danger-bg)',
-                  color: 'var(--status-danger-text)',
-                  cursor: 'pointer',
-                }}
-              >
-                ✕ Reset teren
-              </button>
-            ) : null}
+                </ModulePillFilterButton>
+              ))}
+              {selectedParcelaId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full border-[var(--status-danger-border)] text-[11px] font-semibold text-[var(--status-danger-text)]"
+                  onClick={() => setSelectedParcelaId(null)}
+                >
+                  ✕ Reset teren
+                </Button>
+              ) : null}
+            </ModulePillRow>
+            <SearchField
+              placeholder="Caută activitate, produs, doză..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Caută activități"
+            />
           </div>
 
-          <SearchField
-            placeholder="Caută activitate, produs, doză..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Caută activități"
-          />
+          <div className="hidden space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:block">
+            <ModulePillRow className="gap-1.5">
+              {(
+                [
+                  { key: 'toate' as const, label: 'Toate' },
+                  {
+                    key: 'arhivate_pn' as const,
+                    label: (
+                      <span className="inline-flex items-center gap-1">
+                        <Archive className="h-3.5 w-3.5" aria-hidden />
+                        Arhivate P&N
+                      </span>
+                    ),
+                  },
+                  { key: 'taiere' as const, label: '✂️ Tăiere' },
+                  { key: 'altele' as const, label: 'Altele' },
+                ] as const
+              ).map(({ key, label }) => (
+                <ModulePillFilterButton
+                  key={key}
+                  active={tipFilter === key}
+                  activeStyle="minimal"
+                  onClick={() => setTipFilter(key)}
+                >
+                  {label}
+                </ModulePillFilterButton>
+              ))}
+              {selectedParcelaId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full border-[var(--status-danger-border)] text-[11px] font-semibold text-[var(--status-danger-text)]"
+                  onClick={() => setSelectedParcelaId(null)}
+                >
+                  ✕ Reset teren
+                </Button>
+              ) : null}
+            </ModulePillRow>
+            <SearchField
+              containerClassName="max-w-2xl"
+              placeholder="Caută activitate, produs, doză..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Caută activități (desktop)"
+            />
+          </div>
         </div>
 
         {isError ? <ErrorState title="Eroare la încărcare" message={(error as Error).message} onRetry={refresh} /> : null}
         {isLoading ? <LoadingState label="Se încarcă activitățile..." /> : null}
 
         {!isLoading && !isError && activitati.length === 0 ? (
-          <div style={{ borderRadius: 12, background: 'var(--surface-card)', border: '1px solid var(--border-default)', padding: '20px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>✂️</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>Nu ai înregistrat activități recente</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Adaugă activități pentru un istoric complet</div>
-          </div>
+          <ModuleEmptyCard
+            emoji="✂️"
+            title="Nu ai înregistrat activități recente"
+            hint="Adaugă activități pentru un istoric complet"
+            action={
+              <Button type="button" className="agri-cta" onClick={() => setAddOpen(true)}>
+                Adaugă activitate
+              </Button>
+            }
+          />
         ) : null}
 
         {!isLoading && !isError && activitati.length > 0 && filteredActivitati.length === 0 ? (
@@ -552,48 +582,65 @@ export default function ActivitatiPage() {
         ) : null}
 
         {filteredActivitati.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
             {filteredActivitati.map((a) => {
               const parcelaName = a.parcela_id ? parcelaMap[a.parcela_id] || 'Teren' : 'Teren'
               const badge = temporalBadgeForActivity(a, today)
               const isExpanded = expandedCardId === a.id
               const isArchived = Boolean(a.tip_deprecat)
               const archivedLabel = getArchivedActivityLabel(a)
+              const actEmoji = activityEmojiByTip(a.tip_activitate)
 
               return (
-                <div key={a.id} className="rounded-[var(--agri-radius-lg)] border border-[var(--border-default)] bg-[var(--surface-card)] p-3.5 shadow-[var(--shadow-soft)]">
+                <div
+                  key={a.id}
+                  className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3.5 shadow-[var(--shadow-soft)]"
+                >
                   <button
                     type="button"
                     className="w-full text-left"
                     onClick={() => setExpandedCardId((prev) => (prev === a.id ? null : a.id))}
                     aria-expanded={isExpanded}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="min-w-0 text-sm font-semibold text-[var(--text-primary)]">
-                          {activityEmojiByTip(a.tip_activitate)}{' '}
-                          {isArchived ? a.tip_activitate || 'Activitate' : activityDisplayLabel(a.tip_activitate)}
-                        </div>
-                        {isArchived ? (
-                          <span
-                            title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
-                            className="mt-1 inline-flex max-w-full items-center rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[10px] font-semibold leading-tight text-amber-800"
-                          >
-                            <span className="max-w-full whitespace-normal break-words text-left">
-                              {archivedLabel}
-                            </span>
-                          </span>
-                        ) : null}
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}>
-                        {badge.label}
+                    <div className="flex gap-2.5">
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-page)] text-base dark:bg-[var(--surface-card-muted)]"
+                        aria-hidden
+                      >
+                        {actEmoji}
                       </span>
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between gap-2">
-                      <p className="truncate text-xs text-[var(--text-secondary)]">
-                        {[a.produs_utilizat, a.doza].filter(Boolean).join(' · ') || 'Fără produs/doză'}
-                      </p>
-                      <p className="truncate text-xs text-[var(--text-secondary)]">{parcelaName}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-[var(--text-primary)]">
+                              {isArchived ? a.tip_activitate || 'Activitate' : activityDisplayLabel(a.tip_activitate)}
+                            </div>
+                            {isArchived ? (
+                              <span
+                                title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+                                className="mt-1 inline-flex max-w-full items-center rounded-full border border-[var(--warning-border)] bg-[var(--warning-bg)] px-2 py-1 text-[10px] font-semibold leading-tight text-[var(--warning-text)]"
+                              >
+                                <span className="max-w-full whitespace-normal break-words text-left">
+                                  {archivedLabel}
+                                </span>
+                              </span>
+                            ) : null}
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-end justify-between gap-2 border-t border-[var(--divider)] pt-2">
+                          <p className="truncate text-xs text-[var(--text-secondary)]">
+                            {[a.produs_utilizat, a.doza].filter(Boolean).join(' · ') || 'Fără produs/doză'}
+                          </p>
+                          <p className="max-w-[45%] truncate text-right text-xs font-medium text-[var(--text-tertiary)]">
+                            {parcelaName}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </button>
 

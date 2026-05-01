@@ -49,21 +49,24 @@ export function AssociationContextSwitcher({ collapsed }: AssociationContextSwit
   const summaryLabel = inAssociationWorkspace ? ASSOCIATION_BRAND : farmLabel
 
   const triggerClasses = cn(
-    'flex w-full items-center justify-between gap-2 rounded-[10px] px-[14px] py-[10px] text-left text-sm font-semibold text-white transition-all duration-200 ease-out',
-    'bg-white/[0.10] hover:bg-white/[0.15]',
-    open && 'bg-white/[0.15] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]'
+    'flex w-full items-center justify-between gap-2 rounded-[14px] px-[14px] py-[10px] text-left text-sm font-semibold transition-all duration-200 ease-out',
+    'bg-[color:color-mix(in_srgb,var(--agri-primary)_7%,var(--surface-card))] text-[var(--text-primary)]',
+    'hover:bg-[color:color-mix(in_srgb,var(--agri-primary)_11%,var(--surface-card))]',
+    open &&
+      'bg-[color:color-mix(in_srgb,var(--agri-primary)_12%,var(--surface-card))] ring-1 ring-[color:color-mix(in_srgb,var(--agri-primary)_28%,transparent)]'
   )
 
   const menuItem = (active: boolean) =>
     cn(
-      'flex w-full items-center gap-2 px-[14px] py-2.5 text-left text-sm font-medium text-white transition-colors duration-200',
-      active ? 'bg-white/[0.14]' : 'hover:bg-white/10'
+      'flex w-full items-center gap-2 px-[14px] py-2.5 text-left text-sm font-medium text-[var(--text-primary)] transition-colors duration-200',
+      active
+        ? 'bg-[color:color-mix(in_srgb,var(--agri-primary)_9%,var(--surface-card))]'
+        : 'hover:bg-[var(--surface-card-muted)]'
     )
 
   const menuPanel = (
     <ul
-      className="overflow-hidden rounded-[10px] border border-white/20 py-1 shadow-lg outline-none"
-      style={{ background: 'var(--agri-primary)' }}
+      className="overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] py-1 shadow-[var(--shadow-soft)] outline-none"
       role="listbox"
       aria-label="Alege workspace"
     >
@@ -97,11 +100,11 @@ export function AssociationContextSwitcher({ collapsed }: AssociationContextSwit
               aria-expanded={open}
               onClick={() => setOpen((o) => !o)}
               className={cn(
-                'flex h-11 w-11 items-center justify-center rounded-[10px] text-lg transition-all duration-200 ease-out',
-                'bg-[var(--agri-primary)] text-white shadow-sm',
+                'flex h-11 w-11 items-center justify-center rounded-xl text-lg transition-all duration-200 ease-out',
+                'border border-[color:color-mix(in_srgb,var(--agri-primary)_32%,var(--border-default))] bg-[var(--surface-card)] text-[var(--agri-primary)] shadow-[var(--shadow-soft)]',
                 open
-                  ? 'ring-2 ring-white/35'
-                  : 'hover:brightness-[1.06] active:scale-[0.98]'
+                  ? 'ring-2 ring-[color:color-mix(in_srgb,var(--agri-primary)_22%,transparent)]'
+                  : 'hover:bg-[var(--surface-card-muted)] active:scale-[0.98]'
               )}
             >
               {summaryEmoji}
@@ -120,7 +123,7 @@ export function AssociationContextSwitcher({ collapsed }: AssociationContextSwit
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="rounded-[10px] bg-[var(--agri-primary)] p-[2px] shadow-sm">
+      <div className="rounded-2xl border border-[color:color-mix(in_srgb,var(--agri-primary)_26%,var(--border-default))] bg-[var(--surface-card)] p-px shadow-[var(--shadow-soft)]">
         <button
           type="button"
           aria-expanded={open}

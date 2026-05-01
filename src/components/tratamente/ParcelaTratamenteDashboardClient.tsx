@@ -274,7 +274,7 @@ export function ParcelaTratamenteDashboardClient({
 
   return (
     <>
-      <div className="mx-auto w-full max-w-5xl space-y-4 py-3 md:py-4">
+      <div className="mx-auto w-full max-w-[min(96vw,94rem)] space-y-4 px-3 py-3 md:px-4 md:py-4">
         {isGlobalEmpty ? (
           <EmptyStateTratamente
             createPlanHref={createPlanHref}
