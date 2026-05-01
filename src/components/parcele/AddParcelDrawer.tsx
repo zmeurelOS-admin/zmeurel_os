@@ -107,9 +107,13 @@ export function AddParcelDrawer({
       open={open}
       onOpenChange={onOpenChange}
       title="Adaugă teren"
-      contentClassName="sm:max-w-4xl"
+      description="Configurezi rapid un teren nou și verifici rezumatul din dreapta înainte de salvare."
+      desktopFormWide
+      showCloseButton
+      contentClassName="lg:max-w-[min(94vw,68rem)] xl:max-w-[min(92vw,72rem)]"
       footer={
         <DialogFormActions
+          className="w-full"
           onCancel={() => onOpenChange(false)}
           onSave={form.handleSubmit((values) => createMutation.mutate(values))}
           saving={createMutation.isPending}
@@ -118,7 +122,9 @@ export function AddParcelDrawer({
         />
       }
     >
-      <ParcelForm form={form} soiuriDisponibile={soiuriDisponibile} />
+      <form className="space-y-0" onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}>
+        <ParcelForm form={form} soiuriDisponibile={soiuriDisponibile} />
+      </form>
     </AppDrawer>
   )
 }

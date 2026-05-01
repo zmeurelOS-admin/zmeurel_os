@@ -5,11 +5,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
+import { Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
-import { FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { ComandaFormSummary } from '@/components/comenzi/ComandaFormSummary'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import {
+  DesktopFormGrid,
+  DesktopFormPanel,
+  FormDialogSection,
+} from '@/components/ui/form-dialog-layout'
 import { AppShell } from '@/components/app/AppShell'
 import {
   ModuleEmptyCard,
@@ -417,6 +423,10 @@ function ComandaDialog({
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
+  const summaryPhone = resolvedPhone.trim() || '—'
+  const summaryLocation = resolvedLocation.trim() || '—'
+  const summaryQuantity = Number.isFinite(previewKg) ? formatKg(previewKg) : '—'
+  const summaryUnitPrice = Number.isFinite(previewPret) ? formatLei(previewPret) : '—'
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -441,51 +451,53 @@ function ComandaDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={mode === 'create' ? 'Adaugă comanda' : 'Editează comanda'}
+      title={mode === 'create' ? 'Adaugă comandă' : 'Editează comandă'}
+      description={
+        mode === 'create'
+          ? 'Pregătești rapid o comandă nouă și verifici rezumatul înainte de salvare.'
+          : 'Actualizezi datele comenzii fără să schimbi fluxul existent de client și livrare.'
+      }
       desktopFormWide
-      contentClassName="lg:max-w-[min(94vw,72rem)] xl:max-w-[min(92vw,76rem)]"
+      showCloseButton
+      contentClassName="lg:max-w-[min(94vw,72rem)] xl:max-w-[min(92vw,74rem)]"
       footer={
-        <div className="flex w-full flex-wrap justify-center gap-3 md:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            className="agri-cta h-12 min-w-[132px] rounded-xl text-sm"
-            disabled={saving}
-            onClick={() => onOpenChange(false)}
-          >
-            Anulează
-          </Button>
-          <Button
-            type="button"
-            className="agri-cta h-12 min-w-[132px] rounded-xl border border-[var(--info-border)] bg-[var(--info-bg)] text-sm text-[var(--info-text)] hover:brightness-[0.98]"
-            disabled={saving}
-            onClick={async () => {
-              await onSave({
-                ...form,
-                telefon: resolvedPhone,
-                locatie_livrare: resolvedLocation,
-              })
-            }}
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Se salvează...
-              </>
-            ) : (
-              'Salvează'
-            )}
-          </Button>
-        </div>
+        <DialogFormActions
+          className="w-full"
+          onCancel={() => onOpenChange(false)}
+          onSave={async () => {
+            await onSave({
+              ...form,
+              telefon: resolvedPhone,
+              locatie_livrare: resolvedLocation,
+            })
+          }}
+          saving={saving}
+          cancelLabel="Anulează"
+          saveLabel="Salvează"
+        />
       }
     >
-      <div className="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_min(272px,32%)] md:items-start md:gap-6 lg:gap-8">
-        <div className="min-w-0 space-y-4 md:space-y-6">
-          <FormDialogSection label="Client" className="space-y-2 md:space-y-3">
-            <div ref={comboRef}>
-              <Label htmlFor="comanda_client_combo" className="sr-only">
-                Client
-              </Label>
+      <DesktopFormGrid
+        className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]"
+        aside={
+          <ComandaFormSummary
+            clientName={suggestedClientName}
+            phone={summaryPhone}
+            location={summaryLocation}
+            quantityLabel={summaryQuantity}
+            unitPriceLabel={summaryUnitPrice}
+            totalLabel={formatLei(previewTotal)}
+            statusLabel={statusLabelMap[form.status]}
+            statusVariant={statusVariantMap[form.status]}
+            notes={form.observatii}
+            className="md:rounded-[24px] md:p-5 lg:p-6"
+          />
+        }
+      >
+        <FormDialogSection label="Client">
+          <DesktopFormPanel>
+            <div ref={comboRef} className="space-y-2">
+              <Label htmlFor="comanda_client_combo">Client</Label>
               <div className="relative">
                 <Input
                   id="comanda_client_combo"
@@ -548,21 +560,22 @@ function ComandaDialog({
                 )}
               </div>
             </div>
-          </FormDialogSection>
 
-          <FormDialogSection label="Contact și livrare" className="space-y-3 md:space-y-4">
-            <div className="space-y-1.5 md:space-y-2">
-              <Label>Telefon</Label>
-              <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-6 md:gap-y-4">
+              <div className="space-y-2">
+                <Label>Telefon</Label>
                 <Input
                   className="agri-control h-12 md:h-11"
                   value={resolvedPhone}
                   onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
                 />
+              </div>
+              <div className="space-y-2 md:min-w-[152px]">
+                <Label className="opacity-0">Contact</Label>
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-12 whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-11"
+                  className="h-12 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-11"
                   disabled={!canSaveContact}
                   onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
                 >
@@ -571,7 +584,8 @@ function ComandaDialog({
                 </Button>
               </div>
             </div>
-            <div className="space-y-1.5 md:space-y-2">
+
+            <div className="space-y-2">
               <Label>Locație livrare</Label>
               <Input
                 className="agri-control h-12 md:h-11"
@@ -579,11 +593,13 @@ function ComandaDialog({
                 onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
               />
             </div>
-          </FormDialogSection>
+          </DesktopFormPanel>
+        </FormDialogSection>
 
-          <FormDialogSection label="Comandă" className="space-y-3 md:space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
-              <div className="space-y-1.5 md:space-y-2">
+        <FormDialogSection label="Comandă">
+          <DesktopFormPanel>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+              <div className="space-y-2">
                 <Label>Data comandă</Label>
                 <Input
                   type="date"
@@ -592,7 +608,7 @@ function ComandaDialog({
                   onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5 md:space-y-2">
+              <div className="space-y-2">
                 <Label>Data livrare</Label>
                 <Input
                   type="date"
@@ -601,7 +617,7 @@ function ComandaDialog({
                   onChange={(e) => setForm((prev) => ({ ...prev, data_livrare: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5 md:space-y-2">
+              <div className="space-y-2">
                 <Label>Cantitate (kg)</Label>
                 <Input
                   type="number"
@@ -612,7 +628,7 @@ function ComandaDialog({
                   onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5 md:space-y-2">
+              <div className="space-y-2">
                 <Label>Preț per kg</Label>
                 <Input
                   type="number"
@@ -624,10 +640,12 @@ function ComandaDialog({
                 />
               </div>
             </div>
-          </FormDialogSection>
+          </DesktopFormPanel>
+        </FormDialogSection>
 
-          <FormDialogSection label="Status și observații" className="space-y-3 md:space-y-4">
-            <div className="space-y-1.5 md:space-y-2">
+        <FormDialogSection label="Status și observații">
+          <DesktopFormPanel>
+            <div className="space-y-2">
               <Label>Status</Label>
               <Select
                 value={form.status}
@@ -645,7 +663,7 @@ function ComandaDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5 md:space-y-2">
+            <div className="space-y-2">
               <Label>Observații</Label>
               <Textarea
                 className="agri-control min-h-[5rem] md:min-h-[6.5rem]"
@@ -653,73 +671,9 @@ function ComandaDialog({
                 onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
               />
             </div>
-          </FormDialogSection>
-        </div>
-
-        <aside className="hidden md:block md:sticky md:top-2 md:self-start">
-          <div className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 shadow-[var(--shadow-soft)]">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
-                Rezumat live
-              </p>
-              <p className="mt-2 text-base font-semibold leading-snug text-[var(--text-primary)]">
-                {suggestedClientName}
-              </p>
-            </div>
-            <dl className="space-y-2.5 text-sm text-[var(--text-secondary)]">
-              <div>
-                <dt className="text-xs font-medium text-[var(--text-tertiary)]">Telefon</dt>
-                <dd className="mt-0.5 text-[var(--text-primary)]">{resolvedPhone.trim() || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-[var(--text-tertiary)]">Locație livrare</dt>
-                <dd className="mt-0.5 break-words text-[var(--text-primary)]">
-                  {resolvedLocation.trim() || '—'}
-                </dd>
-              </div>
-              <div className="grid grid-cols-2 gap-2 border-t border-[var(--divider)] pt-3">
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cantitate</dt>
-                  <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
-                    {Number.isFinite(previewKg) ? formatKg(previewKg) : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-[var(--text-tertiary)]">Preț / kg</dt>
-                  <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
-                    {Number.isFinite(previewPret) ? formatLei(previewPret) : '—'}
-                  </dd>
-                </div>
-              </div>
-              <div className="border-t border-[var(--divider)] pt-3">
-                <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total estimat</dt>
-                <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
-                  {formatLei(previewTotal)}
-                </dd>
-              </div>
-            </dl>
-            <div className="border-t border-[var(--divider)] pt-3">
-              <p className="text-xs font-medium text-[var(--text-tertiary)]">Status</p>
-              <div className="mt-2">
-                <StatusBadge
-                  text={statusLabelMap[form.status]}
-                  variant={statusVariantMap[form.status]}
-                />
-              </div>
-            </div>
-            {form.observatii.trim() ? (
-              <div className="border-t border-[var(--divider)] pt-3">
-                <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
-                <p className="mt-1 max-h-24 overflow-y-auto text-xs leading-relaxed text-[var(--text-secondary)]">
-                  {form.observatii.trim().length > 220
-                    ? `${form.observatii.trim().slice(0, 220)}…`
-                    : form.observatii.trim()}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </aside>
-      </div>
+          </DesktopFormPanel>
+        </FormDialogSection>
+      </DesktopFormGrid>
     </AppDialog>
   )
 }

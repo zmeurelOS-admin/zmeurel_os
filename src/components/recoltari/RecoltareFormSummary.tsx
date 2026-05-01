@@ -16,6 +16,7 @@ interface RecoltareFormSummaryProps {
   tarifLeiKg: number
   valoareMunca: number | null
   observatii: string | undefined
+  className?: string
 }
 
 function clipText(value: string | undefined, max = 200): string | null {
@@ -38,13 +39,17 @@ export function RecoltareFormSummary({
   tarifLeiKg,
   valoareMunca,
   observatii,
+  className,
 }: RecoltareFormSummaryProps) {
   const clippedObservatii = clipText(observatii)
 
   return (
-    <DesktopFormAside title="Rezumat live">
-      <div>
+    <DesktopFormAside title="Rezumat live" className={className}>
+      <div className="space-y-1.5">
         <p className="text-sm font-semibold leading-snug text-[var(--text-primary)]">{parcelaLabel}</p>
+        <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
+          Datele se actualizează pe măsură ce completezi formularul.
+        </p>
       </div>
 
       <dl className="space-y-3 text-sm text-[var(--text-secondary)]">
@@ -66,7 +71,7 @@ export function RecoltareFormSummary({
             {totalKg.toFixed(2)} kg
           </dd>
         </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 rounded-[18px] border border-[var(--divider)] bg-[var(--surface-card)] p-3 text-xs">
           <div>
             <span className="text-[var(--text-tertiary)]">Cal I</span>
             <p className="font-medium tabular-nums text-[var(--text-primary)]">
@@ -99,7 +104,7 @@ export function RecoltareFormSummary({
       {clippedObservatii ? (
         <div className="border-t border-[var(--divider)] pt-3">
           <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
-          <p className="mt-1 max-h-24 overflow-y-auto text-xs leading-relaxed text-[var(--text-secondary)]">
+          <p className="mt-1 break-words text-xs leading-relaxed text-[var(--text-secondary)]">
             {clippedObservatii}
           </p>
         </div>

@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronDown, ChevronUp, Clock3, CloudRain, CloudSun, Droplets, ListChecks, Map as MapIcon, MoreHorizontal, SprayCan, Sprout, Wind } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronUp, Clock3, Droplets, ListChecks, Map as MapIcon, MoreHorizontal, SprayCan, Sprout } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -22,6 +22,7 @@ import { SearchField } from '@/components/ui/SearchField'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { useMeteo } from '@/hooks/useMeteo'
+import { MicroclimatAutoCard } from '@/components/parcele/MicroclimatAutoCard'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
@@ -108,6 +109,21 @@ type UnitFilter = 'toate' | UnitateTip
 type JournalTypeFilter = 'all' | 'activitati' | 'tratamente' | 'recoltari' | 'stadii'
 type JournalPeriodFilter = '7d' | '30d' | 'sezon' | 'tot'
 
+export type MeteoAutoSummary =
+  | { state: 'empty'; reason: string }
+  | { state: 'loading'; reason: string }
+  | {
+      state: 'ready'
+      temperature: number | null
+      humidity: number | null
+      rainChance: number | null
+      wind: number | null
+      fetchedAt: string | null
+      source: 'cache' | 'fresh' | null
+      locationSource: 'parcela' | 'fallback' | 'none'
+      locationLabel: string | null
+    }
+
 const SOIURI_DISPONIBILE = ['Delniwa', 'Maravilla', 'Enrosadira', 'Husaria']
 
 const PILL_FILTERS: Array<{ key: UnitFilter; label: string }> = [
@@ -173,7 +189,7 @@ function operationalToneForCard(statusOperational: StatusOperational): 'neutral'
 function etapaDotColor(etapa: string): string {
   const cod = normalizeStadiu(etapa)
   const e = (cod ?? etapa).toLowerCase()
-  if (e.includes('plantare') || e.includes('flori') || e.includes('fructif') || e.includes('cules')) return '#2D6A4F'
+  if (e.includes('plantare') || e.includes('flori') || e.includes('fructif') || e.includes('cules')) return '#3D7A5F'
   if (e.includes('seceta') || e.includes('daun') || e.includes('problem') || e.includes('desfiin')) return '#e85d5d'
   return '#95b8a0'
 }
@@ -1093,6 +1109,9 @@ function TerenCard({
   onAddCultura,
   onAddMicroclimat,
   onDesfiintaCultura,
+  meteoAutoSummary,
+  hasManualMicroclimat,
+  onOpenManualMicroclimat,
 }: {
   parcela: Parcela
   latestActivity:
@@ -1109,6 +1128,9 @@ function TerenCard({
   onAddCultura: () => void
   onAddMicroclimat: () => void
   onDesfiintaCultura: (c: Cultura) => void
+  meteoAutoSummary: MeteoAutoSummary
+  hasManualMicroclimat: boolean
+  onOpenManualMicroclimat: () => void
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -1117,6 +1139,7 @@ function TerenCard({
   const operational = coerceStatusOperationalFromDb(parcela.status_operational)
   const badge = operationalBadge(operational)
   const hasPause = Boolean(latestActivity?.pauseUntil)
+  const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
   const relTime = activityRelativeTime(latestActivity?.date, today)
   const activityDateLabel = formatActivityDateShort(latestActivity?.date)
   const metaLine = buildParcelaDesktopMeta(parcela)
@@ -1205,6 +1228,25 @@ function TerenCard({
           onAddMicroclimat={onAddMicroclimat}
           onDesfiintaCultura={onDesfiintaCultura}
         />
+
+        <div className="mt-3 border-t border-[var(--surface-divider)] pt-3">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
+            Microclimat
+          </p>
+          <MicroclimatAutoCard summary={meteoAutoSummary} compact />
+          {isSolar && hasManualMicroclimat ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenManualMicroclimat()
+              }}
+              className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+            >
+              Vezi microclimat manual →
+            </button>
+          ) : null}
+        </div>
 
         <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
           <button
@@ -1690,18 +1732,23 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     [desktopSelectedParcelaId, filteredParcele]
   )
   const desktopSelectedParcelaIdResolved = desktopSelectedParcela?.id ?? null
+  const activeMeteoParcelaId = expandedId ?? desktopSelectedParcelaId ?? filteredParcele[0]?.id ?? null
+  const activeMeteoParcela = useMemo(
+    () => filteredParcele.find((parcela) => parcela.id === activeMeteoParcelaId) ?? null,
+    [activeMeteoParcelaId, filteredParcele]
+  )
   const meteoCoordsSelection = useMemo(() => {
-    const selectedCoords = resolveParcelaMeteoCoords(desktopSelectedParcela)
+    const selectedCoords = resolveParcelaMeteoCoords(activeMeteoParcela)
     if (selectedCoords) {
       return {
         coords: selectedCoords,
         locationSource: 'parcela' as const,
-        locationLabel: desktopSelectedParcela?.nume_parcela || 'Parcela selectată',
+        locationLabel: activeMeteoParcela?.nume_parcela || 'Parcela selectată',
       }
     }
 
     const fallbackComercial = parcele.find((parcela) => {
-      if (parcela.id === desktopSelectedParcela?.id) return false
+      if (parcela.id === activeMeteoParcela?.id) return false
       if (coerceParcelaScopFromDb(parcela.rol) !== 'comercial') return false
       return Boolean(resolveParcelaMeteoCoords(parcela))
     })
@@ -1718,7 +1765,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     }
 
     const fallbackAny = parcele.find((parcela) => {
-      if (parcela.id === desktopSelectedParcela?.id) return false
+      if (parcela.id === activeMeteoParcela?.id) return false
       return Boolean(resolveParcelaMeteoCoords(parcela))
     })
 
@@ -1738,7 +1785,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       locationSource: 'none' as const,
       locationLabel: null,
     }
-  }, [desktopSelectedParcela, parcele])
+  }, [activeMeteoParcela, parcele])
   const meteoAuto = useMeteo({
     coords: meteoCoordsSelection.coords ?? undefined,
     enabled: Boolean(meteoCoordsSelection.coords),
@@ -1779,11 +1826,11 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     }
   }, [meteoAuto.data, meteoAuto.error, meteoAuto.loading, meteoCoordsSelection])
   const { data: desktopMicroclimatLogs = [] } = useQuery({
-    queryKey: ['solar_climate_logs', 'desktop-inspector', desktopSelectedParcelaIdResolved],
-    queryFn: () => getSolarClimateLogs(desktopSelectedParcelaIdResolved ?? '', 12),
+    queryKey: ['solar_climate_logs', 'active-microclimat', activeMeteoParcelaId],
+    queryFn: () => getSolarClimateLogs(activeMeteoParcelaId ?? '', 12),
     staleTime: 60000,
     refetchOnWindowFocus: false,
-    enabled: Boolean(desktopSelectedParcelaIdResolved) && normalizeUnitateTip(desktopSelectedParcela?.tip_unitate) === 'solar',
+    enabled: Boolean(activeMeteoParcelaId) && normalizeUnitateTip(activeMeteoParcela?.tip_unitate) === 'solar',
   })
   const currentSezon = getCurrentSezon()
   const { data: desktopStadiiCanonice = [] } = useQuery({
@@ -1967,6 +2014,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                 <div className="grid grid-cols-1 gap-3 md:hidden">
                   {filteredParcele.map((parcela) => {
                     const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
+                    const isActiveForMeteo = parcela.id === activeMeteoParcelaId
                     return (
                       <TerenCard
                         key={parcela.id}
@@ -1994,6 +2042,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                         onAddCultura={() => setAddCulturaParcelaId(parcela.id)}
                         onAddMicroclimat={() => setAddMicroclimatParcelaId(parcela.id)}
                         onDesfiintaCultura={(c) => setDesfiintaState({ cultura: c, parcelaId: parcela.id })}
+                        meteoAutoSummary={meteoAutoSummary}
+                        hasManualMicroclimat={isActiveForMeteo && isSolar && desktopMicroclimatLogs.length > 0}
+                        onOpenManualMicroclimat={() => router.push(`/parcele/${parcela.id}`)}
                       />
                     )
                   })}
@@ -2533,79 +2584,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
                           {desktopInspectorTab === 'microclimat' ? (
                             <div className="space-y-2.5">
-                              <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
-                                <div className="flex items-center gap-2">
-                                  <CloudSun className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
-                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Date automate</p>
-                                </div>
-                                {meteoAutoSummary.state === 'ready' ? (
-                                  <div className="mt-2 space-y-2">
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
-                                        <p className="text-[11px] text-[var(--agri-text-muted)]">Temperatură</p>
-                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
-                                          {typeof meteoAutoSummary.temperature === 'number'
-                                            ? `${meteoAutoSummary.temperature.toFixed(1)}°C`
-                                            : '—'}
-                                        </p>
-                                      </div>
-                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
-                                        <p className="text-[11px] text-[var(--agri-text-muted)]">Umiditate</p>
-                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
-                                          {typeof meteoAutoSummary.humidity === 'number'
-                                            ? `${Math.round(meteoAutoSummary.humidity)}%`
-                                            : '—'}
-                                        </p>
-                                      </div>
-                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
-                                        <p className="flex items-center gap-1 text-[11px] text-[var(--agri-text-muted)]">
-                                          <CloudRain className="h-3 w-3" aria-hidden />
-                                          Ploaie (mâine)
-                                        </p>
-                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
-                                          {typeof meteoAutoSummary.rainChance === 'number'
-                                            ? `${Math.round(meteoAutoSummary.rainChance * 100)}%`
-                                            : '—'}
-                                        </p>
-                                      </div>
-                                      <div className="rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2.5 py-2">
-                                        <p className="flex items-center gap-1 text-[11px] text-[var(--agri-text-muted)]">
-                                          <Wind className="h-3 w-3" aria-hidden />
-                                          Vânt
-                                        </p>
-                                        <p className="mt-0.5 text-sm font-semibold text-[var(--agri-text)]">
-                                          {typeof meteoAutoSummary.wind === 'number'
-                                            ? `${meteoAutoSummary.wind.toFixed(1)} km/h`
-                                            : '—'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <p className="text-[11px] text-[var(--agri-text-muted)]">
-                                      Sursă: OpenWeather{meteoAutoSummary.source ? ` (${meteoAutoSummary.source})` : ''} ·{' '}
-                                      Sursă locație:{' '}
-                                      {meteoAutoSummary.locationSource === 'parcela'
-                                        ? 'parcelă selectată'
-                                        : 'fermă (fallback)'}
-                                      {meteoAutoSummary.locationLabel ? ` (${meteoAutoSummary.locationLabel})` : ''} ·{' '}
-                                      {meteoAutoSummary.fetchedAt
-                                        ? `actualizat la ${new Date(meteoAutoSummary.fetchedAt).toLocaleString('ro-RO', {
-                                            day: '2-digit',
-                                            month: 'short',
-                                            hour: '2-digit',
-                                            minute: '2-digit',
-                                          })}`
-                                        : 'actualizare indisponibilă'}
-                                    </p>
-                                    <p className="text-[11px] text-[var(--agri-text-muted)]">
-                                      Date automate estimative la nivel de locație; observațiile din solar rămân în `Date manuale`.
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div className="mt-2 rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-3 py-2 text-sm text-[var(--agri-text-muted)]">
-                                    {meteoAutoSummary.reason}
-                                  </div>
-                                )}
-                              </div>
+                              <MicroclimatAutoCard summary={meteoAutoSummary} />
 
                               <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] p-3">
                                 <div className="flex items-center justify-between gap-3">

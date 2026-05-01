@@ -14,6 +14,7 @@ interface AppDrawerProps {
   disableHistory?: boolean
   hideHeader?: boolean
   showHandle?: boolean
+  showCloseButton?: boolean
   /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
   desktopFormWide?: boolean
   /** Variantă compactă desktop pentru formulare scurte (header/content/footer mai dense). */
@@ -31,6 +32,7 @@ export function AppDrawer({
   disableHistory,
   hideHeader,
   showHandle,
+  showCloseButton,
   desktopFormWide,
   desktopFormCompact,
 }: AppDrawerProps) {
@@ -43,6 +45,7 @@ export function AppDrawer({
         contentClassName={contentClassName}
         hideHeader={hideHeader}
         showHandle={showHandle}
+        showCloseButton={showCloseButton}
         desktopFormWide={desktopFormWide}
         desktopFormCompact={desktopFormCompact}
       >

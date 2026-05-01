@@ -11,6 +11,7 @@ interface AppDialogProps {
   children: React.ReactNode
   footer?: React.ReactNode
   contentClassName?: string
+  showCloseButton?: boolean
   /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
   desktopFormWide?: boolean
 }
@@ -23,6 +24,7 @@ export function AppDialog({
   children,
   footer,
   contentClassName,
+  showCloseButton,
   desktopFormWide,
 }: AppDialogProps) {
   return (
@@ -32,6 +34,7 @@ export function AppDialog({
         description={description}
         footer={footer}
         contentClassName={contentClassName}
+        showCloseButton={showCloseButton}
         desktopFormWide={desktopFormWide}
       >
         {children}

@@ -5,8 +5,14 @@ import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { InterventiePlanificataFormSummary } from '@/components/tratamente/InterventiePlanificataFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Button } from '@/components/ui/button'
+import {
+  DesktopFormGrid,
+  DesktopFormPanel,
+  FormDialogSection,
+} from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -66,6 +72,8 @@ const TIP_INTERVENTIE_OPTIONS = [
   { value: 'monitorizare', label: 'Monitorizare' },
   { value: 'altul', label: 'Altul' },
 ] as const
+
+const TIP_INTERVENTIE_LABELS = new Map(TIP_INTERVENTIE_OPTIONS.map((option) => [option.value, option.label]))
 
 function parseOptionalNumber(value: string): number | null {
   if (!value.trim()) return null
@@ -158,6 +166,15 @@ function deriveLegacyFirstProduct(value: LinieEditValue): LinieEditValue {
   }
 }
 
+function formatDoseSummary(produs: PlanWizardLinieProdusDraft): string | null {
+  const values = [
+    typeof produs.doza_ml_per_hl === 'number' ? `${produs.doza_ml_per_hl} ml/hl` : null,
+    typeof produs.doza_l_per_ha === 'number' ? `${produs.doza_l_per_ha} l/ha` : null,
+  ].filter(Boolean)
+
+  return values.length > 0 ? values.join(' · ') : null
+}
+
 export function LinieEditDialog({
   allowCohortTrigger = false,
   culturaTip,
@@ -176,8 +193,10 @@ export function LinieEditDialog({
 
   useEffect(() => {
     if (!open) return
-    setValue(initialValue)
-    setShowAllProducts(false)
+    queueMicrotask(() => {
+      setValue(initialValue)
+      setShowAllProducts(false)
+    })
   }, [initialValue, open])
 
   const stadiuOptions = useMemo(() => getStadiuOptions(grupBiologic), [grupBiologic])
@@ -187,6 +206,27 @@ export function LinieEditDialog({
   )
   const validationError = getValidationError(value)
 
+  const selectedStadiuLabel = useMemo(() => {
+    const option = stadiuOptions.find((item) => item.value === value.stadiu_trigger)
+    return option?.label ?? value.stadiu_trigger.trim() ?? null
+  }, [stadiuOptions, value.stadiu_trigger])
+
+  const summaryProducts = useMemo(
+    () =>
+      value.produse.map((produsDraft) => ({
+        id: produsDraft.id,
+        name: getProdusDraftDisplayName(produsDraft, produse),
+        doseLabel: formatDoseSummary(produsDraft),
+        metaLabel: [
+          produsDraft.frac_irac_snapshot?.trim() ? `FRAC ${produsDraft.frac_irac_snapshot.trim()}` : null,
+          typeof produsDraft.phi_zile_snapshot === 'number' ? `PHI ${produsDraft.phi_zile_snapshot} zile` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || null,
+      })),
+    [produse, value.produse]
+  )
+
   const updateProduct = (produsId: string, update: (produs: PlanWizardLinieProdusDraft) => PlanWizardLinieProdusDraft) => {
     setValue((current) => ({
       ...current,
@@ -194,7 +234,7 @@ export function LinieEditDialog({
     }))
   }
 
-  const content = (
+  const mobileContent = (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -484,6 +524,428 @@ export function LinieEditDialog({
     </div>
   )
 
+  const desktopContent = (
+    <DesktopFormGrid
+      className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10"
+      aside={
+        <InterventiePlanificataFormSummary
+          stadiuLabel={selectedStadiuLabel}
+          cohortLabel={value.cohort_trigger ? getCohortaLabel(value.cohort_trigger) : null}
+          tipInterventie={
+            value.tip_interventie ? TIP_INTERVENTIE_LABELS.get(value.tip_interventie) ?? value.tip_interventie : null
+          }
+          scop={value.scop}
+          regulaRepetare={value.regula_repetare === 'interval' ? 'Repetare la interval' : 'Fără repetare'}
+          intervalLabel={
+            value.regula_repetare === 'interval' && typeof value.interval_repetare_zile === 'number'
+              ? `${value.interval_repetare_zile} zile`
+              : null
+          }
+          repetariLabel={
+            value.regula_repetare === 'interval' && typeof value.numar_repetari_max === 'number'
+              ? `${value.numar_repetari_max}`
+              : null
+          }
+          products={summaryProducts}
+          className="md:rounded-[24px] md:p-5 lg:p-6"
+        />
+      }
+    >
+      <FormDialogSection label="Context plan">
+        <DesktopFormPanel>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="linie-stadiu-select">Fenofază</Label>
+              <select
+                id="linie-stadiu-select"
+                value={value.stadiu_trigger}
+                onChange={(event) =>
+                  setValue((current) => ({ ...current, stadiu_trigger: event.target.value }))
+                }
+                className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+              >
+                <option value="">Alege fenofaza</option>
+                {stadiuOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.emoji} {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {allowCohortTrigger ? (
+              <div className="space-y-2">
+                <Label htmlFor="linie-cohorta-select">Cohortă vizată</Label>
+                <select
+                  id="linie-cohorta-select"
+                  value={value.cohort_trigger ?? ''}
+                  onChange={(event) =>
+                    setValue((current) => ({
+                      ...current,
+                      cohort_trigger: event.target.value ? (event.target.value as Cohorta) : null,
+                    }))
+                  }
+                  className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+                >
+                  <option value="">Ambele cohorte</option>
+                  <option value="floricane">Doar {getCohortaLabel('floricane')}</option>
+                  <option value="primocane">Doar {getCohortaLabel('primocane')}</option>
+                </select>
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label htmlFor="linie-tip-interventie">Tip intervenție</Label>
+              <select
+                id="linie-tip-interventie"
+                value={value.tip_interventie ?? ''}
+                onChange={(event) =>
+                  setValue((current) => ({
+                    ...current,
+                    tip_interventie: event.target.value
+                      ? (event.target.value as LinieEditValue['tip_interventie'])
+                      : null,
+                  }))
+                }
+                className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+              >
+                <option value="">Nespecificat</option>
+                {TIP_INTERVENTIE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="linie-scop">Scop</Label>
+              <Input
+                id="linie-scop"
+                value={value.scop ?? ''}
+                onChange={(event) => setValue((current) => ({ ...current, scop: event.target.value }))}
+                placeholder="Ex: prevenție botrytis, corecție calciu"
+              />
+            </div>
+          </div>
+        </DesktopFormPanel>
+      </FormDialogSection>
+
+      <FormDialogSection label="Produse și doze">
+        <DesktopFormPanel>
+          <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Label>Produse planificate</Label>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                  Selectează produse din bibliotecă sau completează manual.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setValue((current) => ({
+                    ...current,
+                    produse: [...current.produse, createEmptyLineProduct(current.produse.length + 1)],
+                  }))
+                }
+              >
+                <Plus className="h-4 w-4" />
+                Adaugă produs
+              </Button>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                checked={showAllProducts}
+                onChange={(event) => setShowAllProducts(event.target.checked)}
+                className="h-4 w-4 rounded border-[var(--border-default)] accent-[var(--agri-primary)]"
+              />
+              Arată toate produsele din bibliotecă
+            </label>
+
+            <div className="space-y-3">
+              {value.produse.map((produsDraft, index) => {
+                const selectedProduct = produse.find((produs) => produs.id === produsDraft.produs_id) ?? null
+
+                return (
+                  <div
+                    key={produsDraft.id}
+                    className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-[var(--text-primary)] [font-weight:650]">
+                          Produs #{index + 1}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          {getProdusDraftDisplayName(produsDraft, produse)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Mută sus produsul ${index + 1}`}
+                          disabled={index === 0}
+                          onClick={() =>
+                            setValue((current) => ({
+                              ...current,
+                              produse: moveProduct(current.produse, produsDraft.id, 'up'),
+                            }))
+                          }
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Mută jos produsul ${index + 1}`}
+                          disabled={index === value.produse.length - 1}
+                          onClick={() =>
+                            setValue((current) => ({
+                              ...current,
+                              produse: moveProduct(current.produse, produsDraft.id, 'down'),
+                            }))
+                          }
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Șterge produsul ${index + 1}`}
+                          onClick={() =>
+                            setValue((current) => ({
+                              ...current,
+                              produse: withProductOrder(
+                                current.produse.filter((produs) => produs.id !== produsDraft.id)
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`linie-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
+                        <select
+                          id={`linie-produs-${produsDraft.id}`}
+                          value={produsDraft.produs_id ?? ''}
+                          onChange={(event) => {
+                            const product = produse.find((item) => item.id === event.target.value) ?? null
+                            updateProduct(produsDraft.id, (current) =>
+                              updateProductFromCatalog(current, product)
+                            )
+                          }}
+                          className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+                        >
+                          <option value="">Adaugă manual</option>
+                          {produseFiltrate.map((produs) => (
+                            <option key={produs.id} value={produs.id}>
+                              {produs.nume_comercial}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`linie-manual-${produsDraft.id}`}>Nume manual</Label>
+                        <Input
+                          id={`linie-manual-${produsDraft.id}`}
+                          value={produsDraft.produs_nume_manual ?? ''}
+                          disabled={Boolean(selectedProduct)}
+                          onChange={(event) =>
+                            updateProduct(produsDraft.id, (current) => ({
+                              ...current,
+                              produs_id: null,
+                              produs_nume_manual: event.target.value,
+                              produs_nume_snapshot: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`linie-substanta-${produsDraft.id}`}>Substanță activă</Label>
+                        <Input
+                          id={`linie-substanta-${produsDraft.id}`}
+                          value={produsDraft.substanta_activa_snapshot ?? ''}
+                          onChange={(event) =>
+                            updateProduct(produsDraft.id, (current) => ({
+                              ...current,
+                              substanta_activa_snapshot: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor={`linie-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
+                          <Input
+                            id={`linie-frac-${produsDraft.id}`}
+                            value={produsDraft.frac_irac_snapshot ?? ''}
+                            onChange={(event) =>
+                              updateProduct(produsDraft.id, (current) => ({
+                                ...current,
+                                frac_irac_snapshot: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`linie-phi-${produsDraft.id}`}>PHI zile</Label>
+                          <Input
+                            id={`linie-phi-${produsDraft.id}`}
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={produsDraft.phi_zile_snapshot ?? ''}
+                            onChange={(event) =>
+                              updateProduct(produsDraft.id, (current) => ({
+                                ...current,
+                                phi_zile_snapshot: parseOptionalNumber(event.target.value),
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                        <div className="space-y-2">
+                          <Label htmlFor={`linie-doza-ml-${produsDraft.id}`}>Doză ml/hl</Label>
+                          <Input
+                            id={`linie-doza-ml-${produsDraft.id}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={produsDraft.doza_ml_per_hl ?? ''}
+                            onChange={(event) =>
+                              updateProduct(produsDraft.id, (current) => ({
+                                ...current,
+                                doza_ml_per_hl: parseOptionalNumber(event.target.value),
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`linie-doza-l-${produsDraft.id}`}>Doză l/ha</Label>
+                          <Input
+                            id={`linie-doza-l-${produsDraft.id}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={produsDraft.doza_l_per_ha ?? ''}
+                            onChange={(event) =>
+                              updateProduct(produsDraft.id, (current) => ({
+                                ...current,
+                                doza_l_per_ha: parseOptionalNumber(event.target.value),
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </DesktopFormPanel>
+      </FormDialogSection>
+
+      <FormDialogSection label="Repetare și observații">
+        <DesktopFormPanel>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="linie-regula">Regulă repetare</Label>
+              <select
+                id="linie-regula"
+                value={value.regula_repetare}
+                onChange={(event) =>
+                  setValue((current) => ({
+                    ...current,
+                    regula_repetare: event.target.value as LinieEditValue['regula_repetare'],
+                  }))
+                }
+                className="agri-control h-11 w-full rounded-xl px-3 text-sm"
+              >
+                <option value="fara_repetare">Fără repetare</option>
+                <option value="interval">Repetare la interval</option>
+              </select>
+            </div>
+
+            {value.regula_repetare === 'interval' ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="linie-interval">Interval repetare zile</Label>
+                  <Input
+                    id="linie-interval"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={value.interval_repetare_zile ?? ''}
+                    onChange={(event) =>
+                      setValue((current) => ({
+                        ...current,
+                        interval_repetare_zile: parseOptionalNumber(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="linie-repetari">Număr repetări maxim</Label>
+                  <Input
+                    id="linie-repetari"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={value.numar_repetari_max ?? ''}
+                    onChange={(event) =>
+                      setValue((current) => ({
+                        ...current,
+                        numar_repetari_max: parseOptionalNumber(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+              </>
+            ) : null}
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="linie-observatii-input">Observații intervenție</Label>
+              <Textarea
+                id="linie-observatii-input"
+                rows={4}
+                value={value.observatii ?? ''}
+                onChange={(event) =>
+                  setValue((current) => ({ ...current, observatii: event.target.value }))
+                }
+                placeholder="Note despre aplicare, produse sau ordinea tratamentului."
+              />
+            </div>
+          </div>
+
+          {validationError ? (
+            <p className="text-sm text-[var(--soft-danger-text)]">{validationError}</p>
+          ) : null}
+        </DesktopFormPanel>
+      </FormDialogSection>
+    </DesktopFormGrid>
+  )
+
   const footer = (
     <DialogFormActions
       onCancel={() => onOpenChange(false)}
@@ -502,10 +964,10 @@ export function LinieEditDialog({
         open={open}
         onOpenChange={onOpenChange}
         title={title}
-          description="Alege fenofaza, tipul intervenției și produsele planificate."
+        description="Alege fenofaza, tipul intervenției și produsele planificate."
         footer={footer}
       >
-        {content}
+        {mobileContent}
       </AppDrawer>
     )
   }
@@ -517,8 +979,11 @@ export function LinieEditDialog({
       title={title}
       description="Alege fenofaza, tipul intervenției și produsele planificate."
       footer={footer}
+      desktopFormWide
+      showCloseButton
+      contentClassName="md:w-[min(94vw,74rem)] md:max-w-6xl"
     >
-      {content}
+      {desktopContent}
     </AppDialog>
   )
 }

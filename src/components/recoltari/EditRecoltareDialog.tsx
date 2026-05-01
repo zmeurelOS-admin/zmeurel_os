@@ -11,7 +11,7 @@ import { AppDialog } from '@/components/app/AppDialog'
 import { RecoltareFormSummary } from '@/components/recoltari/RecoltareFormSummary'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { DesktopFormGrid, DesktopFormPanel, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -305,8 +305,10 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
       open={open}
       onOpenChange={onOpenChange}
       title="Editează recoltare"
+      description="Actualizezi cantitatea, culegătorul și detaliile de context fără să schimbi fluxul de salvare."
       desktopFormWide
-      contentClassName="lg:max-w-[min(94vw,72rem)] xl:max-w-[min(92vw,76rem)]"
+      showCloseButton
+      contentClassName="lg:max-w-[min(94vw,70rem)] xl:max-w-[min(92vw,72rem)]"
       footer={
         <DialogFormActions
           className="w-full"
@@ -320,6 +322,7 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
     >
       <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
         <DesktopFormGrid
+          className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]"
           aside={
             <RecoltareFormSummary
               parcelaLabel={parcelaAsideLabel}
@@ -335,164 +338,173 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
               tarifLeiKg={tarifLeiKg}
               valoareMunca={valoareMunca}
               observatii={formObservatii}
+              className="md:rounded-[24px] md:p-5 lg:p-6"
             />
           }
         >
             <FormDialogSection label="Context">
-              <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+              <DesktopFormPanel>
+                <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_recoltare_parcela">Parcelă</Label>
+                    <Select
+                      value={selectedParcelaId || '__none'}
+                      onValueChange={(value) =>
+                        form.setValue('parcela_id', value === '__none' ? '' : value, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="edit_recoltare_parcela" className="agri-control h-12 md:h-11">
+                        <SelectValue placeholder="Selectează parcelă" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Selectează parcelă</SelectItem>
+                        {parcele.map((parcela) => (
+                          <SelectItem key={parcela.id} value={parcela.id}>
+                            {parcela.nume_parcela || 'Parcela'} ({getUnitateTipLabel(parcela.tip_unitate)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.parcela_id ? (
+                      <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.parcela_id.message}</p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_recoltare_data">Data</Label>
+                    <Input
+                      id="edit_recoltare_data"
+                      type="date"
+                      className="agri-control h-12 md:h-11"
+                      {...form.register('data')}
+                    />
+                    {form.formState.errors.data ? (
+                      <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.data.message}</p>
+                    ) : null}
+                  </div>
+                </div>
+                {activePauseWarning ? (
+                  <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-sm text-[var(--status-warning-text)]">
+                    {activePauseWarning.message}
+                  </div>
+                ) : null}
                 <div className="space-y-2">
-                  <Label htmlFor="edit_recoltare_parcela">Parcelă</Label>
+                  <Label htmlFor="edit_recoltare_culegator">Culegător</Label>
                   <Select
-                    value={selectedParcelaId || '__none'}
+                    value={selectedCulegatorId || '__none'}
                     onValueChange={(value) =>
-                      form.setValue('parcela_id', value === '__none' ? '' : value, {
+                      form.setValue('culegator_id', value === '__none' ? '' : value, {
                         shouldDirty: true,
                         shouldValidate: true,
                       })
                     }
                   >
-                    <SelectTrigger id="edit_recoltare_parcela" className="agri-control h-12 md:h-11">
-                      <SelectValue placeholder="Selectează parcelă" />
+                    <SelectTrigger id="edit_recoltare_culegator" className="agri-control h-12 md:h-11">
+                      <SelectValue placeholder="Selectează culegător" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none">Selectează parcelă</SelectItem>
-                      {parcele.map((parcela) => (
-                        <SelectItem key={parcela.id} value={parcela.id}>
-                          {parcela.nume_parcela || 'Parcela'} ({getUnitateTipLabel(parcela.tip_unitate)})
+                      <SelectItem value="__none">Selectează culegător</SelectItem>
+                      {culegatori.map((culegator) => (
+                        <SelectItem key={culegator.id} value={culegator.id}>
+                          {culegator.nume_prenume || 'Culegător'}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {form.formState.errors.parcela_id ? (
-                    <p className="text-xs text-red-600">{form.formState.errors.parcela_id.message}</p>
+                  {form.formState.errors.culegator_id ? (
+                    <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.culegator_id.message}</p>
                   ) : null}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_recoltare_data">Data</Label>
-                  <Input
-                    id="edit_recoltare_data"
-                    type="date"
-                    className="agri-control h-12 md:h-11"
-                    {...form.register('data')}
-                  />
-                  {form.formState.errors.data ? (
-                    <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
-                  ) : null}
-                </div>
-              </div>
-              {activePauseWarning ? (
-                <div className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-sm text-[var(--status-warning-text)]">
-                  {activePauseWarning.message}
-                </div>
-              ) : null}
-              <div className="space-y-2">
-                <Label htmlFor="edit_recoltare_culegator">Culegător</Label>
-                <Select
-                  value={selectedCulegatorId || '__none'}
-                  onValueChange={(value) =>
-                    form.setValue('culegator_id', value === '__none' ? '' : value, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  <SelectTrigger id="edit_recoltare_culegator" className="agri-control h-12 md:h-11">
-                    <SelectValue placeholder="Selectează culegător" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none">Selectează culegător</SelectItem>
-                    {culegatori.map((culegator) => (
-                      <SelectItem key={culegator.id} value={culegator.id}>
-                        {culegator.nume_prenume || 'Culegător'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.culegator_id ? (
-                  <p className="text-xs text-red-600">{form.formState.errors.culegator_id.message}</p>
-                ) : null}
-              </div>
+              </DesktopFormPanel>
             </FormDialogSection>
 
             <FormDialogSection label="Recoltare">
-              {selectedParcela ? (
-                <Card className="rounded-2xl border border-[var(--surface-divider)] shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Produs detectat din parcelă</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    {parcelCropOptions.length > 1 ? (
-                      <div className="space-y-2">
-                        <Label htmlFor="edit_recoltare_harvest_crop">Cultură recoltată</Label>
-                        <Select
-                          value={selectedCropId || '__none'}
-                          onValueChange={(value) =>
-                            form.setValue('harvest_crop_id', value === '__none' ? '' : value, {
-                              shouldDirty: true,
-                              shouldValidate: false,
-                            })
-                          }
-                        >
-                          <SelectTrigger id="edit_recoltare_harvest_crop" className="agri-control h-11 md:h-10">
-                            <SelectValue placeholder="Selectează cultura recoltată" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none">Selectează cultura recoltată</SelectItem>
-                            {parcelCropOptions.map((crop) => (
-                              <SelectItem key={crop.id} value={crop.id}>
-                                {formatCropOptionLabel(crop)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    ) : null}
+              <DesktopFormPanel>
+                {selectedParcela ? (
+                  <Card className="rounded-[20px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] shadow-[var(--shadow-soft)]">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold text-[var(--text-primary)]">
+                        Produs detectat din parcelă
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      {parcelCropOptions.length > 1 ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="edit_recoltare_harvest_crop">Cultură recoltată</Label>
+                          <Select
+                            value={selectedCropId || '__none'}
+                            onValueChange={(value) =>
+                              form.setValue('harvest_crop_id', value === '__none' ? '' : value, {
+                                shouldDirty: true,
+                                shouldValidate: false,
+                              })
+                            }
+                          >
+                            <SelectTrigger id="edit_recoltare_harvest_crop" className="agri-control h-11 md:h-10">
+                              <SelectValue placeholder="Selectează cultura recoltată" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none">Selectează cultura recoltată</SelectItem>
+                              {parcelCropOptions.map((crop) => (
+                                <SelectItem key={crop.id} value={crop.id}>
+                                  {formatCropOptionLabel(crop)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : null}
 
-                    <p>
-                      Produs:{' '}
-                      <span className="font-semibold">{selectedCrop?.culture || 'Nespecificat'}</span>
-                    </p>
-                    <p>
-                      Soi: <span className="font-semibold">{selectedCrop?.variety || 'Nespecificat'}</span>
-                    </p>
-                    <p className="text-xs text-[var(--agri-text-muted)]">
-                      La salvare, mișcarea de stoc va păstra automat produsul și soiul alese din unitatea selectată.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : null}
-              <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit_recoltare_kg_cal1">Kg Calitatea 1</Label>
-                  <Input
-                    id="edit_recoltare_kg_cal1"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    className="agri-control h-12 md:h-11"
-                    {...form.register('kg_cal1')}
-                  />
-                  {form.formState.errors.kg_cal1 ? (
-                    <p className="text-xs text-red-600">{form.formState.errors.kg_cal1.message}</p>
-                  ) : null}
+                      <p>
+                        Produs:{' '}
+                        <span className="font-semibold">{selectedCrop?.culture || 'Nespecificat'}</span>
+                      </p>
+                      <p>
+                        Soi: <span className="font-semibold">{selectedCrop?.variety || 'Nespecificat'}</span>
+                      </p>
+                      <p className="text-xs text-[var(--agri-text-muted)]">
+                        La salvare, mișcarea de stoc va păstra automat produsul și soiul alese din unitatea selectată.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : null}
+                <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_recoltare_kg_cal1">Kg Calitatea 1</Label>
+                    <Input
+                      id="edit_recoltare_kg_cal1"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      className="agri-control h-12 md:h-11"
+                      {...form.register('kg_cal1')}
+                    />
+                    {form.formState.errors.kg_cal1 ? (
+                      <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.kg_cal1.message}</p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit_recoltare_kg_cal2">Kg Calitatea 2</Label>
+                    <Input
+                      id="edit_recoltare_kg_cal2"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      placeholder="0.00"
+                      className="agri-control h-12 md:h-11"
+                      {...form.register('kg_cal2')}
+                    />
+                    {form.formState.errors.kg_cal2 ? (
+                      <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.kg_cal2.message}</p>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit_recoltare_kg_cal2">Kg Calitatea 2</Label>
-                  <Input
-                    id="edit_recoltare_kg_cal2"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    className="agri-control h-12 md:h-11"
-                    {...form.register('kg_cal2')}
-                  />
-                  {form.formState.errors.kg_cal2 ? (
-                    <p className="text-xs text-red-600">{form.formState.errors.kg_cal2.message}</p>
-                  ) : null}
-                </div>
-              </div>
+              </DesktopFormPanel>
             </FormDialogSection>
 
             <div className="md:hidden">
@@ -535,12 +547,14 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
             </div>
 
             <FormDialogSection label="Observații">
-              <Textarea
-                id="edit_recoltare_observatii"
-                rows={3}
-                className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6rem]"
-                {...form.register('observatii')}
-              />
+              <DesktopFormPanel>
+                <Textarea
+                  id="edit_recoltare_observatii"
+                  rows={3}
+                  className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6.5rem]"
+                  {...form.register('observatii')}
+                />
+              </DesktopFormPanel>
             </FormDialogSection>
         </DesktopFormGrid>
       </form>

@@ -100,7 +100,7 @@ const DialogContent = React.forwardRef<
             className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-full bg-transparent opacity-80 transition-[transform,opacity] duration-150 ease-out hover:opacity-100 active:scale-[0.97] focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_srgb,var(--agri-primary)_28%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--agri-surface)] disabled:pointer-events-none data-[state=open]:bg-[var(--agri-surface-muted)] data-[state=open]:text-[var(--agri-text-muted)] sm:right-4 sm:top-4"
           >
             <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Închide</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

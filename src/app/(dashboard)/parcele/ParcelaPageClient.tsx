@@ -1,5 +1,11 @@
 'use client'
 
+/**
+ * @deprecated Legacy duplicate kept only for backward safety.
+ * Canonical Parcele page UI for Phase 1 lives in:
+ * `src/components/parcele/ParcelePageClient.tsx`
+ */
+
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'

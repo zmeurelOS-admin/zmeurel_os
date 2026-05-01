@@ -67,6 +67,25 @@ export function DesktopFormAside({
   )
 }
 
+export function DesktopFormPanel({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'space-y-4 md:space-y-5 md:rounded-[22px] md:border md:border-[var(--border-default)] md:bg-[var(--surface-card)] md:p-5 md:shadow-[var(--shadow-soft)] lg:rounded-[24px] lg:p-6',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
 interface FormDialogLayoutProps {
   title: string
   description?: string
@@ -75,6 +94,7 @@ interface FormDialogLayoutProps {
   contentClassName?: string
   hideHeader?: boolean
   showHandle?: boolean
+  showCloseButton?: boolean
   /** De la `md+`: modal centrat mai lat, padding generos — mobilul rămâne pe lățimea compactă existentă. */
   desktopFormWide?: boolean
   /** De la `md+`: variantă compactă pentru formulare scurte (padding/înălțime reduse). */
@@ -89,18 +109,19 @@ export function FormDialogLayout({
   contentClassName,
   hideHeader,
   showHandle,
+  showCloseButton = false,
   desktopFormWide = false,
   desktopFormCompact = false,
 }: FormDialogLayoutProps) {
   return (
     <DialogContent
       aria-describedby={undefined}
-      showCloseButton={false}
+      showCloseButton={showCloseButton}
       className={cn(
         'w-[min(96vw,720px)] overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-lg',
         desktopFormWide && 'md:w-[min(92vw,56rem)] md:max-w-4xl md:rounded-2xl',
         desktopFormCompact && 'md:rounded-[20px]',
-        contentClassName
+        contentClassName,
       )}
     >
       <div
@@ -123,11 +144,13 @@ export function FormDialogLayout({
               desktopFormCompact && 'md:px-6 md:pb-4 md:pt-4',
             )}
           >
-            <div className={cn(
-              'space-y-2 pr-8',
-              desktopFormWide && 'md:space-y-2.5 md:pr-10',
-              desktopFormCompact && 'md:space-y-1.5 md:pr-9',
-            )}>
+            <div
+              className={cn(
+                'space-y-2 pr-8',
+                desktopFormWide && 'md:space-y-2.5 md:pr-10',
+                desktopFormCompact && 'md:space-y-1.5 md:pr-9',
+              )}
+            >
               <DialogTitle
                 className={cn(
                   'text-left text-lg font-semibold tracking-[-0.02em] text-[var(--agri-text)] [font-weight:650]',
@@ -138,15 +161,17 @@ export function FormDialogLayout({
                 {title}
               </DialogTitle>
               {description ? (
-                <DialogDescription className={cn(
-                  'text-left text-sm leading-relaxed text-[var(--agri-text-muted)] md:text-[15px]',
-                  desktopFormCompact && 'md:text-[13px] md:leading-snug',
-                )}>
+                <DialogDescription
+                  className={cn(
+                    'text-left text-sm leading-relaxed text-[var(--agri-text-muted)] md:text-[15px]',
+                    desktopFormCompact && 'md:text-[13px] md:leading-snug',
+                  )}
+                >
                   {description}
                 </DialogDescription>
               ) : null}
             </div>
-         </DialogHeader>
+          </DialogHeader>
         ) : (
           <DialogHeader className="sr-only">
             <DialogTitle>{title}</DialogTitle>

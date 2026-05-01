@@ -98,8 +98,6 @@ export function EditParcelDialog({
     },
     onError: (error: Error) => {
       hapticError()
-      const dbError = error as Error & { details?: string; hint?: string; code?: string }
-      
       toast.error(error.message)
     },
   })
@@ -111,9 +109,13 @@ export function EditParcelDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Editează teren"
-      contentClassName="sm:max-w-4xl"
+      description="Actualizezi detaliile terenului și vezi imediat rezumatul fără să schimbi fluxul de salvare."
+      desktopFormWide
+      showCloseButton
+      contentClassName="lg:max-w-[min(94vw,68rem)] xl:max-w-[min(92vw,72rem)]"
       footer={
         <DialogFormActions
+          className="w-full"
           onCancel={() => onOpenChange(false)}
           onSave={form.handleSubmit((values) => updateMutation.mutate(values))}
           saving={updateMutation.isPending}
@@ -122,7 +124,9 @@ export function EditParcelDialog({
         />
       }
     >
-      <ParcelForm form={form} soiuriDisponibile={soiuriDisponibile} />
+      <form className="space-y-0" onSubmit={form.handleSubmit((values) => updateMutation.mutate(values))}>
+        <ParcelForm form={form} soiuriDisponibile={soiuriDisponibile} />
+      </form>
     </AppDialog>
   )
 }

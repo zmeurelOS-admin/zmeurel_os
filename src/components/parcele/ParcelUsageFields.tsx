@@ -23,7 +23,7 @@ function ToggleSwitch({
         'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors',
         checked
           ? 'border-primary bg-primary'
-          : 'border-border bg-slate-300 dark:bg-slate-700 dark:border-slate-600',
+          : 'border-[var(--border-default)] bg-[var(--surface-card-muted)]',
         disabled && 'cursor-not-allowed opacity-50',
       )}
     >
@@ -51,10 +51,10 @@ function ToggleRow({
   onCheckedChange: (next: boolean) => void
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 px-3 py-3 dark:border-slate-700 dark:bg-slate-900/40">
+    <div className="flex items-start justify-between gap-4 rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3.5 shadow-[var(--shadow-soft)]">
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{description}</p>
+        <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>
       </div>
       <ToggleSwitch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
     </div>
@@ -99,7 +99,7 @@ export function ParcelUsageFields({
         onCheckedChange={onContribuieChange}
       />
       {togglesOff ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[var(--text-tertiary)]">
           Pentru scopuri necomerciale, opțiunile comerciale rămân dezactivate.
         </p>
       ) : null}
