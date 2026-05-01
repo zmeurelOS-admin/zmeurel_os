@@ -19,13 +19,10 @@ import {
   DesktopFormGrid,
   DesktopFormPanel,
   FormDialogSection,
+  FormDialogLayout,
 } from '@/components/ui/form-dialog-layout'
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -238,32 +235,23 @@ function EditorChrome({
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={(nextOpen) => (!nextOpen ? onCancel() : null)}>
-        <DialogContent
+        <FormDialogLayout
+          title={title}
+          description={description}
+          footer={
+            <DialogFormActions
+              onCancel={onCancel}
+              onSave={onSave}
+              disabled={saveDisabled}
+              saveLabel="Salvează intervenția"
+            />
+          }
           showCloseButton
-          className="w-[min(96vw,720px)] max-w-none overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-[min(96vw,720px)] md:w-[min(95vw,76rem)] md:max-w-6xl"
+          desktopFormWide
+          contentClassName="md:w-[min(96vw,84rem)] md:max-w-none"
         >
-          <div className="flex max-h-[min(90dvh,58rem)] flex-col">
-            <DialogHeader className="border-b border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] px-8 pb-6 pt-6">
-              <div className="space-y-2.5 pr-10">
-                <DialogTitle className="text-left text-xl">{title}</DialogTitle>
-                <DialogDescription className="text-left text-[15px] leading-relaxed">
-                  {description}
-                </DialogDescription>
-              </div>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-8 py-6 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]">
-              {children}
-            </div>
-            <div className="shrink-0 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--agri-surface-muted)_40%,var(--agri-surface))] px-8 py-5">
-              <DialogFormActions
-                onCancel={onCancel}
-                onSave={onSave}
-                disabled={saveDisabled}
-                saveLabel="Salvează intervenția"
-              />
-            </div>
-          </div>
-        </DialogContent>
+          {children}
+        </FormDialogLayout>
       </Dialog>
     )
   }
@@ -368,8 +356,8 @@ function LinieEditor({
   }
 
   const productsBlock = (
-    <div className="space-y-3 rounded-[20px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-2 rounded-[20px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <Label>Produse planificate *</Label>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -398,7 +386,7 @@ function LinieEditor({
         </p>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {value.produse.map((produsDraft, index) => {
           const selectedProduct = produse.find((produs) => produs.id === produsDraft.produs_id) ?? null
           const availableProducts =
@@ -409,9 +397,9 @@ function LinieEditor({
           return (
             <div
               key={produsDraft.id}
-              className="rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card)] p-3"
+              className="rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card)] p-2"
             >
-              <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="mb-2.5 flex items-start justify-between gap-2.5">
                 <div>
                   <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Produs #{index + 1}</p>
                   <p className="text-xs text-[var(--text-secondary)]">
@@ -431,7 +419,7 @@ function LinieEditor({
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-2 md:gap-x-3">
                 <div className="space-y-2">
                   <Label htmlFor={`linie-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
                   <ProdusFitosanitarPicker
@@ -487,7 +475,7 @@ function LinieEditor({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div className="space-y-2">
                     <Label htmlFor={`linie-tip-produs-${produsDraft.id}`}>Tip produs</Label>
                     <Input
@@ -506,7 +494,7 @@ function LinieEditor({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 md:col-span-2">
+                <div className="grid grid-cols-3 gap-2.5 md:col-span-2">
                   <div className="space-y-2">
                     <Label htmlFor={`linie-phi-${produsDraft.id}`}>PHI zile</Label>
                     <Input
@@ -564,8 +552,8 @@ function LinieEditor({
   )
 
   const mobileContent = (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-2">
+    <div className="space-y-4">
+      <div className="grid gap-3.5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="linie-stadiu">Fenofază *</Label>
           <select
@@ -606,7 +594,7 @@ function LinieEditor({
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3.5 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="linie-tip-interventie">Tip intervenție</Label>
           <select
@@ -647,7 +635,7 @@ function LinieEditor({
       </div>
 
       {value.regula_repetare === 'interval' ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3.5 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="linie-interval">Interval repetare zile</Label>
             <Input
@@ -705,7 +693,7 @@ function LinieEditor({
 
   const desktopContent = (
     <DesktopFormGrid
-      className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10"
+      className="md:grid-cols-[minmax(0,1fr)_18rem] md:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-5"
       aside={
         <InterventiePlanificataFormSummary
           stadiuLabel={selectedStadiuLabel}
@@ -726,13 +714,13 @@ function LinieEditor({
               : null
           }
           products={summaryProducts}
-          className="md:rounded-[24px] md:p-5 lg:p-6"
+          className="md:rounded-[22px] md:p-4 lg:p-5"
         />
       }
     >
-      <FormDialogSection label="Context plan">
+      <FormDialogSection>
         <DesktopFormPanel>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
             <div className="space-y-2">
               <Label htmlFor="linie-stadiu">Fenofază *</Label>
               <select
@@ -805,13 +793,13 @@ function LinieEditor({
         </DesktopFormPanel>
       </FormDialogSection>
 
-      <FormDialogSection label="Produse și doze">
+      <FormDialogSection>
         <DesktopFormPanel>{productsBlock}</DesktopFormPanel>
       </FormDialogSection>
 
-      <FormDialogSection label="Repetare și observații">
+      <FormDialogSection>
         <DesktopFormPanel>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
             <div className="space-y-2">
               <Label htmlFor="linie-regula">Regulă repetare</Label>
               <select

@@ -458,8 +458,9 @@ function ComandaDialog({
           : 'Actualizezi datele comenzii fără să schimbi fluxul existent de client și livrare.'
       }
       desktopFormWide
+      desktopFormCompact
       showCloseButton
-      contentClassName="lg:max-w-[min(94vw,72rem)] xl:max-w-[min(92vw,74rem)]"
+      contentClassName="md:w-[min(96vw,76rem)] md:max-w-none lg:w-[min(94vw,78rem)]"
       footer={
         <DialogFormActions
           className="w-full"
@@ -478,7 +479,7 @@ function ComandaDialog({
       }
     >
       <DesktopFormGrid
-        className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]"
+        className="md:grid-cols-[minmax(0,1fr)_16.5rem] md:gap-3 lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:gap-3.5 xl:grid-cols-[minmax(0,1fr)_18rem]"
         aside={
           <ComandaFormSummary
             clientName={suggestedClientName}
@@ -490,18 +491,18 @@ function ComandaDialog({
             statusLabel={statusLabelMap[form.status]}
             statusVariant={statusVariantMap[form.status]}
             notes={form.observatii}
-            className="md:rounded-[24px] md:p-5 lg:p-6"
+            className="md:rounded-[22px] md:p-3.5 lg:p-4"
           />
         }
       >
-        <FormDialogSection label="Client">
-          <DesktopFormPanel>
-            <div ref={comboRef} className="space-y-2">
+        <FormDialogSection>
+          <DesktopFormPanel className="space-y-2.5">
+            <div ref={comboRef} className="space-y-1.5">
               <Label htmlFor="comanda_client_combo">Client</Label>
               <div className="relative">
                 <Input
                   id="comanda_client_combo"
-                  className="agri-control h-12 md:h-11"
+                  className="agri-control h-11 md:h-10"
                   placeholder="Caută după nume sau telefon..."
                   autoComplete="off"
                   value={displayedComboInput}
@@ -561,21 +562,21 @@ function ComandaDialog({
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-6 md:gap-y-4">
-              <div className="space-y-2">
+            <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5">
+              <div className="space-y-1.5">
                 <Label>Telefon</Label>
                 <Input
-                  className="agri-control h-12 md:h-11"
+                  className="agri-control h-11 md:h-10"
                   value={resolvedPhone}
                   onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
                 />
               </div>
-              <div className="space-y-2 md:min-w-[152px]">
+              <div className="space-y-1.5 md:min-w-[148px]">
                 <Label className="opacity-0">Contact</Label>
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-12 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-11"
+                  className="h-11 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-10"
                   disabled={!canSaveContact}
                   onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
                 >
@@ -585,91 +586,84 @@ function ComandaDialog({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Locație livrare</Label>
               <Input
-                className="agri-control h-12 md:h-11"
+                className="agri-control h-11 md:h-10"
                 value={resolvedLocation}
                 onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
               />
             </div>
-          </DesktopFormPanel>
-        </FormDialogSection>
-
-        <FormDialogSection label="Comandă">
-          <DesktopFormPanel>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-x-3 md:gap-y-2.5">
+              <div className="space-y-1.5">
                 <Label>Data comandă</Label>
                 <Input
                   type="date"
-                  className="agri-control h-12 md:h-11"
+                  className="agri-control h-11 md:h-10"
                   value={form.data_comanda}
                   onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Data livrare</Label>
                 <Input
                   type="date"
-                  className="agri-control h-12 md:h-11"
+                  className="agri-control h-11 md:h-10"
                   value={form.data_livrare}
                   onChange={(e) => setForm((prev) => ({ ...prev, data_livrare: e.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Cantitate (kg)</Label>
                 <Input
                   type="number"
                   min="0"
                   step="0.01"
-                  className="agri-control h-12 md:h-11"
+                  className="agri-control h-11 md:h-10"
                   value={form.cantitate_kg}
                   onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Preț per kg</Label>
                 <Input
                   type="number"
                   min="0"
                   step="0.01"
-                  className="agri-control h-12 md:h-11"
+                  className="agri-control h-11 md:h-10"
                   value={form.pret_per_kg}
                   onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
                 />
               </div>
             </div>
-          </DesktopFormPanel>
-        </FormDialogSection>
 
-        <FormDialogSection label="Status și observații">
-          <DesktopFormPanel>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
-              >
-                <SelectTrigger className="agri-control h-12 md:h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMENZI_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {statusLabelMap[status]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Observații</Label>
-              <Textarea
-                className="agri-control min-h-[5rem] md:min-h-[6.5rem]"
-                value={form.observatii}
-                onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
-              />
+            <div className="grid gap-2.5 md:grid-cols-[minmax(0,11.5rem)_minmax(0,1fr)] md:gap-x-3">
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
+                >
+                  <SelectTrigger className="agri-control h-11 md:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMENZI_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {statusLabelMap[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Observații</Label>
+                <Textarea
+                  className="agri-control min-h-[3.75rem] md:min-h-[4.25rem]"
+                  value={form.observatii}
+                  onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
+                />
+              </div>
             </div>
           </DesktopFormPanel>
         </FormDialogSection>

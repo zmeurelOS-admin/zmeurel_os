@@ -638,7 +638,7 @@ export function MarkAplicataSheet({
         onValueChange={(value) => form.setValue('cohort_la_aplicare', value as Cohorta)}
         disabled={Boolean(cohortLaAplicareBlocata)}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="agri-control h-11 w-full md:h-10">
           <SelectValue placeholder="Selectează cohorta" />
         </SelectTrigger>
         <SelectContent>
@@ -657,21 +657,21 @@ export function MarkAplicataSheet({
   const planDateField = mode === 'din_plan' ? (
     <div className="space-y-2">
       <Label htmlFor="aplicata-data">Data aplicată</Label>
-      <Input id="aplicata-data" type="datetime-local" {...form.register('data_aplicata')} />
+      <Input id="aplicata-data" type="datetime-local" className="agri-control h-11 md:h-10" {...form.register('data_aplicata')} />
     </div>
   ) : null
 
   const cantitateField = (
     <div className="space-y-2">
       <Label htmlFor="aplicata-cantitate">Cantitate totală (ml)</Label>
-      <Input id="aplicata-cantitate" inputMode="decimal" {...form.register('cantitate_totala_ml')} />
+      <Input id="aplicata-cantitate" inputMode="decimal" className="agri-control h-11 md:h-10" {...form.register('cantitate_totala_ml')} />
     </div>
   )
 
   const operatorField = (
     <div className="space-y-2">
       <Label htmlFor="aplicata-operator">Operator</Label>
-      <Input id="aplicata-operator" {...form.register('operator')} />
+      <Input id="aplicata-operator" className="agri-control h-11 md:h-10" {...form.register('operator')} />
     </div>
   )
 
@@ -682,7 +682,7 @@ export function MarkAplicataSheet({
         value={selectedStadiu || undefined}
         onValueChange={(value) => form.setValue('stadiu_la_aplicare', value, { shouldValidate: true })}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="agri-control h-11 w-full md:h-10">
           <SelectValue placeholder="Selectează stadiul" />
         </SelectTrigger>
         <SelectContent>
@@ -699,7 +699,7 @@ export function MarkAplicataSheet({
   const observatiiField = (
     <div className="space-y-2">
       <Label htmlFor="aplicata-observatii">Observații</Label>
-      <Textarea id="aplicata-observatii" rows={4} {...form.register('observatii')} />
+      <Textarea id="aplicata-observatii" rows={4} className="agri-control min-h-[4.5rem] md:min-h-[5.5rem]" {...form.register('observatii')} />
       {form.formState.errors.observatii ? (
         <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.observatii.message}</p>
       ) : null}
@@ -707,8 +707,8 @@ export function MarkAplicataSheet({
   )
 
   const plannedProductsBlock = mode === 'din_plan' ? (
-    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Produse planificate</p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">{plannedProductsSummary}</p>
@@ -718,8 +718,8 @@ export function MarkAplicataSheet({
   ) : null
 
   const productsBlock = (
-    <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
         <div>
           <p className="text-sm text-[var(--text-primary)] [font-weight:650]">
             {mode === 'manual' ? 'Produse intervenție' : 'Produse aplicate efectiv'}
@@ -741,7 +741,7 @@ export function MarkAplicataSheet({
         </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {produseDraft.map((produsDraft, index) => {
           const selectedProduct =
             produseFitosanitare.find((produs) => produs.id === produsDraft.produs_id) ?? null
@@ -753,9 +753,9 @@ export function MarkAplicataSheet({
           return (
             <div
               key={produsDraft.id}
-              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3"
+              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2"
             >
-              <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="mb-2.5 flex items-start justify-between gap-2.5">
                 <div>
                   <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Produs #{index + 1}</p>
                   <p className="text-xs text-[var(--text-secondary)]">
@@ -799,7 +799,7 @@ export function MarkAplicataSheet({
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-2 md:grid-cols-2 md:gap-x-3">
                 <div className="space-y-2">
                   <Label htmlFor={`aplicata-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
                   <ProdusFitosanitarPicker
@@ -859,7 +859,7 @@ export function MarkAplicataSheet({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5">
                   <div className="space-y-2">
                     <Label htmlFor={`aplicata-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
                     <Input
@@ -891,7 +891,7 @@ export function MarkAplicataSheet({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                <div className="grid grid-cols-2 gap-2.5 md:col-span-2">
                   <div className="space-y-2">
                     <Label htmlFor={`aplicata-doza-ml-${produsDraft.id}`}>Doză ml/hl</Label>
                     <Input
@@ -963,8 +963,8 @@ export function MarkAplicataSheet({
   ) : null
 
   const meteoBlock = (
-    <div className="rounded-2xl bg-[var(--surface-card-muted)] p-4">
-      <div className="flex items-center justify-between gap-3">
+    <div className="rounded-2xl bg-[var(--surface-card-muted)] p-3">
+      <div className="flex items-center justify-between gap-2.5">
         <div>
           <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Snapshot meteo</p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">Se preia automat înainte de salvare.</p>
@@ -979,7 +979,7 @@ export function MarkAplicataSheet({
       </div>
 
       {!editMeteo ? (
-        <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-[var(--text-secondary)]">
+        <div className="mt-2.5 grid grid-cols-2 gap-2.5 text-sm text-[var(--text-secondary)]">
           <p>{`Temp: ${meteoSnapshot?.temperatura_c ?? '—'}°C`}</p>
           <p>{`Umiditate: ${meteoSnapshot?.umiditate_pct ?? '—'}%`}</p>
           <p>{`Vânt: ${meteoSnapshot?.vant_kmh ?? '—'} km/h`}</p>
@@ -987,7 +987,7 @@ export function MarkAplicataSheet({
           <p className="col-span-2">{meteoSnapshot?.descriere ?? 'Fără descriere meteo disponibilă.'}</p>
         </div>
       ) : (
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <div className="mt-2.5 grid gap-2.5 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="meteo-temp">Temperatură (°C)</Label>
             <Input id="meteo-temp" inputMode="decimal" {...form.register('meteo_temperatura_c')} />
@@ -1014,10 +1014,10 @@ export function MarkAplicataSheet({
   )
 
   const mobileContent = (
-    <form className="space-y-4" onSubmit={save}>
+    <form className="space-y-3.5" onSubmit={save}>
       {mode === 'manual' ? (
-        <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4">
-          <div className="flex items-center justify-between gap-3">
+        <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3.5">
+          <div className="flex items-center justify-between gap-2.5">
             <div>
               <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Intervenție manuală</p>
               <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -1036,7 +1036,7 @@ export function MarkAplicataSheet({
                 value={selectedManualParcelaId || undefined}
                 onValueChange={(value) => form.setValue('manual_parcela_id', value, { shouldValidate: true })}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="agri-control h-11 w-full md:h-10">
                   <SelectValue placeholder="Selectează parcela" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1057,7 +1057,7 @@ export function MarkAplicataSheet({
             </div>
           ) : null}
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="manual-status">Status</Label>
               <Select
@@ -1066,7 +1066,7 @@ export function MarkAplicataSheet({
                   form.setValue('manual_status', value as 'planificata' | 'aplicata', { shouldValidate: true })
                 }
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="agri-control h-11 w-full md:h-10">
                   <SelectValue placeholder="Selectează statusul" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1084,17 +1084,17 @@ export function MarkAplicataSheet({
               <Label htmlFor="manual-data">
                 {selectedManualStatus === 'aplicata' ? 'Data aplicării' : 'Data planificării'}
               </Label>
-              <Input id="manual-data" type="datetime-local" {...form.register('manual_data')} />
+              <Input id="manual-data" type="datetime-local" className="agri-control h-11 md:h-10" {...form.register('manual_data')} />
               {form.formState.errors.manual_data ? (
                 <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.manual_data.message}</p>
               ) : null}
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2.5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="manual-tip-interventie">Tip intervenție</Label>
-              <Input id="manual-tip-interventie" {...form.register('tip_interventie')} />
+              <Input id="manual-tip-interventie" className="agri-control h-11 md:h-10" {...form.register('tip_interventie')} />
               {form.formState.errors.tip_interventie ? (
                 <p className="text-xs text-[var(--status-danger-text)]">
                   {form.formState.errors.tip_interventie.message}
@@ -1103,7 +1103,7 @@ export function MarkAplicataSheet({
             </div>
             <div className="space-y-2">
               <Label htmlFor="manual-scop">Scop</Label>
-              <Input id="manual-scop" {...form.register('scop')} />
+              <Input id="manual-scop" className="agri-control h-11 md:h-10" {...form.register('scop')} />
               {form.formState.errors.scop ? (
                 <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.scop.message}</p>
               ) : null}
@@ -1126,9 +1126,9 @@ export function MarkAplicataSheet({
   )
 
   const desktopContent = (
-    <form className="space-y-6" onSubmit={save}>
+    <form className="space-y-4" onSubmit={save}>
       <DesktopFormGrid
-        className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10"
+        className="md:grid-cols-[minmax(0,1fr)_18rem] md:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-5"
         aside={
           <InterventieAplicareFormSummary
             title={mode === 'manual' ? 'Rezumat intervenție' : 'Rezumat aplicare'}
@@ -1150,12 +1150,12 @@ export function MarkAplicataSheet({
             products={summaryProducts}
             meteo={summaryMeteo}
             differences={desktopDifferences}
-            className="md:rounded-[24px] md:p-5 lg:p-6"
+            className="md:rounded-[22px] md:p-4 lg:p-5"
           />
         }
       >
         {mode === 'manual' ? (
-          <FormDialogSection label="Context intervenție">
+          <FormDialogSection>
             <DesktopFormPanel>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1176,7 +1176,7 @@ export function MarkAplicataSheet({
                     value={selectedManualParcelaId || undefined}
                     onValueChange={(value) => form.setValue('manual_parcela_id', value, { shouldValidate: true })}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="agri-control h-11 w-full md:h-10">
                       <SelectValue placeholder="Selectează parcela" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1199,7 +1199,7 @@ export function MarkAplicataSheet({
                 </div>
               ) : null}
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
                 <div className="space-y-2">
                   <Label htmlFor="manual-status">Status</Label>
                   <Select
@@ -1210,7 +1210,7 @@ export function MarkAplicataSheet({
                       })
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="agri-control h-11 w-full md:h-10">
                       <SelectValue placeholder="Selectează statusul" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1228,7 +1228,7 @@ export function MarkAplicataSheet({
                   <Label htmlFor="manual-data">
                     {selectedManualStatus === 'aplicata' ? 'Data aplicării' : 'Data planificării'}
                   </Label>
-                  <Input id="manual-data" type="datetime-local" {...form.register('manual_data')} />
+                  <Input id="manual-data" type="datetime-local" className="agri-control h-11 md:h-10" {...form.register('manual_data')} />
                   {form.formState.errors.manual_data ? (
                     <p className="text-xs text-[var(--status-danger-text)]">
                       {form.formState.errors.manual_data.message}
@@ -1237,7 +1237,7 @@ export function MarkAplicataSheet({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="manual-tip-interventie">Tip intervenție</Label>
-                  <Input id="manual-tip-interventie" {...form.register('tip_interventie')} />
+                  <Input id="manual-tip-interventie" className="agri-control h-11 md:h-10" {...form.register('tip_interventie')} />
                   {form.formState.errors.tip_interventie ? (
                     <p className="text-xs text-[var(--status-danger-text)]">
                       {form.formState.errors.tip_interventie.message}
@@ -1246,7 +1246,7 @@ export function MarkAplicataSheet({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="manual-scop">Scop</Label>
-                  <Input id="manual-scop" {...form.register('scop')} />
+                  <Input id="manual-scop" className="agri-control h-11 md:h-10" {...form.register('scop')} />
                   {form.formState.errors.scop ? (
                     <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.scop.message}</p>
                   ) : null}
@@ -1256,9 +1256,9 @@ export function MarkAplicataSheet({
             </DesktopFormPanel>
           </FormDialogSection>
         ) : (
-          <FormDialogSection label="Context aplicare">
+          <FormDialogSection>
             <DesktopFormPanel>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
                 {planDateField}
                 {cohortField}
                 {cantitateField}
@@ -1269,17 +1269,17 @@ export function MarkAplicataSheet({
           </FormDialogSection>
         )}
 
-        <FormDialogSection label="Produse și doze">
+        <FormDialogSection>
           <DesktopFormPanel>
             {plannedProductsBlock}
             {productsBlock}
           </DesktopFormPanel>
         </FormDialogSection>
 
-        <FormDialogSection label={mode === 'manual' ? 'Meteo și observații' : 'Meteo, diferențe și observații'}>
+        <FormDialogSection>
           <DesktopFormPanel>
             {mode === 'manual' ? (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
                 {cantitateField}
                 {operatorField}
                 {stadiuField}
@@ -1350,7 +1350,7 @@ export function MarkAplicataSheet({
       }
       desktopFormWide
       showCloseButton
-      contentClassName="md:w-[min(94vw,76rem)] md:max-w-6xl"
+      contentClassName="md:w-[min(96vw,84rem)] md:max-w-none"
     >
       {desktopContent}
     </AppDialog>

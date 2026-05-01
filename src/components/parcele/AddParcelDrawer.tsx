@@ -12,6 +12,7 @@ import {
   ParcelForm,
   type ParcelFormValues,
 } from '@/components/parcele/ParcelForm'
+import { serializeParcelLegacyCropLabel } from '@/lib/parcele/parcel-form-options'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
@@ -77,6 +78,10 @@ export function AddParcelDrawer({
         latitudine: toFloatOrNull(values.latitudine) ?? undefined,
         longitudine: toFloatOrNull(values.longitudine) ?? undefined,
         an_plantare: new Date().getFullYear(),
+        tip_fruct: values.cultura.trim() || undefined,
+        cultura: values.cultura.trim() || undefined,
+        soi: values.soi.trim() || undefined,
+        soi_plantat: serializeParcelLegacyCropLabel(values.cultura, values.soi) || undefined,
         status: values.status,
         observatii: values.observatii?.trim() || undefined,
       })
@@ -106,11 +111,11 @@ export function AddParcelDrawer({
     <AppDrawer
       open={open}
       onOpenChange={onOpenChange}
-      title="Adaugă teren"
+      title="🌱 Adaugă teren"
       description="Configurezi rapid un teren nou și verifici rezumatul din dreapta înainte de salvare."
       desktopFormWide
       showCloseButton
-      contentClassName="lg:max-w-[min(94vw,68rem)] xl:max-w-[min(92vw,72rem)]"
+      contentClassName="md:w-[min(96vw,94rem)] md:max-w-none"
       footer={
         <DialogFormActions
           className="w-full"

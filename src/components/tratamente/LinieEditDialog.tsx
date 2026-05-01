@@ -235,8 +235,8 @@ export function LinieEditDialog({
   }
 
   const mobileContent = (
-    <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
+    <div className="space-y-3.5">
+      <div className="grid gap-3.5 md:grid-cols-2">
         <div className="space-y-2">
             <Label htmlFor="linie-stadiu-select">Fenofază</Label>
           <select
@@ -276,7 +276,7 @@ export function LinieEditDialog({
         ) : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3.5 md:grid-cols-2">
         <div className="space-y-2">
             <Label htmlFor="linie-tip-interventie">Tip intervenție</Label>
           <select
@@ -317,7 +317,7 @@ export function LinieEditDialog({
       </div>
 
       {value.regula_repetare === 'interval' ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3.5 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="linie-interval">Interval repetare zile</Label>
             <Input
@@ -353,8 +353,8 @@ export function LinieEditDialog({
         />
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <Label>Produse planificate</Label>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">Selectează produse din bibliotecă sau completează manual.</p>
@@ -385,13 +385,13 @@ export function LinieEditDialog({
           Arată toate produsele din bibliotecă
         </label>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {value.produse.map((produsDraft, index) => {
             const selectedProduct = produse.find((produs) => produs.id === produsDraft.produs_id) ?? null
 
             return (
-              <div key={produsDraft.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3">
-                <div className="mb-3 flex items-start justify-between gap-3">
+              <div key={produsDraft.id} className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2">
+                <div className="mb-2.5 flex items-start justify-between gap-2.5">
                   <div>
                     <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Produs #{index + 1}</p>
                     <p className="text-xs text-[var(--text-secondary)]">{getProdusDraftDisplayName(produsDraft, produse)}</p>
@@ -409,7 +409,7 @@ export function LinieEditDialog({
                   </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-2 md:grid-cols-2 md:gap-x-3">
                   <div className="space-y-2">
                     <Label htmlFor={`linie-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
                     <select
@@ -454,7 +454,7 @@ export function LinieEditDialog({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-2">
                       <Label htmlFor={`linie-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
                       <Input
@@ -476,7 +476,7 @@ export function LinieEditDialog({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                  <div className="grid grid-cols-2 gap-2.5 md:col-span-2">
                     <div className="space-y-2">
                       <Label htmlFor={`linie-doza-ml-${produsDraft.id}`}>Doză ml/hl</Label>
                       <Input
@@ -526,7 +526,7 @@ export function LinieEditDialog({
 
   const desktopContent = (
     <DesktopFormGrid
-      className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-10"
+      className="md:grid-cols-[minmax(0,1fr)_18rem] md:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-5"
       aside={
         <InterventiePlanificataFormSummary
           stadiuLabel={selectedStadiuLabel}
@@ -547,13 +547,13 @@ export function LinieEditDialog({
               : null
           }
           products={summaryProducts}
-          className="md:rounded-[24px] md:p-5 lg:p-6"
+          className="md:rounded-[22px] md:p-4 lg:p-5"
         />
       }
     >
-      <FormDialogSection label="Context plan">
+      <FormDialogSection>
         <DesktopFormPanel>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
             <div className="space-y-2">
               <Label htmlFor="linie-stadiu-select">Fenofază</Label>
               <select
@@ -631,10 +631,10 @@ export function LinieEditDialog({
         </DesktopFormPanel>
       </FormDialogSection>
 
-      <FormDialogSection label="Produse și doze">
+      <FormDialogSection>
         <DesktopFormPanel>
-          <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-2.5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
               <div>
                 <Label>Produse planificate</Label>
                 <p className="mt-1 text-xs text-[var(--text-secondary)]">
@@ -667,16 +667,16 @@ export function LinieEditDialog({
               Arată toate produsele din bibliotecă
             </label>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {value.produse.map((produsDraft, index) => {
                 const selectedProduct = produse.find((produs) => produs.id === produsDraft.produs_id) ?? null
 
                 return (
                   <div
                     key={produsDraft.id}
-                    className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3"
+                    className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2.5"
                   >
-                    <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="mb-2.5 flex items-start justify-between gap-2.5">
                       <div>
                         <p className="text-sm text-[var(--text-primary)] [font-weight:650]">
                           Produs #{index + 1}
@@ -735,7 +735,7 @@ export function LinieEditDialog({
                       </div>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-2.5 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor={`linie-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
                         <select
@@ -789,7 +789,7 @@ export function LinieEditDialog({
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2.5">
                         <div className="space-y-2">
                           <Label htmlFor={`linie-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
                           <Input
@@ -821,7 +821,7 @@ export function LinieEditDialog({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                      <div className="grid grid-cols-2 gap-2.5 md:col-span-2">
                         <div className="space-y-2">
                           <Label htmlFor={`linie-doza-ml-${produsDraft.id}`}>Doză ml/hl</Label>
                           <Input
@@ -866,9 +866,9 @@ export function LinieEditDialog({
         </DesktopFormPanel>
       </FormDialogSection>
 
-      <FormDialogSection label="Repetare și observații">
+      <FormDialogSection>
         <DesktopFormPanel>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
             <div className="space-y-2">
               <Label htmlFor="linie-regula">Regulă repetare</Label>
               <select
@@ -981,7 +981,7 @@ export function LinieEditDialog({
       footer={footer}
       desktopFormWide
       showCloseButton
-      contentClassName="md:w-[min(94vw,74rem)] md:max-w-6xl"
+      contentClassName="md:w-[min(96vw,84rem)] md:max-w-none"
     >
       {desktopContent}
     </AppDialog>

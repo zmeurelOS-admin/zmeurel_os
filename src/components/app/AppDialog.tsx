@@ -14,6 +14,8 @@ interface AppDialogProps {
   showCloseButton?: boolean
   /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
   desktopFormWide?: boolean
+  /** Variantă compactă desktop pentru formulare scurte (header/content/footer mai dense). */
+  desktopFormCompact?: boolean
 }
 
 export function AppDialog({
@@ -26,6 +28,7 @@ export function AppDialog({
   contentClassName,
   showCloseButton,
   desktopFormWide,
+  desktopFormCompact,
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,6 +39,7 @@ export function AppDialog({
         contentClassName={contentClassName}
         showCloseButton={showCloseButton}
         desktopFormWide={desktopFormWide}
+        desktopFormCompact={desktopFormCompact}
       >
         {children}
       </FormDialogLayout>

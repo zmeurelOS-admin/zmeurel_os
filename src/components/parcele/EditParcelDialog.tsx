@@ -16,6 +16,7 @@ import {
   ParcelForm,
   type ParcelFormValues,
 } from '@/components/parcele/ParcelForm'
+import { parseParcelCropValues, serializeParcelLegacyCropLabel } from '@/lib/parcele/parcel-form-options'
 import { parseParcelaScop, coerceStatusOperationalFromDb } from '@/lib/parcele/dashboard-relevance'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
@@ -27,21 +28,34 @@ interface EditParcelDialogProps {
   onSaved: () => void
 }
 
-const toFormValues = (parcela: Parcela): ParcelFormValues => ({
-  ...getParcelFormDefaults(),
-  nume_parcela: parcela.nume_parcela ?? '',
-  tip_unitate: (parcela.tip_unitate as 'camp' | 'solar' | 'livada' | 'cultura_mare') ?? 'camp',
-  suprafata_m2: String(parcela.suprafata_m2 ?? ''),
-  latitudine: parcela.latitudine == null ? '' : String(parcela.latitudine),
-  longitudine: parcela.longitudine == null ? '' : String(parcela.longitudine),
-  // If legacy rows have null rol, prefer 'comercial' as sensible default for edits.
-  rol: (parseParcelaScop(parcela.rol) ?? 'comercial'),
-  apare_in_dashboard: parcela.apare_in_dashboard ?? true,
-  contribuie_la_productie: parcela.contribuie_la_productie ?? true,
-  status_operational: coerceStatusOperationalFromDb(parcela.status_operational),
-  status: parcela.status ?? 'Activ',
-  observatii: parcela.observatii ?? '',
-})
+const toFormValues = (parcela: Parcela): ParcelFormValues => {
+  const cropValues = parseParcelCropValues({
+    cultura: parcela.cultura,
+    soi: parcela.soi,
+    soi_plantat: parcela.soi_plantat,
+    tip_fruct: parcela.tip_fruct,
+  })
+
+  return {
+    ...getParcelFormDefaults(),
+    nume_parcela: parcela.nume_parcela ?? '',
+    tip_unitate: (parcela.tip_unitate as 'camp' | 'solar' | 'livada' | 'cultura_mare') ?? 'camp',
+    tip_fruct: cropValues.cultura,
+    soi_plantat: cropValues.soi_plantat,
+    cultura: cropValues.cultura,
+    soi: cropValues.soi,
+    suprafata_m2: String(parcela.suprafata_m2 ?? ''),
+    latitudine: parcela.latitudine == null ? '' : String(parcela.latitudine),
+    longitudine: parcela.longitudine == null ? '' : String(parcela.longitudine),
+    // If legacy rows have null rol, prefer 'comercial' as sensible default for edits.
+    rol: parseParcelaScop(parcela.rol) ?? 'comercial',
+    apare_in_dashboard: parcela.apare_in_dashboard ?? true,
+    contribuie_la_productie: parcela.contribuie_la_productie ?? true,
+    status_operational: coerceStatusOperationalFromDb(parcela.status_operational),
+    status: parcela.status ?? 'Activ',
+    observatii: parcela.observatii ?? '',
+  }
+}
 
 const toDecimal = (value: string) => Number(value.replace(',', '.').trim())
 const toFloatOrNull = (value: string) => {
@@ -79,6 +93,10 @@ export function EditParcelDialog({
         suprafata_m2: toDecimal(values.suprafata_m2),
         latitudine: toFloatOrNull(values.latitudine),
         longitudine: toFloatOrNull(values.longitudine),
+        tip_fruct: values.cultura.trim() || null,
+        cultura: values.cultura.trim() || null,
+        soi: values.soi.trim() || null,
+        soi_plantat: serializeParcelLegacyCropLabel(values.cultura, values.soi) || null,
         rol: values.rol,
         apare_in_dashboard: values.apare_in_dashboard,
         contribuie_la_productie: values.contribuie_la_productie,
@@ -108,11 +126,11 @@ export function EditParcelDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Editează teren"
+      title="🌱 Editează teren"
       description="Actualizezi detaliile terenului și vezi imediat rezumatul fără să schimbi fluxul de salvare."
       desktopFormWide
       showCloseButton
-      contentClassName="lg:max-w-[min(94vw,68rem)] xl:max-w-[min(92vw,72rem)]"
+      contentClassName="md:w-[min(96vw,94rem)] md:max-w-none"
       footer={
         <DialogFormActions
           className="w-full"

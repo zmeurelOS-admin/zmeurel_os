@@ -61,7 +61,7 @@ export function CulegatorFormSummary({
     activitySummary && activitySummary.seasonKg > 0 && rateNumber > 0 ? activitySummary.seasonKg * rateNumber : null
 
   return (
-    <DesktopFormAside title={mode === 'edit' ? 'Culegător' : 'Previzualizare'}>
+    <DesktopFormAside title="Rezumat culegător" className="md:rounded-[22px] md:p-4 lg:p-[1.125rem]">
       <div>
         <p className="text-sm font-semibold leading-snug text-[var(--text-primary)]">
           {title?.trim() || (mode === 'create' ? 'Culegător nou' : '—')}
@@ -71,8 +71,14 @@ export function CulegatorFormSummary({
         ) : null}
       </div>
 
-      <dl className="space-y-3 text-sm text-[var(--text-secondary)]">
-        <div className="border-t border-[var(--divider)] pt-3">
+      <dl className="space-y-1.5 text-sm text-[var(--text-secondary)]">
+        <div className="border-t border-[var(--divider)] pt-2">
+          <dt className="text-xs font-medium text-[var(--text-tertiary)]">Nume</dt>
+          <dd className="mt-0.5 text-[var(--text-primary)]">
+            {title?.trim() || (mode === 'create' ? 'Culegător nou' : '—')}
+          </dd>
+        </div>
+        <div>
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Telefon</dt>
           <dd className="mt-0.5 text-[var(--text-primary)]">{phone?.trim() || '—'}</dd>
         </div>
@@ -126,7 +132,7 @@ export function CulegatorFormSummary({
         </div>
       ) : null}
 
-      <div className="border-t border-[var(--divider)] pt-3">
+      <div className="border-t border-[var(--divider)] pt-2">
         <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
         <p className="mt-1 text-xs leading-relaxed text-[var(--text-primary)]">{clipNote(observations)}</p>
       </div>

@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ChevronDown, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Label } from '@/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { isTipActivitateDeprecata } from '@/lib/activitati/activity-options'
 import type { ActivityOption } from '@/lib/activitati/activity-options'
 import { cn } from '@/lib/utils'
@@ -30,6 +31,7 @@ interface ActivityTypeComboboxProps {
   menuClassName?: string
   listClassName?: string
   getOptionLeadingIcon?: (option: ActivityOption) => ReactNode
+  getOptionDisplayLabel?: (option: ActivityOption) => string
 }
 
 export function ActivityTypeCombobox({
@@ -45,8 +47,8 @@ export function ActivityTypeCombobox({
   menuClassName,
   listClassName,
   getOptionLeadingIcon,
+  getOptionDisplayLabel,
 }: ActivityTypeComboboxProps) {
-  const rootRef = useRef<HTMLDivElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -78,20 +80,6 @@ export function ActivityTypeCombobox({
   const customValue = query.trim()
 
   useEffect(() => {
-    if (!open) return
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false)
-        setDeprecatedMessage(null)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [open])
-
-  useEffect(() => {
     if (!open || !showSearch) return
     const frame = window.requestAnimationFrame(() => {
       searchInputRef.current?.focus()
@@ -117,49 +105,57 @@ export function ActivityTypeCombobox({
   }
 
   return (
-    <div className="space-y-2" ref={rootRef}>
+    <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <div className="relative">
-        <button
-          id={id}
-          type="button"
-          onClick={() =>
-            setOpen((current) => {
-              const nextOpen = !current
-              if (nextOpen) {
-                setQuery(selectedOption ? '' : value)
-              } else {
-                setDeprecatedMessage(null)
-              }
-              return nextOpen
-            })
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen)
+          if (nextOpen) {
+            setQuery(selectedOption ? '' : value)
+            return
           }
-          className={cn(
-            'agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm',
-            triggerClassName
-          )}
-        >
-          <span
+          setDeprecatedMessage(null)
+        }}
+      >
+        <PopoverTrigger asChild>
+          <button
+            id={id}
+            type="button"
             className={cn(
-              'flex min-w-0 items-center gap-2',
-              selectedOption || value ? 'text-[var(--agri-text)]' : 'text-[var(--agri-text-muted)]'
+              'agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm',
+              triggerClassName
             )}
           >
-            {selectedOptionIcon ? (
-              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
-                {selectedOptionIcon}
+            <span
+              className={cn(
+                'flex min-w-0 items-center gap-2',
+                selectedOption || value ? 'text-[var(--agri-text)]' : 'text-[var(--agri-text-muted)]'
+              )}
+            >
+              {selectedOptionIcon ? (
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
+                  {selectedOptionIcon}
+                </span>
+              ) : null}
+              <span className="truncate">
+                {selectedOption
+                  ? getOptionDisplayLabel?.(selectedOption) ?? selectedOption.label
+                  : value || placeholder}
               </span>
-            ) : null}
-            <span className="truncate">{selectedOption?.label || value || placeholder}</span>
-          </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--agri-text-muted)]" />
-        </button>
-
-        {open ? (
-          <div className={cn(
-            'absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] shadow-lg',
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-[var(--agri-text-muted)]" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={6}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          className={cn(
+            'w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
             menuClassName
-          )}>
+          )}
+        >
             {showSearch ? (
               <div className="border-b border-[var(--agri-border)] p-2">
                 <div className="relative">
@@ -213,7 +209,7 @@ export function ActivityTypeCombobox({
                           {optionIcon}
                         </span>
                       ) : null}
-                      <span className="truncate">{option.label}</span>
+                      <span className="truncate">{getOptionDisplayLabel?.(option) ?? option.label}</span>
                     </span>
                     {isSelected ? <Check className="h-4 w-4 text-[var(--agri-primary)]" /> : null}
                   </button>
@@ -238,9 +234,8 @@ export function ActivityTypeCombobox({
                 <p className="px-3 py-2 text-sm text-[var(--agri-text-muted)]">Nicio activitate găsită</p>
               ) : null}
             </div>
-          </div>
-        ) : null}
-      </div>
+        </PopoverContent>
+      </Popover>
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>

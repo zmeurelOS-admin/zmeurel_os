@@ -45,15 +45,12 @@ export function RecoltareFormSummary({
 
   return (
     <DesktopFormAside title="Rezumat live" className={className}>
-      <div className="space-y-1.5">
+      <div className="space-y-0.5">
         <p className="text-sm font-semibold leading-snug text-[var(--text-primary)]">{parcelaLabel}</p>
-        <p className="text-xs leading-relaxed text-[var(--text-tertiary)]">
-          Datele se actualizează pe măsură ce completezi formularul.
-        </p>
       </div>
 
-      <dl className="space-y-3 text-sm text-[var(--text-secondary)]">
-        <div className="border-t border-[var(--divider)] pt-3">
+      <dl className="space-y-2 text-sm text-[var(--text-secondary)]">
+        <div className="border-t border-[var(--divider)] pt-2">
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Data recoltării</dt>
           <dd className="mt-0.5 text-[var(--text-primary)]">{dataLabel}</dd>
         </div>
@@ -65,13 +62,13 @@ export function RecoltareFormSummary({
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Cultură / soi</dt>
           <dd className="mt-0.5 text-[var(--text-primary)]">{cropLabel}</dd>
         </div>
-        <div className="border-t border-[var(--divider)] pt-3">
+        <div className="border-t border-[var(--divider)] pt-2">
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Total recoltat</dt>
           <dd className="mt-1 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
             {totalKg.toFixed(2)} kg
           </dd>
         </div>
-        <div className="grid grid-cols-2 gap-2 rounded-[18px] border border-[var(--divider)] bg-[var(--surface-card)] p-3 text-xs">
+        <div className="grid grid-cols-2 gap-2 rounded-[16px] border border-[var(--divider)] bg-[var(--surface-card)] p-2 text-xs">
           <div>
             <span className="text-[var(--text-tertiary)]">Cal I</span>
             <p className="font-medium tabular-nums text-[var(--text-primary)]">
@@ -87,7 +84,7 @@ export function RecoltareFormSummary({
             </p>
           </div>
         </div>
-        <div className="border-t border-[var(--divider)] pt-3">
+        <div className="border-t border-[var(--divider)] pt-2">
           <dt className="text-xs font-medium text-[var(--text-tertiary)]">Tarif (profil)</dt>
           <dd className="mt-0.5 tabular-nums text-[var(--text-primary)]">
             {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '—'}
@@ -102,7 +99,7 @@ export function RecoltareFormSummary({
       </dl>
 
       {clippedObservatii ? (
-        <div className="border-t border-[var(--divider)] pt-3">
+        <div className="border-t border-[var(--divider)] pt-2">
           <p className="text-xs font-medium text-[var(--text-tertiary)]">Observații</p>
           <p className="mt-1 break-words text-xs leading-relaxed text-[var(--text-secondary)]">
             {clippedObservatii}

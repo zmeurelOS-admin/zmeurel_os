@@ -398,7 +398,7 @@ export function AddRecoltareDialog({
       description="Înregistrezi cantitatea recoltată și vezi imediat estimarea de plată din tariful culegătorului."
       desktopFormWide
       showCloseButton
-      contentClassName="lg:max-w-[min(94vw,70rem)] xl:max-w-[min(92vw,72rem)]"
+      contentClassName="md:w-[min(96vw,84rem)] md:max-w-none"
       footer={
         <DialogFormActions
           className="w-full"
@@ -416,7 +416,7 @@ export function AddRecoltareDialog({
       ) : (
         <form className="space-y-0" onSubmit={form.handleSubmit(onSubmit)}>
           <DesktopFormGrid
-            className="md:grid-cols-[minmax(0,1fr)_20rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_22rem]"
+            className="md:grid-cols-[minmax(0,1fr)_18rem] md:gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]"
             aside={
               <RecoltareFormSummary
                 parcelaLabel={parcelaAsideLabel}
@@ -432,13 +432,13 @@ export function AddRecoltareDialog({
                 tarifLeiKg={tarifLeiKg}
                 valoareMunca={valoareMunca}
                 observatii={formObservatii}
-                className="md:rounded-[24px] md:p-5 lg:p-6"
+                className="md:rounded-[22px] md:p-4 lg:p-5"
               />
             }
           >
-            <FormDialogSection label="Context">
+            <FormDialogSection>
               <DesktopFormPanel>
-                <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                <div className="grid gap-3 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
                   <div className="space-y-2">
                     <Label htmlFor="recoltare_parcela">Parcelă</Label>
                     <Select
@@ -450,7 +450,7 @@ export function AddRecoltareDialog({
                         })
                       }
                     >
-                      <SelectTrigger id="recoltare_parcela" className="agri-control h-12 md:h-11">
+                      <SelectTrigger id="recoltare_parcela" className="agri-control h-11 md:h-10">
                         <SelectValue placeholder="Selectează parcelă" />
                       </SelectTrigger>
                       <SelectContent>
@@ -471,7 +471,7 @@ export function AddRecoltareDialog({
                     <Input
                       id="recoltare_data"
                       type="date"
-                      className="agri-control h-12 md:h-11"
+                      className="agri-control h-11 md:h-10"
                       {...form.register('data')}
                     />
                     {form.formState.errors.data ? (
@@ -480,7 +480,7 @@ export function AddRecoltareDialog({
                   </div>
                 </div>
                 {activePauseWarning ? (
-                  <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3 text-sm text-[var(--status-warning-text)]">
+                  <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-2.5 text-sm text-[var(--status-warning-text)]">
                     {activePauseWarning.message}
                   </div>
                 ) : null}
@@ -495,7 +495,7 @@ export function AddRecoltareDialog({
                       })
                     }
                   >
-                    <SelectTrigger id="recoltare_culegator" className="agri-control h-12 md:h-11">
+                    <SelectTrigger id="recoltare_culegator" className="agri-control h-11 md:h-10">
                       <SelectValue placeholder="Selectează culegător" />
                     </SelectTrigger>
                     <SelectContent>
@@ -514,16 +514,14 @@ export function AddRecoltareDialog({
               </DesktopFormPanel>
             </FormDialogSection>
 
-            <FormDialogSection label="Recoltare">
+            <FormDialogSection>
               <DesktopFormPanel>
                 {selectedParcela ? (
-                  <Card className="rounded-[20px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] shadow-[var(--shadow-soft)]">
-                    <CardHeader className="pb-2">
+                  <Card className="rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] shadow-[var(--shadow-soft)]">
+                    <CardContent className="space-y-2 p-3 text-sm">
                       <CardTitle className="text-sm font-semibold text-[var(--text-primary)]">
                         Produs detectat din parcelă
                       </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
                       {parcelCropOptions.length > 1 ? (
                         <div className="space-y-2">
                           <Label htmlFor="recoltare_harvest_crop">Cultură recoltată</Label>
@@ -565,7 +563,7 @@ export function AddRecoltareDialog({
                     </CardContent>
                   </Card>
                 ) : null}
-                <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
+                <div className="grid gap-3 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
                   <div className="space-y-2">
                     <Label htmlFor="recoltare_kg_cal1">Kg Calitatea 1</Label>
                     <Input
@@ -575,7 +573,7 @@ export function AddRecoltareDialog({
                       step="0.01"
                       min="0"
                       placeholder="0.00"
-                      className="agri-control h-12 md:h-11"
+                      className="agri-control h-11 md:h-10"
                       {...form.register('kg_cal1')}
                     />
                     {form.formState.errors.kg_cal1 ? (
@@ -591,7 +589,7 @@ export function AddRecoltareDialog({
                       step="0.01"
                       min="0"
                       placeholder="0.00"
-                      className="agri-control h-12 md:h-11"
+                      className="agri-control h-11 md:h-10"
                       {...form.register('kg_cal2')}
                     />
                     {form.formState.errors.kg_cal2 ? (
@@ -641,13 +639,13 @@ export function AddRecoltareDialog({
               </Card>
             </div>
 
-            <FormDialogSection label="Observații">
+            <FormDialogSection>
               <DesktopFormPanel>
                 <Textarea
                   id="recoltare_observatii"
                   rows={3}
                   placeholder="Detalii suplimentare"
-                  className="agri-control min-h-[5rem] w-full px-3 py-2 text-base md:min-h-[6.5rem]"
+                  className="agri-control min-h-[4.5rem] w-full px-3 py-2 text-base md:min-h-[5.75rem]"
                   {...form.register('observatii')}
                 />
               </DesktopFormPanel>

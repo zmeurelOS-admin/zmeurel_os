@@ -37,7 +37,7 @@ function ToggleSwitch({
   )
 }
 
-function ToggleRow({
+export function ParcelUsageToggleCard({
   label,
   description,
   checked,
@@ -51,10 +51,10 @@ function ToggleRow({
   onCheckedChange: (next: boolean) => void
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3.5 shadow-[var(--shadow-soft)]">
+    <div className="flex items-start justify-between gap-3 rounded-[16px] border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2.5 shadow-[var(--shadow-soft)]">
       <div className="min-w-0">
         <p className="text-sm font-medium text-[var(--text-primary)]">{label}</p>
-        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-secondary)]">{description}</p>
       </div>
       <ToggleSwitch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
     </div>
@@ -83,15 +83,15 @@ export function ParcelUsageFields({
   const togglesOff = disableCommercialToggles && scop !== 'comercial'
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <ToggleRow
+    <div className={cn('space-y-2.5', className)}>
+      <ParcelUsageToggleCard
         label="Afișează în dashboard"
         description="Arată pe pagina principală"
         checked={apareInDashboard}
         disabled={togglesOff}
         onCheckedChange={onApareChange}
       />
-      <ToggleRow
+      <ParcelUsageToggleCard
         label="Contribuie la producție și vânzări"
         description="Include în rapoarte comerciale"
         checked={contribuieLaProductie}
