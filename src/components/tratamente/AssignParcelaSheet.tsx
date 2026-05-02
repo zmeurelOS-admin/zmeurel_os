@@ -33,8 +33,16 @@ export function AssignParcelaSheet({
 
   useEffect(() => {
     if (!open) return
-    setSelectedParcelaId('')
-    setAn(String(anInitial))
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setSelectedParcelaId('')
+      setAn(String(anInitial))
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [anInitial, open])
 
   const saveDisabled = pending || !selectedParcelaId || !Number.isInteger(Number(an))

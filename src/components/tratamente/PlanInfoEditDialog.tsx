@@ -33,8 +33,16 @@ export function PlanInfoEditDialog({
 
   useEffect(() => {
     if (!open) return
-    setNume(initialNume)
-    setDescriere(initialDescriere ?? '')
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setNume(initialNume)
+      setDescriere(initialDescriere ?? '')
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [initialDescriere, initialNume, open])
 
   const saveDisabled = pending || nume.trim().length === 0

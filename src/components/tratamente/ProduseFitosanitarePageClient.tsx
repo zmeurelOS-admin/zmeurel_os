@@ -262,7 +262,7 @@ function ProdusFitosanitarFormFields({ form, showActiv = false }: ProdusFitosani
             />
           )}
         />
-        <p className="text-xs text-[var(--agri-text-muted)]">Apasă Enter sau „+ Adaugă" după fiecare cultură.</p>
+        <p className="text-xs text-[var(--agri-text-muted)]">Apasă Enter sau „+ Adaugă&quot; după fiecare cultură.</p>
       </FormDialogSection>
 
       {showActiv ? (

@@ -29,7 +29,15 @@ export function PlanDuplicateDialog({
 
   useEffect(() => {
     if (!open) return
-    setNumeNou(`${initialName} (copie)`)
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setNumeNou(`${initialName} (copie)`)
+    })
+
+    return () => {
+      cancelled = true
+    }
   }, [initialName, open])
 
   const content = (

@@ -222,10 +222,6 @@ export function HubTratamenteClient({
   const stageFilter = filters.stageFilter
   const tipFilter = filters.tipFilter
 
-  useEffect(() => {
-    setFilters(readHubFiltersFromUrl())
-  }, [])
-
   const today = useMemo(() => startOfDay(new Date()), [])
   const todayKey = useMemo(() => sameDayKey(today), [today])
   const weekEnd = useMemo(() => endOfDay(addDays(today, 7)), [today])

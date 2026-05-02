@@ -220,7 +220,7 @@ async function expectCrossTenantUpdateBlocked(
   const client = await createTestUserClient(email, password)
 
   try {
-    const { data, error } = await (client as any)
+    const { data, error } = await client
       .from(table)
       .update(patch)
       .eq('id', rowId)
