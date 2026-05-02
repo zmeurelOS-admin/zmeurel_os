@@ -80,6 +80,15 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: false,
   },
+  /** Reminder programat pentru aplicări de tratament azi/mâine — tratamente/scheduler. */
+  tratament_reminder: {
+    icon: '🌿',
+    color: '#0D6342',
+    toastDuration: 5000,
+    showToast: true,
+    playSound: false,
+    pushEnabled: true,
+  },
   system: {
     icon: 'ℹ️',
     color: '#3D4543',

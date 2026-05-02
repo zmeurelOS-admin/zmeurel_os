@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { captureApiError } from '@/lib/monitoring/sentry'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -55,6 +56,30 @@ export async function POST(request: Request) {
 
     const sub = parsed.data.subscription
     const endpointHost = getEndpointHost(sub.endpoint)
+
+    // Izolare între conturi pe device partajat: dacă același endpoint era asociat
+    // cu alt user_id (ex.: A s-a delogat fără cleanup, acum se loghează B pe același
+    // browser), șterg înregistrările vechi înainte de upsert-ul curent. Folosim
+    // service role pentru că RLS permite delete doar pe rândurile proprii și nu
+    // expunem o policy DB cross-user (ar fi exploatabilă).
+    const admin = getSupabaseAdmin()
+    const { error: cleanupError } = await admin
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', sub.endpoint)
+      .neq('user_id', user.id)
+
+    if (cleanupError) {
+      console.error(
+        '[push/subscribe] cross-user cleanup failed',
+        sanitizeForLog({
+          userId: user.id,
+          endpointHost,
+          error: toSafeErrorContext(cleanupError),
+        }),
+      )
+      return apiError(500, 'INTERNAL_ERROR', 'Nu am putut izola subscrierea pe acest device.')
+    }
 
     const { data: existingRow, error: existingError } = await supabase
       .from('push_subscriptions')

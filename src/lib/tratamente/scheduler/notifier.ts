@@ -67,7 +67,7 @@ async function createNotificationLogs(
   const admin = getSupabaseAdmin()
   const payload = userIds.map((userId) => ({
     user_id: userId,
-    type: 'system',
+    type: 'tratament_reminder',
     title,
     body,
     data: {
@@ -126,7 +126,7 @@ export async function sendScheduledNotifications(input: NotifierInput): Promise<
       for (const userId of userIds) {
         const pushResult = await sendPushToUser(userId, payload.title, payload.body, {
           notificationId: notificationIds.get(userId),
-          type: 'system',
+          type: 'tratament_reminder',
           urlPath: '/tratamente',
         })
 

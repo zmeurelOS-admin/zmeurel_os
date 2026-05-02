@@ -13,6 +13,7 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { AppShell } from '@/components/app/AppShell'
 import { FarmSwitcher } from '@/components/app/FarmSwitcher'
 import { PageHeader } from '@/components/app/PageHeader'
+import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { DesktopSettingsNav, type SettingsNavItem } from '@/components/settings/DesktopSettingsNav'
 import { PushNotificationsSettings } from '@/components/settings/PushNotificationsSettings'
 import { Button } from '@/components/ui/button'
@@ -136,6 +137,7 @@ function getApiErrorMessage(
 export default function SettingsPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { unsubscribe: unsubscribePush } = usePushSubscription()
   const { theme, resolvedTheme, setTheme } = useTheme()
   const { density, setDensity } = useUiDensity()
   const { userId, email, isSuperAdmin } = useDashboardAuth()
@@ -827,7 +829,7 @@ export default function SettingsPage() {
       setDeleteAccountConfirmText('')
       setDeleteAccountStep2Open(false)
       toast.success('Contul și tenantul au fost șterse.')
-      prepareClientBeforeServerSignOut(queryClient)
+      await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush })
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
       const f = document.createElement('form')
       f.method = 'POST'
@@ -1084,7 +1086,17 @@ export default function SettingsPage() {
               Arată ghidul de pornire
             </Button>
             {isDemo && (
-              <form action="/api/auth/leave-demo" method="POST" className="inline">
+              <form
+                action="/api/auth/leave-demo"
+                method="POST"
+                className="inline"
+                onSubmit={async (event) => {
+                  event.preventDefault()
+                  const form = event.currentTarget
+                  await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush })
+                  form.submit()
+                }}
+              >
                 <Button
                   type="submit"
                   data-testid="settings-create-farm-cta"

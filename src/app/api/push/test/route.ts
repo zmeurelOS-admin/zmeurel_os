@@ -48,7 +48,10 @@ export async function POST(request: Request) {
       user.id,
       parsed.data?.title ?? 'Test notificări push',
       parsed.data?.body ?? 'Dacă vezi acest mesaj, fluxul Web Push funcționează.',
-      { type: 'system', urlPath: '/settings' },
+      // bypassPolicy: ruta de diagnostic e singurul caller server-side care ocolește
+      // gate-ul; flag-ul NU e expus în zod schema-ul de body, deci nu poate veni
+      // din input-ul utilizatorului.
+      { type: 'system', urlPath: '/settings', bypassPolicy: true },
     )
 
     if (result.skippedReason === 'not_configured') {

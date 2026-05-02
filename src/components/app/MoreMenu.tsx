@@ -2,9 +2,10 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 
 interface MoreMenuProps {
@@ -65,6 +66,8 @@ export function MoreMenu({ open, onClose }: MoreMenuProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { isSuperAdmin } = useDashboardAuth()
+  const { unsubscribe: unsubscribePush } = usePushSubscription()
+  const submittingRef = useRef(false)
 
   // Manage data-modal-open for mobile FAB / overlays
   useEffect(() => {
@@ -306,9 +309,14 @@ export function MoreMenu({ open, onClose }: MoreMenuProps) {
               <form
                 action="/api/auth/sign-out"
                 method="POST"
-                onSubmit={() => {
+                onSubmit={async (event) => {
+                  if (submittingRef.current) return
+                  submittingRef.current = true
+                  event.preventDefault()
+                  const form = event.currentTarget
                   onClose()
-                  prepareClientBeforeServerSignOut(queryClient)
+                  await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush })
+                  form.submit()
                 }}
                 style={{ width: '100%' }}
               >

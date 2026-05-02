@@ -2,7 +2,9 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { LogOut } from 'lucide-react'
+import { useRef } from 'react'
 
+import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 
 interface LogoutButtonProps {
@@ -13,6 +15,8 @@ interface LogoutButtonProps {
 
 export default function LogoutButton({ className, label, variant = 'solid' }: LogoutButtonProps) {
   const queryClient = useQueryClient()
+  const { unsubscribe } = usePushSubscription()
+  const submittingRef = useRef(false)
 
   const defaultClassName =
     variant === 'ghost'
@@ -24,7 +28,14 @@ export default function LogoutButton({ className, label, variant = 'solid' }: Lo
       action="/api/auth/sign-out"
       method="POST"
       className="inline w-full"
-      onSubmit={() => prepareClientBeforeServerSignOut(queryClient)}
+      onSubmit={async (event) => {
+        if (submittingRef.current) return
+        submittingRef.current = true
+        event.preventDefault()
+        const form = event.currentTarget
+        await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush: unsubscribe })
+        form.submit()
+      }}
     >
       <button type="submit" className={className ?? defaultClassName}>
         <LogOut className="h-4 w-4" />

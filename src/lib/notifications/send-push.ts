@@ -31,7 +31,7 @@ export type PushSendResult = {
   sent: number
   deleted: number
   failed: number
-  skippedReason: 'not_configured' | 'list_failed' | 'no_subscriptions' | null
+  skippedReason: 'not_configured' | 'list_failed' | 'no_subscriptions' | 'disabled_by_policy' | null
 }
 
 function buildPushPayload(input: {
@@ -55,8 +55,24 @@ export async function sendPushToUser(
   userId: string,
   title: string,
   body: string,
-  data?: { notificationId?: string; type?: string; urlPath?: string },
+  data?: {
+    notificationId?: string
+    type?: string
+    urlPath?: string
+    /**
+     * Politica unificată: orice apel real către `web-push.sendNotification` trece prin
+     * `shouldSendWebPushForType(type)`. `bypassPolicy` e un flag intern, NU se
+     * citește niciodată din JSON-ul unui request — îl setează doar `/api/push/test`
+     * pentru fluxul diagnostic.
+     */
+    bypassPolicy?: boolean
+  },
 ): Promise<PushSendResult> {
+  const type = data?.type ?? 'system'
+  if (!data?.bypassPolicy && !shouldSendWebPushForType(type)) {
+    return { attempted: 0, sent: 0, deleted: 0, failed: 0, skippedReason: 'disabled_by_policy' }
+  }
+
   if (!ensureVapidConfigured()) {
     console.warn('[push] VAPID keys missing; skipping push send')
     return { attempted: 0, sent: 0, deleted: 0, failed: 0, skippedReason: 'not_configured' }
@@ -89,7 +105,6 @@ export async function sendPushToUser(
     }
 
     const role = await getAssociationRoleForUserId(userId)
-    const type = data?.type ?? 'system'
     const urlPath =
       data?.urlPath ??
       getNotificationHref({ type, data: null }, role)

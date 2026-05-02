@@ -1,12 +1,17 @@
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 
+import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { Button } from '@/components/ui/button'
 import { dispatchDemoBannerDismissed, useDemoBannerVisible } from '@/hooks/useDemoBannerVisible'
+import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 
 export function DemoBanner() {
   const isVisible = useDemoBannerVisible()
+  const queryClient = useQueryClient()
+  const { unsubscribe: unsubscribePush } = usePushSubscription()
 
   if (!isVisible) return null
 
@@ -17,7 +22,16 @@ export function DemoBanner() {
           🌱 Ești în modul demo. Datele vor fi șterse. Când ești gata, creează-ți ferma ta.
         </p>
         <div className="flex items-center gap-2">
-          <form action="/api/auth/leave-demo" method="POST">
+          <form
+            action="/api/auth/leave-demo"
+            method="POST"
+            onSubmit={async (event) => {
+              event.preventDefault()
+              const form = event.currentTarget
+              await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush })
+              form.submit()
+            }}
+          >
             <Button
               type="submit"
               data-testid="demo-banner-create-farm"

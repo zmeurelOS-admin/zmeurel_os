@@ -56,6 +56,8 @@ export function getNotificationHref(
       return '/settings/documente-legale'
     case 'weekly_sales_summary':
       return '/notificari'
+    case 'tratament_reminder':
+      return '/tratamente'
     case 'system':
     default:
       return '/dashboard'

@@ -29,6 +29,7 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { Button } from '@/components/ui/button'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
 
@@ -106,8 +107,10 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { isSuperAdmin: isSuperAdminUser, associationRole } = useDashboardAuth()
+  const { unsubscribe: unsubscribePush } = usePushSubscription()
   const ignoreCloseUntilRef = useRef(0)
   const prevOpenRef = useRef(false)
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     if (open && !prevOpenRef.current) {
@@ -306,7 +309,14 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
               action="/api/auth/sign-out"
               method="POST"
               className="w-full"
-              onSubmit={() => prepareClientBeforeServerSignOut(queryClient)}
+              onSubmit={async (event) => {
+                if (submittingRef.current) return
+                submittingRef.current = true
+                event.preventDefault()
+                const form = event.currentTarget
+                await prepareClientBeforeServerSignOut(queryClient, { unsubscribePush })
+                form.submit()
+              }}
             >
               <Button
                 type="submit"
