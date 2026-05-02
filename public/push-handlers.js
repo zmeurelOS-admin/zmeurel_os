@@ -1,76 +1,79 @@
-/**
- * Handlers Web Push pentru Zmeurel OS — încărcat prin importScripts din sw.js (Workbox rămâne neatins).
- */
 self.addEventListener('push', function (event) {
   var payload = {
     title: 'Zmeurel OS',
     body: '',
+    icon: '/icon-192.png',
+    badge: '/badge-72.png',
     url: '/',
-    notificationId: '',
-    tag: 'zmeurel-default',
-    actions: [],
+    tag: undefined,
   }
 
   if (event.data) {
+    var text = ''
+
     try {
-      var parsed = event.data.json()
-      Object.assign(payload, parsed)
-    } catch (e) {
-      try {
-        var t = event.data.text()
-        if (t) payload.body = t
-      } catch (err) {}
+      text = event.data.text()
+      var parsed = JSON.parse(text)
+
+      if (parsed && typeof parsed === 'object') {
+        payload.title = parsed.title || payload.title
+        payload.body = parsed.body || payload.body
+        payload.icon = parsed.icon || payload.icon
+        payload.badge = parsed.badge || payload.badge
+        payload.url = parsed.url || payload.url
+        payload.tag = parsed.tag || parsed.notificationId || payload.tag
+      }
+    } catch (error) {
+      if (text) {
+        payload.body = text
+      }
     }
   }
 
-  var options = {
-    body: payload.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
-    vibrate: [200, 100, 200],
-    data: {
-      url: payload.url || '/',
-      notificationId: payload.notificationId || '',
-    },
-    actions: payload.actions || [],
-    tag: payload.tag || payload.notificationId || 'zmeurel-default',
-    renotify: true,
-  }
-
-  event.waitUntil(self.registration.showNotification(payload.title || 'Zmeurel OS', options))
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: payload.icon || '/icon-192.png',
+      badge: payload.badge || '/badge-72.png',
+      data: {
+        url: payload.url || '/',
+      },
+      tag: payload.tag,
+      requireInteraction: false,
+    }),
+  )
 })
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close()
 
   var data = event.notification.data || {}
-  var url = data.url || '/'
-  var fullUrl
+  var targetUrl = data.url || '/'
+  var normalizedUrl = '/'
+
   try {
-    fullUrl = new URL(url, self.location.origin).href
-  } catch (e) {
-    fullUrl = self.location.origin + '/'
+    normalizedUrl = new URL(targetUrl, self.location.origin).href
+  } catch (error) {
+    normalizedUrl = self.location.origin + '/'
   }
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {
-      for (var i = 0; i < windowClients.length; i++) {
-        var client = windowClients[i]
-        try {
-          var clientOrigin = new URL(client.url).origin
-          if (clientOrigin === self.location.origin) {
-            if (typeof client.navigate === 'function') {
-              return client.navigate(fullUrl).then(function () {
-                return client.focus()
-              })
-            }
-            return self.clients.openWindow(fullUrl)
-          }
-        } catch (err) {}
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      for (var i = 0; i < clientList.length; i += 1) {
+        var client = clientList[i]
+
+        if (client.url === normalizedUrl && 'focus' in client) {
+          return client.focus()
+        }
       }
+
       if (self.clients.openWindow) {
-        return self.clients.openWindow(fullUrl)
+        return self.clients.openWindow(normalizedUrl)
       }
+
+      return undefined
     }),
   )
 })
+
+self.addEventListener('notificationclose', function () {})
