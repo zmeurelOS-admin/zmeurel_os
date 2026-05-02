@@ -104,6 +104,7 @@ const withPWA = require('next-pwa')({
     'apple-icon.png',
   ],
   additionalManifestEntries: [
+    { url: '/apple-icon.png', revision: null },
     { url: '/icon-192.png', revision: null },
     { url: '/icon-512.png', revision: null },
     { url: '/manifest.webmanifest', revision: null },
@@ -113,12 +114,14 @@ const withPWA = require('next-pwa')({
       const allowedNonStatic = new Set([
         '/icon-192.png',
         '/icon-512.png',
+        '/apple-icon.png',
         '/manifest.webmanifest',
       ])
 
-      const manifest = entries.filter((entry) => {
-        return entry.url.startsWith('/_next/static/') || allowedNonStatic.has(entry.url)
-      })
+      // Keep the install-time precache intentionally tiny so the worker can
+      // activate quickly on mobile. Runtime caching still covers Next static
+      // assets after activation.
+      const manifest = entries.filter((entry) => allowedNonStatic.has(entry.url))
 
       return { manifest, warnings: [] }
     },
