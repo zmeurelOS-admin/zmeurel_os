@@ -77,6 +77,7 @@ const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
+  inlineWorkboxRuntime: true,
   disable: process.env.NODE_ENV === 'development',
   cacheStartUrl: false,
   dynamicStartUrl: false,
@@ -103,7 +104,6 @@ const withPWA = require('next-pwa')({
     'apple-icon.png',
   ],
   additionalManifestEntries: [
-    { url: '/apple-icon', revision: null },
     { url: '/icon-192.png', revision: null },
     { url: '/icon-512.png', revision: null },
     { url: '/manifest.webmanifest', revision: null },
@@ -111,7 +111,6 @@ const withPWA = require('next-pwa')({
   manifestTransforms: [
     async (entries) => {
       const allowedNonStatic = new Set([
-        '/apple-icon',
         '/icon-192.png',
         '/icon-512.png',
         '/manifest.webmanifest',

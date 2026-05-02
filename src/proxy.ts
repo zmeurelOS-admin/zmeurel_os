@@ -68,13 +68,18 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isApiRoute = pathname.startsWith('/api/')
+  const isStaticPublicFile = /\.(?:js|map|svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname)
   const isPublicAssetRoute =
     pathname === '/manifest.webmanifest' ||
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||
+    pathname === '/apple-icon' ||
+    pathname === '/push-handlers.js' ||
     pathname === '/service-worker.js' ||
     pathname === '/favicon.ico' ||
-    pathname.startsWith('/icons/')
+    (pathname.startsWith('/workbox-') && pathname.endsWith('.js')) ||
+    pathname.startsWith('/icons/') ||
+    isStaticPublicFile
 
   // Public routes that should NOT require authentication
   const isPublicRoute =
@@ -208,6 +213,6 @@ export const config = {
      * - icons directory
      * - public files (images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|manifest\\.webmanifest|manifest\\.json|sw\\.js|service-worker\\.js|icons/.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|apple-icon|manifest\\.webmanifest|manifest\\.json|sw\\.js|push-handlers\\.js|service-worker\\.js|workbox-.*\\.js|icons/.*|.*\\.(?:js|map|svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -3,7 +3,7 @@ self.addEventListener('push', function (event) {
     title: 'Zmeurel OS',
     body: '',
     icon: '/icon-192.png',
-    badge: '/badge-72.png',
+    badge: '/icons/icon-72.png',
     url: '/',
     tag: undefined,
   }
@@ -23,7 +23,7 @@ self.addEventListener('push', function (event) {
         payload.url = parsed.url || payload.url
         payload.tag = parsed.tag || parsed.notificationId || payload.tag
       }
-    } catch (error) {
+    } catch {
       if (text) {
         payload.body = text
       }
@@ -34,7 +34,7 @@ self.addEventListener('push', function (event) {
     self.registration.showNotification(payload.title, {
       body: payload.body,
       icon: payload.icon || '/icon-192.png',
-      badge: payload.badge || '/badge-72.png',
+      badge: payload.badge || '/icons/icon-72.png',
       data: {
         url: payload.url || '/',
       },
@@ -53,7 +53,7 @@ self.addEventListener('notificationclick', function (event) {
 
   try {
     normalizedUrl = new URL(targetUrl, self.location.origin).href
-  } catch (error) {
+  } catch {
     normalizedUrl = self.location.origin + '/'
   }
 
