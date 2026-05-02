@@ -56,7 +56,46 @@ function createPlanLinieBuilder(cohort: 'floricane' | 'primocane' | null = null)
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     produs: null,
-    produse: [],
+    produse: [
+      {
+        id: 'plan-linie-produs-1',
+        tenant_id: 'tenant-1',
+        plan_linie_id: '00000000-0000-4000-8000-000000000002',
+        ordine: 1,
+        produs_id: 'produs-1',
+        produs_nume_manual: null,
+        produs_nume_snapshot: 'Switch 62.5 WG',
+        substanta_activa_snapshot: 'ciprodinil + fludioxonil',
+        tip_snapshot: 'fungicid',
+        frac_irac_snapshot: '9+12',
+        phi_zile_snapshot: 7,
+        doza_ml_per_hl: 80,
+        doza_l_per_ha: null,
+        observatii: null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        produs: {
+          id: 'produs-1',
+          tenant_id: 'tenant-1',
+          nume_comercial: 'Switch 62.5 WG',
+          substanta_activa: 'ciprodinil + fludioxonil',
+          tip: 'fungicid',
+          frac_irac: '9+12',
+          doza_min_ml_per_hl: null,
+          doza_max_ml_per_hl: null,
+          doza_min_l_per_ha: null,
+          doza_max_l_per_ha: null,
+          phi_zile: 7,
+          nr_max_aplicari_per_sezon: null,
+          interval_min_aplicari_zile: 10,
+          omologat_culturi: ['zmeur'],
+          activ: true,
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+          created_by: null,
+        },
+      },
+    ],
     plan: {
       id: 'plan-1',
       nume: 'Plan test',
@@ -70,6 +109,17 @@ function createPlanLinieBuilder(cohort: 'floricane' | 'primocane' | null = null)
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
     maybeSingle: vi.fn(async () => ({ data: row, error: null })),
+  }
+
+  return builder
+}
+
+function createAppliedAplicariBuilder(aplicari: unknown[]) {
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    is: vi.fn(() => builder),
+    order: vi.fn(async () => ({ data: aplicari, error: null })),
   }
 
   return builder
@@ -160,5 +210,66 @@ describe('createAplicarePlanificataDinInterventie', () => {
 
     expect(result).toBe(existing)
     expect(aplicariBuilder.eq).toHaveBeenCalledWith('cohort_la_aplicare', 'primocane')
+  })
+
+  it('blochează pregătirea dacă data cerută este înainte de repetarea recomandată', async () => {
+    const existingBuilder = createExistingAplicareBuilder(null)
+    const appliedBuilder = createAppliedAplicariBuilder([
+      {
+        id: 'aplicare-aplicata-1',
+        tenant_id: 'tenant-1',
+        parcela_id: '00000000-0000-4000-8000-000000000001',
+        cultura_id: null,
+        plan_linie_id: '00000000-0000-4000-8000-000000000002',
+        produs_id: 'produs-1',
+        produs_nume_manual: null,
+        data_planificata: '2026-05-01',
+        data_aplicata: '2026-05-01T08:00:00Z',
+        doza_ml_per_hl: 80,
+        doza_l_per_ha: null,
+        cantitate_totala_ml: null,
+        stoc_mutatie_id: null,
+        status: 'aplicata',
+        sursa: 'din_plan',
+        tip_interventie: 'protectie',
+        scop: null,
+        stadiu_fenologic_id: null,
+        diferente_fata_de_plan: null,
+        meteo_snapshot: null,
+        stadiu_la_aplicare: 'inflorit',
+        cohort_la_aplicare: null,
+        observatii: null,
+        operator: null,
+        created_at: '2026-05-01T08:00:00Z',
+        updated_at: '2026-05-01T08:00:00Z',
+        created_by: null,
+        updated_by: null,
+      },
+    ])
+    const linieBuilder = createPlanLinieBuilder()
+    let aplicariCall = 0
+    const supabase = {
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      },
+      from: vi.fn((table: string) => {
+        if (table === 'planuri_tratament_linii') return linieBuilder
+        if (table === 'aplicari_tratament') {
+          aplicariCall += 1
+          return aplicariCall === 1 ? existingBuilder : appliedBuilder
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      }),
+    }
+
+    createClientMock.mockResolvedValue(supabase)
+
+    await expect(
+      createAplicarePlanificataDinInterventie({
+        parcela_id: '00000000-0000-4000-8000-000000000001',
+        plan_linie_id: '00000000-0000-4000-8000-000000000002',
+        data_planificata: '2026-05-07',
+      }),
+    ).rejects.toThrow(/următoarea repetare recomandată/i)
   })
 })

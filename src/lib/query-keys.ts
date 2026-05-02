@@ -17,6 +17,7 @@ export const queryKeys = {
   meteo: ['meteo'] as const,
   miscariStoc: ['miscari-stoc'] as const,
   currentUserProfile: ['current-user-profile'] as const,
+  dashboardNextTreatmentSuggestion: ['dashboard', 'next-treatment-suggestion'] as const,
   parcela: (parcelaId: string) => ['parcela', parcelaId] as const,
   parcelaCultureStages: (parcelaId: string) => ['parcela', parcelaId, 'culture-stages'] as const,
   parcelaCultureStagesLegacy: (parcelaId: string) => ['parcela', parcelaId, 'culture-stages-legacy'] as const,

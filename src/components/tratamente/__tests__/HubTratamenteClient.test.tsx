@@ -323,11 +323,12 @@ describe('HubTratamenteClient', () => {
     await user.click(screen.getByRole('button', { name: 'Relevante acum' }))
 
     expect(screen.getByText('Relevante operațional')).toBeInTheDocument()
-    expect(screen.getAllByText('De făcut acum').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('De pregătit azi').length).toBeGreaterThan(0)
     expect(screen.getByText(/Interval: 7 zile/i)).toBeInTheDocument()
     expect(screen.getByText(/Aplicări efectuate: 1/i)).toBeInTheDocument()
+    expect(screen.getByText(/Următoarea repetare/i)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Pregătește aplicare' }))
+    await user.click(screen.getByRole('button', { name: 'Pregătește aplicare din plan' }))
 
     await waitFor(() => {
       expect(planificaInterventieRelevantaActionMock).toHaveBeenCalledTimes(1)

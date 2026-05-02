@@ -13,7 +13,11 @@ export function detectDuplicates<T extends PlanLinie>(
       .filter(
         (aplicare) =>
           typeof aplicare.planLinieId === 'string' &&
-          (aplicare.status === 'planificata' || aplicare.status === 'aplicata')
+          (
+            aplicare.status === 'planificata' ||
+            aplicare.status === 'reprogramata' ||
+            aplicare.status === 'aplicata'
+          )
       )
       .map((aplicare) => aplicare.planLinieId as string)
   )

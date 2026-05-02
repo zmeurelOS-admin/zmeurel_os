@@ -6,6 +6,7 @@ import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import { buildConformitateMetrici } from '@/lib/tratamente/conformitate/build-metrici'
 import type { ConformitateMetrici } from '@/lib/tratamente/conformitate/types'
 import { getMeteoSnapshot } from '@/lib/tratamente/meteo'
+import { resolveRecurrence } from '@/lib/tratamente/recurrence'
 import {
   normalizeStadiu,
   type GrupBiologic,
@@ -2829,9 +2830,6 @@ function buildInterventieOperationalState(params: {
   const ultimaAplicare = aplicariAplicate[0] ?? null
   const aplicarePlanificata = aplicariPlanificate[0] ?? null
   const aplicariEfectuateCount = aplicariAplicate.length
-  const regulaRepetare = params.interventie.regula_repetare === 'interval' ? 'interval' : 'fara_repetare'
-  const intervalZile = normalizeOptionalPositiveNumber(params.interventie.interval_repetare_zile)
-  const maxRepetari = normalizeOptionalPositiveNumber(params.interventie.numar_repetari_max)
 
   if (!params.fenofaza.stadiu) {
     return {
@@ -2845,27 +2843,19 @@ function buildInterventieOperationalState(params: {
     }
   }
 
-  if (maxRepetari !== null && aplicariEfectuateCount >= maxRepetari) {
-    return {
-      ultima_aplicare: ultimaAplicare,
-      aplicare_planificata: aplicarePlanificata,
-      aplicari_efectuate_count: aplicariEfectuateCount,
-      urmatoarea_data_estimata: null,
-      zile_ramase: null,
-      status_operational: 'completata_pentru_moment',
-      motiv: `A fost atins numărul maxim de ${maxRepetari} repetări pentru această intervenție.`,
-    }
-  }
-
   const plannedDate = aplicarePlanificata ? aplicareRelevantDate(aplicarePlanificata) : null
   const lastAppliedDate = ultimaAplicare ? aplicareRelevantDate(ultimaAplicare) : null
-  const dueDate =
-    plannedDate ??
-    (regulaRepetare === 'interval' && lastAppliedDate && intervalZile
-      ? addDaysIsoDate(lastAppliedDate, intervalZile)
-      : lastAppliedDate
-        ? null
-        : params.todayIso)
+  const recurrence = resolveRecurrence({
+    todayIso: params.todayIso,
+    plannedDate,
+    lastAppliedDate,
+    appliedCount: aplicariEfectuateCount,
+    regulaRepetare: params.interventie.regula_repetare === 'interval' ? 'interval' : 'fara_repetare',
+    intervalRepetareZile: params.interventie.interval_repetare_zile,
+    numarRepetariMax: params.interventie.numar_repetari_max,
+    productIntervalMinDays: params.interventie.produse.map((produs) => produs.produs?.interval_min_aplicari_zile),
+  })
+  const dueDate = recurrence.dueDate
 
   if (!dueDate) {
     return {
@@ -2875,26 +2865,17 @@ function buildInterventieOperationalState(params: {
       urmatoarea_data_estimata: null,
       zile_ramase: null,
       status_operational: 'completata_pentru_moment',
-      motiv: 'Intervenția fără repetare are deja o aplicare efectuată pentru fenofaza curentă.',
+      motiv: recurrence.reason,
     }
   }
 
-  const zileRamase = diffDaysIsoDate(params.todayIso, dueDate)
+  const zileRamase = recurrence.zileRamase
   const statusOperational: InterventieStatusOperational =
     typeof zileRamase === 'number' && zileRamase < 0
       ? 'intarziata'
       : typeof zileRamase === 'number' && zileRamase > 0
         ? 'urmeaza'
         : 'de_facut_azi'
-
-  const motiv =
-    statusOperational === 'intarziata'
-      ? `Scadența estimată a fost pe ${dueDate}.`
-      : statusOperational === 'urmeaza'
-        ? `Următoarea aplicare este estimată peste ${zileRamase} zile.`
-        : aplicarePlanificata
-          ? 'Există o aplicare planificată pentru intervenția din plan.'
-          : 'Fenofaza curentă se potrivește cu intervenția din plan.'
 
   return {
     ultima_aplicare: ultimaAplicare,
@@ -2903,7 +2884,7 @@ function buildInterventieOperationalState(params: {
     urmatoarea_data_estimata: dueDate,
     zile_ramase: zileRamase,
     status_operational: statusOperational,
-    motiv,
+    motiv: recurrence.reason,
   }
 }
 
@@ -3086,13 +3067,51 @@ export async function createAplicarePlanificataDinInterventie(
     throw new Error('Intervenția din plan nu are produse planificate.')
   }
 
+  let appliedQuery = ctx.supabase
+    .from('aplicari_tratament')
+    .select(APLICARE_SELECT)
+    .eq('tenant_id', ctx.tenantId)
+    .eq('parcela_id', input.parcela_id)
+    .eq('plan_linie_id', input.plan_linie_id)
+    .eq('status', 'aplicata')
+
+  appliedQuery = effectiveCohort
+    ? appliedQuery.eq('cohort_la_aplicare', effectiveCohort)
+    : appliedQuery.is('cohort_la_aplicare', null)
+
+  const { data: appliedRows, error: appliedError } = await appliedQuery.order('data_aplicata', { ascending: false })
+  if (appliedError) throw appliedError
+
+  const appliedAplicari = (appliedRows ?? []) as AplicareTratamentDetaliu[]
+  const recurrence = resolveRecurrence({
+    todayIso: toIsoDate(new Date()),
+    plannedDate: null,
+    lastAppliedDate: appliedAplicari[0] ? aplicareRelevantDate(appliedAplicari[0]) : null,
+    appliedCount: appliedAplicari.length,
+    regulaRepetare: linie.regula_repetare === 'interval' ? 'interval' : 'fara_repetare',
+    intervalRepetareZile: linie.interval_repetare_zile,
+    numarRepetariMax: linie.numar_repetari_max,
+    productIntervalMinDays: linie.produse.map((produs) => produs.produs?.interval_min_aplicari_zile),
+  })
+
+  if (!recurrence.dueDate) {
+    throw new Error(recurrence.reason)
+  }
+
+  const requestedDate = input.data_planificata?.slice(0, 10) ?? null
+  if (requestedDate && requestedDate < recurrence.dueDate) {
+    throw new Error(
+      `Data planificată este înainte de următoarea repetare recomandată (${recurrence.dueDate}). ${recurrence.reason}`,
+    )
+  }
+
   return createAplicarePlanificata({
     parcela_id: input.parcela_id,
     plan_linie_id: linie.id,
     sursa: 'din_plan',
     tip_interventie: linie.tip_interventie ?? null,
     scop: linie.scop ?? null,
-    data_planificata: input.data_planificata?.slice(0, 10) ?? toIsoDate(new Date()),
+    data_planificata: requestedDate ?? recurrence.dueDate,
     stadiu_la_aplicare: linie.stadiu_trigger,
     cohort_la_aplicare: effectiveCohort,
     observatii: linie.observatii,

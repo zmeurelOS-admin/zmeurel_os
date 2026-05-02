@@ -1,5 +1,5 @@
 # MODULES.md — Module Zmeurel OS
-_Last updated: 2026-03-21_
+_Last updated: 2026-05-02_
 
 ---
 
@@ -9,15 +9,20 @@ _Last updated: 2026-03-21_
 | Route | `/dashboard` |
 | Page file | `src/app/(dashboard)/dashboard/page.tsx` |
 | Client | `src/app/(dashboard)/dashboard/page.tsx` (`'use client'`, fără wrapper `DashboardHome`) |
-| Tabele Supabase | `recoltari`, `vanzari`, `cheltuieli_diverse`, `investitii`, `parcele`, `culegatori`, `comenzi` |
-| Query keys | `queryKeys.recoltari`, `queryKeys.parcele`, `queryKeys.activitati`, `queryKeys.vanzari`, `queryKeys.cheltuieli`, `queryKeys.comenzi`, `queryKeys.stocuriLocatiiRoot` |
+| Tabele Supabase | `recoltari`, `vanzari`, `cheltuieli_diverse`, `investitii`, `parcele`, `culegatori`, `comenzi`, `aplicari_tratament`, `planuri_tratament_linii`, `recoltari` (PHI lookup) |
+| Query keys | `queryKeys.recoltari`, `queryKeys.parcele`, `queryKeys.activitati`, `queryKeys.vanzari`, `queryKeys.cheltuieli`, `queryKeys.comenzi`, `queryKeys.stocuriLocatiiRoot`, `queryKeys.dashboardNextTreatmentSuggestion` |
 
 **Componente cheie:**
 - `MeteoDashboardCard` — cardul meteo activ al dashboard-ului
+- `DashboardNextTreatmentCard` — card V2 compact „Următorul tratament recomandat”, alimentat din endpointul server-side `/api/dashboard/next-treatment-suggestion`
 - `TaskList` — lista activă „Todo azi”
 - `DashboardWidgets` — widget-uri configurabile (`KpiSummaryWidget`, `ComenziRecenteWidget`, `ActivitatiPlanificateWidget`, `RecoltariRecenteWidget`, `StocuriCriticeWidget`, `SumarVenituriWidget`)
 - `WelcomeCard` — card onboarding pentru ferme fără parcele
 - `src/lib/dashboard/engine.ts` — layer logic Dashboard 2.0 (`DashboardRawData`, `ParcelDashboardState`, tasks/alerts/summary/weather builders)
+- `src/lib/dashboard/treatment-suggestions.ts` — builderul determinist pentru sugestiile V2 de tratament (aplicări planificate/reprogramate, intervenții relevante neplanificate, PHI, pauză minimă și ferestre meteo)
+- Recomandările pentru cardul „Recomandări pentru azi” nu repetă mesajul din „Următorul tratament recomandat”; deduplicarea cu „Atenție azi” folosește `hasNextTreatmentSuggestionCard` în `buildAttentionNowItems`
+- Semnal tratamente în dashboard: prioritate V2 prin `nextTreatmentSuggestions`; taskurile/alertele legacy din `activitati_agricole` și `treatmentIntervalByParcela` rămân doar fallback când V2 nu are date
+- Recurența tratamentelor rămâne sugestie confirmată de utilizator: `InterventieRelevantaV2` calculează „următoarea repetare recomandată”, iar materializarea în `aplicari_tratament` se face doar explicit; pentru repetări se respectă `numar_repetari_max` și intervalul mai restrictiv dintre intervenție și produs
 
 ---
 
@@ -341,7 +346,9 @@ Helpers: `src/lib/tratamente/` (phi-checker, rotatie-frac, cupru-cumulat, doza-c
 stadiu-ordering, generator, phi-guard, scheduler)
 
 Cron: `/api/cron/tratamente-scan` rulează de 2x/zi și trimite notificări push pentru
-aplicări planificate azi sau mâine.
+aplicări planificate azi sau mâine. Push-urile programate trec prin tipul
+`tratament_reminder` (definit în `src/lib/notifications/config.ts` cu `pushEnabled: true`)
+și sunt gate-uite uniform de `shouldSendWebPushForType` în `sendPushToUser` — la fel ca restul fluxurilor de Web Push.
 
 Status:
 - fundația DB + queries + helpers + engine generator + PHI guard + notificări complete

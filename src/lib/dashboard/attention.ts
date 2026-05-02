@@ -24,6 +24,8 @@ type BuildAttentionNowItemsInput = {
   tasks: DashboardTaskItem[]
   parcelAttentionItems: AttentionParcelSlice[]
   recommendationIds: Set<string>
+  /** Când există cardul V2 „Următorul tratament”, nu repeta același semnal în „Atenție azi”. */
+  hasNextTreatmentSuggestionCard?: boolean
 }
 
 const MAX_ATTENTION_ITEMS = 4
@@ -41,7 +43,7 @@ function alertTone(alert: DashboardAlert): DashboardAttentionItem['tone'] {
 function alertHref(alert: DashboardAlert): string | undefined {
   if (alert.category === 'comenzi') return '/comenzi'
   if (alert.category === 'stoc') return '/stocuri'
-  if (alert.category === 'tratamente') return '/activitati-agricole'
+  if (alert.category === 'tratamente') return '/tratamente'
   if (alert.category === 'parcele') return '/parcele'
   return undefined
 }
@@ -49,7 +51,7 @@ function alertHref(alert: DashboardAlert): string | undefined {
 function alertDetail(alert: DashboardAlert): string | undefined {
   if (alert.category === 'comenzi') return 'Verifică livrările și statusurile active.'
   if (alert.category === 'stoc') return 'Confirmă produsele care au ajuns aproape de limită.'
-  if (alert.category === 'tratamente') return 'Vezi lucrările și intervalele de tratament.'
+  if (alert.category === 'tratamente') return 'Deschide hub-ul Protecție & Nutriție pentru detalii.'
   if (alert.category === 'parcele') return 'Uită-te la terenurile care cer încă o verificare.'
   if (alert.category === 'meteo') return 'Ține cont de condițiile de astăzi înainte de tratamente.'
   return undefined
@@ -81,7 +83,11 @@ function alertDuplicatedByOperationalTask(alert: DashboardAlert, taskIds: Set<st
   return false
 }
 
-function concernCoveredByRecommendations(concern: AttentionConcern, recIds: Set<string>): boolean {
+function concernCoveredByRecommendations(
+  concern: AttentionConcern,
+  recIds: Set<string>,
+  hasNextTreatmentSuggestionCard?: boolean,
+): boolean {
   if (concern === 'meteo') return true
   switch (concern) {
     case 'orders':
@@ -93,7 +99,12 @@ function concernCoveredByRecommendations(concern: AttentionConcern, recIds: Set<
     case 'stock':
       return recIds.has('rec-stock-low')
     case 'treatments':
-      return recIds.has('rec-treatment-alerts') || recIds.has('rec-parcel-treatment')
+      return (
+        Boolean(hasNextTreatmentSuggestionCard) ||
+        recIds.has('rec-treatment-alerts') ||
+        recIds.has('rec-parcel-treatment') ||
+        recIds.has('rec-next-treatment')
+      )
     case 'pause':
       return recIds.has('rec-pause')
     case 'parcels':
@@ -107,6 +118,8 @@ function buildParcelCandidate(
   parcel: AttentionParcelSlice,
   taskIds: Set<string>,
 ): AttentionCandidate | null {
+  // Parcel attention flags rămân doar ca fallback legacy atunci când dashboard-ul
+  // nu are încă semnal V2 pentru Tratamente.
   if (parcel.attentionFlags.includes('treatment_overdue')) {
     if (taskIds.has(`tratament:${parcel.parcelaId}`)) return null
     return {
@@ -120,7 +133,7 @@ function buildParcelCandidate(
         detail: 'Există semnale de tratament întârziat pe această parcelă.',
         tone: 'warning',
         badge: 'Azi',
-        href: '/activitati-agricole',
+        href: '/tratamente',
       },
     }
   }
@@ -137,7 +150,7 @@ function buildParcelCandidate(
         detail: 'Planifică intervenția înainte să intre în întârziere.',
         tone: 'info',
         badge: 'Info',
-        href: '/activitati-agricole',
+        href: '/tratamente',
       },
     }
   }
@@ -155,7 +168,7 @@ function buildParcelCandidate(
         detail: 'Respectă intervalul de pauză înainte de următorul tratament.',
         tone: 'warning',
         badge: 'Azi',
-        href: '/activitati-agricole',
+        href: '/tratamente',
       },
     }
   }
@@ -188,7 +201,7 @@ function buildParcelCandidate(
  * Nu include task-uri operaționale (sunt în „Ce ai de făcut azi”) și exclude meteo (card Meteo).
  */
 export function buildAttentionNowItems(input: BuildAttentionNowItemsInput): DashboardAttentionItem[] {
-  const { alerts, tasks, parcelAttentionItems, recommendationIds } = input
+  const { alerts, tasks, parcelAttentionItems, recommendationIds, hasNextTreatmentSuggestionCard } = input
   const candidates: AttentionCandidate[] = []
   const taskIds = new Set(tasks.map((t) => t.id))
 
@@ -233,7 +246,7 @@ export function buildAttentionNowItems(input: BuildAttentionNowItemsInput): Dash
   }
 
   const sorted = [...byConcern.values()]
-    .filter((c) => !concernCoveredByRecommendations(c.concern, recommendationIds))
+    .filter((c) => !concernCoveredByRecommendations(c.concern, recommendationIds, hasNextTreatmentSuggestionCard))
     .sort((a, b) => {
       if (a.priority !== b.priority) return b.priority - a.priority
       if (a.sourceRank !== b.sourceRank) return a.sourceRank - b.sourceRank

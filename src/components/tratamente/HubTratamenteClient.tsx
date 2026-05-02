@@ -398,6 +398,8 @@ export function HubTratamenteClient({
     [filters, parcelFilteredAplicari]
   )
 
+  const compactAplicariFiltersOnMobile = visibleAplicari.length <= 4
+
   const visibleInterventiiRelevante = useMemo(() => {
     if (selectedParcele.length === 0) return interventiiRelevante
     return interventiiRelevante.filter((interventie) => selectedParcele.includes(interventie.parcela_id))
@@ -578,7 +580,10 @@ export function HubTratamenteClient({
               </select>
               <select
                 aria-label="Filtru tip"
-                className="agri-control h-10 rounded-xl text-sm"
+                className={cn(
+                  'agri-control h-10 rounded-xl text-sm',
+                  compactAplicariFiltersOnMobile && 'max-md:hidden',
+                )}
                 value={tipFilter}
                 onChange={(event) =>
                   syncFilters({ ...filters, tipFilter: event.target.value })
@@ -602,7 +607,10 @@ export function HubTratamenteClient({
               </select>
               <select
                 aria-label="Filtru fenofază"
-                className="agri-control h-10 rounded-xl text-sm"
+                className={cn(
+                  'agri-control h-10 rounded-xl text-sm',
+                  compactAplicariFiltersOnMobile && 'max-md:hidden',
+                )}
                 value={stageFilter}
                 onChange={(event) =>
                   syncFilters({ ...filters, stageFilter: event.target.value })

@@ -13,10 +13,13 @@ import {
   Users,
   Warehouse,
 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { ro } from 'date-fns/locale'
 
 import { Sparkline } from '@/components/dashboard/Sparkline'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
+import type { DashboardTreatmentSuggestion } from '@/lib/dashboard/treatment-suggestions'
 import { cn } from '@/lib/utils'
 
 type SectionTone = 'neutral' | 'info' | 'warning' | 'critical' | 'success'
@@ -82,6 +85,53 @@ function itemToneClass(tone: SectionTone) {
   if (tone === 'success') return 'text-[var(--success-text)]'
   if (tone === 'info') return 'text-[var(--info-text)]'
   return 'text-[var(--text-primary)]'
+}
+
+function treatmentStatusMeta(status: DashboardTreatmentSuggestion['status']) {
+  if (status === 'blocked') {
+    return {
+      label: 'Blocat',
+      className: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
+    }
+  }
+  if (status === 'weather_wait') {
+    return {
+      label: 'Așteaptă meteo',
+      className: 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
+    }
+  }
+  if (status === 'overdue') {
+    return {
+      label: 'Întârziat',
+      className: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
+    }
+  }
+  if (status === 'today') {
+    return {
+      label: 'Azi',
+      className: 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
+    }
+  }
+  return {
+    label: 'În curând',
+    className: 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
+  }
+}
+
+function warningLabel(warning: DashboardTreatmentSuggestion['warnings'][number]) {
+  if (warning === 'phi') return 'PHI activ'
+  if (warning === 'pauza') return 'Pauză activă'
+  if (warning === 'meteo') return 'Meteo neconfirmat'
+  return 'Fenofază lipsă'
+}
+
+function formatTreatmentDate(value: string | null): string | null {
+  if (!value) return null
+  try {
+    return format(parseISO(value), 'd MMM', { locale: ro })
+  } catch {
+    return value
+  }
 }
 
 export function DashboardSectionCard({
@@ -226,6 +276,132 @@ export function DashboardRecommendationsCard({
       {boostText ? (
         <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">{boostText}</p>
       ) : null}
+    </DashboardSectionCard>
+  )
+}
+
+function TreatmentSuggestionBlock({
+  suggestion,
+  primary = false,
+  secondary = false,
+}: {
+  suggestion: DashboardTreatmentSuggestion
+  primary?: boolean
+  secondary?: boolean
+}) {
+  const status = treatmentStatusMeta(suggestion.status)
+  const detailHref = suggestion.aplicareId
+    ? `/parcele/${suggestion.parcelaId}/tratamente/aplicare/${suggestion.aplicareId}`
+    : '/tratamente'
+  const dateLabel = formatTreatmentDate(suggestion.recommendedDate)
+
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-[var(--divider)] bg-[var(--surface-card-muted)] p-4',
+        primary ? '' : 'px-3.5 py-3',
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span className={cn('inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold', status.className)}>
+          {status.label}
+        </span>
+        {secondary ? (
+          <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            A doua sugestie
+          </span>
+        ) : null}
+        <span className="min-w-0 max-w-full break-words text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+          {suggestion.parcelaLabel}
+        </span>
+      </div>
+
+      <h3 className="mt-3 text-[15px] leading-5 text-[var(--text-primary)] [font-weight:700]">
+        {suggestion.interventieLabel ?? suggestion.produsLabel}
+      </h3>
+      <p className="mt-1 text-[13px] leading-5 text-[var(--text-secondary)]">{suggestion.produsLabel}</p>
+      {dateLabel ? (
+        <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">
+          {suggestion.status === 'soon' ? 'Recomandat până la' : 'Data recomandată'}: {dateLabel}
+        </p>
+      ) : null}
+      <p className="mt-2 text-[13px] leading-[1.55] text-[var(--text-primary)]">{suggestion.reason}</p>
+
+      {suggestion.firstSafeWindowLabel ? (
+        <p className="mt-2 text-[12px] leading-5 text-[var(--text-secondary)]">
+          Fereastră meteo: {suggestion.firstSafeWindowLabel}
+        </p>
+      ) : null}
+
+      {suggestion.warnings.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {suggestion.warnings.map((warning) => (
+            <span
+              key={`${suggestion.parcelaId}:${warning}`}
+              className="inline-flex rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]"
+            >
+              {warningLabel(warning)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {primary ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {suggestion.aplicareId ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href={detailHref}>Vezi aplicarea</Link>
+            </Button>
+          ) : null}
+          <Button asChild size="sm">
+            <Link href="/tratamente">Deschide hub Tratamente</Link>
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export function DashboardNextTreatmentCard({
+  primary,
+  secondary,
+  loading = false,
+}: {
+  primary: DashboardTreatmentSuggestion | null
+  secondary: DashboardTreatmentSuggestion | null
+  loading?: boolean
+}) {
+  return (
+    <DashboardSectionCard
+      eyebrow="Sugestie operațională"
+      title="Următorul tratament recomandat"
+      description="Semnal rapid din Protecție & Nutriție. Este o sugestie operațională, nu o prescripție fitosanitară."
+    >
+      {loading ? (
+        <div className="space-y-3 animate-pulse">
+          <div className="h-28 rounded-2xl bg-[var(--surface-card-muted)]" />
+          <div className="h-20 rounded-2xl bg-[var(--surface-card-muted)]" />
+        </div>
+      ) : primary ? (
+        <div className="space-y-3">
+          <TreatmentSuggestionBlock suggestion={primary} primary />
+          {secondary ? <TreatmentSuggestionBlock suggestion={secondary} secondary /> : null}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-[var(--divider)] bg-[var(--surface-card-muted)] p-4">
+          <p className="text-[13px] leading-5 text-[var(--text-primary)] [font-weight:650]">
+            Nu există un tratament recomandat în datele curente.
+          </p>
+          <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+            Completează fenofaza, planurile și aplicările programate — altfel nu avem suficiente date pentru o sugestie.
+          </p>
+          <div className="mt-3">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/tratamente">Deschide hub Tratamente</Link>
+            </Button>
+          </div>
+        </div>
+      )}
     </DashboardSectionCard>
   )
 }

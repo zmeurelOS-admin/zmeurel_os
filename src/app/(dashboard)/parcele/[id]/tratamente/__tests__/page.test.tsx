@@ -220,7 +220,7 @@ describe('parcela tratamente page', () => {
     )
     expect(screen.getByText('Nu ai înregistrat încă nicio fenofază anul acesta.')).toBeInTheDocument()
     expect(screen.getByText('Nicio parcelă asociată pentru 2026')).toBeInTheDocument()
-    expect(screen.getByText('Nu există încă aplicări planificate pentru această parcelă în anul curent.')).toBeInTheDocument()
+    expect(screen.getByText(/Nu există încă aplicări planificate pentru această parcelă în anul curent\./i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generează aplicări' })).not.toBeInTheDocument()
   })
 
@@ -239,7 +239,7 @@ describe('parcela tratamente page', () => {
 
     expect(screen.getByText(/Buton verde|Inflorescențe vizibile/i)).toBeInTheDocument()
     expect(screen.getByText('Nicio parcelă asociată pentru 2026')).toBeInTheDocument()
-    expect(screen.getByText('Nu există încă aplicări planificate pentru această parcelă în anul curent.')).toBeInTheDocument()
+    expect(screen.getByText(/Nu există încă aplicări planificate pentru această parcelă în anul curent\./i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generează aplicări' })).not.toBeInTheDocument()
   })
 

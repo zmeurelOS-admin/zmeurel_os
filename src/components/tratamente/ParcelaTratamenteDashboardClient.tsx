@@ -331,7 +331,7 @@ export function ParcelaTratamenteDashboardClient({
           interventii={interventiiRelevante}
           onPlanifica={handlePlanificaInterventie}
           pendingInterventieId={isPlanificaPending ? pendingInterventieId : null}
-          showFilters
+          showFilters={interventiiRelevante.length > 4}
           title="Intervenții relevante"
         />
 
@@ -356,7 +356,7 @@ export function ParcelaTratamenteDashboardClient({
           {urmatoareleAplicari.length === 0 ? (
             <AppCard className="rounded-2xl border-dashed bg-[var(--surface-card-muted)]">
               <p className="text-sm text-[var(--text-secondary)]">
-                Nu există încă aplicări planificate pentru această parcelă în anul curent.
+                Nu există încă aplicări planificate pentru această parcelă în anul curent. Dacă vezi intervenții relevante mai sus, apasă „Pregătește aplicare din plan”.
               </p>
             </AppCard>
           ) : (

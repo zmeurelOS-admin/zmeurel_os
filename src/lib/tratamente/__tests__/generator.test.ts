@@ -184,6 +184,17 @@ describe('generator helpers', () => {
       expect(rezultat.duplicate.map((linie) => linie.id)).toEqual(['l1', 'l2'])
     })
 
+    it('tratează aplicările reprogramate ca duplicate active', () => {
+      const aplicari: AplicareExistenta[] = [
+        { id: 'a-reprogramata', planLinieId: 'l1', status: 'reprogramata' },
+      ]
+
+      const rezultat = detectDuplicates(liniiCuData, aplicari)
+
+      expect(rezultat.noi.map((linie) => linie.id)).toEqual(['l2'])
+      expect(rezultat.duplicate.map((linie) => linie.id)).toEqual(['l1'])
+    })
+
     it('nu tratează aplicările anulate ca duplicate', () => {
       const aplicari: AplicareExistenta[] = [
         { id: 'a-anulata', planLinieId: 'l1', status: 'anulata' },

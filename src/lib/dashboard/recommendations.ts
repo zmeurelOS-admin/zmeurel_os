@@ -1,6 +1,7 @@
 import type { DashboardRecommendationItem } from '@/components/dashboard/DashboardV2Sections'
 import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 import type { DashboardAlert, MeteoData, ParcelAttentionFlag } from '@/lib/dashboard/engine'
+import type { DashboardTreatmentSuggestion } from '@/lib/dashboard/treatment-suggestions'
 
 export type ParcelAttentionSlice = {
   displayName: string
@@ -21,6 +22,7 @@ export type BuildDashboardRecommendationsInput = {
   parcelAttentionItems: ParcelAttentionSlice[]
   plannedActivitiesCount: number
   criticalStockCount: number
+  nextTreatmentSuggestion?: DashboardTreatmentSuggestion | null
 }
 
 const MAX_RECOMMENDATIONS = 5
@@ -48,7 +50,15 @@ function hasAlertCategory(alerts: DashboardAlert[], category: DashboardAlert['ca
 export function buildDashboardRecommendations(
   input: BuildDashboardRecommendationsInput,
 ): DashboardRecommendationItem[] {
-  const { meteo, tasks, alerts, parcelAttentionItems, plannedActivitiesCount, criticalStockCount } = input
+  const {
+    meteo,
+    tasks,
+    alerts,
+    parcelAttentionItems,
+    plannedActivitiesCount,
+    criticalStockCount,
+    nextTreatmentSuggestion,
+  } = input
 
   const out: DashboardRecommendationItem[] = []
   const seen = new Set<string>()
@@ -97,6 +107,7 @@ export function buildDashboardRecommendations(
   )
 
   if (
+    !nextTreatmentSuggestion &&
     !treatmentParcel &&
     (hasAlertCategory(alerts, 'tratamente') || tasks.some((t) => t.id.startsWith('tratament:')))
   ) {
@@ -115,7 +126,7 @@ export function buildDashboardRecommendations(
     })
   }
 
-  if (treatmentParcel) {
+  if (treatmentParcel && !nextTreatmentSuggestion) {
     push({
       id: 'rec-parcel-treatment',
       text: trimSentence(

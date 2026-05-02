@@ -34,7 +34,7 @@ const STATUS_META: Record<InterventieStatusOperational, {
   icon: typeof Clock3
 }> = {
   de_facut_azi: {
-    label: 'De făcut acum',
+    label: 'De pregătit azi',
     className: 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
     icon: CheckCircle2,
   },
@@ -87,6 +87,20 @@ function getProductLabel(interventie: InterventieRelevantaV2): string {
   return interventie.produse_planificate.length > 1 ? `${name} +${interventie.produse_planificate.length - 1}` : name
 }
 
+function buildReasonBadges(interventie: InterventieRelevantaV2): string[] {
+  const badges: string[] = []
+  if (interventie.regula_repetare === 'interval' && interventie.aplicari_efectuate_count > 0) {
+    badges.push('Repetare')
+  }
+  if (interventie.motiv.toLowerCase().includes('intervalul mai restrictiv al produsului')) {
+    badges.push('Interval produs')
+  }
+  if (interventie.motiv.toLowerCase().includes('numărul maxim')) {
+    badges.push('Max atins')
+  }
+  return badges
+}
+
 function getInterventieKey(interventie: InterventieRelevantaV2): string {
   return `${interventie.parcela_id}:${interventie.interventie.id}:${interventie.fenofaza_curenta?.cohort ?? 'single'}`
 }
@@ -123,6 +137,8 @@ export function InterventiiRelevanteCard({
     }
     return Array.from(values).sort((first, second) => first.localeCompare(second, 'ro'))
   }, [interventii])
+
+  const compactFiltersOnMobile = interventii.length <= 4
 
   const visibleInterventii = useMemo(() => {
     return interventii.filter((interventie) => {
@@ -162,7 +178,10 @@ export function InterventiiRelevanteCard({
             ))}
           </select>
           <select
-            className="agri-control h-10 rounded-xl text-sm"
+            className={cn(
+              'agri-control h-10 rounded-xl text-sm',
+              compactFiltersOnMobile && 'max-md:hidden',
+            )}
             value={stageFilter}
             onChange={(event) => setStageFilter(event.target.value)}
           >
@@ -174,7 +193,10 @@ export function InterventiiRelevanteCard({
             ))}
           </select>
           <select
-            className="agri-control h-10 rounded-xl text-sm"
+            className={cn(
+              'agri-control h-10 rounded-xl text-sm',
+              compactFiltersOnMobile && 'max-md:hidden',
+            )}
             value={tipFilter}
             onChange={(event) => setTipFilter(event.target.value)}
           >
@@ -191,7 +213,7 @@ export function InterventiiRelevanteCard({
       {visibleInterventii.length === 0 ? (
         <div className="mt-4 rounded-2xl border border-dashed border-[var(--border-default)] bg-[var(--surface-card-muted)] p-4 text-sm text-[var(--text-secondary)]">
           {interventii.length === 0
-            ? 'Nu există intervenții relevante pentru fenofaza curentă sau lipsește contextul fenologic.'
+            ? 'Nu există intervenții relevante acum. Verifică fenofaza curentă, planul activ sau aplicările deja programate.'
             : 'Nicio intervenție nu se potrivește filtrelor selectate.'}
         </div>
       ) : (
@@ -203,6 +225,11 @@ export function InterventiiRelevanteCard({
             const dueLabel = formatDate(interventie.urmatoarea_data_estimata)
             const lastLabel = formatDate(interventie.ultima_aplicare?.data_aplicata ?? interventie.ultima_aplicare?.data_planificata ?? null)
             const cohort = interventie.fenofaza_curenta?.cohort
+            const duePrefix =
+              interventie.regula_repetare === 'interval' && interventie.aplicari_efectuate_count > 0
+                ? 'Următoarea repetare'
+                : 'Scadență'
+            const reasonBadges = buildReasonBadges(interventie)
             const canPlanifica = Boolean(
               onPlanifica &&
                 !interventie.aplicare_planificata &&
@@ -235,10 +262,22 @@ export function InterventiiRelevanteCard({
                       {getProductLabel(interventie)} · {getStageLabel(interventie, configurareSezon ?? null)}
                       {cohort ? ` · ${getCohortaLabel(cohort)}` : ''}
                     </p>
+                    {reasonBadges.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {reasonBadges.map((badge) => (
+                          <span
+                            key={`${key}:${badge}`}
+                            className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]"
+                          >
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                     <p className="mt-2 text-sm text-[var(--text-secondary)]">{interventie.motiv}</p>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--text-secondary)]">
                         {interventie.interventie.tip_interventie ? <span>Tip intervenție: {interventie.interventie.tip_interventie}</span> : null}
-                      {dueLabel ? <span>Scadență: {dueLabel}</span> : null}
+                      {dueLabel ? <span>{duePrefix}: {dueLabel}</span> : null}
                       {lastLabel ? <span>Ultima aplicare: {lastLabel}</span> : null}
                       <span>Aplicări efectuate: {interventie.aplicari_efectuate_count}</span>
                       {interventie.regula_repetare === 'interval' && interventie.interval_repetare_zile ? (
@@ -263,7 +302,7 @@ export function InterventiiRelevanteCard({
                         disabled={pendingInterventieId === key}
                         onClick={() => onPlanifica?.(interventie)}
                       >
-                        {pendingInterventieId === key ? 'Se pregătește...' : 'Pregătește aplicare'}
+                        {pendingInterventieId === key ? 'Se pregătește...' : 'Pregătește aplicare din plan'}
                       </Button>
                     ) : null}
                   </div>
