@@ -41,7 +41,7 @@ import {
   type DashboardTodayStatItem,
 } from '@/components/dashboard/DashboardV2Sections'
 import { MeteoDashboardCard } from '@/components/dashboard/MeteoDashboardCard'
-import { TaskList, type DashboardTaskItem } from '@/components/dashboard/TaskList'
+import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
 import { Button } from '@/components/ui/button'
 import {
@@ -83,6 +83,7 @@ import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getStocuriPeLocatii } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
+import { getProduse } from '@/lib/supabase/queries/produse'
 import { getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
 import {
   dismissDashboardOnboarding,
@@ -381,6 +382,14 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
   })
 
+  const produseQuery = useQuery({
+    queryKey: queryKeys.produse,
+    queryFn: getProduse,
+    placeholderData: (previousData) => previousData,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+
   const dashboardParcelaIds = useMemo(
     () =>
       (parceleQuery.data ?? EMPTY_LIST)
@@ -516,6 +525,7 @@ export default function DashboardPage() {
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
   const comenzi = comenziQuery.data ?? EMPTY_LIST
   const stocuri = stocuriQuery.data ?? EMPTY_LIST
+  const produse = produseQuery.data ?? EMPTY_LIST
   const solarClimateLogs = microclimateQuery.data ?? EMPTY_LIST
 
   const dashboardMicroclimate = useMemo(
@@ -955,6 +965,89 @@ export default function DashboardPage() {
     ],
   )
 
+  const showRecommendationsSetupHelper = useMemo(
+    () =>
+      activitatiDashboard.length === 0 &&
+      recoltariDashboard.length === 0 &&
+      vanzari.length === 0 &&
+      cheltuieli.length === 0 &&
+      comenzi.length === 0 &&
+      !nextTreatmentSuggestionQuery.data?.primary &&
+      !nextTreatmentSuggestionQuery.data?.secondary,
+    [
+      activitatiDashboard.length,
+      cheltuieli.length,
+      comenzi.length,
+      nextTreatmentSuggestionQuery.data?.primary,
+      nextTreatmentSuggestionQuery.data?.secondary,
+      recoltariDashboard.length,
+      vanzari.length,
+    ],
+  )
+
+  const recommendationsSetupHelper = showRecommendationsSetupHelper
+    ? {
+        title: 'Ca să primești recomandări mai utile',
+        bullets: [
+          'Înregistrează activități și recoltări',
+          'Adaugă vânzări și cheltuieli',
+          'Completează tratamentele și fenofaza',
+        ],
+        description: 'După asta dashboard-ul îți poate sugera ce merită urmărit azi.',
+      }
+    : null
+
+  const nextTreatmentSetupHelper =
+    !nextTreatmentSuggestionQuery.data?.primary
+      ? {
+          title: 'Ca să primești sugestii aici',
+          bullets: [
+            'Actualizează fenofaza la parcelă',
+            'Asociază un plan de tratament',
+            'Marchează aplicările efectuate',
+          ],
+          description: 'După completare vei vedea tratamentul recomandat și fereastra meteo.',
+          actions: [
+            { label: 'Actualizează fenofaza', href: '/parcele', variant: 'outline' as const },
+            { label: 'Deschide hub Tratamente', href: '/tratamente', variant: 'default' as const },
+          ],
+        }
+      : null
+
+  const ordersSetupHelper =
+    comenzi.length === 0
+      ? {
+          title: 'Ca să vezi activitate aici',
+          bullets: [
+            'Adaugă prima comandă',
+            'Publică produse active în Magazin',
+            'Marchează statusul comenzilor',
+          ],
+          description: 'Aici vei vedea comenzile active și volumul în curs.',
+          actions: [{ label: 'Adaugă comandă', href: '/comenzi', variant: 'default' as const }],
+          compact: true,
+        }
+      : null
+
+  const showShopSetupHelper =
+    !associationShopApproved &&
+    produseQuery.data !== undefined &&
+    !produse.some((produs) => produs.status === 'activ' && asNumber(produs.pret_unitar) > 0)
+
+  const shopSetupHelper = showShopSetupHelper
+    ? {
+        title: 'Ca să primești comenzi din magazin',
+        bullets: [
+          'Adaugă produse active',
+          'Setează prețuri și stocuri',
+          'Distribuie linkul magazinului',
+        ],
+        description: 'După asta clienții pot vedea produsele și trimite comenzi.',
+        actions: [{ label: 'Adaugă produs', href: '/produse', variant: 'default' as const }],
+        compact: true,
+      }
+    : null
+
   const recommendationIds = useMemo(
     () => new Set(recommendationItems.map((item) => item.id)),
     [recommendationItems],
@@ -1051,7 +1144,9 @@ export default function DashboardPage() {
         id: 'orders',
         title: 'Comenzi recente',
         href: '/comenzi',
-        emptyLabel: 'Nu există comenzi recente în datele curente.',
+        emptyLabel: 'Nu există comenzi încă. Adaugă prima comandă.',
+        emptyCtaLabel: 'Adaugă comandă',
+        emptyCtaHref: '/comenzi',
         items: recentOrders.slice(0, 3).map((item) => ({
           id: item.id,
           title: item.client,
@@ -1063,7 +1158,9 @@ export default function DashboardPage() {
         id: 'harvests',
         title: 'Recoltări recente',
         href: '/recoltari',
-        emptyLabel: 'Nu există recoltări recente în datele curente.',
+        emptyLabel: 'Înregistrează o recoltare ca să apară aici.',
+        emptyCtaLabel: 'Adaugă recoltare',
+        emptyCtaHref: '/recoltari',
         items: recentHarvests.slice(0, 3).map((item) => ({
           id: item.id,
           title: item.parcela,
@@ -1076,7 +1173,12 @@ export default function DashboardPage() {
         id: 'stocks',
         title: 'Stoc critic',
         href: '/stocuri',
-        emptyLabel: 'Nu există produse sub pragul critic configurat.',
+        emptyLabel:
+          stocuri.length === 0
+            ? 'Configurează stocurile și pragurile critice.'
+            : 'Nu există produse sub pragul critic configurat.',
+        emptyCtaLabel: 'Verifică stocurile',
+        emptyCtaHref: '/stocuri',
         items: criticalStocks.slice(0, 3).map((item) => ({
           id: item.id,
           title: item.produs,
@@ -1086,8 +1188,22 @@ export default function DashboardPage() {
         })),
       },
     ],
-    [criticalStocks, recentHarvests, recentOrders],
+    [criticalStocks, recentHarvests, recentOrders, stocuri.length],
   )
+
+  const showFinancialSetupHelper = vanzari.length === 0 && cheltuieli.length === 0
+
+  const financialSetupHelper = showFinancialSetupHelper
+    ? {
+        title: 'Ca să vezi indicatori financiari utili',
+        bullets: ['Adaugă vânzări', 'Adaugă cheltuieli', 'Înregistrează recoltări'],
+        description: 'După asta vei vedea profitul sezonului și evoluția veniturilor.',
+        actions: [
+          { label: 'Adaugă vânzare', href: '/vanzari', variant: 'outline' as const },
+          { label: 'Adaugă cheltuială', href: '/cheltuieli', variant: 'default' as const },
+        ],
+      }
+    : null
 
   const widgetEmptyState = useMemo<Record<DashboardWidgetId, boolean>>(
     () => ({
@@ -1160,9 +1276,6 @@ export default function DashboardPage() {
     }),
     [kpiItems.length, plannedActivities.length, recentHarvests.length, recentOrders.length, revenueSeries, stocuri, venitSezon],
   )
-
-  const taskListLoading =
-    isLoading || (dashboardParcelaIds.length > 0 && treatmentIntervalsQuery.isLoading && !treatmentIntervalsQuery.data)
 
   const showWelcomeCard = dashboardRelevantParcele.length === 0 && !hideOnboarding
 
@@ -1382,7 +1495,10 @@ export default function DashboardPage() {
         />
       }
     >
-      <DashboardContentShell variant="analytics" className="dashboard-premium-scope pb-32 pt-0 sm:pb-28 sm:pt-1 md:pb-24">
+      <DashboardContentShell
+        variant="analytics"
+        className="dashboard-premium-scope mx-0 max-w-none pb-32 pt-0 sm:pb-28 sm:pt-1 md:pb-24"
+      >
         {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
         {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
 
@@ -1397,28 +1513,12 @@ export default function DashboardPage() {
               </div>
             ) : null}
 
-            <div className="dashboard-stack-meteo md:hidden">
-              <MeteoDashboardCard
-                data={meteo.data}
-                loading={meteo.loading}
-                error={meteo.error}
-                primaryContext={farmContext.primaryContext}
-                microclimate={dashboardMicroclimate}
-                className="dashboard-meteo-hero"
-              />
-            </div>
-
             <div className="mb-[var(--dashboard-stack-gap)] hidden md:block md:space-y-[var(--dashboard-stack-gap)]">
-              <div className="grid gap-4 xl:grid-cols-12">
-                <div className="xl:col-span-5">
-                  <TaskList
-                    tasks={dashboardTasks}
-                    loading={taskListLoading}
-                    title="Ce ai de făcut azi"
-                    className="dashboard-task-list"
-                  />
+              <div className="grid gap-4 lg:grid-cols-12">
+                <div className="lg:col-span-4">
+                  <DashboardTodayCard stats={todayOverviewStats} focusItems={todayFocusItems} compact />
                 </div>
-                <div className="xl:col-span-3">
+                <div className="lg:col-span-4">
                   <MeteoDashboardCard
                     compact
                     data={meteo.data}
@@ -1426,85 +1526,132 @@ export default function DashboardPage() {
                     error={meteo.error}
                     primaryContext={farmContext.primaryContext}
                     microclimate={dashboardMicroclimate}
-                    className="dashboard-meteo-hero h-full"
+                    className="dashboard-meteo-hero"
                   />
                 </div>
-                <div className="xl:col-span-4">
+                <div className="lg:col-span-4">
                   {attentionNowItems.length > 0 ? (
-                    <DashboardAttentionCard items={attentionNowItems} />
+                    <DashboardAttentionCard items={attentionNowItems} compact />
                   ) : (
                     <DashboardRecommendationsCard
                       items={recommendationItems}
                       helperText={recommendationsConfidenceHint ?? undefined}
                       boostText={recommendationsBoostHint ?? undefined}
+                      setupHelper={recommendationsSetupHelper}
+                      compact
                     />
                   )}
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <DashboardNextTreatmentCard
-                  primary={nextTreatmentSuggestionQuery.data?.primary ?? null}
-                  secondary={nextTreatmentSuggestionQuery.data?.secondary ?? null}
-                  loading={nextTreatmentSuggestionQuery.isLoading && !nextTreatmentSuggestionQuery.data}
-                />
-                <DashboardComenziSnapshotCard
-                  activeCount={comenziActive.length}
-                  kgInCursLabel={`${formatNumber(kgComenziActive)} kg în curs`}
-                  previewClient={recentOrders[0]?.client}
-                  previewMeta={recentOrders[0]?.deliveryDate}
-                />
+              <div className="grid gap-4 lg:grid-cols-12">
+                <div className="lg:col-span-12">
+                  <DashboardNextTreatmentCard
+                    primary={nextTreatmentSuggestionQuery.data?.primary ?? null}
+                    secondary={nextTreatmentSuggestionQuery.data?.secondary ?? null}
+                    loading={nextTreatmentSuggestionQuery.isLoading && !nextTreatmentSuggestionQuery.data}
+                    setupHelper={nextTreatmentSetupHelper}
+                  />
+                </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <DashboardCommercialSnapshotCard
-                  mode={associationShopApproved ? 'association' : 'farmer'}
-                  href={
-                    associationShopApproved
-                      ? '/magazin/asociatie'
-                      : tenantId
-                        ? `/magazin/${tenantId}`
-                        : '/magazin'
-                  }
-                />
-                <DashboardFarmPulseCard sections={farmPulseSections} footnote={DASHBOARD_SCOPE_FOOTNOTE} />
+              <div className="grid gap-4 lg:grid-cols-12">
+                <div className="lg:col-span-4">
+                  <DashboardComenziSnapshotCard
+                    activeCount={comenziActive.length}
+                    kgInCursLabel={`${formatNumber(kgComenziActive)} kg în curs`}
+                    previewClient={recentOrders[0]?.client}
+                    previewMeta={recentOrders[0]?.deliveryDate}
+                    setupHelper={ordersSetupHelper}
+                  />
+                </div>
+                <div className="lg:col-span-4">
+                  <DashboardCommercialSnapshotCard
+                    mode={associationShopApproved ? 'association' : 'farmer'}
+                    href={
+                      associationShopApproved
+                        ? '/magazin/asociatie'
+                        : tenantId
+                          ? `/magazin/${tenantId}`
+                          : '/magazin'
+                    }
+                    setupHelper={shopSetupHelper}
+                  />
+                </div>
+                <div className="lg:col-span-4">
+                  <DashboardFarmPulseCard sections={farmPulseSections} footnote={DASHBOARD_SCOPE_FOOTNOTE} />
+                </div>
               </div>
 
-              <div>
-                <DashboardQuickActionsCard
-                  primaryActions={DASHBOARD_PRIMARY_QUICK_ACTIONS}
-                  contextualActions={contextualQuickActions}
-                />
+              <div className="grid gap-4 lg:grid-cols-12">
+                <div className="lg:col-span-7">
+                  <DashboardQuickActionsCard
+                    primaryActions={DASHBOARD_PRIMARY_QUICK_ACTIONS}
+                    contextualActions={contextualQuickActions}
+                  />
+                </div>
+                {!editMode ? (
+                  <div className="lg:col-span-5">
+                    <DashboardUnifiedFinancialCard
+                      kpiItems={kpiItems}
+                      empty={showFinancialSetupHelper}
+                      total={`${formatMoney(venitSezon)} RON`}
+                      previous={`${formatMoney(venitSezonAnterior)} RON`}
+                      periodLabel="Sezon curent"
+                      trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
+                      series={revenueSeries}
+                      setupHelper={financialSetupHelper}
+                    />
+                  </div>
+                ) : null}
               </div>
-
-              {!editMode ? (
-                <DashboardUnifiedFinancialCard
-                  kpiItems={kpiItems}
-                  empty={widgetEmptyState['kpi-summary'] && widgetEmptyState['sumar-venituri']}
-                  total={`${formatMoney(venitSezon)} RON`}
-                  previous={`${formatMoney(venitSezonAnterior)} RON`}
-                  periodLabel="Sezon curent"
-                  trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
-                  series={revenueSeries}
-                />
-              ) : null}
             </div>
 
             <div className="mb-[var(--dashboard-stack-gap)] grid gap-4 md:hidden">
+              <DashboardTodayCard stats={todayOverviewStats} focusItems={todayFocusItems} />
+              <div className="dashboard-stack-meteo">
+                <MeteoDashboardCard
+                  data={meteo.data}
+                  loading={meteo.loading}
+                  error={meteo.error}
+                  primaryContext={farmContext.primaryContext}
+                  microclimate={dashboardMicroclimate}
+                  className="dashboard-meteo-hero"
+                />
+              </div>
               <DashboardNextTreatmentCard
                 primary={nextTreatmentSuggestionQuery.data?.primary ?? null}
                 secondary={nextTreatmentSuggestionQuery.data?.secondary ?? null}
                 loading={nextTreatmentSuggestionQuery.isLoading && !nextTreatmentSuggestionQuery.data}
+                setupHelper={nextTreatmentSetupHelper}
               />
-              {attentionNowItems.length > 0 ? (
-                <DashboardAttentionCard items={attentionNowItems} />
-              ) : null}
               <DashboardRecommendationsCard
                 items={recommendationItems}
                 helperText={recommendationsConfidenceHint ?? undefined}
                 boostText={recommendationsBoostHint ?? undefined}
+                setupHelper={recommendationsSetupHelper}
               />
-              <DashboardTodayCard stats={todayOverviewStats} focusItems={todayFocusItems} />
+              {attentionNowItems.length > 0 ? (
+                <DashboardAttentionCard items={attentionNowItems} />
+              ) : null}
+              <DashboardComenziSnapshotCard
+                activeCount={comenziActive.length}
+                kgInCursLabel={`${formatNumber(kgComenziActive)} kg în curs`}
+                previewClient={recentOrders[0]?.client}
+                previewMeta={recentOrders[0]?.deliveryDate}
+                setupHelper={ordersSetupHelper}
+              />
+              <DashboardCommercialSnapshotCard
+                mode={associationShopApproved ? 'association' : 'farmer'}
+                href={
+                  associationShopApproved
+                    ? '/magazin/asociatie'
+                    : tenantId
+                      ? `/magazin/${tenantId}`
+                      : '/magazin'
+                }
+                setupHelper={shopSetupHelper}
+              />
               <DashboardFarmPulseCard sections={farmPulseSections} footnote={DASHBOARD_SCOPE_FOOTNOTE} />
               <DashboardQuickActionsCard
                 primaryActions={DASHBOARD_PRIMARY_QUICK_ACTIONS}
@@ -1513,12 +1660,13 @@ export default function DashboardPage() {
               {!editMode ? (
                 <DashboardUnifiedFinancialCard
                   kpiItems={kpiItems}
-                  empty={widgetEmptyState['kpi-summary'] && widgetEmptyState['sumar-venituri']}
+                  empty={showFinancialSetupHelper}
                   total={`${formatMoney(venitSezon)} RON`}
                   previous={`${formatMoney(venitSezonAnterior)} RON`}
                   periodLabel="Sezon curent"
                   trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
                   series={revenueSeries}
+                  setupHelper={financialSetupHelper}
                 />
               ) : null}
             </div>

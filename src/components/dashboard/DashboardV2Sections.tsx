@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
+  Info,
   type LucideIcon,
   Package,
   Sprout,
@@ -76,7 +77,24 @@ type DashboardFeedSection = {
   title: string
   href?: string
   emptyLabel: string
+  emptyCtaLabel?: string
+  emptyCtaHref?: string
   items: DashboardFeedItem[]
+}
+
+type DashboardSetupAction = {
+  label: string
+  href: string
+  variant?: 'default' | 'outline'
+}
+
+type DashboardSetupHelperProps = {
+  title: string
+  bullets: string[]
+  description: string
+  actions?: DashboardSetupAction[]
+  compact?: boolean
+  maxBullets?: number
 }
 
 function itemToneClass(tone: SectionTone) {
@@ -134,6 +152,65 @@ function formatTreatmentDate(value: string | null): string | null {
   }
 }
 
+function DashboardSetupHelper({
+  title,
+  bullets,
+  description,
+  actions,
+  compact = false,
+  maxBullets,
+}: DashboardSetupHelperProps) {
+  const visibleBullets = typeof maxBullets === 'number' ? bullets.slice(0, maxBullets) : bullets
+
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-[color:color-mix(in_srgb,var(--warning-border)_80%,var(--success-border))] bg-[color:color-mix(in_srgb,var(--warning-bg)_70%,var(--surface-card))]',
+        compact ? 'px-3.5 py-3.5' : 'px-4 py-4',
+      )}
+    >
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-[color:color-mix(in_srgb,var(--warning-border)_88%,var(--success-border))] bg-[var(--surface-card)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
+        <Info className="h-3.5 w-3.5" />
+        Ajutor
+      </div>
+
+      <h3
+        className={cn(
+          'mt-3 text-[var(--text-primary)] [font-weight:650]',
+          compact ? 'text-[13px] leading-5' : 'text-[14px] leading-5',
+        )}
+      >
+        {title}
+      </h3>
+
+      <ul className={cn('mt-2', compact ? 'space-y-1 text-[12px]' : 'space-y-1.5 text-[13px]')}>
+        {visibleBullets.map((bullet) => (
+          <li key={bullet} className="flex items-start gap-2 text-[var(--text-secondary)]">
+            <span aria-hidden="true" className="pt-0.5 text-[var(--success-text)]">
+              •
+            </span>
+            <span className="min-w-0 leading-5">{bullet}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className={cn('mt-2.5 leading-5 text-[var(--text-secondary)]', compact ? 'text-[11px]' : 'text-[12px]')}>
+        {description}
+      </p>
+
+      {actions?.length ? (
+        <div className={cn('mt-3 flex gap-2', compact ? 'flex-wrap sm:flex-nowrap' : 'flex-wrap')}>
+          {actions.map((action) => (
+            <Button key={action.label} asChild size="sm" variant={action.variant ?? 'outline'}>
+              <Link href={action.href}>{action.label}</Link>
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function DashboardSectionCard({
   eyebrow,
   title,
@@ -181,14 +258,22 @@ export function DashboardSectionCard({
 
 export function DashboardAttentionCard({
   items,
+  className,
+  compact = false,
 }: {
   items: DashboardAttentionItem[]
+  className?: string
+  compact?: boolean
 }) {
+  const visibleItems = compact ? items.slice(0, 1) : items
+  const remainingCount = compact ? Math.max(0, items.length - visibleItems.length) : 0
+
   return (
     <DashboardSectionCard
       eyebrow="La ce să fii atent azi"
       title="La ce să fii atent azi"
-      description="Lucrurile care cer atenție azi."
+      description={compact ? 'Semnalul principal care merită verificat acum.' : 'Lucrurile care cer atenție azi.'}
+      className={className}
     >
       {items.length === 0 ? (
         <div className="flex items-start gap-3 py-1">
@@ -196,8 +281,8 @@ export function DashboardAttentionCard({
           <p className="text-[12px] leading-5 text-[var(--text-secondary)]">Nu ai urgențe vizibile în datele curente.</p>
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {items.map((item) => {
+        <div className={cn(compact ? 'space-y-2.5' : 'space-y-3.5')}>
+          {visibleItems.map((item) => {
             const content = (
               <>
                 <AlertTriangle className={cn('mt-0.5 h-4 w-4 shrink-0', itemToneClass(item.tone))} />
@@ -236,6 +321,11 @@ export function DashboardAttentionCard({
               </div>
             )
           })}
+          {remainingCount > 0 ? (
+            <p className="text-[11px] leading-5 text-[var(--text-secondary)]">
+              +{remainingCount} {remainingCount === 1 ? 'alt semnal' : 'alte semnale'} de verificat
+            </p>
+          ) : null}
         </div>
       )}
     </DashboardSectionCard>
@@ -246,36 +336,57 @@ export function DashboardRecommendationsCard({
   items,
   helperText,
   boostText,
+  setupHelper,
+  className,
+  compact = false,
 }: {
   items: DashboardRecommendationItem[]
   helperText?: string
   boostText?: string
+  setupHelper?: DashboardSetupHelperProps | null
+  className?: string
+  compact?: boolean
 }) {
+  const visibleItems = compact ? items.slice(0, 1) : items
+  const compactMeta = helperText ?? boostText
+
   return (
     <DashboardSectionCard
       eyebrow="Recomandări"
       title="Recomandări pentru azi"
-      description="Sugestii scurte și practice, bazate pe datele de azi."
+      description={compact ? 'Ce merită urmărit azi, pe scurt.' : 'Sugestii scurte și practice, bazate pe datele de azi.'}
+      className={className}
     >
-      <ul className="space-y-3">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="flex items-start gap-2.5"
-          >
-            <span aria-hidden="true" className={cn('pt-0.5 text-base leading-none', itemToneClass(item.tone))}>
-              •
-            </span>
-            <p className="min-w-0 text-[14px] leading-[1.55] text-[var(--text-primary)]">{item.text}</p>
-          </li>
-        ))}
-      </ul>
-      {helperText ? (
-        <p className="mt-3 text-[12px] leading-5 text-[var(--text-secondary)]">{helperText}</p>
-      ) : null}
-      {boostText ? (
-        <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">{boostText}</p>
-      ) : null}
+      {setupHelper ? (
+        <DashboardSetupHelper {...setupHelper} compact={compact || setupHelper.compact} maxBullets={compact ? 1 : setupHelper.maxBullets} />
+      ) : (
+        <>
+          <ul className={cn(compact ? 'space-y-2' : 'space-y-3')}>
+            {visibleItems.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-start gap-2.5"
+              >
+                <span aria-hidden="true" className={cn('pt-0.5 text-base leading-none', itemToneClass(item.tone))}>
+                  •
+                </span>
+                <p className={cn('min-w-0 text-[var(--text-primary)]', compact ? 'text-[13px] leading-[1.5]' : 'text-[14px] leading-[1.55]')}>
+                  {item.text}
+                </p>
+              </li>
+            ))}
+          </ul>
+          {compact && compactMeta ? (
+            <p className="mt-2 text-[11px] leading-5 text-[var(--text-secondary)]">{compactMeta}</p>
+          ) : null}
+          {!compact && helperText ? (
+            <p className="mt-3 text-[12px] leading-5 text-[var(--text-secondary)]">{helperText}</p>
+          ) : null}
+          {!compact && boostText ? (
+            <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">{boostText}</p>
+          ) : null}
+        </>
+      )}
     </DashboardSectionCard>
   )
 }
@@ -366,16 +477,21 @@ export function DashboardNextTreatmentCard({
   primary,
   secondary,
   loading = false,
+  setupHelper,
+  className,
 }: {
   primary: DashboardTreatmentSuggestion | null
   secondary: DashboardTreatmentSuggestion | null
   loading?: boolean
+  setupHelper?: DashboardSetupHelperProps | null
+  className?: string
 }) {
   return (
     <DashboardSectionCard
       eyebrow="Sugestie operațională"
       title="Următorul tratament recomandat"
       description="Semnal rapid din Protecție & Nutriție. Este o sugestie operațională, nu o prescripție fitosanitară."
+      className={className}
     >
       {loading ? (
         <div className="space-y-3 animate-pulse">
@@ -388,19 +504,23 @@ export function DashboardNextTreatmentCard({
           {secondary ? <TreatmentSuggestionBlock suggestion={secondary} secondary /> : null}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-[var(--divider)] bg-[var(--surface-card-muted)] p-4">
-          <p className="text-[13px] leading-5 text-[var(--text-primary)] [font-weight:650]">
-            Nu există un tratament recomandat în datele curente.
-          </p>
-          <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
-            Completează fenofaza, planurile și aplicările programate — altfel nu avem suficiente date pentru o sugestie.
-          </p>
-          <div className="mt-3">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/tratamente">Deschide hub Tratamente</Link>
-            </Button>
+        setupHelper ? (
+          <DashboardSetupHelper {...setupHelper} compact={setupHelper.compact} />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-[var(--divider)] bg-[var(--surface-card-muted)] p-4">
+            <p className="text-[13px] leading-5 text-[var(--text-primary)] [font-weight:650]">
+              Nu există un tratament recomandat în datele curente.
+            </p>
+            <p className="mt-1.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+              Completează fenofaza, planurile și aplicările programate — altfel nu avem suficiente date pentru o sugestie.
+            </p>
+            <div className="mt-3">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/tratamente">Deschide hub Tratamente</Link>
+              </Button>
+            </div>
           </div>
-        </div>
+        )
       )}
     </DashboardSectionCard>
   )
@@ -495,61 +615,90 @@ export function DashboardSeasonOverviewCard({
 export function DashboardTodayCard({
   stats,
   focusItems,
+  compact = false,
 }: {
   stats: DashboardTodayStatItem[]
   focusItems: DashboardAttentionItem[]
+  compact?: boolean
 }) {
+  const primaryFocus = focusItems[0] ?? null
+
   return (
     <DashboardSectionCard
       eyebrow="Azi"
       title="Ce ai de făcut azi"
-      description="O vedere rapidă cu volumele și următoarele puncte de lucru."
+      description={compact ? 'Semnalul principal pentru începutul zilei.' : 'O vedere rapidă cu volumele și următoarele puncte de lucru.'}
     >
-      <div className="space-y-3">
-        {stats.map((stat) => (
-          <div
-            key={stat.id}
-            className="flex items-start justify-between gap-4"
-          >
+      {compact ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[13px] text-[var(--text-secondary)]">{stat.label}</p>
-              {stat.meta ? (
-                <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{stat.meta}</p>
-              ) : null}
+              <p className={cn('text-[15px] leading-5 [font-weight:700]', primaryFocus ? itemToneClass(primaryFocus.tone) : 'text-[var(--success-text)]')}>
+                {primaryFocus ? primaryFocus.label : 'Totul e la zi'}
+              </p>
+              <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">
+                {primaryFocus?.detail ?? 'Nu apar blocaje sau task-uri urgente în datele curente.'}
+              </p>
             </div>
-            <p className="shrink-0 text-right text-[1.05rem] font-semibold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">
-              {stat.value}
-            </p>
+            {primaryFocus?.badge ? (
+              <span className="shrink-0 rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+                {primaryFocus.badge}
+              </span>
+            ) : null}
           </div>
-        ))}
-      </div>
-
-      <div className="mt-4 space-y-2.5 border-t border-[var(--divider)] pt-4">
-        {focusItems.length === 0 ? (
-          <div className="py-1 text-[12px] leading-5 text-[var(--text-secondary)]">
-            Nu există task-uri urgente suplimentare în datele curente.
-          </div>
-        ) : (
-          focusItems.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-start justify-between gap-3 py-1"
-            >
-              <div className="min-w-0">
-                <p className="text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.label}</p>
-                {item.detail ? (
-                    <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{item.detail}</p>
-                ) : null}
+          <p className="text-[11px] leading-5 text-[var(--text-secondary)]">
+            {stats.slice(0, 2).map((stat) => `${stat.label}: ${stat.value}`).join(' • ')}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {stats.map((stat) => (
+              <div
+                key={stat.id}
+                className="flex items-start justify-between gap-4"
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] text-[var(--text-secondary)]">{stat.label}</p>
+                  {stat.meta ? (
+                    <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{stat.meta}</p>
+                  ) : null}
+                </div>
+                <p className="shrink-0 text-right text-[1.05rem] font-semibold tabular-nums tracking-[-0.03em] text-[var(--text-primary)]">
+                  {stat.value}
+                </p>
               </div>
-              {item.badge ? (
-                <span className="shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
-                  {item.badge}
-                </span>
-              ) : null}
-            </div>
-          ))
-        )}
-      </div>
+            ))}
+          </div>
+
+          <div className="mt-4 space-y-2.5 border-t border-[var(--divider)] pt-4">
+            {focusItems.length === 0 ? (
+              <div className="py-1 text-[12px] leading-5 text-[var(--text-secondary)]">
+                Nu există task-uri urgente suplimentare în datele curente.
+              </div>
+            ) : (
+              focusItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-start justify-between gap-3 py-1"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.label}</p>
+                    {item.detail ? (
+                        <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{item.detail}</p>
+                    ) : null}
+                  </div>
+                  {item.badge ? (
+                    <span className="shrink-0 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </DashboardSectionCard>
   )
 }
@@ -586,7 +735,17 @@ export function DashboardFarmPulseCard({
             </div>
 
             {section.items.length === 0 ? (
-              <p className="text-[12px] leading-5 text-[var(--text-secondary)]">{section.emptyLabel}</p>
+              <div className="space-y-1.5">
+                <p className="text-[12px] leading-5 text-[var(--text-secondary)]">{section.emptyLabel}</p>
+                {section.emptyCtaLabel && section.emptyCtaHref ? (
+                  <Link
+                    href={section.emptyCtaHref}
+                    className="inline-flex min-h-[28px] items-center text-[11px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  >
+                    {section.emptyCtaLabel}
+                  </Link>
+                ) : null}
+              </div>
             ) : (
               <div className="space-y-2.5">
                 {section.items.map((item) => (
@@ -632,11 +791,13 @@ export function DashboardComenziSnapshotCard({
   kgInCursLabel,
   previewClient,
   previewMeta,
+  setupHelper,
 }: {
   activeCount: number
   kgInCursLabel: string
   previewClient?: string
   previewMeta?: string
+  setupHelper?: DashboardSetupHelperProps | null
 }) {
   return (
     <DashboardSectionCard
@@ -652,20 +813,26 @@ export function DashboardComenziSnapshotCard({
         </Link>
       }
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[13px] text-[var(--text-secondary)]">Active</span>
-        <span className="text-[1.25rem] font-semibold tabular-nums text-[var(--text-primary)]">{activeCount}</span>
-      </div>
-      <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{kgInCursLabel}</p>
-      {previewClient ? (
-        <div className="mt-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5">
-          <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]">{previewClient}</p>
-          {previewMeta ? (
-            <p className="mt-0.5 text-[11px] leading-5 text-[var(--text-secondary)]">{previewMeta}</p>
-          ) : null}
-        </div>
+      {setupHelper ? (
+        <DashboardSetupHelper {...setupHelper} compact />
       ) : (
-        <p className="mt-3 text-[12px] text-[var(--text-secondary)]">Nu există comenzi recente în datele curente.</p>
+        <>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] text-[var(--text-secondary)]">Active</span>
+            <span className="text-[1.25rem] font-semibold tabular-nums text-[var(--text-primary)]">{activeCount}</span>
+          </div>
+          <p className="mt-1 text-[12px] leading-5 text-[var(--text-secondary)]">{kgInCursLabel}</p>
+          {previewClient ? (
+            <div className="mt-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5">
+              <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]">{previewClient}</p>
+              {previewMeta ? (
+                <p className="mt-0.5 text-[11px] leading-5 text-[var(--text-secondary)]">{previewMeta}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-3 text-[12px] text-[var(--text-secondary)]">Nu există comenzi recente în datele curente.</p>
+          )}
+        </>
       )}
     </DashboardSectionCard>
   )
@@ -674,9 +841,11 @@ export function DashboardComenziSnapshotCard({
 export function DashboardCommercialSnapshotCard({
   mode,
   href,
+  setupHelper,
 }: {
   mode: 'farmer' | 'association'
   href: string
+  setupHelper?: DashboardSetupHelperProps | null
 }) {
   const Icon = mode === 'association' ? Users : Store
   const title = mode === 'association' ? 'Hub asociație' : 'Magazinul meu'
@@ -699,16 +868,20 @@ export function DashboardCommercialSnapshotCard({
         </Link>
       }
     >
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card-muted)] text-[var(--text-primary)]">
-          <Icon className="h-5 w-5" aria-hidden />
-        </span>
-        <p className="min-w-0 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-          {mode === 'association'
-            ? 'Gestionezi prezența în catalogul asociației și comenzile din vitrină.'
-            : 'Distribuie linkul către clienți; comenzile intră în modulul Comenzi.'}
-        </p>
-      </div>
+      {setupHelper ? (
+        <DashboardSetupHelper {...setupHelper} compact />
+      ) : (
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card-muted)] text-[var(--text-primary)]">
+            <Icon className="h-5 w-5" aria-hidden />
+          </span>
+          <p className="min-w-0 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            {mode === 'association'
+              ? 'Gestionezi prezența în catalogul asociației și comenzile din vitrină.'
+              : 'Distribuie linkul către clienți; comenzile intră în modulul Comenzi.'}
+          </p>
+        </div>
+      )}
     </DashboardSectionCard>
   )
 }
@@ -730,6 +903,7 @@ export function DashboardUnifiedFinancialCard({
   periodLabel,
   trendLabel,
   series,
+  setupHelper,
 }: {
   kpiItems: UnifiedKpiItem[]
   empty: boolean
@@ -738,6 +912,7 @@ export function DashboardUnifiedFinancialCard({
   periodLabel: string
   trendLabel: string | null
   series: number[]
+  setupHelper?: DashboardSetupHelperProps | null
 }) {
   return (
     <DashboardSectionCard
@@ -746,7 +921,11 @@ export function DashboardUnifiedFinancialCard({
       description="Indicatori operaționali și evoluția veniturilor recente."
     >
       {empty ? (
-        <p className="text-[13px] text-[var(--text-secondary)]">Nu există suficiente date financiare pentru acest rezumat.</p>
+        setupHelper ? (
+          <DashboardSetupHelper {...setupHelper} />
+        ) : (
+          <p className="text-[13px] text-[var(--text-secondary)]">Nu există suficiente date financiare pentru acest rezumat.</p>
+        )
       ) : (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
