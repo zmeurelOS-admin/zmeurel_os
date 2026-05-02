@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  type DashboardContentShellVariant,
+  getDashboardContentInnerClassName,
+  getDashboardHeaderBleedClassName,
+} from '@/components/app/DashboardContentShell'
 import { cn } from '@/lib/utils'
 
 interface CompactPageHeaderProps {
@@ -12,6 +17,8 @@ interface CompactPageHeaderProps {
   showMobileRightSlot?: boolean
   /** Pe mobil, rightSlot pe rând separat sub titlu (evită înghesuirea). */
   stackMobileRightSlotBelow?: boolean
+  /** Aliniază header-ul cu variantele standardizate de content shell. */
+  contentVariant?: DashboardContentShellVariant
 }
 
 export function CompactPageHeader({
@@ -22,7 +29,65 @@ export function CompactPageHeader({
   className,
   showMobileRightSlot,
   stackMobileRightSlotBelow,
+  contentVariant,
 }: CompactPageHeaderProps) {
+  const content = (
+    <>
+      {(title || subtitle) && (
+        <>
+          <div
+            className={cn(
+              'flex min-h-[42px] items-start lg:hidden',
+              stackMobileRightSlotBelow && showMobileRightSlot && rightSlot
+                ? 'flex-col gap-2'
+                : 'flex-wrap justify-between gap-x-2 gap-y-2'
+            )}
+          >
+            <div
+              className={cn(
+                'min-w-0',
+                !(stackMobileRightSlotBelow && showMobileRightSlot && rightSlot) && 'flex-1 basis-[min(100%,280px)]'
+              )}
+            >
+              {title ? (
+                <h1 className="text-[clamp(1.12rem,4.4vw,1.3rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text-primary)] [font-weight:750]">
+                  {title}
+                </h1>
+              ) : null}
+              {subtitle ? (
+                <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.3] text-[var(--text-secondary)]">{subtitle}</p>
+              ) : null}
+            </div>
+            {showMobileRightSlot && rightSlot ? (
+              <div
+                className={cn(
+                  'text-[var(--text-primary)] lg:text-[var(--text-on-accent)] [&_button]:text-[11px] [&_button]:sm:text-sm',
+                  stackMobileRightSlotBelow
+                    ? 'flex w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-2 border-t border-[var(--divider)] lg:border-white/10 pt-2'
+                    : 'shrink-0'
+                )}
+              >
+                {rightSlot}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="hidden items-start justify-between gap-3 lg:flex lg:items-center">
+            <div className="min-w-0 space-y-0.5">
+              {title ? <h1 className="truncate text-[1.55rem] text-[var(--text-on-accent)] [font-weight:750]">{title}</h1> : null}
+              {subtitle ? <p className="line-clamp-2 text-[13px] text-[color:color-mix(in_srgb,var(--text-on-accent)_84%,transparent)]">{subtitle}</p> : null}
+            </div>
+            {rightSlot ? (
+              <div className="flex shrink-0 items-center justify-end text-[var(--text-on-accent)] lg:items-center">{rightSlot}</div>
+            ) : null}
+          </div>
+        </>
+      )}
+
+      {summary ? <div className="mt-2 lg:mt-3">{summary}</div> : null}
+    </>
+  )
+
   return (
     <header
       className={cn(
@@ -33,60 +98,13 @@ export function CompactPageHeader({
       <div className="absolute inset-0 bg-[color:color-mix(in_srgb,var(--surface-page)_95%,transparent)] lg:hidden" />
       <div className="absolute inset-0 hidden bg-[color:color-mix(in_srgb,var(--primary)_92%,black_8%)] lg:block" />
 
-      <div className="relative mx-auto w-full max-w-7xl">
-        {(title || subtitle) && (
-          <>
-            <div
-              className={cn(
-                'flex min-h-[42px] items-start lg:hidden',
-                stackMobileRightSlotBelow && showMobileRightSlot && rightSlot
-                  ? 'flex-col gap-2'
-                  : 'flex-wrap justify-between gap-x-2 gap-y-2'
-              )}
-            >
-              <div
-                className={cn(
-                  'min-w-0',
-                  !(stackMobileRightSlotBelow && showMobileRightSlot && rightSlot) && 'flex-1 basis-[min(100%,280px)]'
-                )}
-              >
-                {title ? (
-                  <h1 className="text-[clamp(1.12rem,4.4vw,1.3rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text-primary)] [font-weight:750]">
-                    {title}
-                  </h1>
-                ) : null}
-                {subtitle ? (
-                  <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.3] text-[var(--text-secondary)]">{subtitle}</p>
-                ) : null}
-              </div>
-              {showMobileRightSlot && rightSlot ? (
-                <div
-                  className={cn(
-                    'text-[var(--text-primary)] lg:text-[var(--text-on-accent)] [&_button]:text-[11px] [&_button]:sm:text-sm',
-                    stackMobileRightSlotBelow
-                      ? 'flex w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-2 border-t border-[var(--divider)] lg:border-white/10 pt-2'
-                      : 'shrink-0'
-                  )}
-                >
-                  {rightSlot}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="hidden items-start justify-between gap-3 lg:flex lg:items-center">
-              <div className="min-w-0 space-y-0.5">
-                {title ? <h1 className="truncate text-[1.55rem] text-[var(--text-on-accent)] [font-weight:750]">{title}</h1> : null}
-                {subtitle ? <p className="line-clamp-2 text-[13px] text-[color:color-mix(in_srgb,var(--text-on-accent)_84%,transparent)]">{subtitle}</p> : null}
-              </div>
-              {rightSlot ? (
-                <div className="flex shrink-0 items-center justify-end text-[var(--text-on-accent)] lg:items-center">{rightSlot}</div>
-              ) : null}
-            </div>
-          </>
-        )}
-
-        {summary ? <div className="mt-2 lg:mt-3">{summary}</div> : null}
-      </div>
+      {contentVariant ? (
+        <div className={cn('relative', getDashboardHeaderBleedClassName())}>
+          <div className={cn('relative', getDashboardContentInnerClassName(contentVariant))}>{content}</div>
+        </div>
+      ) : (
+        <div className="relative mx-auto w-full max-w-7xl">{content}</div>
+      )}
     </header>
   )
 }

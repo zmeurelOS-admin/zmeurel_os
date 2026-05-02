@@ -17,6 +17,7 @@ import {
   FormDialogSection,
 } from '@/components/ui/form-dialog-layout'
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -1281,10 +1282,10 @@ export function ComenziPageClient() {
 
   return (
     <AppShell
-      header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" />}
+      header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" contentVariant="workspace" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-2 flex w-full max-w-[980px] flex-col gap-3 py-3 sm:mt-0 sm:py-3 lg:max-w-[1320px]">
+      <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
         {activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0 ? (
           <ModuleScoreboard className="gap-x-3.5 gap-y-2">
             {activeComenzi.length > 0 ? (
@@ -1637,7 +1638,7 @@ export function ComenziPageClient() {
             />
           </>
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <ComandaDialog
         key={`create-${isCreateDialogOpen ? 'open' : 'closed'}`}
@@ -1826,5 +1827,4 @@ export function ComenziPageClient() {
     </AppShell>
   )
 }
-
 

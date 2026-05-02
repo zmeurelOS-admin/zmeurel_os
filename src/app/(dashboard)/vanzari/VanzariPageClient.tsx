@@ -9,6 +9,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -624,10 +625,10 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
   return (
     <AppShell
-      header={<PageHeader title="Vânzări" subtitle="Registrul livrărilor finalizate" />}
+      header={<PageHeader title="Vânzări" subtitle="Registrul livrărilor finalizate" contentVariant="centered" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl py-3 sm:mt-0 sm:py-3 lg:max-w-4xl">
+      <DashboardContentShell variant="centered" className="mt-2 py-3 sm:mt-0 sm:py-3">
 
         {/* SCOREBOARD */}
         {scoreboard.vanzariLunaRon > 0 ? (
@@ -742,7 +743,7 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
           />
         ) : null}
 
-      </div>
+      </DashboardContentShell>
 
       <AddVanzareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger tenantVanzari={vanzari} />
 

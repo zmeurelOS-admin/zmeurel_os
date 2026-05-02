@@ -10,6 +10,7 @@ import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState as BaseLoadingState } from '@/components/app/LoadingState'
@@ -1285,6 +1286,7 @@ export default function DashboardPage() {
         <PageHeader
           title={`${greeting} 👋`}
           subtitle={todayLabel}
+          contentVariant="analytics"
           headerClassName="dashboard-premium-header"
           expandRightSlotOnMobile={editMode}
           stackMobileRightSlotBelowTitle={editMode}
@@ -1344,7 +1346,7 @@ export default function DashboardPage() {
         />
       }
     >
-      <div className="dashboard-premium-scope mx-auto max-w-7xl px-1 pb-32 pt-0 sm:px-0 sm:pb-28 sm:pt-1 md:pb-24">
+      <DashboardContentShell variant="analytics" className="dashboard-premium-scope pb-32 pt-0 sm:pb-28 sm:pt-1 md:pb-24">
         {hasError ? <ErrorState title="Eroare dashboard" message={errorMessage ?? 'Nu am putut încărca datele.'} /> : null}
         {isLoading ? <LoadingState label="Se încarcă dashboard..." /> : null}
 
@@ -1497,7 +1499,7 @@ export default function DashboardPage() {
 
           </>
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <Dialog open={addWidgetOpen} onOpenChange={setAddWidgetOpen}>
         <DialogContent className="max-w-xl">

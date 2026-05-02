@@ -7,6 +7,7 @@ import { Copy, ExternalLink, Pencil, Trash2 } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton, ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { ModuleEmptyCard } from '@/components/app/module-list-chrome'
@@ -306,8 +307,8 @@ export function ProdusePageClient() {
   )
 
   return (
-    <AppShell header={<PageHeader title="Produse" subtitle="Catalog intern fermă" />}>
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 md:max-w-7xl">
+    <AppShell header={<PageHeader title="Produse" subtitle="Catalog intern fermă" contentVariant="workspace" />}>
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-3 sm:mt-0">
         {!isLoading && !isError && tenantId && shopPath ? (
           <div
             className={`rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)]/80 px-3 py-3 md:px-4 ${
@@ -682,7 +683,7 @@ export function ProdusePageClient() {
             }
           />
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <AddProdusDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={handleSuccess} />
 

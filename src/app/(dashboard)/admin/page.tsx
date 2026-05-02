@@ -2,6 +2,7 @@ import { BarChart3, Building2, FileSearch, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { PageHeader } from '@/components/app/PageHeader'
 import { AdminTenantsPlanTable, type AdminTenantRow } from '@/components/admin/AdminTenantsPlanTable'
 import { Button } from '@/components/ui/button'
@@ -35,9 +36,9 @@ export default async function AdminPage() {
 
   return (
     <AppShell
-      header={<PageHeader title="Admin" subtitle="Panou administrare" rightSlot={<ShieldCheck className="h-5 w-5" />} />}
+      header={<PageHeader title="Admin" subtitle="Panou administrare" rightSlot={<ShieldCheck className="h-5 w-5" />} contentVariant="centered" />}
     >
-      <div className="mx-auto mt-3 w-full max-w-6xl space-y-3 py-3 sm:mt-0">
+      <DashboardContentShell variant="centered" className="mt-3 space-y-3 py-3 sm:mt-0">
         <div className="hidden flex-wrap gap-2 md:flex">
           <Button asChild variant="outline" size="sm" className="h-9 gap-2 rounded-xl border-[var(--agri-border)]">
             <Link href="/admin/analytics">
@@ -90,7 +91,7 @@ export default async function AdminPage() {
         ) : (
           <AdminTenantsPlanTable initialRows={rows} />
         )}
-      </div>
+      </DashboardContentShell>
     </AppShell>
   )
 }

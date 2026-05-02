@@ -7,6 +7,7 @@ import { MapPin, Pencil, Trash2, UserCheck, UserRound, Users, Wallet } from 'luc
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { DesktopKpiStrip } from '@/components/app/DesktopKpiStrip'
 import { AppDialog } from '@/components/app/AppDialog'
 import { ModuleEmptyCard, ModuleScoreboard } from '@/components/app/module-list-chrome'
@@ -541,11 +542,12 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
         <PageHeader
           title="Culegători"
           subtitle="Evidența echipei de lucru"
+          contentVariant="workspace"
           rightSlot={<UserRound className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
         />
       }
     >
-      <div className="mt-2 w-full space-y-3 px-4 py-3 sm:mt-0 sm:py-3 lg:px-6 xl:px-8">
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-3 sm:mt-0 sm:py-3">
         <ModuleScoreboard
           tone="surface"
           className="gap-x-3.5 gap-y-1 border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] md:hidden"
@@ -769,7 +771,7 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
             }
           />
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <AppDialog
         open={Boolean(detailsCulegator) && !isDesktop}

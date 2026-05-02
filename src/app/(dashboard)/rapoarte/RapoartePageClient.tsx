@@ -5,6 +5,7 @@ import { BarChart3, Download, FileText } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { PageHeader } from '@/components/app/PageHeader'
 import { PerformanceTable, type PerformanceRow } from '@/components/app/PerformanceTable'
 import { Button } from '@/components/ui/button'
@@ -691,11 +692,12 @@ export function RapoartePageClient({
         <PageHeader
           title="Rapoarte"
           subtitle="Analiză comercială și operațională"
+          contentVariant="centered"
           rightSlot={<BarChart3 className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
         />
       }
     >
-      <div className="mx-auto mt-3 w-full max-w-5xl space-y-3 py-3 sm:mt-0">
+      <DashboardContentShell variant="centered" className="mt-3 space-y-3 py-3 sm:mt-0">
 
         {/* Period pills */}
         <div style={{ display: 'flex', gap: 8 }}>
@@ -956,7 +958,7 @@ export function RapoartePageClient({
             <PerformanceTable title="Top parcele" rows={parcelaPerformance} />
             <PerformanceTable title="Top culegători" rows={culegatorPerformance} />
           </div>
-      </div>
+      </DashboardContentShell>
     </AppShell>
   )
 }

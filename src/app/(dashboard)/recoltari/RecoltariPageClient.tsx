@@ -9,6 +9,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { DesktopKpiStrip } from '@/components/app/DesktopKpiStrip'
 import {
   ModuleEmptyCard,
@@ -611,7 +612,7 @@ export function RecoltariPageClient({
 
   return (
     <AppShell
-      header={<PageHeader title="Recoltări" subtitle="Evidența producției zilnice" />}
+      header={<PageHeader title="Recoltări" subtitle="Evidența producției zilnice" contentVariant="workspace" />}
       bottomBar={
         <div className="md:hidden">
           <StickyActionBar>
@@ -624,7 +625,7 @@ export function RecoltariPageClient({
         </div>
       }
     >
-      <div className="mt-2 w-full space-y-3 px-4 py-3 sm:mt-0 sm:space-y-4 sm:py-3 lg:px-6 xl:px-8">
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
@@ -959,7 +960,7 @@ export function RecoltariPageClient({
             }
           />
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <ViewRecoltareDialog
         open={Boolean(viewingRecoltare)}

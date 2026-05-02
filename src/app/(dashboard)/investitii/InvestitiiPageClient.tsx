@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -365,11 +366,12 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
         <PageHeader
           title="Investiții"
           subtitle="Evidența investițiilor"
+          contentVariant="workspace"
           rightSlot={<Landmark className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
         />
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 px-0 py-3 sm:mt-0 sm:px-3 md:max-w-7xl">
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-3 sm:mt-0">
 
         <ModuleScoreboard className="mb-2">
           <span className="text-[11px] text-[var(--agri-text-muted)]">Total investit</span>
@@ -587,7 +589,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
             }
           />
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <AddInvestitieDialog
         open={addOpen}

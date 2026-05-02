@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { EmptyState } from '@/components/app/EmptyState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -172,10 +173,11 @@ export function AdminAnalyticsDashboardView({
         <PageHeader
           title="Analytics produs"
           subtitle="Semnale SaaS, activare și operare — desktop"
+          contentVariant="analytics"
         />
       }
     >
-      <div className="mx-auto w-full max-w-[1400px] space-y-10 px-4 py-6 md:px-6">
+      <DashboardContentShell variant="analytics" className="space-y-10 py-6">
         {/* A — Control bar */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="min-w-0 space-y-1">
@@ -580,7 +582,7 @@ export function AdminAnalyticsDashboardView({
 
         {/* Tech Health — Sentry (config snapshot, nu metrici produs) */}
         <AdminAnalyticsSentrySection health={sentryTechHealth} />
-      </div>
+      </DashboardContentShell>
     </AppShell>
   )
 }

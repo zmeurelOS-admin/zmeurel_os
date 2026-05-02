@@ -5,6 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { useQuery } from '@tanstack/react-query'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
@@ -587,10 +588,10 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
 
   return (
     <AppShell
-      header={<PageHeader title="Stocuri" subtitle="Inventar curent pe locații" />}
+      header={<PageHeader title="Stocuri" subtitle="Inventar curent pe locații" contentVariant="workspace" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl py-3 sm:mt-0 sm:py-3 md:max-w-7xl">
+      <DashboardContentShell variant="workspace" className="mt-2 py-3 sm:mt-0 sm:py-3">
 
         {/* SCOREBOARD */}
         {totalKg > 0 ? (
@@ -796,7 +797,7 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
           </aside>
         </div>
 
-      </div>
+      </DashboardContentShell>
     </AppShell>
   )
 }

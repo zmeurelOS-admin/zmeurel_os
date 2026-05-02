@@ -1,5 +1,6 @@
 'use client'
 
+import { type DashboardContentShellVariant } from '@/components/app/DashboardContentShell'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { UserProfileMenu } from '@/components/app/UserProfileMenu'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
@@ -16,6 +17,8 @@ interface PageHeaderProps {
   expandRightSlotOnMobile?: boolean
   /** Dashboard: pe mobil, acțiunile sub titlu pe rând dedicat. */
   stackMobileRightSlotBelowTitle?: boolean
+  /** Dashboard: aliniază header-ul la aceeași lățime cu body-ul standardizat. */
+  contentVariant?: DashboardContentShellVariant
 }
 
 export function PageHeader({
@@ -26,6 +29,7 @@ export function PageHeader({
   headerClassName,
   expandRightSlotOnMobile,
   stackMobileRightSlotBelowTitle,
+  contentVariant,
 }: PageHeaderProps) {
   const { triggerAddAction, currentLabel, hasAction } = useAddAction()
 
@@ -37,6 +41,7 @@ export function PageHeader({
       className={headerClassName}
       showMobileRightSlot
       stackMobileRightSlotBelow={stackMobileRightSlotBelowTitle}
+      contentVariant={contentVariant}
       rightSlot={
         <div className="flex flex-wrap items-center justify-end gap-1.5 text-[var(--text-primary)] sm:gap-2 lg:gap-2.5 lg:text-[var(--text-on-accent)]">
           <NotificationBell />

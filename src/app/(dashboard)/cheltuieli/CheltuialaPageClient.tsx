@@ -8,6 +8,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -613,10 +614,10 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
 
   return (
     <AppShell
-      header={<PageHeader title="Cheltuieli" subtitle="Monitorizare costuri operaționale" />}
+      header={<PageHeader title="Cheltuieli" subtitle="Monitorizare costuri operaționale" contentVariant="workspace" />}
       bottomBar={null}
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3 md:max-w-7xl">
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-3 sm:mt-0 sm:py-3">
 
         {/* SCOREBOARD */}
         {scoreboard.totalLuna > 0 ? (
@@ -855,7 +856,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
           />
         ) : null}
 
-      </div>
+      </DashboardContentShell>
 
       <AddCheltuialaDialog
         open={isAddDialogOpen}

@@ -9,6 +9,7 @@ import { toast } from '@/lib/ui/toast'
 import { AddActivitateAgricolaDialog } from '@/components/activitati-agricole/AddActivitateAgricolaDialog'
 import { EditActivitateAgricolaDialog } from '@/components/activitati-agricole/EditActivitateAgricolaDialog'
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -357,7 +358,7 @@ export default function ActivitatiPage() {
 
   return (
     <AppShell
-      header={<PageHeader title="Activități Agricole" subtitle="Istoric lucrări și tratamente" />}
+      header={<PageHeader title="Activități Agricole" subtitle="Istoric lucrări și tratamente" contentVariant="workspace" />}
       bottomBar={
         <div className="md:hidden">
           <StickyActionBar>
@@ -368,7 +369,7 @@ export default function ActivitatiPage() {
         </div>
       }
     >
-      <div className="mt-2 w-full space-y-4 px-4 py-3 sm:mt-0 sm:space-y-5 sm:py-3 lg:px-6 xl:px-8">
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-4 py-3 sm:mt-0 sm:space-y-5 sm:py-3">
         {/* STARE TERENURI */}
         {stareParceleRows.length > 0 ? (
           <div>
@@ -685,7 +686,7 @@ export default function ActivitatiPage() {
             })}
           </div>
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <AddActivitateAgricolaDialog
         open={isAddDialogOpen}

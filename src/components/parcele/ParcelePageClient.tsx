@@ -7,6 +7,7 @@ import { CalendarDays, ChevronDown, ChevronUp, Clock3, Droplets, ListChecks, Map
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import {
@@ -2142,10 +2143,10 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
   return (
     <AppShell
-      header={<PageHeader title="Terenuri" subtitle="Administrare terenuri cultivate" rightSlot={<MapIcon className="h-5 w-5" />} />}
+      header={<PageHeader title="Terenuri" subtitle="Administrare terenuri cultivate" rightSlot={<MapIcon className="h-5 w-5" />} contentVariant="workspace" />}
       bottomBar={null}
     >
-      <div className="mt-2 w-full max-w-none space-y-3 px-3 py-2.5 sm:mt-0 sm:space-y-4 sm:py-3 sm:px-4 md:space-y-2.5 md:py-2.5 md:px-4 lg:px-6 xl:px-8">
+      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-2.5 sm:mt-0 sm:space-y-4 sm:py-3 md:space-y-2.5 md:py-2.5">
         {resolvedError ? (
           <ErrorState
             title="Eroare la încărcare"
@@ -2956,7 +2957,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
             )}
           </>
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       <AddParcelDrawer
         open={addOpen}

@@ -7,6 +7,7 @@ import { Pencil, Trash2, Users } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { AppShell } from '@/components/app/AppShell'
 import {
   ModuleEmptyCard,
@@ -928,11 +929,12 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
         <PageHeader
           title="Clienți"
           subtitle="Administrare clienți"
+          contentVariant="centered"
           rightSlot={<Users className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
         />
       }
     >
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 sm:py-3">
+      <DashboardContentShell variant="centered" className="mt-2 space-y-3 py-3 sm:mt-0 sm:py-3">
         <input ref={csvInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className="hidden" onChange={handleFileSelect} />
 
         <ModuleScoreboard tone="tinted" className="gap-x-3.5 gap-y-1">
@@ -1132,7 +1134,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
             }}
           />
         ) : null}
-      </div>
+      </DashboardContentShell>
 
       {/* Dialogs */}
       <AddClientDialog
