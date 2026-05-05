@@ -733,16 +733,18 @@ function ProductEditorContent({
 }
 
 export function ReviewStep({
+  an,
+  parcelaId,
   parseResult,
   onReset,
 }: {
+  an: number
+  parcelaId: string
   parseResult: ParseResult
   onReset: () => void
 }) {
   const router = useRouter()
   const isDesktop = useMediaQuery('(min-width: 768px)')
-  const currentYear = new Date().getFullYear()
-  const [anPlan, setAnPlan] = useState(currentYear)
   const [planuriEditate, setPlanuriEditate] = useState<ReviewPlanState[]>(
     () => buildInitialPlans(parseResult)
   )
@@ -1076,7 +1078,7 @@ export function ReviewStep({
 
     startSaving(async () => {
       try {
-        const result = await saveImportedPlansAction(payload, anPlan)
+        const result = await saveImportedPlansAction(payload, an, parcelaId)
 
         const params = new URLSearchParams()
         params.set('imported', String(result.success))
@@ -1300,21 +1302,9 @@ export function ReviewStep({
                 <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                   An plan
                 </span>
-                <Select
-                  value={String(anPlan)}
-                  onValueChange={(value) => setAnPlan(Number(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Alege anul" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[currentYear - 1, currentYear, currentYear + 1].map((year) => (
-                      <SelectItem key={year} value={String(year)}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex min-h-10 items-center rounded-[var(--radius)] border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm text-[var(--text-primary)]">
+                  {an}
+                </div>
               </div>
 
               <Button

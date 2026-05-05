@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import {
   createProdusFitosanitar,
+  getPlanActivPentruParcela,
   mapTratamenteError,
   upsertPlanTratamentCuLinii,
 } from '@/lib/supabase/queries/tratamente'
@@ -48,11 +49,14 @@ export type {
 
 export async function saveImportedPlansAction(
   planuri: PlanSaveInput[],
-  an: number
+  an: number,
+  parcelaId?: string | null
 ): Promise<{ success: number; failed: Array<{ plan_nume: string; error: string }> }> {
   const failed: Array<{ plan_nume: string; error: string }> = []
   let success = 0
   const createdProduseCache = new Map<string, string>()
+  const parceleIds =
+    typeof parcelaId === 'string' && parcelaId.trim().length > 0 ? [parcelaId] : []
 
   for (const plan of planuri) {
     const planName = plan.plan_metadata.nume.trim() || 'Plan fără nume'
@@ -127,7 +131,7 @@ export async function saveImportedPlansAction(
           arhivat: false,
         },
         resolvedLines,
-        [],
+        parceleIds,
         an
       )
 
@@ -144,4 +148,20 @@ export async function saveImportedPlansAction(
   revalidatePath('/tratamente/planuri/import')
 
   return { success, failed }
+}
+
+export async function checkConflictPlanAction(
+  parcelaId: string,
+  an: number
+): Promise<{ conflict: boolean; numePlan?: string }> {
+  const planActiv = await getPlanActivPentruParcela(parcelaId, an)
+
+  if (!planActiv?.plan || !planActiv.plan.activ || planActiv.plan.arhivat) {
+    return { conflict: false }
+  }
+
+  return {
+    conflict: true,
+    numePlan: planActiv.plan.nume ?? undefined,
+  }
 }

@@ -8,10 +8,15 @@ import { AppShell } from '@/components/app/AppShell'
 import { PageHeader } from '@/components/app/PageHeader'
 import { Button } from '@/components/ui/button'
 import type { ParseResult } from '@/app/(dashboard)/tratamente/planuri/import/actions'
+import { ConfigurareStep } from './ConfigurareStep'
 import { ReviewStep } from './ReviewStep'
 import { UploadStep } from './UploadStep'
 
 export function ImportFlowClient() {
+  const [importConfig, setImportConfig] = useState<{
+    parcelaId: string
+    an: number
+  } | null>(null)
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
 
   return (
@@ -52,8 +57,12 @@ export function ImportFlowClient() {
           <span className="font-medium text-[var(--text-primary)]">Import</span>
         </nav>
 
-        {parseResult ? (
+        {!importConfig ? (
+          <ConfigurareStep onConfigurate={setImportConfig} />
+        ) : parseResult ? (
           <ReviewStep
+            an={importConfig.an}
+            parcelaId={importConfig.parcelaId}
             parseResult={parseResult}
             onReset={() => setParseResult(null)}
           />
