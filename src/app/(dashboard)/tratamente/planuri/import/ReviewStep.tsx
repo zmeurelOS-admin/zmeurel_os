@@ -177,6 +177,19 @@ function countDoseValues(product: Pick<ReviewProductState, 'doza_ml_per_hl' | 'd
   return Number(product.doza_ml_per_hl != null) + Number(product.doza_l_per_ha != null)
 }
 
+function resolveDraftCulturi(
+  draft: DraftProdusImport | undefined,
+  culturaTip: string,
+  allowPlanFallback: boolean
+) {
+  if (draft?.omologat_culturi?.length) {
+    return draft.omologat_culturi
+  }
+
+  const normalizedCulturaTip = culturaTip.trim()
+  return allowPlanFallback && normalizedCulturaTip ? [normalizedCulturaTip] : []
+}
+
 function buildDefaultDraftProdus(
   product: ReviewProductState,
   culturaTip: string
@@ -275,7 +288,10 @@ function resolveSuggestionLabel(match: ProdusMatch, index: number) {
   return `Folosește „${suggestion.produs_nume}” (${suggestion.scor}%)`
 }
 
-function getProductBlockingIssues(product: ReviewProductState): string[] {
+function getProductBlockingIssues(
+  product: ReviewProductState,
+  culturaTip = ''
+): string[] {
   const issues: string[] = []
 
   if (!Number.isInteger(product.ordine_produs) || product.ordine_produs < 1) {
@@ -314,6 +330,12 @@ function getProductBlockingIssues(product: ReviewProductState): string[] {
 
   if (product.actiune === 'create_new') {
     const draft = product.produs_de_creat
+    const omologatCulturi = resolveDraftCulturi(
+      draft,
+      culturaTip,
+      product.salveaza_in_biblioteca
+    )
+
     if (!draft) {
       issues.push('Produsul nou nu este configurat.')
     } else {
@@ -330,7 +352,7 @@ function getProductBlockingIssues(product: ReviewProductState): string[] {
       if (!toNullableText(draft.tip)) {
         issues.push('Produsul nou are nevoie de tip.')
       }
-      if (!draft.omologat_culturi || draft.omologat_culturi.length === 0) {
+      if (omologatCulturi.length === 0) {
         issues.push('Produsul nou trebuie să aibă cel puțin o cultură omologată.')
       }
     }
@@ -408,7 +430,10 @@ function getMatchBadge(
   return { text: 'Necunoscut', variant: 'destructive' }
 }
 
-function getLineBlockingIssues(line: ReviewLineState): string[] {
+function getLineBlockingIssues(
+  line: ReviewLineState,
+  culturaTip = ''
+): string[] {
   const issues: string[] = []
 
   if (!Number.isInteger(line.ordine) || line.ordine < 1) {
@@ -427,7 +452,7 @@ function getLineBlockingIssues(line: ReviewLineState): string[] {
   }
 
   for (const product of activeProducts) {
-    issues.push(...getProductBlockingIssues(product))
+    issues.push(...getProductBlockingIssues(product, culturaTip))
   }
 
   return issues
@@ -733,7 +758,7 @@ export function ReviewStep({
   const planSummaries = useMemo(() => {
     return planuriEditate.map((plan) => {
       const unresolvedLineIssues = plan.linii.reduce(
-        (acc, line) => acc + getLineBlockingIssues(line).length,
+        (acc, line) => acc + getLineBlockingIssues(line, plan.cultura_tip).length,
         0
       )
       const metadataIssues =
@@ -978,7 +1003,16 @@ export function ReviewStep({
                 doza_l_per_ha: product.doza_l_per_ha,
                 observatii: toNullableText(product.observatii),
                 produs_de_creat:
-                  product.actiune === 'create_new' ? product.produs_de_creat : undefined,
+                  product.actiune === 'create_new' && product.produs_de_creat
+                    ? {
+                        ...product.produs_de_creat,
+                        omologat_culturi: resolveDraftCulturi(
+                          product.produs_de_creat,
+                          plan.cultura_tip,
+                          product.salveaza_in_biblioteca
+                        ),
+                      }
+                    : undefined,
               })),
           })),
       }))
@@ -1047,7 +1081,7 @@ export function ReviewStep({
     productIndex: number
   }) {
     const badge = getMatchBadge(product, produseById)
-    const productIssues = getProductBlockingIssues(product)
+    const productIssues = getProductBlockingIssues(product, plan.cultura_tip)
     const libraryOpen =
       libraryTarget?.planIndex === planIndex &&
       libraryTarget?.lineIndex === lineIndex &&
@@ -1441,7 +1475,7 @@ export function ReviewStep({
                       </TableHeader>
                       <TableBody>
                         {plan.linii.map((line, lineIndex) => {
-                          const issues = getLineBlockingIssues(line)
+                          const issues = getLineBlockingIssues(line, plan.cultura_tip)
 
                           return (
                             <TableRow key={`${plan.foaie_nume}-${lineIndex}`}>
@@ -1557,7 +1591,7 @@ export function ReviewStep({
                   ) : (
                     <div className="space-y-3">
                       {plan.linii.map((line, lineIndex) => {
-                        const issues = getLineBlockingIssues(line)
+                        const issues = getLineBlockingIssues(line, plan.cultura_tip)
 
                         return (
                           <AppCard
