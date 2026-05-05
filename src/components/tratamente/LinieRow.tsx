@@ -74,6 +74,11 @@ export function LinieRow({
             <span className="rounded-full border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)]">
               {stadiu.emoji} {stadiu.label}
             </span>
+            {linie.sursa_linie === 'adaugata_manual' ? (
+              <span className="rounded-full border border-[var(--warning-border)] bg-[var(--warning-bg)] px-2 py-1 text-xs text-[var(--warning-text)]">
+                Adăugat manual
+              </span>
+            ) : null}
             {isManual ? (
               <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-1 text-xs text-[var(--text-secondary)]">
                 manual
@@ -84,6 +89,11 @@ export function LinieRow({
           <p className="mt-3 text-base text-[var(--text-primary)] [font-weight:650]">
             {displayName}
           </p>
+          {linie.motiv_adaugare?.trim() ? (
+            <p className="mt-1 text-xs italic text-[var(--text-secondary)]">
+              Motiv: {linie.motiv_adaugare.trim()}
+            </p>
+          ) : null}
           <div className="mt-1 space-y-1">
             {produse.length > 0 ? (
               produse.map((produs) => (

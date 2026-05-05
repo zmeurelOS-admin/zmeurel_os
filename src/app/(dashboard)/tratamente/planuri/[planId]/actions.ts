@@ -47,6 +47,8 @@ const linieSchema = z
   .object({
     stadiu_trigger: z.string().trim().min(1, 'Stadiul fenologic este obligatoriu.'),
     cohort_trigger: z.enum(['floricane', 'primocane']).optional().nullable(),
+    sursa_linie: z.enum(['din_plan', 'adaugata_manual']).optional(),
+    motiv_adaugare: z.string().trim().max(500, 'Motivul poate avea cel mult 500 de caractere.').optional().nullable(),
     tip_interventie: z.enum(['protectie', 'nutritie', 'biostimulare', 'erbicidare', 'igiena', 'monitorizare', 'altul']).optional().nullable(),
     scop: z.string().trim().max(240, 'Scopul poate avea cel mult 240 de caractere.').optional().nullable(),
     regula_repetare: z.enum(['fara_repetare', 'interval']).optional(),
@@ -106,6 +108,17 @@ const linieSchema = z
         code: z.ZodIssueCode.custom,
         path: ['regula_repetare'],
         message: 'Completează intervalul sau numărul maxim de repetări.',
+      })
+    }
+
+    if (
+      value.sursa_linie === 'adaugata_manual' &&
+      (!value.motiv_adaugare || value.motiv_adaugare.trim().length === 0)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['motiv_adaugare'],
+        message: 'Motivul adăugării este obligatoriu pentru intervențiile manuale.',
       })
     }
   })

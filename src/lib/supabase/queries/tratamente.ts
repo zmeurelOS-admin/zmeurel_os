@@ -154,6 +154,8 @@ export interface CreatePlanTratamentLinieInput {
   ordine?: number
   stadiu_trigger: string
   cohort_trigger?: Cohorta | null
+  sursa_linie?: 'din_plan' | 'adaugata_manual'
+  motiv_adaugare?: string | null
   tip_interventie?: string | null
   scop?: string | null
   regula_repetare?: 'fara_repetare' | 'interval'
@@ -237,6 +239,8 @@ export interface PlanTratamentLiniePayload {
   ordine: number
   stadiu_trigger: string
   cohort_trigger?: Cohorta | null
+  sursa_linie?: 'din_plan' | 'adaugata_manual'
+  motiv_adaugare?: string | null
   tip_interventie?: string | null
   scop?: string | null
   regula_repetare?: 'fara_repetare' | 'interval'
@@ -1169,6 +1173,59 @@ async function getNextLinieOrdine(ctx: QueryContext, planId: string): Promise<nu
 
   if (error) throw error
   return (data?.ordine ?? 0) + 1
+}
+
+async function getManualLinieInsertionOrder(
+  ctx: QueryContext,
+  planId: string,
+  stadiuTrigger: string
+): Promise<number> {
+  const { data, error } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .select('ordine,stadiu_trigger')
+    .eq('plan_id', planId)
+    .eq('tenant_id', ctx.tenantId)
+    .order('ordine', { ascending: true })
+
+  if (error) throw error
+
+  const linii = data ?? []
+  const ordineMaxPlan = linii.reduce((maxOrdine, linie) => Math.max(maxOrdine, linie.ordine ?? 0), 0)
+  const ordineMaxStadiu = linii
+    .filter((linie) => linie.stadiu_trigger === stadiuTrigger)
+    .reduce((maxOrdine, linie) => Math.max(maxOrdine, linie.ordine ?? 0), 0)
+
+  if (ordineMaxStadiu > 0) {
+    return ordineMaxStadiu + 1
+  }
+
+  return ordineMaxPlan + 1
+}
+
+async function shiftPlanLiniiOrderFrom(
+  ctx: QueryContext,
+  planId: string,
+  insertionOrder: number
+): Promise<void> {
+  const { data, error } = await ctx.supabase
+    .from('planuri_tratament_linii')
+    .select('id,ordine')
+    .eq('plan_id', planId)
+    .eq('tenant_id', ctx.tenantId)
+    .gte('ordine', insertionOrder)
+    .order('ordine', { ascending: false })
+
+  if (error) throw error
+
+  for (const linie of data ?? []) {
+    const { error: updateError } = await ctx.supabase
+      .from('planuri_tratament_linii')
+      .update({ ordine: (linie.ordine ?? 0) + 1 })
+      .eq('id', linie.id)
+      .eq('tenant_id', ctx.tenantId)
+
+    if (updateError) throw updateError
+  }
 }
 
 async function getAplicareOwnedByTenant(ctx: QueryContext, id: string): Promise<AplicareTratament> {
@@ -2125,15 +2182,26 @@ export async function addLinieToPlan(
   const ctx = await getQueryContext()
   await ensurePlanExists(ctx, planId)
 
-  const ordine = await getNextLinieOrdine(ctx, planId)
+  const stadiuTrigger = requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger')
+  const sursaLinie = linie.sursa_linie === 'adaugata_manual' ? 'adaugata_manual' : 'din_plan'
+  const ordine = sursaLinie === 'adaugata_manual'
+    ? await getManualLinieInsertionOrder(ctx, planId, stadiuTrigger)
+    : await getNextLinieOrdine(ctx, planId)
+
+  if (sursaLinie === 'adaugata_manual') {
+    await shiftPlanLiniiOrderFrom(ctx, planId, ordine)
+  }
+
   const produse = normalizeInterventieProdusPayloads({ ...linie, ordine })
   const firstProdus = firstProdusPayload(produse)
   const payload: PlanTratamentLinieInsert = {
     tenant_id: ctx.tenantId,
     plan_id: planId,
     ordine,
-    stadiu_trigger: requireStadiuCod(linie.stadiu_trigger, 'stadiu_trigger'),
+    stadiu_trigger: stadiuTrigger,
     cohort_trigger: normalizeOptionalCohorta(linie.cohort_trigger),
+    sursa_linie: sursaLinie,
+    motiv_adaugare: sursaLinie === 'adaugata_manual' ? normalizeText(linie.motiv_adaugare) : null,
     tip_interventie: normalizeText(linie.tip_interventie),
     scop: normalizeText(linie.scop),
     regula_repetare: linie.regula_repetare ?? 'fara_repetare',

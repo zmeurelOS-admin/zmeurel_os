@@ -11,6 +11,7 @@ import {
   updateLinieAction,
   type LinieInput,
 } from '@/app/(dashboard)/tratamente/planuri/[planId]/actions'
+import { AdaugaInterventieManualDialog } from '@/components/tratamente/AdaugaInterventieManualDialog'
 import { LinieDeleteDialog } from '@/components/tratamente/LinieDeleteDialog'
 import { LinieEditDialog, type LinieEditValue } from '@/components/tratamente/LinieEditDialog'
 import { LinieRow } from '@/components/tratamente/LinieRow'
@@ -161,6 +162,7 @@ export function PlanLiniiList({
   const router = useRouter()
   const [localLinii, setLocalLinii] = useState<PlanTratamentLinieCuProdus[]>(sortLinii(linii))
   const [editorOpen, setEditorOpen] = useState(false)
+  const [manualEditorOpen, setManualEditorOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editingLinie, setEditingLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
   const [pendingDeleteLinie, setPendingDeleteLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
@@ -280,9 +282,15 @@ export function PlanLiniiList({
           <p className="text-sm text-[var(--text-secondary)]">
             Nu există încă intervenții în acest plan.
           </p>
-          <Button type="button" variant="outline" className="mt-4" onClick={openAddDialog}>
-            + Adaugă intervenție
-          </Button>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button type="button" variant="outline" onClick={openAddDialog}>
+              + Adaugă intervenție
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setManualEditorOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Adaugă intervenție manuală
+            </Button>
+          </div>
         </AppCard>
       ) : (
         <div className="space-y-3">
@@ -305,6 +313,16 @@ export function PlanLiniiList({
               }}
             />
           ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full md:w-auto"
+            onClick={() => setManualEditorOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Adaugă intervenție manuală
+          </Button>
         </div>
       )}
 
@@ -337,6 +355,19 @@ export function PlanLiniiList({
         onConfirm={handleDeleteLinie}
         pending={isPending}
         stadiuLabel={pendingDeleteLinie ? getStadiuMeta(pendingDeleteLinie.stadiu_trigger, grupBiologic, pendingDeleteLinie.cohort_trigger).label : 'selectat'}
+      />
+
+      <AdaugaInterventieManualDialog
+        cultura={culturaTip}
+        grupBiologic={grupBiologic}
+        onOpenChange={setManualEditorOpen}
+        onSuccess={() => {
+          setManualEditorOpen(false)
+          router.refresh()
+        }}
+        open={manualEditorOpen}
+        planId={planId}
+        produse={produse}
       />
     </section>
   )

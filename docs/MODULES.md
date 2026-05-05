@@ -342,6 +342,7 @@ Schema DB: `produse_fitosanitare`, `planuri_tratament`, `planuri_tratament_linii
 `parcele_planuri`, `stadii_fenologice_parcela`, `aplicari_tratament`.
 `planuri_tratament_linii` păstrează metadata de proveniență prin `sursa_linie`
 (`din_plan` / `adaugata_manual`) și `motiv_adaugare` pentru intervenții adăugate ulterior.
+În detaliul planului (`/tratamente/planuri/[planId]`), lista de linii suportă și intervenții adăugate manual direct din UI; acestea folosesc `sursa_linie = 'adaugata_manual'`, motiv obligatoriu și inserare în grupul fenofazei selectate.
 
 Queries: `src/lib/supabase/queries/tratamente.ts`
 Helpers: `src/lib/tratamente/` (phi-checker, rotatie-frac, cupru-cumulat, doza-calculator,
