@@ -9,13 +9,6 @@ import {
   validateImportFileMeta,
 } from '@/lib/tratamente/import/validate-upload'
 
-type WorkbookSheet = {
-  name: string
-  cultura?: string
-  descriere?: string
-  rows?: Array<[number | string, string, string, number | string, number | string, string]>
-}
-
 function makeProdus(
   id: string,
   numeComercial: string,
@@ -48,7 +41,6 @@ const TEST_PRODUSE: ProdusFitosanitar[] = [
   makeProdus('prod-mospilan', 'Mospilan 20 SG', 'acetamiprid'),
   makeProdus('prod-signum', 'Signum', 'boscalid + piraclostrobin'),
   makeProdus('prod-kocide', 'Kocide 2000', 'hidroxid de cupru'),
-  makeProdus('prod-teldor', 'Teldor 500 SC', 'fenhexamid'),
 ]
 
 function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
@@ -58,21 +50,41 @@ function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
   ) as ArrayBuffer
 }
 
-function buildTestWorkbook(sheets: WorkbookSheet[]): Buffer {
+function buildV3Workbook(rows: unknown[][]): Buffer {
   const workbook = XLSX.utils.book_new()
+  const data = [
+    ['Template import plan tratament V3'],
+    [
+      'Fenofază',
+      'Tip intervenție',
+      'Titlu intervenție',
+      'Produs 1',
+      'Doză produs 1',
+      'Produs 2',
+      'Doză produs 2',
+      'Produs 3',
+      'Doză produs 3',
+      'Produs 4',
+      'Doză produs 4',
+      'Repetare',
+      'Interval zile',
+      'Cohortă zmeur',
+      'Prag decizional',
+      'Observații',
+    ],
+    ...rows,
+  ]
 
-  sheets.forEach((sheet) => {
-    const data = [
-      ['Cultură', sheet.cultura ?? ''],
-      ['Descriere', sheet.descriere ?? ''],
-      [],
-      ['Ordine', 'Stadiu', 'Produs', 'Doză ml/hl', 'Doză l/ha', 'Observații'],
-      ...(sheet.rows ?? []),
-    ]
-
-    const worksheet = XLSX.utils.aoa_to_sheet(data)
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name)
-  })
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet(data),
+    'Interventii'
+  )
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet([['Instrucțiuni']]),
+    'Instructiuni'
+  )
 
   const arrayBuffer = XLSX.write(workbook, {
     type: 'array',
@@ -82,20 +94,27 @@ function buildTestWorkbook(sheets: WorkbookSheet[]): Buffer {
   return Buffer.from(arrayBuffer)
 }
 
-describe('parseImportedPlansWorkbook', () => {
-  it('parsează un fișier valid cu o singură foaie și 4 linii', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Zmeur 2026',
-        cultura: 'Zmeur',
-        descriere: 'Plan complet',
-        rows: [
-          [1, 'Umflare muguri', 'Kumulus S', 500, '', 'Prevenție făinare'],
-          [2, 'Prefloral', 'Mospilan 20 SG', 20, '', 'Afide'],
-          [3, 'Cădere petale', 'Signum', 50, '', 'Botrytis'],
-          [4, 'Pârguire', 'Kocide 2000', '', 3, 'PHI 3 zile'],
-        ],
-      },
+describe('parseImportedPlansWorkbook V3', () => {
+  it('parsează un rând complet cu toate coloanele V3', async () => {
+    const buffer = buildV3Workbook([
+      [
+        'Buton verde',
+        'Protectie',
+        'Protecție preventivă',
+        'Kumulus S',
+        '500 g/ha',
+        'Mospilan 20 SG',
+        '20 g/hl',
+        'Produs nou',
+        '1.5g/pl/sapt',
+        'Signum',
+        '0.8 kg/ha',
+        'interval',
+        10,
+        'floricane',
+        'risc făinare',
+        'aplicare dimineața',
+      ],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -103,26 +122,33 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.global_errors).toContain(
-      'Format legacy detectat. Importul este păstrat temporar, dar template-ul oficial Zmeurel este V2.'
-    )
+    expect(result.global_errors).toHaveLength(0)
     expect(result.planuri).toHaveLength(1)
-    expect(result.planuri[0]?.linii).toHaveLength(4)
-    expect(result.planuri[0]?.errors).toHaveLength(0)
+    expect(result.planuri[0]?.foaie_nume).toBe('Interventii')
+    expect(result.planuri[0]?.plan_metadata.nume_sugerat).toBe('Plan de tratamente')
+    expect(result.planuri[0]?.plan_metadata.cultura_tip_detectat).toBe('zmeur')
+
+    const line = result.planuri[0]?.linii[0]
+    expect(line?.interventie_key).toBe('v3-row-3')
+    expect(line?.ordine).toBe(1)
+    expect(line?.stadiu_trigger).toBe('buton_verde')
+    expect(line?.tip_interventie).toBe('protectie')
+    expect(line?.scop).toBe('Protecție preventivă')
+    expect(line?.regula_repetare).toBe('interval')
+    expect(line?.interval_repetare_zile).toBe(10)
+    expect(line?.cohort_trigger).toBe('floricane')
+    expect(line?.observatii).toBe('risc făinare | aplicare dimineața')
+    expect(line?.produse).toHaveLength(4)
+    expect(line?.produse[2]?.produs_input).toBe('Produs nou')
+    expect(line?.produse[2]?.observatii).toBe('1.5g/pl/sapt')
+    expect(line?.produse[2]?.doza_ml_per_hl).toBeNull()
+    expect(line?.produse[2]?.doza_l_per_ha).toBeNull()
+    expect(line?.produse[2]?.salveaza_in_biblioteca).toBe(true)
   })
 
-  it('detectează două foi valide ca două planuri', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Zmeur 2026',
-        cultura: 'Zmeur',
-        rows: [[1, 'Umflare muguri', 'Kumulus S', 500, '', '']],
-      },
-      {
-        name: 'Căpșun 2026',
-        cultura: 'Căpșun',
-        rows: [[1, 'Prefloral', 'Signum', 50, '', '']],
-      },
+  it('parsează un rând minim cu fenofază, tip, titlu și produs 1', async () => {
+    const buffer = buildV3Workbook([
+      ['Inflorit', 'protectie', 'Botrytis', 'Signum'],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -130,16 +156,19 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri).toHaveLength(2)
+    const line = result.planuri[0]?.linii[0]
+    expect(line?.stadiu_trigger).toBe('inflorit')
+    expect(line?.tip_interventie).toBe('protectie')
+    expect(line?.scop).toBe('Botrytis')
+    expect(line?.regula_repetare).toBe('fara_repetare')
+    expect(line?.interval_repetare_zile).toBeNull()
+    expect(line?.produse).toHaveLength(1)
+    expect(line?.produse[0]?.produs_match.tip).toBe('exact')
   })
 
-  it('ignoră foile rezervate', async () => {
-    const buffer = buildTestWorkbook([
-      { name: 'Instructions' },
-      { name: 'Stadii valide' },
-      { name: 'Culturi acceptate' },
-      { name: 'Produse standard' },
-      { name: 'Exemplu zmeur' },
+  it('păstrează rândul de monitorizare fără produs real', async () => {
+    const buffer = buildV3Workbook([
+      ['Legare fruct', 'monitorizare', 'Verificare dăunători', '— fara produs'],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -147,17 +176,16 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri).toHaveLength(0)
-    expect(result.global_errors[0]).toContain('nicio foaie')
+    const line = result.planuri[0]?.linii[0]
+    expect(line?.stadiu_trigger).toBe('legare_fruct')
+    expect(line?.produse).toHaveLength(0)
+    expect(line?.errors).toHaveLength(0)
+    expect(line?.warnings).toContain('Rândul 3: niciun produs pe această intervenție.')
   })
 
-  it('marchează stadiul invalid ca eroare de linie', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Plan invalid',
-        cultura: 'Zmeur',
-        rows: [[1, 'Inflorire eronat', 'Kumulus S', 500, '', '']],
-      },
+  it('mapează saptamanal la interval de 7 zile', async () => {
+    const buffer = buildV3Workbook([
+      ['Pârga', 'nutritie', 'Nutriție fruct', 'Kumulus S', '2 kg/ha', '', '', '', '', '', '', 'saptamanal'],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -165,18 +193,14 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.errors).toContain(
-      'Stadiul nu este valid. Folosește una dintre valorile din template.'
-    )
+    const line = result.planuri[0]?.linii[0]
+    expect(line?.regula_repetare).toBe('interval')
+    expect(line?.interval_repetare_zile).toBe(7)
   })
 
-  it('mapează stadiul scris fără diacritice', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Plan fara diacritice',
-        cultura: 'Zmeur',
-        rows: [[1, 'Inflorire', 'Kumulus S', 500, '', '']],
-      },
+  it('mapează la 14 zile la interval de 14 zile', async () => {
+    const buffer = buildV3Workbook([
+      ['Post recoltare', 'igiena', 'Curățare', 'Kocide 2000', '2 kg/ha', '', '', '', '', '', '', 'la 14 zile'],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -184,16 +208,15 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('inflorit')
+    const line = result.planuri[0]?.linii[0]
+    expect(line?.stadiu_trigger).toBe('post_recoltare')
+    expect(line?.regula_repetare).toBe('interval')
+    expect(line?.interval_repetare_zile).toBe(14)
   })
 
-  it('mapează stadiul scris cu diacritice', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Plan cu diacritice',
-        cultura: 'Zmeur',
-        rows: [[1, 'Înflorire', 'Kumulus S', 500, '', '']],
-      },
+  it('mapează cohorta ambele la null', async () => {
+    const buffer = buildV3Workbook([
+      ['Maturitate', 'protectie', 'Protecție finală', 'Signum', '', '', '', '', '', '', '', '', '', 'ambele'],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -201,16 +224,13 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('inflorit')
+    expect(result.planuri[0]?.linii[0]?.cohort_trigger).toBeNull()
   })
 
-  it('acceptă direct codul canonic în fișierul nou', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Plan canonic',
-        cultura: 'Zmeur',
-        rows: [[1, 'scuturare_petale', 'Signum', 50, '', '']],
-      },
+  it('ignoră rândurile fără fenofază și raportează warning global', async () => {
+    const buffer = buildV3Workbook([
+      ['', 'protectie', 'Intervenție fără fenofază', 'Signum'],
+      ['Buton verde', 'protectie', 'Intervenție validă', 'Signum'],
     ])
 
     const result = await parseImportedPlansWorkbook(
@@ -218,138 +238,8 @@ describe('parseImportedPlansWorkbook', () => {
       TEST_PRODUSE
     )
 
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('scuturare_petale')
-  })
-
-  it('acceptă aliasurile legacy și le normalizează la codul canonic', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Plan legacy',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', 'Signum', 50, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('buton_roz')
-  })
-
-  it('acceptă stadiile noi pentru culturi compatibile, inclusiv roșii cu răsad', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Rosii solar',
-        cultura: 'Rosii',
-        rows: [[1, 'Răsad', 'Signum', 50, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.plan_metadata.cultura_tip_detectat).toBe('rosie')
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('rasad')
-    expect(result.planuri[0]?.linii[0]?.warnings).not.toContain(
-      'Stadiul nu este tipic pentru cultura detectată în această foaie. Verifică profilul biologic înainte de import.'
-    )
-  })
-
-  it('avertizează, dar nu blochează, când stadiul nu este tipic pentru cultura detectată', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Zmeur cu rasad',
-        cultura: 'Zmeura',
-        rows: [[1, 'rasad', 'Signum', 50, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.errors).toHaveLength(0)
-    expect(result.planuri[0]?.linii[0]?.stadiu_trigger).toBe('rasad')
-    expect(result.planuri[0]?.linii[0]?.warnings).toContain(
-      'Stadiul nu este tipic pentru cultura detectată în această foaie. Verifică profilul biologic înainte de import.'
-    )
-  })
-
-  it('semnalează eroare când ambele doze sunt completate', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Doze duble',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', 'Signum', 50, 1, '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toHaveLength(0)
-  })
-
-  it('semnalează eroare când ambele doze lipsesc', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Fara doze',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', 'Signum', '', '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toHaveLength(0)
-  })
-
-  it('semnalează doza negativă ca eroare', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Doza negativa',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', 'Signum', -10, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toContain(
-      'Doza nu poate fi negativă.'
-    )
-  })
-
-  it('semnalează produsul gol ca eroare', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Produs lipsa',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', '', 50, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toContain(
-      'Produsul este obligatoriu.'
-    )
+    expect(result.planuri[0]?.linii).toHaveLength(1)
+    expect(result.global_errors).toContain('Rândul 3: fenofaza lipsă, ignorat.')
   })
 
   it('refuză fișierul mai mare de 2 MB la validarea de upload', () => {
@@ -370,74 +260,5 @@ describe('parseImportedPlansWorkbook', () => {
     })
 
     expect(validation).toContain('.xlsx')
-  })
-
-  it('lasă cultura null când B1 nu este valid', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Cultura invalida',
-        cultura: 'Rubarba',
-        rows: [[1, 'Prefloral', 'Signum', 50, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.plan_metadata.cultura_tip_detectat).toBeNull()
-  })
-
-  it('lasă cultura null când B1 este gol', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Cultura goala',
-        rows: [[1, 'Prefloral', 'Signum', 50, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.plan_metadata.cultura_tip_detectat).toBeNull()
-  })
-
-  it('parsează corect o doză numerică brută din celulă', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Doza numar brut',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', 'Signum', 1500, '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.produse[0]?.doza_ml_per_hl).toBe(1500)
-  })
-
-  it('marchează textul de tip 1.500 ca doză invalidă', async () => {
-    const buffer = buildTestWorkbook([
-      {
-        name: 'Doza text ambigua',
-        cultura: 'Zmeur',
-        rows: [[1, 'Prefloral', 'Signum', '1.500', '', '']],
-      },
-    ])
-
-    const result = await parseImportedPlansWorkbook(
-      bufferToArrayBuffer(buffer),
-      TEST_PRODUSE
-    )
-
-    expect(result.planuri[0]?.linii[0]?.produse[0]?.errors).toContain(
-      'Doza trebuie să fie un număr valid. Valorile text de tip „1.500” nu sunt acceptate.'
-    )
   })
 })

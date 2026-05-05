@@ -126,9 +126,8 @@ export const TIP_PRODUS_VALUES = [
 ] as const
 
 export const SHEET_NAMES_RESERVED = [
-  'Instructions',
+  'Instructiuni',
   'Interventii',
-  'Produse interventii',
   'Stadii valide',
   'Culturi acceptate',
   'Cohorte valide',
