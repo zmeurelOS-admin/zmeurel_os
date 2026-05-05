@@ -78,14 +78,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { queryKeys } from '@/lib/query-keys'
@@ -1525,26 +1517,28 @@ export function ReviewStep({
                   ) : null}
 
                   {isDesktop ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Ordine</TableHead>
-                          <TableHead>Stadiu</TableHead>
-                          <TableHead>Intervenție</TableHead>
-                          <TableHead>Produse</TableHead>
-                          <TableHead>Warnings</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {plan.linii.map((line, lineIndex) => {
-                          const issues = getLineBlockingIssues(line, plan.cultura_tip)
+                    <div className="space-y-2">
+                      {plan.linii.map((line, lineIndex) => {
+                        const issues = getLineBlockingIssues(line, plan.cultura_tip)
 
-                          return (
-                            <TableRow key={`${plan.foaie_nume}-${lineIndex}`}>
-                              <TableCell>{line.ordine || '—'}</TableCell>
-                              <TableCell className="align-top">
+                        return (
+                          <div
+                            key={`${plan.foaie_nume}-${lineIndex}`}
+                            className={cn(
+                              'overflow-hidden rounded-[22px] border bg-[var(--surface-card)]',
+                              line.skip_import
+                                ? 'border-[var(--warning-border)] opacity-70'
+                                : 'border-[var(--border-default)]/70'
+                            )}
+                          >
+                            <div className="grid min-w-0 md:grid-cols-[32px_108px_minmax(0,1fr)]">
+                              <div className="flex min-h-full items-center justify-center border-b border-r border-[var(--divider)] bg-[var(--surface-card-muted)] px-1 py-3 text-center text-[13px] [font-weight:650] text-[var(--text-secondary)] md:border-b-0">
+                                {line.ordine || '—'}
+                              </div>
+
+                              <div className="space-y-2 border-b border-r border-[var(--divider)] px-3 py-3 md:border-b-0">
                                 {line.stadiu_trigger ? (
-                                  <Badge variant="default">
+                                  <Badge variant="default" className="text-[11px]">
                                     {STADIU_LABELS[line.stadiu_trigger as keyof typeof STADIU_LABELS] ??
                                       line.stadiu_trigger}
                                   </Badge>
@@ -1560,7 +1554,7 @@ export function ReviewStep({
                                         }))
                                       }
                                     >
-                                      <SelectTrigger className="min-w-[180px]">
+                                      <SelectTrigger className="min-w-0 text-[11px]">
                                         <SelectValue placeholder="Alege stadiul" />
                                       </SelectTrigger>
                                       <SelectContent>
@@ -1574,100 +1568,133 @@ export function ReviewStep({
                                         ))}
                                       </SelectContent>
                                     </Select>
-                                    <p className="text-xs text-[var(--soft-danger-text)]">
+                                    <p className="text-[11px] text-[var(--soft-danger-text)]">
                                       Stadiu invalid în fișier: „{line.stadiu_input_raw || 'gol'}”
                                     </p>
                                   </div>
                                 )}
-                              </TableCell>
-                              <TableCell className="align-top">
-                                <div className="space-y-2">
-                                  <Badge variant="secondary">
-                                    {line.tip_interventie || 'interventie'}
-                                  </Badge>
-                                  {line.scop ? (
-                                    <p className="max-w-[240px] whitespace-normal text-sm text-[var(--text-primary)]">
-                                      {line.scop}
-                                    </p>
-                                  ) : null}
-                                  <p className="text-xs text-[var(--text-secondary)]">
-                                    Repetare: {line.regula_repetare}
-                                    {line.regula_repetare === 'interval' &&
-                                    line.interval_repetare_zile
-                                      ? ` la ${line.interval_repetare_zile} zile`
-                                      : ''}
-                                    {line.numar_repetari_max
-                                      ? ` · max ${line.numar_repetari_max}`
-                                      : ''}
-                                  </p>
-                                  {line.observatii?.trim() ? (
-                                    <p className="max-w-[240px] whitespace-normal text-xs text-[var(--text-secondary)]">
-                                      {line.observatii.trim()}
-                                    </p>
-                                  ) : null}
-                                  {issues.length > 0 ? (
-                                    <div className="space-y-1 text-xs text-[var(--soft-danger-text)]">
-                                      {issues.map((issue) => (
-                                        <p key={issue}>{issue}</p>
-                                      ))}
+                                <p className="text-[11px] text-[var(--text-secondary)]">
+                                  {line.tip_interventie || 'intervenție'}
+                                </p>
+                              </div>
+
+                              <div className="min-w-0 px-3 py-3">
+                                <div className="space-y-3">
+                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="min-w-0 space-y-1">
+                                      <p className="break-words text-[14px] [font-weight:500] text-[var(--text-primary)]">
+                                        {line.scop || 'Intervenție fără titlu'}
+                                      </p>
+                                      <p className="text-xs text-[var(--text-secondary)]">
+                                        Repetare: {line.regula_repetare}
+                                        {line.regula_repetare === 'interval' &&
+                                        line.interval_repetare_zile
+                                          ? ` la ${line.interval_repetare_zile} zile`
+                                          : ''}
+                                        {line.numar_repetari_max
+                                          ? ` · max ${line.numar_repetari_max}`
+                                          : ''}
+                                      </p>
+                                      {line.observatii?.trim() ? (
+                                        <p className="break-words text-xs text-[var(--text-secondary)]">
+                                          {line.observatii.trim()}
+                                        </p>
+                                      ) : null}
+                                    </div>
+
+                                    {line.skip_import ? (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => restoreLineProducts(planIndex, lineIndex)}
+                                      >
+                                        Restaurează
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                          updateLine(planIndex, lineIndex, (currentLine) => ({
+                                            ...currentLine,
+                                            produse: [],
+                                            skip_import: true,
+                                          }))
+                                        }
+                                      >
+                                        <SkipForward className="h-4 w-4" />
+                                        Sari peste linie
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  {(line.warnings.length > 0 || issues.length > 0) ? (
+                                    <div className="space-y-2">
+                                      {line.warnings.length > 0 ? (
+                                        <div className="space-y-1">
+                                          {line.warnings.map((warning) => (
+                                            <div
+                                              key={warning}
+                                              className="flex items-start gap-2 text-xs text-[var(--warning-text)]"
+                                              title={warning}
+                                            >
+                                              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                              <span>{warning}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : null}
+
+                                      {issues.length > 0 ? (
+                                        <div className="space-y-1 text-xs text-[var(--soft-danger-text)]">
+                                          {issues.map((issue) => (
+                                            <p key={issue}>{issue}</p>
+                                          ))}
+                                        </div>
+                                      ) : null}
                                     </div>
                                   ) : null}
-                                </div>
-                              </TableCell>
-                              <TableCell className="min-w-[360px] align-top">
-                                <div className="space-y-3">
-                                  {line.skip_import ? (
-                                    <Alert className="border-[var(--warning-border)] bg-[var(--warning-bg)]/70">
-                                      <AlertTriangle className="h-4 w-4 text-[var(--warning-text)]" />
-                                      <AlertTitle>Linie fără produse</AlertTitle>
-                                      <AlertDescription className="flex flex-wrap items-center gap-3">
-                                        <span>Nu va fi importată.</span>
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => restoreLineProducts(planIndex, lineIndex)}
-                                        >
-                                          Restaurează
-                                        </Button>
-                                      </AlertDescription>
-                                    </Alert>
-                                  ) : (
-                                    line.produse.map((product, productIndex) =>
-                                      renderProductReview({
-                                        plan,
-                                        planIndex,
-                                        lineIndex,
-                                        product,
-                                        productIndex,
-                                      })
-                                    )
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="max-w-[220px] whitespace-normal">
-                                {line.warnings.length > 0 ? (
-                                  <div className="space-y-2">
-                                    {line.warnings.map((warning) => (
-                                      <div
-                                        key={warning}
-                                        className="flex items-start gap-2 text-xs text-[var(--warning-text)]"
-                                        title={warning}
-                                      >
-                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                                        <span>{warning}</span>
+
+                                  <div className="border-t border-[var(--divider)] pt-3">
+                                    {line.skip_import ? (
+                                      <Alert className="border-[var(--warning-border)] bg-[var(--warning-bg)]/70">
+                                        <AlertTriangle className="h-4 w-4 text-[var(--warning-text)]" />
+                                        <AlertTitle>Linie fără produse</AlertTitle>
+                                        <AlertDescription className="flex flex-wrap items-center gap-3">
+                                          <span>Nu va fi importată.</span>
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => restoreLineProducts(planIndex, lineIndex)}
+                                          >
+                                            Restaurează
+                                          </Button>
+                                        </AlertDescription>
+                                      </Alert>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {line.produse.map((product, productIndex) =>
+                                          renderProductReview({
+                                            plan,
+                                            planIndex,
+                                            lineIndex,
+                                            product,
+                                            productIndex,
+                                          })
+                                        )}
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
-                                ) : (
-                                  '—'
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {plan.linii.map((line, lineIndex) => {
@@ -1818,6 +1845,11 @@ export function ReviewStep({
           </Collapsible>
         )
       })}
+
+      <div className="mt-3 flex items-center gap-2 rounded-md bg-[var(--surface-card-muted)] px-3 py-2 text-xs text-[var(--text-secondary)] md:hidden">
+        <span>💡</span>
+        <span>Importul din Excel funcționează mai bine de pe desktop sau laptop.</span>
+      </div>
 
       {productEditor ? (
         isDesktop ? (
