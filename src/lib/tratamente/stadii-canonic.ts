@@ -59,18 +59,21 @@ export type StadiuLabelCohorta = 'floricane' | 'primocane'
 
 const DEFAULT_GRUP_BIOLOGIC: GrupBiologic = 'rubus'
 
-const DEFAULT_STADII_IN_ORDINE: readonly StadiuCod[] = [
+const RUBUS_STADII_IN_ORDINE: readonly StadiuCod[] = [
   'repaus_vegetativ',
   'umflare_muguri',
   'buton_verde',
   'buton_roz',
   'inflorit',
   'scuturare_petale',
+  'legare_fruct',
   'fruct_verde',
   'parga',
   'maturitate',
   'post_recoltare',
 ]
+
+const DEFAULT_STADII_IN_ORDINE: readonly StadiuCod[] = RUBUS_STADII_IN_ORDINE
 
 const MANAGEMENT_CATEGORY_ORDER: readonly ManagementCategory[] = [
   'repaus',
@@ -218,7 +221,7 @@ export const STADII_META: Record<StadiuCod, StadiuMetaEntry> = {
 }
 
 export const PROFILURI_STADII_PER_GRUP: Record<GrupBiologic, readonly StadiuCod[]> = {
-  rubus: DEFAULT_STADII_IN_ORDINE,
+  rubus: RUBUS_STADII_IN_ORDINE,
   arbusti_fara_cane: [
     'repaus_vegetativ',
     'umflare_muguri',

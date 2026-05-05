@@ -14,6 +14,7 @@ import {
   PlusCircle,
   Search,
   SkipForward,
+  X,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -109,6 +110,8 @@ type LineAction =
 
 interface ReviewLineState extends ParsedLine {
   produse: ReviewProductState[]
+  produse_initiale: ReviewProductState[]
+  skip_import: boolean
 }
 
 interface ReviewProductState extends ParsedInterventieProdus {
@@ -173,8 +176,20 @@ function formatProductDose(product: Pick<ReviewProductState, 'doza_ml_per_hl' | 
   return 'Doză lipsă'
 }
 
-function countDoseValues(product: Pick<ReviewProductState, 'doza_ml_per_hl' | 'doza_l_per_ha'>) {
-  return Number(product.doza_ml_per_hl != null) + Number(product.doza_l_per_ha != null)
+function cloneReviewProduct(product: ReviewProductState): ReviewProductState {
+  return {
+    ...product,
+    produs_de_creat: product.produs_de_creat
+      ? {
+          ...product.produs_de_creat,
+          omologat_culturi: product.produs_de_creat.omologat_culturi
+            ? [...product.produs_de_creat.omologat_culturi]
+            : null,
+        }
+      : undefined,
+    warnings: [...product.warnings],
+    errors: [...product.errors],
+  }
 }
 
 function resolveDraftCulturi(
@@ -182,12 +197,6 @@ function resolveDraftCulturi(
   culturaTip: string,
   allowPlanFallback: boolean
 ) {
-  console.log('[resolveDraftCulturi]', {
-    draft_culturi: draft?.omologat_culturi,
-    culturaTip,
-    allowPlanFallback,
-  })
-
   if (draft?.omologat_culturi?.length) {
     return draft.omologat_culturi
   }
@@ -242,12 +251,6 @@ function buildInitialProduct(
       omologat_culturi: culturaTip.trim() ? [culturaTip.trim()] : [],
     }
 
-    console.log('[buildInitialProduct]', {
-      produs: product.produs_input,
-      omologat_culturi: draft.omologat_culturi,
-      salveaza_in_biblioteca: product.salveaza_in_biblioteca,
-    })
-
     return {
       ...product,
       actiune: 'create_new',
@@ -279,12 +282,6 @@ function buildInitialPlans(parseResult: ParseResult): ReviewPlanState[] {
   return parseResult.planuri.map((plan) => {
     const culturaTip = plan.plan_metadata.cultura_tip_detectat ?? ''
 
-    console.log('[buildInitialPlans]', {
-      plan_nume: plan.plan_metadata.nume_sugerat,
-      cultura_tip_detectat: plan.plan_metadata.cultura_tip_detectat,
-      culturaTip,
-    })
-
     return {
       foaie_nume: plan.foaie_nume,
       nume: plan.plan_metadata.nume_sugerat,
@@ -296,6 +293,10 @@ function buildInitialPlans(parseResult: ParseResult): ReviewPlanState[] {
         produse: line.produse.map((product) =>
           buildInitialProduct(product, culturaTip)
         ),
+        produse_initiale: line.produse.map((product) =>
+          cloneReviewProduct(buildInitialProduct(product, culturaTip))
+        ),
+        skip_import: false,
       })),
     }
   })
@@ -312,18 +313,11 @@ function getProductBlockingIssues(
   product: ReviewProductState,
   culturaTip = ''
 ): string[] {
-  console.log('[getProductBlockingIssues]', {
-    produs: product.produs_input || '?',
-    culturaTip,
-    actiune: product.actiune,
-  })
-
   const issues: string[] = []
 
   if (!Number.isInteger(product.ordine_produs) || product.ordine_produs < 1) {
     issues.push('Ordinea produsului este invalidă.')
   }
-  const doseCount = countDoseValues(product)
   const hasNegativeDose =
     (typeof product.doza_ml_per_hl === 'number' && product.doza_ml_per_hl < 0) ||
     (typeof product.doza_l_per_ha === 'number' && product.doza_l_per_ha < 0)
@@ -379,11 +373,6 @@ function getProductBlockingIssues(
         issues.push('Produsul nou are nevoie de tip.')
       }
       if (omologatCulturi.length === 0) {
-        console.log('[BLOCKING omologat_culturi]', {
-          omologatCulturi,
-          draft_omologat: draft?.omologat_culturi,
-          culturaTip,
-        })
         issues.push('Produsul nou trebuie să aibă cel puțin o cultură omologată.')
       }
     }
@@ -465,6 +454,10 @@ function getLineBlockingIssues(
   line: ReviewLineState,
   culturaTip = ''
 ): string[] {
+  if (line.skip_import) {
+    return []
+  }
+
   const issues: string[] = []
 
   if (!Number.isInteger(line.ordine) || line.ordine < 1) {
@@ -847,6 +840,32 @@ export function ReviewStep({
     }))
   }
 
+  function removeProductFromLine(
+    planIndex: number,
+    lineIndex: number,
+    productIndex: number
+  ) {
+    updateLine(planIndex, lineIndex, (line) => {
+      const produseRamase = line.produse.filter(
+        (_product, currentProductIndex) => currentProductIndex !== productIndex
+      )
+
+      return {
+        ...line,
+        produse: produseRamase,
+        skip_import: produseRamase.length === 0,
+      }
+    })
+  }
+
+  function restoreLineProducts(planIndex: number, lineIndex: number) {
+    updateLine(planIndex, lineIndex, (line) => ({
+      ...line,
+      produse: line.produse_initiale.map(cloneReviewProduct),
+      skip_import: false,
+    }))
+  }
+
   function updatePlan(
     planIndex: number,
     updater: (plan: ReviewPlanState) => ReviewPlanState
@@ -997,6 +1016,7 @@ export function ReviewStep({
           descriere: toNullableText(plan.descriere),
         },
         linii: plan.linii
+          .filter((line) => !line.skip_import && line.produse.length > 0)
           .map((line) => ({
             ordine: line.ordine,
             stadiu_trigger: line.stadiu_trigger,
@@ -1121,10 +1141,21 @@ export function ReviewStep({
     return (
       <div
         key={`${product.ordine_produs}-${product.produs_input}-${productIndex}`}
-        className="space-y-3 rounded-[16px] border border-[var(--border-default)]/70 bg-[var(--surface-card-muted)] p-3"
+        className="relative space-y-3 rounded-[16px] border border-[var(--border-default)]/70 bg-[var(--surface-card-muted)] p-3"
       >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-2 top-2 h-11 w-11 rounded-full text-[var(--text-secondary)] hover:bg-[var(--danger-bg)]/70 hover:text-[var(--danger-text)]"
+          onClick={() => removeProductFromLine(planIndex, lineIndex, productIndex)}
+          aria-label={`Elimină produsul ${product.produs_input || productIndex + 1}`}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
+          <div className="min-w-0 space-y-1 pr-12">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">#{product.ordine_produs || productIndex + 1}</Badge>
               <Badge variant={badge.variant}>{badge.text}</Badge>
@@ -1585,14 +1616,32 @@ export function ReviewStep({
                               </TableCell>
                               <TableCell className="min-w-[360px] align-top">
                                 <div className="space-y-3">
-                                  {line.produse.map((product, productIndex) =>
-                                    renderProductReview({
-                                      plan,
-                                      planIndex,
-                                      lineIndex,
-                                      product,
-                                      productIndex,
-                                    })
+                                  {line.skip_import ? (
+                                    <Alert className="border-[var(--warning-border)] bg-[var(--warning-bg)]/70">
+                                      <AlertTriangle className="h-4 w-4 text-[var(--warning-text)]" />
+                                      <AlertTitle>Linie fără produse</AlertTitle>
+                                      <AlertDescription className="flex flex-wrap items-center gap-3">
+                                        <span>Nu va fi importată.</span>
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => restoreLineProducts(planIndex, lineIndex)}
+                                        >
+                                          Restaurează
+                                        </Button>
+                                      </AlertDescription>
+                                    </Alert>
+                                  ) : (
+                                    line.produse.map((product, productIndex) =>
+                                      renderProductReview({
+                                        plan,
+                                        planIndex,
+                                        lineIndex,
+                                        product,
+                                        productIndex,
+                                      })
+                                    )
                                   )}
                                 </div>
                               </TableCell>
@@ -1639,7 +1688,7 @@ export function ReviewStep({
                                 </h4>
                               </div>
                               <Badge variant="secondary">
-                                {line.produse.length} produse
+                                {line.skip_import ? 0 : line.produse.length} produse
                               </Badge>
                             </div>
 
@@ -1701,14 +1750,32 @@ export function ReviewStep({
                                 <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
                                   Produse intervenție
                                 </span>
-                                {line.produse.map((product, productIndex) =>
-                                  renderProductReview({
-                                    plan,
-                                    planIndex,
-                                    lineIndex,
-                                    product,
-                                    productIndex,
-                                  })
+                                {line.skip_import ? (
+                                  <Alert className="border-[var(--warning-border)] bg-[var(--warning-bg)]/70">
+                                    <AlertTriangle className="h-4 w-4 text-[var(--warning-text)]" />
+                                    <AlertTitle>Linie fără produse</AlertTitle>
+                                    <AlertDescription className="flex flex-wrap items-center gap-3">
+                                      <span>Nu va fi importată.</span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => restoreLineProducts(planIndex, lineIndex)}
+                                      >
+                                        Restaurează
+                                      </Button>
+                                    </AlertDescription>
+                                  </Alert>
+                                ) : (
+                                  line.produse.map((product, productIndex) =>
+                                    renderProductReview({
+                                      plan,
+                                      planIndex,
+                                      lineIndex,
+                                      product,
+                                      productIndex,
+                                    })
+                                  )
                                 )}
                               </div>
 

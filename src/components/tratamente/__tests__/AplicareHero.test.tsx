@@ -53,6 +53,8 @@ function buildAplicare(): AplicareTratamentDetaliu {
       doza_ml_per_hl: 80,
       doza_l_per_ha: null,
       observatii: null,
+      sursa_linie: 'din_plan',
+      motiv_adaugare: null,
       created_at: '2026-04-01T00:00:00.000Z',
       updated_at: '2026-04-01T00:00:00.000Z',
     },

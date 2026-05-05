@@ -61,7 +61,7 @@ const PLAN_SELECT =
   'id,tenant_id,nume,cultura_tip,descriere,activ,arhivat,created_at,updated_at,created_by,updated_by'
 
 const LINIE_SELECT =
-  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,tip_interventie,scop,regula_repetare,interval_repetare_zile,numar_repetari_max,fereastra_start_offset_zile,fereastra_end_offset_zile,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
+  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,tip_interventie,scop,regula_repetare,interval_repetare_zile,numar_repetari_max,fereastra_start_offset_zile,fereastra_end_offset_zile,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,sursa_linie,motiv_adaugare,created_at,updated_at'
 
 const PLAN_LINIE_PRODUS_SELECT =
   'id,tenant_id,plan_linie_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'

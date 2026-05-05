@@ -2142,6 +2142,7 @@ export type Database = {
           fereastra_start_offset_zile: number | null
           id: string
           interval_repetare_zile: number | null
+          motiv_adaugare: string | null
           numar_repetari_max: number | null
           observatii: string | null
           ordine: number
@@ -2151,6 +2152,7 @@ export type Database = {
           regula_repetare: string
           scop: string | null
           stadiu_trigger: string
+          sursa_linie: "adaugata_manual" | "din_plan"
           tenant_id: string
           tip_interventie: string | null
           updated_at: string
@@ -2164,6 +2166,7 @@ export type Database = {
           fereastra_start_offset_zile?: number | null
           id?: string
           interval_repetare_zile?: number | null
+          motiv_adaugare?: string | null
           numar_repetari_max?: number | null
           observatii?: string | null
           ordine: number
@@ -2173,6 +2176,7 @@ export type Database = {
           regula_repetare?: string
           scop?: string | null
           stadiu_trigger: string
+          sursa_linie?: "adaugata_manual" | "din_plan"
           tenant_id: string
           tip_interventie?: string | null
           updated_at?: string
@@ -2186,6 +2190,7 @@ export type Database = {
           fereastra_start_offset_zile?: number | null
           id?: string
           interval_repetare_zile?: number | null
+          motiv_adaugare?: string | null
           numar_repetari_max?: number | null
           observatii?: string | null
           ordine?: number
@@ -2195,6 +2200,7 @@ export type Database = {
           regula_repetare?: string
           scop?: string | null
           stadiu_trigger?: string
+          sursa_linie?: "adaugata_manual" | "din_plan"
           tenant_id?: string
           tip_interventie?: string | null
           updated_at?: string

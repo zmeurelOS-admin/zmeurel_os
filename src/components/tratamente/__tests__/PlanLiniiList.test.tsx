@@ -60,6 +60,8 @@ function makeLinie(index: number): PlanTratamentLinieCuProdus {
     doza_ml_per_hl: 500,
     doza_l_per_ha: null,
     observatii: null,
+    sursa_linie: 'din_plan',
+    motiv_adaugare: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     produs: makeProdus(),
