@@ -357,7 +357,7 @@ Status:
 - fundația DB + queries + helpers + engine generator + PHI guard + notificări complete
 - bibliotecă produse fitosanitare CRUD livrată
 - CRUD planuri tratament livrat prin wizard 3 pași:
-  - `/tratamente/planuri` listă cu căutare, filtre și arhivare/dezarhivare
+  - `/tratamente/planuri` listă în grid de carduri, cu căutare, filtre și arhivare/dezarhivare
   - `/tratamente/planuri/nou` creare plan nou sau duplicare (`?duplicate_from=...`)
   - `/tratamente/planuri/[planId]/editeaza` editare cu prefill complet
   - `src/components/tratamente/plan-wizard/PlanWizard.tsx` este componenta generică reutilizabilă
@@ -369,6 +369,7 @@ Status:
 - onboarding: landing-ul `/tratamente/conformitate` afișează un banner ghidat în 3 pași pentru fermele fără planuri, iar bannerul dispare automat după ce există plan, parcelă asignată și cel puțin un stadiu înregistrat
 - salvarea finală a planului este atomică prin RPC `public.upsert_plan_tratament_cu_linii(...)`
 - `planuri_tratament.arhivat` există pentru listare și excludere din selecțiile noi
+- lista planurilor folosește `listPlanuriTratamentComplet` cu agregări per plan (`linii_count`, `nr_produse`, `tipuri_interventie`, `nr_aplicate`) și nu mai are inspector lateral pe desktop
 
 ## Import plan din Excel (2D-3)
 

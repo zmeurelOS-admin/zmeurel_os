@@ -129,6 +129,9 @@ function createPlan(overrides: Partial<PlanTratamentListItem> = {}): PlanTratame
     created_by: null,
     updated_by: null,
     linii_count: overrides.linii_count ?? 1,
+    nr_produse: overrides.nr_produse ?? 1,
+    tipuri_interventie: overrides.tipuri_interventie ?? ['protectie'],
+    nr_aplicate: overrides.nr_aplicate ?? 0,
     parcele_asociate: overrides.parcele_asociate ?? [],
   }
 }

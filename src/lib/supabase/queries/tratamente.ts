@@ -202,6 +202,9 @@ export interface PlanTratamentComplet extends PlanTratament {
 
 export interface PlanTratamentListItem extends PlanTratament {
   linii_count: number
+  nr_produse: number
+  tipuri_interventie: string[]
+  nr_aplicate: number
   parcele_asociate: PlanTratamentParcelaAsociata[]
 }
 
@@ -1701,7 +1704,7 @@ async function replacePlanLinieProduse(
 }
 
 /**
- * Listează planurile cu număr de linii și parcelele active asociate.
+ * Listează planurile cu număr de linii, produse distincte, aplicări efectuate și parcelele active asociate.
  * Exemplu: `listPlanuriTratamentComplet({ arhivat: false })`
  */
 export async function listPlanuriTratamentComplet(opts?: {
@@ -1740,7 +1743,7 @@ export async function listPlanuriTratamentComplet(opts?: {
   const [liniiResult, parceleResult] = await Promise.all([
     supabase
       .from('planuri_tratament_linii')
-      .select('plan_id')
+      .select('id,plan_id,tip_interventie')
       .eq('tenant_id', tenantId)
       .in('plan_id', planIds),
     supabase
@@ -1754,9 +1757,65 @@ export async function listPlanuriTratamentComplet(opts?: {
   if (liniiResult.error) throw liniiResult.error
   if (parceleResult.error) throw parceleResult.error
 
+  const liniiRows = liniiResult.data ?? []
   const liniiCountByPlan = new Map<string, number>()
-  for (const linie of liniiResult.data ?? []) {
+  const tipuriInterventieByPlan = new Map<string, Set<string>>()
+  const lineIdToPlanId = new Map<string, string>()
+
+  for (const linie of liniiRows) {
     liniiCountByPlan.set(linie.plan_id, (liniiCountByPlan.get(linie.plan_id) ?? 0) + 1)
+    lineIdToPlanId.set(linie.id, linie.plan_id)
+
+    const tipInterventie = normalizeText(linie.tip_interventie)
+    if (tipInterventie) {
+      const current = tipuriInterventieByPlan.get(linie.plan_id) ?? new Set<string>()
+      current.add(tipInterventie)
+      tipuriInterventieByPlan.set(linie.plan_id, current)
+    }
+  }
+
+  const lineIds = liniiRows.map((linie) => linie.id)
+  const nrProduseByPlan = new Map<string, number>()
+  const nrAplicateByPlan = new Map<string, number>()
+
+  if (lineIds.length > 0) {
+    const [produseResult, aplicariResult] = await Promise.all([
+      supabase
+        .from('planuri_tratament_linie_produse')
+        .select('plan_linie_id,produs_id')
+        .eq('tenant_id', tenantId)
+        .in('plan_linie_id', lineIds),
+      supabase
+        .from('aplicari_tratament')
+        .select('plan_linie_id')
+        .eq('tenant_id', tenantId)
+        .eq('status', 'aplicata')
+        .in('plan_linie_id', lineIds),
+    ])
+
+    if (produseResult.error) throw produseResult.error
+    if (aplicariResult.error) throw aplicariResult.error
+
+    const produseDistincteByPlan = new Map<string, Set<string>>()
+    for (const produs of produseResult.data ?? []) {
+      if (!produs.produs_id) continue
+      const planId = lineIdToPlanId.get(produs.plan_linie_id)
+      if (!planId) continue
+
+      const current = produseDistincteByPlan.get(planId) ?? new Set<string>()
+      current.add(produs.produs_id)
+      produseDistincteByPlan.set(planId, current)
+    }
+
+    for (const [planId, produseDistincte] of produseDistincteByPlan.entries()) {
+      nrProduseByPlan.set(planId, produseDistincte.size)
+    }
+
+    for (const aplicare of aplicariResult.data ?? []) {
+      const planId = lineIdToPlanId.get(aplicare.plan_linie_id)
+      if (!planId) continue
+      nrAplicateByPlan.set(planId, (nrAplicateByPlan.get(planId) ?? 0) + 1)
+    }
   }
 
   const parceleByPlan = new Map<string, PlanTratamentParcelaAsociata[]>()
@@ -1774,6 +1833,11 @@ export async function listPlanuriTratamentComplet(opts?: {
   return rows.map((plan) => ({
     ...plan,
     linii_count: liniiCountByPlan.get(plan.id) ?? 0,
+    nr_produse: nrProduseByPlan.get(plan.id) ?? 0,
+    tipuri_interventie: [...(tipuriInterventieByPlan.get(plan.id) ?? new Set<string>())].sort((a, b) =>
+      a.localeCompare(b, 'ro')
+    ),
+    nr_aplicate: nrAplicateByPlan.get(plan.id) ?? 0,
     parcele_asociate: parceleByPlan.get(plan.id) ?? [],
   }))
 }
