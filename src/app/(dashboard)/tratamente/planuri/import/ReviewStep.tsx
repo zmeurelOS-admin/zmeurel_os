@@ -195,7 +195,10 @@ function buildDefaultDraftProdus(
   }
 }
 
-function buildInitialProduct(product: ParsedInterventieProdus): ReviewProductState {
+function buildInitialProduct(
+  product: ParsedInterventieProdus,
+  culturaTip: string
+): ReviewProductState {
   if (product.produs_match.tip === 'exact') {
     return {
       ...product,
@@ -222,7 +225,7 @@ function buildInitialProduct(product: ParsedInterventieProdus): ReviewProductSta
         doza_max_ml_per_hl: product.doza_ml_per_hl,
         doza_min_l_per_ha: product.doza_l_per_ha,
         doza_max_l_per_ha: product.doza_l_per_ha,
-        omologat_culturi: [],
+        omologat_culturi: culturaTip.trim() ? [culturaTip.trim()] : [],
       },
       selectedSuggestionIndex: null,
     }
@@ -246,17 +249,23 @@ function buildInitialProduct(product: ParsedInterventieProdus): ReviewProductSta
 }
 
 function buildInitialPlans(parseResult: ParseResult): ReviewPlanState[] {
-  return parseResult.planuri.map((plan) => ({
-    foaie_nume: plan.foaie_nume,
-    nume: plan.plan_metadata.nume_sugerat,
-    cultura_tip: plan.plan_metadata.cultura_tip_detectat ?? '',
-    descriere: plan.plan_metadata.descriere ?? '',
-    parse_errors: plan.errors,
-    linii: plan.linii.map((line) => ({
-      ...line,
-      produse: line.produse.map(buildInitialProduct),
-    })),
-  }))
+  return parseResult.planuri.map((plan) => {
+    const culturaTip = plan.plan_metadata.cultura_tip_detectat ?? ''
+
+    return {
+      foaie_nume: plan.foaie_nume,
+      nume: plan.plan_metadata.nume_sugerat,
+      cultura_tip: culturaTip,
+      descriere: plan.plan_metadata.descriere ?? '',
+      parse_errors: plan.errors,
+      linii: plan.linii.map((line) => ({
+        ...line,
+        produse: line.produse.map((product) =>
+          buildInitialProduct(product, culturaTip)
+        ),
+      })),
+    }
+  })
 }
 
 function resolveSuggestionLabel(match: ProdusMatch, index: number) {
@@ -311,7 +320,11 @@ function getProductBlockingIssues(product: ReviewProductState): string[] {
       if (!toNullableText(draft.nume_comercial)) {
         issues.push('Produsul nou are nevoie de nume comercial.')
       }
-      if (!toNullableText(draft.substanta_activa)) {
+      if (product.salveaza_in_biblioteca) {
+        if (typeof draft.substanta_activa !== 'string') {
+          issues.push('Produsul nou are nevoie de substanță activă definită.')
+        }
+      } else if (!toNullableText(draft.substanta_activa)) {
         issues.push('Produsul nou are nevoie de substanță activă.')
       }
       if (!toNullableText(draft.tip)) {
