@@ -182,6 +182,12 @@ function resolveDraftCulturi(
   culturaTip: string,
   allowPlanFallback: boolean
 ) {
+  console.log('[resolveDraftCulturi]', {
+    draft_culturi: draft?.omologat_culturi,
+    culturaTip,
+    allowPlanFallback,
+  })
+
   if (draft?.omologat_culturi?.length) {
     return draft.omologat_culturi
   }
@@ -223,23 +229,31 @@ function buildInitialProduct(
   }
 
   if (product.salveaza_in_biblioteca && product.produs_input.trim()) {
+    const draft: DraftProdusImport = {
+      nume_comercial: product.produs_input.trim(),
+      substanta_activa: product.substanta_activa ?? '',
+      tip: product.tip_produs ?? 'fungicid',
+      frac_irac: product.frac_irac,
+      phi_zile: product.phi_zile,
+      doza_min_ml_per_hl: product.doza_ml_per_hl,
+      doza_max_ml_per_hl: product.doza_ml_per_hl,
+      doza_min_l_per_ha: product.doza_l_per_ha,
+      doza_max_l_per_ha: product.doza_l_per_ha,
+      omologat_culturi: culturaTip.trim() ? [culturaTip.trim()] : [],
+    }
+
+    console.log('[buildInitialProduct]', {
+      produs: product.produs_input,
+      omologat_culturi: draft.omologat_culturi,
+      salveaza_in_biblioteca: product.salveaza_in_biblioteca,
+    })
+
     return {
       ...product,
       actiune: 'create_new',
       produs_id: null,
       produs_nume_manual: null,
-      produs_de_creat: {
-        nume_comercial: product.produs_input.trim(),
-        substanta_activa: product.substanta_activa ?? '',
-        tip: product.tip_produs ?? 'fungicid',
-        frac_irac: product.frac_irac,
-        phi_zile: product.phi_zile,
-        doza_min_ml_per_hl: product.doza_ml_per_hl,
-        doza_max_ml_per_hl: product.doza_ml_per_hl,
-        doza_min_l_per_ha: product.doza_l_per_ha,
-        doza_max_l_per_ha: product.doza_l_per_ha,
-        omologat_culturi: culturaTip.trim() ? [culturaTip.trim()] : [],
-      },
+      produs_de_creat: draft,
       selectedSuggestionIndex: null,
     }
   }
@@ -264,6 +278,12 @@ function buildInitialProduct(
 function buildInitialPlans(parseResult: ParseResult): ReviewPlanState[] {
   return parseResult.planuri.map((plan) => {
     const culturaTip = plan.plan_metadata.cultura_tip_detectat ?? ''
+
+    console.log('[buildInitialPlans]', {
+      plan_nume: plan.plan_metadata.nume_sugerat,
+      cultura_tip_detectat: plan.plan_metadata.cultura_tip_detectat,
+      culturaTip,
+    })
 
     return {
       foaie_nume: plan.foaie_nume,
@@ -292,6 +312,12 @@ function getProductBlockingIssues(
   product: ReviewProductState,
   culturaTip = ''
 ): string[] {
+  console.log('[getProductBlockingIssues]', {
+    produs: product.produs_input || '?',
+    culturaTip,
+    actiune: product.actiune,
+  })
+
   const issues: string[] = []
 
   if (!Number.isInteger(product.ordine_produs) || product.ordine_produs < 1) {
@@ -353,6 +379,11 @@ function getProductBlockingIssues(
         issues.push('Produsul nou are nevoie de tip.')
       }
       if (omologatCulturi.length === 0) {
+        console.log('[BLOCKING omologat_culturi]', {
+          omologatCulturi,
+          draft_omologat: draft?.omologat_culturi,
+          culturaTip,
+        })
         issues.push('Produsul nou trebuie să aibă cel puțin o cultură omologată.')
       }
     }
