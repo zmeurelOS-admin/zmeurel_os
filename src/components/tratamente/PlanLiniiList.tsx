@@ -66,41 +66,176 @@ function normalizeStageLabel(value: string | null | undefined): string {
     ?.trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') ?? ''
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim() ?? ''
 }
 
-type StageBucket = 'vegetativ' | 'inflorescente' | 'inflorire' | 'fructificare' | 'post_recolta' | 'fallback'
+type StageBucket =
+  | 'vegetativ'
+  | 'inflorire'
+  | 'fructificare'
+  | 'recoltare'
+  | 'post_recolta'
+  | 'repaus'
+  | 'fallback'
 
-function resolveStageBucket(label: string): StageBucket {
-  const normalized = normalizeStageLabel(label)
-  if (normalized.includes('post recolta')) return 'post_recolta'
-  if (normalized.includes('fructific')) return 'fructificare'
-  if (normalized.includes('inflor')) return 'inflorire'
-  if (normalized.includes('inflorescente pe floricane')) return 'inflorescente'
-  if (normalized.includes('crestere vegetativa') || normalized.includes('vegetativ') || normalized.includes('umflare muguri') || normalized.includes('buton verde')) {
-    return 'vegetativ'
+type StageTheme = { bucket: StageBucket; accent: string; bg: string; emoji: string; order: number }
+
+const STAGE_THEME: Record<Exclude<StageBucket, 'fallback'>, StageTheme> = {
+  vegetativ: { bucket: 'vegetativ', accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌿', order: 0 },
+  inflorire: { bucket: 'inflorire', accent: '#BE185D', bg: '#FCE7F3', emoji: '🌸', order: 1 },
+  fructificare: { bucket: 'fructificare', accent: '#7C3AED', bg: '#EDE9FE', emoji: '🫐', order: 2 },
+  recoltare: { bucket: 'recoltare', accent: '#B45309', bg: '#FEF3C7', emoji: '🍓', order: 3 },
+  post_recolta: { bucket: 'post_recolta', accent: '#0369A1', bg: '#E0F2FE', emoji: '🍂', order: 4 },
+  repaus: { bucket: 'repaus', accent: '#6B7280', bg: '#F3F4F6', emoji: '❄️', order: 5 },
+}
+
+const STAGE_FALLBACK: StageTheme = {
+  bucket: 'fallback',
+  accent: '#3D7A5F',
+  bg: '#E8F3EE',
+  emoji: '🌱',
+  order: 6,
+}
+
+const STAGE_CONFIG: Record<string, StageTheme> = (() => {
+  const map: Record<string, StageTheme> = {}
+  const assign = (bucket: Exclude<StageBucket, 'fallback'>, aliases: string[]) => {
+    for (const alias of aliases) {
+      map[normalizeStageLabel(alias)] = STAGE_THEME[bucket]
+    }
   }
-  return 'fallback'
-}
+
+  assign('vegetativ', [
+    'rasad',
+    'răsad',
+    'semanat',
+    'semănat',
+    'semanat rasarire',
+    'semănat răsărire',
+    'rasarire',
+    'răsărire',
+    'transplant',
+    'transplant prindere',
+    'prindere',
+    'umflare_muguri',
+    'umflare muguri',
+    'dezmugurire',
+    'crestere_vegetativa',
+    'creștere vegetativă',
+    'crestere vegetativa',
+    'vegetativ',
+    'formare_rozeta',
+    'formare rozeta',
+    'formare rozetă',
+    'rozeta',
+    'rozetă',
+    'buton_verde',
+    'buton verde',
+  ])
+
+  assign('inflorire', [
+    'etaj_floral',
+    'etaj floral',
+    'aparitie_etaj_floral',
+    'aparitie etaj floral',
+    'apariție etaj floral',
+    'inflorescente pe floricane',
+    'inflorescențe pe floricane',
+    'buton_roz',
+    'buton roz',
+    'prefloral',
+    'inflorit',
+    'înflorit',
+    'inflorire',
+    'înflorire',
+    'inflorit pe floricane',
+    'înflorit pe floricane',
+    'inflorit pe primocane',
+    'înflorit pe primocane',
+    'scuturare_petale',
+    'scuturare petale',
+    'cadere_petale',
+    'cadere petale',
+    'cădere petale',
+    'sfarsit de inflorit',
+    'sfârșit de înflorit',
+  ])
+
+  assign('fructificare', [
+    'legare_fruct',
+    'legare fruct',
+    'fruct_verde',
+    'fruct verde',
+    'fructe verzi in crestere',
+    'fructe verzi în creștere',
+    'formare_capatana',
+    'formare capatana',
+    'formare căpățână',
+    'capatana',
+    'căpățână',
+    'bulbificare',
+    'umplere_pastaie',
+    'umplere pastaie',
+    'umplere păstaie',
+    'ingrosare_radacina',
+    'ingrosare radacina',
+    'îngroșare rădăcină',
+    'radacina',
+    'rădăcină',
+    'parga',
+    'pârgă',
+    'parguire',
+    'pârguire',
+    'inceput de coacere',
+    'început de coacere',
+    'primele fructe colorate',
+  ])
+
+  assign('recoltare', [
+    'maturitate',
+    'maturare',
+    'recoltare',
+    'recoltare fruct copt',
+    'recoltare pe floricane',
+    'recoltare pe primocane',
+  ])
+
+  assign('post_recolta', [
+    'post_recoltare',
+    'post recoltare',
+    'post-recoltare',
+    'dupa recoltare',
+    'după recoltare',
+    'dupa recoltare floricane',
+    'după recoltare floricane',
+    'dupa recoltare primocane',
+    'după recoltare primocane',
+    'bolting',
+    'inspicuire',
+    'înspicuire',
+  ])
+
+  assign('repaus', [
+    'repaus',
+    'repaus_vegetativ',
+    'repaus vegetativ',
+    'repausul tufei',
+    'floricane in repaus',
+    'floricane în repaus',
+    'primocane in repaus',
+    'primocane în repaus',
+    'dormant',
+    'iarna',
+    'iarnă',
+  ])
+
+  return map
+})()
 
 function resolveStageTheme(label: string) {
-  const bucket = resolveStageBucket(label)
-  if (bucket === 'vegetativ') {
-    return { bucket, accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌿', order: 0 }
-  }
-  if (bucket === 'inflorescente') {
-    return { bucket, accent: '#B45309', bg: '#FEF3C7', emoji: '🌸', order: 1 }
-  }
-  if (bucket === 'inflorire') {
-    return { bucket, accent: '#BE185D', bg: '#FCE7F3', emoji: '🌺', order: 2 }
-  }
-  if (bucket === 'fructificare') {
-    return { bucket, accent: '#7C3AED', bg: '#EDE9FE', emoji: '🫐', order: 3 }
-  }
-  if (bucket === 'post_recolta') {
-    return { bucket, accent: '#0369A1', bg: '#E0F2FE', emoji: '🍂', order: 4 }
-  }
-  return { bucket, accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌱', order: 5 }
+  return STAGE_CONFIG[normalizeStageLabel(label)] ?? STAGE_FALLBACK
 }
 
 function resolveGroupTitle(linie: PlanTratamentLinieCuProdus, grupBiologic?: GrupBiologic | null): string {
