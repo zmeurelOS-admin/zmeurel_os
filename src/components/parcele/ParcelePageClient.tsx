@@ -270,6 +270,15 @@ function formatCampPlanteCount(parcela: Parcela): string | null {
   return `${new Intl.NumberFormat('ro-RO').format(n)} pl.`
 }
 
+/** Linie 2 pe cardul mobil Teren: soi · suprafață · nr. plante (omite lipsurile). */
+function buildTerenCardSecondRowLine(parcela: Parcela): string {
+  const soi = parcela.soi_plantat?.trim() || parcela.soi?.trim() || ''
+  const sup = formatSuprafata(parcela.suprafata_m2)
+  const n = parcela.nr_plante
+  const plants = n != null && n > 0 ? `${new Intl.NumberFormat('ro-RO').format(n)} pl.` : ''
+  return [soi, sup, plants].filter(Boolean).join(' · ')
+}
+
 function formatSuprafata(suprafataMp: number | null | undefined): string | null {
   if (!suprafataMp || suprafataMp <= 0) return null
 
@@ -1154,9 +1163,9 @@ function ParcelaTerenMobileSheet({
   activitatiParcela,
   today,
   hasManualMicroclimat,
+  closeBlocked = false,
   onAddActivity,
   onTratamente,
-  onHistoric,
   onDelete,
   onEdit,
   onAddCultura,
@@ -1174,9 +1183,10 @@ function ParcelaTerenMobileSheet({
   activitatiParcela: ActivitateAgricola[]
   today: Date
   hasManualMicroclimat: boolean
+  /** Împiedică închiderea Sheet-ului (ex. dialog microclimat deschis deasupra). */
+  closeBlocked?: boolean
   onAddActivity: (id: string) => void
   onTratamente: (id: string) => void
-  onHistoric: () => void
   onDelete: (p: Parcela) => void
   onEdit: (p: Parcela) => void
   onAddCultura: () => void
@@ -1184,6 +1194,8 @@ function ParcelaTerenMobileSheet({
   onDesfiintaCultura: (c: Cultura) => void
   onOpenManualMicroclimat: () => void
 }) {
+  const [sheetTab, setSheetTab] = useState('rezumat')
+
   if (!parcela) return null
 
   const operational = coerceStatusOperationalFromDb(parcela.status_operational)
@@ -1201,27 +1213,36 @@ function ParcelaTerenMobileSheet({
   const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && closeBlocked) return
+        onOpenChange(next)
+      }}
+    >
       <SheetContent
         side="bottom"
-        className="flex max-h-[min(90svh,720px)] flex-col gap-0 overflow-hidden p-0 md:bottom-auto md:left-1/2 md:right-auto md:top-1/2 md:mt-0 md:max-h-[min(88dvh,640px)] md:w-full md:max-w-lg md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-2xl"
+        className="flex h-[85vh] max-h-[85vh] flex-col gap-0 overflow-hidden p-0 md:h-auto md:max-h-[min(88dvh,640px)] md:bottom-auto md:left-1/2 md:right-auto md:top-1/2 md:mt-0 md:w-full md:max-w-lg md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-2xl"
       >
         <SheetHeader className="shrink-0 space-y-1 border-b border-[var(--surface-divider)] px-4 pb-3 pt-4 sm:px-5">
           <SheetTitle className="pr-10 text-left">{parcela.nume_parcela || 'Teren'}</SheetTitle>
           <p className="text-left text-xs text-[var(--agri-text-muted)]">{buildParcelaInspectorSubtitle(parcela)}</p>
         </SheetHeader>
 
-        <Tabs key={`${parcela.id}-${open}`} defaultValue="rezumat" className="flex min-h-0 flex-1 flex-col gap-0">
+        <Tabs value={sheetTab} onValueChange={setSheetTab} className="flex min-h-0 flex-1 flex-col gap-0">
           <div className="shrink-0 border-b border-[var(--surface-divider)] px-3 pt-2">
-            <TabsList className="grid h-10 w-full grid-cols-3 gap-0.5 p-1">
-              <TabsTrigger value="rezumat" className="text-xs">
+            <TabsList className="grid h-10 w-full grid-cols-4 gap-0.5 p-1">
+              <TabsTrigger value="rezumat" className="px-1 text-[10px] sm:text-xs">
                 Rezumat
               </TabsTrigger>
-              <TabsTrigger value="activitate" className="text-xs">
+              <TabsTrigger value="activitate" className="px-1 text-[10px] sm:text-xs">
                 Activitate
               </TabsTrigger>
-              <TabsTrigger value="microclimat" className="text-xs">
+              <TabsTrigger value="microclimat" className="px-1 text-[10px] sm:text-xs">
                 Microclimat
+              </TabsTrigger>
+              <TabsTrigger value="cultura" className="px-1 text-[10px] sm:text-xs">
+                Cultură
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1267,16 +1288,26 @@ function ParcelaTerenMobileSheet({
 
             <div className="mb-3">
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Microclimat</p>
-              <MicroclimatAutoCard summary={meteoAutoSummary} compact surfaceTone="clean" />
-              {isSolar && hasManualMicroclimat ? (
-                <button
-                  type="button"
-                  onClick={onOpenManualMicroclimat}
-                  className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)]"
-                >
-                  Vezi microclimat manual →
-                </button>
-              ) : null}
+              {meteoAutoSummary.state === 'ready' ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-2 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Temp.</p>
+                    <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                      {typeof meteoAutoSummary.temperature === 'number' ? `${meteoAutoSummary.temperature.toFixed(1)}°` : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-2 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Umiditate</p>
+                    <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                      {typeof meteoAutoSummary.humidity === 'number' ? `${Math.round(meteoAutoSummary.humidity)}%` : '—'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--agri-text-muted)]">
+                  {meteoAutoSummary.state === 'loading' ? meteoAutoSummary.reason : meteoAutoSummary.reason}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -1299,7 +1330,7 @@ function ParcelaTerenMobileSheet({
               </button>
               <button
                 type="button"
-                onClick={onHistoric}
+                onClick={() => setSheetTab('activitate')}
                 className="min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-xs font-semibold text-[var(--button-muted-text)]"
               >
                 Istoric
@@ -1320,15 +1351,6 @@ function ParcelaTerenMobileSheet({
             >
               Editează terenul
             </button>
-
-            <SolarCulturiSection
-              parcela={parcela}
-              solarId={parcela.id}
-              tipUnitate={parcela.tip_unitate}
-              onAddCultura={onAddCultura}
-              onAddMicroclimat={onAddMicroclimat}
-              onDesfiintaCultura={onDesfiintaCultura}
-            />
           </TabsContent>
 
           <TabsContent value="activitate" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
@@ -1365,6 +1387,15 @@ function ParcelaTerenMobileSheet({
           </TabsContent>
 
           <TabsContent value="microclimat" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
+            {isSolar && hasManualMicroclimat ? (
+              <button
+                type="button"
+                onClick={onOpenManualMicroclimat}
+                className="mb-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)]"
+              >
+                Vezi microclimat manual →
+              </button>
+            ) : null}
             {meteoAutoSummary.state === 'ready' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-4 text-center">
@@ -1412,6 +1443,18 @@ function ParcelaTerenMobileSheet({
                 Înregistrările manuale de microclimat sunt disponibile pentru solarii.
               </p>
             )}
+          </TabsContent>
+
+          <TabsContent value="cultura" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
+            <SolarCulturiSection
+              parcela={parcela}
+              solarId={parcela.id}
+              tipUnitate={parcela.tip_unitate}
+              onAddCultura={onAddCultura}
+              onAddMicroclimat={onAddMicroclimat}
+              onDesfiintaCultura={onDesfiintaCultura}
+              withTopBorder={false}
+            />
           </TabsContent>
         </Tabs>
       </SheetContent>
@@ -1539,7 +1582,6 @@ function DesktopParcelStripCard({
 function TerenCard({
   parcela,
   latestActivity,
-  activeMeteoParcelaId,
   meteoAutoSummary,
   onOpen,
 }: {
@@ -1547,7 +1589,6 @@ function TerenCard({
   latestActivity:
     | { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }
     | undefined
-  activeMeteoParcelaId: string | null
   meteoAutoSummary: MeteoAutoSummary
   onOpen: () => void
 }) {
@@ -1563,32 +1604,25 @@ function TerenCard({
   const tipBadge = (() => {
     const t = normalizeUnitateTip(parcela.tip_unitate)
     if (t === 'solar') {
-      return { label: 'Solarii', className: 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800' }
+      return { label: 'Solarii', className: 'border-transparent bg-amber-500 text-white' }
     }
     if (t === 'livada') {
-      return { label: 'Livadă', className: 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800' }
+      return { label: 'Livadă', className: 'border-transparent bg-orange-500 text-white' }
     }
     if (t === 'cultura_mare') {
-      return { label: 'Cultură mare', className: 'bg-[var(--agri-surface-muted)] text-[var(--agri-text)] border-[var(--surface-divider)]' }
+      return { label: 'Cultură mare', className: 'border-transparent bg-gray-500 text-white' }
     }
-    return { label: 'Câmp', className: 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/35 dark:text-emerald-200 dark:border-emerald-800' }
+    return { label: 'Câmp', className: 'border-transparent bg-green-600 text-white' }
   })()
-  const culturaPart =
-    parcela.cultura?.trim() ||
-    parcela.tip_fruct?.trim() ||
-    parcela.soi_plantat?.trim() ||
-    parcela.soi?.trim() ||
-    '—'
-  const stadiuPart = parcela.stadiu?.trim() ? formatEtapaLabel(parcela.stadiu) : '—'
+  const terenSecondLine = buildTerenCardSecondRowLine(parcela)
   const activityTypeShort = latestActivity?.type ? latestActivity.type : '—'
   const productShort = latestActivity?.product?.trim() || ''
-  const showLiveMeteo = parcela.id === activeMeteoParcelaId
   const tempStr =
-    showLiveMeteo && meteoAutoSummary.state === 'ready' && typeof meteoAutoSummary.temperature === 'number'
+    meteoAutoSummary.state === 'ready' && typeof meteoAutoSummary.temperature === 'number'
       ? `${meteoAutoSummary.temperature.toFixed(1)}°`
       : '—'
   const humStr =
-    showLiveMeteo && meteoAutoSummary.state === 'ready' && typeof meteoAutoSummary.humidity === 'number'
+    meteoAutoSummary.state === 'ready' && typeof meteoAutoSummary.humidity === 'number'
       ? `${Math.round(meteoAutoSummary.humidity)}%`
       : '—'
 
@@ -1625,11 +1659,9 @@ function TerenCard({
               {tipBadge.label}
             </span>
           </div>
-          <p className="mt-0.5 truncate text-xs text-[var(--agri-text-muted)]">
-            {culturaPart}
-            <span className="text-[var(--agri-text-muted)]/80"> · </span>
-            {stadiuPart}
-          </p>
+          {terenSecondLine ? (
+            <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{terenSecondLine}</p>
+          ) : null}
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--agri-text)]">
             <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', freshness.dotClass)} aria-hidden />
             <span className="min-w-0 truncate">
@@ -2356,7 +2388,6 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                         key={parcela.id}
                         parcela={parcela}
                         latestActivity={latestActivityByParcela.get(parcela.id)}
-                        activeMeteoParcelaId={activeMeteoParcelaId}
                         meteoAutoSummary={meteoAutoSummary}
                         onOpen={() => setExpandedId(parcela.id)}
                       />
@@ -2994,6 +3025,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       </DashboardContentShell>
 
       <ParcelaTerenMobileSheet
+        key={mobileTerenSheetParcela?.id ?? 'parcela-sheet-idle'}
         open={mobileTerenSheetOpen}
         onOpenChange={(next) => {
           if (!next) setExpandedId(null)
@@ -3006,21 +3038,13 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         activitatiParcela={mobileTerenSheetActivitati}
         today={today}
         hasManualMicroclimat={mobileTerenSheetHasManualMicro}
+        closeBlocked={addMicroclimatParcelaId !== null}
         onAddActivity={(id) => {
           setAddActivityParcelaId(id)
           setAddActivityOpen(true)
         }}
         onTratamente={(id) => {
           router.push(`/parcele/${id}/tratamente`)
-        }}
-        onHistoric={() => {
-          const p = mobileTerenSheetParcela
-          if (!p) return
-          if (normalizeUnitateTip(p.tip_unitate) === 'solar') {
-            router.push(`/parcele?selected=${encodeURIComponent(p.id)}`)
-          } else {
-            router.push('/activitati-agricole')
-          }
         }}
         onDelete={(p) => {
           setSelectedParcela(p)
@@ -3115,6 +3139,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         parcelaId={addMicroclimatParcelaId}
         tipUnitate={addMicroclimatParcela?.tip_unitate}
         onCreated={() => { /* microclimat logs don't need cache invalidation here */ }}
+        isolateFromParentModal={Boolean(!isDesktop && mobileTerenSheetOpen && addMicroclimatParcelaId)}
       />
 
       <DesfiinteazaCulturaDialog

@@ -101,6 +101,10 @@ interface FormDialogLayoutProps {
   desktopFormWide?: boolean
   /** De la `md+`: variantă compactă pentru formulare scurte (padding/înălțime reduse). */
   desktopFormCompact?: boolean
+  /**
+   * Dialog deschis peste Sheet: oprește închiderea Sheet-ului la interacțiuni „outside” pe stratul interior.
+   */
+  isolateFromParentModal?: boolean
 }
 
 export function FormDialogLayout({
@@ -114,11 +118,19 @@ export function FormDialogLayout({
   showCloseButton = false,
   desktopFormWide = false,
   desktopFormCompact = false,
+  isolateFromParentModal = false,
 }: FormDialogLayoutProps) {
   return (
     <DialogContent
       aria-describedby={undefined}
       showCloseButton={showCloseButton}
+      onPointerDownOutside={
+        isolateFromParentModal ? (event) => event.preventDefault() : undefined
+      }
+      onInteractOutside={isolateFromParentModal ? (event) => event.preventDefault() : undefined}
+      onEscapeKeyDown={
+        isolateFromParentModal ? (event) => event.stopPropagation() : undefined
+      }
       className={cn(
         'flex min-h-0 w-[min(96vw,720px)] max-h-[min(88dvh,860px)] flex-col gap-0 overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-lg',
         desktopFormWide && 'md:w-[min(96vw,84rem)] md:max-w-none md:max-h-[min(92dvh,60rem)] md:rounded-2xl',

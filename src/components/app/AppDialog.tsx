@@ -16,6 +16,8 @@ interface AppDialogProps {
   desktopFormWide?: boolean
   /** Variantă compactă desktop pentru formulare scurte (header/content/footer mai dense). */
   desktopFormCompact?: boolean
+  /** Dialog peste Sheet (mobil): nu propagă dismiss către părinte. */
+  isolateFromParentModal?: boolean
 }
 
 export function AppDialog({
@@ -29,6 +31,7 @@ export function AppDialog({
   showCloseButton,
   desktopFormWide,
   desktopFormCompact,
+  isolateFromParentModal,
 }: AppDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,6 +43,7 @@ export function AppDialog({
         showCloseButton={showCloseButton}
         desktopFormWide={desktopFormWide}
         desktopFormCompact={desktopFormCompact}
+        isolateFromParentModal={isolateFromParentModal}
       >
         {children}
       </FormDialogLayout>

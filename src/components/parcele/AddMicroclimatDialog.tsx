@@ -43,6 +43,8 @@ interface AddMicroclimatDialogProps {
   parcelaId: string | null
   tipUnitate?: string | null
   onCreated: () => void
+  /** Deschis peste Sheet mobil — evită închiderea Sheet-ului la dismiss pe dialog. */
+  isolateFromParentModal?: boolean
 }
 
 export function AddMicroclimatDialog({
@@ -51,6 +53,7 @@ export function AddMicroclimatDialog({
   parcelaId,
   tipUnitate,
   onCreated,
+  isolateFromParentModal = false,
 }: AddMicroclimatDialogProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -88,6 +91,7 @@ export function AddMicroclimatDialog({
   return (
     <AppDialog
       open={open}
+      isolateFromParentModal={isolateFromParentModal}
       onOpenChange={(next) => {
         if (!next) form.reset(defaultValues)
         onOpenChange(next)
