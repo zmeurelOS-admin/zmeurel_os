@@ -9,7 +9,9 @@ import {
   mapTratamenteError,
   markAplicareAsAplicata,
   reprogrameazaAplicare,
+  salveazaAplicareCiorna,
 } from '@/lib/supabase/queries/tratamente'
+import type { AplicareProdusInput } from '@/lib/supabase/queries/tratamente'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import type { MeteoSnapshot } from '@/lib/tratamente/meteo'
 import type { Json } from '@/types/supabase'
@@ -51,6 +53,37 @@ const produsAplicareSchema = z.object({
   const hasManual = typeof value.produs_nume_manual === 'string' && value.produs_nume_manual.trim().length > 0
 
   if (!hasProdusId && !hasManual) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['produs_id'],
+      message: 'Fiecare produs trebuie să fie selectat din bibliotecă sau completat manual.',
+    })
+  }
+})
+
+const ciornaProdusAplicareSchema = z.object({
+  id: z.string().uuid().optional().nullable(),
+  plan_linie_produs_id: z.string().uuid().optional().nullable(),
+  ordine: z.number().int().positive().optional(),
+  produs_id: z.string().uuid().optional().nullable(),
+  produs_nume_manual: z.string().trim().max(120).optional().nullable(),
+  produs_nume_snapshot: z.string().trim().max(120).optional().nullable(),
+  substanta_activa_snapshot: z.string().trim().max(160).optional().nullable(),
+  tip_snapshot: z.string().trim().max(40).optional().nullable(),
+  frac_irac_snapshot: z.string().trim().max(40).optional().nullable(),
+  phi_zile_snapshot: z.number().int().min(0).optional().nullable(),
+  doza_ml_per_hl: z.number().min(0).optional().nullable(),
+  doza_l_per_ha: z.number().min(0).optional().nullable(),
+  cantitate_totala: z.number().min(0).optional().nullable(),
+  unitate_cantitate: z.enum(['ml', 'l', 'kg', 'g', 'buc', 'altul']).optional().nullable(),
+  stoc_mutatie_id: z.string().uuid().optional().nullable(),
+  observatii: z.string().trim().max(500).optional().nullable(),
+}).superRefine((value, ctx) => {
+  const hasProdusId = typeof value.produs_id === 'string' && value.produs_id.trim().length > 0
+  const hasManual = typeof value.produs_nume_manual === 'string' && value.produs_nume_manual.trim().length > 0
+  const hasSnapshot = typeof value.produs_nume_snapshot === 'string' && value.produs_nume_snapshot.trim().length > 0
+
+  if (!hasProdusId && !hasManual && !hasSnapshot) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['produs_id'],
@@ -124,6 +157,13 @@ function parseDiferente(raw: string | undefined): Json | null | undefined {
   return parsedJson as Json
 }
 
+const salveazaCiornaSchema = z.object({
+  operator: z.string().trim().max(120).optional().nullable(),
+  observatii: z.string().trim().max(2000).optional().nullable(),
+  produse: z.array(ciornaProdusAplicareSchema).min(1, 'Aplicarea trebuie să aibă cel puțin un produs.'),
+  diferente_fata_de_plan: z.record(z.string(), z.unknown()).optional().nullable(),
+})
+
 export async function markAplicataAction(formData: FormData): Promise<ActionResult> {
   const parsed = markSchema.safeParse({
     aplicareId: getFormValue(formData, 'aplicareId'),
@@ -165,6 +205,54 @@ export async function markAplicataAction(formData: FormData): Promise<ActionResu
     return {
       ok: false,
       error: mapTratamenteError(error, 'Nu am putut marca aplicarea ca efectuată.').message,
+    }
+  }
+}
+
+export async function salveazaCiornaAction(
+  aplicareId: string,
+  payload: {
+    operator?: string | null
+    observatii?: string | null
+    produse: AplicareProdusInput[]
+    diferente_fata_de_plan?: Record<string, unknown> | null
+  }
+): Promise<ActionResult> {
+  if (!z.string().uuid().safeParse(aplicareId).success) {
+    return { ok: false, error: 'Aplicarea selectată nu este validă.' }
+  }
+
+  const parsed = salveazaCiornaSchema.safeParse(payload)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? 'Nu am putut salva ciorna.',
+    }
+  }
+
+  try {
+    const aplicare = await getAplicareById(aplicareId)
+    if (!aplicare?.parcela_id) {
+      return { ok: false, error: 'Aplicarea nu a fost găsită.' }
+    }
+
+    if (aplicare.status !== 'planificata' && aplicare.status !== 'ciorna') {
+      return { ok: false, error: 'Aplicarea poate fi editată doar înainte de marcare ca aplicată.' }
+    }
+
+    await salveazaAplicareCiorna(aplicareId, {
+      operator: parsed.data.operator,
+      observatii: parsed.data.observatii,
+      produse: parsed.data.produse,
+      diferenteFataDePlan: (parsed.data.diferente_fata_de_plan ?? null) as Json | null,
+    })
+
+    revalidateAplicarePaths(aplicare.parcela_id, aplicareId)
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error: mapTratamenteError(error, 'Nu am putut salva ciorna aplicării.').message,
     }
   }
 }

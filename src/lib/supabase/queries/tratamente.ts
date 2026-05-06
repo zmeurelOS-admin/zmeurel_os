@@ -1492,7 +1492,22 @@ function firstProdusPayload(produse: InterventieProdusPayload[]): InterventiePro
   return [...produse].sort((first, second) => (first.ordine ?? 0) - (second.ordine ?? 0))[0] ?? null
 }
 
-type AplicareProdusInput = NonNullable<InsertAplicarePlanificata['produse']>[number]
+export type AplicareProdusInput = NonNullable<InsertAplicarePlanificata['produse']>[number] & {
+  id?: string | null
+}
+
+export interface SaveAplicareCiornaPayload {
+  operator?: string | null
+  observatii?: string | null
+  produse: AplicareProdusInput[]
+  diferenteFataDePlan?: Json | null
+}
+
+function isUuid(value: string | null | undefined): value is string {
+  return Boolean(
+    value?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+  )
+}
 
 async function getProduseById(ctx: QueryContext, produsIds: string[]): Promise<Map<string, ProdusFitosanitarLookup>> {
   const uniqueIds = [...new Set(produsIds.filter(Boolean))]
@@ -1635,6 +1650,55 @@ async function replaceAplicareProduse(
     .insert(inserts)
 
   if (error) throw error
+}
+
+async function upsertAplicareProduse(
+  ctx: QueryContext,
+  aplicareId: string,
+  produse: AplicareProdusInput[]
+): Promise<void> {
+  const rows = await buildAplicareProdusInserts(ctx, aplicareId, produse)
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const produsInput = produse[index]
+    const row = rows[index]
+    if (!row) continue
+
+    if (isUuid(produsInput?.id)) {
+      const { error } = await ctx.supabase
+        .from('aplicari_tratament_produse')
+        .update({
+          plan_linie_produs_id: row.plan_linie_produs_id,
+          ordine: row.ordine,
+          produs_id: row.produs_id,
+          produs_nume_manual: row.produs_nume_manual,
+          produs_nume_snapshot: row.produs_nume_snapshot,
+          substanta_activa_snapshot: row.substanta_activa_snapshot,
+          tip_snapshot: row.tip_snapshot,
+          frac_irac_snapshot: row.frac_irac_snapshot,
+          phi_zile_snapshot: row.phi_zile_snapshot,
+          doza_ml_per_hl: row.doza_ml_per_hl,
+          doza_l_per_ha: row.doza_l_per_ha,
+          cantitate_totala: row.cantitate_totala,
+          unitate_cantitate: row.unitate_cantitate,
+          stoc_mutatie_id: row.stoc_mutatie_id,
+          observatii: row.observatii,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', produsInput.id)
+        .eq('aplicare_id', aplicareId)
+        .eq('tenant_id', ctx.tenantId)
+
+      if (error) throw error
+      continue
+    }
+
+    const { error } = await ctx.supabase
+      .from('aplicari_tratament_produse')
+      .insert(row)
+
+    if (error) throw error
+  }
 }
 
 async function buildPlanLinieProdusInserts(
@@ -3890,6 +3954,52 @@ export async function markAplicareAsAplicata(
   if (payload.produse) {
     await replaceAplicareProduse(ctx, id, payload.produse)
   }
+  return data
+}
+
+export async function salveazaAplicareCiorna(
+  id: string,
+  payload: SaveAplicareCiornaPayload
+): Promise<AplicareTratament> {
+  const ctx = await getQueryContext()
+  const current = await getAplicareOwnedByTenant(ctx, id)
+
+  if (current.status !== 'planificata' && current.status !== 'ciorna') {
+    throw new Error('Aplicarea poate fi salvată ca ciornă doar dacă este planificată sau deja în ciornă.')
+  }
+
+  const firstProdus = [...payload.produse].sort((first, second) => (first.ordine ?? 0) - (second.ordine ?? 0))[0] ?? null
+  const updatePayload: AplicareTratamentUpdate = {
+    status: 'ciorna',
+    operator: normalizeText(payload.operator),
+    observatii: normalizeText(payload.observatii),
+    diferente_fata_de_plan: payload.diferenteFataDePlan ?? null,
+    updated_at: new Date().toISOString(),
+    updated_by: ctx.userId,
+  }
+
+  if (firstProdus) {
+    updatePayload.produs_id = firstProdus.produs_id ?? null
+    updatePayload.produs_nume_manual = firstProdus.produs_id
+      ? null
+      : normalizeText(firstProdus.produs_nume_manual ?? firstProdus.produs_nume_snapshot)
+    updatePayload.doza_ml_per_hl = normalizeOptionalPositiveNumber(firstProdus.doza_ml_per_hl)
+    updatePayload.doza_l_per_ha = normalizeOptionalPositiveNumber(firstProdus.doza_l_per_ha)
+    updatePayload.cantitate_totala_ml = normalizeOptionalPositiveNumber(firstProdus.cantitate_totala)
+    updatePayload.stoc_mutatie_id = firstProdus.stoc_mutatie_id ?? null
+  }
+
+  const { data, error } = await ctx.supabase
+    .from('aplicari_tratament')
+    .update(updatePayload)
+    .eq('id', id)
+    .eq('tenant_id', ctx.tenantId)
+    .select(APLICARE_SELECT)
+    .single()
+
+  if (error) throw error
+
+  await upsertAplicareProduse(ctx, id, payload.produse)
   return data
 }
 
