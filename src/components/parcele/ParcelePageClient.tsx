@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, ChevronDown, ChevronUp, Clock3, Droplets, ListChecks, Map as MapIcon, SprayCan, Sprout } from 'lucide-react'
+import { CalendarDays, ChevronRight, Clock3, Droplets, ListChecks, Map as MapIcon, SprayCan, Sprout } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -18,17 +18,24 @@ import {
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { ResponsiveFormContainer } from '@/components/ui/ResponsiveFormContainer'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
+import { colors } from '@/lib/design-tokens'
 import { useMeteo } from '@/hooks/useMeteo'
 import { MicroclimatAutoCard } from '@/components/parcele/MicroclimatAutoCard'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
 import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
-import { buildLatestActivityByParcela, getActivityDaysAgo, getActivityPauseRemainingDays } from '@/lib/activitati/timeline'
+import {
+  buildLatestActivityByParcela,
+  compareActivityRecency,
+  getActivityDaysAgo,
+  getActivityPauseRemainingDays,
+} from '@/lib/activitati/timeline'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
@@ -69,7 +76,6 @@ import {
   coerceStatusOperationalFromDb,
   SCOP_LABELS,
   STATUS_OPERATIONAL_LABELS,
-  type ParcelaScop,
   type StatusOperational,
 } from '@/lib/parcele/dashboard-relevance'
 
@@ -180,13 +186,6 @@ function operationalBadge(statusOperational: StatusOperational): { text: string;
   return { text: label, color: 'var(--status-neutral-text)', bg: 'var(--status-neutral-bg)' }
 }
 
-function operationalToneForCard(statusOperational: StatusOperational): 'neutral' | 'success' | 'warning' | 'danger' {
-  if (statusOperational === 'activ') return 'success'
-  if (statusOperational === 'in_pauza' || statusOperational === 'infiintare') return 'warning'
-  if (statusOperational === 'neproductiv' || statusOperational === 'arhivat') return 'danger'
-  return 'neutral'
-}
-
 function etapaDotColor(etapa: string): string {
   const cod = normalizeStadiu(etapa)
   const e = (cod ?? etapa).toLowerCase()
@@ -289,18 +288,6 @@ function formatSuprafata(suprafataMp: number | null | undefined): string | null 
   return `${formatter.format(hectares)} ha`
 }
 
-function formatActivityDateShort(dateStr: string | null | undefined): string | null {
-  if (!dateStr) return null
-
-  const parsed = new Date(dateStr)
-  if (Number.isNaN(parsed.getTime())) return null
-
-  return new Intl.DateTimeFormat('ro-RO', {
-    day: 'numeric',
-    month: 'short',
-  }).format(parsed)
-}
-
 function asFiniteCoord(value: unknown): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
@@ -312,18 +299,6 @@ function resolveParcelaMeteoCoords(parcela: Parcela | null | undefined): { lat: 
   const lon = asFiniteCoord(parcela.longitudine) ?? asFiniteCoord(parcela.gps_lng)
   if (lat === null || lon === null) return null
   return { lat, lon }
-}
-
-function buildParcelaDesktopMeta(parcela: Parcela): string {
-  const scop: ParcelaScop = coerceParcelaScopFromDb(parcela.rol)
-  const meta = [
-    unitTypeLabel(parcela.tip_unitate),
-    parcela.soi_plantat?.trim() || parcela.soi?.trim() || parcela.cultura?.trim() || parcela.tip_fruct?.trim(),
-    formatSuprafata(parcela.suprafata_m2),
-    SCOP_LABELS[scop],
-  ].filter(Boolean)
-
-  return meta.join(' · ')
 }
 
 function buildParcelaCulturaSoiLine(parcela: Parcela): string | null {
@@ -1143,6 +1118,307 @@ function SolarCulturiSection({
   )
 }
 
+function terenActivityFreshnessStyle(tipDeprecat: boolean | undefined, days: number | null): { dotClass: string; badgeClass: string } {
+  if (tipDeprecat) {
+    return {
+      dotClass: 'bg-[#D97706]',
+      badgeClass: 'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-amber-200 bg-amber-50 text-[#D97706]',
+    }
+  }
+  if (days === null) {
+    return {
+      dotClass: 'bg-[var(--agri-text-muted)]',
+      badgeClass:
+        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)]',
+    }
+  }
+  if (days < 14) {
+    return {
+      dotClass: 'bg-[#3D7A5F]',
+      badgeClass:
+        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-emerald-200 bg-emerald-50 text-[#3D7A5F]',
+    }
+  }
+  return {
+    dotClass: 'bg-amber-500',
+    badgeClass: 'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums bg-amber-100 text-amber-800',
+  }
+}
+
+function ParcelaTerenMobileSheet({
+  open,
+  onOpenChange,
+  parcela,
+  latestActivity,
+  meteoAutoSummary,
+  activitatiParcela,
+  today,
+  hasManualMicroclimat,
+  onAddActivity,
+  onTratamente,
+  onHistoric,
+  onDelete,
+  onEdit,
+  onAddCultura,
+  onAddMicroclimat,
+  onDesfiintaCultura,
+  onOpenManualMicroclimat,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  parcela: Parcela | null
+  latestActivity:
+    | { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }
+    | undefined
+  meteoAutoSummary: MeteoAutoSummary
+  activitatiParcela: ActivitateAgricola[]
+  today: Date
+  hasManualMicroclimat: boolean
+  onAddActivity: (id: string) => void
+  onTratamente: (id: string) => void
+  onHistoric: () => void
+  onDelete: (p: Parcela) => void
+  onEdit: (p: Parcela) => void
+  onAddCultura: () => void
+  onAddMicroclimat: () => void
+  onDesfiintaCultura: (c: Cultura) => void
+  onOpenManualMicroclimat: () => void
+}) {
+  if (!parcela) return null
+
+  const operational = coerceStatusOperationalFromDb(parcela.status_operational)
+  const opBadge = operationalBadge(operational)
+  const hasPause = Boolean(latestActivity?.pauseUntil)
+  const remainingDays = latestActivity?.pauseUntil
+    ? Math.ceil((new Date(latestActivity.pauseUntil).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    : 0
+  const relTime = activityRelativeTime(latestActivity?.date, today)
+  const archivedActivityLabel = latestActivity?.tipDeprecat ? `${latestActivity.type} · Arhivat` : null
+  const daysAgo = getActivityDaysAgo({ data_aplicare: latestActivity?.date }, today)
+  const freshness = terenActivityFreshnessStyle(latestActivity?.tipDeprecat, daysAgo)
+  const daysBadgeLabel =
+    latestActivity?.tipDeprecat ? 'Arhiv.' : daysAgo === null ? '—' : `${daysAgo}z`
+  const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="flex max-h-[min(90svh,720px)] flex-col gap-0 overflow-hidden p-0 md:bottom-auto md:left-1/2 md:right-auto md:top-1/2 md:mt-0 md:max-h-[min(88dvh,640px)] md:w-full md:max-w-lg md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-2xl"
+      >
+        <SheetHeader className="shrink-0 space-y-1 border-b border-[var(--surface-divider)] px-4 pb-3 pt-4 sm:px-5">
+          <SheetTitle className="pr-10 text-left">{parcela.nume_parcela || 'Teren'}</SheetTitle>
+          <p className="text-left text-xs text-[var(--agri-text-muted)]">{buildParcelaInspectorSubtitle(parcela)}</p>
+        </SheetHeader>
+
+        <Tabs key={`${parcela.id}-${open}`} defaultValue="rezumat" className="flex min-h-0 flex-1 flex-col gap-0">
+          <div className="shrink-0 border-b border-[var(--surface-divider)] px-3 pt-2">
+            <TabsList className="grid h-10 w-full grid-cols-3 gap-0.5 p-1">
+              <TabsTrigger value="rezumat" className="text-xs">
+                Rezumat
+              </TabsTrigger>
+              <TabsTrigger value="activitate" className="text-xs">
+                Activitate
+              </TabsTrigger>
+              <TabsTrigger value="microclimat" className="text-xs">
+                Microclimat
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="rezumat" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex shrink-0 items-center rounded-full border bg-[var(--agri-surface)] px-2.5 py-0.5 text-[11px] font-bold"
+                style={{ borderColor: opBadge.color, color: opBadge.color }}
+              >
+                {opBadge.text}
+              </span>
+            </div>
+
+            <div className="mb-3">
+              <div className="mb-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">Ultima activitate</div>
+              <div className="flex items-start gap-2 rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-2">
+                <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', freshness.dotClass)} aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--agri-text)]">
+                    {latestActivity
+                      ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
+                      : 'Nicio activitate înregistrată'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--agri-text-muted)]">{relTime}</p>
+                </div>
+                <span className={cn('shrink-0 tabular-nums', freshness.badgeClass)}>{daysBadgeLabel}</span>
+              </div>
+              {archivedActivityLabel ? (
+                <p className="mt-1.5 text-xs text-amber-700" title="Acest tip se înregistrează acum în modulul Protecție & Nutriție">
+                  {archivedActivityLabel}
+                </p>
+              ) : null}
+            </div>
+
+            {hasPause ? (
+              <div className="mb-3 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-danger-text)]">
+                {remainingDays <= 1
+                  ? '⚠️ Pauză tratament expiră mâine'
+                  : `⚠️ Pauză activă: încă ${remainingDays} zile`}
+              </div>
+            ) : null}
+
+            <div className="mb-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Microclimat</p>
+              <MicroclimatAutoCard summary={meteoAutoSummary} compact surfaceTone="clean" />
+              {isSolar && hasManualMicroclimat ? (
+                <button
+                  type="button"
+                  onClick={onOpenManualMicroclimat}
+                  className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)]"
+                >
+                  Vezi microclimat manual →
+                </button>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onAddActivity(parcela.id)}
+                className="min-h-11 rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-xs font-semibold text-[var(--pill-active-text)]"
+              >
+                + Activitate
+              </button>
+              <button
+                type="button"
+                onClick={() => onTratamente(parcela.id)}
+                className="min-h-11 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2 text-xs font-semibold text-[var(--agri-text)]"
+              >
+                <span className="inline-flex items-center justify-center gap-1">
+                  <SprayCan className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Tratamente
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={onHistoric}
+                className="min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-xs font-semibold text-[var(--button-muted-text)]"
+              >
+                Istoric
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(parcela)}
+                className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 text-xs font-semibold text-[var(--status-danger-text)]"
+              >
+                Șterge
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onEdit(parcela)}
+              className="mt-3 w-full rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] py-2 text-xs font-semibold text-[var(--agri-text)]"
+            >
+              Editează terenul
+            </button>
+
+            <SolarCulturiSection
+              parcela={parcela}
+              solarId={parcela.id}
+              tipUnitate={parcela.tip_unitate}
+              onAddCultura={onAddCultura}
+              onAddMicroclimat={onAddMicroclimat}
+              onDesfiintaCultura={onDesfiintaCultura}
+            />
+          </TabsContent>
+
+          <TabsContent value="activitate" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
+            {activitatiParcela.length === 0 ? (
+              <p className="text-sm text-[var(--agri-text-muted)]">Nicio activitate recentă pentru această parcelă.</p>
+            ) : (
+              <div className="space-y-0">
+                {activitatiParcela.map((activity, idx) => {
+                  const kind = isTreatmentLikeActivity(activity) ? ('tratament' as const) : ('activitate' as const)
+                  const meta = getJournalKindMeta(kind)
+                  const d = activity.data_aplicare || activity.created_at || ''
+                  return (
+                    <div key={activity.id} className="flex gap-3 py-2">
+                      <div className="flex flex-col items-center pt-1">
+                        <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full border', meta.toneClass)} aria-hidden />
+                        {idx < activitatiParcela.length - 1 ? (
+                          <span className="mt-1 w-px flex-1 min-h-[12px] bg-[var(--surface-divider)]" aria-hidden />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1 pb-1">
+                        <p className="text-sm font-semibold text-[var(--agri-text)]">{activity.tip_activitate || 'Activitate'}</p>
+                        <p className="text-xs text-[var(--agri-text-muted)]">
+                          {[activity.produs_utilizat, activity.doza].filter(Boolean).join(' · ') || '—'}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-[var(--agri-text-muted)] tabular-nums">
+                          {d ? new Date(d).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="microclimat" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
+            {meteoAutoSummary.state === 'ready' ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-4 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Temp.</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                    {typeof meteoAutoSummary.temperature === 'number' ? `${meteoAutoSummary.temperature.toFixed(1)}°` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-4 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Umiditate</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                    {typeof meteoAutoSummary.humidity === 'number' ? `${Math.round(meteoAutoSummary.humidity)}%` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-4 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Ploaie (mâine)</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                    {typeof meteoAutoSummary.rainChance === 'number' ? `${Math.round(meteoAutoSummary.rainChance * 100)}%` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-3 py-4 text-center">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Vânt</p>
+                  <p className="mt-2 text-2xl font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                    {typeof meteoAutoSummary.wind === 'number' ? `${meteoAutoSummary.wind.toFixed(1)}` : '—'}
+                  </p>
+                  <p className="text-[10px] text-[var(--agri-text-muted)]">km/h</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--agri-text-muted)]">
+                {meteoAutoSummary.state === 'loading' ? meteoAutoSummary.reason : meteoAutoSummary.reason}
+              </p>
+            )}
+
+            {isSolar ? (
+              <button
+                type="button"
+                onClick={onAddMicroclimat}
+                className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-3 text-sm font-semibold text-[var(--pill-active-text)]"
+              >
+                + Adaugă înregistrare manuală
+              </button>
+            ) : (
+              <p className="mt-4 text-xs text-[var(--agri-text-muted)]">
+                Înregistrările manuale de microclimat sunt disponibile pentru solarii.
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 /** Pastile compacte pentru bara desktop /parcele (fără fundal verde pe activ). */
 function DesktopParcelToolbarPill({
   active,
@@ -1263,359 +1539,116 @@ function DesktopParcelStripCard({
 function TerenCard({
   parcela,
   latestActivity,
-  activeCulturiCount,
-  isExpanded,
-  onToggle,
-  onAddActivity,
-  onTratamente,
-  onHistoric,
-  onEdit,
-  onDelete,
-  onAddCultura,
-  onAddMicroclimat,
-  onDesfiintaCultura,
+  activeMeteoParcelaId,
   meteoAutoSummary,
-  hasManualMicroclimat,
-  onOpenManualMicroclimat,
+  onOpen,
 }: {
   parcela: Parcela
   latestActivity:
     | { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }
     | undefined
-  activeCulturiCount: number
-  isExpanded: boolean
-  onToggle: (id: string) => void
-  onAddActivity: (id: string) => void
-  onTratamente: (id: string) => void
-  onHistoric: () => void
-  onEdit: (parcela: Parcela) => void
-  onDelete: (parcela: Parcela) => void
-  onAddCultura: () => void
-  onAddMicroclimat: () => void
-  onDesfiintaCultura: (c: Cultura) => void
+  activeMeteoParcelaId: string | null
   meteoAutoSummary: MeteoAutoSummary
-  hasManualMicroclimat: boolean
-  onOpenManualMicroclimat: () => void
+  onOpen: () => void
 }) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  const { emoji, bg } = unitIcon(parcela.tip_unitate)
-  const operational = coerceStatusOperationalFromDb(parcela.status_operational)
-  const badge = operationalBadge(operational)
+  const { emoji } = unitIcon(parcela.tip_unitate)
   const hasPause = Boolean(latestActivity?.pauseUntil)
-  const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
-  const relTime = activityRelativeTime(latestActivity?.date, today)
-  const activityDateLabel = formatActivityDateShort(latestActivity?.date)
-  const metaLine = buildParcelaDesktopMeta(parcela)
-  const summaryLine = buildParcelaSummaryLine(parcela, activeCulturiCount)
-  const culturiLabel = activeCulturiCount > 0 ? getCulturiCountLabel(activeCulturiCount, true) : null
-  const archivedActivityLabel = latestActivity?.tipDeprecat ? `${latestActivity.type} · Arhivat` : null
-  const remainingDays = latestActivity?.pauseUntil
-    ? Math.ceil((new Date(latestActivity.pauseUntil).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    : 0
-
-  const mobileExpanded = (
-    <>
-      <div className="border-t border-[var(--surface-divider)] pt-3">
-        <div className={hasPause ? 'mb-2' : 'mb-2.5'}>
-          <div className="mb-1 text-[11px] text-[var(--agri-text-muted)]">Ultima activitate</div>
-          <div
-            className={cn(
-              'rounded-lg px-2.5 py-1.5 text-xs font-medium',
-              latestActivity ? 'bg-[var(--agri-surface-muted)] text-[var(--agri-text)]' : 'text-[var(--text-hint)]',
-            )}
-          >
-            {latestActivity
-              ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''} — ${relTime}`
-              : 'Nicio activitate înregistrată'}
-          </div>
-          {archivedActivityLabel ? (
-            <div
-              className="mt-1 text-xs text-amber-700"
-              title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
-            >
-              {archivedActivityLabel}
-            </div>
-          ) : null}
-        </div>
-
-        {hasPause ? (
-          <div className="mb-2.5 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--status-danger-text)]">
-            {remainingDays <= 1
-              ? '⚠️ Pauză tratament expiră mâine'
-              : `⚠️ Pauză activă: încă ${remainingDays} zile`}
-          </div>
-        ) : null}
-
-        <div className="mb-2.5 grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onAddActivity(parcela.id)
-            }}
-            className="min-h-9 w-full rounded-[10px] border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-[11px] font-semibold text-[var(--pill-active-text)]"
-          >
-            + Activitate
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onHistoric()
-            }}
-            className="min-h-9 w-full rounded-[10px] border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-[11px] font-semibold text-[var(--button-muted-text)]"
-          >
-            Istoric
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onTratamente(parcela.id)
-            }}
-            className="min-h-9 w-full rounded-[10px] border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2 text-[11px] font-semibold text-[var(--agri-text)]"
-            aria-label="Tratamente"
-          >
-            <span className="inline-flex items-center gap-1">
-              <SprayCan className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="text-[11px] font-semibold">Tratamente</span>
-            </span>
-          </button>
-        </div>
-
-        <SolarCulturiSection
-          parcela={parcela}
-          solarId={parcela.id}
-          tipUnitate={parcela.tip_unitate}
-          onAddCultura={onAddCultura}
-          onAddMicroclimat={onAddMicroclimat}
-          onDesfiintaCultura={onDesfiintaCultura}
-        />
-
-        <div className="mt-3 border-t border-[var(--surface-divider)] pt-3">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">
-            Microclimat
-          </p>
-          <MicroclimatAutoCard summary={meteoAutoSummary} compact />
-          {isSolar && hasManualMicroclimat ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenManualMicroclimat()
-              }}
-              className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-            >
-              Vezi microclimat manual →
-            </button>
-          ) : null}
-        </div>
-
-        <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(parcela)
-            }}
-            className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-          >
-            ✏️ Editează
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(parcela)
-            }}
-            className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-          >
-            🗑️ Șterge
-          </button>
-        </div>
-      </div>
-    </>
-  )
+  const daysAgo = getActivityDaysAgo({ data_aplicare: latestActivity?.date }, today)
+  const freshness = terenActivityFreshnessStyle(latestActivity?.tipDeprecat, daysAgo)
+  const daysBadgeLabel =
+    latestActivity?.tipDeprecat ? 'Arhiv.' : daysAgo === null ? '—' : `${daysAgo}z`
+  const tipBadge = (() => {
+    const t = normalizeUnitateTip(parcela.tip_unitate)
+    if (t === 'solar') {
+      return { label: 'Solarii', className: 'bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800' }
+    }
+    if (t === 'livada') {
+      return { label: 'Livadă', className: 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-200 dark:border-blue-800' }
+    }
+    if (t === 'cultura_mare') {
+      return { label: 'Cultură mare', className: 'bg-[var(--agri-surface-muted)] text-[var(--agri-text)] border-[var(--surface-divider)]' }
+    }
+    return { label: 'Câmp', className: 'bg-emerald-50 text-emerald-900 border-emerald-200 dark:bg-emerald-950/35 dark:text-emerald-200 dark:border-emerald-800' }
+  })()
+  const culturaPart =
+    parcela.cultura?.trim() ||
+    parcela.tip_fruct?.trim() ||
+    parcela.soi_plantat?.trim() ||
+    parcela.soi?.trim() ||
+    '—'
+  const stadiuPart = parcela.stadiu?.trim() ? formatEtapaLabel(parcela.stadiu) : '—'
+  const activityTypeShort = latestActivity?.type ? latestActivity.type : '—'
+  const productShort = latestActivity?.product?.trim() || ''
+  const showLiveMeteo = parcela.id === activeMeteoParcelaId
+  const tempStr =
+    showLiveMeteo && meteoAutoSummary.state === 'ready' && typeof meteoAutoSummary.temperature === 'number'
+      ? `${meteoAutoSummary.temperature.toFixed(1)}°`
+      : '—'
+  const humStr =
+    showLiveMeteo && meteoAutoSummary.state === 'ready' && typeof meteoAutoSummary.humidity === 'number'
+      ? `${Math.round(meteoAutoSummary.humidity)}%`
+      : '—'
 
   return (
-    <>
-      <div className="md:hidden">
-        <MobileEntityCard
-          variant={isExpanded ? 'highlight' : 'default'}
-          icon={<span aria-hidden>{emoji}</span>}
-          title={hasPause ? `${parcela.nume_parcela || 'Teren'} ⚠️` : parcela.nume_parcela || 'Teren'}
-          subtitle={summaryLine || undefined}
-          mainValue={latestActivity ? relTime : '—'}
-          secondaryValue={
-            latestActivity
-              ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
-              : 'Nicio activitate'
-          }
-          statusLabel={badge.text}
-          statusTone={operationalToneForCard(operational)}
-          showChevron
-          bottomSlotAlign="full"
-          ariaLabel={`${parcela.nume_parcela || 'Teren'}${isExpanded ? ', detalii deschise' : ''}`}
-          onClick={() => onToggle(parcela.id)}
-          bottomSlot={
-            archivedActivityLabel || isExpanded ? (
-              <>
-                {archivedActivityLabel && !isExpanded ? (
-                  <div
-                    className="mb-2 text-xs text-amber-700"
-                    title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
-                  >
-                    {archivedActivityLabel}
-                  </div>
-                ) : null}
-                {isExpanded ? mobileExpanded : null}
-              </>
-            ) : undefined
-          }
-        />
-      </div>
-
-      <div
-        className="hidden w-full overflow-hidden rounded-2xl border border-[var(--agri-border)] bg-white shadow-[0_2px_8px_-2px_rgba(12,15,19,0.08)] transition-[box-shadow] duration-200 md:block md:hover:shadow-[0_4px_14px_-4px_rgba(12,15,19,0.12)] dark:bg-[var(--agri-surface)] dark:shadow-[var(--agri-shadow)]"
-        role="button"
-        tabIndex={0}
-        aria-expanded={isExpanded}
-        onClick={() => onToggle(parcela.id)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onToggle(parcela.id)
-          }
-        }}
-        style={{
-          border: isExpanded ? '1.5px solid var(--soft-success-border)' : '1px solid var(--agri-border)',
-          boxShadow: isExpanded ? 'var(--shadow-card-raised)' : 'var(--shadow-card-soft)',
-          padding: '14px 18px',
-          cursor: 'pointer',
-        }}
+    <div className="md:hidden">
+      <button
+        type="button"
+        onClick={onOpen}
+        className={cn(
+          'flex min-h-[72px] max-h-[80px] w-full min-w-0 items-center gap-2 rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2.5 py-1.5 text-left shadow-sm transition-[transform,box-shadow] active:scale-[0.995]',
+          hasPause && 'border-amber-300/80',
+        )}
+        aria-label={`Deschide detalii ${parcela.nume_parcela || 'teren'}`}
       >
-      <div className="hidden md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] md:items-center md:gap-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
-            style={{ background: bg }}
-          >
-            {emoji}
-          </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="truncate text-base font-bold text-[var(--agri-text)]">
-                {parcela.nume_parcela || 'Teren'}
-              </span>
-              {hasPause ? <span className="text-sm">⚠️</span> : null}
-              <span
-                className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-                style={{
-                  background: badge.bg,
-                  color: badge.color,
-                  border: `1px solid ${badge.color}`,
-                }}
-              >
-                {badge.text}
-              </span>
-            </div>
-            {metaLine ? <div className="mt-1 truncate text-sm text-[var(--agri-text-muted)]">{metaLine}</div> : null}
-          </div>
+        <div
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] text-lg"
+          style={{ background: colors.greenLight }}
+        >
+          <span aria-hidden>{emoji}</span>
         </div>
 
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-[var(--agri-text)]">
-            {latestActivity ? `Ultima activitate: ${activityDateLabel ?? relTime}` : 'Nicio activitate'}
-          </div>
-          <div className="mt-1 truncate text-sm text-[var(--agri-text-muted)]">
-            {latestActivity
-              ? `${latestActivity.type}${latestActivity.product ? ` · ${latestActivity.product}` : ''}`
-              : 'Nicio activitate înregistrată'}
-          </div>
-          {archivedActivityLabel ? (
-            <div
-              className="mt-1 text-xs text-amber-700"
-              title="Acest tip se înregistrează acum în modulul Protecție & Nutriție"
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-bold text-[var(--agri-text)] [font-weight:700]">
+              {hasPause ? '⚠️ ' : ''}
+              {parcela.nume_parcela || 'Teren'}
+            </span>
+            <span
+              className={cn(
+                'shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold leading-none',
+                tipBadge.className,
+              )}
             >
-              {archivedActivityLabel}
-            </div>
-          ) : null}
-          {culturiLabel ? <div className="mt-1 text-sm text-[var(--agri-text-muted)]">{culturiLabel}</div> : null}
-
-        </div>
-
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text-muted)]">
-          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </div>
-      </div>
-
-      {isExpanded ? (
-          <div
-            className="mt-4 hidden border-t border-[var(--surface-divider)] pt-4 md:block"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
-              <button
-                type="button"
-                onClick={() => onAddActivity(parcela.id)}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-3 text-xs font-semibold text-[var(--pill-active-text)] transition-colors hover:opacity-90 dark:hover:opacity-100"
-              >
-                + Activitate
-              </button>
-              <button
-                type="button"
-                onClick={onHistoric}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-[var(--button-muted-hover-bg)]"
-              >
-                Istoric
-              </button>
-              <button
-                type="button"
-                onClick={() => onTratamente(parcela.id)}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--agri-border)] bg-white px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[0_1px_2px_rgba(12,15,19,0.04)] transition-colors hover:bg-[var(--agri-surface-muted)] dark:bg-[var(--agri-surface)]"
-              >
-                <SprayCan className="mr-1.5 h-3.5 w-3.5 text-[var(--pill-active-border)]" aria-hidden />
-                Tratamente
-              </button>
-              <button
-                type="button"
-                onClick={() => onEdit(parcela)}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-xs font-semibold text-[var(--button-muted-text)] transition-colors hover:bg-[var(--button-muted-hover-bg)]"
-              >
-                Editează
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(parcela)}
-                className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-xs font-semibold text-[var(--status-danger-text)] transition-colors hover:opacity-90 dark:hover:opacity-100"
-              >
-                Șterge
-              </button>
-            </div>
-
-            {hasPause ? (
-              <div className="mb-4 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--status-danger-text)]">
-                {remainingDays <= 1
-                  ? '⚠️ Pauză tratament expiră mâine'
-                  : `⚠️ Pauză activă: încă ${remainingDays} zile`}
-              </div>
-            ) : null}
-
-            <SolarCulturiSection
-              parcela={parcela}
-              solarId={parcela.id}
-              tipUnitate={parcela.tip_unitate}
-              onAddCultura={onAddCultura}
-              onAddMicroclimat={onAddMicroclimat}
-              onDesfiintaCultura={onDesfiintaCultura}
-              withTopBorder={false}
-            />
+              {tipBadge.label}
+            </span>
           </div>
-      ) : null}
+          <p className="mt-0.5 truncate text-xs text-[var(--agri-text-muted)]">
+            {culturaPart}
+            <span className="text-[var(--agri-text-muted)]/80"> · </span>
+            {stadiuPart}
+          </p>
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--agri-text)]">
+            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', freshness.dotClass)} aria-hidden />
+            <span className="min-w-0 truncate">
+              <span className="font-medium">{activityTypeShort}</span>
+              {productShort ? <span className="text-[var(--agri-text-muted)]"> · {productShort}</span> : null}
+            </span>
+            <span className={cn('ml-auto shrink-0 tabular-nums', freshness.badgeClass)}>{daysBadgeLabel}</span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end justify-center gap-0.5 pl-0.5">
+          <span className="text-sm font-bold tabular-nums text-[var(--agri-text)] [font-weight:700]">{tempStr}</span>
+          <span className="text-[11px] text-[var(--agri-text-muted)] tabular-nums">
+            💧 {humStr}
+          </span>
+          <ChevronRight className="h-4 w-4 text-[var(--agri-text-muted)]" aria-hidden />
+        </div>
+      </button>
     </div>
-    </>
   )
 }
 
@@ -1938,7 +1971,11 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [isDesktop])
 
-  const activeMeteoParcelaId = expandedId ?? desktopSelectedParcelaId ?? filteredParcele[0]?.id ?? null
+  const activeMeteoParcelaId = useMemo(() => {
+    const fromExpanded =
+      expandedId && filteredParcele.some((p) => p.id === expandedId) ? expandedId : null
+    return fromExpanded ?? desktopSelectedParcelaId ?? filteredParcele[0]?.id ?? null
+  }, [desktopSelectedParcelaId, expandedId, filteredParcele])
   const activeMeteoParcela = useMemo(
     () => filteredParcele.find((parcela) => parcela.id === activeMeteoParcelaId) ?? null,
     [activeMeteoParcelaId, filteredParcele]
@@ -2141,6 +2178,31 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     [jurnalEntries]
   )
 
+  const mobileTerenSheetParcela = useMemo(
+    () => (expandedId ? filteredParcele.find((p) => p.id === expandedId) ?? null : null),
+    [expandedId, filteredParcele]
+  )
+  const mobileTerenSheetActivitati = useMemo(() => {
+    if (!expandedId) return []
+    return [...activitati]
+      .filter((a) => a.parcela_id === expandedId)
+      .sort((a, b) => compareActivityRecency(a, b))
+      .slice(0, 40)
+  }, [activitati, expandedId])
+  const mobileTerenSheetOpen = Boolean(!isDesktop && mobileTerenSheetParcela)
+  const mobileTerenSheetHasManualMicro = Boolean(
+    mobileTerenSheetParcela &&
+      normalizeUnitateTip(mobileTerenSheetParcela.tip_unitate) === 'solar' &&
+      desktopMicroclimatLogs.length > 0
+  )
+
+  useEffect(() => {
+    if (isDesktop) return
+    if (expandedId && !filteredParcele.some((p) => p.id === expandedId)) {
+      queueMicrotask(() => setExpandedId(null))
+    }
+  }, [isDesktop, expandedId, filteredParcele])
+
   return (
     <AppShell
       header={<PageHeader title="Terenuri" subtitle="Administrare terenuri cultivate" rightSlot={<MapIcon className="h-5 w-5" />} contentVariant="workspace" />}
@@ -2288,45 +2350,17 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                       aria-label="Caută terenuri"
                     />
                   ) : null}
-                  <div className="grid grid-cols-1 gap-3">
-                    {filteredParcele.map((parcela) => {
-                      const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
-                      const isActiveForMeteo = parcela.id === activeMeteoParcelaId
-                      return (
-                        <TerenCard
-                          key={parcela.id}
-                          parcela={parcela}
-                          latestActivity={latestActivityByParcela.get(parcela.id)}
-                          activeCulturiCount={activeCulturiCounts[parcela.id] ?? 0}
-                          isExpanded={expandedId === parcela.id}
-                          onToggle={(id) => setExpandedId((current) => (current === id ? null : id))}
-                          onAddActivity={(id) => {
-                            setAddActivityParcelaId(id)
-                            setAddActivityOpen(true)
-                          }}
-                          onTratamente={(id) => {
-                            router.push(`/parcele/${id}/tratamente`)
-                          }}
-                          onHistoric={() => {
-                            if (isSolar) {
-                              router.push(`/parcele?selected=${encodeURIComponent(parcela.id)}`)
-                            } else {
-                              router.push('/activitati-agricole')
-                            }
-                          }}
-                          onEdit={(p) => { setSelectedParcela(p); setEditOpen(true) }}
-                          onDelete={(p) => { setSelectedParcela(p); setDeleteOpen(true) }}
-                          onAddCultura={() => setAddCulturaParcelaId(parcela.id)}
-                          onAddMicroclimat={() => setAddMicroclimatParcelaId(parcela.id)}
-                          onDesfiintaCultura={(c) => setDesfiintaState({ cultura: c, parcelaId: parcela.id })}
-                          meteoAutoSummary={meteoAutoSummary}
-                          hasManualMicroclimat={isActiveForMeteo && isSolar && desktopMicroclimatLogs.length > 0}
-                          onOpenManualMicroclimat={() =>
-                            router.push(`/parcele?selected=${encodeURIComponent(parcela.id)}`)
-                          }
-                        />
-                      )
-                    })}
+                  <div className="grid grid-cols-1 gap-2">
+                    {filteredParcele.map((parcela) => (
+                      <TerenCard
+                        key={parcela.id}
+                        parcela={parcela}
+                        latestActivity={latestActivityByParcela.get(parcela.id)}
+                        activeMeteoParcelaId={activeMeteoParcelaId}
+                        meteoAutoSummary={meteoAutoSummary}
+                        onOpen={() => setExpandedId(parcela.id)}
+                      />
+                    ))}
                   </div>
                 </div>
 
@@ -2958,6 +2992,61 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
           </>
         ) : null}
       </DashboardContentShell>
+
+      <ParcelaTerenMobileSheet
+        open={mobileTerenSheetOpen}
+        onOpenChange={(next) => {
+          if (!next) setExpandedId(null)
+        }}
+        parcela={mobileTerenSheetParcela}
+        latestActivity={
+          mobileTerenSheetParcela ? latestActivityByParcela.get(mobileTerenSheetParcela.id) : undefined
+        }
+        meteoAutoSummary={meteoAutoSummary}
+        activitatiParcela={mobileTerenSheetActivitati}
+        today={today}
+        hasManualMicroclimat={mobileTerenSheetHasManualMicro}
+        onAddActivity={(id) => {
+          setAddActivityParcelaId(id)
+          setAddActivityOpen(true)
+        }}
+        onTratamente={(id) => {
+          router.push(`/parcele/${id}/tratamente`)
+        }}
+        onHistoric={() => {
+          const p = mobileTerenSheetParcela
+          if (!p) return
+          if (normalizeUnitateTip(p.tip_unitate) === 'solar') {
+            router.push(`/parcele?selected=${encodeURIComponent(p.id)}`)
+          } else {
+            router.push('/activitati-agricole')
+          }
+        }}
+        onDelete={(p) => {
+          setSelectedParcela(p)
+          setDeleteOpen(true)
+        }}
+        onEdit={(p) => {
+          setSelectedParcela(p)
+          setEditOpen(true)
+        }}
+        onAddCultura={() => {
+          if (!mobileTerenSheetParcela) return
+          setAddCulturaParcelaId(mobileTerenSheetParcela.id)
+        }}
+        onAddMicroclimat={() => {
+          if (!mobileTerenSheetParcela) return
+          setAddMicroclimatParcelaId(mobileTerenSheetParcela.id)
+        }}
+        onDesfiintaCultura={(c) => {
+          if (!mobileTerenSheetParcela) return
+          setDesfiintaState({ cultura: c, parcelaId: mobileTerenSheetParcela.id })
+        }}
+        onOpenManualMicroclimat={() => {
+          if (!mobileTerenSheetParcela) return
+          router.push(`/parcele?selected=${encodeURIComponent(mobileTerenSheetParcela.id)}`)
+        }}
+      />
 
       <AddParcelDrawer
         open={addOpen}

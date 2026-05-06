@@ -121,7 +121,12 @@ describe('PlanLiniiList', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /adaugă intervenție/i }))
+    const addButton = screen
+      .getAllByRole('button', { name: /adaugă intervenție/i })
+      .find((button) => button.textContent?.trim() === 'Adaugă intervenție')
+    expect(addButton).toBeDefined()
+
+    await user.click(addButton!)
 
     expect(screen.getByRole('heading', { name: 'Adaugă intervenție' })).toBeInTheDocument()
   })

@@ -21,7 +21,7 @@ export function SectionIntro({
   return (
     <div className={`${width} ${alignment}`}>
       <span
-        className={`inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold tracking-wide text-[#2D6A4F] ${badgeClassName ?? ''}`}
+        className={`inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold tracking-wide text-[#3D7A5F] ${badgeClassName ?? ''}`}
       >
         {badge}
       </span>
@@ -57,7 +57,7 @@ export function BulletList({ items }: BulletListProps) {
     <ul className="space-y-3 text-sm text-slate-600 md:text-base">
       {items.map((item) => (
         <li key={item} className="flex items-start gap-3">
-          <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E8F5EE] text-xs font-bold text-[#2D6A4F]">
+          <span className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E8F5EE] text-xs font-bold text-[#3D7A5F]">
             ✓
           </span>
           <span>{item}</span>

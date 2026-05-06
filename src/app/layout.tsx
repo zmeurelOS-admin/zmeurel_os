@@ -4,7 +4,6 @@ import { Inter } from 'next/font/google'
 import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
 import { MonitoringInit } from '@/components/app/MonitoringInit'
 import { ServiceWorkerRegister } from '@/components/app/ServiceWorkerRegister'
-import { PwaInstallBanner } from '@/components/pwa/PwaInstallBanner'
 import { ThemeProvider } from '@/components/app/ThemeProvider'
 import { Toaster } from '@/components/Toaster'
 import './globals.css'
@@ -59,7 +58,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <MonitoringInit />
           <ServiceWorkerRegister />
           {children}
-          <PwaInstallBanner />
           <Toaster />
         </ThemeProvider>
       </body>

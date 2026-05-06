@@ -242,7 +242,7 @@ function buildInitialProduse(
   return source.map((produs, index) => ({ ...produs, ordine: index + 1 }))
 }
 
-function withProductOrder(produse: MarkAplicataProdusDraft[]) {
+export function withProductOrder(produse: MarkAplicataProdusDraft[]) {
   return produse.map((produs, index) => ({ ...produs, ordine: index + 1 }))
 }
 
@@ -292,7 +292,7 @@ function productName(produs: MarkAplicataProdusDraft, produseFitosanitare: Produ
   return catalog?.nume_comercial || produs.produs_nume_manual.trim() || produs.produs_nume_snapshot || 'Produs fără nume'
 }
 
-function validateProducts(produse: MarkAplicataProdusDraft[]): string | null {
+export function validateProducts(produse: MarkAplicataProdusDraft[]): string | null {
   if (produse.length === 0) return 'Aplicarea trebuie să aibă cel puțin un produs.'
   const invalid = produse.find((produs) => !produs.produs_id && !produs.produs_nume_manual.trim())
   if (invalid) return 'Fiecare produs trebuie selectat din bibliotecă sau completat manual.'
@@ -303,7 +303,7 @@ function sameNumber(first: number | null, second: number | null) {
   return (first ?? null) === (second ?? null)
 }
 
-function buildDiffSummary(
+export function buildMarkAplicataDiferentePlan(
   produseActuale: MarkAplicataProdusDraft[],
   produsePlanificate: InterventieProdusV2[] | undefined,
   manualText: string | undefined
@@ -535,7 +535,7 @@ export function MarkAplicataSheet({
       ...values,
       meteoSnapshot: nextSnapshot,
       produse: withProductOrder(produseDraft),
-      diferenteFataDePlan: buildDiffSummary(produseDraft, produsePlanificate, values.diferente_fata_de_plan_text),
+      diferenteFataDePlan: buildMarkAplicataDiferentePlan(produseDraft, produsePlanificate, values.diferente_fata_de_plan_text),
     })
   })
 
@@ -625,7 +625,7 @@ export function MarkAplicataSheet({
   const desktopDifferences = useMemo(
     () =>
       mode === 'din_plan'
-        ? buildDiffSummary(produseDraft, produsePlanificate, summaryValues.diferente_fata_de_plan_text)
+        ? buildMarkAplicataDiferentePlan(produseDraft, produsePlanificate, summaryValues.diferente_fata_de_plan_text)
         : null,
     [mode, produseDraft, produsePlanificate, summaryValues.diferente_fata_de_plan_text]
   )

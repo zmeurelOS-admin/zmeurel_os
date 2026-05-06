@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
+import { ParcelaTratamenteManualTrigger } from '@/components/tratamente/ParcelaTratamenteManualTrigger'
 import { Button } from '@/components/ui/button'
 
 interface ParcelaTratamenteHeaderProps {
@@ -18,21 +18,19 @@ export function ParcelaTratamenteHeader({
   return (
     <CompactPageHeader
       title="Protecție & Nutriție"
-      subtitle={parcelaName}
-      showMobileRightSlot
+      subtitle={`${parcelaName} · ${an}`}
+      showMobileRightSlot={false}
       rightSlot={
-        <span className="inline-flex h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--text-primary)] lg:border-white/20 lg:bg-white/12 lg:text-[var(--text-on-accent)]">
+        <span className="hidden h-8 items-center rounded-full border border-white/20 bg-white/12 px-3 text-xs font-semibold text-[var(--text-on-accent)] lg:inline-flex">
           {an}
         </span>
       }
       summary={
-        <div className="flex items-center justify-start">
-          <Button type="button" variant="outline" size="sm" asChild>
-            <Link href={backHref}>
-              <ArrowLeft className="h-4 w-4" />
-              Înapoi la parcelă
-            </Link>
+        <div className="flex w-full items-center justify-between gap-2">
+          <Button type="button" variant="outline" size="sm" className="min-h-9 shrink" asChild>
+            <Link href={backHref}>← Înapoi la parcelă</Link>
           </Button>
+          <ParcelaTratamenteManualTrigger />
         </div>
       }
     />

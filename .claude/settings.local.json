@@ -14,7 +14,14 @@
       "Bash(grep -r \"BetaBanner\" \"c:\\\\Users\\\\Andrei\\\\Desktop\\\\zmeurel/src\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\")",
       "Bash(grep -r \"import.*ErrorState\" \"c:\\\\Users\\\\Andrei\\\\Desktop\\\\zmeurel/src\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\")",
       "Bash(grep -r \"import.*FarmSwitcher\" \"c:\\\\Users\\\\Andrei\\\\Desktop\\\\zmeurel/src\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\")",
-      "Bash(find \"c:\\\\Users\\\\Andrei\\\\Desktop\\\\zmeurel/src/components\" -type f -name \"*.tsx\" -exec basename {})"
+      "Bash(find \"c:\\\\Users\\\\Andrei\\\\Desktop\\\\zmeurel/src/components\" -type f -name \"*.tsx\" -exec basename {})",
+      "Bash(npm test *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npx vitest *)",
+      "Bash(npx next *)",
+      "Bash(npm run *)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": [],

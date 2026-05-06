@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
 import { AplicareDetaliuClient } from '@/components/tratamente/AplicareDetaliuClient'
-import { AplicareDetaliuHeader } from '@/components/tratamente/AplicareDetaliuHeader'
 import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
 import {
   getAplicareById,
@@ -130,16 +129,9 @@ export default async function AplicareDetaliuPage({ params }: PageProps) {
   }
 
   return (
-    <AppShell
-      header={
-        <AplicareDetaliuHeader
-          backHref={`/parcele/${parcelaId}/tratamente`}
-          parcelaName={aplicare.parcela?.nume_parcela ?? 'Parcelă'}
-        />
-      }
-      bottomInset="calc(var(--app-nav-clearance) + 1rem)"
-    >
+    <AppShell header={null} bottomInset="calc(var(--app-nav-clearance) + 1rem)">
       <AplicareDetaliuClient
+        key={aplicareId}
         aplicare={aplicare}
         configurareSezon={configurareSezon}
         currentOperator={buildOperatorDefault(authData.user?.email)}

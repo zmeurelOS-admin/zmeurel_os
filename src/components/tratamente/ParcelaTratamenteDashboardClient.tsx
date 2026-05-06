@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+
 import {
   assignPlanAction,
   createManualInterventieAction,
@@ -22,6 +24,8 @@ import {
   getInterventieKey,
   InterventiiRelevanteCard,
 } from '@/components/tratamente/InterventiiRelevanteCard'
+import { ParcelaTratamenteMobileHub } from '@/components/tratamente/ParcelaTratamenteMobileHub'
+import { TRATAMENTE_OPEN_MANUAL_EVENT } from '@/components/tratamente/ParcelaTratamenteManualTrigger'
 import { GenereazaAplicariDialog } from '@/components/tratamente/GenereazaAplicariDialog'
 import {
   RecordStadiuSheet,
@@ -97,6 +101,7 @@ export function ParcelaTratamenteDashboardClient({
   urmatoareleAplicari,
 }: ParcelaTratamenteDashboardClientProps) {
   const router = useRouter()
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const { registerAddAction } = useAddAction()
   const [recordOpen, setRecordOpen] = useState(false)
   const [recordCohort, setRecordCohort] = useState<Cohorta | undefined>(undefined)
@@ -116,6 +121,12 @@ export function ParcelaTratamenteDashboardClient({
     const unregister = registerAddAction(() => setManualOpen(true), '+ Intervenție manuală')
     return unregister
   }, [registerAddAction])
+
+  useEffect(() => {
+    const handler = () => setManualOpen(true)
+    window.addEventListener(TRATAMENTE_OPEN_MANUAL_EVENT, handler)
+    return () => window.removeEventListener(TRATAMENTE_OPEN_MANUAL_EVENT, handler)
+  }, [])
   const firstStadiu = listStadiiPentruGrup(grupBiologic)[0] ?? 'repaus_vegetativ'
   const primarySuggestedSource =
     singleStageState?.stadiuUrmator ??
@@ -274,112 +285,132 @@ export function ParcelaTratamenteDashboardClient({
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[min(96vw,94rem)] space-y-4 px-3 py-3 md:px-4 md:py-4">
+      <div className="mx-auto w-full max-w-[min(96vw,94rem)] px-3 py-3 md:px-4 md:py-4">
         {isGlobalEmpty ? (
-          <EmptyStateTratamente
-            createPlanHref={createPlanHref}
-            importPlanHref={importPlanHref}
-          />
+          <EmptyStateTratamente createPlanHref={createPlanHref} importPlanHref={importPlanHref} />
         ) : null}
+      </div>
 
-        <ConfigurareSezonBanner
+      <ConfigurareSezonBanner
+        an={an}
+        configurareSezon={configurareSezon}
+        grupBiologic={grupBiologic ?? null}
+        onConfigure={() => setSeasonOpen(true)}
+      />
+
+      {isDesktop ? (
+        <div className="mx-auto w-full max-w-[min(96vw,94rem)] space-y-4 px-3 py-3 md:px-4 md:py-4">
+          <AppCard className="space-y-3 rounded-2xl bg-[var(--surface-card)]">
+            <div className="space-y-1">
+              <h2 className="text-base text-[var(--text-primary)] [font-weight:650]">Acțiuni rapide</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Actualizează stadiul, asociază un plan sau adaugă o intervenție ad-hoc.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setRecordOpen(true)}>
+                Actualizează fenofaza
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
+                Asociază plan
+              </Button>
+              <Button type="button" variant="default" size="sm" onClick={() => setManualOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Intervenție manuală
+              </Button>
+            </div>
+          </AppCard>
+
+          <StadiuCurentCard
+            grupBiologic={grupBiologic}
+            configurareSezon={configurareSezon}
+            singleStageState={singleStageState}
+            dualStageState={dualStageState}
+            onRecord={(cohort) => {
+              setRecordCohort(cohort)
+              setRecordOpen(true)
+            }}
+          />
+
+          <InterventiiRelevanteCard
+            configurareSezon={configurareSezon}
+            interventii={interventiiRelevante}
+            onPlanifica={handlePlanificaInterventie}
+            pendingInterventieId={isPlanificaPending ? pendingInterventieId : null}
+            showFilters={interventiiRelevante.length > 4}
+            title="Intervenții relevante"
+          />
+
+          <PlanActivCard
+            createHref={createPlanHref}
+            detailsHref={detailsHref}
+            editHref={editPlanHref}
+            onAssign={() => setAssignOpen(true)}
+            planActiv={planActiv}
+          />
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-base text-[var(--text-primary)] [font-weight:650]">Următoarele aplicări</h2>
+                <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
+                  {aplicariCount}
+                </span>
+              </div>
+            </div>
+
+            {urmatoareleAplicari.length === 0 ? (
+              <AppCard className="rounded-2xl border-dashed bg-[var(--surface-card-muted)]">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Nu există încă aplicări planificate pentru această parcelă în anul curent. Dacă vezi intervenții relevante mai sus, apasă „Pregătește aplicare din plan”.
+                </p>
+              </AppCard>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {urmatoareleAplicari.map((aplicare) => (
+                    <AplicareListItem
+                      key={aplicare.id}
+                      aplicare={aplicare}
+                      configurareSezon={configurareSezon}
+                      parcelaId={parcelaId}
+                    />
+                  ))}
+                </div>
+                <div className="pt-1">
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <Link href={`/parcele/${parcelaId}/tratamente/toate`}>Vezi toate ({aplicariCount})</Link>
+                  </Button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      ) : (
+        <ParcelaTratamenteMobileHub
           an={an}
+          aplicariCount={aplicariCount}
           configurareSezon={configurareSezon}
-          grupBiologic={grupBiologic ?? null}
-          onConfigure={() => setSeasonOpen(true)}
-        />
-
-        <AppCard className="space-y-3 rounded-2xl bg-[var(--surface-card)]">
-          <div className="space-y-1">
-            <h2 className="text-base text-[var(--text-primary)] [font-weight:650]">Acțiuni rapide</h2>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Actualizează stadiul, asociază un plan sau adaugă o intervenție ad-hoc.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setRecordOpen(true)}>
-              Actualizează fenofaza
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
-              Asociază plan
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={() => setManualOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              Intervenție manuală
-            </Button>
-          </div>
-        </AppCard>
-
-        <StadiuCurentCard
-          grupBiologic={grupBiologic}
-          configurareSezon={configurareSezon}
-          singleStageState={singleStageState}
+          createPlanHref={createPlanHref}
+          detailsHref={detailsHref}
           dualStageState={dualStageState}
-          onRecord={(cohort) => {
+          editPlanHref={editPlanHref}
+          grupBiologic={grupBiologic}
+          interventiiRelevante={interventiiRelevante}
+          isRubusMixt={isRubusMixt}
+          onAssignPlan={() => setAssignOpen(true)}
+          onPlanificaInterventie={handlePlanificaInterventie}
+          onRecordStadiu={(cohort) => {
             setRecordCohort(cohort)
             setRecordOpen(true)
           }}
-        />
-
-        <InterventiiRelevanteCard
-          configurareSezon={configurareSezon}
-          interventii={interventiiRelevante}
-          onPlanifica={handlePlanificaInterventie}
+          parcelaId={parcelaId}
           pendingInterventieId={isPlanificaPending ? pendingInterventieId : null}
-          showFilters={interventiiRelevante.length > 4}
-          title="Intervenții relevante"
-        />
-
-        <PlanActivCard
-          createHref={createPlanHref}
-          detailsHref={detailsHref}
-          editHref={editPlanHref}
-          onAssign={() => setAssignOpen(true)}
           planActiv={planActiv}
+          singleStageState={singleStageState}
+          urmatoareleAplicari={urmatoareleAplicari}
         />
-
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base text-[var(--text-primary)] [font-weight:650]">Următoarele aplicări</h2>
-              <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-2.5 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
-                {aplicariCount}
-              </span>
-            </div>
-          </div>
-
-          {urmatoareleAplicari.length === 0 ? (
-            <AppCard className="rounded-2xl border-dashed bg-[var(--surface-card-muted)]">
-              <p className="text-sm text-[var(--text-secondary)]">
-                Nu există încă aplicări planificate pentru această parcelă în anul curent. Dacă vezi intervenții relevante mai sus, apasă „Pregătește aplicare din plan”.
-              </p>
-            </AppCard>
-          ) : (
-            <>
-              <div className="space-y-3">
-                {urmatoareleAplicari.map((aplicare) => (
-                  <AplicareListItem
-                    key={aplicare.id}
-                    aplicare={aplicare}
-                    configurareSezon={configurareSezon}
-                    parcelaId={parcelaId}
-                  />
-                ))}
-              </div>
-              <div className="pt-1">
-                <Button type="button" variant="outline" size="sm" asChild>
-                  <Link href={`/parcele/${parcelaId}/tratamente/toate`}>Vezi toate ({aplicariCount})</Link>
-                </Button>
-              </div>
-            </>
-          )}
-        </section>
-      </div>
+      )}
 
       {recordOpen ? (
         <RecordStadiuSheet

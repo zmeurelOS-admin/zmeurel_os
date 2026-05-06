@@ -170,8 +170,12 @@ describe('PlanuriTratamentPageClient', () => {
 
     renderPage()
 
-    const deleteButtons = await screen.findAllByRole('button', { name: 'Șterge' })
-    await user.click(deleteButtons[0]!)
+    expect(await screen.findByText('Plan test')).toBeInTheDocument()
+    const actionButtons = await screen.findAllByRole('button', {
+      name: /Acțiuni pentru planul/i,
+    })
+    await user.click(actionButtons[0]!)
+    await user.click(await screen.findByRole('button', { name: 'Șterge' }))
 
     const dialog = await screen.findByRole('alertdialog')
     expect(dialog).toBeInTheDocument()
@@ -184,8 +188,12 @@ describe('PlanuriTratamentPageClient', () => {
 
     renderPage()
 
-    const deleteButtons = await screen.findAllByRole('button', { name: 'Șterge' })
-    await user.click(deleteButtons[0]!)
+    expect(await screen.findByText('Plan test')).toBeInTheDocument()
+    const actionButtons = await screen.findAllByRole('button', {
+      name: /Acțiuni pentru planul/i,
+    })
+    await user.click(actionButtons[0]!)
+    await user.click(await screen.findByRole('button', { name: 'Șterge' }))
 
     const dialog = await screen.findByRole('alertdialog')
     expect(within(dialog).getByText(/Acest plan are 2 aplicări asociate și nu poate fi șters complet\./i)).toBeInTheDocument()

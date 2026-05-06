@@ -1,0 +1,36 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - img "Zmeurel OS" [ref=e6]
+        - generic [ref=e7]:
+          - heading "Zmeurel OS" [level=1] [ref=e8]
+          - paragraph [ref=e9]: Autentificare si creare cont pentru ferma
+      - link "Încearcă demo fără cont →" [ref=e11] [cursor=pointer]:
+        - /url: /start
+      - generic [ref=e13]:
+        - tablist [ref=e14]:
+          - tab "Login" [selected] [ref=e15]
+          - tab "Creeaza cont" [ref=e16]
+        - tabpanel "Login" [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e19]:
+              - text: Email
+              - textbox "Email" [ref=e20]:
+                - /placeholder: email@exemplu.ro
+            - generic [ref=e21]:
+              - text: Parola
+              - textbox "Parola" [ref=e22]:
+                - /placeholder: Introdu parola
+            - link "Ai uitat parola?" [ref=e24] [cursor=pointer]:
+              - /url: /reset-password-request
+            - button "Autentifica-te" [ref=e25]
+            - generic [ref=e28]: sau
+            - button "Continua cu Google" [ref=e30]:
+              - img
+              - text: Continua cu Google
+            - paragraph [ref=e31]:
+              - text: Nu ai cont?
+              - button "Creeaza unul" [ref=e32]
+  - region "Notifications alt+T"
+  - alert [ref=e33]

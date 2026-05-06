@@ -20,7 +20,7 @@
   --card-foreground: #102015;
   --popover: #ffffff;
   --popover-foreground: #102015;
-  --primary: #2D6A4F;
+  --primary: #3D7A5F;
   --primary-foreground: #ffffff;
   --secondary: #f4f7f4;
   --secondary-foreground: #102015;
@@ -31,11 +31,11 @@
   --destructive: #dc2626;
   --border: #d7e2d9;
   --input: #d7e2d9;
-  --ring: #2D6A4F;
+  --ring: #3D7A5F;
 
   --text-hint: var(--text-tertiary);
   --border-color: #d7e2d9;
-  --accent-green: #2D6A4F;
+  --accent-green: #3D7A5F;
   --accent-green-contrast: #ffffff;
   --brand-coral: #F16B6B;
   --brand-coral-soft: #FFF0F0;
@@ -65,8 +65,8 @@
   --value-positive: #16a34a;
   --value-negative: #dc2626;
 
-  --pill-active-bg: #2D6A4F;
-  --pill-active-border: #2D6A4F;
+  --pill-active-bg: #3D7A5F;
+  --pill-active-border: #3D7A5F;
   --pill-active-text: #ffffff;
   --pill-inactive-bg: #ededeb;
   --pill-inactive-border: #c8d4cb;
@@ -84,7 +84,7 @@
 
   --fab-surface: #ffffff;
   --fab-border: rgba(0, 0, 0, 0.08);
-  --fab-text: #2D6A4F;
+  --fab-text: #3D7A5F;
 
   --skeleton-base: #e6ece7;
   --skeleton-glow: rgba(255, 255, 255, 0.7);
@@ -94,7 +94,7 @@
   --ai-sheet-soft: #f0f7f4;
   --ai-sheet-border: #d7e2d9;
   --ai-sheet-accent-border: #c8e6d4;
-  --ai-sheet-accent-text: #2D6A4F;
+  --ai-sheet-accent-text: #3D7A5F;
   --ai-sheet-subtle-text: #6b7280;
 
   --agri-bg: var(--surface-page);
@@ -366,9 +366,9 @@ html[data-modal-open='true'] [data-mobile-fab='true'] {
 }
 
 @keyframes micPulse {
-  0% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.5); }
-  70% { box-shadow: 0 0 0 14px rgba(45, 106, 79, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(61, 122, 95, 0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(61, 122, 95, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(61, 122, 95, 0); }
 }
 
 @keyframes wave {
@@ -386,8 +386,26 @@ html[data-modal-open='true'] [data-mobile-fab='true'] {
   to { transform: translateY(0); }
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(120%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(120%); opacity: 0; }
+}
+
 @keyframes skeletonShimmer {
   100% { transform: translateX(100%); }
+}
+
+.pwa-enter {
+  animation: slideInRight 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.pwa-exit {
+  animation: slideOutRight 0.35s cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
 .agri-control {
@@ -530,8 +548,8 @@ html[data-density='compact'] [data-slot='table-cell'] {
 
 .dashboard-grid-layout .react-grid-placeholder {
   border-radius: 1.25rem;
-  border: 1px dashed rgba(45, 106, 79, 0.45);
-  background: rgba(45, 106, 79, 0.08);
+  border: 1px dashed rgba(61, 122, 95, 0.45);
+  background: rgba(61, 122, 95, 0.08);
 }
 
 .dashboard-grid-layout .react-resizable-handle {
@@ -550,8 +568,8 @@ html[data-density='compact'] [data-slot='table-cell'] {
   bottom: 8px;
   width: 11px;
   height: 11px;
-  border-right: 2px solid rgba(45, 106, 79, 0.55);
-  border-bottom: 2px solid rgba(45, 106, 79, 0.55);
+  border-right: 2px solid rgba(61, 122, 95, 0.55);
+  border-bottom: 2px solid rgba(61, 122, 95, 0.55);
 }
 
 /* Dashboard comercial: spațiere, suprafețe premium, fără redesign global */

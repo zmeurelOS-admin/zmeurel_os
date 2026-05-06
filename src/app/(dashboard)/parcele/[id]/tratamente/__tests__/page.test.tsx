@@ -38,7 +38,7 @@ vi.mock('@/lib/tratamente/generator/generator', () => ({
 }))
 
 vi.mock('@/hooks/useMediaQuery', () => ({
-  useMediaQuery: () => false,
+  useMediaQuery: () => true,
 }))
 
 vi.mock('@/contexts/AddActionContext', () => ({

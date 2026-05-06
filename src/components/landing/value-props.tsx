@@ -26,7 +26,7 @@ export function ValueProps() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {items.map(({ icon: Icon, title, description }) => (
           <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E8F5EE] text-[#2D6A4F]">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E8F5EE] text-[#3D7A5F]">
               <Icon className="h-5 w-5" />
             </div>
             <h3 className="mt-4 text-lg font-bold text-slate-800">{title}</h3>

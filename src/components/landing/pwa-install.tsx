@@ -25,7 +25,7 @@ export function PwaInstall() {
       <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
         {installItems.map((item) => (
           <article key={item.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E8F5EE] text-[#2D6A4F]">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#E8F5EE] text-[#3D7A5F]">
               <Download className="h-5 w-5" />
             </div>
             <h3 className="mt-4 text-lg font-bold text-slate-800">{item.title}</h3>

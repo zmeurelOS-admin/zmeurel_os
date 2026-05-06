@@ -1,7 +1,8 @@
 'use client'
 
 interface AppShellProps {
-  header: React.ReactNode
+  /** Omite slotul de header din shell când e `null` (ex. header randat în client). */
+  header?: React.ReactNode | null
   children: React.ReactNode
   fab?: React.ReactNode
   bottomBar?: React.ReactNode
@@ -17,7 +18,7 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="min-h-0 bg-[var(--agri-bg)]">
-      <div className="relative z-20 lg:z-40">{header}</div>
+      {header != null ? <div className="relative z-20 lg:z-40">{header}</div> : null}
 
       <div
         className="relative z-10 px-[var(--shell-content-px)] sm:px-5 md:px-6"

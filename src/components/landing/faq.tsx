@@ -30,12 +30,12 @@ export function Faq() {
             <article key={item.question} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <button
                 type="button"
-                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2D6A4F] focus-visible:ring-inset"
+                className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-inset"
                 aria-expanded={isOpen}
                 onClick={() => setOpenIndex(isOpen ? null : index)}
               >
                 <span className="text-sm font-semibold text-slate-800 md:text-base">{item.question}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F5EE] text-[#2D6A4F]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F5EE] text-[#3D7A5F]">
                   {isOpen ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 </span>
               </button>

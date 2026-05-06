@@ -212,12 +212,12 @@ export function AddStadiuDialog({
         {cultura ? (
           <div
             style={{
-              background: 'rgba(45,106,79,0.07)',
+              background: 'rgba(61,122,95,0.07)',
               borderRadius: 10,
               padding: '8px 12px',
               fontSize: 12,
               fontWeight: 600,
-            color: '#2D6A4F',
+            color: '#3D7A5F',
             }}
           >
             <div>{[cultura.tip_planta, cultura.soi].filter(Boolean).join(' · ')}</div>
