@@ -117,26 +117,30 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
 
   return (
     <div className="space-y-4">
-      <AppCard className="space-y-5 p-5">
+      {/* --- SECTION: configurare --- */}
+      <AppCard className="space-y-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <div className="space-y-1">
-          <h2 className="text-lg [font-weight:700] text-[var(--text-primary)]">
-            0. Configurare import
-          </h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Configurare</h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            Alege parcela și anul înainte de upload. Planul importat va fi asociat direct
-            în contextul selectat.
+            Alege parcela și anul înainte de upload. Planul importat va fi asociat direct în
+            contextul selectat.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="import-parcela">Parcelă</Label>
+            <Label htmlFor="import-parcela" className="mb-1 text-sm font-semibold text-gray-700">
+              Parcelă
+            </Label>
             <Select
               value={selectedParcelaId}
               onValueChange={setSelectedParcelaId}
               disabled={isLoadingParcele || parcele.length === 0}
             >
-              <SelectTrigger id="import-parcela" className="min-h-11">
+              <SelectTrigger
+                id="import-parcela"
+                className="min-h-11 rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
+              >
                 <SelectValue
                   placeholder={
                     isLoadingParcele ? 'Se încarcă parcelele...' : 'Alege parcela'
@@ -160,12 +164,14 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="import-an">Anul planului</Label>
-            <Select
-              value={String(selectedYear)}
-              onValueChange={(value) => setSelectedYear(Number(value))}
-            >
-              <SelectTrigger id="import-an" className="min-h-11">
+            <Label htmlFor="import-an" className="mb-1 text-sm font-semibold text-gray-700">
+              Anul planului
+            </Label>
+            <Select value={String(selectedYear)} onValueChange={(value) => setSelectedYear(Number(value))}>
+              <SelectTrigger
+                id="import-an"
+                className="min-h-11 rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
+              >
                 <SelectValue placeholder="Alege anul" />
               </SelectTrigger>
               <SelectContent>
@@ -201,8 +207,8 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
             <AlertDescription className="text-sm text-[var(--warning-text)]">
               Parcela {selectedParcela.nume_parcela ?? 'selectată'} are deja un plan activ pentru{' '}
               {selectedYear}.
-              {conflictInfo.numePlan ? ` (${conflictInfo.numePlan})` : ''} Importul va crea un
-              plan nou separat — planul existent rămâne neatins.
+              {conflictInfo.numePlan ? ` (${conflictInfo.numePlan})` : ''} Importul va crea un plan
+              nou separat — planul existent rămâne neatins.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -210,7 +216,7 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
         <div className="flex justify-end">
           <Button
             type="button"
-            className="min-h-11 w-full sm:w-auto"
+            className="min-h-11 rounded-xl bg-[#3D7A5F] px-4 font-semibold text-white hover:bg-[#2D5F47] disabled:cursor-not-allowed disabled:opacity-40"
             disabled={!selectedParcelaId || isLoadingParcele || Boolean(loadError)}
             onClick={() =>
               onConfigurate({

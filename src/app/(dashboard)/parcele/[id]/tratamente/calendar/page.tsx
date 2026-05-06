@@ -35,6 +35,16 @@ function formatDateRo(value: string): string {
   return format(parseISO(value), 'd MMM yyyy', { locale: ro })
 }
 
+function formatAplicareDoza(aplicare: Awaited<ReturnType<typeof getAplicariAnualAgregate>>[number]): string | null {
+  if (typeof aplicare.doza_ml_per_hl === 'number') {
+    return `${aplicare.doza_ml_per_hl} ml/hl`
+  }
+  if (typeof aplicare.doza_l_per_ha === 'number') {
+    return `${aplicare.doza_l_per_ha} l/ha`
+  }
+  return null
+}
+
 function isCopperAplicare(substantaActiva: string | null): boolean {
   const value = substantaActiva?.trim().toLowerCase() ?? ''
   return ['cupru', 'copper', 'hidroxid de cupru', 'sulfat de cupru'].some((keyword) => value.includes(keyword))
@@ -65,6 +75,9 @@ export default async function CalendarTratamentePage({ params, searchParams }: P
       {
         produs: aplicare.produs_nume,
         data: formatDateRo(aplicare.data_aplicata ?? aplicare.data_planificata ?? `${an}-01-01`),
+        // --- FIX 3: detalii reale pentru sheet-ul GanttTimeline, fără schimbarea interfeței lui ---
+        doza: formatAplicareDoza(aplicare) ?? undefined,
+        stadiu: aplicare.stadiu_la_aplicare ?? aplicare.stadiu_trigger ?? undefined,
       },
     ])
   )
@@ -160,7 +173,9 @@ export default async function CalendarTratamentePage({ params, searchParams }: P
         ganttLabelsById={ganttLabelsById}
         ganttRows={ganttRows}
         metrici={metrici}
+        parcelaCod={parcela.id_parcela}
         parcelaId={parcelaId}
+        parcelaNume={parcela.nume_parcela}
         phiActiveItems={phiActiveItems}
         planActiv={planActiv?.plan?.nume ?? null}
         stats={stats}

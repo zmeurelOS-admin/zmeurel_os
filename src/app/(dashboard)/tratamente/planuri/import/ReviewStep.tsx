@@ -1131,11 +1131,21 @@ export function ReviewStep({
       libraryTarget?.planIndex === planIndex &&
       libraryTarget?.lineIndex === lineIndex &&
       libraryTarget?.productIndex === productIndex
+    const isMatched =
+      product.produs_match.tip === 'exact' ||
+      product.actiune === 'use_exact' ||
+      product.actiune === 'use_library' ||
+      (product.actiune === 'use_suggestion' && product.selectedSuggestionIndex != null)
+    const isApproximate = product.produs_match.tip === 'fuzzy' && !isMatched
+    const statusBadgeClass = isApproximate
+      ? 'border-transparent bg-[#FEF3C7] text-[#B45309]'
+      : 'border-transparent bg-[#E8F3EE] text-[#3D7A5F]'
 
     return (
+      // --- SECTION: product review card ---
       <div
         key={`${product.ordine_produs}-${product.produs_input}-${productIndex}`}
-        className="relative space-y-3 rounded-[16px] border border-[var(--border-default)]/70 bg-[var(--surface-card-muted)] p-3"
+        className="relative mb-2 space-y-3 rounded-xl bg-[#F8FAF9] p-3"
       >
         <Button
           type="button"
@@ -1152,14 +1162,25 @@ export function ReviewStep({
           <div className="min-w-0 space-y-1 pr-12">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">#{product.ordine_produs || productIndex + 1}</Badge>
-              <Badge variant={badge.variant}>{badge.text}</Badge>
+              <Badge variant="outline" className={statusBadgeClass}>
+                {isApproximate ? '⚠ potrivire aproximativă' : badge.text}
+              </Badge>
             </div>
-            <p className="break-words text-sm [font-weight:650] text-[var(--text-primary)]">
-              {product.produs_input || 'Fără produs în fișier'}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p
+                className={cn(
+                  'break-words text-sm',
+                  isMatched ? 'font-semibold text-[#3D7A5F]' : 'font-semibold text-[#B45309]'
+                )}
+              >
+                {product.produs_input || 'Fără produs în fișier'}
+              </p>
+              <Badge variant="secondary" className="border-transparent bg-gray-100 text-gray-600">
+                {formatProductDose(product)}
+              </Badge>
+            </div>
             <p className="text-xs text-[var(--text-secondary)]">
-              {formatProductDose(product)}
-              {product.substanta_activa ? ` · ${product.substanta_activa}` : ''}
+              {product.substanta_activa ? `${product.substanta_activa}` : ''}
               {product.frac_irac ? ` · ${product.frac_irac}` : ''}
               {typeof product.phi_zile === 'number' ? ` · PHI ${product.phi_zile} zile` : ''}
             </p>
@@ -1284,16 +1305,14 @@ export function ReviewStep({
 
   return (
     <div className="space-y-4">
+      {/* --- SECTION: review header --- */}
       <div className="sticky top-2 z-20">
-        <AppCard className="space-y-4 rounded-[24px] border border-[var(--border-default)]/60 p-4 backdrop-blur-sm">
+        <AppCard className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
-              <h2 className="text-lg [font-weight:700] text-[var(--text-primary)]">
-                2. Review și salvare
-              </h2>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Review & confirmare</h2>
               <p className="text-sm text-[var(--text-secondary)]">
-                Verifică produsele detectate, rezolvă ambiguitățile și salvează
-                planurile prin RPC-ul existent.
+                Verifică produsele detectate, rezolvă ambiguitățile și salvează planurile prin RPC-ul existent.
               </p>
             </div>
 
@@ -1310,18 +1329,24 @@ export function ReviewStep({
               <Button
                 type="button"
                 variant="outline"
+                className="rounded-xl border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
                 onClick={applyAllFuzzySuggestions}
               >
                 <CheckCircle2 className="h-4 w-4" />
                 Aplică toate sugestiile fuzzy automat
               </Button>
-              <Button type="button" variant="outline" onClick={onReset}>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
+                onClick={onReset}
+              >
                 <FileSpreadsheet className="h-4 w-4" />
-                Încarcă alt fișier
+                Înapoi
               </Button>
               <Button
                 type="button"
-                className="bg-[var(--agri-primary)] text-white"
+                className="w-full rounded-xl bg-[#3D7A5F] font-semibold text-white hover:bg-[#2D5F47] sm:w-auto"
                 disabled={hasBlockingIssues || isSaving || produseLoading}
                 onClick={handleSave}
               >
@@ -1331,7 +1356,7 @@ export function ReviewStep({
                     Se salvează...
                   </>
                 ) : (
-                  'Salvează planurile'
+                  'Salvează planul'
                 )}
               </Button>
             </div>
@@ -1339,6 +1364,7 @@ export function ReviewStep({
         </AppCard>
       </div>
 
+      {/* --- SECTION: validation alerts --- */}
       {hasGlobalErrors ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -1351,6 +1377,7 @@ export function ReviewStep({
         </Alert>
       ) : null}
 
+      {/* --- SECTION: products loading --- */}
       {produseLoading ? (
         <AppCard className="p-5">
           <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
@@ -1360,6 +1387,7 @@ export function ReviewStep({
         </AppCard>
       ) : null}
 
+      {/* --- SECTION: imported plans --- */}
       {planuriEditate.map((plan, planIndex) => {
         const summary = planSummaries[planIndex]
         const isOpen = expandedPlans[plan.foaie_nume] ?? true
@@ -1836,6 +1864,7 @@ export function ReviewStep({
         )
       })}
 
+      {/* --- SECTION: helper note --- */}
       <div className="mt-3 flex items-center gap-2 rounded-md bg-[var(--surface-card-muted)] px-3 py-2 text-xs text-[var(--text-secondary)] md:hidden">
         <span>💡</span>
         <span>Importul din Excel funcționează mai bine de pe desktop sau laptop.</span>

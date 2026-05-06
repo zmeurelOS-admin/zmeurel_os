@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AppCard } from '@/components/ui/app-card'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import type { ParseResult } from '@/app/(dashboard)/tratamente/planuri/import/actions'
 import { UploadDropzone } from './UploadDropzone'
@@ -14,6 +15,7 @@ const ACCEPTED_MIME =
 const MAX_FILE_SIZE = 2 * 1024 * 1024
 
 type UploadStepProps = {
+  onBack: () => void
   onParsed: (result: ParseResult) => void
 }
 
@@ -34,7 +36,7 @@ function validateClientFile(file: File): string | null {
   return null
 }
 
-export function UploadStep({ onParsed }: UploadStepProps) {
+export function UploadStep({ onBack, onParsed }: UploadStepProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [progressValue, setProgressValue] = useState(0)
   const [isPending, startTransition] = useTransition()
@@ -104,18 +106,19 @@ export function UploadStep({ onParsed }: UploadStepProps) {
 
   return (
     <div className="space-y-4">
-      <AppCard className="space-y-4 p-5">
+      {/* --- SECTION: upload --- */}
+      <AppCard className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <div className="space-y-1">
-          <h2 className="text-lg [font-weight:700] text-[var(--text-primary)]">
-            1. Încarcă fișierul Excel
-          </h2>
+          <h2 className="text-lg font-bold text-[var(--text-primary)]">Upload</h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            Descarcă template-ul, completează unul sau mai multe planuri și
-            apoi încarcă fișierul pentru review.
+            Descarcă template-ul, completează unul sau mai multe planuri și apoi încarcă fișierul
+            pentru review.
           </p>
         </div>
 
-        <UploadDropzone disabled={isPending} onFileSelected={handleFileSelected} />
+        <div className="rounded-xl border-2 border-dashed border-[#3D7A5F]/40 p-1 transition-colors hover:border-[#3D7A5F] hover:bg-[#E8F3EE]/30">
+          <UploadDropzone disabled={isPending} onFileSelected={handleFileSelected} />
+        </div>
 
         {isPending ? (
           <div className="space-y-2">
@@ -134,9 +137,23 @@ export function UploadStep({ onParsed }: UploadStepProps) {
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         ) : null}
+
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-xl border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
+            // --- FIX 4: revenire prin state machine, fără reload ---
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Înapoi
+          </Button>
+        </div>
       </AppCard>
 
-      <AppCard className="space-y-3 p-5">
+      {/* --- SECTION: hints --- */}
+      <AppCard className="space-y-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
           Ce urmează după upload
         </h3>

@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowDown, ArrowUp, EllipsisVertical, PencilLine, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, ChevronDown, EllipsisVertical, PencilLine, Trash2 } from 'lucide-react'
 
-import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { PlanTratamentLinieCuProdus } from '@/lib/supabase/queries/tratamente'
@@ -17,6 +16,7 @@ interface LinieRowProps {
   linie: PlanTratamentLinieCuProdus
   onDelete: () => void
   onEdit: () => void
+  onMarkAplicata?: (linieId: string) => void
   onMoveDown: () => void
   onMoveUp: () => void
   total: number
@@ -43,143 +43,234 @@ function resolveLegacyDoza(linie: PlanTratamentLinieCuProdus): string {
   return formatDoza(linie.doza_ml_per_hl, 'ml/hl')
 }
 
+function resolveStageTheme(stadiuLabel: string) {
+  if (stadiuLabel === 'Creștere vegetativă') {
+    return { accent: '#3D7A5F', bg: '#E8F3EE' }
+  }
+  if (stadiuLabel === 'Inflorescențe pe floricane') {
+    return { accent: '#B45309', bg: '#FEF3C7' }
+  }
+  if (stadiuLabel === 'Înflorire') {
+    return { accent: '#BE185D', bg: '#FCE7F3' }
+  }
+  if (stadiuLabel === 'Fructificare') {
+    return { accent: '#7C3AED', bg: '#EDE9FE' }
+  }
+  if (stadiuLabel === 'Post-recoltă') {
+    return { accent: '#0369A1', bg: '#E0F2FE' }
+  }
+
+  return { accent: '#3D7A5F', bg: '#E8F3EE' }
+}
+
 export function LinieRow({
   grupBiologic,
   index,
   linie,
   onDelete,
   onEdit,
+  onMarkAplicata,
   onMoveDown,
   onMoveUp,
   total,
 }: LinieRowProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const stadiu = getStadiuMeta(linie.stadiu_trigger, grupBiologic, linie.cohort_trigger)
+  const stageTheme = useMemo(() => resolveStageTheme(stadiu.label), [stadiu.label])
   const produse = linie.produse?.length ? linie.produse : []
   const isManual = produse.length > 0
     ? produse.some((produs) => !produs.produs && Boolean(produs.produs_nume_manual?.trim()))
     : !linie.produs && Boolean(linie.produs_nume_manual?.trim())
   const displayName = produse.length > 0
-    ? `${resolveProductName(produse[0])}${produse.length > 1 ? ` +${produse.length - 1}` : ''}`
+    ? resolveProductName(produse[0])
     : linie.produs?.nume_comercial ?? linie.produs_nume_manual?.trim() ?? 'Produs fără nume'
+  const secondaryProducts = produse.length > 1
+    ? produse.slice(1).map(resolveProductName).join(' · ')
+    : linie.motiv_adaugare?.trim() || (isManual ? 'Manual' : '')
+  const badgeStyle = { backgroundColor: stageTheme.bg, color: stageTheme.accent }
+  const borderStyle = expanded ? { borderColor: `${stageTheme.accent}4D` } : undefined
 
   return (
-    <AppCard className="rounded-[22px] p-4">
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[var(--surface-card-muted)] px-2 py-1 text-xs text-[var(--text-secondary)]">
-              #{linie.ordine}
-            </span>
-            <span className="rounded-full border border-[var(--border-default)] px-2 py-1 text-xs text-[var(--text-secondary)]">
-              {stadiu.emoji} {stadiu.label}
-            </span>
-            {linie.sursa_linie === 'adaugata_manual' ? (
-              <span className="rounded-full border border-[var(--warning-border)] bg-[var(--warning-bg)] px-2 py-1 text-xs text-[var(--warning-text)]">
-                Adăugat manual
-              </span>
-            ) : null}
-            {isManual ? (
-              <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-1 text-xs text-[var(--text-secondary)]">
-                manual
-              </span>
-            ) : null}
+    <div
+      className={`mb-[7px] rounded-[14px] border bg-white transition-[border-color,opacity,box-shadow] duration-200 ${
+        expanded ? 'shadow-sm' : ''
+      }`}
+      style={borderStyle}
+    >
+      {/* --- SECTION: summary --- */}
+      <div className="flex w-full items-start gap-3 px-3 py-3">
+        <button
+          type="button"
+          className="mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] border-2 border-gray-300 bg-white transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!onMarkAplicata}
+          onClick={(event) => {
+            event.stopPropagation()
+            // --- FIX 2: checkbox-ul marchează linia doar când callback-ul există ---
+            onMarkAplicata?.(linie.id)
+          }}
+          aria-label="Marchează intervenția ca aplicată"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path
+              d="M3.5 8.2L6.7 11.2L12.5 5.4"
+              stroke="#D1D5DB"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+            />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-bold leading-5 text-[var(--text-primary)]">
+              {displayName}
+            </p>
+            <p className="mt-0.5 truncate text-[12px] text-[var(--text-secondary)]">
+              {secondaryProducts || stadiu.label}
+            </p>
           </div>
 
-          <p className="mt-3 text-base text-[var(--text-primary)] [font-weight:650]">
-            {displayName}
-          </p>
-          {linie.motiv_adaugare?.trim() ? (
-            <p className="mt-1 text-xs italic text-[var(--text-secondary)]">
-              Motiv: {linie.motiv_adaugare.trim()}
-            </p>
-          ) : null}
-          <div className="mt-1 space-y-1">
+          <div className="flex shrink-0 items-start gap-2">
+            <span
+              className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+              style={badgeStyle}
+            >
+              #{linie.ordine}
+            </span>
+            <ChevronDown
+              className={`mt-0.5 h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform duration-200 ${
+                expanded ? 'rotate-180' : ''
+              }`}
+            />
+          </div>
+        </button>
+      </div>
+
+      {/* --- SECTION: details --- */}
+      <div
+        className={`grid overflow-hidden transition-[max-height,opacity] duration-200 ${
+          expanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="px-3 pb-3">
+          <div className="rounded-lg bg-[#F8FAF9] p-3">
             {produse.length > 0 ? (
-              produse.map((produs) => (
-                <p key={produs.id} className="text-sm text-[var(--text-secondary)]">
-                  {resolveProductName(produs)} · {resolveProductDose(produs)}
-                </p>
-              ))
+              <div className="space-y-2">
+                {produse.map((produs) => (
+                  <div
+                    key={produs.id}
+                    className="flex items-start justify-between gap-3 rounded-md bg-white px-3 py-2 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+                  >
+                    <p className="min-w-0 flex-1 text-sm text-[var(--text-primary)]">
+                      {resolveProductName(produs)}
+                    </p>
+                    <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={badgeStyle}>
+                      {resolveProductDose(produs)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-[var(--text-secondary)]">{resolveLegacyDoza(linie)}</p>
+              <div className="rounded-md bg-white px-3 py-2 text-sm text-[var(--text-secondary)]">
+                {resolveLegacyDoza(linie)}
+              </div>
             )}
           </div>
 
           {linie.observatii?.trim() ? (
-            <p
-              className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]"
-              title={linie.observatii}
-            >
-              {linie.observatii.length > 40
-                ? `${linie.observatii.slice(0, 40)}…`
-                : linie.observatii}
+            <p className="mt-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">
+              📝 {linie.observatii}
             </p>
           ) : null}
-        </div>
 
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-                aria-label={`Mută sus intervenția ${index + 1}`}
-            disabled={index === 0}
-            onClick={onMoveUp}
-          >
-            <ArrowUp className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-                aria-label={`Mută jos intervenția ${index + 1}`}
-            disabled={index === total - 1}
-            onClick={onMoveDown}
-          >
-            <ArrowDown className="h-4 w-4" />
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onEdit}
+            >
+              <PencilLine className="h-4 w-4" />
+              Editează
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:bg-red-50 hover:text-red-600"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              Șterge
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Mută sus intervenția ${index + 1}`}
+              disabled={index === 0}
+              onClick={onMoveUp}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Mută jos intervenția ${index + 1}`}
+              disabled={index === total - 1}
+              onClick={onMoveDown}
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
 
-          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Acțiuni pentru intervenția ${index + 1}`}
-              >
-                <EllipsisVertical className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-48 p-2">
-              <div className="space-y-1">
-                <button
+            <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)]"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onEdit()
-                  }}
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Acțiuni pentru intervenția ${index + 1}`}
                 >
-                <PencilLine className="h-4 w-4" aria-label="Editează intervenția" />
-                Editează
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--soft-danger-text)] transition hover:bg-[var(--surface-card-muted)]"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onDelete()
-                  }}
-                >
-                <Trash2 className="h-4 w-4" aria-label="Șterge intervenția" />
-                Șterge
-                </button>
-              </div>
-            </PopoverContent>
-          </Popover>
+                  <EllipsisVertical className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-48 p-2">
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)]"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onEdit()
+                    }}
+                  >
+                    <PencilLine className="h-4 w-4" aria-label="Editează intervenția" />
+                    Editează
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--soft-danger-text)] transition hover:bg-[var(--surface-card-muted)]"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onDelete()
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" aria-label="Șterge intervenția" />
+                    Șterge
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
-    </AppCard>
+    </div>
   )
 }

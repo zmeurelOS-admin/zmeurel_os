@@ -1,10 +1,19 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueries } from '@tanstack/react-query'
 import { addDays, endOfDay, isAfter, isBefore, startOfDay } from 'date-fns'
-import { CalendarCheck2, CalendarDays, CloudSun, SprayCan, TriangleAlert } from 'lucide-react'
+import {
+  CalendarCheck2,
+  CalendarDays,
+  ClipboardList,
+  CloudSun,
+  FileSpreadsheet,
+  SprayCan,
+  TriangleAlert,
+} from 'lucide-react'
 
 import {
   createManualInterventieAction,
@@ -12,7 +21,6 @@ import {
   planificaInterventieRelevantaAction,
 } from '@/app/(dashboard)/tratamente/actions'
 import { AppShell } from '@/components/app/AppShell'
-import { PageHeader } from '@/components/app/PageHeader'
 import { HubAplicareCard } from '@/components/tratamente/HubAplicareCard'
 import {
   getInterventieKey,
@@ -60,6 +68,14 @@ interface HubTratamenteClientProps {
   interventiiRelevante?: InterventieRelevantaV2[]
 }
 
+function normalizeText(value: string | null | undefined): string {
+  return value
+    ?.trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') ?? ''
+}
+
 function getAplicareDate(value: AplicareCrossParcelItem): Date | null {
   const raw = value.data_aplicata ?? value.data_programata
   if (!raw) return null
@@ -85,6 +101,120 @@ function canShowMeteoForAplicare(aplicare: AplicareCrossParcelItem, twoDayEnd: D
   const date = getAplicareDate(aplicare)
   if (!date) return false
   return date.getTime() <= twoDayEnd.getTime()
+}
+
+function isCopperRelatedText(value: string | null | undefined): boolean {
+  const text = normalizeText(value)
+  if (!text) return false
+  return ['cupru', 'copper', 'hidroxid de cupru', 'sulfat de cupru'].some((keyword) => text.includes(keyword))
+}
+
+function isCopperAplicare(aplicare: AplicareCrossParcelItem): boolean {
+  if (isCopperRelatedText(aplicare.produs_nume) || isCopperRelatedText(aplicare.produs_nume_manual)) {
+    return true
+  }
+
+  const allProduse = [...aplicare.produse_aplicare, ...aplicare.produse_planificate]
+  return allProduse.some((produs) =>
+    isCopperRelatedText(produs.produs?.substanta_activa) ||
+    isCopperRelatedText(produs.substanta_activa_snapshot) ||
+    isCopperRelatedText(produs.produs_nume_snapshot) ||
+    isCopperRelatedText(produs.produs_nume_manual)
+  )
+}
+
+function countFracCupruAlerts(aplicari: AplicareCrossParcelItem[]): number {
+  const fracAlertsByParcela = new Map<string, number>()
+  let copperAlerts = 0
+
+  const byParcela = new Map<string, AplicareCrossParcelItem[]>()
+  for (const aplicare of aplicari) {
+    const items = byParcela.get(aplicare.parcela_id) ?? []
+    items.push(aplicare)
+    byParcela.set(aplicare.parcela_id, items)
+  }
+
+  for (const [parcelaId, items] of byParcela.entries()) {
+    const sorted = [...items].sort((first, second) => {
+      const firstDate = getAplicareDate(first)?.getTime() ?? Number.MAX_SAFE_INTEGER
+      const secondDate = getAplicareDate(second)?.getTime() ?? Number.MAX_SAFE_INTEGER
+      return firstDate - secondDate
+    })
+
+    let previousFrac: string | null = null
+    let fracAlerts = 0
+
+    for (const aplicare of sorted) {
+      const frac = normalizeText(aplicare.produs_frac)
+      if (Boolean(frac) && frac === previousFrac) {
+        fracAlerts += 1
+      }
+
+      previousFrac = frac || null
+
+      if (isCopperAplicare(aplicare)) {
+        copperAlerts += 1
+      }
+    }
+
+    fracAlertsByParcela.set(parcelaId, fracAlerts)
+  }
+
+  const fracTotal = Array.from(fracAlertsByParcela.values()).reduce((sum, value) => sum + value, 0)
+  return fracTotal + copperAlerts
+}
+
+function SectionHeading({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <p className="text-xs font-bold uppercase tracking-widest text-[#3D7A5F]">{title}</p>
+      <div className="h-px flex-1 bg-[rgba(61,122,95,0.18)]" />
+    </div>
+  )
+}
+
+function ProgressRing({ percent }: { percent: number }) {
+  const clamped = Math.max(0, Math.min(100, percent))
+  const radius = 20
+  const strokeWidth = 4
+  const normalizedRadius = radius - strokeWidth / 2
+  const circumference = 2 * Math.PI * normalizedRadius
+  const strokeDashoffset = circumference - (clamped / 100) * circumference
+
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+      <svg
+        aria-hidden
+        className="h-12 w-12 shrink-0"
+        viewBox="0 0 44 44"
+      >
+        <circle
+          cx="22"
+          cy="22"
+          r={normalizedRadius}
+          fill="none"
+          stroke="rgba(255,255,255,0.2)"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx="22"
+          cy="22"
+          r={normalizedRadius}
+          fill="none"
+          stroke="#7ECBA9"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={strokeDashoffset}
+          transform="rotate(-90 22 22)"
+        />
+      </svg>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/70">Progres an</p>
+        <p className="text-lg font-bold text-white">{clamped}%</p>
+      </div>
+    </div>
+  )
 }
 
 function matchesStatusFilter(aplicare: AplicareCrossParcelItem, filter: HubStatusFilter): boolean {
@@ -169,35 +299,6 @@ const STATUS_OPTIONS: Array<{ id: HubStatusFilter; label: string }> = [
   { id: 'omisa', label: 'Omise' },
   { id: 'phi', label: 'În PHI warning' },
 ]
-
-function KpiCard({
-  title,
-  value,
-  tone = 'neutral',
-  subtitle,
-}: {
-  title: string
-  value: string
-  tone?: 'neutral' | 'success' | 'warning' | 'danger'
-  subtitle?: string
-}) {
-  const toneClass =
-    tone === 'success'
-      ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]'
-      : tone === 'warning'
-        ? 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]'
-        : tone === 'danger'
-          ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]'
-          : 'border-[var(--border-default)] bg-[var(--surface-card)]'
-
-  return (
-    <AppCard className={cn('rounded-[22px] p-4', toneClass)}>
-      <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-secondary)]">{title}</p>
-      <p className="mt-2 text-2xl text-[var(--text-primary)] [font-weight:750]">{value}</p>
-      {subtitle ? <p className="mt-1 text-xs text-[var(--text-secondary)]">{subtitle}</p> : null}
-    </AppCard>
-  )
-}
 
 export function HubTratamenteClient({
   initialAplicari,
@@ -412,24 +513,28 @@ export function HubTratamenteClient({
       return date ? sameDayKey(date) === todayKey && isAplicareProgramata(aplicare.status) : false
     }).length
 
-    const aplicateAzi = base.filter((aplicare) => {
-      if (aplicare.status !== 'aplicata' || !aplicare.data_aplicata) return false
+    const programateMaine = base.filter((aplicare) => {
       const date = getAplicareDate(aplicare)
-      return date ? sameDayKey(date) === todayKey : false
+      return date ? sameDayKey(date) === sameDayKey(addDays(today, 1)) && isAplicareProgramata(aplicare.status) : false
     }).length
 
     const phiWarnings = base.filter((aplicare) => aplicare.phi_warning).length
     const meteoEligible = base.filter((aplicare) => canShowMeteoForAplicare(aplicare, twoDayEnd))
     const meteoFavorable = meteoEligible.filter((aplicare) => hasSafeWindow(meteoByParcela.get(aplicare.parcela_id) ?? null)).length
+    const fracCupruAlerts = countFracCupruAlerts(base)
+    const yearProgressPercent =
+      initialStatistici.total > 0 ? Math.round((initialStatistici.aplicate / initialStatistici.total) * 100) : 0
 
     return {
       programateAzi,
-      aplicateAzi,
+      programateMaine,
       phiWarnings,
+      fracCupruAlerts,
       meteoFavorable,
       meteoEligibleCount: meteoEligible.length,
+      yearProgressPercent,
     }
-  }, [meteoByParcela, parcelFilteredAplicari, todayKey, twoDayEnd])
+  }, [initialStatistici.aplicate, initialStatistici.total, meteoByParcela, parcelFilteredAplicari, today, todayKey, twoDayEnd])
 
   const toggleParcela = (parcelaId: string) => {
     syncFilters({
@@ -452,63 +557,96 @@ export function HubTratamenteClient({
   return (
     <AppShell
       header={
-        <PageHeader
-          title="Protecție & Nutriție"
-          subtitle="Hub global pentru aplicări, planuri și intervenții relevante"
-          summary={
-            <p className="text-xs text-[var(--text-secondary)]">
-              {initialStatistici.total} aplicări încărcate · {initialAplicari.filter((item) => resolveAplicareSource(item) === 'manuala').length} manuale · {initialAplicari.filter((item) => resolveAplicareSource(item) === 'din_plan').length} din plan · {interventiiRelevante.length} intervenții relevante
-            </p>
-          }
-          rightSlot={
-            <Button type="button" className="bg-[var(--agri-primary)] text-white" onClick={() => router.push('/tratamente/planuri/nou')}>
-              + Plan nou
-            </Button>
-          }
-          expandRightSlotOnMobile
-          stackMobileRightSlotBelowTitle
-        />
+        <div className="rounded-[24px] bg-[#3D7A5F] px-[18px] py-[18px] text-white shadow-[0_16px_40px_rgba(61,122,95,0.18)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1 space-y-4">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold text-white">Protecție & Nutriție</h1>
+                <p className="text-sm text-white/70">Hub anual multi-parcelă · {today.getFullYear()}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Azi</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{kpis.programateAzi}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Mâine</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{kpis.programateMaine}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">Alerte FRAC+Cupru</p>
+                  <p className="mt-1 text-2xl font-bold text-white">{kpis.fracCupruAlerts}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-start gap-3 lg:items-end">
+              <ProgressRing percent={kpis.yearProgressPercent} />
+              <Button
+                type="button"
+                asChild
+                className="h-10 rounded-xl border border-white/40 bg-transparent px-4 text-sm font-semibold text-white transition hover:bg-white/10 active:scale-[0.985]"
+              >
+                <a href={`/tratamente/conformitate/export?an=${today.getFullYear()}`}>Exportă raport consolidat (PDF)</a>
+              </Button>
+            </div>
+          </div>
+        </div>
       }
     >
       <div className="mx-auto mt-2 w-full max-w-7xl space-y-4 py-3 sm:mt-0 md:py-4">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            asChild
+            className="h-10 rounded-xl border border-[#3D7A5F] bg-white px-3 py-2 text-sm font-semibold text-[#3D7A5F] shadow-none transition hover:bg-[#F3F7F4] active:scale-[0.985]"
+          >
+            <Link href="/tratamente/planuri" className="inline-flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" aria-hidden />
+              Planuri
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            asChild
+            className="h-10 rounded-xl border border-[#3D7A5F] bg-white px-3 py-2 text-sm font-semibold text-[#3D7A5F] shadow-none transition hover:bg-[#F3F7F4] active:scale-[0.985]"
+          >
+            <Link href="/tratamente/produse-fitosanitare" className="inline-flex items-center gap-2">
+              <SprayCan className="h-4 w-4" aria-hidden />
+              Bibliotecă
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            asChild
+            className="h-10 rounded-xl border border-[#3D7A5F] bg-white px-3 py-2 text-sm font-semibold text-[#3D7A5F] shadow-none transition hover:bg-[#F3F7F4] active:scale-[0.985]"
+          >
+            <a href={`/tratamente/conformitate/export?an=${today.getFullYear()}`} className="inline-flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" aria-hidden />
+              Export ANSVSA
+            </a>
+          </Button>
+        </div>
+
         <div className="sticky top-2 z-20 rounded-[24px] border border-[var(--border-default)] bg-[color:color-mix(in_srgb,var(--surface-page)_92%,white)] p-2 shadow-[var(--shadow-soft)] backdrop-blur">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="flex flex-wrap gap-2">
             {TAB_OPTIONS.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => syncFilters({ ...filters, activeTab: tab.id })}
                 className={cn(
-                  'min-h-11 rounded-2xl px-3 text-sm font-semibold transition',
+                  'min-h-10 rounded-full px-4 py-2 text-sm font-semibold transition',
                   activeTab === tab.id
-                    ? 'bg-[var(--agri-primary)] text-white shadow-[var(--shadow-soft)]'
-                    : 'bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
+                    ? 'bg-[#3D7A5F] text-white shadow-[var(--shadow-soft)]'
+                    : 'bg-[#F3F4F6] text-[#374151]'
                 )}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard title="Programate azi" value={`${kpis.programateAzi}`} />
-          <KpiCard
-            title="În PHI warning"
-            value={`${kpis.phiWarnings}`}
-            tone={kpis.phiWarnings > 0 ? 'danger' : 'neutral'}
-          />
-          <KpiCard
-            title="Fereastră meteo OK"
-            value={`${kpis.meteoFavorable}/${kpis.meteoEligibleCount}`}
-            tone={kpis.meteoFavorable > 0 ? 'success' : 'warning'}
-            subtitle={kpis.meteoEligibleCount === 0 ? 'Meteo doar pentru aplicările din următoarele 2 zile' : undefined}
-          />
-          <KpiCard
-            title="Aplicate azi"
-            value={`${kpis.aplicateAzi}`}
-            tone={kpis.aplicateAzi > 0 ? 'success' : 'neutral'}
-          />
         </div>
 
         <div className="sticky top-[5.25rem] z-10 space-y-3 rounded-[24px] border border-[var(--border-default)] bg-[color:color-mix(in_srgb,var(--surface-page)_94%,white)] p-3 shadow-[var(--shadow-soft)] backdrop-blur">
@@ -549,125 +687,133 @@ export function HubTratamenteClient({
           </div>
 
           {activeTab !== 'relevant' ? (
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-secondary)]">Filtre aplicări</p>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              <select
-                aria-label="Filtru sursă"
-                className="agri-control h-10 rounded-xl text-sm"
-                value={sourceFilter}
-                onChange={(event) =>
-                  syncFilters({ ...filters, sourceFilter: event.target.value as HubSourceFilter })
-                }
-              >
-                <option value="all">Toate sursele</option>
-                <option value="din_plan">Din plan</option>
-                <option value="manuala">Manuale</option>
-              </select>
-              <select
-                aria-label="Filtru status"
-                className="agri-control h-10 rounded-xl text-sm"
-                value={statusFilter}
-                onChange={(event) =>
-                  syncFilters({ ...filters, statusFilter: event.target.value as HubStatusFilter })
-                }
-              >
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                aria-label="Filtru tip"
-                className={cn(
-                  'agri-control h-10 rounded-xl text-sm',
-                  compactAplicariFiltersOnMobile && 'max-md:hidden',
-                )}
-                value={tipFilter}
-                onChange={(event) =>
-                  syncFilters({ ...filters, tipFilter: event.target.value })
-                }
-              >
-                <option value="all">Toate tipurile</option>
-                {Array.from(
-                  new Set(
-                    initialAplicari
-                      .map((aplicare) => aplicare.tip_interventie)
-                      .filter((value): value is string => Boolean(value?.trim()))
-                      .map((value) => value.trim())
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-secondary)]">Filtre aplicări</p>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <select
+                  aria-label="Filtru sursă"
+                  className="agri-control h-10 rounded-xl text-sm"
+                  value={sourceFilter}
+                  onChange={(event) =>
+                    syncFilters({ ...filters, sourceFilter: event.target.value as HubSourceFilter })
+                  }
+                >
+                  <option value="all">Toate sursele</option>
+                  <option value="din_plan">Din plan</option>
+                  <option value="manuala">Manuale</option>
+                </select>
+                <select
+                  aria-label="Filtru status"
+                  className="agri-control h-10 rounded-xl text-sm"
+                  value={statusFilter}
+                  onChange={(event) =>
+                    syncFilters({ ...filters, statusFilter: event.target.value as HubStatusFilter })
+                  }
+                >
+                  {STATUS_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filtru tip"
+                  className={cn(
+                    'agri-control h-10 rounded-xl text-sm',
+                    compactAplicariFiltersOnMobile && 'max-md:hidden',
+                  )}
+                  value={tipFilter}
+                  onChange={(event) =>
+                    syncFilters({ ...filters, tipFilter: event.target.value })
+                  }
+                >
+                  <option value="all">Toate tipurile</option>
+                  {Array.from(
+                    new Set(
+                      initialAplicari
+                        .map((aplicare) => aplicare.tip_interventie)
+                        .filter((value): value is string => Boolean(value?.trim()))
+                        .map((value) => value.trim())
+                    )
                   )
-                )
-                  .sort((first, second) => first.localeCompare(second, 'ro'))
-                  .map((value) => (
-                    <option key={value} value={value}>
-                      {humanizeFilterValue(value)}
-                    </option>
-                  ))}
-              </select>
-              <select
-                aria-label="Filtru fenofază"
-                className={cn(
-                  'agri-control h-10 rounded-xl text-sm',
-                  compactAplicariFiltersOnMobile && 'max-md:hidden',
-                )}
-                value={stageFilter}
-                onChange={(event) =>
-                  syncFilters({ ...filters, stageFilter: event.target.value })
-                }
-              >
-                <option value="all">Toate fenofazele</option>
-                {Array.from(
-                  new Map(
-                    initialAplicari
-                      .map((aplicare) => aplicare.stadiu_trigger)
-                      .filter((value): value is string => Boolean(value?.trim()))
-                      .map((value) => [normalizeFilterValue(value), humanizeFilterValue(value)])
-                  ).entries()
-                )
-                  .sort((first, second) => first[1].localeCompare(second[1], 'ro'))
-                  .map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-              </select>
+                    .sort((first, second) => first.localeCompare(second, 'ro'))
+                    .map((value) => (
+                      <option key={value} value={value}>
+                        {humanizeFilterValue(value)}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  aria-label="Filtru fenofază"
+                  className={cn(
+                    'agri-control h-10 rounded-xl text-sm',
+                    compactAplicariFiltersOnMobile && 'max-md:hidden',
+                  )}
+                  value={stageFilter}
+                  onChange={(event) =>
+                    syncFilters({ ...filters, stageFilter: event.target.value })
+                  }
+                >
+                  <option value="all">Toate fenofazele</option>
+                  {Array.from(
+                    new Map(
+                      initialAplicari
+                        .map((aplicare) => aplicare.stadiu_trigger)
+                        .filter((value): value is string => Boolean(value?.trim()))
+                        .map((value) => [normalizeFilterValue(value), humanizeFilterValue(value)])
+                    ).entries()
+                  )
+                    .sort((first, second) => first[1].localeCompare(second[1], 'ro'))
+                    .map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
-          </div>
           ) : null}
         </div>
 
         {activeTab === 'relevant' ? (
-          <InterventiiRelevanteCard
-            description="Intervenții din planurile active care se potrivesc cu fenofaza observată pe parcelă."
-            interventii={visibleInterventiiRelevante}
-            onPlanifica={handlePlanificaInterventie}
-            pendingInterventieId={isPlanificaPending ? pendingInterventieId : null}
-            showFilters
-            showParcela
-            title="Relevante operațional"
-          />
-        ) : visibleAplicari.length === 0 ? (
-          <EmptyState
-            icon={<SprayCan className="h-6 w-6" />}
-            title="Nicio aplicare programată"
-            description={emptyStateDescription}
-            actionLabel="Creează plan nou"
-            onAction={() => router.push('/tratamente/planuri/nou')}
-          />
+          <section className="space-y-3">
+            <SectionHeading title="Intervenții relevante" />
+            <InterventiiRelevanteCard
+              description="Intervenții din planurile active care se potrivesc cu fenofaza observată pe parcelă."
+              interventii={visibleInterventiiRelevante}
+              onPlanifica={handlePlanificaInterventie}
+              pendingInterventieId={isPlanificaPending ? pendingInterventieId : null}
+              showFilters
+              showParcela
+              title="Relevante operațional"
+            />
+          </section>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {visibleAplicari.map((aplicare) => (
-              <HubAplicareCard
-                key={aplicare.id}
-                aplicare={aplicare}
-                meteoLoading={meteoLoadingByParcela.get(aplicare.parcela_id) ?? false}
-                meteoZi={meteoByParcela.get(aplicare.parcela_id) ?? null}
-                produseFitosanitare={produseFitosanitare}
-                showMeteoBar={activeTab !== 'all' && canShowMeteoForAplicare(aplicare, twoDayEnd)}
+          <section className="space-y-3">
+            <SectionHeading title="Conformitate pe parcele" />
+            {visibleAplicari.length === 0 ? (
+              <EmptyState
+                icon={<SprayCan className="h-6 w-6" />}
+                title="Nicio aplicare programată"
+                description={emptyStateDescription}
+                actionLabel="Creează plan nou"
+                onAction={() => router.push('/tratamente/planuri/nou')}
               />
-            ))}
-          </div>
+            ) : (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {visibleAplicari.map((aplicare) => (
+                  <HubAplicareCard
+                    key={aplicare.id}
+                    aplicare={aplicare}
+                    meteoLoading={meteoLoadingByParcela.get(aplicare.parcela_id) ?? false}
+                    meteoZi={meteoByParcela.get(aplicare.parcela_id) ?? null}
+                    produseFitosanitare={produseFitosanitare}
+                    showMeteoBar={activeTab !== 'all' && canShowMeteoForAplicare(aplicare, twoDayEnd)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
         )}
 
         {activeTab !== 'relevant' && visibleAplicari.length > 0 ? (

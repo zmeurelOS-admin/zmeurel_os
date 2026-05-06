@@ -1,9 +1,10 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Copy, Eye } from 'lucide-react'
+import { ChevronDown, Copy, Eye, Pencil, Trash2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, Controller, type UseFormReturn } from 'react-hook-form'
 import * as z from 'zod'
@@ -16,6 +17,7 @@ import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton, ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { ModuleEmptyCard } from '@/components/app/module-list-chrome'
 import { PageHeader } from '@/components/app/PageHeader'
+import { AppCard } from '@/components/ui/app-card'
 import { TagInput } from '@/components/tratamente/TagInput'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,7 +30,6 @@ import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -165,6 +166,41 @@ function normalizeSearch(s: string) {
 
 function isShared(p: ProdusFitosanitar) {
   return p.tenant_id === null
+}
+
+function getPhiLabel(produs: ProdusFitosanitar): string | null {
+  if (produs.phi_zile == null) return null
+  return `PHI ${produs.phi_zile}z`
+}
+
+function getPhiTone(produs: ProdusFitosanitar): string {
+  return produs.phi_zile === 0
+    ? 'bg-[#E8F3EE] text-[#3D7A5F]'
+    : 'bg-[#FEF3C7] text-[#B45309]'
+}
+
+function PillChipButton({
+  active,
+  children,
+  onClick,
+  type = 'button',
+}: {
+  active: boolean
+  children: ReactNode
+  onClick: () => void
+  type?: 'button' | 'submit'
+}) {
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      className={`h-8 rounded-full px-3 text-xs font-semibold transition ${
+        active ? 'bg-[#3D7A5F] text-white' : 'bg-[#F3F4F6] text-[#374151]'
+      }`}
+    >
+      {children}
+    </button>
+  )
 }
 
 // ─── Form fields (shared between Add and Edit) ────────────────────────────────
@@ -426,7 +462,7 @@ function ViewProdusFitosanitarDialog({ produs, open, onOpenChange, onDuplica, du
           </Button>
           <Button
             type="button"
-            className="agri-cta min-h-11 bg-[var(--agri-primary)] text-white"
+            className="min-h-11 rounded-xl bg-[#3D7A5F] text-white transition hover:bg-[#2D5F47] active:scale-[0.985]"
             onClick={() => onDuplica(produs)}
             disabled={duplicating}
           >
@@ -565,6 +601,7 @@ export function ProduseFitosanitarePageClient() {
   const [deleteProdus, setDeleteProdus] = useState<ProdusFitosanitar | null>(null)
   const [uzatInfo, setUzatInfo] = useState<{ produs: ProdusFitosanitar; planuri: Array<{ id: string; denumire: string }> } | null>(null)
   const [desktopSelectedId, setDesktopSelectedId] = useState<string | null>(null)
+  const [expandedProdusId, setExpandedProdusId] = useState<string | null>(null)
   const [filterTip, setFilterTip] = useState<string>('toate')
   const [filterSursa, setFilterSursa] = useState<'toate' | 'standard' | 'proprii'>('toate')
   const [search, setSearch] = useState('')
@@ -681,6 +718,12 @@ export function ProduseFitosanitarePageClient() {
     [filtered, resolvedDesktopSelectedId]
   )
 
+  useEffect(() => {
+    if (expandedProdusId && !filtered.some((p) => p.id === expandedProdusId)) {
+      setExpandedProdusId(null)
+    }
+  }, [expandedProdusId, filtered])
+
   // Desktop columns
   const desktopColumns = useMemo<ColumnDef<ProdusFitosanitar>[]>(() => [
     {
@@ -766,7 +809,8 @@ export function ProduseFitosanitarePageClient() {
 
   return (
     <AppShell header={<PageHeader title="Produse fitosanitare" subtitle="Bibliotecă produse" />}>
-      <div className="mx-auto mt-2 w-full max-w-4xl space-y-3 py-3 sm:mt-0 md:max-w-7xl">
+      <div className="mx-auto mt-2 w-full max-w-4xl space-y-4 py-3 sm:mt-0 md:max-w-7xl">
+        {/* --- SECTION: search and filters --- */}
 
         {/* Mobile: search */}
         {produse.length > 3 ? (
@@ -776,54 +820,37 @@ export function ProduseFitosanitarePageClient() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Caută produse fitosanitare"
+              className="rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
             />
           </div>
         ) : null}
 
         {/* Mobile: tip filter chips */}
-        <div className="flex flex-wrap gap-2 md:hidden">
-          <button
-            type="button"
-            onClick={() => setFilterTip('toate')}
-            className={`h-8 rounded-full px-3 text-xs font-semibold transition ${
-              filterTip === 'toate'
-                ? 'bg-[var(--agri-primary)] text-white'
-                : 'border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
-            }`}
-          >
+        <div className="flex flex-wrap gap-2">
+          <PillChipButton active={filterTip === 'toate'} onClick={() => setFilterTip('toate')}>
             Toate tipurile
-          </button>
+          </PillChipButton>
           {TIP_OPTIONS.map((opt) => (
-            <button
+            <PillChipButton
               key={opt.value}
-              type="button"
+              active={filterTip === opt.value}
               onClick={() => setFilterTip(opt.value)}
-              className={`h-8 rounded-full px-3 text-xs font-semibold transition ${
-                filterTip === opt.value
-                  ? 'bg-[var(--agri-primary)] text-white'
-                  : 'border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
-              }`}
             >
               {opt.label}
-            </button>
+            </PillChipButton>
           ))}
         </div>
 
         {/* Mobile: sursa filter chips */}
-        <div className="flex flex-wrap gap-2 md:hidden">
+        <div className="flex flex-wrap gap-2">
           {SURSA_FILTER.map((opt) => (
-            <button
+            <PillChipButton
               key={opt.value}
-              type="button"
+              active={filterSursa === opt.value}
               onClick={() => setFilterSursa(opt.value)}
-              className={`h-8 rounded-full px-3 text-xs font-semibold transition ${
-                filterSursa === opt.value
-                  ? 'bg-[var(--brand-blue)] text-white'
-                  : 'border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] text-[var(--agri-text)]'
-              }`}
             >
               {opt.label}
-            </button>
+            </PillChipButton>
           ))}
         </div>
 
@@ -849,33 +876,37 @@ export function ProduseFitosanitarePageClient() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Caută produse fitosanitare"
+              className="rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
             />
-            <div className="flex items-center gap-2">
-              <select
-                value={filterTip}
-                onChange={(e) => setFilterTip(e.target.value)}
-                className="agri-control h-9 min-w-[9rem] rounded-xl px-2 text-sm"
-                aria-label="Filtrează după tip"
-              >
-                <option value="toate">Toate tipurile</option>
-                {TIP_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <select
-                value={filterSursa}
-                onChange={(e) => setFilterSursa(e.target.value as typeof filterSursa)}
-                className="agri-control h-9 min-w-[8rem] rounded-xl px-2 text-sm"
-                aria-label="Filtrează după sursă"
-              >
-                {SURSA_FILTER.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+            <div className="flex flex-wrap items-center gap-2">
+              <PillChipButton active={filterTip === 'toate'} onClick={() => setFilterTip('toate')}>
+                Toate tipurile
+              </PillChipButton>
+              {TIP_OPTIONS.map((opt) => (
+                <PillChipButton
+                  key={opt.value}
+                  active={filterTip === opt.value}
+                  onClick={() => setFilterTip(opt.value)}
+                >
+                  {opt.label}
+                </PillChipButton>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {SURSA_FILTER.map((opt) => (
+                <PillChipButton
+                  key={opt.value}
+                  active={filterSursa === opt.value}
+                  onClick={() => setFilterSursa(opt.value)}
+                >
+                  {opt.label}
+                </PillChipButton>
+              ))}
             </div>
           </DesktopToolbar>
         ) : null}
 
+        {/* --- SECTION: loading and empty states --- */}
         {isLoading ? (
           <>
             <div className="hidden md:block"><EntityListSkeleton /></div>
@@ -916,6 +947,10 @@ export function ProduseFitosanitarePageClient() {
                 renderCard={(p) => (
                   <ProdusFitosanitarCard
                     produs={p}
+                    expanded={expandedProdusId === p.id}
+                    onToggleExpand={() =>
+                      setExpandedProdusId((current) => (current === p.id ? null : p.id))
+                    }
                     onView={() => setViewProdus(p)}
                     onEdit={() => setEditProdus(p)}
                     onDelete={() => void handleDeleteClick(p)}
@@ -975,6 +1010,7 @@ export function ProduseFitosanitarePageClient() {
         ) : null}
       </div>
 
+      {/* --- SECTION: dialogs --- */}
       {/* Dialogs / Drawers */}
       <AddProdusFitosanitarDrawer
         open={addOpen}
@@ -1020,6 +1056,8 @@ export function ProduseFitosanitarePageClient() {
 
 interface ProdusFitosanitarCardProps {
   produs: ProdusFitosanitar
+  expanded: boolean
+  onToggleExpand: () => void
   onView: () => void
   onEdit: () => void
   onDelete: () => void
@@ -1029,6 +1067,8 @@ interface ProdusFitosanitarCardProps {
 
 function ProdusFitosanitarCard({
   produs,
+  expanded,
+  onToggleExpand,
   onView,
   onEdit,
   onDelete,
@@ -1036,55 +1076,138 @@ function ProdusFitosanitarCard({
   duplicating,
 }: ProdusFitosanitarCardProps) {
   const shared = isShared(produs)
-  const subtitle = `${TIP_LABELS[produs.tip] ?? produs.tip}${produs.frac_irac ? ` · ${produs.frac_irac}` : ''}`
-  const meta = produs.substanta_activa
-  const phiText = produs.phi_zile != null ? `PHI ${produs.phi_zile}z` : undefined
+  const subtitle = TIP_LABELS[produs.tip] ?? produs.tip
+  const phiText = getPhiLabel(produs)
 
   return (
-    <MobileEntityCard
-      title={produs.nume_comercial}
-      subtitle={subtitle}
-      meta={meta}
-      mainValue={phiText}
-      statusLabel={shared ? 'Standard' : (produs.activ ? 'Activ' : 'Inactiv')}
-      statusTone={shared ? 'info' : (produs.activ ? 'success' : 'neutral')}
-      showChevron={false}
-      onClick={shared ? onView : onEdit}
-      bottomSlot={
-        <div className="flex gap-2 pt-1">
-          {shared ? (
-            <>
-              <Button type="button" variant="outline" size="sm" className="h-8 flex-1 gap-1 text-xs" onClick={onView}>
-                <Eye className="h-3 w-3" />
-                Vizualizează
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 flex-1 gap-1 text-xs"
-                onClick={onDuplica}
-                disabled={duplicating}
-              >
-                <Copy className="h-3 w-3" />
-                Duplică
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button type="button" variant="outline" size="sm" className="h-8 flex-1 gap-1 text-xs" onClick={onEdit}>
-                <Pencil className="h-3 w-3" />
-                Editează
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="h-8 gap-1 text-xs text-[var(--soft-danger-text)]" onClick={onDelete}>
-                <Trash2 className="h-3 w-3" />
-                Șterge
-              </Button>
-            </>
-          )}
+    <AppCard
+      role="button"
+      tabIndex={0}
+      onClick={onToggleExpand}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onToggleExpand()
+        }
+      }}
+      className="overflow-hidden rounded-[18px] shadow-[var(--shadow-soft)] transition active:scale-[0.985]"
+    >
+      <div className="w-full text-left">
+        <div className="flex items-start justify-between gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-bold text-[var(--text-primary)]">{produs.nume_comercial}</p>
+                <p className="mt-0.5 text-[12px] text-[var(--text-tertiary)]">{subtitle}</p>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPhiTone(produs)}`}>
+                  {phiText}
+                </span>
+                <StatusBadge
+                  text={shared ? 'Standard' : (produs.activ ? 'Activ' : 'Inactiv')}
+                  variant={shared ? 'info' : (produs.activ ? 'success' : 'neutral')}
+                />
+              </div>
+            </div>
+            <p className="mt-1 truncate text-[12px] text-[var(--text-tertiary)]">{produs.substanta_activa}</p>
+          </div>
         </div>
-      }
-      bottomSlotAlign="full"
-    />
+      </div>
+
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-[var(--border-default)] px-4 py-3">
+            <div className="space-y-2 text-sm text-[var(--text-secondary)]">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Substanță activă</p>
+                <p className="mt-0.5 text-[13px] text-[var(--text-primary)]">{produs.substanta_activa}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(produs.doza_min_ml_per_hl != null || produs.doza_max_ml_per_hl != null) ? (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Doze ml/hl</p>
+                    <p className="mt-0.5 text-[13px] text-[var(--text-primary)]">
+                      {[produs.doza_min_ml_per_hl, produs.doza_max_ml_per_hl].filter((v) => v != null).join(' - ')} ml/hl
+                    </p>
+                  </div>
+                ) : null}
+                {(produs.doza_min_l_per_ha != null || produs.doza_max_l_per_ha != null) ? (
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Doze l/ha</p>
+                    <p className="mt-0.5 text-[13px] text-[var(--text-primary)]">
+                      {[produs.doza_min_l_per_ha, produs.doza_max_l_per_ha].filter((v) => v != null).join(' - ')} l/ha
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-3 flex gap-2">
+              {shared ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 flex-1 rounded-xl border-[#3D7A5F]/30 text-sm font-semibold text-[#3D7A5F]"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onView()
+                  }}
+                >
+                  Vizualizează
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 flex-1 rounded-xl border-[#3D7A5F]/30 text-sm font-semibold text-[#3D7A5F]"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onEdit()
+                  }}
+                >
+                  ✏️ Editează
+                </Button>
+              )}
+              {shared ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 flex-1 rounded-xl border-[#3D7A5F]/30 text-sm font-semibold text-[#3D7A5F]"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDuplica()
+                  }}
+                  disabled={duplicating}
+                >
+                  Duplică
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 flex-1 rounded-xl border-transparent text-sm font-semibold text-red-500 hover:bg-red-50 hover:text-red-600"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDelete()
+                  }}
+                >
+                  🗑️ Șterge
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end px-4 pb-3">
+        <ChevronDown className={`h-4 w-4 text-[var(--text-tertiary)] transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
+      </div>
+    </AppCard>
   )
 }

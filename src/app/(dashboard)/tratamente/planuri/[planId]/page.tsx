@@ -9,6 +9,7 @@ import { PlanLiniiList } from '@/components/tratamente/PlanLiniiList'
 import {
   countAplicariPlan,
   getPlanTratamentComplet,
+  listAplicariParcela,
   listParcelePentruPlanWizard,
   listProduseFitosanitare,
 } from '@/lib/supabase/queries/tratamente'
@@ -36,11 +37,34 @@ export default async function TratamentePlanDetailPage({ params }: PageProps) {
   ])
 
   const anCurent = getCurrentSezon()
+  const planAn = plan.parcele_asociate[0]?.an ?? null
+  const parcelaCod = plan.parcele_asociate[0]?.parcela_cod ?? null
+  const planLinieIds = new Set(plan.linii.map((linie) => linie.id))
+  const asociereParcelaIds = Array.from(
+    new Set(
+      plan.parcele_asociate
+        .map((asociere) => asociere.parcela_id)
+        .filter((parcelaId): parcelaId is string => Boolean(parcelaId))
+    )
+  )
+  // --- FIX 1: calcul aplicate pe linii din aplicările read-only deja disponibile în modul ---
+  const aplicariAplicatePlan = (
+    await Promise.all(
+      asociereParcelaIds.map((parcelaId) => listAplicariParcela(parcelaId, { status: 'aplicata' }))
+    )
+  ).flat()
+  const liniiAplicateIds = new Set(
+    aplicariAplicatePlan
+      .map((aplicare) => aplicare.plan_linie_id)
+      .filter((linieId): linieId is string => typeof linieId === 'string' && planLinieIds.has(linieId))
+  )
+  const aplicate = liniiAplicateIds.size
   const configurareSezon = plan.parcele_asociate[0]?.parcela_id
     ? await getConfigurareSezon(plan.parcele_asociate[0].parcela_id, anCurent)
     : null
   const grupBiologic = getGrupBiologicDinCultura(plan.cultura_tip)
   const allowCohortTrigger = needsCohortSelection(grupBiologic, configurareSezon)
+  // TODO: conectează markAplicataAction când va fi disponibilă în actions.ts.
 
   return (
     <AppShell
@@ -51,11 +75,16 @@ export default async function TratamentePlanDetailPage({ params }: PageProps) {
           expandRightSlotOnMobile
           summary={
             <PlanDetailHeader
+              an={planAn}
+              aplicate={aplicate}
               countAplicari={aplicariCount}
+              culturaTip={plan.cultura_tip}
               descriere={plan.descriere}
               isArchived={plan.arhivat}
+              parcelaCod={parcelaCod}
               planId={plan.id}
               planName={plan.nume}
+              totalLinii={plan.linii.length}
             />
           }
         />

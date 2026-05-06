@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 import {
   addLinieAction,
@@ -25,6 +26,7 @@ import {
   getStadiuMeta,
 } from '@/components/tratamente/plan-wizard/helpers'
 import type { PlanWizardLinieProdusDraft } from '@/components/tratamente/plan-wizard/types'
+import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 
 function normalizeCohorta(value: string | null | undefined): 'floricane' | 'primocane' | null {
   return value === 'floricane' || value === 'primocane' ? value : null
@@ -50,12 +52,66 @@ interface PlanLiniiListProps {
   allowCohortTrigger?: boolean
   culturaTip: string
   linii: PlanTratamentLinieCuProdus[]
+  onMarkAplicata?: (linieId: string) => void
   planId: string
   produse: ProdusFitosanitar[]
 }
 
 function sortLinii(linii: PlanTratamentLinieCuProdus[]) {
   return [...linii].sort((first, second) => first.ordine - second.ordine)
+}
+
+function normalizeStageLabel(value: string | null | undefined): string {
+  return value
+    ?.trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') ?? ''
+}
+
+type StageBucket = 'vegetativ' | 'inflorescente' | 'inflorire' | 'fructificare' | 'post_recolta' | 'fallback'
+
+function resolveStageBucket(label: string): StageBucket {
+  const normalized = normalizeStageLabel(label)
+  if (normalized.includes('post recolta')) return 'post_recolta'
+  if (normalized.includes('fructific')) return 'fructificare'
+  if (normalized.includes('inflor')) return 'inflorire'
+  if (normalized.includes('inflorescente pe floricane')) return 'inflorescente'
+  if (normalized.includes('crestere vegetativa') || normalized.includes('vegetativ') || normalized.includes('umflare muguri') || normalized.includes('buton verde')) {
+    return 'vegetativ'
+  }
+  return 'fallback'
+}
+
+function resolveStageTheme(label: string) {
+  const bucket = resolveStageBucket(label)
+  if (bucket === 'vegetativ') {
+    return { bucket, accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌿', order: 0 }
+  }
+  if (bucket === 'inflorescente') {
+    return { bucket, accent: '#B45309', bg: '#FEF3C7', emoji: '🌸', order: 1 }
+  }
+  if (bucket === 'inflorire') {
+    return { bucket, accent: '#BE185D', bg: '#FCE7F3', emoji: '🌺', order: 2 }
+  }
+  if (bucket === 'fructificare') {
+    return { bucket, accent: '#7C3AED', bg: '#EDE9FE', emoji: '🫐', order: 3 }
+  }
+  if (bucket === 'post_recolta') {
+    return { bucket, accent: '#0369A1', bg: '#E0F2FE', emoji: '🍂', order: 4 }
+  }
+  return { bucket, accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌱', order: 5 }
+}
+
+function resolveGroupTitle(linie: PlanTratamentLinieCuProdus, grupBiologic?: GrupBiologic | null): string {
+  return getStadiuMeta(linie.stadiu_trigger, grupBiologic, linie.cohort_trigger).label
+}
+
+function buildStageFilterQuery(currentSearch: string, stage: string): string {
+  const params = new URLSearchParams(currentSearch)
+  params.delete('stadiu')
+  if (stage !== 'all') params.set('stadiu', stage)
+  return params.toString()
 }
 
 function arrayMove<T>(items: T[], from: number, to: number): T[] {
@@ -156,16 +212,19 @@ export function PlanLiniiList({
   allowCohortTrigger = false,
   culturaTip,
   linii,
+  onMarkAplicata,
   planId,
   produse,
 }: PlanLiniiListProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [localLinii, setLocalLinii] = useState<PlanTratamentLinieCuProdus[]>(sortLinii(linii))
   const [editorOpen, setEditorOpen] = useState(false)
   const [manualEditorOpen, setManualEditorOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editingLinie, setEditingLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
   const [pendingDeleteLinie, setPendingDeleteLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [isPending, startTransition] = useTransition()
   const grupBiologic = useMemo(() => getGrupBiologicDinCultura(culturaTip), [culturaTip])
 
@@ -174,10 +233,72 @@ export function PlanLiniiList({
   }, [linii])
 
   const orderedLinii = useMemo(() => sortLinii(localLinii), [localLinii])
+  const activeStageFilter = searchParams.get('stadiu') ?? 'all'
+
+  const stageOptions = useMemo(() => {
+    const seen = new Map<string, { label: string; theme: ReturnType<typeof resolveStageTheme> }>()
+    for (const linie of orderedLinii) {
+      const label = resolveGroupTitle(linie, grupBiologic)
+      if (!seen.has(linie.stadiu_trigger)) {
+        seen.set(linie.stadiu_trigger, { label, theme: resolveStageTheme(label) })
+      }
+    }
+
+    return Array.from(seen.entries())
+      .sort((first, second) => {
+        const firstTheme = first[1].theme
+        const secondTheme = second[1].theme
+        const orderDiff = firstTheme.order - secondTheme.order
+        if (orderDiff !== 0) return orderDiff
+        return first[1].label.localeCompare(second[1].label, 'ro')
+      })
+      .map(([value, item]) => ({ value, label: item.label, theme: item.theme }))
+  }, [grupBiologic, orderedLinii])
+
+  const filteredLinii = useMemo(() => {
+    if (activeStageFilter === 'all') return orderedLinii
+    return orderedLinii.filter((linie) => linie.stadiu_trigger === activeStageFilter)
+  }, [activeStageFilter, orderedLinii])
+
+  const groupedLinii = useMemo(() => {
+    const groups = new Map<
+      string,
+      {
+        label: string
+        theme: ReturnType<typeof resolveStageTheme>
+        items: Array<{ index: number; linie: PlanTratamentLinieCuProdus }>
+      }
+    >()
+
+    filteredLinii.forEach((linie) => {
+      const label = resolveGroupTitle(linie, grupBiologic)
+      const current = groups.get(linie.stadiu_trigger) ?? {
+        label,
+        theme: resolveStageTheme(label),
+        items: [],
+      }
+      current.items.push({ index: orderedLinii.findIndex((item) => item.id === linie.id), linie })
+      groups.set(linie.stadiu_trigger, current)
+    })
+
+    return Array.from(groups.entries())
+      .sort((first, second) => {
+        const orderDiff = first[1].theme.order - second[1].theme.order
+        if (orderDiff !== 0) return orderDiff
+        return first[1].label.localeCompare(second[1].label, 'ro')
+      })
+      .map(([value, item]) => ({ value, ...item }))
+  }, [filteredLinii, grupBiologic, orderedLinii])
 
   function openAddDialog() {
     setEditingLinie(null)
     setEditorOpen(true)
+  }
+
+  function setStageFilter(stage: string) {
+    const query = buildStageFilterQuery(typeof window === 'undefined' ? '' : window.location.search, stage)
+    const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname
+    router.replace(nextUrl, { scroll: false })
   }
 
   function handleReorder(from: number, to: number) {
@@ -260,8 +381,9 @@ export function PlanLiniiList({
 
   return (
     <section className="space-y-4">
+      {/* --- SECTION: header --- */}
       <AppCard className="rounded-[22px] p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <h2 className="text-lg tracking-[-0.02em] text-[var(--text-primary)] [font-weight:650]">
               Intervenții planificate ({orderedLinii.length})
@@ -270,13 +392,50 @@ export function PlanLiniiList({
               Editează, reordonează sau adaugă intervenții direct din detaliul planului.
             </p>
           </div>
-          <Button type="button" className="bg-[var(--agri-primary)] text-white" onClick={openAddDialog}>
-            <Plus className="h-4 w-4" aria-label="Adaugă intervenție" />
-            <span className="hidden sm:inline">Adaugă intervenție</span>
-          </Button>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" className="bg-[var(--agri-primary)] text-white" onClick={openAddDialog}>
+              <Plus className="h-4 w-4" aria-label="Adaugă intervenție" />
+              <span className="hidden sm:inline">Adaugă intervenție</span>
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setManualEditorOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Intervenție manuală
+            </Button>
+          </div>
         </div>
       </AppCard>
 
+      {/* --- SECTION: stage filters --- */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setStageFilter('all')}
+          className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
+            activeStageFilter === 'all'
+              ? 'bg-[#3D7A5F] text-white'
+              : 'bg-[#F3F4F6] text-[#374151]'
+          }`}
+        >
+          Toate
+        </button>
+        {stageOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => setStageFilter(option.value)}
+            className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
+              activeStageFilter === option.value
+                ? 'bg-[#3D7A5F] text-white'
+                : 'bg-[#F3F4F6] text-[#374151]'
+            }`}
+          >
+            {option.theme.emoji} {option.label}
+          </button>
+        ))}
+      </div>
+
+      {/* --- SECTION: grouped lines --- */}
       {orderedLinii.length === 0 ? (
         <AppCard className="rounded-[22px] border-dashed p-6 text-center">
           <p className="text-sm text-[var(--text-secondary)]">
@@ -292,37 +451,74 @@ export function PlanLiniiList({
             </Button>
           </div>
         </AppCard>
+      ) : groupedLinii.length === 0 ? (
+        <AppCard className="rounded-[22px] p-6 text-center">
+          <p className="text-sm text-[var(--text-secondary)]">Nicio intervenție nu se potrivește filtrului de stadiu.</p>
+        </AppCard>
       ) : (
-        <div className="space-y-3">
-          {orderedLinii.map((linie, index) => (
-            <LinieRow
-              key={linie.id}
-              grupBiologic={grupBiologic}
-              index={index}
-              linie={linie}
-              total={orderedLinii.length}
-              onMoveUp={() => handleReorder(index, index - 1)}
-              onMoveDown={() => handleReorder(index, index + 1)}
-              onEdit={() => {
-                setEditingLinie(linie)
-                setEditorOpen(true)
-              }}
-              onDelete={() => {
-                setPendingDeleteLinie(linie)
-                setDeleteOpen(true)
-              }}
-            />
-          ))}
+        <div className="space-y-4">
+          {groupedLinii.map((group) => {
+            const collapsed = collapsedGroups[group.value] ?? false
+            const total = group.items.length
+            const done = 0
+            const percent = total > 0 ? Math.round((done / total) * 100) : 0
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full md:w-auto"
-            onClick={() => setManualEditorOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Adaugă intervenție manuală
-          </Button>
+            return (
+              <section key={group.value} className="space-y-3">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 text-left"
+                  onClick={() =>
+                    setCollapsedGroups((current) => ({
+                      ...current,
+                      [group.value]: !collapsed,
+                    }))
+                  }
+                >
+                  <span className="text-sm" aria-hidden>
+                    {group.theme.emoji}
+                  </span>
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: group.theme.accent }}>
+                    {group.label}
+                  </p>
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <p className="text-xs text-gray-400">{done}/{total}</p>
+                </button>
+                <div className="h-[3px] w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full transition-all duration-200"
+                    style={{ width: `${percent}%`, backgroundColor: group.theme.accent }}
+                  />
+                </div>
+
+                {!collapsed ? (
+                  <div className="space-y-0">
+                    {group.items.map(({ index, linie }) => (
+                      <LinieRow
+                        key={linie.id}
+                        grupBiologic={grupBiologic}
+                        index={index}
+                        linie={linie}
+                        total={orderedLinii.length}
+                        // --- FIX 2: propagare callback mark aplicată când există în părinte ---
+                        onMarkAplicata={onMarkAplicata}
+                        onMoveUp={() => handleReorder(index, index - 1)}
+                        onMoveDown={() => handleReorder(index, index + 1)}
+                        onEdit={() => {
+                          setEditingLinie(linie)
+                          setEditorOpen(true)
+                        }}
+                        onDelete={() => {
+                          setPendingDeleteLinie(linie)
+                          setDeleteOpen(true)
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            )
+          })}
         </div>
       )}
 
