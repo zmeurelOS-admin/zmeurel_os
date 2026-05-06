@@ -196,7 +196,7 @@ export function ProdusFitosanitarPicker({
 
   return (
     <>
-      <div className={cn('space-y-2', className)}>
+      <div className={cn('relative space-y-2 overflow-x-visible', className)}>
         {label ? <Label>{label}</Label> : null}
 
         <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export function ProdusFitosanitarPicker({
               align="start"
               collisionPadding={popoverCollisionPadding}
               className={cn(
-                'z-[1200] flex max-h-[min(70vh,28rem)] w-[min(94vw,460px)] flex-col overflow-hidden p-0',
+                'z-[1400] flex max-h-[40vh] w-[min(94vw,460px)] flex-col overflow-hidden p-0',
                 popoverContentClassName,
               )}
             >
@@ -240,7 +240,7 @@ export function ProdusFitosanitarPicker({
               <Command className="flex min-h-0 flex-1 flex-col overflow-hidden !h-auto [&_[data-slot=command-input-wrapper]]:shrink-0">
                 <CommandInput placeholder="Caută după nume sau substanță activă…" />
                 <CommandList
-                  className="min-h-0 max-h-none flex-1 overflow-y-auto overscroll-contain pr-1"
+                  className="min-h-0 max-h-[40vh] flex-1 overflow-y-auto overscroll-contain pr-1"
                   onWheel={(event) => {
                     event.stopPropagation()
                   }}

@@ -238,7 +238,8 @@ export function AdaugaInterventieManualDialog({
   }
 
   const content = (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="space-y-4 pr-1">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="manual-linie-stadiu">Fenofază</Label>
@@ -379,6 +380,8 @@ export function AdaugaInterventieManualDialog({
               <ProdusFitosanitarPicker
                 allowQuickCreate={false}
                 label="Produs din bibliotecă"
+                className="relative z-20 overflow-x-visible"
+                popoverContentClassName="max-h-[40vh]"
                 onChange={(selected) =>
                   updateProduct(produs.id, (current) => ({
                     ...current,
@@ -559,6 +562,7 @@ export function AdaugaInterventieManualDialog({
       {validationError ? (
         <p className="text-sm text-[var(--soft-danger-text)]">{validationError}</p>
       ) : null}
+      </div>
     </div>
   )
 

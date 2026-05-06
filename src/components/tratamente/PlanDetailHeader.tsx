@@ -205,6 +205,13 @@ export function PlanDetailHeader({
           </div>
         </div>
       </div>
+      <div className="flex items-center px-5 py-3">
+        <span className="rounded-full bg-[#E8F3EE] px-3 py-1 text-sm font-semibold text-[#3D7A5F]">
+          {isArchived ? 'Arhivat' : 'Activ'}
+        </span>
+        <span className="mx-2 text-gray-300">·</span>
+        <span className="text-sm text-gray-500">{countAplicari} aplicări asociate</span>
+      </div>
 
       {/* --- SECTION: dialogs --- */}
       <PlanInfoEditDialog

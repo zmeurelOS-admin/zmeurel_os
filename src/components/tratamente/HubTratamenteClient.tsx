@@ -10,7 +10,8 @@ import {
   CalendarDays,
   ClipboardList,
   CloudSun,
-  FileSpreadsheet,
+  FileDown,
+  FlaskConical,
   SprayCan,
   TriangleAlert,
 } from 'lucide-react'
@@ -596,35 +597,44 @@ export function HubTratamenteClient({
       }
     >
       <div className="mx-auto mt-2 w-full max-w-7xl space-y-4 py-3 sm:mt-0 md:py-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2">
           <Button
             type="button"
             asChild
-            className="h-10 rounded-xl border border-[#3D7A5F] bg-white px-3 py-2 text-sm font-semibold text-[#3D7A5F] shadow-none transition hover:bg-[#F3F7F4] active:scale-[0.985]"
+            className="h-auto w-full justify-start rounded-2xl border-2 border-[#3D7A5F] bg-white px-4 py-3 text-[#3D7A5F] shadow-none transition-colors hover:bg-[#E8F3EE] active:scale-[0.985]"
           >
-            <Link href="/tratamente/planuri" className="inline-flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" aria-hidden />
-              Planuri
+            <Link href="/tratamente/planuri" className="inline-flex w-full items-center gap-3 text-left">
+              <ClipboardList className="h-5 w-5 text-[#3D7A5F]" aria-hidden />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-[#3D7A5F]">Planuri</span>
+                <span className="block text-xs text-gray-400">Gestionează planurile active</span>
+              </span>
             </Link>
           </Button>
           <Button
             type="button"
             asChild
-            className="h-10 rounded-xl border border-[#3D7A5F] bg-white px-3 py-2 text-sm font-semibold text-[#3D7A5F] shadow-none transition hover:bg-[#F3F7F4] active:scale-[0.985]"
+            className="h-auto w-full justify-start rounded-2xl border-2 border-[#3D7A5F] bg-white px-4 py-3 text-[#3D7A5F] shadow-none transition-colors hover:bg-[#E8F3EE] active:scale-[0.985]"
           >
-            <Link href="/tratamente/produse-fitosanitare" className="inline-flex items-center gap-2">
-              <SprayCan className="h-4 w-4" aria-hidden />
-              Bibliotecă
+            <Link href="/tratamente/produse-fitosanitare" className="inline-flex w-full items-center gap-3 text-left">
+              <FlaskConical className="h-5 w-5 text-[#3D7A5F]" aria-hidden />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-[#3D7A5F]">Bibliotecă produse</span>
+                <span className="block text-xs text-gray-400">Produse și substanțe fitosanitare</span>
+              </span>
             </Link>
           </Button>
           <Button
             type="button"
             asChild
-            className="h-10 rounded-xl border border-[#3D7A5F] bg-white px-3 py-2 text-sm font-semibold text-[#3D7A5F] shadow-none transition hover:bg-[#F3F7F4] active:scale-[0.985]"
+            className="h-auto w-full justify-start rounded-2xl border-2 border-[#3D7A5F] bg-white px-4 py-3 text-[#3D7A5F] shadow-none transition-colors hover:bg-[#E8F3EE] active:scale-[0.985]"
           >
-            <a href={`/tratamente/conformitate/export?an=${today.getFullYear()}`} className="inline-flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4" aria-hidden />
-              Export ANSVSA
+            <a href={`/tratamente/conformitate/export?an=${today.getFullYear()}`} className="inline-flex w-full items-center gap-3 text-left">
+              <FileDown className="h-5 w-5 text-[#3D7A5F]" aria-hidden />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-[#3D7A5F]">Exportă fișe ANSVSA</span>
+                <span className="block text-xs text-gray-400">Descarcă documentele de conformitate</span>
+              </span>
             </a>
           </Button>
         </div>

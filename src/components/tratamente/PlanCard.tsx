@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { ClipboardList, EllipsisVertical, FileSpreadsheet, PencilLine, Plus, RotateCcw, Copy, Archive, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { ClipboardList, FileSpreadsheet, PencilLine, Plus, RotateCcw, Copy, Archive, Trash2 } from 'lucide-react'
 
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { PlanTratamentListItem } from '@/lib/supabase/queries/tratamente'
 import { cn } from '@/lib/utils'
 
@@ -44,6 +44,7 @@ export function PlanCard({
   const tipuriVizibile = plan.tipuri_interventie.slice(0, 3)
   const tipuriAscunse = plan.tipuri_interventie.length - tipuriVizibile.length
   const isEmptyPlan = plan.linii_count === 0
+  const [actionsOpen, setActionsOpen] = useState(false)
 
   return (
     <AppCard
@@ -51,7 +52,7 @@ export function PlanCard({
         'rounded-[22px] border border-[var(--border-default)]/70 p-4 transition-colors hover:border-[var(--border-strong)]'
       )}
     >
-      <div className="space-y-4">
+      <div className="space-y-4" onClick={() => setActionsOpen((current) => !current)}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -115,10 +116,8 @@ export function PlanCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--divider)] pt-3">
-          <span className="text-xs text-[var(--text-secondary)]">Fenofază: —</span>
-
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--divider)] pt-3">
+          <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
             {isEmptyPlan ? (
               <Button type="button" variant="outline" size="sm" asChild>
                 <Link href="/tratamente/planuri/import">
@@ -126,75 +125,44 @@ export function PlanCard({
                   Import Excel
                 </Link>
               </Button>
-            ) : (
-              <div className="hidden md:flex md:items-center md:gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={onEdit}>
-                  <PencilLine className="h-4 w-4" />
-                  Editează
-                </Button>
-                {onClick ? (
-                  <Button type="button" variant="outline" size="sm" onClick={onClick}>
-                    Vezi plan
-                  </Button>
-                ) : null}
-              </div>
-            )}
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Acțiuni pentru planul ${plan.nume}`}>
-                  <EllipsisVertical className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-56 p-2">
-                <div className="space-y-1">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)]"
-                    onClick={onEdit}
-                  >
-                    <PencilLine className="h-4 w-4" />
-                    Editează
-                  </button>
-                  {onClick ? (
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)]"
-                      onClick={onClick}
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Vezi plan
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)]"
-                    onClick={onDuplica}
-                  >
-                    <Copy className="h-4 w-4" />
-                    Duplică
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)]"
-                    onClick={onArhiveaza}
-                  >
-                    {plan.arhivat ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-                    {plan.arhivat ? 'Dezarhivează' : 'Arhivează'}
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--soft-danger-text)] transition hover:bg-[var(--surface-card-muted)]"
-                    onClick={onSterge}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Șterge
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
+            ) : null}
+            {onClick ? (
+              <Button
+                type="button"
+                size="sm"
+                className="w-auto rounded-xl bg-[#3D7A5F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#356b53]"
+                onClick={onClick}
+              >
+                Vezi plan
+              </Button>
+            ) : null}
           </div>
         </div>
+        {actionsOpen ? (
+          <div className="grid gap-2 border-t border-[var(--divider)] pt-3" onClick={(event) => event.stopPropagation()}>
+            <Button type="button" variant="outline" className="justify-start" onClick={onEdit}>
+              <PencilLine className="h-4 w-4" />
+              Editează
+            </Button>
+            <Button type="button" variant="outline" className="justify-start" onClick={onDuplica}>
+              <Copy className="h-4 w-4" />
+              Duplică
+            </Button>
+            <Button type="button" variant="outline" className="justify-start" onClick={onArhiveaza}>
+              {plan.arhivat ? <RotateCcw className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+              {plan.arhivat ? 'Dezarhivează' : 'Arhivează'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start text-red-500 hover:text-red-500"
+              onClick={onSterge}
+            >
+              <Trash2 className="h-4 w-4" />
+              Șterge
+            </Button>
+          </div>
+        ) : null}
       </div>
     </AppCard>
   )
