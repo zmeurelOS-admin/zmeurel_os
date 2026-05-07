@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Trash2, X } from 'lucide-react'
 
 import { addLinieAction, type LinieInput } from '@/app/(dashboard)/tratamente/planuri/[planId]/actions'
 import { AppDialog } from '@/components/app/AppDialog'
@@ -508,35 +508,77 @@ export function AdaugaInterventieManualDialog({
               {isOpen ? (
                 <div
                   id={`manual-produs-body-${produs.id}`}
-                  className="space-y-3 border-t border-[var(--border-default)] p-3 min-w-0"
+                  className="space-y-3 md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-2 md:space-y-0 border-t border-[var(--border-default)] p-3 min-w-0"
                 >
-                  <ProdusFitosanitarPicker
-                    allowQuickCreate={false}
-                    label="Produs din bibliotecă"
-                    className="relative z-20 overflow-x-visible"
-                    popoverContentClassName="max-h-[40vh]"
-                    onChange={(selected) =>
-                      updateProduct(produs.id, (current) => ({
-                        ...current,
-                        produs_id: selected?.id ?? null,
-                        produs_nume_manual: selected ? '' : current.produs_nume_manual,
-                        produs_nume_snapshot: selected?.nume_comercial ?? current.produs_nume_snapshot,
-                        substanta_activa_snapshot: selected?.substanta_activa ?? current.substanta_activa_snapshot,
-                        tip_snapshot: selected?.tip ?? current.tip_snapshot,
-                        frac_irac_snapshot: selected?.frac_irac ?? current.frac_irac_snapshot,
-                        phi_zile_snapshot: selected?.phi_zile ?? current.phi_zile_snapshot,
-                      }))
-                    }
-                    produse={produse}
-                    value={produs.produs_id ?? null}
-                  />
+                  <div className="md:col-span-2 md:space-y-2">
+                    <div className={cn(produs.produs_id ? 'md:hidden' : '')}>
+                      <ProdusFitosanitarPicker
+                        allowQuickCreate={false}
+                        label="Produs din bibliotecă"
+                        className="relative z-20 overflow-x-visible"
+                        popoverContentClassName="max-h-[40vh]"
+                        onChange={(selected) =>
+                          updateProduct(produs.id, (current) => ({
+                            ...current,
+                            produs_id: selected?.id ?? null,
+                            produs_nume_manual: selected ? '' : current.produs_nume_manual,
+                            produs_nume_snapshot: selected?.nume_comercial ?? current.produs_nume_snapshot,
+                            substanta_activa_snapshot: selected?.substanta_activa ?? current.substanta_activa_snapshot,
+                            tip_snapshot: selected?.tip ?? current.tip_snapshot,
+                            frac_irac_snapshot: selected?.frac_irac ?? current.frac_irac_snapshot,
+                            phi_zile_snapshot: selected?.phi_zile ?? current.phi_zile_snapshot,
+                          }))
+                        }
+                        produse={produse}
+                        value={produs.produs_id ?? null}
+                      />
+                    </div>
+                    {produs.produs_id ? (
+                      <div className="hidden md:flex md:items-center md:gap-2 md:px-3 md:py-1.5 md:border md:border-[#3D7A5F] md:rounded-lg md:bg-[#f0f8f4]">
+                        <div className="min-w-0 flex-1 flex flex-col">
+                          <span className="truncate text-[13px] font-medium text-[#0f6e56]">
+                            {(produs.produs_nume_snapshot || selectedProduct?.nume_comercial || '').trim() || 'Produs din bibliotecă'}
+                          </span>
+                          {(() => {
+                            const subtitleParts = [
+                              produs.substanta_activa_snapshot?.trim() || null,
+                              productTypeLabel,
+                            ].filter(Boolean) as string[]
+                            return subtitleParts.length > 0 ? (
+                              <span className="truncate text-[11px] text-[#3D7A5F] opacity-70">
+                                {subtitleParts.join(' · ')}
+                              </span>
+                            ) : null
+                          })()}
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Elimină produsul selectat"
+                          className="shrink-0 cursor-pointer text-[#3D7A5F] bg-transparent border-none p-1"
+                          onClick={() =>
+                            updateProduct(produs.id, (current) => ({
+                              ...current,
+                              produs_id: null,
+                              produs_nume_manual: current.produs_nume_manual ?? '',
+                              produs_nume_snapshot: current.produs_nume_snapshot ?? null,
+                            }))
+                          }
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
 
                   {showManualFields ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 md:col-span-2 md:space-y-2">
                       <div className="space-y-2">
-                        <Label htmlFor={`manual-product-name-${produs.id}`}>Nume produs</Label>
+                        <Label htmlFor={`manual-product-name-${produs.id}`} className="md:text-[11px]">
+                          Nume produs
+                        </Label>
                         <Input
                           id={`manual-product-name-${produs.id}`}
+                          className="md:py-1.5 md:text-[13px]"
                           value={produs.produs_nume_manual ?? ''}
                           onChange={(event) =>
                             updateProduct(produs.id, (current) => ({
@@ -550,7 +592,7 @@ export function AdaugaInterventieManualDialog({
                         />
                       </div>
 
-                      <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] md:text-[12px]">
                         <input
                           type="checkbox"
                           checked={produs.save_in_library}
@@ -568,7 +610,7 @@ export function AdaugaInterventieManualDialog({
                   ) : null}
 
                   <div className="space-y-2">
-                    <Label>Tip produs</Label>
+                    <Label className="md:text-[11px]">Tip produs</Label>
                     <Select
                       value={produs.product_category}
                       onValueChange={(next) =>
@@ -582,7 +624,7 @@ export function AdaugaInterventieManualDialog({
                         }))
                       }
                     >
-                      <SelectTrigger className="agri-control h-11 w-full rounded-xl px-3 text-sm">
+                      <SelectTrigger className="agri-control h-11 w-full rounded-xl px-3 text-sm md:py-1.5 md:text-[13px]">
                         <SelectValue placeholder="Selectează tip produs" />
                       </SelectTrigger>
                       <SelectContent className="max-w-[calc(100vw-2rem)]">
@@ -594,13 +636,17 @@ export function AdaugaInterventieManualDialog({
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="hidden md:block" aria-hidden />
 
                   {produs.product_category === 'fitosanitar' ? (
-                    <div className="grid gap-3 md:grid-cols-2 min-w-0">
+                    <div className="grid gap-3 md:contents min-w-0">
                       <div className="space-y-2">
-                        <Label htmlFor={`manual-substanta-${produs.id}`}>Substanță activă</Label>
+                        <Label htmlFor={`manual-substanta-${produs.id}`} className="md:text-[11px]">
+                          Substanță activă
+                        </Label>
                         <Input
                           id={`manual-substanta-${produs.id}`}
+                          className="md:py-1.5 md:text-[13px]"
                           value={produs.substanta_activa_snapshot ?? ''}
                           onChange={(event) =>
                             updateProduct(produs.id, (current) => ({
@@ -611,9 +657,12 @@ export function AdaugaInterventieManualDialog({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`manual-frac-${produs.id}`}>FRAC/IRAC</Label>
+                        <Label htmlFor={`manual-frac-${produs.id}`} className="md:text-[11px]">
+                          FRAC/IRAC
+                        </Label>
                         <Input
                           id={`manual-frac-${produs.id}`}
+                          className="md:py-1.5 md:text-[13px]"
                           value={produs.frac_irac_snapshot ?? ''}
                           onChange={(event) =>
                             updateProduct(produs.id, (current) => ({
@@ -624,12 +673,15 @@ export function AdaugaInterventieManualDialog({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor={`manual-phi-${produs.id}`}>PHI zile</Label>
+                        <Label htmlFor={`manual-phi-${produs.id}`} className="md:text-[11px]">
+                          PHI zile
+                        </Label>
                         <Input
                           id={`manual-phi-${produs.id}`}
                           type="number"
                           min="0"
                           step="1"
+                          className="md:py-1.5 md:text-[13px]"
                           value={produs.phi_zile_snapshot ?? ''}
                           onChange={(event) =>
                             updateProduct(produs.id, (current) => ({
@@ -642,27 +694,31 @@ export function AdaugaInterventieManualDialog({
                     </div>
                   ) : null}
 
-                  <div className="grid gap-3 md:grid-cols-2 min-w-0">
-                    <div className="space-y-2">
-                      <Label htmlFor={`manual-cantitate-${produs.id}`}>Cantitate aplicată</Label>
-                      <Input
-                        id={`manual-cantitate-${produs.id}`}
-                        value={produs.cantitate_text}
-                        placeholder="ex: 60 ml la 15 l apă, sau 200 ml/ha"
-                        onChange={(event) =>
-                          updateProduct(produs.id, (current) => ({
-                            ...current,
-                            cantitate_text: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor={`manual-cantitate-${produs.id}`} className="md:text-[11px]">
+                      Cantitate aplicată
+                    </Label>
+                    <Input
+                      id={`manual-cantitate-${produs.id}`}
+                      className="md:py-1.5 md:text-[13px]"
+                      value={produs.cantitate_text}
+                      placeholder="ex: 60 ml la 15 l apă, sau 200 ml/ha"
+                      onChange={(event) =>
+                        updateProduct(produs.id, (current) => ({
+                          ...current,
+                          cantitate_text: event.target.value,
+                        }))
+                      }
+                    />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor={`manual-product-notes-${produs.id}`}>Observații produs</Label>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor={`manual-product-notes-${produs.id}`} className="md:text-[11px]">
+                      Observații produs
+                    </Label>
                     <Input
                       id={`manual-product-notes-${produs.id}`}
+                      className="md:py-1.5 md:text-[13px]"
                       value={produs.observatii ?? ''}
                       onChange={(event) =>
                         updateProduct(produs.id, (current) => ({

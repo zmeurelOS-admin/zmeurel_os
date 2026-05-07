@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { ArrowDown, ArrowUp, ChevronDown, Loader2, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, Loader2, Plus, Trash2, X } from 'lucide-react'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -1062,41 +1062,86 @@ export function MarkAplicataSheet({
                     </Button>
                   </div>
 
-                  <div className="grid gap-2 md:grid-cols-2 md:gap-x-3 min-w-0">
-                    <div className="space-y-2">
-                      <Label htmlFor={`aplicata-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
-                      <ProdusFitosanitarPicker
-                        produse={availableProducts}
-                        value={produsDraft.produs_id ?? null}
-                        popoverCollisionPadding={24}
-                        popoverContentClassName="max-h-[min(48vh,20rem)]"
-                        selectedLabel={
-                          (produsDraft.produs_nume_snapshot || produsDraft.produs_nume_manual || '').trim() || null
-                        }
-                        onChange={(product) =>
-                          updateProduct(produsDraft.id, (current) => {
-                            if (!product) {
-                              const fallbackName = current.produs_nume_snapshot || current.produs_nume_manual || ''
-                              return {
-                                ...current,
-                                produs_id: null,
-                                produs_nume_manual: fallbackName,
-                                produs_nume_snapshot: fallbackName || null,
+                  <div className="space-y-2 md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-2 md:space-y-0 min-w-0">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor={`aplicata-produs-${produsDraft.id}`} className="md:text-[11px]">
+                        Produs din bibliotecă
+                      </Label>
+                      <div className={cn(produsDraft.produs_id ? 'md:hidden' : '')}>
+                        <ProdusFitosanitarPicker
+                          produse={availableProducts}
+                          value={produsDraft.produs_id ?? null}
+                          popoverCollisionPadding={24}
+                          popoverContentClassName="max-h-[min(48vh,20rem)]"
+                          selectedLabel={
+                            (produsDraft.produs_nume_snapshot || produsDraft.produs_nume_manual || '').trim() || null
+                          }
+                          onChange={(product) =>
+                            updateProduct(produsDraft.id, (current) => {
+                              if (!product) {
+                                const fallbackName = current.produs_nume_snapshot || current.produs_nume_manual || ''
+                                return {
+                                  ...current,
+                                  produs_id: null,
+                                  produs_nume_manual: fallbackName,
+                                  produs_nume_snapshot: fallbackName || null,
+                                }
                               }
-                            }
 
-                            return updateProductFromCatalog(current, product)
-                          })
-                        }
-                        onCreateProduct={saveProductToLibrary.mutateAsync}
-                        placeholder="Adaugă manual"
-                      />
+                              return updateProductFromCatalog(current, product)
+                            })
+                          }
+                          onCreateProduct={saveProductToLibrary.mutateAsync}
+                          placeholder="Adaugă manual"
+                        />
+                      </div>
+                      {produsDraft.produs_id ? (
+                        <div className="hidden md:flex md:items-center md:gap-2 md:px-3 md:py-1.5 md:border md:border-[#3D7A5F] md:rounded-lg md:bg-[#f0f8f4]">
+                          <div className="min-w-0 flex-1 flex flex-col">
+                            <span className="truncate text-[13px] font-medium text-[#0f6e56]">
+                              {(produsDraft.produs_nume_snapshot || selectedProduct?.nume_comercial || '').trim() || 'Produs din bibliotecă'}
+                            </span>
+                            {(() => {
+                              const subtitleParts = [
+                                produsDraft.substanta_activa_snapshot?.trim() || null,
+                                productTypeLabel,
+                              ].filter(Boolean) as string[]
+                              return subtitleParts.length > 0 ? (
+                                <span className="truncate text-[11px] text-[#3D7A5F] opacity-70">
+                                  {subtitleParts.join(' · ')}
+                                </span>
+                              ) : null
+                            })()}
+                          </div>
+                          <button
+                            type="button"
+                            aria-label="Elimină produsul selectat"
+                            className="shrink-0 cursor-pointer text-[#3D7A5F] bg-transparent border-none p-1"
+                            onClick={() =>
+                              updateProduct(produsDraft.id, (current) => {
+                                const fallbackName = current.produs_nume_snapshot || current.produs_nume_manual || ''
+                                return {
+                                  ...current,
+                                  produs_id: null,
+                                  produs_nume_manual: fallbackName,
+                                  produs_nume_snapshot: fallbackName || null,
+                                }
+                              })
+                            }
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor={`aplicata-manual-${produsDraft.id}`}>Nume manual</Label>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor={`aplicata-manual-${produsDraft.id}`} className="md:text-[11px]">
+                        Nume manual
+                      </Label>
                       <Input
                         id={`aplicata-manual-${produsDraft.id}`}
+                        className="md:py-1.5 md:text-[13px]"
                         value={produsDraft.produs_nume_manual}
                         disabled={Boolean(produsDraft.produs_id)}
                         onChange={(event) =>
@@ -1110,8 +1155,8 @@ export function MarkAplicataSheet({
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Tip produs</Label>
+                    <div className="space-y-2">
+                      <Label className="md:text-[11px]">Tip produs</Label>
                       <Select
                         value={mapSnapshotToProductType(produsDraft.tip_snapshot) ?? undefined}
                         onValueChange={(value) =>
@@ -1128,7 +1173,7 @@ export function MarkAplicataSheet({
                           })
                         }
                       >
-                        <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                        <SelectTrigger className="agri-control h-11 w-full md:h-10 md:py-1.5 md:text-[13px]">
                           <SelectValue placeholder="Selectează tipul produsului" />
                         </SelectTrigger>
                         <SelectContent className="max-w-[calc(100vw-2rem)]">
@@ -1140,13 +1185,17 @@ export function MarkAplicataSheet({
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="hidden md:block" aria-hidden />
 
                     {isFitosanitar ? (
                       <>
                         <div className="space-y-2">
-                          <Label htmlFor={`aplicata-substanta-${produsDraft.id}`}>Substanță activă</Label>
+                          <Label htmlFor={`aplicata-substanta-${produsDraft.id}`} className="md:text-[11px]">
+                            Substanță activă
+                          </Label>
                           <Input
                             id={`aplicata-substanta-${produsDraft.id}`}
+                            className="md:py-1.5 md:text-[13px]"
                             value={produsDraft.substanta_activa_snapshot}
                             onChange={(event) =>
                               updateProduct(produsDraft.id, (current) => ({
@@ -1157,11 +1206,14 @@ export function MarkAplicataSheet({
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:contents">
                           <div className="space-y-2">
-                            <Label htmlFor={`aplicata-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
+                            <Label htmlFor={`aplicata-frac-${produsDraft.id}`} className="md:text-[11px]">
+                              FRAC/IRAC
+                            </Label>
                             <Input
                               id={`aplicata-frac-${produsDraft.id}`}
+                              className="md:py-1.5 md:text-[13px]"
                               value={produsDraft.frac_irac_snapshot}
                               onChange={(event) =>
                                 updateProduct(produsDraft.id, (current) => ({
@@ -1172,12 +1224,15 @@ export function MarkAplicataSheet({
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor={`aplicata-phi-${produsDraft.id}`}>PHI zile</Label>
+                            <Label htmlFor={`aplicata-phi-${produsDraft.id}`} className="md:text-[11px]">
+                              PHI zile
+                            </Label>
                             <Input
                               id={`aplicata-phi-${produsDraft.id}`}
                               type="number"
                               min="0"
                               step="1"
+                              className="md:py-1.5 md:text-[13px]"
                               value={produsDraft.phi_zile_snapshot ?? ''}
                               onChange={(event) =>
                                 updateProduct(produsDraft.id, (current) => ({
@@ -1191,10 +1246,13 @@ export function MarkAplicataSheet({
                       </>
                     ) : null}
 
-                    <div className="space-y-2">
-                      <Label htmlFor={`aplicata-cantitate-${produsDraft.id}`}>Cantitate aplicată</Label>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor={`aplicata-cantitate-${produsDraft.id}`} className="md:text-[11px]">
+                        Cantitate aplicată
+                      </Label>
                       <Input
                         id={`aplicata-cantitate-${produsDraft.id}`}
+                        className="md:py-1.5 md:text-[13px]"
                         value={produsDraft.cantitate_text}
                         placeholder={CANTITATE_PLACEHOLDER}
                         onChange={(event) =>
@@ -1207,10 +1265,13 @@ export function MarkAplicataSheet({
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor={`aplicata-produs-observatii-${produsDraft.id}`}>Observații produs</Label>
+                      <Label htmlFor={`aplicata-produs-observatii-${produsDraft.id}`} className="md:text-[11px]">
+                        Observații produs
+                      </Label>
                       <Textarea
                         id={`aplicata-produs-observatii-${produsDraft.id}`}
                         rows={2}
+                        className="md:h-[52px] md:py-1.5 md:text-[13px]"
                         value={produsDraft.observatii}
                         onChange={(event) =>
                           updateProduct(produsDraft.id, (current) => ({
