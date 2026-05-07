@@ -7,7 +7,7 @@ import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const WIZARD_STEP_LABELS = ['Verificare', 'Produse și doze', 'Detalii', 'Confirmare'] as const
+const WIZARD_STEP_LABELS = ['Aplică', 'Confirmă'] as const
 
 export interface AplicareDetaliuHeaderProps {
   backHref: string
@@ -27,7 +27,7 @@ export function AplicareDetaliuHeader({
   wizard,
 }: AplicareDetaliuHeaderProps) {
   const subtitle = wizard
-    ? `${parcelaName} · Pas ${wizard.step + 1}/4 — ${WIZARD_STEP_LABELS[wizard.step] ?? ''}`
+    ? `${parcelaName} · Pas ${wizard.step + 1}/2 — ${WIZARD_STEP_LABELS[wizard.step] ?? ''}`
     : parcelaName
 
   if (wizard) {
@@ -35,31 +35,14 @@ export function AplicareDetaliuHeader({
       <CompactPageHeader
         title="Detaliu aplicare"
         subtitle={subtitle}
-        showMobileRightSlot
-        stackMobileRightSlotBelow
-        rightSlot={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={wizard.draftDisabled}
-            onClick={wizard.onSaveDraft}
-          >
-            Ciornă
-          </Button>
-        }
         summary={
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={wizard.onBack}>
-                <ArrowLeft className="h-4 w-4" />
-                Înapoi
-              </Button>
-              <Button type="button" variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-                <Link href={backHref}>La hub tratamente</Link>
-              </Button>
-            </div>
-            <div className="flex items-center gap-1.5" aria-hidden>
+          <div className="flex h-10 items-center gap-2">
+            <Button type="button" variant="outline" size="sm" className="h-10 shrink-0" onClick={wizard.onBack}>
+              <ArrowLeft className="h-4 w-4" />
+              Înapoi
+            </Button>
+
+            <div className="flex min-w-0 flex-1 items-center gap-1.5" aria-hidden>
               {WIZARD_STEP_LABELS.map((_, index) => (
                 <span
                   key={index}
@@ -74,6 +57,17 @@ export function AplicareDetaliuHeader({
                 />
               ))}
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-10 shrink-0"
+              disabled={wizard.draftDisabled}
+              onClick={wizard.onSaveDraft}
+            >
+              Ciornă
+            </Button>
           </div>
         }
       />

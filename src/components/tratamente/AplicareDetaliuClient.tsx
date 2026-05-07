@@ -674,35 +674,33 @@ export function AplicareDetaliuClient({
   }
 
   const handleWizardNext = () => {
-    if (wizardStep === 1) {
-      const productError = validateProducts(produseMarkDrafts)
-      if (productError) {
-        toast.error(productError)
-        return
-      }
+    const productError = validateProducts(produseMarkDrafts)
+    if (productError) {
+      toast.error(productError)
+      return
     }
-    if (wizardStep === 2 && rubusMixt && !cohortBlocata && !cohortMarcare) {
+    if (rubusMixt && !cohortBlocata && !cohortMarcare && wizardStep === 0) {
       toast.error('Selectează cohorta pentru aplicare.')
       return
     }
-    setWizardStep((step) => Math.min(step + 1, 3))
+    setWizardStep(1)
   }
 
   const handleWizardFinalMark = () => {
     const productError = validateProducts(produseMarkDrafts)
     if (productError) {
       toast.error(productError)
-      setWizardStep(1)
+      setWizardStep(0)
       return
     }
     if (rubusMixt && !cohortBlocata && !cohortMarcare) {
       toast.error('Selectează cohorta pentru aplicare.')
-      setWizardStep(2)
+      setWizardStep(0)
       return
     }
     if (!dataOraAplicareMark.trim()) {
       toast.error('Data aplicării este obligatorie.')
-      setWizardStep(2)
+      setWizardStep(0)
       return
     }
 
@@ -959,288 +957,243 @@ export function AplicareDetaliuClient({
             </button>
           </div>
         ) : (
-        <div className="mx-auto w-full max-w-5xl space-y-4 py-3 pb-40 md:py-4 md:pb-10">
-          {wizardStep === 0 ? (
-            <>
-              <AplicareHero aplicare={aplicare} configurareSezon={configurareSezon} />
+          <div className="mx-auto w-full max-w-5xl space-y-3 py-3 pb-40 md:py-4 md:pb-10">
+            {(() => {
+              const primary = produseFormular[0] ?? null
+              const primaryLabel = primary
+                ? (primary.produs_nume_snapshot || primary.produs_nume_manual || '').trim() || null
+                : null
 
-              <AppCard className="rounded-2xl bg-[var(--surface-card)]">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm text-[var(--text-secondary)] [font-weight:650]">Context operațional</p>
-                    <p className="mt-1 text-base text-[var(--text-primary)] [font-weight:700]">{contextLabel}</p>
-                    <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                      {parcelaDisplayName}
-                      {aplicare.data_planificata ? ` · Programată ${aplicare.data_planificata}` : ''}
-                      {aplicare.data_aplicata ? ` · Aplicată ${aplicare.data_aplicata}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AplicareSourceBadge source={aplicare.sursa ?? (aplicare.plan_linie_id ? 'din_plan' : 'manuala')} />
-                    {planHref ? (
-                      <Button type="button" variant="outline" size="sm" asChild>
-                        <Link href={planHref}>Vezi planul</Link>
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
+              const phiTone = verificari.phi.tone
+              const phiBadge =
+                phiTone === 'success' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                    ✓ PHI OK
+                  </span>
+                ) : phiTone === 'danger' ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                    ⚠ PHI
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
+                    PHI
+                  </span>
+                )
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
-                    <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Intervenție</p>
-                    <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">
-                      {getAplicareInterventieLabel(aplicare)}
-                    </p>
-                    <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                      {getStadiuAplicareLabel(aplicare)}
-                      {cohortImplicita
-                        ? ` · ${cohortImplicita === 'floricane' ? 'Floricane' : 'Primocane'}`
-                        : ''}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
-                    <p className="text-xs uppercase tracking-[0.03em] text-[var(--text-secondary)]">Produse efective</p>
-                    <p className="mt-2 text-sm text-[var(--text-primary)] [font-weight:650]">
-                      {productsSummary.count > 1 ? `${productsSummary.count} produse` : '1 produs'}
-                    </p>
-                    <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                      {productsSummary.title}
-                      {productsSummary.detail ? ` · ${productsSummary.detail}` : ''}
-                    </p>
-                  </div>
-                </div>
-              </AppCard>
-
-              {isPlanificata && meteoZi ? (
-                <MeteoWindowBar dateLabel={meteoDateLabel} ferestre={meteoZi.ferestre_24h} />
-              ) : isPlanificata ? (
-                <AppCard className="rounded-2xl">
-                  <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Ferestre meteo</h3>
-                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                    Meteo indisponibil acum. Poți continua și fără snapshot automat.
-                  </p>
-                </AppCard>
-              ) : null}
-
-              <VerificariAutomate phi={verificari.phi} sezon={verificari.sezon} stoc={verificari.stoc} />
-            </>
-          ) : null}
-
-          {wizardStep === 1 ? (
-            <AppCard className="rounded-2xl bg-[var(--surface-card)]">
-              <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Produse și doze</h3>
-              {produseEditableInner}
-            </AppCard>
-          ) : null}
-
-          {wizardStep === 2 ? (
-            <AppCard className="rounded-2xl bg-[var(--surface-card)]">
-              <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Detalii aplicare</h3>
-              <div className="mt-3 grid gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="wizard-data-aplicata">Data și ora aplicării</Label>
-                  <Input
-                    id="wizard-data-aplicata"
-                    type="datetime-local"
-                    className="agri-control"
-                    value={dataOraAplicareMark}
-                    onChange={(event) => setDataOraAplicareMark(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="wizard-cantitate-ml">Cantitate totală (ml)</Label>
-                  <Input
-                    id="wizard-cantitate-ml"
-                    inputMode="decimal"
-                    value={cantitateTotalaMlMark}
-                    onChange={(event) => setCantitateTotalaMlMark(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="wizard-operator">Operator</Label>
-                  <Input
-                    id="wizard-operator"
-                    value={operatorLocal}
-                    onChange={(event) => setOperatorLocal(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Stadiu la aplicare</Label>
-                  <Select
-                    value={stadiuLaAplicareMark || undefined}
-                    onValueChange={(value) => setStadiuPick(value)}
-                  >
-                    <SelectTrigger className="agri-control h-11 w-full">
-                      <SelectValue placeholder="Selectează stadiul" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {stadiiOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {rubusMixt && !cohortBlocata ? (
-                  <div className="space-y-1.5">
-                    <Label>Cohortă la aplicare</Label>
-                    <Select
-                      value={cohortMarcare ?? undefined}
-                      onValueChange={(value) => setCohortMarcare(value as Cohorta)}
-                    >
-                      <SelectTrigger className="agri-control h-11 w-full">
-                        <SelectValue placeholder="Selectează cohorta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="floricane">{getCohortaLabel('floricane')}</SelectItem>
-                        <SelectItem value="primocane">{getCohortaLabel('primocane')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
-                <div className="space-y-1.5">
-                  <Label htmlFor="wizard-observatii">Observații generale</Label>
-                  <Textarea
-                    id="wizard-observatii"
-                    value={observatiiLocale}
-                    onChange={(event) => setObservatiiLocale(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="wizard-diferente">Diferențe față de plan (opțional)</Label>
-                  <Textarea
-                    id="wizard-diferente"
-                    rows={3}
-                    placeholder="Ex: produs înlocuit, doză ajustată."
-                    value={diferenteFataDePlanText}
-                    onChange={(event) => setDiferenteFataDePlanText(event.target.value)}
-                  />
-                </div>
-                <div className="rounded-2xl bg-[var(--surface-card-muted)] p-3">
-                  <div className="flex items-center justify-between gap-2.5">
-                    <div>
-                      <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Snapshot meteo</p>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                        Se folosește citirea curentă; poți ajusta manual.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="text-sm font-medium text-[var(--agri-primary)] transition-colors hover:text-[color:color-mix(in_srgb,var(--agri-primary)_82%,black)]"
-                      onClick={() => setEditMeteoWizard((current) => !current)}
-                    >
-                      {editMeteoWizard ? 'Ascunde editarea' : 'Editează manual'}
-                    </button>
-                  </div>
-                  {!editMeteoWizard ? (
-                    <div className="mt-2.5 grid grid-cols-2 gap-2.5 text-sm text-[var(--text-secondary)]">
-                      <p>{`Temp: ${meteoZi?.snapshot_curent?.temperatura_c ?? '—'}°C`}</p>
-                      <p>{`Umiditate: ${meteoZi?.snapshot_curent?.umiditate_pct ?? '—'}%`}</p>
-                      <p>{`Vânt: ${meteoZi?.snapshot_curent?.vant_kmh ?? '—'} km/h`}</p>
-                      <p>{`Ploaie 24h: ${meteoZi?.snapshot_curent?.precipitatii_mm_24h ?? '—'} mm`}</p>
-                      <p className="col-span-2">
-                        {meteoZi?.snapshot_curent?.descriere ?? 'Fără descriere meteo disponibilă.'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="mt-2.5 grid gap-2.5">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="wizard-meteo-temp">Temperatură (°C)</Label>
-                        <Input
-                          id="wizard-meteo-temp"
-                          inputMode="decimal"
-                          value={meteoWizardFields.temperatura_c}
-                          onChange={(event) =>
-                            setMeteoWizardFields((current) => ({ ...current, temperatura_c: event.target.value }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="wizard-meteo-umid">Umiditate (%)</Label>
-                        <Input
-                          id="wizard-meteo-umid"
-                          inputMode="decimal"
-                          value={meteoWizardFields.umiditate_pct}
-                          onChange={(event) =>
-                            setMeteoWizardFields((current) => ({ ...current, umiditate_pct: event.target.value }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="wizard-meteo-vant">Vânt (km/h)</Label>
-                        <Input
-                          id="wizard-meteo-vant"
-                          inputMode="decimal"
-                          value={meteoWizardFields.vant_kmh}
-                          onChange={(event) =>
-                            setMeteoWizardFields((current) => ({ ...current, vant_kmh: event.target.value }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="wizard-meteo-precip">Precipitații 24h (mm)</Label>
-                        <Input
-                          id="wizard-meteo-precip"
-                          inputMode="decimal"
-                          value={meteoWizardFields.precipitatii_mm_24h}
-                          onChange={(event) =>
-                            setMeteoWizardFields((current) => ({
-                              ...current,
-                              precipitatii_mm_24h: event.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="wizard-meteo-desc">Descriere</Label>
-                        <Input
-                          id="wizard-meteo-desc"
-                          value={meteoWizardFields.descriere}
-                          onChange={(event) =>
-                            setMeteoWizardFields((current) => ({ ...current, descriere: event.target.value }))
-                          }
-                        />
+              if (wizardStep === 0) {
+                return (
+                  <div className="space-y-3">
+                    <div className="rounded-xl border border-[color:color-mix(in_srgb,var(--agri-primary)_18%,var(--border-default))] bg-[color:color-mix(in_srgb,var(--agri-primary)_10%,var(--surface-card))] p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)] [font-weight:700]">
+                          {getAplicareInterventieLabel(aplicare)}
+                        </p>
+                        <div className="shrink-0">{phiBadge}</div>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </AppCard>
-          ) : null}
 
-          {wizardStep === 3 ? (
-            <>
-              <AppCard className="rounded-2xl bg-[var(--surface-card)]">
-                <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Confirmare</h3>
-                <p className="mt-2 text-sm text-[var(--text-secondary)]">
-                  Verifică rezumatul înainte de a marca aplicarea ca efectuată.
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
-                  <li className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
-                    <span className="text-[var(--text-primary)] [font-weight:650]">Data aplicării: </span>
-                    {dataOraAplicareMark.replace('T', ' ')}
-                  </li>
-                  <li className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
-                    <span className="text-[var(--text-primary)] [font-weight:650]">Operator: </span>
-                    {operatorLocal.trim() || '—'}
-                  </li>
-                  <li className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
-                    <span className="text-[var(--text-primary)] [font-weight:650]">Produse: </span>
-                    {produseMarkDrafts.length}
-                  </li>
-                  {rubusMixt && !cohortBlocata ? (
-                    <li className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
-                      <span className="text-[var(--text-primary)] [font-weight:650]">Cohortă: </span>
-                      {cohortMarcare ? getCohortaLabel(cohortMarcare) : '—'}
-                    </li>
-                  ) : null}
-                </ul>
-              </AppCard>
-              <VerificariAutomate phi={verificari.phi} sezon={verificari.sezon} stoc={verificari.stoc} />
-            </>
-          ) : null}
-        </div>
+                    <AppCard className="rounded-2xl bg-[var(--surface-card)]">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-doza-ml">Doză ml/hl</Label>
+                          <Input
+                            id="wizard-doza-ml"
+                            inputMode="decimal"
+                            value={primary?.doza_ml_per_hl ?? ''}
+                            onChange={(event) => {
+                              if (!primary) return
+                              updateProdusFormular(primary.localId, (current) => ({
+                                ...current,
+                                doza_ml_per_hl: event.target.value,
+                              }))
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-doza-ha">Doză l/ha</Label>
+                          <Input
+                            id="wizard-doza-ha"
+                            inputMode="decimal"
+                            value={primary?.doza_l_per_ha ?? ''}
+                            onChange={(event) => {
+                              if (!primary) return
+                              updateProdusFormular(primary.localId, (current) => ({
+                                ...current,
+                                doza_l_per_ha: event.target.value,
+                              }))
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-cantitate">Cantitate totală</Label>
+                          <Input
+                            id="wizard-cantitate"
+                            placeholder="Ex: 750g"
+                            value={primary?.cantitate_totala ?? ''}
+                            onChange={(event) => {
+                              if (!primary) return
+                              updateProdusFormular(primary.localId, (current) => ({
+                                ...current,
+                                cantitate_totala: event.target.value,
+                              }))
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-data-aplicata">Data aplicării</Label>
+                          <Input
+                            id="wizard-data-aplicata"
+                            type="datetime-local"
+                            className="agri-control"
+                            value={dataOraAplicareMark}
+                            onChange={(event) => setDataOraAplicareMark(event.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 space-y-3">
+                        <div className="space-y-1.5">
+                          <Label>Produs</Label>
+                          <div className="flex items-center gap-2">
+                            <ProdusFitosanitarPicker
+                              produse={produseFitosanitare}
+                              value={primary?.produs_id ?? null}
+                              selectedLabel={primaryLabel}
+                              placeholder={primary ? 'Schimbă produsul' : 'Alege produs'}
+                              onChange={(product) => {
+                                if (!primary) {
+                                  handleAdaugaProdus(product)
+                                  return
+                                }
+                                updateProdusFormular(primary.localId, (current) => applyCatalogProduct(current, product))
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {rubusMixt && !cohortBlocata ? (
+                          <div className="space-y-1.5">
+                            <Label>Cohortă</Label>
+                            <Select
+                              value={cohortMarcare ?? undefined}
+                              onValueChange={(value) => setCohortMarcare(value as Cohorta)}
+                            >
+                              <SelectTrigger className="agri-control h-11 w-full">
+                                <SelectValue placeholder="Selectează cohorta" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="floricane">{getCohortaLabel('floricane')}</SelectItem>
+                                <SelectItem value="primocane">{getCohortaLabel('primocane')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-operator">Operator</Label>
+                          <Input
+                            id="wizard-operator"
+                            value={operatorLocal}
+                            onChange={(event) => setOperatorLocal(event.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="wizard-observatii">Observații</Label>
+                          <Textarea
+                            id="wizard-observatii"
+                            rows={2}
+                            placeholder="Observații..."
+                            value={observatiiLocale}
+                            onChange={(event) => setObservatiiLocale(event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </AppCard>
+                  </div>
+                )
+              }
+
+              const produsPrincipal = getPrincipalProductNameForMarkSuccess({
+                data_aplicata: dataOraAplicareMark,
+                cantitate_totala_ml: cantitateTotalaMlMark,
+                operator: operatorLocal,
+                stadiu_la_aplicare: stadiuLaAplicareMark || undefined,
+                cohort_la_aplicare: rubusMixt ? (cohortBlocata ?? cohortMarcare) : undefined,
+                observatii: observatiiLocale,
+                meteoSnapshot: resolveWizardMeteoSnapshot(),
+                produse: produseMarkDrafts as unknown as MarkAplicataFormValues['produse'],
+              } satisfies MarkAplicataFormValues)
+
+              const summaryDoza =
+                primary?.doza_ml_per_hl?.trim()
+                  ? `${primary.doza_ml_per_hl.trim()} ml/hl`
+                  : primary?.doza_l_per_ha?.trim()
+                    ? `${primary.doza_l_per_ha.trim()} l/ha`
+                    : '—'
+
+              const summaryCantitate = primary?.cantitate_totala?.trim() ? primary.cantitate_totala.trim() : '—'
+
+              return (
+                <div className="space-y-3">
+                  <AppCard className="rounded-[14px] bg-gray-50">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--text-secondary)]">Produs</span>
+                        <span className="min-w-0 truncate text-right text-[var(--text-primary)] [font-weight:650]">
+                          {produsPrincipal}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--text-secondary)]">Doză</span>
+                        <span className="text-right text-[var(--text-primary)] [font-weight:650]">{summaryDoza}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--text-secondary)]">Cantitate</span>
+                        <span className="text-right text-[var(--text-primary)] [font-weight:650]">{summaryCantitate}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--text-secondary)]">Data</span>
+                        <span className="text-right text-[var(--text-primary)] [font-weight:650]">
+                          {formatMarkSuccessDateDisplay(dataOraAplicareMark)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--text-secondary)]">Operator</span>
+                        <span className="min-w-0 truncate text-right text-[var(--text-primary)] [font-weight:650]">
+                          {operatorLocal.trim() || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </AppCard>
+
+                  <AppCard className="rounded-2xl bg-[var(--surface-card)]">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[var(--text-secondary)]">Verificări</span>
+                        <span className="text-[var(--text-secondary)] text-xs">compact</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2 rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
+                          <span className="text-[var(--text-primary)] [font-weight:650]">
+                            {verificari.phi.tone === 'success' ? '✓ PHI OK' : verificari.phi.tone === 'danger' ? '⚠ PHI problemă' : 'PHI'}
+                          </span>
+                          <span className="text-right text-[var(--text-secondary)]">{verificari.phi.message}</span>
+                        </div>
+                        <div className="flex items-start justify-between gap-2 rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
+                          <span className="text-[var(--text-primary)] [font-weight:650]">Aplicări în sezon</span>
+                          <span className="text-right text-[var(--text-secondary)]">{verificari.sezon.message}</span>
+                        </div>
+                        <div className="flex items-start justify-between gap-2 rounded-xl bg-[var(--surface-card-muted)] px-3 py-2">
+                          <span className="text-[var(--text-primary)] [font-weight:650]">Stoc</span>
+                          <span className="text-right text-[var(--text-secondary)]">verificare manuală</span>
+                        </div>
+                      </div>
+                    </div>
+                  </AppCard>
+                </div>
+              )
+            })()}
+          </div>
         )
       ) : (
       <div className="mx-auto w-full max-w-5xl space-y-4 py-3 pb-32 md:py-4 md:pb-10">
@@ -1416,8 +1369,8 @@ export function AplicareDetaliuClient({
         </div>
       ) : showMobileWizard && aplicatSuccess ? null : showMobileWizard ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--divider)] bg-[color:color-mix(in_srgb,var(--surface-page)_92%,transparent)] px-4 py-3 backdrop-blur-sm">
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-3">
-            {wizardStep < 3 ? (
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
+            {wizardStep === 0 ? (
               <Button
                 type="button"
                 className="w-full bg-[var(--agri-primary)] text-white"
@@ -1427,29 +1380,25 @@ export function AplicareDetaliuClient({
                 Continuă
               </Button>
             ) : (
-              <Button
-                type="button"
-                className="w-full bg-[var(--agri-primary)] text-white"
-                disabled={isPending}
-                onClick={handleWizardFinalMark}
-              >
-                Marchează ca aplicat ✓
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  className="w-full bg-[var(--agri-primary)] text-white"
+                  disabled={isPending}
+                  onClick={handleWizardFinalMark}
+                >
+                  ✓ Marchează ca aplicat
+                </Button>
+                <button
+                  type="button"
+                  className="mx-auto w-full border-0 bg-transparent p-0 text-sm font-medium text-[var(--agri-primary)] underline-offset-2 hover:underline"
+                  disabled={isPending}
+                  onClick={() => setReprogrameazaOpen(true)}
+                >
+                  Reprogramează
+                </button>
+              </>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" disabled={isPending} onClick={() => setReprogrameazaOpen(true)}>
-                Reprogramează
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-[var(--status-danger-text)]"
-                disabled={isPending}
-                onClick={() => setAnulareOpen(true)}
-              >
-                Anulează
-              </Button>
-            </div>
           </div>
         </div>
       ) : (

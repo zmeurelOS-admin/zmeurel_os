@@ -8,10 +8,8 @@ import { ro } from 'date-fns/locale'
 
 import { planificaInterventieRelevantaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
 import { reprogrameazaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
-import { AplicareListItem } from '@/components/tratamente/AplicareListItem'
 import { getInterventieKey } from '@/components/tratamente/InterventiiRelevanteCard'
 import { InterventieRapidApplySheet } from '@/components/tratamente/InterventieRapidApplySheet'
-import { PlanActivCard } from '@/components/tratamente/PlanActivCard'
 import type { StageState } from '@/components/tratamente/StadiuCurentCard'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
@@ -29,6 +27,15 @@ function formatObservedShort(stadiuCurent: StadiuFenologicParcela): string {
     return format(parseISO(stadiuCurent.data_observata), 'd MMM yyyy', { locale: ro })
   } catch {
     return stadiuCurent.data_observata
+  }
+}
+
+function formatAplicareDateShort(value: string | null | undefined): string {
+  if (!value) return '—'
+  try {
+    return format(parseISO(value), 'd MMM', { locale: ro })
+  } catch {
+    return value
   }
 }
 
@@ -99,7 +106,7 @@ function CohortMiniCard(props: {
   const stadiuCod = stage.stadiuCurent?.stadiu ?? null
   const codNorm = stadiuCod ? normalizeStadiu(stadiuCod) : null
   const numeFaza = codNorm ? getLabelStadiuContextual(codNorm, configurareSezon, { grupBiologic, cohort }) : '—'
-  const bbch = codNorm ?? '—'
+  const bbchDisplay = codNorm && /^\d/.test(codNorm) ? codNorm : null
   const dataObs = stage.stadiuCurent ? formatObservedShort(stage.stadiuCurent) : '—'
   const urmCod = stage.stadiuUrmator ? normalizeStadiu(stage.stadiuUrmator) : null
   const urmatorLabel = urmCod ? getLabelStadiuContextual(urmCod, configurareSezon, { grupBiologic, cohort }) : '—'
@@ -133,9 +140,7 @@ function CohortMiniCard(props: {
             {getCohortaLabel(cohort)}
           </p>
           <p className="mt-0.5 line-clamp-2 text-sm font-bold text-[var(--text-primary)]">{numeFaza}</p>
-          <p className="mt-0.5 text-[10px] text-gray-400">
-            BBCH {bbch} · {dataObs}
-          </p>
+          <p className="mt-0.5 text-[10px] text-gray-400">{bbchDisplay ? `BBCH ${bbchDisplay} · ${dataObs}` : dataObs}</p>
           <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
             <div className="h-full rounded-full transition-all" style={{ width: `${stage.stadiuProgress}%`, background: barColor }} />
           </div>
@@ -168,7 +173,7 @@ function SingleStageMiniCard(props: {
   const stadiuCod = stage.stadiuCurent?.stadiu ?? null
   const codNorm = stadiuCod ? normalizeStadiu(stadiuCod) : null
   const numeFaza = codNorm ? getLabelStadiuContextual(codNorm, configurareSezon, { grupBiologic }) : 'Fără fenofază'
-  const bbch = codNorm ?? '—'
+  const bbchDisplay = codNorm && /^\d/.test(codNorm) ? codNorm : null
   const dataObs = stage.stadiuCurent ? formatObservedShort(stage.stadiuCurent) : '—'
   const urmCod = stage.stadiuUrmator ? normalizeStadiu(stage.stadiuUrmator) : null
   const urmatorLabel = urmCod ? getLabelStadiuContextual(urmCod, configurareSezon, { grupBiologic }) : '—'
@@ -195,9 +200,7 @@ function SingleStageMiniCard(props: {
     <div className="w-full rounded-xl border-2 border-[var(--border-default)] bg-[var(--surface-card)] p-2.5">
       <p className="text-[10px] font-bold uppercase tracking-wide text-[#3D7A5F]">Fenofază curentă</p>
       <p className="mt-0.5 text-sm font-bold text-[var(--text-primary)]">{numeFaza}</p>
-      <p className="mt-0.5 text-[10px] text-gray-400">
-        BBCH {bbch} · {dataObs}
-      </p>
+      <p className="mt-0.5 text-[10px] text-gray-400">{bbchDisplay ? `BBCH ${bbchDisplay} · ${dataObs}` : dataObs}</p>
       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
         <div
           className="h-full rounded-full transition-all"
@@ -292,6 +295,8 @@ export function ParcelaTratamenteMobileHub({
   const canQuickApply = (inv: InterventieRelevantaV2) =>
     inv.status_operational !== 'neaplicabila_fara_stadiu' && inv.status_operational !== 'completata_pentru_moment'
 
+  const hasAssociatedPlan = Boolean(planActiv?.plan)
+
   return (
     <div className="mx-auto w-full max-w-[min(96vw,94rem)] space-y-3 px-3 py-3">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -351,11 +356,28 @@ export function ParcelaTratamenteMobileHub({
         </button>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" className="min-h-9 flex-1" onClick={() => onRecordStadiu(undefined)}>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full flex-1 rounded-[10px] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          onClick={() => onRecordStadiu(undefined)}
+        >
           Actualizează fenofaza
         </Button>
-        <Button type="button" variant="outline" size="sm" className="min-h-9 flex-1" onClick={onAssignPlan}>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className={cn(
+            'w-full flex-1 rounded-[10px] px-4 py-2 text-sm font-medium',
+            hasAssociatedPlan
+              ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-[color:color-mix(in_srgb,var(--agri-primary)_12%,white)] text-[var(--agri-primary)] hover:bg-[color:color-mix(in_srgb,var(--agri-primary)_18%,white)]',
+          )}
+          onClick={onAssignPlan}
+        >
           Asociază plan
         </Button>
       </div>
@@ -503,13 +525,93 @@ export function ParcelaTratamenteMobileHub({
         )}
       </div>
 
-      <PlanActivCard
-        createHref={createPlanHref}
-        detailsHref={detailsHref}
-        editHref={editPlanHref}
-        onAssign={onAssignPlan}
-        planActiv={planActiv}
-      />
+      <section className="space-y-2">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">Plan asociat</p>
+        <AppCard className="rounded-2xl">
+          {planActiv?.plan ? (
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-base text-[var(--text-primary)] [font-weight:700]">{planActiv.plan.nume}</p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    {planActiv.plan.cultura_tip} · {planActiv.an}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/tratamente/produse-fitosanitare"
+                  className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                >
+                  Bibliotecă produse
+                </Link>
+                <Link
+                  href="/tratamente/planuri"
+                  className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                >
+                  Toate planurile
+                </Link>
+                <Link
+                  href="/tratamente"
+                  className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                >
+                  Hub tratamente
+                </Link>
+                {detailsHref ? (
+                  <Link
+                    href={detailsHref}
+                    className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                  >
+                    Vezi detalii
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-400"
+                    disabled
+                  >
+                    Vezi detalii
+                  </button>
+                )}
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full rounded-[10px] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                onClick={onAssignPlan}
+              >
+                Schimbă plan
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-[var(--text-secondary)]">Nu există încă un plan asociat pentru această parcelă.</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full rounded-[10px] bg-[var(--agri-primary)] px-4 py-2 text-sm font-medium text-white"
+                  onClick={onAssignPlan}
+                >
+                  Asociază plan
+                </Button>
+                {createPlanHref ? (
+                  <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-700" asChild>
+                    <Link href={createPlanHref}>Creează plan</Link>
+                  </Button>
+                ) : (
+                  <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-400" disabled>
+                    Creează plan
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </AppCard>
+      </section>
 
       <section className="space-y-2">
         <div className="flex items-center gap-2">
@@ -524,14 +626,63 @@ export function ParcelaTratamenteMobileHub({
           </AppCard>
         ) : (
           <div className="space-y-2">
-            {urmatoareleAplicari.map((aplicare) => (
-              <AplicareListItem
-                key={aplicare.id}
-                aplicare={aplicare}
-                configurareSezon={configurareSezon}
-                parcelaId={parcelaId}
-              />
-            ))}
+            {urmatoareleAplicari.map((aplicare) => {
+              const dateText = formatAplicareDateShort(aplicare.data_planificata ?? aplicare.data_aplicata ?? null)
+              const fromPlan = Boolean(aplicare.plan_linie_id)
+              const headerBadge = fromPlan ? 'Din plan' : 'Planificată'
+              const produs =
+                aplicare.produse_aplicare?.[0]?.produs?.nume_comercial ??
+                aplicare.produse_aplicare?.[0]?.produs_nume_snapshot ??
+                aplicare.produse_aplicare?.[0]?.produs_nume_manual ??
+                aplicare.produs?.nume_comercial ??
+                aplicare.produs_nume_manual ??
+                'Produs'
+              const tipInterventie = aplicare.linie?.tip_interventie ?? null
+
+              const stadiuCod = aplicare.linie?.stadiu_trigger ?? aplicare.stadiu_la_aplicare ?? null
+              const stadiuNorm = stadiuCod ? normalizeStadiu(stadiuCod) : null
+              const stadiuLabel = stadiuNorm
+                ? getLabelStadiuContextual(stadiuNorm, configurareSezon, { grupBiologic, cohort: null })
+                : null
+
+              const cohort = (aplicare.linie?.cohort_trigger ?? aplicare.cohort_la_aplicare) as Cohorta | null
+              const cohortLabel = cohort === 'floricane' ? '🌸 Floricane' : cohort === 'primocane' ? '🌱 Primocane' : null
+
+              return (
+                <Link
+                  key={aplicare.id}
+                  href={`/parcele/${parcelaId}/tratamente/aplicare/${aplicare.id}`}
+                  className="block"
+                >
+                  <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)]">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{dateText}</p>
+                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+                        {headerBadge}
+                      </span>
+                    </div>
+                    <div className="mt-2">
+                      <p className="line-clamp-1 text-sm text-[var(--text-primary)] [font-weight:700]">{produs}</p>
+                      {tipInterventie ? (
+                        <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{tipInterventie}</p>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {stadiuLabel ? (
+                        <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
+                          {stadiuLabel}
+                        </span>
+                      ) : null}
+                      {cohortLabel ? (
+                        <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
+                          {cohortLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
             <Button type="button" variant="outline" size="sm" asChild>
               <Link href={`/parcele/${parcelaId}/tratamente/toate`}>Vezi toate ({aplicariCount})</Link>
             </Button>

@@ -26,6 +26,8 @@ interface EditParcelDialogProps {
   parcela: Parcela | null
   soiuriDisponibile: string[]
   onSaved: () => void
+  /** Deschis peste Sheet mobil — evită închiderea Sheet-ului la dismiss pe dialog. */
+  isolateFromParentModal?: boolean
 }
 
 const toFormValues = (parcela: Parcela): ParcelFormValues => {
@@ -73,6 +75,7 @@ export function EditParcelDialog({
   parcela,
   soiuriDisponibile,
   onSaved,
+  isolateFromParentModal = false,
 }: EditParcelDialogProps) {
   const form = useForm<ParcelFormValues>({
     resolver: zodResolver(parcelFormSchema),
@@ -134,6 +137,7 @@ export function EditParcelDialog({
     <AppDialog
       open={open}
       onOpenChange={onOpenChange}
+      isolateFromParentModal={isolateFromParentModal}
       title="🌱 Editează teren"
       description="Actualizezi detaliile terenului și vezi imediat rezumatul fără să schimbi fluxul de salvare."
       desktopFormWide

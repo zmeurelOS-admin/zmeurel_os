@@ -3088,6 +3088,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         parcela={selectedParcela}
         soiuriDisponibile={SOIURI_DISPONIBILE}
         onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })}
+        isolateFromParentModal={Boolean(!isDesktop && mobileTerenSheetOpen)}
       />
 
       <ConfirmDeleteDialog
