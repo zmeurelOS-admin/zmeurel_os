@@ -2,6 +2,7 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import type { Json } from '@/types/supabase'
 
 import { getMeteoZi, logMeteoWarning } from '@/lib/tratamente/meteo'
 import type { MeteoZi } from '@/lib/tratamente/meteo'
@@ -57,10 +58,11 @@ export async function createManualInterventieAction(formData: FormData): Promise
       tip_interventie: parsed.tip_interventie,
       scop: parsed.scop,
       stadiu_la_aplicare: parsed.stadiu_la_aplicare,
-      cohort_la_aplicare: parsed.cohort_la_aplicare,
+      cohort_la_aplicare: null,
       operator: parsed.operator,
       observatii: parsed.observatii,
       cantitate_totala_ml: parsed.cantitate_totala_ml,
+      meteo_snapshot: (parsed.meteoSnapshot as Json | null) ?? null,
       produse: parsed.produse,
       diferente_fata_de_plan: parsed.diferenteFataDePlan,
     })

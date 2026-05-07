@@ -71,6 +71,7 @@ const linieSchema = z
         phi_zile_snapshot: z.number().int().min(0).optional().nullable(),
         doza_ml_per_hl: z.number().min(0).optional().nullable(),
         doza_l_per_ha: z.number().min(0).optional().nullable(),
+        cantitate_text: z.string().trim().max(160).optional().nullable(),
         observatii: z.string().trim().max(500).optional().nullable(),
       }).superRefine((value, ctx) => {
         const hasProdusId = typeof value.produs_id === 'string' && value.produs_id.trim().length > 0

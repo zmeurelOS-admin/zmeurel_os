@@ -233,13 +233,13 @@ export function ParcelaTratamenteDashboardClient({
       formData.set('tip_interventie', values.tip_interventie ?? '')
       formData.set('scop', values.scop ?? '')
       formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
-      if (values.cohort_la_aplicare) {
-        formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
-      }
       formData.set('operator', values.operator ?? '')
       formData.set('observatii', values.observatii ?? '')
       formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
       formData.set('produse', JSON.stringify(values.produse))
+      if (values.meteoSnapshot) {
+        formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
+      }
       if (values.diferenteFataDePlan) {
         formData.set('diferente_fata_de_plan', JSON.stringify(values.diferenteFataDePlan))
       }

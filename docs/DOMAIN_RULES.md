@@ -171,6 +171,7 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 - Treatment pause days matter for harvest readiness and alerts.
 - Activities without operator after enough time may generate smart alerts.
 - When selected parcel `tip_unitate` is `cultura_mare`, activity choices must be limited to: `Arat`, `Discuit`, `Semănat`, `Erbicidat`, `Stropit`, `Recoltat`, `Irigat`.
+- In Tratamente V2 manual intervention flows, product quantity can now be stored as free text (`cantitate_text`) for small-farm dosage notes (for example `60 ml la 15 l apă`). Legacy numeric dose fields remain for backward compatibility and reporting fallback.
 
 ## Analytics Rules
 

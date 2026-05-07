@@ -11,10 +11,10 @@ import { ProdusFitosanitarPicker } from '@/components/tratamente/ProdusFitosanit
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
-import { getCohortaLabel, type Cohorta } from '@/lib/tratamente/configurare-sezon'
 import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 
@@ -26,14 +26,17 @@ import {
 
 type ManualProductDraft = PlanWizardLinieProdusDraft & {
   save_in_library: boolean
+  product_category: 'ingrasamant' | 'fitosanitar' | 'biostimulator' | 'amendament' | 'alt_produs'
+  cantitate_text: string
 }
 
 interface ManualInterventieValue {
   stadiu_trigger: string
-  cohort_trigger: Cohorta | null
-  tip_interventie: 'protectie' | 'nutritie' | 'biostimulare' | 'erbicidare' | 'igiena' | 'altul'
+  tip_interventie_select: string
+  tip_interventie_custom: string
   motiv_adaugare: string
-  scop: string
+  scop_select: string
+  scop_custom: string
   regula_repetare: 'fara_repetare' | 'interval'
   interval_repetare_zile: number | null
   observatii: string
@@ -51,13 +54,50 @@ interface AdaugaInterventieManualDialogProps {
 }
 
 const TIP_INTERVENTIE_OPTIONS = [
-  { value: 'protectie', label: 'Protecție' },
-  { value: 'nutritie', label: 'Nutriție' },
-  { value: 'biostimulare', label: 'Biostimulare' },
-  { value: 'igiena', label: 'Igienă' },
-  { value: 'erbicidare', label: 'Erbicidare' },
-  { value: 'altul', label: 'Altul' },
+  { value: 'foliar', label: 'Foliar' },
+  { value: 'fertirigare', label: 'Fertirigare' },
+  { value: 'aplicare_sol', label: 'Aplicare pe sol' },
+  { value: 'tratament_radacini', label: 'Tratament rădăcini (drenching)' },
+  { value: 'badijonare', label: 'Badijonare tulpină' },
+  { value: 'alt_tip', label: 'Alt tip' },
 ] as const
+
+const SCOP_OPTIONS = [
+  { value: 'fertilizare_baza', label: 'Fertilizare de bază' },
+  { value: 'stimulare_inflorire', label: 'Stimulare înflorire' },
+  { value: 'stimulare_fructificare', label: 'Stimulare fructificare' },
+  { value: 'protectie_fungica', label: 'Protecție fungică' },
+  { value: 'protectie_insecticida', label: 'Protecție insecticidă' },
+  { value: 'corectare_carente', label: 'Corectare carențe' },
+  { value: 'biostimulare', label: 'Biostimulare' },
+  { value: 'dezinfectie_sol', label: 'Dezinfecție sol' },
+  { value: 'alt_scop', label: 'Alt scop' },
+] as const
+
+const PRODUCT_TYPE_OPTIONS = [
+  { value: 'ingrasamant', label: 'Îngrășământ / fertilizant' },
+  { value: 'fitosanitar', label: 'Produs fitosanitar (fungicid, insecticid, erbicid)' },
+  { value: 'biostimulator', label: 'Biostimulator' },
+  { value: 'amendament', label: 'Amendament sol' },
+  { value: 'alt_produs', label: 'Alt produs' },
+] as const
+
+function mapProductTypeToSnapshot(value: ManualProductDraft['product_category']): string {
+  if (value === 'fitosanitar') return 'fungicid'
+  if (value === 'ingrasamant') return 'ingrasamant'
+  if (value === 'biostimulator') return 'bioregulator'
+  return 'altul'
+}
+
+function mapTipInterventie(selectValue: string, custom: string): string {
+  if (selectValue === 'alt_tip') return custom.trim()
+  return TIP_INTERVENTIE_OPTIONS.find((option) => option.value === selectValue)?.label ?? ''
+}
+
+function mapScop(selectValue: string, custom: string): string {
+  if (selectValue === 'alt_scop') return custom.trim()
+  return SCOP_OPTIONS.find((option) => option.value === selectValue)?.label ?? ''
+}
 
 function parseOptionalNumber(value: string): number | null {
   if (!value.trim()) return null
@@ -69,16 +109,19 @@ function createManualProduct(nextOrdine: number): ManualProductDraft {
   return {
     ...createEmptyLineProduct(nextOrdine),
     save_in_library: true,
+    product_category: 'fitosanitar',
+    cantitate_text: '',
   }
 }
 
 function createInitialValue(): ManualInterventieValue {
   return {
     stadiu_trigger: '',
-    cohort_trigger: null,
-    tip_interventie: 'protectie',
+    tip_interventie_select: '',
+    tip_interventie_custom: '',
     motiv_adaugare: '',
-    scop: '',
+    scop_select: '',
+    scop_custom: '',
     regula_repetare: 'fara_repetare',
     interval_repetare_zile: null,
     observatii: '',
@@ -92,6 +135,8 @@ function withProductOrder(produse: ManualProductDraft[]) {
 
 function getValidationError(value: ManualInterventieValue): string | null {
   if (!value.stadiu_trigger.trim()) return 'Alege fenofaza.'
+  if (!mapTipInterventie(value.tip_interventie_select, value.tip_interventie_custom)) return 'Tipul intervenției este obligatoriu.'
+  if (!mapScop(value.scop_select, value.scop_custom)) return 'Scopul intervenției este obligatoriu.'
   if (!value.motiv_adaugare.trim()) return 'Motivul adăugării este obligatoriu.'
   if (value.produse.length === 0) return 'Adaugă cel puțin un produs.'
 
@@ -105,6 +150,8 @@ function getValidationError(value: ManualInterventieValue): string | null {
   if (invalidProduct) {
     return 'Fiecare produs trebuie selectat din bibliotecă sau completat manual.'
   }
+  const missingCantitate = value.produse.find((produs) => !produs.cantitate_text.trim())
+  if (missingCantitate) return 'Completează cantitatea aplicată pentru fiecare produs.'
 
   if (
     value.regula_repetare === 'interval' &&
@@ -138,7 +185,6 @@ export function AdaugaInterventieManualDialog({
   const [pending, setPending] = useState(false)
   const stadiuOptions = useMemo(() => getStadiuOptions(grupBiologic), [grupBiologic])
   const validationError = getValidationError(value)
-  const showCohorta = cultura.trim().toLowerCase() === 'zmeur'
 
   useEffect(() => {
     if (!open) return
@@ -195,22 +241,23 @@ export function AdaugaInterventieManualDialog({
           produs_nume_manual: produsId ? null : produsNumeManual,
           produs_nume_snapshot: produsNumeSnapshot,
           substanta_activa_snapshot: produs.substanta_activa_snapshot?.trim() || null,
-          tip_snapshot: produs.tip_snapshot?.trim() ? produs.tip_snapshot : null,
+          tip_snapshot: mapProductTypeToSnapshot(produs.product_category),
           frac_irac_snapshot: produs.frac_irac_snapshot?.trim() || null,
           phi_zile_snapshot: produs.phi_zile_snapshot ?? null,
-          doza_ml_per_hl: produs.doza_ml_per_hl ?? null,
-          doza_l_per_ha: produs.doza_l_per_ha ?? null,
+          doza_ml_per_hl: null,
+          doza_l_per_ha: null,
+          cantitate_text: produs.cantitate_text.trim() || null,
           observatii: produs.observatii?.trim() || null,
         })
       }
 
       const payload: LinieInput = {
         stadiu_trigger: value.stadiu_trigger,
-        cohort_trigger: showCohorta ? value.cohort_trigger : null,
+        cohort_trigger: null,
         sursa_linie: 'adaugata_manual',
         motiv_adaugare: value.motiv_adaugare.trim(),
-        tip_interventie: value.tip_interventie,
-        scop: value.scop.trim() || null,
+        tip_interventie: mapTipInterventie(value.tip_interventie_select, value.tip_interventie_custom),
+        scop: mapScop(value.scop_select, value.scop_custom) || null,
         regula_repetare: value.regula_repetare,
         interval_repetare_zile:
           value.regula_repetare === 'interval' ? value.interval_repetare_zile : null,
@@ -232,6 +279,10 @@ export function AdaugaInterventieManualDialog({
       toast.success('Intervenția manuală a fost adăugată.')
       onOpenChange(false)
       onSuccess()
+    } catch (err) {
+      console.error(err)
+      const message = err instanceof Error ? err.message : 'necunoscută'
+      toast.error('Eroare la salvare: ' + message)
     } finally {
       setPending(false)
     }
@@ -239,8 +290,8 @@ export function AdaugaInterventieManualDialog({
 
   const content = (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="space-y-4 pr-1">
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-4 pr-1 min-w-0">
+      <div className="grid gap-4 md:grid-cols-2 min-w-0">
         <div className="space-y-2">
           <Label htmlFor="manual-linie-stadiu">Fenofază</Label>
           <select
@@ -260,49 +311,40 @@ export function AdaugaInterventieManualDialog({
           </select>
         </div>
 
-        {showCohorta ? (
-          <div className="space-y-2">
-            <Label htmlFor="manual-linie-cohorta">Cohortă</Label>
-            <select
-              id="manual-linie-cohorta"
-              value={value.cohort_trigger ?? ''}
-              onChange={(event) =>
-                setValue((current) => ({
-                  ...current,
-                  cohort_trigger: event.target.value
-                    ? (event.target.value as Cohorta)
-                    : null,
-                }))
-              }
-              className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-            >
-              <option value="">Ambele cohorte</option>
-              <option value="floricane">{getCohortaLabel('floricane')}</option>
-              <option value="primocane">{getCohortaLabel('primocane')}</option>
-            </select>
-          </div>
-        ) : null}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="manual-linie-tip">Tip intervenție</Label>
-        <select
-          id="manual-linie-tip"
-          value={value.tip_interventie}
-          onChange={(event) =>
+        <Select
+          value={value.tip_interventie_select || undefined}
+          onValueChange={(next) =>
             setValue((current) => ({
               ...current,
-              tip_interventie: event.target.value as ManualInterventieValue['tip_interventie'],
+              tip_interventie_select: next,
+              tip_interventie_custom: next === 'alt_tip' ? current.tip_interventie_custom : '',
             }))
           }
-          className="agri-control h-11 w-full rounded-xl px-3 text-sm"
         >
-          {TIP_INTERVENTIE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="manual-linie-tip" className="agri-control h-11 w-full rounded-xl px-3 text-sm">
+            <SelectValue placeholder="Selectează tipul intervenției" />
+          </SelectTrigger>
+          <SelectContent className="max-w-[calc(100vw-2rem)]">
+            {TIP_INTERVENTIE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {value.tip_interventie_select === 'alt_tip' ? (
+          <Input
+            value={value.tip_interventie_custom}
+            onChange={(event) =>
+              setValue((current) => ({ ...current, tip_interventie_custom: event.target.value }))
+            }
+            placeholder="Specifică tipul"
+          />
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -320,17 +362,39 @@ export function AdaugaInterventieManualDialog({
 
       <div className="space-y-2">
         <Label htmlFor="manual-linie-scop">Scop / titlu intervenție</Label>
-        <Input
-          id="manual-linie-scop"
-          value={value.scop}
-          onChange={(event) =>
-            setValue((current) => ({ ...current, scop: event.target.value }))
+        <Select
+          value={value.scop_select || undefined}
+          onValueChange={(next) =>
+            setValue((current) => ({
+              ...current,
+              scop_select: next,
+              scop_custom: next === 'alt_scop' ? current.scop_custom : '',
+            }))
           }
-          placeholder="Ex: corecţie foliară calciu"
-        />
+        >
+          <SelectTrigger id="manual-linie-scop" className="agri-control h-11 w-full rounded-xl px-3 text-sm">
+            <SelectValue placeholder="Selectează scopul" />
+          </SelectTrigger>
+          <SelectContent className="max-w-[calc(100vw-2rem)]">
+            {SCOP_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {value.scop_select === 'alt_scop' ? (
+          <Input
+            value={value.scop_custom}
+            onChange={(event) =>
+              setValue((current) => ({ ...current, scop_custom: event.target.value }))
+            }
+            placeholder="Specifică scopul"
+          />
+        ) : null}
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
+      <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3 min-w-0">
         <div className="space-y-1">
           <Label>Produse</Label>
           <p className="text-xs text-[var(--text-secondary)]">
@@ -345,14 +409,14 @@ export function AdaugaInterventieManualDialog({
           return (
             <div
               key={produs.id}
-              className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3"
+              className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3 min-w-0 overflow-x-hidden"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <div className="min-w-0">
                   <p className="text-sm text-[var(--text-primary)] [font-weight:650]">
                     Produs #{index + 1}
                   </p>
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="text-xs text-[var(--text-secondary)] truncate">
                     {getManualProductName(produs, produse)}
                   </p>
                 </div>
@@ -362,6 +426,7 @@ export function AdaugaInterventieManualDialog({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
+                    className="shrink-0"
                     aria-label={`Șterge produsul ${index + 1}`}
                     onClick={() =>
                       setValue((current) => ({
@@ -434,38 +499,92 @@ export function AdaugaInterventieManualDialog({
                 </div>
               ) : null}
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor={`manual-dose-ml-${produs.id}`}>Doză ml/hl</Label>
-                  <Input
-                    id={`manual-dose-ml-${produs.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={produs.doza_ml_per_hl ?? ''}
-                    onChange={(event) =>
-                      updateProduct(produs.id, (current) => ({
-                        ...current,
-                        doza_ml_per_hl: parseOptionalNumber(event.target.value),
-                      }))
-                    }
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>Tip produs</Label>
+                <Select
+                  value={produs.product_category}
+                  onValueChange={(next) =>
+                    updateProduct(produs.id, (current) => ({
+                      ...current,
+                      product_category: next as ManualProductDraft['product_category'],
+                      substanta_activa_snapshot:
+                        next === 'fitosanitar' ? current.substanta_activa_snapshot : '',
+                      frac_irac_snapshot: next === 'fitosanitar' ? current.frac_irac_snapshot : '',
+                      phi_zile_snapshot: next === 'fitosanitar' ? current.phi_zile_snapshot : null,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="agri-control h-11 w-full rounded-xl px-3 text-sm">
+                    <SelectValue placeholder="Selectează tip produs" />
+                  </SelectTrigger>
+                  <SelectContent className="max-w-[calc(100vw-2rem)]">
+                    {PRODUCT_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
+              {produs.product_category === 'fitosanitar' ? (
+                <div className="grid gap-3 md:grid-cols-2 min-w-0">
+                  <div className="space-y-2">
+                    <Label htmlFor={`manual-substanta-${produs.id}`}>Substanță activă</Label>
+                    <Input
+                      id={`manual-substanta-${produs.id}`}
+                      value={produs.substanta_activa_snapshot ?? ''}
+                      onChange={(event) =>
+                        updateProduct(produs.id, (current) => ({
+                          ...current,
+                          substanta_activa_snapshot: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`manual-frac-${produs.id}`}>FRAC/IRAC</Label>
+                    <Input
+                      id={`manual-frac-${produs.id}`}
+                      value={produs.frac_irac_snapshot ?? ''}
+                      onChange={(event) =>
+                        updateProduct(produs.id, (current) => ({
+                          ...current,
+                          frac_irac_snapshot: event.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`manual-phi-${produs.id}`}>PHI zile</Label>
+                    <Input
+                      id={`manual-phi-${produs.id}`}
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={produs.phi_zile_snapshot ?? ''}
+                      onChange={(event) =>
+                        updateProduct(produs.id, (current) => ({
+                          ...current,
+                          phi_zile_snapshot: parseOptionalNumber(event.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 md:grid-cols-2 min-w-0">
                 <div className="space-y-2">
-                  <Label htmlFor={`manual-dose-l-${produs.id}`}>Doză l/ha</Label>
+                  <Label htmlFor={`manual-cantitate-${produs.id}`}>Cantitate aplicată</Label>
                   <Input
-                    id={`manual-dose-l-${produs.id}`}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={produs.doza_l_per_ha ?? ''}
+                    id={`manual-cantitate-${produs.id}`}
+                    value={produs.cantitate_text}
+                    placeholder="ex: 60 ml la 15 l apă, sau 200 ml/ha"
                     onChange={(event) =>
                       updateProduct(produs.id, (current) => ({
                         ...current,
-                        doza_l_per_ha: parseOptionalNumber(event.target.value),
+                        cantitate_text: event.target.value,
                       }))
                     }
                   />
@@ -505,7 +624,7 @@ export function AdaugaInterventieManualDialog({
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 min-w-0">
         <div className="space-y-2">
           <Label htmlFor="manual-linie-regula">Regula repetare</Label>
           <select

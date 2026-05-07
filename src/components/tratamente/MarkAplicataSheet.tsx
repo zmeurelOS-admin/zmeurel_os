@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from 'lucide-react'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,8 @@ import {
   type GrupBiologic,
 } from '@/lib/tratamente/stadii-canonic'
 import { saveProdusFitosanitarInLibraryAction } from '@/app/(dashboard)/tratamente/produse-fitosanitare/actions'
+import { loadHubMeteoParcelaAction } from '@/app/(dashboard)/tratamente/actions'
+import { toast } from '@/lib/ui/toast'
 
 const formSchema = z.object({
   data_aplicata: z.string().trim().min(1, 'Data aplicării este obligatorie.'),
@@ -59,6 +61,10 @@ const formSchema = z.object({
   manual_status: z.enum(['planificata', 'aplicata']).optional(),
   tip_interventie: z.string().optional(),
   scop: z.string().optional(),
+  manual_tip_select: z.string().optional(),
+  manual_tip_custom: z.string().optional(),
+  manual_scop_select: z.string().optional(),
+  manual_scop_custom: z.string().optional(),
   cantitate_totala_ml: z.string().optional(),
   operator: z.string().optional(),
   stadiu_la_aplicare: z.string().optional(),
@@ -94,6 +100,7 @@ export interface MarkAplicataProdusDraft {
   phi_zile_snapshot: number | null
   doza_ml_per_hl: number | null
   doza_l_per_ha: number | null
+  cantitate_text?: string
   observatii: string
 }
 
@@ -125,6 +132,74 @@ interface MarkAplicataSheetProps {
 const EMPTY_APLICARE_PRODUSE: AplicareProdusV2[] = []
 const EMPTY_PLAN_PRODUSE: InterventieProdusV2[] = []
 const EMPTY_PRODUSE_FITOSANITARE: ProdusFitosanitar[] = []
+const CANTITATE_PLACEHOLDER = 'ex: 60 ml la 15 l apă, sau 200 ml/ha'
+
+const TIP_INTERVENTIE_OPTIONS = [
+  { value: 'foliar', label: 'Foliar' },
+  { value: 'fertirigare', label: 'Fertirigare' },
+  { value: 'aplicare_sol', label: 'Aplicare pe sol' },
+  { value: 'tratament_radacini', label: 'Tratament rădăcini (drenching)' },
+  { value: 'badijonare', label: 'Badijonare tulpină' },
+  { value: 'alt_tip', label: 'Alt tip' },
+] as const
+
+const SCOP_OPTIONS = [
+  { value: 'fertilizare_baza', label: 'Fertilizare de bază' },
+  { value: 'stimulare_inflorire', label: 'Stimulare înflorire' },
+  { value: 'stimulare_fructificare', label: 'Stimulare fructificare' },
+  { value: 'protectie_fungica', label: 'Protecție fungică' },
+  { value: 'protectie_insecticida', label: 'Protecție insecticidă' },
+  { value: 'corectare_carente', label: 'Corectare carențe' },
+  { value: 'biostimulare', label: 'Biostimulare' },
+  { value: 'dezinfectie_sol', label: 'Dezinfecție sol' },
+  { value: 'alt_scop', label: 'Alt scop' },
+] as const
+
+const PRODUCT_TYPE_OPTIONS = [
+  { value: 'ingrasamant', label: 'Îngrășământ / fertilizant' },
+  { value: 'fitosanitar', label: 'Produs fitosanitar' },
+  { value: 'biostimulator', label: 'Biostimulator' },
+  { value: 'amendament', label: 'Amendament sol' },
+  { value: 'alt_produs', label: 'Alt produs' },
+] as const
+
+function mapProductTypeToSnapshot(value: string): string | null {
+  if (value === 'fitosanitar') return 'fungicid'
+  if (value === 'ingrasamant') return 'ingrasamant'
+  if (value === 'biostimulator') return 'bioregulator'
+  if (value === 'amendament') return 'altul'
+  if (value === 'alt_produs') return 'altul'
+  return null
+}
+
+function mapSnapshotToProductType(value: string | null | undefined): string | null {
+  if (!value) return null
+  if (value === 'fungicid' || value === 'insecticid' || value === 'erbicid' || value === 'acaricid') {
+    return 'fitosanitar'
+  }
+  if (value === 'ingrasamant' || value === 'foliar') return 'ingrasamant'
+  if (value === 'bioregulator') return 'biostimulator'
+  if (value === 'altul') return 'alt_produs'
+  return null
+}
+
+function mapInterventieSelectToDb(value: string, custom: string | undefined): string {
+  if (value === 'alt_tip') return (custom ?? '').trim()
+  return TIP_INTERVENTIE_OPTIONS.find((option) => option.value === value)?.label ?? ''
+}
+
+function mapScopSelectToDb(value: string, custom: string | undefined): string {
+  if (value === 'alt_scop') return (custom ?? '').trim()
+  return SCOP_OPTIONS.find((option) => option.value === value)?.label ?? ''
+}
+
+function mergeCantitateIntoObservatii(observatii: string, cantitateText: string): string {
+  const cantitate = cantitateText.trim()
+  const observatiiTrimmed = observatii.trim()
+  if (!cantitate) return observatiiTrimmed
+  if (!observatiiTrimmed) return `Cantitate: ${cantitate}`
+  return `Cantitate: ${cantitate}\n${observatiiTrimmed}`
+}
 
 function toLocalDateTimeInputValue(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -154,6 +229,10 @@ function buildDefaultValues(
     manual_status: defaultManualStatus,
     tip_interventie: '',
     scop: '',
+    manual_tip_select: '',
+    manual_tip_custom: '',
+    manual_scop_select: '',
+    manual_scop_custom: '',
     cantitate_totala_ml: formatNumber(defaultCantitateMl),
     operator: defaultOperator,
     stadiu_la_aplicare:
@@ -189,6 +268,7 @@ function createEmptyProdusDraft(nextOrdine: number): MarkAplicataProdusDraft {
     phi_zile_snapshot: null,
     doza_ml_per_hl: null,
     doza_l_per_ha: null,
+    cantitate_text: '',
     observatii: '',
   }
 }
@@ -207,6 +287,7 @@ function fromAplicareProdus(produs: AplicareProdusV2, index: number): MarkAplica
     phi_zile_snapshot: produs.phi_zile_snapshot ?? produs.produs?.phi_zile ?? null,
     doza_ml_per_hl: produs.doza_ml_per_hl ?? null,
     doza_l_per_ha: produs.doza_l_per_ha ?? null,
+    cantitate_text: '',
     observatii: produs.observatii ?? '',
   }
 }
@@ -225,6 +306,7 @@ function fromPlanProdus(produs: InterventieProdusV2, index: number): MarkAplicat
     phi_zile_snapshot: produs.phi_zile_snapshot ?? produs.produs?.phi_zile ?? null,
     doza_ml_per_hl: produs.doza_ml_per_hl ?? null,
     doza_l_per_ha: produs.doza_l_per_ha ?? null,
+    cantitate_text: '',
     observatii: produs.observatii ?? '',
   }
 }
@@ -296,11 +378,11 @@ export function validateProducts(produse: MarkAplicataProdusDraft[]): string | n
   if (produse.length === 0) return 'Aplicarea trebuie să aibă cel puțin un produs.'
   const invalid = produse.find((produs) => !produs.produs_id && !produs.produs_nume_manual.trim())
   if (invalid) return 'Fiecare produs trebuie selectat din bibliotecă sau completat manual.'
+  const missingType = produse.find((produs) => !produs.tip_snapshot?.trim())
+  if (missingType) return 'Selectează tipul pentru fiecare produs.'
+  const missingCantitate = produse.find((produs) => !(produs.cantitate_text ?? '').trim())
+  if (missingCantitate) return 'Completează cantitatea aplicată pentru fiecare produs.'
   return null
-}
-
-function sameNumber(first: number | null, second: number | null) {
-  return (first ?? null) === (second ?? null)
 }
 
 export function buildMarkAplicataDiferentePlan(
@@ -324,11 +406,10 @@ export function buildMarkAplicataDiferentePlan(
     if ((actual.produs_id ?? null) !== (plannedProduct.produs_id ?? null)) {
       summary.push(`Produs #${index + 1} diferă de plan`)
     }
-    if (!sameNumber(actual.doza_ml_per_hl, plannedProduct.doza_ml_per_hl ?? null)) {
-      summary.push(`Doză ml/hl diferită la produs #${index + 1}`)
-    }
-    if (!sameNumber(actual.doza_l_per_ha, plannedProduct.doza_l_per_ha ?? null)) {
-      summary.push(`Doză l/ha diferită la produs #${index + 1}`)
+    const plannedCantitate = normalizeSummaryText(plannedProduct.observatii)
+    const currentCantitate = normalizeSummaryText(actual.cantitate_text)
+    if (plannedCantitate !== currentCantitate) {
+      summary.push(`Cantitate diferită la produs #${index + 1}`)
     }
   })
 
@@ -358,12 +439,7 @@ function formatDateTimeSummary(value: string | null | undefined): string {
 }
 
 function formatProductDoseSummary(produs: MarkAplicataProdusDraft): string | null {
-  const parts = [
-    typeof produs.doza_ml_per_hl === 'number' ? `${produs.doza_ml_per_hl} ml/hl` : null,
-    typeof produs.doza_l_per_ha === 'number' ? `${produs.doza_l_per_ha} l/ha` : null,
-  ].filter(Boolean)
-
-  return parts.length > 0 ? parts.join(' · ') : null
+  return normalizeSummaryText(produs.cantitate_text ?? null)
 }
 
 export function MarkAplicataSheet({
@@ -391,6 +467,9 @@ export function MarkAplicataSheet({
   produsePlanificate = EMPTY_PLAN_PRODUSE,
 }: MarkAplicataSheetProps) {
   const isMobile = useMediaQuery('(max-width: 767px)')
+  const [isMeteoPending, startMeteoTransition] = useTransition()
+  const [meteoError, setMeteoError] = useState<string | null>(null)
+  const [resolvedMeteoSnapshot, setResolvedMeteoSnapshot] = useState<MeteoSnapshot | null>(meteoSnapshot)
   const [editMeteo, setEditMeteo] = useState(false)
   const [produseDraft, setProduseDraft] = useState<MarkAplicataProdusDraft[]>(() =>
     buildInitialProduse(produseEfective, produsePlanificate)
@@ -405,12 +484,12 @@ export function MarkAplicataSheet({
         defaultOperator,
         defaultStadiu,
         stadiiValide,
-        meteoSnapshot,
+        resolvedMeteoSnapshot,
         defaultManualData,
         defaultManualParcelaId,
         defaultManualStatus,
       ),
-    [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultManualData, defaultManualParcelaId, defaultManualStatus, defaultOperator, defaultStadiu, meteoSnapshot, stadiiValide],
+    [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultManualData, defaultManualParcelaId, defaultManualStatus, defaultOperator, defaultStadiu, resolvedMeteoSnapshot, stadiiValide],
   )
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -421,6 +500,8 @@ export function MarkAplicataSheet({
   const selectedStadiu = useWatch({ control: form.control, name: 'stadiu_la_aplicare' }) ?? ''
   const selectedManualStatus = useWatch({ control: form.control, name: 'manual_status' }) ?? defaultManualStatus
   const selectedManualParcelaId = useWatch({ control: form.control, name: 'manual_parcela_id' }) ?? defaultManualParcelaId ?? ''
+  const selectedTipInterventie = useWatch({ control: form.control, name: 'manual_tip_select' }) ?? ''
+  const selectedScopInterventie = useWatch({ control: form.control, name: 'manual_scop_select' }) ?? ''
   const summaryValues = useWatch({ control: form.control })
   const stadiiOptions = useMemo(
     () =>
@@ -436,6 +517,8 @@ export function MarkAplicataSheet({
 
   useEffect(() => {
     if (open) {
+      setMeteoError(null)
+      setResolvedMeteoSnapshot(meteoSnapshot)
       form.reset(
         buildDefaultValues(
           defaultCantitateMl,
@@ -443,7 +526,7 @@ export function MarkAplicataSheet({
           defaultOperator,
           defaultStadiu,
           stadiiValide,
-          meteoSnapshot,
+          resolvedMeteoSnapshot,
           defaultManualData,
           defaultManualParcelaId,
           defaultManualStatus,
@@ -452,12 +535,39 @@ export function MarkAplicataSheet({
       setProduseDraft(buildInitialProduse(produseEfective, produsePlanificate))
       queueMicrotask(() => setEditMeteo(false))
     }
-  }, [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultManualData, defaultManualParcelaId, defaultManualStatus, defaultOperator, defaultStadiu, form, meteoSnapshot, open, produseEfective, produsePlanificate, stadiiValide])
+  }, [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultManualData, defaultManualParcelaId, defaultManualStatus, defaultOperator, defaultStadiu, form, meteoSnapshot, open, produseEfective, produsePlanificate, resolvedMeteoSnapshot, stadiiValide])
+
+  useEffect(() => {
+    if (!open || mode !== 'manual') return
+    const parcelaId = selectedManualParcelaId || defaultManualParcelaId || ''
+    if (!parcelaId) {
+      setMeteoError('Meteo indisponibil — parcelă nespecificată.')
+      setResolvedMeteoSnapshot(null)
+      return
+    }
+
+    startMeteoTransition(async () => {
+      try {
+        const meteoZi = await loadHubMeteoParcelaAction(parcelaId)
+        if (!meteoZi?.snapshot_curent) {
+          setMeteoError('Meteo indisponibil')
+          setResolvedMeteoSnapshot(null)
+          return
+        }
+        setMeteoError(null)
+        setResolvedMeteoSnapshot(meteoZi.snapshot_curent)
+      } catch {
+        setMeteoError('Meteo indisponibil')
+        setResolvedMeteoSnapshot(null)
+      }
+    })
+  }, [defaultManualParcelaId, mode, open, selectedManualParcelaId])
 
   const save = form.handleSubmit(async (values) => {
     const productError = validateProducts(produseDraft)
     if (productError) {
       form.setError('observatii', { type: 'manual', message: productError })
+      toast.error(productError)
       return
     }
 
@@ -474,44 +584,56 @@ export function MarkAplicataSheet({
         form.setError('manual_data', { type: 'manual', message: 'Data intervenției este obligatorie.' })
         return
       }
-      if (!values.tip_interventie?.trim()) {
-        form.setError('tip_interventie', { type: 'manual', message: 'Tipul intervenției este obligatoriu.' })
-        return
-      }
-      if (!values.scop?.trim()) {
-        form.setError('scop', { type: 'manual', message: 'Scopul intervenției este obligatoriu.' })
-        return
-      }
       if (values.manual_status === 'aplicata' && !values.stadiu_la_aplicare?.trim()) {
         form.setError('stadiu_la_aplicare', { type: 'manual', message: 'Completează stadiul real la aplicare.' })
         return
       }
-      if (isRubusMixt && !cohortLaAplicareBlocata && !values.cohort_la_aplicare) {
-        form.setError('cohort_la_aplicare', { type: 'manual', message: 'Selectează cohorta pentru intervenție.' })
+      const tipInterventie = mapInterventieSelectToDb(values.manual_tip_select ?? '', values.manual_tip_custom)
+      const scopInterventie = mapScopSelectToDb(values.manual_scop_select ?? '', values.manual_scop_custom)
+      if (!tipInterventie) {
+        toast.error('Selectează tipul intervenției.')
+        return
+      }
+      if (!scopInterventie) {
+        toast.error('Selectează scopul intervenției.')
         return
       }
 
-      await onSubmit({
-        ...values,
-        data_aplicata: values.manual_status === 'aplicata' ? values.manual_data : '',
-        manual_parcela_id: values.manual_parcela_id,
-        manual_status: values.manual_status,
-        manual_data: values.manual_data,
-        tip_interventie: values.tip_interventie?.trim(),
-        scop: values.scop?.trim(),
-        meteoSnapshot: editMeteo
-          ? {
-              timestamp: new Date().toISOString(),
-              temperatura_c: toOptionalNumber(values.meteo_temperatura_c),
-              umiditate_pct: toOptionalNumber(values.meteo_umiditate_pct),
-              vant_kmh: toOptionalNumber(values.meteo_vant_kmh),
-              precipitatii_mm_24h: toOptionalNumber(values.meteo_precipitatii_mm_24h),
-              descriere: values.meteo_descriere?.trim() || null,
-            }
-          : meteoSnapshot,
-        produse: withProductOrder(produseDraft),
-        diferenteFataDePlan: null,
-      })
+      try {
+        await onSubmit({
+          ...values,
+          data_aplicata: values.manual_status === 'aplicata' ? values.manual_data : '',
+          manual_parcela_id: values.manual_parcela_id,
+          manual_status: values.manual_status,
+          manual_data: values.manual_data,
+          tip_interventie: tipInterventie,
+          scop: scopInterventie,
+          cohort_la_aplicare: undefined,
+          meteoSnapshot: editMeteo
+            ? {
+                timestamp: new Date().toISOString(),
+                temperatura_c: toOptionalNumber(values.meteo_temperatura_c),
+                umiditate_pct: toOptionalNumber(values.meteo_umiditate_pct),
+                vant_kmh: toOptionalNumber(values.meteo_vant_kmh),
+                precipitatii_mm_24h: toOptionalNumber(values.meteo_precipitatii_mm_24h),
+                descriere: values.meteo_descriere?.trim() || null,
+              }
+            : resolvedMeteoSnapshot,
+          produse: withProductOrder(produseDraft).map((produs) => ({
+            ...produs,
+            doza_l_per_ha: null,
+            doza_ml_per_hl: null,
+            cantitate_totala: null,
+            unitate_cantitate: null,
+            observatii: mergeCantitateIntoObservatii(produs.observatii, produs.cantitate_text ?? ''),
+            cantitate_text: (produs.cantitate_text ?? '').trim(),
+          })),
+          diferenteFataDePlan: null,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Nu am putut salva intervenția.'
+        toast.error(message)
+      }
       return
     }
 
@@ -529,14 +651,31 @@ export function MarkAplicataSheet({
           precipitatii_mm_24h: toOptionalNumber(values.meteo_precipitatii_mm_24h),
           descriere: values.meteo_descriere?.trim() || null,
         }
-      : meteoSnapshot
+      : resolvedMeteoSnapshot
 
-    await onSubmit({
-      ...values,
-      meteoSnapshot: nextSnapshot,
-      produse: withProductOrder(produseDraft),
-      diferenteFataDePlan: buildMarkAplicataDiferentePlan(produseDraft, produsePlanificate, values.diferente_fata_de_plan_text),
-    })
+    try {
+      await onSubmit({
+        ...values,
+        meteoSnapshot: nextSnapshot,
+        produse: withProductOrder(produseDraft).map((produs) => ({
+          ...produs,
+          doza_l_per_ha: null,
+          doza_ml_per_hl: null,
+          cantitate_totala: null,
+          unitate_cantitate: null,
+          observatii: mergeCantitateIntoObservatii(produs.observatii, produs.cantitate_text ?? ''),
+          cantitate_text: (produs.cantitate_text ?? '').trim(),
+        })),
+        diferenteFataDePlan: buildMarkAplicataDiferentePlan(produseDraft, produsePlanificate, values.diferente_fata_de_plan_text),
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Nu am putut salva aplicarea.'
+      toast.error(message)
+    }
+  }, (errors) => {
+    const firstError = Object.values(errors)[0]
+    const message = firstError?.message?.toString() ?? 'Formularul are erori. Verifică câmpurile obligatorii.'
+    toast.error(message)
   })
 
   const updateProduct = (produsId: string, update: (produs: MarkAplicataProdusDraft) => MarkAplicataProdusDraft) => {
@@ -590,15 +729,15 @@ export function MarkAplicataSheet({
         }
       : {
           temperatura:
-            typeof meteoSnapshot?.temperatura_c === 'number' ? String(meteoSnapshot.temperatura_c) : null,
+            typeof resolvedMeteoSnapshot?.temperatura_c === 'number' ? String(resolvedMeteoSnapshot.temperatura_c) : null,
           umiditate:
-            typeof meteoSnapshot?.umiditate_pct === 'number' ? String(meteoSnapshot.umiditate_pct) : null,
-          vant: typeof meteoSnapshot?.vant_kmh === 'number' ? String(meteoSnapshot.vant_kmh) : null,
+            typeof resolvedMeteoSnapshot?.umiditate_pct === 'number' ? String(resolvedMeteoSnapshot.umiditate_pct) : null,
+          vant: typeof resolvedMeteoSnapshot?.vant_kmh === 'number' ? String(resolvedMeteoSnapshot.vant_kmh) : null,
           precipitatii:
-            typeof meteoSnapshot?.precipitatii_mm_24h === 'number'
-              ? String(meteoSnapshot.precipitatii_mm_24h)
+            typeof resolvedMeteoSnapshot?.precipitatii_mm_24h === 'number'
+              ? String(resolvedMeteoSnapshot.precipitatii_mm_24h)
               : null,
-          descriere: normalizeSummaryText(meteoSnapshot?.descriere ?? null),
+          descriere: normalizeSummaryText(resolvedMeteoSnapshot?.descriere ?? null),
         }
 
     if (
@@ -614,7 +753,7 @@ export function MarkAplicataSheet({
     return values
   }, [
     editMeteo,
-    meteoSnapshot,
+    resolvedMeteoSnapshot,
     summaryValues.meteo_descriere,
     summaryValues.meteo_precipitatii_mm_24h,
     summaryValues.meteo_temperatura_c,
@@ -718,9 +857,9 @@ export function MarkAplicataSheet({
   ) : null
 
   const productsBlock = (
-    <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div>
+    <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 min-w-0">
+        <div className="min-w-0">
           <p className="text-sm text-[var(--text-primary)] [font-weight:650]">
             {mode === 'manual' ? 'Produse intervenție' : 'Produse aplicate efectiv'}
           </p>
@@ -734,6 +873,7 @@ export function MarkAplicataSheet({
           type="button"
           variant="outline"
           size="sm"
+          className="shrink-0"
           onClick={() => setProduseDraft((current) => [...current, createEmptyProdusDraft(current.length + 1)])}
         >
           <Plus className="h-4 w-4" />
@@ -753,16 +893,16 @@ export function MarkAplicataSheet({
           return (
             <div
               key={produsDraft.id}
-              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2"
+              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2 min-w-0 overflow-x-hidden"
             >
-              <div className="mb-2.5 flex items-start justify-between gap-2.5">
-                <div>
+              <div className="mb-2.5 flex items-start justify-between gap-2.5 min-w-0">
+                <div className="min-w-0">
                   <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Produs #{index + 1}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="text-xs text-[var(--text-secondary)] truncate">
                     {productName(produsDraft, produseFitosanitare)}
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <Button
                     type="button"
                     variant="ghost"
@@ -799,7 +939,7 @@ export function MarkAplicataSheet({
                 </div>
               </div>
 
-                <div className="grid gap-2 md:grid-cols-2 md:gap-x-3">
+                <div className="grid gap-2 md:grid-cols-2 md:gap-x-3 min-w-0">
                 <div className="space-y-2">
                   <Label htmlFor={`aplicata-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
                   <ProdusFitosanitarPicker
@@ -847,87 +987,100 @@ export function MarkAplicataSheet({
                   />
                 </div>
 
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Tip produs</Label>
+                  <Select
+                    value={mapSnapshotToProductType(produsDraft.tip_snapshot) ?? undefined}
+                    onValueChange={(value) =>
+                      updateProduct(produsDraft.id, (current) => {
+                        const mapped = mapProductTypeToSnapshot(value)
+                        const isFitosanitar = value === 'fitosanitar'
+                        return {
+                          ...current,
+                          tip_snapshot: mapped,
+                          substanta_activa_snapshot: isFitosanitar ? current.substanta_activa_snapshot : '',
+                          frac_irac_snapshot: isFitosanitar ? current.frac_irac_snapshot : '',
+                          phi_zile_snapshot: isFitosanitar ? current.phi_zile_snapshot : null,
+                        }
+                      })
+                    }
+                  >
+                    <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                      <SelectValue placeholder="Selectează tipul produsului" />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[calc(100vw-2rem)]">
+                      {PRODUCT_TYPE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(mapSnapshotToProductType(produsDraft.tip_snapshot) === 'fitosanitar') ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor={`aplicata-substanta-${produsDraft.id}`}>Substanță activă</Label>
+                      <Input
+                        id={`aplicata-substanta-${produsDraft.id}`}
+                        value={produsDraft.substanta_activa_snapshot}
+                        onChange={(event) =>
+                          updateProduct(produsDraft.id, (current) => ({
+                            ...current,
+                            substanta_activa_snapshot: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`aplicata-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
+                        <Input
+                          id={`aplicata-frac-${produsDraft.id}`}
+                          value={produsDraft.frac_irac_snapshot}
+                          onChange={(event) =>
+                            updateProduct(produsDraft.id, (current) => ({
+                              ...current,
+                              frac_irac_snapshot: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`aplicata-phi-${produsDraft.id}`}>PHI zile</Label>
+                        <Input
+                          id={`aplicata-phi-${produsDraft.id}`}
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={produsDraft.phi_zile_snapshot ?? ''}
+                          onChange={(event) =>
+                            updateProduct(produsDraft.id, (current) => ({
+                              ...current,
+                              phi_zile_snapshot: toOptionalNumber(event.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+
                 <div className="space-y-2">
-                  <Label htmlFor={`aplicata-substanta-${produsDraft.id}`}>Substanță activă</Label>
+                  <Label htmlFor={`aplicata-cantitate-${produsDraft.id}`}>Cantitate aplicată</Label>
                   <Input
-                    id={`aplicata-substanta-${produsDraft.id}`}
-                    value={produsDraft.substanta_activa_snapshot}
+                    id={`aplicata-cantitate-${produsDraft.id}`}
+                    value={produsDraft.cantitate_text}
+                    placeholder={CANTITATE_PLACEHOLDER}
                     onChange={(event) =>
                       updateProduct(produsDraft.id, (current) => ({
                         ...current,
-                        substanta_activa_snapshot: event.target.value,
+                        cantitate_text: event.target.value,
                       }))
                     }
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div className="space-y-2">
-                    <Label htmlFor={`aplicata-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
-                    <Input
-                      id={`aplicata-frac-${produsDraft.id}`}
-                      value={produsDraft.frac_irac_snapshot}
-                      onChange={(event) =>
-                        updateProduct(produsDraft.id, (current) => ({
-                          ...current,
-                          frac_irac_snapshot: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`aplicata-phi-${produsDraft.id}`}>PHI zile</Label>
-                    <Input
-                      id={`aplicata-phi-${produsDraft.id}`}
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={produsDraft.phi_zile_snapshot ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produsDraft.id, (current) => ({
-                          ...current,
-                          phi_zile_snapshot: toOptionalNumber(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 md:col-span-2">
-                  <div className="space-y-2">
-                    <Label htmlFor={`aplicata-doza-ml-${produsDraft.id}`}>Doză ml/hl</Label>
-                    <Input
-                      id={`aplicata-doza-ml-${produsDraft.id}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={produsDraft.doza_ml_per_hl ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produsDraft.id, (current) => ({
-                          ...current,
-                          doza_ml_per_hl: toOptionalNumber(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`aplicata-doza-l-${produsDraft.id}`}>Doză l/ha</Label>
-                    <Input
-                      id={`aplicata-doza-l-${produsDraft.id}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      value={produsDraft.doza_l_per_ha ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produsDraft.id, (current) => ({
-                          ...current,
-                          doza_l_per_ha: toOptionalNumber(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
@@ -965,9 +1118,9 @@ export function MarkAplicataSheet({
   ) : null
 
   const meteoBlock = (
-    <div className="rounded-2xl bg-[var(--surface-card-muted)] p-3">
-      <div className="flex items-center justify-between gap-2.5">
-        <div>
+    <div className="rounded-2xl bg-[var(--surface-card-muted)] p-3 min-w-0">
+      <div className="flex flex-col items-start justify-between gap-2.5 sm:flex-row sm:items-center min-w-0">
+        <div className="min-w-0">
           <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Snapshot meteo</p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">Se preia automat înainte de salvare.</p>
         </div>
@@ -982,11 +1135,20 @@ export function MarkAplicataSheet({
 
       {!editMeteo ? (
         <div className="mt-2.5 grid grid-cols-2 gap-2.5 text-sm text-[var(--text-secondary)]">
-          <p>{`Temp: ${meteoSnapshot?.temperatura_c ?? '—'}°C`}</p>
-          <p>{`Umiditate: ${meteoSnapshot?.umiditate_pct ?? '—'}%`}</p>
-          <p>{`Vânt: ${meteoSnapshot?.vant_kmh ?? '—'} km/h`}</p>
-          <p>{`Ploaie 24h: ${meteoSnapshot?.precipitatii_mm_24h ?? '—'} mm`}</p>
-          <p className="col-span-2">{meteoSnapshot?.descriere ?? 'Fără descriere meteo disponibilă.'}</p>
+          {isMeteoPending ? (
+            <p className="col-span-2 flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Se încarcă meteo...
+            </p>
+          ) : (
+            <>
+              <p>{`Temp: ${resolvedMeteoSnapshot?.temperatura_c ?? 'Meteo indisponibil'}${typeof resolvedMeteoSnapshot?.temperatura_c === 'number' ? '°C' : ''}`}</p>
+              <p>{`Umiditate: ${resolvedMeteoSnapshot?.umiditate_pct ?? 'Meteo indisponibil'}${typeof resolvedMeteoSnapshot?.umiditate_pct === 'number' ? '%' : ''}`}</p>
+              <p>{`Vânt: ${resolvedMeteoSnapshot?.vant_kmh ?? 'Meteo indisponibil'}${typeof resolvedMeteoSnapshot?.vant_kmh === 'number' ? ' km/h' : ''}`}</p>
+              <p>{`Ploaie 24h: ${resolvedMeteoSnapshot?.precipitatii_mm_24h ?? 'Meteo indisponibil'}${typeof resolvedMeteoSnapshot?.precipitatii_mm_24h === 'number' ? ' mm' : ''}`}</p>
+              <p className="col-span-2">{meteoError ?? resolvedMeteoSnapshot?.descriere ?? 'Meteo indisponibil'}</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="mt-2.5 grid gap-2.5 md:grid-cols-2">
@@ -1016,13 +1178,13 @@ export function MarkAplicataSheet({
   )
 
   const mobileContent = (
-    <form className="space-y-3.5" onSubmit={save}>
+    <form className="space-y-3.5 min-w-0" onSubmit={save}>
       {mode === 'manual' ? (
-        <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3.5">
-          <div className="flex items-center justify-between gap-2.5">
-            <div>
+        <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3.5 min-w-0">
+          <div className="flex items-center justify-between gap-2.5 min-w-0">
+            <div className="min-w-0">
               <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Intervenție manuală</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              <p className="mt-1 text-xs text-[var(--text-secondary)] break-words">
                 {defaultManualParcelaLabel
                   ? `Parcela curentă: ${defaultManualParcelaLabel}`
                   : 'Alege parcela și completează intervenția în afara planului.'}
@@ -1041,7 +1203,7 @@ export function MarkAplicataSheet({
                 <SelectTrigger className="agri-control h-11 w-full md:h-10">
                   <SelectValue placeholder="Selectează parcela" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
                   {manualParcele.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -1071,7 +1233,7 @@ export function MarkAplicataSheet({
                 <SelectTrigger className="agri-control h-11 w-full md:h-10">
                   <SelectValue placeholder="Selectează statusul" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
                   <SelectItem value="planificata">Planificată</SelectItem>
                   <SelectItem value="aplicata">Aplicată</SelectItem>
                 </SelectContent>
@@ -1096,7 +1258,29 @@ export function MarkAplicataSheet({
           <div className="grid gap-2.5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="manual-tip-interventie">Tip intervenție</Label>
-              <Input id="manual-tip-interventie" className="agri-control h-11 md:h-10" {...form.register('tip_interventie')} />
+              <Select
+                value={selectedTipInterventie || undefined}
+                onValueChange={(value) => form.setValue('manual_tip_select', value, { shouldValidate: true })}
+              >
+                <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                  <SelectValue placeholder="Selectează tipul" />
+                </SelectTrigger>
+                <SelectContent className="max-w-[calc(100vw-2rem)]">
+                  {TIP_INTERVENTIE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedTipInterventie === 'alt_tip' ? (
+                <Input
+                  id="manual-tip-interventie"
+                  className="agri-control h-11 md:h-10"
+                  placeholder="Specifică tipul"
+                  {...form.register('manual_tip_custom')}
+                />
+              ) : null}
               {form.formState.errors.tip_interventie ? (
                 <p className="text-xs text-[var(--status-danger-text)]">
                   {form.formState.errors.tip_interventie.message}
@@ -1105,7 +1289,29 @@ export function MarkAplicataSheet({
             </div>
             <div className="space-y-2">
               <Label htmlFor="manual-scop">Scop</Label>
-              <Input id="manual-scop" className="agri-control h-11 md:h-10" {...form.register('scop')} />
+              <Select
+                value={selectedScopInterventie || undefined}
+                onValueChange={(value) => form.setValue('manual_scop_select', value, { shouldValidate: true })}
+              >
+                <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                  <SelectValue placeholder="Selectează scopul" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCOP_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedScopInterventie === 'alt_scop' ? (
+                <Input
+                  id="manual-scop"
+                  className="agri-control h-11 md:h-10"
+                  placeholder="Specifică scopul"
+                  {...form.register('manual_scop_custom')}
+                />
+              ) : null}
               {form.formState.errors.scop ? (
                 <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.scop.message}</p>
               ) : null}
@@ -1114,7 +1320,7 @@ export function MarkAplicataSheet({
         </div>
       ) : null}
 
-      {cohortField}
+      {mode === 'din_plan' ? cohortField : null}
       {planDateField}
       {cantitateField}
       {operatorField}
@@ -1139,8 +1345,8 @@ export function MarkAplicataSheet({
             dateCaption={mode === 'manual' ? 'Data intervenției' : 'Data aplicării'}
             dateLabel={formatDateTimeSummary(mode === 'manual' ? summaryValues.manual_data : summaryValues.data_aplicata)}
             cohortLabel={selectedCohort ? getCohortaLabel(selectedCohort) : null}
-            tipInterventie={mode === 'manual' ? normalizeSummaryText(summaryValues.tip_interventie) : null}
-            scop={mode === 'manual' ? normalizeSummaryText(summaryValues.scop) : null}
+            tipInterventie={mode === 'manual' ? normalizeSummaryText(mapInterventieSelectToDb(summaryValues.manual_tip_select ?? '', summaryValues.manual_tip_custom)) : null}
+            scop={mode === 'manual' ? normalizeSummaryText(mapScopSelectToDb(summaryValues.manual_scop_select ?? '', summaryValues.manual_scop_custom)) : null}
             operator={normalizeSummaryText(summaryValues.operator)}
             stadiuLabel={selectedStadiuLabel}
             cantitateLabel={
@@ -1239,7 +1445,29 @@ export function MarkAplicataSheet({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="manual-tip-interventie">Tip intervenție</Label>
-                  <Input id="manual-tip-interventie" className="agri-control h-11 md:h-10" {...form.register('tip_interventie')} />
+                  <Select
+                    value={selectedTipInterventie || undefined}
+                    onValueChange={(value) => form.setValue('manual_tip_select', value, { shouldValidate: true })}
+                  >
+                    <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                      <SelectValue placeholder="Selectează tipul" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIP_INTERVENTIE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedTipInterventie === 'alt_tip' ? (
+                    <Input
+                      id="manual-tip-interventie"
+                      className="agri-control h-11 md:h-10"
+                      placeholder="Specifică tipul"
+                      {...form.register('manual_tip_custom')}
+                    />
+                  ) : null}
                   {form.formState.errors.tip_interventie ? (
                     <p className="text-xs text-[var(--status-danger-text)]">
                       {form.formState.errors.tip_interventie.message}
@@ -1248,12 +1476,33 @@ export function MarkAplicataSheet({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="manual-scop">Scop</Label>
-                  <Input id="manual-scop" className="agri-control h-11 md:h-10" {...form.register('scop')} />
+                  <Select
+                    value={selectedScopInterventie || undefined}
+                    onValueChange={(value) => form.setValue('manual_scop_select', value, { shouldValidate: true })}
+                  >
+                    <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                      <SelectValue placeholder="Selectează scopul" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SCOP_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedScopInterventie === 'alt_scop' ? (
+                    <Input
+                      id="manual-scop"
+                      className="agri-control h-11 md:h-10"
+                      placeholder="Specifică scopul"
+                      {...form.register('manual_scop_custom')}
+                    />
+                  ) : null}
                   {form.formState.errors.scop ? (
                     <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.scop.message}</p>
                   ) : null}
                 </div>
-                {cohortField}
               </div>
             </DesktopFormPanel>
           </FormDialogSection>
@@ -1300,12 +1549,12 @@ export function MarkAplicataSheet({
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="h-[100dvh] max-h-[100dvh] rounded-none">
+        <SheetContent side="bottom" className="h-[100dvh] max-h-[100dvh] rounded-none flex flex-col">
           <SheetHeader>
             <SheetTitle>{mode === 'manual' ? 'Adaugă intervenție manuală' : 'Marchează ca aplicat'}</SheetTitle>
           </SheetHeader>
-          <div className="px-4 pb-4">{mobileContent}</div>
-          <SheetFooter>
+          <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">{mobileContent}</div>
+          <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
             <button
               type="button"
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-4 text-sm font-semibold text-[var(--button-muted-text)]"

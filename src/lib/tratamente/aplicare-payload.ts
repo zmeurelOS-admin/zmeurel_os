@@ -16,6 +16,7 @@ export const aplicareProdusPayloadSchema = z.object({
   doza_ml_per_hl: z.number().min(0).nullable().optional(),
   doza_l_per_ha: z.number().min(0).nullable().optional(),
   cantitate_totala: z.number().min(0).nullable().optional(),
+  cantitate_text: z.string().trim().nullable().optional(),
   unitate_cantitate: z.enum(['ml', 'l', 'kg', 'g', 'buc', 'altul']).nullable().optional(),
   stoc_mutatie_id: z.string().uuid().nullable().optional(),
   observatii: z.string().trim().optional().default(''),

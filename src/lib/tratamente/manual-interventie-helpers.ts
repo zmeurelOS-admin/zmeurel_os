@@ -21,6 +21,7 @@ const manualInterventieSchema = z.object({
   cantitate_totala_ml: z.string().optional(),
   produse: z.string().min(1, 'Adaugă cel puțin un produs.'),
   diferente_fata_de_plan: z.string().optional(),
+  meteo_snapshot: z.string().optional(),
 })
 
 export interface ManualInterventiePayload {
@@ -36,6 +37,7 @@ export interface ManualInterventiePayload {
   cantitate_totala_ml: number | null
   produse: AplicareProdusPayload[]
   diferenteFataDePlan: ReturnType<typeof parseDiferenteFataDePlan>
+  meteoSnapshot: Record<string, unknown> | null
 }
 
 function getFormValue(formData: FormData, key: string): string {
@@ -63,6 +65,7 @@ export function parseManualInterventieFormData(formData: FormData): ManualInterv
     cantitate_totala_ml: getFormValue(formData, 'cantitate_totala_ml'),
     produse: getFormValue(formData, 'produse'),
     diferente_fata_de_plan: getFormValue(formData, 'diferente_fata_de_plan'),
+    meteo_snapshot: getFormValue(formData, 'meteo_snapshot'),
   })
 
   if (!parsed.success) {
@@ -73,6 +76,18 @@ export function parseManualInterventieFormData(formData: FormData): ManualInterv
   const productError = hasAplicareProductDraftErrors(produse)
   if (productError) {
     throw new Error(productError)
+  }
+
+  let meteoSnapshot: Record<string, unknown> | null = null
+  if (parsed.data.meteo_snapshot?.trim()) {
+    try {
+      const json = JSON.parse(parsed.data.meteo_snapshot)
+      if (json && typeof json === 'object' && !Array.isArray(json)) {
+        meteoSnapshot = json as Record<string, unknown>
+      }
+    } catch {
+      meteoSnapshot = null
+    }
   }
 
   return {
@@ -90,5 +105,6 @@ export function parseManualInterventieFormData(formData: FormData): ManualInterv
     cantitate_totala_ml: toOptionalNumber(parsed.data.cantitate_totala_ml ?? undefined),
     produse,
     diferenteFataDePlan: parseDiferenteFataDePlan(parsed.data.diferente_fata_de_plan) ?? null,
+    meteoSnapshot,
   }
 }

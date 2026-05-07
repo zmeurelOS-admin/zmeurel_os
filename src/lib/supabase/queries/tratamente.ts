@@ -64,7 +64,7 @@ const LINIE_SELECT =
   'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,tip_interventie,scop,regula_repetare,interval_repetare_zile,numar_repetari_max,fereastra_start_offset_zile,fereastra_end_offset_zile,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,sursa_linie,motiv_adaugare,created_at,updated_at'
 
 const PLAN_LINIE_PRODUS_SELECT =
-  'id,tenant_id,plan_linie_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,observatii,created_at,updated_at'
+  'id,tenant_id,plan_linie_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_text,observatii,created_at,updated_at'
 
 const PARCELA_PLAN_SELECT =
   'id,tenant_id,parcela_id,plan_id,an,activ,created_at,updated_at'
@@ -76,7 +76,7 @@ const APLICARE_SELECT =
   'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,sursa,tip_interventie,scop,stadiu_fenologic_id,diferente_fata_de_plan,meteo_snapshot,stadiu_la_aplicare,cohort_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
 
 const APLICARE_PRODUS_SELECT =
-  'id,tenant_id,aplicare_id,plan_linie_produs_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_totala,unitate_cantitate,stoc_mutatie_id,observatii,created_at,updated_at'
+  'id,tenant_id,aplicare_id,plan_linie_produs_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_totala,unitate_cantitate,cantitate_text,stoc_mutatie_id,observatii,created_at,updated_at'
 
 const APLICARE_PRODUSE_RELATION_SELECT =
   `produse_aplicare:aplicari_tratament_produse(${APLICARE_PRODUS_SELECT}, produs:produse_fitosanitare(${PRODUS_LOOKUP_SELECT}), plan_linie_produs:planuri_tratament_linie_produse(${PLAN_LINIE_PRODUS_SELECT}))`
@@ -225,6 +225,7 @@ export interface InterventieProdusPayload {
   phi_zile_snapshot?: number | null
   doza_ml_per_hl?: number | null
   doza_l_per_ha?: number | null
+  cantitate_text?: string | null
   observatii?: string | null
 }
 
@@ -472,6 +473,7 @@ export interface InsertAplicarePlanificata {
   produse?: Array<InterventieProdusPayload & {
     plan_linie_produs_id?: string | null
     cantitate_totala?: number | null
+    cantitate_text?: string | null
     unitate_cantitate?: AplicareTratamentProdus['unitate_cantitate']
     stoc_mutatie_id?: string | null
   }>
@@ -1468,6 +1470,7 @@ function normalizeInterventieProdusPayloads(
         produs_nume_manual: linie.produs_nume_manual ?? null,
         doza_ml_per_hl: linie.doza_ml_per_hl ?? null,
         doza_l_per_ha: linie.doza_l_per_ha ?? null,
+      cantitate_text: null,
         observatii: linie.observatii ?? null,
       }]
 
@@ -1483,6 +1486,7 @@ function normalizeInterventieProdusPayloads(
       phi_zile_snapshot: produs.phi_zile_snapshot ?? null,
       doza_ml_per_hl: produs.doza_ml_per_hl ?? null,
       doza_l_per_ha: produs.doza_l_per_ha ?? null,
+      cantitate_text: normalizeText(produs.cantitate_text),
       observatii: normalizeText(produs.observatii),
     }))
     .filter((produs) => Boolean(produs.produs_id || produs.produs_nume_manual || produs.produs_nume_snapshot))
@@ -1623,6 +1627,7 @@ async function buildAplicareProdusInserts(
         stoc_mutatie_id: produs.stoc_mutatie_id ?? null,
         observatii: normalizeText(produs.observatii),
       }
+      ;(row as Record<string, unknown>).cantitate_text = normalizeText(produs.cantitate_text)
 
       return row
     })
