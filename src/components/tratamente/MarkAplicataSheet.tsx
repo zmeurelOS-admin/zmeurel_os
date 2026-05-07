@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, Loader2, Plus, Trash2 } from 'lucide-react'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -55,6 +55,7 @@ import { saveProdusFitosanitarInLibraryAction } from '@/app/(dashboard)/tratamen
 import { loadHubMeteoParcelaAction } from '@/app/(dashboard)/tratamente/actions'
 import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
 import { toast } from '@/lib/ui/toast'
+import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
   data_aplicata: z.string().trim().min(1, 'Data aplicării este obligatorie.'),
@@ -477,6 +478,24 @@ export function MarkAplicataSheet({
   const [produseDraft, setProduseDraft] = useState<MarkAplicataProdusDraft[]>(() =>
     buildInitialProduse(produseEfective, produsePlanificate)
   )
+  const [openProductId, setOpenProductId] = useState<string | null>(() => {
+    const initial = buildInitialProduse(produseEfective, produsePlanificate)
+    return initial[0]?.id ?? null
+  })
+  // Stabilizare deps `useEffect`-ului de reset:
+  // 1. `defaultManualData` are default param `new Date()` recomputed la fiecare render
+  //    când părintele nu îl pasează, deci nu poate sta direct în deps.
+  // 2. `produseEfective` / `produsePlanificate` vin din TanStack Query și pot primi
+  //    pointeri noi la același conținut — îi citim din ref-uri în efectul de reset.
+  const stableDefaultManualData = useRef(defaultManualData).current
+  const produseEfectiveRef = useRef(produseEfective)
+  const produsePlanificateRef = useRef(produsePlanificate)
+  useEffect(() => {
+    produseEfectiveRef.current = produseEfective
+  }, [produseEfective])
+  useEffect(() => {
+    produsePlanificateRef.current = produsePlanificate
+  }, [produsePlanificate])
   const queryClient = useQueryClient()
   const stadiiValide = useMemo(() => listStadiiPentruGrup(grupBiologic), [grupBiologic])
   const defaultValues = useMemo(
@@ -529,16 +548,34 @@ export function MarkAplicataSheet({
           defaultOperator,
           defaultStadiu,
           stadiiValide,
-          resolvedMeteoSnapshot,
-          defaultManualData,
+          meteoSnapshot,
+          stableDefaultManualData,
           defaultManualParcelaId,
           defaultManualStatus,
         )
       )
-      setProduseDraft(buildInitialProduse(produseEfective, produsePlanificate))
+      const nextProduse = buildInitialProduse(
+        produseEfectiveRef.current,
+        produsePlanificateRef.current
+      )
+      setProduseDraft(nextProduse)
+      setOpenProductId(nextProduse[0]?.id ?? null)
       queueMicrotask(() => setEditMeteo(false))
     }
-  }, [cohortLaAplicareBlocata, defaultCantitateMl, defaultCohortLaAplicare, defaultManualData, defaultManualParcelaId, defaultManualStatus, defaultOperator, defaultStadiu, form, meteoSnapshot, open, produseEfective, produsePlanificate, resolvedMeteoSnapshot, stadiiValide])
+  }, [
+    cohortLaAplicareBlocata,
+    defaultCantitateMl,
+    defaultCohortLaAplicare,
+    defaultManualParcelaId,
+    defaultManualStatus,
+    defaultOperator,
+    defaultStadiu,
+    form,
+    meteoSnapshot,
+    open,
+    stableDefaultManualData,
+    stadiiValide,
+  ])
 
   useEffect(() => {
     if (!open || mode !== 'manual') return
@@ -890,7 +927,11 @@ export function MarkAplicataSheet({
           variant="outline"
           size="sm"
           className="shrink-0"
-          onClick={() => setProduseDraft((current) => [...current, createEmptyProdusDraft(current.length + 1)])}
+          onClick={() => {
+            const next = createEmptyProdusDraft(produseDraft.length + 1)
+            setProduseDraft((current) => [...current, next])
+            setOpenProductId(next.id)
+          }}
         >
           <Plus className="h-4 w-4" />
           Adaugă produs
@@ -899,221 +940,289 @@ export function MarkAplicataSheet({
 
       <div className="space-y-2">
         {produseDraft.map((produsDraft, index) => {
+          const isOpen = openProductId === produsDraft.id
           const selectedProduct =
             produseFitosanitare.find((produs) => produs.id === produsDraft.produs_id) ?? null
           const availableProducts =
             selectedProduct && !produseFitosanitare.some((produs) => produs.id === selectedProduct.id)
               ? [selectedProduct, ...produseFitosanitare]
               : produseFitosanitare
+          const headerName = productName(produsDraft, produseFitosanitare)
+          const hasName = headerName !== 'Produs fără nume'
+          const productTypeKey = mapSnapshotToProductType(produsDraft.tip_snapshot)
+          const productTypeLabel = productTypeKey
+            ? PRODUCT_TYPE_OPTIONS.find((option) => option.value === productTypeKey)?.label ?? null
+            : null
+          const cantitateText = (produsDraft.cantitate_text ?? '').trim()
+          const cantitatePreview =
+            cantitateText.length > 20 ? `${cantitateText.slice(0, 20)}…` : cantitateText
+          const isFitosanitar = productTypeKey === 'fitosanitar'
 
           return (
             <div
               key={produsDraft.id}
-              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2 min-w-0 overflow-x-hidden"
+              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] min-w-0 overflow-hidden"
             >
-              <div className="mb-2.5 flex items-start justify-between gap-2.5 min-w-0">
-                <div className="min-w-0">
-                  <p className="text-sm text-[var(--text-primary)] [font-weight:650]">Produs #{index + 1}</p>
-                  <p className="text-xs text-[var(--text-secondary)] truncate">
-                    {productName(produsDraft, produseFitosanitare)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Mută sus produsul ${index + 1}`}
-                    disabled={index === 0}
-                    onClick={() => setProduseDraft((current) => moveProduct(current, produsDraft.id, 'up'))}
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Mută jos produsul ${index + 1}`}
-                    disabled={index === produseDraft.length - 1}
-                    onClick={() => setProduseDraft((current) => moveProduct(current, produsDraft.id, 'down'))}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Șterge produsul ${index + 1}`}
-                    onClick={() =>
-                      setProduseDraft((current) =>
-                        withProductOrder(current.filter((produs) => produs.id !== produsDraft.id))
-                      )
-                    }
-                  >
-                    <Trash2 className="h-4 w-4 text-[var(--status-danger-text)]" />
-                  </Button>
-                </div>
+              <div className="flex items-stretch gap-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenProductId((current) => (current === produsDraft.id ? null : produsDraft.id))
+                  }
+                  aria-expanded={isOpen}
+                  aria-controls={`aplicata-produs-body-${produsDraft.id}`}
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left sm:px-2.5 sm:py-2"
+                >
+                  <span className="inline-flex shrink-0 items-center rounded-md border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)] tabular-nums">
+                    #{index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 flex flex-col gap-0.5 text-left md:flex-row md:items-center md:gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 md:flex-1 md:min-w-0">
+                      <span
+                        className={cn(
+                          'min-w-0 flex-1 truncate text-sm',
+                          hasName
+                            ? 'text-[var(--text-primary)] [font-weight:550]'
+                            : 'italic text-[var(--text-secondary)]'
+                        )}
+                        title={headerName}
+                      >
+                        {headerName}
+                      </span>
+                      {productTypeLabel ? (
+                        <span className="inline-flex max-w-[38%] shrink-0 items-center truncate rounded-md bg-[var(--surface-card-muted)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] sm:max-w-[45%]">
+                          {productTypeLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    {cantitatePreview ? (
+                      <span className="min-w-0 truncate pl-0.5 text-[11px] text-[var(--text-secondary)] tabular-nums md:hidden">
+                        {cantitatePreview}
+                      </span>
+                    ) : null}
+                    {cantitatePreview ? (
+                      <span className="hidden max-w-[12rem] shrink-0 truncate text-[11px] text-[var(--text-secondary)] tabular-nums md:inline-block">
+                        {cantitatePreview}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="inline-flex size-11 shrink-0 items-center justify-center self-center text-[var(--text-secondary)]">
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 transition-transform duration-150',
+                        isOpen && 'rotate-180'
+                      )}
+                      aria-hidden
+                    />
+                  </span>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 h-11 w-11 rounded-none"
+                  aria-label={`Șterge produsul ${index + 1}`}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setProduseDraft((current) =>
+                      withProductOrder(current.filter((produs) => produs.id !== produsDraft.id))
+                    )
+                    setOpenProductId((current) => (current === produsDraft.id ? null : current))
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-[var(--status-danger-text)]" />
+                </Button>
               </div>
 
-                <div className="grid gap-2 md:grid-cols-2 md:gap-x-3 min-w-0">
-                <div className="space-y-2">
-                  <Label htmlFor={`aplicata-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
-                  <ProdusFitosanitarPicker
-                    produse={availableProducts}
-                    value={produsDraft.produs_id ?? null}
-                    popoverCollisionPadding={24}
-                    popoverContentClassName="max-h-[min(48vh,20rem)]"
-                    selectedLabel={
-                      (produsDraft.produs_nume_snapshot || produsDraft.produs_nume_manual || '').trim() || null
-                    }
-                    onChange={(product) =>
-                      updateProduct(produsDraft.id, (current) => {
-                        if (!product) {
-                          const fallbackName = current.produs_nume_snapshot || current.produs_nume_manual || ''
-                          return {
-                            ...current,
-                            produs_id: null,
-                            produs_nume_manual: fallbackName,
-                            produs_nume_snapshot: fallbackName || null,
-                          }
-                        }
+              {isOpen ? (
+                <div
+                  id={`aplicata-produs-body-${produsDraft.id}`}
+                  className="border-t border-[var(--border-default)] p-2.5 min-w-0 space-y-2"
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="size-11 shrink-0 rounded-xl"
+                      aria-label={`Mută sus produsul ${index + 1}`}
+                      disabled={index === 0}
+                      onClick={() => setProduseDraft((current) => moveProduct(current, produsDraft.id, 'up'))}
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="size-11 shrink-0 rounded-xl"
+                      aria-label={`Mută jos produsul ${index + 1}`}
+                      disabled={index === produseDraft.length - 1}
+                      onClick={() => setProduseDraft((current) => moveProduct(current, produsDraft.id, 'down'))}
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                  </div>
 
-                        return updateProductFromCatalog(current, product)
-                      })
-                    }
-                    onCreateProduct={saveProductToLibrary.mutateAsync}
-                    placeholder="Adaugă manual"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`aplicata-manual-${produsDraft.id}`}>Nume manual</Label>
-                  <Input
-                    id={`aplicata-manual-${produsDraft.id}`}
-                    value={produsDraft.produs_nume_manual}
-                    disabled={Boolean(produsDraft.produs_id)}
-                    onChange={(event) =>
-                      updateProduct(produsDraft.id, (current) => ({
-                        ...current,
-                        produs_id: null,
-                        produs_nume_manual: event.target.value,
-                        produs_nume_snapshot: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Tip produs</Label>
-                  <Select
-                    value={mapSnapshotToProductType(produsDraft.tip_snapshot) ?? undefined}
-                    onValueChange={(value) =>
-                      updateProduct(produsDraft.id, (current) => {
-                        const mapped = mapProductTypeToSnapshot(value)
-                        const isFitosanitar = value === 'fitosanitar'
-                        return {
-                          ...current,
-                          tip_snapshot: mapped,
-                          substanta_activa_snapshot: isFitosanitar ? current.substanta_activa_snapshot : '',
-                          frac_irac_snapshot: isFitosanitar ? current.frac_irac_snapshot : '',
-                          phi_zile_snapshot: isFitosanitar ? current.phi_zile_snapshot : null,
-                        }
-                      })
-                    }
-                  >
-                    <SelectTrigger className="agri-control h-11 w-full md:h-10">
-                      <SelectValue placeholder="Selectează tipul produsului" />
-                    </SelectTrigger>
-                    <SelectContent className="max-w-[calc(100vw-2rem)]">
-                      {PRODUCT_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {(mapSnapshotToProductType(produsDraft.tip_snapshot) === 'fitosanitar') ? (
-                  <>
+                  <div className="grid gap-2 md:grid-cols-2 md:gap-x-3 min-w-0">
                     <div className="space-y-2">
-                      <Label htmlFor={`aplicata-substanta-${produsDraft.id}`}>Substanță activă</Label>
+                      <Label htmlFor={`aplicata-produs-${produsDraft.id}`}>Produs din bibliotecă</Label>
+                      <ProdusFitosanitarPicker
+                        produse={availableProducts}
+                        value={produsDraft.produs_id ?? null}
+                        popoverCollisionPadding={24}
+                        popoverContentClassName="max-h-[min(48vh,20rem)]"
+                        selectedLabel={
+                          (produsDraft.produs_nume_snapshot || produsDraft.produs_nume_manual || '').trim() || null
+                        }
+                        onChange={(product) =>
+                          updateProduct(produsDraft.id, (current) => {
+                            if (!product) {
+                              const fallbackName = current.produs_nume_snapshot || current.produs_nume_manual || ''
+                              return {
+                                ...current,
+                                produs_id: null,
+                                produs_nume_manual: fallbackName,
+                                produs_nume_snapshot: fallbackName || null,
+                              }
+                            }
+
+                            return updateProductFromCatalog(current, product)
+                          })
+                        }
+                        onCreateProduct={saveProductToLibrary.mutateAsync}
+                        placeholder="Adaugă manual"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`aplicata-manual-${produsDraft.id}`}>Nume manual</Label>
                       <Input
-                        id={`aplicata-substanta-${produsDraft.id}`}
-                        value={produsDraft.substanta_activa_snapshot}
+                        id={`aplicata-manual-${produsDraft.id}`}
+                        value={produsDraft.produs_nume_manual}
+                        disabled={Boolean(produsDraft.produs_id)}
                         onChange={(event) =>
                           updateProduct(produsDraft.id, (current) => ({
                             ...current,
-                            substanta_activa_snapshot: event.target.value,
+                            produs_id: null,
+                            produs_nume_manual: event.target.value,
+                            produs_nume_snapshot: event.target.value,
                           }))
                         }
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor={`aplicata-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
-                        <Input
-                          id={`aplicata-frac-${produsDraft.id}`}
-                          value={produsDraft.frac_irac_snapshot}
-                          onChange={(event) =>
-                            updateProduct(produsDraft.id, (current) => ({
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Tip produs</Label>
+                      <Select
+                        value={mapSnapshotToProductType(produsDraft.tip_snapshot) ?? undefined}
+                        onValueChange={(value) =>
+                          updateProduct(produsDraft.id, (current) => {
+                            const mapped = mapProductTypeToSnapshot(value)
+                            const isFitosanitarSelected = value === 'fitosanitar'
+                            return {
                               ...current,
-                              frac_irac_snapshot: event.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`aplicata-phi-${produsDraft.id}`}>PHI zile</Label>
-                        <Input
-                          id={`aplicata-phi-${produsDraft.id}`}
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={produsDraft.phi_zile_snapshot ?? ''}
-                          onChange={(event) =>
-                            updateProduct(produsDraft.id, (current) => ({
-                              ...current,
-                              phi_zile_snapshot: toOptionalNumber(event.target.value),
-                            }))
-                          }
-                        />
-                      </div>
+                              tip_snapshot: mapped,
+                              substanta_activa_snapshot: isFitosanitarSelected ? current.substanta_activa_snapshot : '',
+                              frac_irac_snapshot: isFitosanitarSelected ? current.frac_irac_snapshot : '',
+                              phi_zile_snapshot: isFitosanitarSelected ? current.phi_zile_snapshot : null,
+                            }
+                          })
+                        }
+                      >
+                        <SelectTrigger className="agri-control h-11 w-full md:h-10">
+                          <SelectValue placeholder="Selectează tipul produsului" />
+                        </SelectTrigger>
+                        <SelectContent className="max-w-[calc(100vw-2rem)]">
+                          {PRODUCT_TYPE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </>
-                ) : null}
 
-                <div className="space-y-2">
-                  <Label htmlFor={`aplicata-cantitate-${produsDraft.id}`}>Cantitate aplicată</Label>
-                  <Input
-                    id={`aplicata-cantitate-${produsDraft.id}`}
-                    value={produsDraft.cantitate_text}
-                    placeholder={CANTITATE_PLACEHOLDER}
-                    onChange={(event) =>
-                      updateProduct(produsDraft.id, (current) => ({
-                        ...current,
-                        cantitate_text: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
+                    {isFitosanitar ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor={`aplicata-substanta-${produsDraft.id}`}>Substanță activă</Label>
+                          <Input
+                            id={`aplicata-substanta-${produsDraft.id}`}
+                            value={produsDraft.substanta_activa_snapshot}
+                            onChange={(event) =>
+                              updateProduct(produsDraft.id, (current) => ({
+                                ...current,
+                                substanta_activa_snapshot: event.target.value,
+                              }))
+                            }
+                          />
+                        </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor={`aplicata-produs-observatii-${produsDraft.id}`}>Observații produs</Label>
-                  <Textarea
-                    id={`aplicata-produs-observatii-${produsDraft.id}`}
-                    rows={2}
-                    value={produsDraft.observatii}
-                    onChange={(event) =>
-                      updateProduct(produsDraft.id, (current) => ({
-                        ...current,
-                        observatii: event.target.value,
-                      }))
-                    }
-                  />
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`aplicata-frac-${produsDraft.id}`}>FRAC/IRAC</Label>
+                            <Input
+                              id={`aplicata-frac-${produsDraft.id}`}
+                              value={produsDraft.frac_irac_snapshot}
+                              onChange={(event) =>
+                                updateProduct(produsDraft.id, (current) => ({
+                                  ...current,
+                                  frac_irac_snapshot: event.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`aplicata-phi-${produsDraft.id}`}>PHI zile</Label>
+                            <Input
+                              id={`aplicata-phi-${produsDraft.id}`}
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={produsDraft.phi_zile_snapshot ?? ''}
+                              onChange={(event) =>
+                                updateProduct(produsDraft.id, (current) => ({
+                                  ...current,
+                                  phi_zile_snapshot: toOptionalNumber(event.target.value),
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`aplicata-cantitate-${produsDraft.id}`}>Cantitate aplicată</Label>
+                      <Input
+                        id={`aplicata-cantitate-${produsDraft.id}`}
+                        value={produsDraft.cantitate_text}
+                        placeholder={CANTITATE_PLACEHOLDER}
+                        onChange={(event) =>
+                          updateProduct(produsDraft.id, (current) => ({
+                            ...current,
+                            cantitate_text: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor={`aplicata-produs-observatii-${produsDraft.id}`}>Observații produs</Label>
+                      <Textarea
+                        id={`aplicata-produs-observatii-${produsDraft.id}`}
+                        rows={2}
+                        value={produsDraft.observatii}
+                        onChange={(event) =>
+                          updateProduct(produsDraft.id, (current) => ({
+                            ...current,
+                            observatii: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           )
         })}
@@ -1565,11 +1674,11 @@ export function MarkAplicataSheet({
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="h-[100dvh] max-h-[100dvh] rounded-none flex flex-col">
+        <SheetContent side="bottom" className="max-h-[100dvh] rounded-none flex flex-col overflow-hidden">
           <SheetHeader>
             <SheetTitle>{mode === 'manual' ? 'Adaugă intervenție manuală' : 'Marchează ca aplicat'}</SheetTitle>
           </SheetHeader>
-          <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">{mobileContent}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3">{mobileContent}</div>
           <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
             <button
               type="button"

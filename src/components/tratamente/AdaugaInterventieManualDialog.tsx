@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { ChevronDown, Plus, Trash2 } from 'lucide-react'
 
 import { addLinieAction, type LinieInput } from '@/app/(dashboard)/tratamente/planuri/[planId]/actions'
 import { AppDialog } from '@/components/app/AppDialog'
@@ -18,6 +18,7 @@ import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
 import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
 import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
+import { cn } from '@/lib/utils'
 
 import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
 import {
@@ -184,6 +185,10 @@ export function AdaugaInterventieManualDialog({
   const { tenantId } = useDashboardAuth()
   const isMobile = useMediaQuery('(max-width: 767px)')
   const [value, setValue] = useState<ManualInterventieValue>(createInitialValue)
+  const [openProductId, setOpenProductId] = useState<string | null>(() => {
+    const initial = createInitialValue()
+    return initial.produse[0]?.id ?? null
+  })
   const [pending, setPending] = useState(false)
   const stadiuOptions = useMemo(() => getStadiuOptions(grupBiologic), [grupBiologic])
   const validationError = getValidationError(value)
@@ -191,7 +196,9 @@ export function AdaugaInterventieManualDialog({
   useEffect(() => {
     if (!open) return
     queueMicrotask(() => {
-      setValue(createInitialValue())
+      const fresh = createInitialValue()
+      setValue(fresh)
+      setOpenProductId(fresh.produse[0]?.id ?? null)
       setPending(false)
     })
   }, [open])
@@ -292,8 +299,7 @@ export function AdaugaInterventieManualDialog({
   }
 
   const content = (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="space-y-4 pr-1 min-w-0">
+    <div className="space-y-4 pr-1 min-w-0">
       <div className="grid gap-4 md:grid-cols-2 min-w-0">
         <div className="space-y-2">
           <Label htmlFor="manual-linie-stadiu">Fenofază</Label>
@@ -406,208 +412,269 @@ export function AdaugaInterventieManualDialog({
         </div>
 
         {value.produse.map((produs, index) => {
+          const isOpen = openProductId === produs.id
           const selectedProduct = produse.find((item) => item.id === produs.produs_id) ?? null
           const showManualFields = !selectedProduct
+          const headerName = getManualProductName(produs, produse)
+          const hasName = headerName !== 'Produs nou'
+          const productTypeLabel =
+            PRODUCT_TYPE_OPTIONS.find((option) => option.value === produs.product_category)?.label ?? null
+          const cantitateText = produs.cantitate_text.trim()
+          const cantitatePreview =
+            cantitateText.length > 20 ? `${cantitateText.slice(0, 20)}…` : cantitateText
+          const canDelete = value.produse.length >= 2
 
           return (
             <div
               key={produs.id}
-              className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3 min-w-0 overflow-x-hidden"
+              className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] min-w-0 overflow-hidden"
             >
-              <div className="flex items-start justify-between gap-3 min-w-0">
-                <div className="min-w-0">
-                  <p className="text-sm text-[var(--text-primary)] [font-weight:650]">
-                    Produs #{index + 1}
-                  </p>
-                  <p className="text-xs text-[var(--text-secondary)] truncate">
-                    {getManualProductName(produs, produse)}
-                  </p>
-                </div>
-
-                {value.produse.length >= 2 ? (
+              <div className="flex items-stretch gap-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenProductId((current) => (current === produs.id ? null : produs.id))
+                  }
+                  aria-expanded={isOpen}
+                  aria-controls={`manual-produs-body-${produs.id}`}
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left sm:px-2.5 sm:py-2"
+                >
+                  <span className="inline-flex shrink-0 items-center rounded-md border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)] tabular-nums">
+                    #{index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 flex flex-col gap-0.5 text-left md:flex-row md:items-center md:gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 md:flex-1 md:min-w-0">
+                      <span
+                        className={cn(
+                          'min-w-0 flex-1 truncate text-sm',
+                          hasName
+                            ? 'text-[var(--text-primary)] [font-weight:550]'
+                            : 'italic text-[var(--text-secondary)]'
+                        )}
+                        title={headerName}
+                      >
+                        {headerName}
+                      </span>
+                      {productTypeLabel ? (
+                        <span className="inline-flex max-w-[38%] shrink-0 items-center truncate rounded-md bg-[var(--surface-card-muted)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] sm:max-w-[45%]">
+                          {productTypeLabel}
+                        </span>
+                      ) : null}
+                    </span>
+                    {cantitatePreview ? (
+                      <span className="min-w-0 truncate pl-0.5 text-[11px] text-[var(--text-secondary)] tabular-nums md:hidden">
+                        {cantitatePreview}
+                      </span>
+                    ) : null}
+                    {cantitatePreview ? (
+                      <span className="hidden max-w-[12rem] shrink-0 truncate text-[11px] text-[var(--text-secondary)] tabular-nums md:inline-block">
+                        {cantitatePreview}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="inline-flex size-11 shrink-0 items-center justify-center self-center text-[var(--text-secondary)]">
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 transition-transform duration-150',
+                        isOpen && 'rotate-180'
+                      )}
+                      aria-hidden
+                    />
+                  </span>
+                </button>
+                {canDelete ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="shrink-0"
+                    className="shrink-0 h-11 w-11 rounded-none"
                     aria-label={`Șterge produsul ${index + 1}`}
-                    onClick={() =>
+                    onClick={(event) => {
+                      event.stopPropagation()
                       setValue((current) => ({
                         ...current,
                         produse: withProductOrder(
                           current.produse.filter((item) => item.id !== produs.id)
                         ),
                       }))
-                    }
+                      setOpenProductId((current) => (current === produs.id ? null : current))
+                    }}
                   >
-                    <X className="h-4 w-4 text-[var(--soft-danger-text)]" />
+                    <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
                   </Button>
                 ) : null}
               </div>
 
-              <ProdusFitosanitarPicker
-                allowQuickCreate={false}
-                label="Produs din bibliotecă"
-                className="relative z-20 overflow-x-visible"
-                popoverContentClassName="max-h-[40vh]"
-                onChange={(selected) =>
-                  updateProduct(produs.id, (current) => ({
-                    ...current,
-                    produs_id: selected?.id ?? null,
-                    produs_nume_manual: selected ? '' : current.produs_nume_manual,
-                    produs_nume_snapshot: selected?.nume_comercial ?? current.produs_nume_snapshot,
-                    substanta_activa_snapshot: selected?.substanta_activa ?? current.substanta_activa_snapshot,
-                    tip_snapshot: selected?.tip ?? current.tip_snapshot,
-                    frac_irac_snapshot: selected?.frac_irac ?? current.frac_irac_snapshot,
-                    phi_zile_snapshot: selected?.phi_zile ?? current.phi_zile_snapshot,
-                  }))
-                }
-                produse={produse}
-                value={produs.produs_id ?? null}
-              />
-
-              {showManualFields ? (
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor={`manual-product-name-${produs.id}`}>Nume produs</Label>
-                    <Input
-                      id={`manual-product-name-${produs.id}`}
-                      value={produs.produs_nume_manual ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produs.id, (current) => ({
-                          ...current,
-                          produs_id: null,
-                          produs_nume_manual: event.target.value,
-                          produs_nume_snapshot: event.target.value,
-                        }))
-                      }
-                      placeholder="Ex: Calciu foliar X"
-                    />
-                  </div>
-
-                  <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                    <input
-                      type="checkbox"
-                      checked={produs.save_in_library}
-                      onChange={(event) =>
-                        updateProduct(produs.id, (current) => ({
-                          ...current,
-                          save_in_library: event.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-[var(--border-default)] accent-[var(--agri-primary)]"
-                    />
-                    Salvează în biblioteca mea
-                  </label>
-                </div>
-              ) : null}
-
-              <div className="space-y-2">
-                <Label>Tip produs</Label>
-                <Select
-                  value={produs.product_category}
-                  onValueChange={(next) =>
-                    updateProduct(produs.id, (current) => ({
-                      ...current,
-                      product_category: next as ManualProductDraft['product_category'],
-                      substanta_activa_snapshot:
-                        next === 'fitosanitar' ? current.substanta_activa_snapshot : '',
-                      frac_irac_snapshot: next === 'fitosanitar' ? current.frac_irac_snapshot : '',
-                      phi_zile_snapshot: next === 'fitosanitar' ? current.phi_zile_snapshot : null,
-                    }))
-                  }
+              {isOpen ? (
+                <div
+                  id={`manual-produs-body-${produs.id}`}
+                  className="space-y-3 border-t border-[var(--border-default)] p-3 min-w-0"
                 >
-                  <SelectTrigger className="agri-control h-11 w-full rounded-xl px-3 text-sm">
-                    <SelectValue placeholder="Selectează tip produs" />
-                  </SelectTrigger>
-                  <SelectContent className="max-w-[calc(100vw-2rem)]">
-                    {PRODUCT_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {produs.product_category === 'fitosanitar' ? (
-                <div className="grid gap-3 md:grid-cols-2 min-w-0">
-                  <div className="space-y-2">
-                    <Label htmlFor={`manual-substanta-${produs.id}`}>Substanță activă</Label>
-                    <Input
-                      id={`manual-substanta-${produs.id}`}
-                      value={produs.substanta_activa_snapshot ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produs.id, (current) => ({
-                          ...current,
-                          substanta_activa_snapshot: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`manual-frac-${produs.id}`}>FRAC/IRAC</Label>
-                    <Input
-                      id={`manual-frac-${produs.id}`}
-                      value={produs.frac_irac_snapshot ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produs.id, (current) => ({
-                          ...current,
-                          frac_irac_snapshot: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`manual-phi-${produs.id}`}>PHI zile</Label>
-                    <Input
-                      id={`manual-phi-${produs.id}`}
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={produs.phi_zile_snapshot ?? ''}
-                      onChange={(event) =>
-                        updateProduct(produs.id, (current) => ({
-                          ...current,
-                          phi_zile_snapshot: parseOptionalNumber(event.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="grid gap-3 md:grid-cols-2 min-w-0">
-                <div className="space-y-2">
-                  <Label htmlFor={`manual-cantitate-${produs.id}`}>Cantitate aplicată</Label>
-                  <Input
-                    id={`manual-cantitate-${produs.id}`}
-                    value={produs.cantitate_text}
-                    placeholder="ex: 60 ml la 15 l apă, sau 200 ml/ha"
-                    onChange={(event) =>
+                  <ProdusFitosanitarPicker
+                    allowQuickCreate={false}
+                    label="Produs din bibliotecă"
+                    className="relative z-20 overflow-x-visible"
+                    popoverContentClassName="max-h-[40vh]"
+                    onChange={(selected) =>
                       updateProduct(produs.id, (current) => ({
                         ...current,
-                        cantitate_text: event.target.value,
+                        produs_id: selected?.id ?? null,
+                        produs_nume_manual: selected ? '' : current.produs_nume_manual,
+                        produs_nume_snapshot: selected?.nume_comercial ?? current.produs_nume_snapshot,
+                        substanta_activa_snapshot: selected?.substanta_activa ?? current.substanta_activa_snapshot,
+                        tip_snapshot: selected?.tip ?? current.tip_snapshot,
+                        frac_irac_snapshot: selected?.frac_irac ?? current.frac_irac_snapshot,
+                        phi_zile_snapshot: selected?.phi_zile ?? current.phi_zile_snapshot,
                       }))
                     }
+                    produse={produse}
+                    value={produs.produs_id ?? null}
                   />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor={`manual-product-notes-${produs.id}`}>Observații produs</Label>
-                <Input
-                  id={`manual-product-notes-${produs.id}`}
-                  value={produs.observatii ?? ''}
-                  onChange={(event) =>
-                    updateProduct(produs.id, (current) => ({
-                      ...current,
-                      observatii: event.target.value,
-                    }))
-                  }
-                  placeholder="Opțional"
-                />
-              </div>
+                  {showManualFields ? (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor={`manual-product-name-${produs.id}`}>Nume produs</Label>
+                        <Input
+                          id={`manual-product-name-${produs.id}`}
+                          value={produs.produs_nume_manual ?? ''}
+                          onChange={(event) =>
+                            updateProduct(produs.id, (current) => ({
+                              ...current,
+                              produs_id: null,
+                              produs_nume_manual: event.target.value,
+                              produs_nume_snapshot: event.target.value,
+                            }))
+                          }
+                          placeholder="Ex: Calciu foliar X"
+                        />
+                      </div>
+
+                      <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <input
+                          type="checkbox"
+                          checked={produs.save_in_library}
+                          onChange={(event) =>
+                            updateProduct(produs.id, (current) => ({
+                              ...current,
+                              save_in_library: event.target.checked,
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-[var(--border-default)] accent-[var(--agri-primary)]"
+                        />
+                        Salvează în biblioteca mea
+                      </label>
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    <Label>Tip produs</Label>
+                    <Select
+                      value={produs.product_category}
+                      onValueChange={(next) =>
+                        updateProduct(produs.id, (current) => ({
+                          ...current,
+                          product_category: next as ManualProductDraft['product_category'],
+                          substanta_activa_snapshot:
+                            next === 'fitosanitar' ? current.substanta_activa_snapshot : '',
+                          frac_irac_snapshot: next === 'fitosanitar' ? current.frac_irac_snapshot : '',
+                          phi_zile_snapshot: next === 'fitosanitar' ? current.phi_zile_snapshot : null,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="agri-control h-11 w-full rounded-xl px-3 text-sm">
+                        <SelectValue placeholder="Selectează tip produs" />
+                      </SelectTrigger>
+                      <SelectContent className="max-w-[calc(100vw-2rem)]">
+                        {PRODUCT_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {produs.product_category === 'fitosanitar' ? (
+                    <div className="grid gap-3 md:grid-cols-2 min-w-0">
+                      <div className="space-y-2">
+                        <Label htmlFor={`manual-substanta-${produs.id}`}>Substanță activă</Label>
+                        <Input
+                          id={`manual-substanta-${produs.id}`}
+                          value={produs.substanta_activa_snapshot ?? ''}
+                          onChange={(event) =>
+                            updateProduct(produs.id, (current) => ({
+                              ...current,
+                              substanta_activa_snapshot: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`manual-frac-${produs.id}`}>FRAC/IRAC</Label>
+                        <Input
+                          id={`manual-frac-${produs.id}`}
+                          value={produs.frac_irac_snapshot ?? ''}
+                          onChange={(event) =>
+                            updateProduct(produs.id, (current) => ({
+                              ...current,
+                              frac_irac_snapshot: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`manual-phi-${produs.id}`}>PHI zile</Label>
+                        <Input
+                          id={`manual-phi-${produs.id}`}
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={produs.phi_zile_snapshot ?? ''}
+                          onChange={(event) =>
+                            updateProduct(produs.id, (current) => ({
+                              ...current,
+                              phi_zile_snapshot: parseOptionalNumber(event.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-3 md:grid-cols-2 min-w-0">
+                    <div className="space-y-2">
+                      <Label htmlFor={`manual-cantitate-${produs.id}`}>Cantitate aplicată</Label>
+                      <Input
+                        id={`manual-cantitate-${produs.id}`}
+                        value={produs.cantitate_text}
+                        placeholder="ex: 60 ml la 15 l apă, sau 200 ml/ha"
+                        onChange={(event) =>
+                          updateProduct(produs.id, (current) => ({
+                            ...current,
+                            cantitate_text: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`manual-product-notes-${produs.id}`}>Observații produs</Label>
+                    <Input
+                      id={`manual-product-notes-${produs.id}`}
+                      value={produs.observatii ?? ''}
+                      onChange={(event) =>
+                        updateProduct(produs.id, (current) => ({
+                          ...current,
+                          observatii: event.target.value,
+                        }))
+                      }
+                      placeholder="Opțional"
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
           )
         })}
@@ -615,12 +682,14 @@ export function AdaugaInterventieManualDialog({
         <Button
           type="button"
           variant="outline"
-          onClick={() =>
+          onClick={() => {
+            const next = createManualProduct(value.produse.length + 1)
             setValue((current) => ({
               ...current,
-              produse: [...current.produse, createManualProduct(current.produse.length + 1)],
+              produse: [...current.produse, next],
             }))
-          }
+            setOpenProductId(next.id)
+          }}
         >
           <Plus className="h-4 w-4" />
           Adaugă alt produs
@@ -684,7 +753,6 @@ export function AdaugaInterventieManualDialog({
       {validationError ? (
         <p className="text-sm text-[var(--soft-danger-text)]">{validationError}</p>
       ) : null}
-      </div>
     </div>
   )
 

@@ -99,7 +99,19 @@ export function AddMicroclimatDialog({
       title={`Adaugă ${conditiiLabelLower}`}
       footer={
         <DialogFormActions
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => {
+            // Dialog nested peste sheet-ul parcelei: wrapper-ul `Dialog` din
+            // `src/components/ui/dialog.tsx` apelează `history.back()` la
+            // închidere doar dacă marker-ul `__zmeurelDialog` mai e în
+            // history.state. Îl ștergem aici ca să închidem strict dialogul,
+            // fără back-navigation care ar pop-ui sheet-ul/pagina parcelei.
+            if (typeof window !== 'undefined' && window.history.state?.__zmeurelDialog) {
+              const cleanedState = { ...window.history.state }
+              delete cleanedState.__zmeurelDialog
+              window.history.replaceState(cleanedState, '')
+            }
+            onOpenChange(false)
+          }}
           onSave={form.handleSubmit((v) => mutation.mutate(v))}
           saving={mutation.isPending}
           saveLabel="Salvează"
