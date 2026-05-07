@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { ArrowDown, ArrowUp, Loader2, Plus, Trash2 } from 'lucide-react'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
@@ -52,6 +53,7 @@ import {
 } from '@/lib/tratamente/stadii-canonic'
 import { saveProdusFitosanitarInLibraryAction } from '@/app/(dashboard)/tratamente/produse-fitosanitare/actions'
 import { loadHubMeteoParcelaAction } from '@/app/(dashboard)/tratamente/actions'
+import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
 import { toast } from '@/lib/ui/toast'
 
 const formSchema = z.object({
@@ -466,6 +468,7 @@ export function MarkAplicataSheet({
   produseFitosanitare = EMPTY_PRODUSE_FITOSANITARE,
   produsePlanificate = EMPTY_PLAN_PRODUSE,
 }: MarkAplicataSheetProps) {
+  const { tenantId } = useDashboardAuth()
   const isMobile = useMediaQuery('(max-width: 767px)')
   const [isMeteoPending, startMeteoTransition] = useTransition()
   const [meteoError, setMeteoError] = useState<string | null>(null)
@@ -630,6 +633,19 @@ export function MarkAplicataSheet({
           })),
           diferenteFataDePlan: null,
         })
+        if (tenantId) {
+          void autoSaveProdusInBiblioteca(
+            withProductOrder(produseDraft).map((produs) => ({
+              produs_id: produs.produs_id,
+              produs_nume_manual: produs.produs_nume_manual,
+              substanta_activa_snapshot: produs.substanta_activa_snapshot,
+              tip_snapshot: produs.tip_snapshot,
+              frac_irac_snapshot: produs.frac_irac_snapshot,
+              phi_zile_snapshot: produs.phi_zile_snapshot,
+            })),
+            tenantId
+          )
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Nu am putut salva intervenția.'
         toast.error(message)

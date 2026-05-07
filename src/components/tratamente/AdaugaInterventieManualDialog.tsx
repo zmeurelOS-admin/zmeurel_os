@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 
 import { addLinieAction, type LinieInput } from '@/app/(dashboard)/tratamente/planuri/[planId]/actions'
-import { createProdusFitosanitarAction } from '@/app/(dashboard)/tratamente/produse-fitosanitare/actions'
 import { AppDialog } from '@/components/app/AppDialog'
 import { AppDrawer } from '@/components/app/AppDrawer'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ProdusFitosanitarPicker } from '@/components/tratamente/ProdusFitosanitarPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
 import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 
@@ -173,13 +174,14 @@ function getManualProductName(produs: ManualProductDraft, biblioteca: ProdusFito
 
 export function AdaugaInterventieManualDialog({
   planId,
-  cultura,
+  cultura: _cultura,
   grupBiologic,
   open,
   onOpenChange,
   onSuccess,
   produse,
 }: AdaugaInterventieManualDialogProps) {
+  const { tenantId } = useDashboardAuth()
   const isMobile = useMediaQuery('(max-width: 767px)')
   const [value, setValue] = useState<ManualInterventieValue>(createInitialValue)
   const [pending, setPending] = useState(false)
@@ -220,20 +222,6 @@ export function AdaugaInterventieManualDialog({
         let produsId = produs.produs_id ?? null
         let produsNumeManual = produs.produs_nume_manual?.trim() || null
         let produsNumeSnapshot = produs.produs_nume_snapshot?.trim() || produsNumeManual
-
-        if (!produsId && produsNumeManual && produs.save_in_library) {
-          const created = await createProdusFitosanitarAction({
-            nume_comercial: produsNumeManual,
-            substanta_activa: '',
-            tip: 'foliar',
-            omologat_culturi: [cultura],
-            activ: true,
-          })
-
-          produsId = created.id
-          produsNumeManual = null
-          produsNumeSnapshot = created.nume_comercial
-        }
 
         produseFinale.push({
           ordine: produs.ordine,
@@ -277,6 +265,21 @@ export function AdaugaInterventieManualDialog({
       }
 
       toast.success('Intervenția manuală a fost adăugată.')
+      if (tenantId) {
+        void autoSaveProdusInBiblioteca(
+          value.produse
+            .filter((produs) => produs.save_in_library)
+            .map((produs) => ({
+              produs_id: produs.produs_id,
+              produs_nume_manual: produs.produs_nume_manual,
+              substanta_activa_snapshot: produs.substanta_activa_snapshot,
+              tip_snapshot: mapProductTypeToSnapshot(produs.product_category),
+              frac_irac_snapshot: produs.frac_irac_snapshot,
+              phi_zile_snapshot: produs.phi_zile_snapshot,
+            })),
+          tenantId
+        )
+      }
       onOpenChange(false)
       onSuccess()
     } catch (err) {
