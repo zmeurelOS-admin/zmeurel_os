@@ -10,6 +10,7 @@ import {
   getGrupBiologicParcela,
   getParcelaTratamenteContext,
   getPlanActivPentruParcela,
+  getPlanTratamentCuLinii,
   listAplicariParcela,
   listInterventiiRelevanteParcela,
   listPlanuriTratament,
@@ -20,6 +21,7 @@ import {
   type ParcelaTratamenteContext,
   type PlanActivParcela,
   type PlanTratament,
+  type PlanTratamentLinieCuProdus,
   type ProdusFitosanitar,
   type StadiuFenologicParcela,
 } from '@/lib/supabase/queries/tratamente'
@@ -187,6 +189,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
   const configurareSezon = parcelaSezon ? await getOrCreateConfigurareSezon(parcelaSezon, an) : null
   const rubusMixt = isRubusMixt(configurareSezon)
   const planuriDisponibile = filterPlanuriDisponibile(toatePlanurile, parcela)
+  const planComplet = planActiv?.plan?.id ? await getPlanTratamentCuLinii(planActiv.plan.id) : null
   const singleStageState = rubusMixt ? null : buildStageState(stadii, grupBiologic, null)
   const dualStageState = rubusMixt
     ? {
@@ -253,6 +256,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
         parcela={parcela}
         parcelaId={parcelaId}
         planActiv={planActiv}
+        planLinii={((planComplet?.linii ?? []) as PlanTratamentLinieCuProdus[]).filter(Boolean)}
         planuriDisponibile={planuriDisponibile}
         produseFitosanitare={produseFitosanitare as ProdusFitosanitar[]}
         interventiiRelevante={interventiiRelevante as InterventieRelevantaV2[]}

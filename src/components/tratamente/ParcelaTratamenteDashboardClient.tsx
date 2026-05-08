@@ -27,6 +27,7 @@ import {
 import { ParcelaTratamenteMobileHub } from '@/components/tratamente/ParcelaTratamenteMobileHub'
 import { TRATAMENTE_OPEN_MANUAL_EVENT } from '@/components/tratamente/ParcelaTratamenteManualTrigger'
 import { GenereazaAplicariDialog } from '@/components/tratamente/GenereazaAplicariDialog'
+import { ParcelaPlanLiniiExpandable } from '@/components/tratamente/ParcelaPlanLiniiExpandable'
 import {
   RecordStadiuSheet,
   type RecordStadiuFormValues,
@@ -36,12 +37,14 @@ import { StadiuCurentCard, type StageState } from '@/components/tratamente/Stadi
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { upsertConfigurareSezonAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
+import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
 import type {
   AplicareTratamentDetaliu,
   InterventieRelevantaV2,
   ParcelaTratamenteContext,
   PlanActivParcela,
   PlanTratament,
+  PlanTratamentLinieCuProdus,
   ProdusFitosanitar,
   StadiuFenologicParcela,
 } from '@/lib/supabase/queries/tratamente'
@@ -68,6 +71,7 @@ interface ParcelaTratamenteDashboardClientProps {
   parcela: ParcelaTratamenteContext
   parcelaId: string
   planActiv: PlanActivParcela | null
+  planLinii: PlanTratamentLinieCuProdus[]
   planuriDisponibile: PlanTratament[]
   produseFitosanitare: ProdusFitosanitar[]
   interventiiRelevante: InterventieRelevantaV2[]
@@ -92,6 +96,7 @@ export function ParcelaTratamenteDashboardClient({
   parcela,
   parcelaId,
   planActiv,
+  planLinii,
   planuriDisponibile,
   produseFitosanitare,
   interventiiRelevante,
@@ -110,12 +115,20 @@ export function ParcelaTratamenteDashboardClient({
   const [seasonOpen, setSeasonOpen] = useState(false)
   const [manualOpen, setManualOpen] = useState(false)
   const [pendingInterventieId, setPendingInterventieId] = useState<string | null>(null)
+  const [applyLinie, setApplyLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
+  const [applyAplicareId, setApplyAplicareId] = useState<string | null>(null)
+  const [applyOpen, setApplyOpen] = useState(false)
+  const [isApplyPending, startApplyTransition] = useTransition()
   const [isRecording, startRecordTransition] = useTransition()
   const [isAssigning, startAssignTransition] = useTransition()
   const [isGenerating, startGenerateTransition] = useTransition()
   const [isConfiguring, startConfiguringTransition] = useTransition()
   const [isManualSaving, startManualTransition] = useTransition()
   const [isPlanificaPending, startPlanificaTransition] = useTransition()
+  const lockedApplyCohort: Cohorta | null =
+    applyLinie?.cohort_trigger === 'floricane' || applyLinie?.cohort_trigger === 'primocane'
+      ? applyLinie.cohort_trigger
+      : null
 
   useEffect(() => {
     const unregister = registerAddAction(() => setManualOpen(true), '+ Intervenție manuală')
@@ -220,6 +233,71 @@ export function ParcelaTratamenteDashboardClient({
 
       toast.success('Aplicarea din plan a fost pregătită.')
       setPendingInterventieId(null)
+      router.refresh()
+    })
+  }
+
+  const relevantLinieIds = useMemo(
+    () => new Set(interventiiRelevante.map((item) => item.interventie.id)),
+    [interventiiRelevante]
+  )
+
+  const handleApplyNowFromPlanLinie = (linie: PlanTratamentLinieCuProdus) => {
+    setApplyLinie(linie)
+    setApplyAplicareId(null)
+    startApplyTransition(async () => {
+      const formData = new FormData()
+      formData.set('parcelaId', parcelaId)
+      formData.set('planLinieId', linie.id)
+      formData.set('dataPlanificata', new Date().toISOString().slice(0, 10))
+      const cohort: Cohorta | null =
+        linie.cohort_trigger === 'floricane' || linie.cohort_trigger === 'primocane' ? linie.cohort_trigger : null
+      if (cohort) formData.set('cohortLaAplicare', cohort)
+
+      const result = await planificaInterventieRelevantaAction(formData)
+      if (!result.ok) {
+        toast.error(result.error)
+        setApplyLinie(null)
+        return
+      }
+
+      setApplyAplicareId(result.aplicareId)
+      setApplyOpen(true)
+    })
+  }
+
+  const handleApplySubmit = async (values: MarkAplicataFormValues) => {
+    if (!applyAplicareId) return
+    startApplyTransition(async () => {
+      const formData = new FormData()
+      formData.set('parcelaId', parcelaId)
+      formData.set('aplicareId', applyAplicareId)
+      formData.set('data_aplicata', values.data_aplicata)
+      formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
+      formData.set('operator', values.operator ?? '')
+      formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
+      if (values.cohort_la_aplicare) {
+        formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
+      }
+      formData.set('observatii', values.observatii ?? '')
+      if (values.meteoSnapshot) {
+        formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
+      }
+      formData.set('produse', JSON.stringify(values.produse))
+      if (values.diferenteFataDePlan) {
+        formData.set('diferente_fata_de_plan', JSON.stringify(values.diferenteFataDePlan))
+      }
+
+      const result = await markAplicataAction(formData)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+
+      toast.success('Aplicarea a fost marcată ca efectuată.')
+      setApplyOpen(false)
+      setApplyLinie(null)
+      setApplyAplicareId(null)
       router.refresh()
     })
   }
@@ -341,6 +419,14 @@ export function ParcelaTratamenteDashboardClient({
             title="Intervenții relevante"
           />
 
+          <ParcelaPlanLiniiExpandable
+            linii={planLinii}
+            planName={planActiv?.plan?.nume ?? null}
+            relevantLinieIds={relevantLinieIds}
+            grupBiologic={grupBiologic}
+            onApplyNow={handleApplyNowFromPlanLinie}
+          />
+
           <PlanActivCard
             createHref={createPlanHref}
             detailsHref={detailsHref}
@@ -405,8 +491,11 @@ export function ParcelaTratamenteDashboardClient({
             setRecordOpen(true)
           }}
           parcelaId={parcelaId}
+          planLinii={planLinii}
+          planName={planActiv?.plan?.nume ?? null}
           pendingInterventieId={isPlanificaPending ? pendingInterventieId : null}
           planActiv={planActiv}
+          produseFitosanitare={produseFitosanitare}
           singleStageState={singleStageState}
           urmatoareleAplicari={urmatoareleAplicari}
         />
@@ -415,6 +504,7 @@ export function ParcelaTratamenteDashboardClient({
       {recordOpen ? (
         <RecordStadiuSheet
           an={an}
+          defaultCohort={recordCohort}
           cohortPreselectat={recordCohort}
           configurareSezon={configurareSezon}
           grupBiologic={grupBiologic}
@@ -481,6 +571,32 @@ export function ParcelaTratamenteDashboardClient({
         open={manualOpen}
         pending={isManualSaving}
         produseFitosanitare={produseFitosanitare}
+      />
+
+      <MarkAplicataSheet
+        mode="din_plan"
+        cohortLaAplicareBlocata={lockedApplyCohort}
+        defaultCantitateMl={null}
+        defaultCohortLaAplicare={lockedApplyCohort}
+        defaultOperator=""
+        defaultStadiu={applyLinie?.stadiu_trigger ?? null}
+        configurareSezon={configurareSezon}
+        grupBiologic={grupBiologic}
+        isRubusMixt={isRubusMixt}
+        meteoSnapshot={null}
+        onOpenChange={(open) => {
+          setApplyOpen(open)
+          if (!open) {
+            setApplyLinie(null)
+            setApplyAplicareId(null)
+          }
+        }}
+        onSubmit={handleApplySubmit}
+        open={applyOpen}
+        pending={isApplyPending}
+        produseEfective={[]}
+        produseFitosanitare={produseFitosanitare}
+        produsePlanificate={applyLinie?.produse ?? []}
       />
 
       {planActiv?.plan &&

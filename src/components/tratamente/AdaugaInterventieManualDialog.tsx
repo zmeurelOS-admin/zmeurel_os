@@ -226,9 +226,9 @@ export function AdaugaInterventieManualDialog({
       const produseFinale = []
 
       for (const produs of value.produse) {
-        let produsId = produs.produs_id ?? null
-        let produsNumeManual = produs.produs_nume_manual?.trim() || null
-        let produsNumeSnapshot = produs.produs_nume_snapshot?.trim() || produsNumeManual
+        const produsId = produs.produs_id ?? null
+        const produsNumeManual = produs.produs_nume_manual?.trim() || null
+        const produsNumeSnapshot = produs.produs_nume_snapshot?.trim() || produsNumeManual
 
         produseFinale.push({
           ordine: produs.ordine,

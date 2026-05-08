@@ -137,6 +137,10 @@ const EMPTY_PLAN_PRODUSE: InterventieProdusV2[] = []
 const EMPTY_PRODUSE_FITOSANITARE: ProdusFitosanitar[] = []
 const CANTITATE_PLACEHOLDER = 'ex: 60 ml la 15 l apă, sau 200 ml/ha'
 
+const CANTITATE_TOTALA_UNITS = ['ml', 'l', 'g', 'kg'] as const
+type CantitateTotalaUnit = (typeof CANTITATE_TOTALA_UNITS)[number]
+const DEFAULT_CANTITATE_TOTALA_UNIT: CantitateTotalaUnit = 'ml'
+
 const TIP_INTERVENTIE_OPTIONS = [
   { value: 'foliar', label: 'Foliar' },
   { value: 'fertirigare', label: 'Fertirigare' },
@@ -471,6 +475,12 @@ export function MarkAplicataSheet({
 }: MarkAplicataSheetProps) {
   const { tenantId } = useDashboardAuth()
   const isMobile = useMediaQuery('(max-width: 767px)')
+  // Sheet-ul mobil (Radix DialogPrimitive) nu are integrarea de history
+  // din `src/components/ui/dialog.tsx`, deci pe Android "back" ar naviga
+  // la ruta anterioară. Gestionăm local o intrare în history ca să închidem
+  // sheet-ul prin `onOpenChange(false)` fără navigare.
+  const addedHistoryEntryRef = useRef(false)
+  const closingFromBackRef = useRef(false)
   const [isMeteoPending, startMeteoTransition] = useTransition()
   const [meteoError, setMeteoError] = useState<string | null>(null)
   const [resolvedMeteoSnapshot, setResolvedMeteoSnapshot] = useState<MeteoSnapshot | null>(meteoSnapshot)
@@ -482,6 +492,11 @@ export function MarkAplicataSheet({
     const initial = buildInitialProduse(produseEfective, produsePlanificate)
     return initial[0]?.id ?? null
   })
+  // cantitate_totala_ml este numeric în schema actuală; pentru MVP salvăm doar
+  // valoarea numerică, iar unitatea selectată rămâne context UX în dialog.
+  const [cantitateUnit, setCantitateUnit] = useState<CantitateTotalaUnit>(
+    DEFAULT_CANTITATE_TOTALA_UNIT,
+  )
   // Stabilizare deps `useEffect`-ului de reset:
   // 1. `defaultManualData` are default param `new Date()` recomputed la fiecare render
   //    când părintele nu îl pasează, deci nu poate sta direct în deps.
@@ -496,6 +511,45 @@ export function MarkAplicataSheet({
   useEffect(() => {
     produsePlanificateRef.current = produsePlanificate
   }, [produsePlanificate])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isMobile || !open || addedHistoryEntryRef.current) return
+
+    window.history.pushState(
+      {
+        ...(window.history.state ?? {}),
+        __zmeurelDialog: true,
+      },
+      ''
+    )
+    addedHistoryEntryRef.current = true
+
+    const handlePopState = () => {
+      if (!addedHistoryEntryRef.current) return
+      closingFromBackRef.current = true
+      addedHistoryEntryRef.current = false
+      onOpenChange(false)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [isMobile, onOpenChange, open])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isMobile || open) return
+
+    if (closingFromBackRef.current) {
+      closingFromBackRef.current = false
+      return
+    }
+
+    if (addedHistoryEntryRef.current) {
+      addedHistoryEntryRef.current = false
+      if (window.history.state?.__zmeurelDialog) {
+        window.history.back()
+      }
+    }
+  }, [isMobile, open])
   const queryClient = useQueryClient()
   const stadiiValide = useMemo(() => listStadiiPentruGrup(grupBiologic), [grupBiologic])
   const defaultValues = useMemo(
@@ -560,6 +614,7 @@ export function MarkAplicataSheet({
       )
       setProduseDraft(nextProduse)
       setOpenProductId(nextProduse[0]?.id ?? null)
+      setCantitateUnit(DEFAULT_CANTITATE_TOTALA_UNIT)
       queueMicrotask(() => setEditMeteo(false))
     }
   }, [
@@ -855,8 +910,35 @@ export function MarkAplicataSheet({
 
   const cantitateField = (
     <div className="space-y-2">
-      <Label htmlFor="aplicata-cantitate">Cantitate totală (ml)</Label>
-      <Input id="aplicata-cantitate" inputMode="decimal" className="agri-control h-11 md:h-10" {...form.register('cantitate_totala_ml')} />
+      <Label htmlFor="aplicata-cantitate">Cantitate totală</Label>
+      <div className="flex min-w-0 gap-2">
+        <Input
+          id="aplicata-cantitate"
+          type="text"
+          inputMode="decimal"
+          placeholder="ex: 2, 500, 1.5"
+          className="agri-control h-11 min-w-0 flex-1 md:h-10"
+          {...form.register('cantitate_totala_ml')}
+        />
+        <Select
+          value={cantitateUnit}
+          onValueChange={(value) => setCantitateUnit(value as CantitateTotalaUnit)}
+        >
+          <SelectTrigger
+            aria-label="Unitate cantitate totală"
+            className="agri-control h-11 w-24 shrink-0 md:h-10"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CANTITATE_TOTALA_UNITS.map((unit) => (
+              <SelectItem key={unit} value={unit}>
+                {unit}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 
@@ -1537,7 +1619,7 @@ export function MarkAplicataSheet({
             stadiuLabel={selectedStadiuLabel}
             cantitateLabel={
               normalizeSummaryText(summaryValues.cantitate_totala_ml)
-                ? `${String(summaryValues.cantitate_totala_ml).trim()} ml`
+                ? `${String(summaryValues.cantitate_totala_ml).trim()} ${cantitateUnit}`
                 : null
             }
             plannedProductsLabel={mode === 'din_plan' ? plannedProductsSummary : null}

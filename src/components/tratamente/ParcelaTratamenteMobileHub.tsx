@@ -8,14 +8,24 @@ import { ro } from 'date-fns/locale'
 
 import { planificaInterventieRelevantaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
 import { reprogrameazaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
+import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
 import { getInterventieKey } from '@/components/tratamente/InterventiiRelevanteCard'
 import { InterventieRapidApplySheet } from '@/components/tratamente/InterventieRapidApplySheet'
+import { MarkAplicataSheet, type MarkAplicataFormValues } from '@/components/tratamente/MarkAplicataSheet'
+import { ParcelaPlanLiniiExpandable } from '@/components/tratamente/ParcelaPlanLiniiExpandable'
 import type { StageState } from '@/components/tratamente/StadiuCurentCard'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { colors } from '@/lib/design-tokens'
-import type { AplicareTratamentDetaliu, InterventieRelevantaV2, PlanActivParcela, StadiuFenologicParcela } from '@/lib/supabase/queries/tratamente'
+import type {
+  AplicareTratamentDetaliu,
+  InterventieRelevantaV2,
+  PlanActivParcela,
+  PlanTratamentLinieCuProdus,
+  ProdusFitosanitar,
+  StadiuFenologicParcela,
+} from '@/lib/supabase/queries/tratamente'
 import type { Cohorta, ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
 import { listStadiiPentruGrup, normalizeStadiu, type GrupBiologic } from '@/lib/tratamente/stadii-canonic'
@@ -68,6 +78,10 @@ function matchesCohortFilter(interventie: InterventieRelevantaV2, filter: Cohort
   return cohortOf(interventie) === filter
 }
 
+function normalizeCohortaValue(value: string | null | undefined): Cohorta | null {
+  return value === 'floricane' || value === 'primocane' ? value : null
+}
+
 interface ParcelaTratamenteMobileHubProps {
   an: number
   aplicariCount: number
@@ -83,8 +97,11 @@ interface ParcelaTratamenteMobileHubProps {
   onPlanificaInterventie: (interventie: InterventieRelevantaV2) => void
   onRecordStadiu: (cohort?: Cohorta) => void
   parcelaId: string
+  planLinii: PlanTratamentLinieCuProdus[]
+  planName: string | null
   pendingInterventieId: string | null
   planActiv: PlanActivParcela | null
+  produseFitosanitare: ProdusFitosanitar[]
   singleStageState: StageState | null
   urmatoareleAplicari: AplicareTratamentDetaliu[]
 }
@@ -229,8 +246,11 @@ export function ParcelaTratamenteMobileHub({
   onPlanificaInterventie,
   onRecordStadiu,
   parcelaId,
+  planLinii,
+  planName,
   pendingInterventieId,
   planActiv,
+  produseFitosanitare,
   singleStageState,
   urmatoareleAplicari,
 }: ParcelaTratamenteMobileHubProps) {
@@ -239,7 +259,15 @@ export function ParcelaTratamenteMobileHub({
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const [rapidInterventie, setRapidInterventie] = useState<InterventieRelevantaV2 | null>(null)
   const [rapidOpen, setRapidOpen] = useState(false)
+  const [applyLinie, setApplyLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
+  const [applyAplicareId, setApplyAplicareId] = useState<string | null>(null)
+  const [applyOpen, setApplyOpen] = useState(false)
   const [isAmanaPending, startAmana] = useTransition()
+  const [isApplyPending, startApplyTransition] = useTransition()
+  const lockedApplyCohort: Cohorta | null =
+    applyLinie?.cohort_trigger === 'floricane' || applyLinie?.cohort_trigger === 'primocane'
+      ? applyLinie.cohort_trigger
+      : null
 
   const summary = useMemo(() => {
     const intarziate = interventiiRelevante.filter((i) => i.status_operational === 'intarziata').length
@@ -252,6 +280,70 @@ export function ParcelaTratamenteMobileHub({
   const filteredInterventii = useMemo(() => {
     return interventiiRelevante.filter((i) => matchesCohortFilter(i, cohortFilter))
   }, [cohortFilter, interventiiRelevante])
+
+  const relevantLinieIds = useMemo(
+    () => new Set(interventiiRelevante.map((item) => item.interventie.id)),
+    [interventiiRelevante]
+  )
+
+  const handleApplyNowFromPlanLinie = (linie: PlanTratamentLinieCuProdus) => {
+    setApplyLinie(linie)
+    setApplyAplicareId(null)
+    startApplyTransition(async () => {
+      const formData = new FormData()
+      formData.set('parcelaId', parcelaId)
+      formData.set('planLinieId', linie.id)
+      formData.set('dataPlanificata', new Date().toISOString().slice(0, 10))
+      const cohort = normalizeCohortaValue(linie.cohort_trigger)
+      if (cohort) formData.set('cohortLaAplicare', cohort)
+
+      const result = await planificaInterventieRelevantaAction(formData)
+      if (!result.ok) {
+        toast.error(result.error)
+        setApplyLinie(null)
+        return
+      }
+
+      setApplyAplicareId(result.aplicareId)
+      setApplyOpen(true)
+    })
+  }
+
+  const handleApplySubmit = async (values: MarkAplicataFormValues) => {
+    if (!applyAplicareId) return
+    startApplyTransition(async () => {
+      const formData = new FormData()
+      formData.set('parcelaId', parcelaId)
+      formData.set('aplicareId', applyAplicareId)
+      formData.set('data_aplicata', values.data_aplicata)
+      formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
+      formData.set('operator', values.operator ?? '')
+      formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
+      if (values.cohort_la_aplicare) {
+        formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
+      }
+      formData.set('observatii', values.observatii ?? '')
+      if (values.meteoSnapshot) {
+        formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
+      }
+      formData.set('produse', JSON.stringify(values.produse))
+      if (values.diferenteFataDePlan) {
+        formData.set('diferente_fata_de_plan', JSON.stringify(values.diferenteFataDePlan))
+      }
+
+      const result = await markAplicataAction(formData)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+
+      toast.success('Aplicarea a fost marcată ca efectuată.')
+      setApplyOpen(false)
+      setApplyLinie(null)
+      setApplyAplicareId(null)
+      router.refresh()
+    })
+  }
 
   const toggleCohort = (c: Cohorta) => {
     setCohortFilter((prev) => (prev === c ? null : c))
@@ -391,7 +483,7 @@ export function ParcelaTratamenteMobileHub({
               : 'Nicio intervenție pentru cohorta selectată.'}
           </AppCard>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             {filteredInterventii.map((inv) => {
               const key = getInterventieKey(inv)
               const open = expandedKey === key
@@ -402,7 +494,11 @@ export function ParcelaTratamenteMobileHub({
                 ? format(parseISO(inv.urmatoarea_data_estimata), 'd MMM', { locale: ro })
                 : '—'
               const leftBorder =
-                status === 'intarziata' ? 'border-l-4 border-l-red-500' : status === 'de_facut_azi' ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-transparent'
+                status === 'intarziata'
+                  ? "before:bg-red-500"
+                  : status === 'de_facut_azi'
+                    ? "before:bg-amber-500"
+                    : "before:bg-transparent"
 
               const statusBadge =
                 status === 'intarziata' ? (
@@ -443,25 +539,27 @@ export function ParcelaTratamenteMobileHub({
                 >
                   <div
                     className={cn(
-                      'overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]',
+                      "relative overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:content-['']",
                       leftBorder,
                     )}
                   >
                     <CollapsibleTrigger asChild>
                       <button
                         type="button"
-                        className="flex max-h-[70px] min-h-[64px] w-full items-start gap-2 px-2.5 py-2 text-left"
+                        className="flex w-full items-start gap-2 px-4 py-3 text-left"
                       >
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex flex-wrap items-center gap-1">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                             {statusBadge}
                             {cohortBadge}
                             <span className="inline-flex rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                               {tipMeta.emoji} {tipMeta.label}
                             </span>
                           </div>
-                          <p className="line-clamp-1 text-sm font-bold text-[var(--text-primary)]">{getInterventieTitle(inv)}</p>
-                          <p className="line-clamp-1 text-xs text-gray-500">
+                          <p className="line-clamp-1 text-[15px] font-semibold text-[var(--text-primary)]">
+                            {getInterventieTitle(inv)}
+                          </p>
+                          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                             📦 {getProductLine(inv)}
                           </p>
                           <p className="text-[10px] text-gray-400">
@@ -470,7 +568,7 @@ export function ParcelaTratamenteMobileHub({
                         </div>
                       </button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="border-t border-[var(--border-default)] px-2.5 pb-2.5 pt-2">
+                    <CollapsibleContent className="border-t border-[var(--border-default)] px-4 pb-3 pt-2.5">
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           type="button"
@@ -524,6 +622,15 @@ export function ParcelaTratamenteMobileHub({
           </div>
         )}
       </div>
+
+      <ParcelaPlanLiniiExpandable
+        className="pt-1"
+        linii={planLinii}
+        planName={planName}
+        relevantLinieIds={relevantLinieIds}
+        grupBiologic={grupBiologic}
+        onApplyNow={handleApplyNowFromPlanLinie}
+      />
 
       <section className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">Plan asociat</p>
@@ -699,6 +806,32 @@ export function ParcelaTratamenteMobileHub({
         }}
         onSuccess={() => router.refresh()}
         parcelaId={parcelaId}
+      />
+
+      <MarkAplicataSheet
+        mode="din_plan"
+        cohortLaAplicareBlocata={normalizeCohortaValue(applyLinie?.cohort_trigger) ?? null}
+        defaultCantitateMl={null}
+        defaultCohortLaAplicare={normalizeCohortaValue(applyLinie?.cohort_trigger) ?? null}
+        defaultOperator=""
+        defaultStadiu={applyLinie?.stadiu_trigger ?? null}
+        configurareSezon={configurareSezon}
+        grupBiologic={grupBiologic}
+        isRubusMixt={isRubusMixt}
+        meteoSnapshot={null}
+        onOpenChange={(open) => {
+          setApplyOpen(open)
+          if (!open) {
+            setApplyLinie(null)
+            setApplyAplicareId(null)
+          }
+        }}
+        onSubmit={handleApplySubmit}
+        open={applyOpen}
+        pending={isApplyPending}
+        produseEfective={[]}
+        produseFitosanitare={produseFitosanitare}
+        produsePlanificate={applyLinie?.produse ?? []}
       />
     </div>
   )

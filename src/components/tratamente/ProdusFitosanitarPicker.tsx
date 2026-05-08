@@ -226,7 +226,7 @@ export function ProdusFitosanitarPicker({
               align="start"
               collisionPadding={popoverCollisionPadding}
               className={cn(
-                'z-[1400] flex max-h-[40vh] w-[min(94vw,460px)] flex-col overflow-hidden p-0',
+                'z-[1400] flex max-h-[50vh] w-full max-w-full min-w-0 flex-col overflow-hidden p-0 md:max-h-[40vh] md:w-[min(94vw,460px)]',
                 popoverContentClassName,
               )}
             >
@@ -237,10 +237,10 @@ export function ProdusFitosanitarPicker({
                 </p>
               </PopoverHeader>
 
-              <Command className="flex min-h-0 flex-1 flex-col overflow-hidden !h-auto [&_[data-slot=command-input-wrapper]]:shrink-0">
-                <CommandInput placeholder="Caută după nume sau substanță activă…" />
+              <Command className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden !h-auto [&_[data-slot=command-input-wrapper]]:w-full [&_[data-slot=command-input-wrapper]]:min-w-0 [&_[data-slot=command-input-wrapper]]:shrink-0">
+                <CommandInput placeholder="Caută produs..." />
                 <CommandList
-                  className="min-h-0 max-h-[40vh] flex-1 overflow-y-auto overscroll-contain pr-1"
+                  className="min-h-0 max-h-[50vh] flex-1 overflow-y-auto overscroll-contain pr-1 md:max-h-[40vh]"
                   onWheel={(event) => {
                     event.stopPropagation()
                   }}
@@ -255,15 +255,17 @@ export function ProdusFitosanitarPicker({
                         onSelect={() => handleSelect(produs)}
                         className="items-start py-3"
                       >
-                        <Check className={cn('mt-0.5 h-4 w-4', selectedProduct?.id === produs.id ? 'opacity-100' : 'opacity-0')} />
-                        <div className="min-w-0 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="line-clamp-1 font-medium text-[var(--text-primary)]">{produs.nume_comercial}</p>
-                            <span className="inline-flex items-center rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--status-success-text)]">
+                        <Check className={cn('mt-0.5 h-4 w-4 shrink-0', selectedProduct?.id === produs.id ? 'opacity-100' : 'opacity-0')} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex w-full min-w-0 items-start gap-2">
+                            <p className="block min-w-0 flex-1 break-words text-sm font-medium text-[var(--text-primary)]">
+                              {produs.nume_comercial}
+                            </p>
+                            <span className="ml-auto inline-flex shrink-0 items-center rounded-full bg-[var(--status-success-bg)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--status-success-text)]">
                               {activeLabel}
                             </span>
                           </div>
-                          <p className="line-clamp-2 text-xs text-[var(--text-secondary)]">
+                          <p className="mt-0.5 block break-words text-xs text-muted-foreground">
                             {produs.substanta_activa || 'Substanță activă nespecificată'}
                             {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
                             {produs.tip ? ` · ${produs.tip}` : ''}
@@ -282,15 +284,17 @@ export function ProdusFitosanitarPicker({
                           onSelect={() => handleSelect(produs)}
                           className="items-start py-3"
                         >
-                          <Check className={cn('mt-0.5 h-4 w-4', selectedProduct?.id === produs.id ? 'opacity-100' : 'opacity-0')} />
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="line-clamp-1 font-medium text-[var(--text-primary)]">{produs.nume_comercial}</p>
-                              <span className="inline-flex items-center rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                          <Check className={cn('mt-0.5 h-4 w-4 shrink-0', selectedProduct?.id === produs.id ? 'opacity-100' : 'opacity-0')} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex w-full min-w-0 items-start gap-2">
+                              <p className="block min-w-0 flex-1 break-words text-sm font-medium text-[var(--text-primary)]">
+                                {produs.nume_comercial}
+                              </p>
+                              <span className="ml-auto inline-flex shrink-0 items-center rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
                                 Inactiv
                               </span>
                             </div>
-                            <p className="line-clamp-2 text-xs text-[var(--text-secondary)]">
+                            <p className="mt-0.5 block break-words text-xs text-muted-foreground">
                               {produs.substanta_activa || 'Substanță activă nespecificată'}
                               {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
                               {produs.tip ? ` · ${produs.tip}` : ''}
