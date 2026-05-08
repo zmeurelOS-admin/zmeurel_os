@@ -72,6 +72,7 @@ interface ProdusFitosanitarPickerProps {
   className?: string
   helpText?: string
   includeInactiveByDefault?: boolean
+  inlineMode?: boolean
   label?: string
   onChange: (produs: ProdusFitosanitar | null) => void
   onCreateProduct?: (data: InsertTenantProdus) => Promise<ProdusFitosanitar>
@@ -91,6 +92,7 @@ export function ProdusFitosanitarPicker({
   className,
   helpText = 'Caută după nume, substanță activă, FRAC/IRAC sau tip. Produsele active apar primele.',
   includeInactiveByDefault = false,
+  inlineMode = false,
   label,
   onChange,
   onCreateProduct,
@@ -103,6 +105,8 @@ export function ProdusFitosanitarPicker({
 }: ProdusFitosanitarPickerProps) {
   const [open, setOpen] = useState(false)
   const [showInactive, setShowInactive] = useState(includeInactiveByDefault)
+  const [searchValue, setSearchValue] = useState('')
+  const [entryMode, setEntryMode] = useState<'library' | 'manual'>('library')
   const [createOpen, setCreateOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState<QuickCreateState>(QUICK_CREATE_DEFAULTS)
@@ -120,12 +124,29 @@ export function ProdusFitosanitarPicker({
   )
   const activeProducts = visibleProducts.filter((produs) => produs.activ)
   const inactiveProducts = visibleProducts.filter((produs) => !produs.activ)
+  const filteredProducts = useMemo(() => {
+    const query = searchValue.trim().toLowerCase()
+    if (!query) return visibleProducts
+    return visibleProducts.filter((produs) =>
+      `${produs.nume_comercial} ${produs.substanta_activa ?? ''} ${produs.frac_irac ?? ''} ${produs.tip ?? ''}`
+        .toLowerCase()
+        .includes(query)
+    )
+  }, [searchValue, visibleProducts])
+  const filteredActiveProducts = filteredProducts.filter((produs) => produs.activ)
+  const filteredInactiveProducts = filteredProducts.filter((produs) => !produs.activ)
 
   useEffect(() => {
     if (open) {
       setShowInactive(includeInactiveByDefault)
     }
   }, [includeInactiveByDefault, open])
+
+  useEffect(() => {
+    if (selectedProduct) {
+      setEntryMode('library')
+    }
+  }, [selectedProduct])
 
   useEffect(() => {
     if (!createOpen) {
@@ -136,8 +157,175 @@ export function ProdusFitosanitarPicker({
 
   const handleSelect = (produs: ProdusFitosanitar | null) => {
     onChange(produs)
+    if (produs) setEntryMode('library')
     setOpen(false)
   }
+
+  const getTypeBadgeClassName = (tip: ProdusFitosanitar['tip']) => {
+    if (tip === 'fungicid') return 'bg-[#FFF3E0] text-[#E65100]'
+    if (tip === 'insecticid') return 'bg-[#FCE4EC] text-[#C62828]'
+    if (tip === 'ingrasamant' || tip === 'foliar') return 'bg-[#E3F2FD] text-[#1565C0]'
+    if (tip === 'bioregulator') return 'bg-[#E8F5EE] text-[#2A6B47]'
+    return 'bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
+  }
+
+  const renderInlineList = () => (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            'h-10 rounded-full text-sm',
+            entryMode === 'library'
+              ? 'border-[#3D7A5F] bg-[#3D7A5F] text-white hover:bg-[#3D7A5F] hover:text-white'
+              : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+          )}
+          onClick={() => setEntryMode('library')}
+        >
+          Din bibliotecă
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            'h-10 rounded-full text-sm',
+            entryMode === 'manual'
+              ? 'border-[#3D7A5F] bg-[#3D7A5F] text-white hover:bg-[#3D7A5F] hover:text-white'
+              : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+          )}
+          onClick={() => {
+            setEntryMode('manual')
+            onChange(null)
+          }}
+        >
+          Adaugă manual
+        </Button>
+      </div>
+
+      {entryMode === 'library' ? (
+        <>
+          <Input
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Caută după nume, substanță, FRAC/IRAC..."
+            className="h-11 text-[16px]"
+          />
+
+          <div className="max-h-[clamp(12rem,35vh,20rem)] space-y-2 overflow-y-auto overscroll-contain rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-2">
+            {filteredProducts.length === 0 ? (
+              <p className="px-2 py-1 text-sm text-[var(--text-secondary)]">
+                Nu am găsit produse care să se potrivească.
+              </p>
+            ) : null}
+
+            {filteredActiveProducts.length > 0 ? (
+              <div className="space-y-2">
+                <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                  Bibliotecă activă
+                </p>
+                {filteredActiveProducts.map((produs) => {
+                  const isSelected = selectedProduct?.id === produs.id
+                  return (
+                    <button
+                      key={produs.id}
+                      type="button"
+                      onClick={() => handleSelect(produs)}
+                      className={cn(
+                        'w-full rounded-xl border px-3 py-2 text-left',
+                        isSelected
+                          ? 'border-[#3D7A5F] bg-[#F0F7F4]'
+                          : 'border-[var(--border-default)] bg-[var(--surface-card)]'
+                      )}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                              {produs.nume_comercial}
+                            </p>
+                            <span
+                              className={cn(
+                                'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em]',
+                                getTypeBadgeClassName(produs.tip)
+                              )}
+                            >
+                              {produs.tip}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
+                            {produs.substanta_activa || 'Substanță activă nespecificată'}
+                            {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
+                          </p>
+                        </div>
+                        {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#3D7A5F]" /> : null}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {filteredInactiveProducts.length > 0 ? (
+              <div className="space-y-2">
+                <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                  Bibliotecă inactivă
+                </p>
+                {filteredInactiveProducts.map((produs) => {
+                  const isSelected = selectedProduct?.id === produs.id
+                  return (
+                    <button
+                      key={produs.id}
+                      type="button"
+                      onClick={() => handleSelect(produs)}
+                      className={cn(
+                        'w-full rounded-xl border px-3 py-2 text-left',
+                        isSelected
+                          ? 'border-[#3D7A5F] bg-[#F0F7F4]'
+                          : 'border-[var(--border-default)] bg-[var(--surface-card)]'
+                      )}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                              {produs.nume_comercial}
+                            </p>
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--text-secondary)]">
+                              Inactiv
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
+                            {produs.substanta_activa || 'Substanță activă nespecificată'}
+                            {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
+                          </p>
+                        </div>
+                        {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#3D7A5F]" /> : null}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+          </div>
+
+          <label className="flex items-center gap-2 px-1 text-xs text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(event) => setShowInactive(event.target.checked)}
+              className="h-4 w-4 rounded border-[var(--border-default)] accent-[var(--agri-primary)]"
+            />
+            Arată și inactive
+          </label>
+        </>
+      ) : (
+        <p className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+          Completează manual numele produsului în câmpul de mai jos.
+        </p>
+      )}
+    </div>
+  )
 
   const handleQuickCreate = async () => {
     if (!onCreateProduct) return
@@ -199,43 +387,46 @@ export function ProdusFitosanitarPicker({
       <div className={cn('relative space-y-2 overflow-x-visible', className)}>
         {label ? <Label>{label}</Label> : null}
 
-        <div className="flex items-center gap-2">
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
+        {inlineMode ? (
+          renderInlineList()
+        ) : (
+          <div className="flex items-center gap-2">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'h-auto min-h-11 flex-1 justify-between gap-3 py-2 text-left',
+                    selectedProduct ? 'border-[var(--border-default)]' : ''
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm [font-weight:650] text-[var(--text-primary)]">
+                      {triggerLabel}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-[var(--text-secondary)]">
+                      {triggerSecondary}
+                    </span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+                </Button>
+              </PopoverTrigger>
+
+              <PopoverContent
+                align="start"
+                collisionPadding={popoverCollisionPadding}
                 className={cn(
-                  'h-auto min-h-11 flex-1 justify-between gap-3 py-2 text-left',
-                  selectedProduct ? 'border-[var(--border-default)]' : ''
+                  'z-[1400] flex max-h-[50vh] w-full max-w-full min-w-0 flex-col overflow-hidden p-0 md:max-h-[40vh] md:w-[min(94vw,460px)]',
+                  popoverContentClassName,
                 )}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm [font-weight:650] text-[var(--text-primary)]">
-                    {triggerLabel}
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-[var(--text-secondary)]">
-                    {triggerSecondary}
-                  </span>
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-              </Button>
-            </PopoverTrigger>
-
-            <PopoverContent
-              align="start"
-              collisionPadding={popoverCollisionPadding}
-              className={cn(
-                'z-[1400] flex max-h-[50vh] w-full max-w-full min-w-0 flex-col overflow-hidden p-0 md:max-h-[40vh] md:w-[min(94vw,460px)]',
-                popoverContentClassName,
-              )}
-            >
-              <PopoverHeader className="shrink-0 border-b px-4 py-3">
-                <PopoverTitle>Alege produsul din bibliotecă</PopoverTitle>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                  {helpText}
-                </p>
-              </PopoverHeader>
+                <PopoverHeader className="shrink-0 border-b px-4 py-3">
+                  <PopoverTitle>Alege produsul din bibliotecă</PopoverTitle>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {helpText}
+                  </p>
+                </PopoverHeader>
 
               <Command className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden !h-auto [&_[data-slot=command-input-wrapper]]:w-full [&_[data-slot=command-input-wrapper]]:min-w-0 [&_[data-slot=command-input-wrapper]]:shrink-0">
                 <CommandInput placeholder="Caută produs..." />
@@ -362,21 +553,22 @@ export function ProdusFitosanitarPicker({
                   Manual
                 </Button>
               </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
 
-          {selectedProduct ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Curăță produsul selectat"
-              onClick={() => handleSelect(null)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          ) : null}
-        </div>
+            {selectedProduct ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Curăță produsul selectat"
+                onClick={() => handleSelect(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
 
       <AppDialog

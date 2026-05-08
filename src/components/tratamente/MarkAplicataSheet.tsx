@@ -1153,6 +1153,7 @@ export function MarkAplicataSheet({
                         <ProdusFitosanitarPicker
                           produse={availableProducts}
                           value={produsDraft.produs_id ?? null}
+                          inlineMode={isMobile && mode === 'manual'}
                           popoverCollisionPadding={24}
                           popoverContentClassName="max-h-[min(48vh,20rem)]"
                           selectedLabel={
@@ -1223,7 +1224,7 @@ export function MarkAplicataSheet({
                       </Label>
                       <Input
                         id={`aplicata-manual-${produsDraft.id}`}
-                        className="md:py-1.5 md:text-[13px]"
+                        className="text-[16px] md:py-1.5 md:text-[13px]"
                         value={produsDraft.produs_nume_manual}
                         disabled={Boolean(produsDraft.produs_id)}
                         onChange={(event) =>
@@ -1277,7 +1278,7 @@ export function MarkAplicataSheet({
                           </Label>
                           <Input
                             id={`aplicata-substanta-${produsDraft.id}`}
-                            className="md:py-1.5 md:text-[13px]"
+                          className="text-[16px] md:py-1.5 md:text-[13px]"
                             value={produsDraft.substanta_activa_snapshot}
                             onChange={(event) =>
                               updateProduct(produsDraft.id, (current) => ({
@@ -1295,7 +1296,7 @@ export function MarkAplicataSheet({
                             </Label>
                             <Input
                               id={`aplicata-frac-${produsDraft.id}`}
-                              className="md:py-1.5 md:text-[13px]"
+                              className="text-[16px] md:py-1.5 md:text-[13px]"
                               value={produsDraft.frac_irac_snapshot}
                               onChange={(event) =>
                                 updateProduct(produsDraft.id, (current) => ({
@@ -1314,7 +1315,7 @@ export function MarkAplicataSheet({
                               type="number"
                               min="0"
                               step="1"
-                              className="md:py-1.5 md:text-[13px]"
+                              className="text-[16px] md:py-1.5 md:text-[13px]"
                               value={produsDraft.phi_zile_snapshot ?? ''}
                               onChange={(event) =>
                                 updateProduct(produsDraft.id, (current) => ({
@@ -1334,7 +1335,7 @@ export function MarkAplicataSheet({
                       </Label>
                       <Input
                         id={`aplicata-cantitate-${produsDraft.id}`}
-                        className="md:py-1.5 md:text-[13px]"
+                        className="text-[16px] md:py-1.5 md:text-[13px]"
                         value={produsDraft.cantitate_text}
                         placeholder={CANTITATE_PLACEHOLDER}
                         onChange={(event) =>
@@ -1353,7 +1354,7 @@ export function MarkAplicataSheet({
                       <Textarea
                         id={`aplicata-produs-observatii-${produsDraft.id}`}
                         rows={2}
-                        className="md:h-[52px] md:py-1.5 md:text-[13px]"
+                        className="text-[16px] md:h-[52px] md:py-1.5 md:text-[13px]"
                         value={produsDraft.observatii}
                         onChange={(event) =>
                           updateProduct(produsDraft.id, (current) => ({
