@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { LEGAL_DOCS_BUCKET, sanitizeStorageFilename, toLegalDocStoragePath } from '@/lib/legal-docs/shared'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 

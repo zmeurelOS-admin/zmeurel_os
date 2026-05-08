@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { ensureTenantForUser, normalizeFarmName } from '@/lib/auth/ensure-tenant'
 import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { getTenantDemoContext, seedDemoDataForTenant } from '@/lib/demo/demo-seed-service'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 

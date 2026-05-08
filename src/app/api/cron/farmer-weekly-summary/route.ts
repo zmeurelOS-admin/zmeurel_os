@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'

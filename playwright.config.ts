@@ -10,7 +10,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: '.',
-  testMatch: ['e2e/**/*.spec.ts', 'tests/e2e/**/*.spec.ts'],
+  testMatch: ['e2e/**/*.spec.ts', 'tests/e2e/**/*.spec.ts', 'tests-e2e/**/*.spec.ts'],
   
   /* Run tests in files in parallel */
   fullyParallel: false, // Important: Security tests must run sequentially to avoid conflicts
@@ -31,6 +31,9 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:3000',
+
+    /* Keep service workers enabled explicitly for the PWA suite. */
+    serviceWorkers: 'allow',
     
     /* Collect trace when retrying the failed test. */
     trace: 'on-first-retry',
@@ -55,7 +58,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run build && npm start',
+    command: 'npm run start',
     port: 3000,
     timeout: 120000,
     reuseExistingServer: !process.env.CI,

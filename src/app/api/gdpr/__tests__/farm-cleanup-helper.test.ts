@@ -4,7 +4,7 @@ import { DELETE } from '@/app/api/gdpr/farm/route'
 import { TENANT_DESTRUCTIVE_CLEANUP_SCOPES } from '@/lib/tenant/destructive-cleanup'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
-vi.mock('@/lib/monitoring/sentry', () => ({ captureApiError: vi.fn() }))
+vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 vi.mock('@/lib/auth/destructive-action-step-up', () => ({
   requireDestructiveActionStepUp: vi.fn(() => null),
 }))

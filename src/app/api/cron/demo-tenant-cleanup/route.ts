@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { isProtectedDemoCleanupOwnerUserId } from '@/lib/auth/protected-account'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import {

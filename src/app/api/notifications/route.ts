@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import {
   deleteNotification,
   getNotifications,

@@ -11,7 +11,7 @@ import {
 } from '@/lib/auth/destructive-action-step-up'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
-vi.mock('@/lib/monitoring/sentry', () => ({ captureApiError: vi.fn() }))
+vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),

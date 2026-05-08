@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 
 import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
-import { MonitoringInit } from '@/components/app/MonitoringInit'
 import { ServiceWorkerRegister } from '@/components/app/ServiceWorkerRegister'
 import { ThemeProvider } from '@/components/app/ThemeProvider'
 import { Toaster } from '@/components/Toaster'
@@ -55,7 +54,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.variable}>
         <ThemeProvider>
           <HighVisibilityInit />
-          <MonitoringInit />
           <ServiceWorkerRegister />
           {children}
           <Toaster />

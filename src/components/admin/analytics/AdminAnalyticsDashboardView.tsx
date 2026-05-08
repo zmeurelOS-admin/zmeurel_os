@@ -17,13 +17,11 @@ import {
 } from '@/components/ui/table'
 import type { LoadAnalyticsDashboardResult } from '@/lib/admin/analytics-dashboard-data'
 import type { AnalyticsDashboardParams } from '@/lib/admin/analytics-dashboard-data'
-import type { SentryTechHealth } from '@/lib/monitoring/sentry-tech-health'
 import { buildAdminAnalyticsHref } from '@/lib/admin/analytics-url'
 import { cn } from '@/lib/utils'
 
 import { AnalyticsAiSection } from './AnalyticsAiSection'
 import { AnalyticsRefreshButton } from './AnalyticsRefreshButton'
-import { AdminAnalyticsSentrySection } from './AdminAnalyticsSentrySection'
 import { MetricHint } from './MetricHint'
 
 function formatNumber(value: number): string {
@@ -142,11 +140,9 @@ function KpiStat({
 export function AdminAnalyticsDashboardView({
   data,
   params,
-  sentryTechHealth,
 }: {
   data: LoadAnalyticsDashboardResult
   params: AnalyticsDashboardParams
-  sentryTechHealth: SentryTechHealth
 }) {
   const failedGroups = new Map<string, { count: number; module: string; eventName: string; errorMessage: string }>()
   for (const e of data.eventsForFailure.filter((x) => x.status === 'failed')) {
@@ -579,9 +575,6 @@ export function AdminAnalyticsDashboardView({
             </Table>
           </div>
         </section>
-
-        {/* Tech Health — Sentry (config snapshot, nu metrici produs) */}
-        <AdminAnalyticsSentrySection health={sentryTechHealth} />
       </DashboardContentShell>
     </AppShell>
   )

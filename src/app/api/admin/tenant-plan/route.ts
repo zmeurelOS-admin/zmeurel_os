@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { BETA_MODE } from '@/lib/config/beta'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'

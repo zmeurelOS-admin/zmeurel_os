@@ -10,7 +10,7 @@ import {
   type AssociationOrderStatus,
 } from '@/lib/association/order-status'
 import { getAssociationRole } from '@/lib/association/auth'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createNotificationForTenantOwner, NOTIFICATION_TYPES } from '@/lib/notifications/create'
 import { createClient } from '@/lib/supabase/server'
 export const runtime = 'nodejs'

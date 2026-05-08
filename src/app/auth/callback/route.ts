@@ -1,10 +1,10 @@
-import * as Sentry from '@sentry/nextjs'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { ensureTenantForUser, normalizeFarmName } from '@/lib/auth/ensure-tenant'
+import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
@@ -28,20 +28,20 @@ function errorStatus(error: unknown): number | null {
 }
 
 function logInfo(step: string, payload: Record<string, unknown>) {
-  
+  void step
+  void payload
 }
 
 function logError(step: string, payload: Record<string, unknown>) {
-  
+  console.error('[auth-callback]', {
+    step,
+    payload: sanitizeForLog(payload, { redactTextFields: true }),
+  })
 }
 
 function addBreadcrumb(step: string, payload: Record<string, unknown>) {
-  Sentry.addBreadcrumb({
-    category: 'auth.callback',
-    level: 'info',
-    message: step,
-    data: payload,
-  })
+  void step
+  void payload
 }
 
 function captureException(error: unknown, payload: Record<string, unknown>) {
@@ -50,12 +50,16 @@ function captureException(error: unknown, payload: Record<string, unknown>) {
     (typeof payload.tenant_id === 'string' && payload.tenant_id) ||
     null
 
-  Sentry.captureException(error, {
-    tags: {
-      module: 'auth-callback',
-      ...(tenantId ? { tenant_id: tenantId } : {}),
-    },
-    extra: payload,
+  console.error('[auth-callback] exception', {
+    error: toSafeErrorContext(error),
+    context: sanitizeForLog(
+      {
+        module: 'auth-callback',
+        tenant_id: tenantId,
+        extra: payload,
+      },
+      { redactTextFields: true },
+    ),
   })
 }
 

@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 import { ErrorState } from '@/components/app/ErrorState'
-import { captureReactError } from '@/lib/monitoring/sentry'
+import { captureReactError } from '@/lib/monitoring/report-error'
 
 export default function Error({
   error,

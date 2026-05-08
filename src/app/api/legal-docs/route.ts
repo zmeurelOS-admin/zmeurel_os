@@ -8,7 +8,7 @@ import {
   mapLegalDocsMissingSummary,
   normalizeLegalDocsPayload,
 } from '@/lib/legal-docs/shared'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 

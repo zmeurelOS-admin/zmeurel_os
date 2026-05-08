@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
@@ -233,11 +232,6 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
           from: vanzare.status,
           to: updatedOrder.status,
         })
-        Sentry.captureMessage('butasi_order_status_changed', {
-          level: 'info',
-          tags: { module: 'vanzari-butasi' },
-          extra: { orderId: updatedOrder.id, from: vanzare.status, to: updatedOrder.status },
-        })
       }
 
       const avansDelta = Number(updatedOrder.avans_suma) - Number(vanzare.avans_suma)
@@ -246,11 +240,6 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
           orderId: updatedOrder.id,
           addedAmount: avansDelta,
           newAvans: updatedOrder.avans_suma,
-        })
-        Sentry.captureMessage('butasi_order_payment_added', {
-          level: 'info',
-          tags: { module: 'vanzari-butasi' },
-          extra: { orderId: updatedOrder.id, addedAmount: avansDelta, newAvans: updatedOrder.avans_suma },
         })
       }
 

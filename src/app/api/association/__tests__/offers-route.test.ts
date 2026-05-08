@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { DELETE, GET, PATCH, POST } from '@/app/api/association/offers/route'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
-vi.mock('@/lib/monitoring/sentry', () => ({ captureApiError: vi.fn() }))
+vi.mock('@/lib/monitoring/report-error', () => ({ captureApiError: vi.fn() }))
 
 vi.mock('@/lib/notifications/create', () => ({
   createNotification: vi.fn(),

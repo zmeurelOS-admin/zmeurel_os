@@ -8,7 +8,7 @@ import {
   loadAssociationSettings,
   saveAssociationSettings,
 } from '@/lib/association/public-settings'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'

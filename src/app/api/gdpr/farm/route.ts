@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { destructiveActionScopes } from '@/lib/auth/destructive-action-step-up-contract'
 import { requireDestructiveActionStepUp } from '@/lib/auth/destructive-action-step-up'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import {

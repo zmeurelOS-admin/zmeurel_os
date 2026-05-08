@@ -80,10 +80,13 @@ The app is primarily a client-driven dashboard over Supabase, but critical write
 - RLS and tenant-aware queries
 - storage-backed association settings (`association-config/settings.json`) for public branding/schedule copy
 - Web Push handled in Next.js routes/libs (`/api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/test`, `src/lib/notifications/send-push.ts`) while browser delivery runs through the Workbox service worker plus `public/push-handlers.js`
+- Strategie PWA actualizată în 2026-05-08: install-time precache minim (offline + iconuri/manifest critic), runtime caching pe navigații/API/assets și fallback document către `/offline`, cu update flow SW controlat din UI (toast + refresh explicit).
 
 Notable API packaging detail:
 
 - `src/app/api/chat/*` is an intentionally split AI chat package: `chat-post-handler.ts` orchestrates, while extraction, signal detection, conversation memory, date helpers, flow detection, and shared parsing utilities live in adjacent focused modules.
+- Dashboard shell overlays (`PushPermissionBanner`, `BetaWidget`, `AiPanel`) are mounted through `src/components/layout/DashboardShellSlots.tsx` with `next/dynamic` and `ssr: false`, while navigation-critical mobile chrome stays eager in `src/app/(dashboard)/layout.tsx`.
+- Sentry was removed on `2026-05-08`; runtime error reporting now falls back to `console.error` with redaction helpers from `src/lib/logging/redaction.ts`. Reinstall plan: `50+` active farmers, errors-only, no Replay.
 
 ## Database Usage
 

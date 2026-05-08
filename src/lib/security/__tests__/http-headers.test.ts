@@ -16,7 +16,6 @@ describe('security headers config', () => {
       isDevelopment: false,
       env: {
         NEXT_PUBLIC_SUPABASE_URL: 'https://ilybohhdeplwcrbpblqw.supabase.co',
-        NEXT_PUBLIC_SENTRY_DSN: 'https://abc123@o999.ingest.sentry.io/123456',
       },
     })
 
@@ -25,7 +24,6 @@ describe('security headers config', () => {
     expect(csp).toContain("frame-ancestors 'self'")
     expect(csp).toContain('https://ilybohhdeplwcrbpblqw.supabase.co')
     expect(csp).toContain('wss://ilybohhdeplwcrbpblqw.supabase.co')
-    expect(csp).toContain('https://o999.ingest.sentry.io')
     expect(csp).toContain('upgrade-insecure-requests')
     expect(csp).not.toContain("'unsafe-eval'")
   })
