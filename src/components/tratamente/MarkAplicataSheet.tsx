@@ -190,9 +190,39 @@ function mapSnapshotToProductType(value: string | null | undefined): string | nu
   return null
 }
 
-function mapInterventieSelectToDb(value: string, custom: string | undefined): string {
-  if (value === 'alt_tip') return (custom ?? '').trim()
-  return TIP_INTERVENTIE_OPTIONS.find((option) => option.value === value)?.label ?? ''
+function mapInterventieSelectToDb(value: string, _custom: string | undefined): string {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized || normalized === 'alt_tip') return 'altul'
+
+  if (normalized === 'foliar' || normalized === 'fertirigare' || normalized === 'aplicare_sol') {
+    return 'nutritie'
+  }
+  if (normalized === 'tratament_radacini' || normalized === 'badijonare') {
+    return 'protectie'
+  }
+
+  if (normalized.includes('biostimul')) return 'biostimulare'
+  if (normalized.includes('erbicid')) return 'erbicidare'
+  if (normalized.includes('igien') || normalized.includes('sanitar')) return 'igiena'
+  if (normalized.includes('monitor')) return 'monitorizare'
+  if (
+    normalized.includes('fert') ||
+    normalized.includes('foliar') ||
+    normalized.includes('nutrit') ||
+    normalized.includes('radacin')
+  ) {
+    return 'nutritie'
+  }
+  if (
+    normalized.includes('fungicid') ||
+    normalized.includes('insecticid') ||
+    normalized.includes('acaricid') ||
+    normalized.includes('protect')
+  ) {
+    return 'protectie'
+  }
+
+  return 'altul'
 }
 
 function mapScopSelectToDb(value: string, custom: string | undefined): string {
