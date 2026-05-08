@@ -1,10 +1,11 @@
 import { BottomTabBar } from '@/components/app/BottomTabBar'
 import { DashboardContextSync } from '@/components/app/DashboardContextSync'
 import { DemoBanner } from '@/components/app/DemoBanner'
-import { PushPermissionBanner } from '@/components/notifications/PushPermissionBanner'
-import { AiPanel } from '@/components/ai/AiPanel'
-import BetaWidget from '@/components/beta-widget'
 import { DashboardSidebarLoader } from '@/components/layout/DashboardSidebarLoader'
+import {
+  DashboardShellFloatingOverlays,
+  DashboardShellTopSlot,
+} from '@/components/layout/DashboardShellSlots'
 import { LegalDocsPersistentBanner } from '@/components/legal-docs/LegalDocsPersistentBanner'
 import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
@@ -69,13 +70,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div className="min-h-screen bg-[var(--agri-bg)]">
           <DemoBanner />
           {shouldShowLegalDocsBanner ? <LegalDocsPersistentBanner /> : null}
-          <PushPermissionBanner />
+          <DashboardShellTopSlot />
           <DashboardSidebarLoader />
           <main className="min-h-screen transition-[margin-left] duration-300 ease-in-out md:ml-[var(--sidebar-width)]">
             {children}
           </main>
-          <BetaWidget />
-          <AiPanel />
+          <DashboardShellFloatingOverlays />
           <BottomTabBar />
           <UnifiedMobileFab />
         </div>

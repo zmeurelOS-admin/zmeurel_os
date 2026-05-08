@@ -32,7 +32,6 @@ function buildContentSecurityPolicy(options = {}) {
 
   const supabaseOrigin = parseUrlOrigin(env.NEXT_PUBLIC_SUPABASE_URL)
   const supabaseWsOrigin = toWsOrigin(supabaseOrigin)
-  const sentryDsnOrigin = parseUrlOrigin(env.NEXT_PUBLIC_SENTRY_DSN)
 
   const scriptSrc = ["'self'", "'unsafe-inline'"]
   if (isDevelopment) {
@@ -43,12 +42,9 @@ function buildContentSecurityPolicy(options = {}) {
     "'self'",
     'https://*.supabase.co',
     'wss://*.supabase.co',
-    'https://*.ingest.sentry.io',
-    'https://*.sentry.io',
     'https://vitals.vercel-insights.com',
     supabaseOrigin,
     supabaseWsOrigin,
-    sentryDsnOrigin,
   ]
 
   if (isDevelopment) {

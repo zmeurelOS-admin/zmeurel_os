@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import * as Sentry from '@sentry/nextjs'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Minus, Plus, Trash2 } from 'lucide-react'
@@ -19,7 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { captureReactError } from '@/lib/monitoring/sentry'
+import { captureReactError } from '@/lib/monitoring/report-error'
 import { createClienți, getClienți } from '@/lib/supabase/queries/clienti'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import {
@@ -270,11 +269,6 @@ export function AddVanzareButasiDialog({
         orderId: savedOrder.id,
         status: savedOrder.status,
         total: savedOrder.total_lei,
-      })
-      Sentry.captureMessage('butasi_order_created', {
-        level: 'info',
-        tags: { module: 'vanzari-butasi' },
-        extra: { orderId: savedOrder.id, status: savedOrder.status, total: savedOrder.total_lei },
       })
       hapticSuccess()
       toast.success('Comanda a fost salvată')

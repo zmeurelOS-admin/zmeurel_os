@@ -1,89 +1,166 @@
 const runtimeCaching = [
   {
-    urlPattern: ({ request, url }) =>
-      request.mode === 'navigate' &&
+    // Never cache non-GET mutations, regardless of endpoint.
+    urlPattern: ({ request }) =>
+      ['POST', 'PUT', 'PATCH', 'DELETE'].includes((request?.method ?? '').toUpperCase()),
+    handler: 'NetworkOnly',
+    options: {},
+  },
+  {
+    // Sensitive auth/chat/push flows must always hit network.
+    urlPattern: ({ url }) =>
       self.origin === url.origin &&
-      [
-        '/',
-        '/login',
-        '/register',
-        '/termeni',
-        '/confidentialitate',
-        '/reset-password',
-        '/reset-password-request',
-        '/update-password',
-      ].some((pathname) => url.pathname === pathname || url.pathname.startsWith(`${pathname}/`)),
+      (url.pathname.startsWith('/api/auth/') ||
+        url.pathname.startsWith('/api/chat') ||
+        url.pathname.startsWith('/api/notifications/') ||
+        url.pathname.startsWith('/api/push/')),
+    handler: 'NetworkOnly',
+    method: 'GET',
+    options: {},
+  },
+  {
+    // Supabase auth endpoints should never be cached.
+    urlPattern: /^https:\/\/[^/]+\.supabase\.co\/auth\/v1\/.*$/i,
+    handler: 'NetworkOnly',
+    method: 'GET',
+    options: {},
+  },
+  {
+    // Supabase functions may execute mutations; avoid caching.
+    urlPattern: /^https:\/\/[^/]+\.supabase\.co\/functions\/v1\/.*$/i,
+    handler: 'NetworkOnly',
+    method: 'GET',
+    options: {},
+  },
+  {
+    // Keep app shell navigations resilient with quick network timeout + cache fallback.
+    urlPattern: ({ request, url }) =>
+      request.mode === 'navigate' && self.origin === url.origin && !url.pathname.startsWith('/api/'),
     handler: 'NetworkFirst',
     method: 'GET',
     options: {
-      cacheName: 'public-navigation-pages',
+      cacheName: 'pages-cache',
       networkTimeoutSeconds: 3,
       expiration: {
-        maxEntries: 24,
-        maxAgeSeconds: 24 * 60 * 60,
+        maxEntries: 50,
+        maxAgeSeconds: 7 * 24 * 60 * 60,
       },
     },
   },
   {
+    // App GET APIs: online-first, short-lived cache for read endpoints.
     urlPattern: ({ url }) => self.origin === url.origin && url.pathname.startsWith('/api/'),
-    handler: 'NetworkOnly',
+    handler: 'NetworkFirst',
     method: 'GET',
+    options: {
+      cacheName: 'api-cache',
+      networkTimeoutSeconds: 5,
+      expiration: {
+        maxEntries: 50,
+        maxAgeSeconds: 30 * 60,
+      },
+    },
   },
   {
-    urlPattern: ({ request, url }) => request.mode === 'navigate' && self.origin === url.origin,
-    handler: 'NetworkOnly',
+    // Supabase REST reads: online-first with brief offline resilience.
+    urlPattern: /^https:\/\/[^/]+\.supabase\.co\/rest\/v1\/.*$/i,
+    handler: 'NetworkFirst',
     method: 'GET',
+    options: {
+      cacheName: 'supabase-rest',
+      networkTimeoutSeconds: 5,
+      expiration: {
+        maxEntries: 100,
+        maxAgeSeconds: 60 * 60,
+      },
+    },
   },
   {
     urlPattern: ({ url }) => self.origin === url.origin && url.pathname.startsWith('/_next/static/'),
     handler: 'StaleWhileRevalidate',
     method: 'GET',
     options: {
-      cacheName: 'next-static-assets',
+      cacheName: 'next-static',
       expiration: {
-        maxEntries: 128,
-        maxAgeSeconds: 24 * 60 * 60,
+        maxEntries: 200,
+        maxAgeSeconds: 30 * 24 * 60 * 60,
+      },
+    },
+  },
+  {
+    urlPattern: /\.css$/i,
+    handler: 'StaleWhileRevalidate',
+    method: 'GET',
+    options: {
+      cacheName: 'styles',
+      expiration: {
+        maxEntries: 120,
+        maxAgeSeconds: 30 * 24 * 60 * 60,
       },
     },
   },
   {
     urlPattern: /\/_next\/image\?url=.+$/i,
-    handler: 'CacheFirst',
+    handler: 'StaleWhileRevalidate',
     method: 'GET',
     options: {
-      cacheName: 'next-image-assets',
+      cacheName: 'next-image',
       expiration: {
-        maxEntries: 128,
-        maxAgeSeconds: 24 * 60 * 60,
+        maxEntries: 100,
+        maxAgeSeconds: 30 * 24 * 60 * 60,
       },
     },
   },
   {
-    urlPattern: /\.(?:png|jpg|jpeg|gif|webp|svg|ico)$/i,
+    // Public images and remote image URLs (including Supabase Storage signed/public assets).
+    urlPattern: /\.(?:png|jpg|jpeg|gif|webp|svg|ico)(\?.*)?$/i,
+    handler: 'StaleWhileRevalidate',
+    method: 'GET',
+    options: {
+      cacheName: 'images',
+      expiration: {
+        maxEntries: 100,
+        maxAgeSeconds: 30 * 24 * 60 * 60,
+      },
+    },
+  },
+  {
+    urlPattern: /\.(?:woff2?|ttf|eot)$/i,
     handler: 'CacheFirst',
     method: 'GET',
     options: {
-      cacheName: 'static-image-assets',
+      cacheName: 'fonts',
       expiration: {
-        maxEntries: 128,
-        maxAgeSeconds: 24 * 60 * 60,
+        maxEntries: 30,
+        maxAgeSeconds: 365 * 24 * 60 * 60,
       },
     },
   },
 ]
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
-  skipWaiting: true,
-  clientsClaim: true,
+  // Keep updates non-disruptive: user decides when to activate waiting SW.
+  skipWaiting: false,
+  clientsClaim: false,
   inlineWorkboxRuntime: true,
   disable: process.env.NODE_ENV === 'development',
   cacheStartUrl: false,
   dynamicStartUrl: false,
+  fallbacks: {
+    document: '/offline',
+  },
   runtimeCaching,
   buildExcludes: [
+    /chunks\/images\/.*$/i,
+    /_next\/static\/chunks\/.*$/i,
+    /_next\/static\/css\/.*$/i,
     ({ asset }) => {
       const name = asset?.name ?? ''
       return (
@@ -99,12 +176,15 @@ const withPWA = require('next-pwa')({
     },
   ],
   publicExcludes: [
-    '!**/*',
-    'icons/**/*',
-    'icon-*.png',
-    'apple-icon.png',
+    '**/*',
+    '!icons/icon.svg',
+    '!icon-192.png',
+    '!icon-512.png',
+    '!apple-icon.png',
   ],
   additionalManifestEntries: [
+    { url: '/offline', revision: null },
+    { url: '/icons/icon.svg', revision: null },
     { url: '/apple-icon.png', revision: null },
     { url: '/icon-192.png', revision: null },
     { url: '/icon-512.png', revision: null },
@@ -113,6 +193,8 @@ const withPWA = require('next-pwa')({
   manifestTransforms: [
     async (entries) => {
       const allowedNonStatic = new Set([
+        '/offline',
+        '/icons/icon.svg',
         '/icon-192.png',
         '/icon-512.png',
         '/apple-icon.png',
@@ -128,8 +210,6 @@ const withPWA = require('next-pwa')({
     },
   ],
 })
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { withSentryConfig } = require('@sentry/nextjs')
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { buildBaseSecurityHeaders } = require('./src/lib/security/http-headers')
 
@@ -185,12 +265,4 @@ const nextConfig = {
   },
 }
 
-// Sentry: la build, `SENTRY_AUTH_TOKEN` (și org/proiect din env sau sentry.properties) permit upload source maps.
-module.exports = withSentryConfig(withPWA(nextConfig), {
-  silent: true,
-  webpack: {
-    reactComponentAnnotation: {
-      enabled: true,
-    },
-  },
-})
+module.exports = withBundleAnalyzer(withPWA(nextConfig))

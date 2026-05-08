@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api/route-security'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 import { generateTratamentTemplateWorkbook } from '@/lib/tratamente/import/template-generator'

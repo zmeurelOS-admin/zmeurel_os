@@ -1,4 +1,3 @@
-import * as Sentry from '@sentry/nextjs'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database, Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { buildAnalyticsPayload } from '@/lib/analytics/schema'
@@ -584,14 +583,12 @@ export async function upsertGoogleIntegration(args: {
 export async function captureIntegrationError(error: unknown, context: Record<string, unknown>) {
   const safeContext = sanitizeForLog(context)
   const safeError = toSafeErrorContext(error)
-  Sentry.captureException(error, {
-    tags: {
+  console.error('[google-contacts] integration-error', {
+    error: safeError,
+    context: {
       module: 'integrations',
       integration: 'google_contacts',
-    },
-    extra: {
-      context: safeContext,
-      safe_error: safeError,
+      extra: safeContext,
     },
   })
 }

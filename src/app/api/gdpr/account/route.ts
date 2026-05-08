@@ -5,7 +5,7 @@ import { destructiveActionScopes } from '@/lib/auth/destructive-action-step-up-c
 import { isProtectedAccountDeletionUser } from '@/lib/auth/protected-account'
 import { requireDestructiveActionStepUp } from '@/lib/auth/destructive-action-step-up'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'

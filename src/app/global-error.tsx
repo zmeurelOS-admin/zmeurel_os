@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { captureReactError } from '@/lib/monitoring/sentry'
+import { captureReactError } from '@/lib/monitoring/report-error'
 
 export default function GlobalError({
   error,

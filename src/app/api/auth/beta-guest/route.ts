@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server'
 import { ensureTenantForUser } from '@/lib/auth/ensure-tenant'
 import { checkRateLimit } from '@/lib/api/rate-limit'
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import type { Database } from '@/types/supabase'
 

@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { sendPushToUser } from '@/lib/notifications/send-push'
 import { createClient } from '@/lib/supabase/server'
 

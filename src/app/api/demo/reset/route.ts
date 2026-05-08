@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { apiError, validateSameOriginMutation } from '@/lib/api/route-security'
 import { deleteDemoDataForTenant, getTenantDemoContext } from '@/lib/demo/demo-seed-service'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 

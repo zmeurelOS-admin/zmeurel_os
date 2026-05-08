@@ -5,7 +5,7 @@ import {
   createNotificationsForAssociationAdmins,
   NOTIFICATION_TYPES,
 } from '@/lib/notifications/create'
-import { captureApiError } from '@/lib/monitoring/sentry'
+import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
