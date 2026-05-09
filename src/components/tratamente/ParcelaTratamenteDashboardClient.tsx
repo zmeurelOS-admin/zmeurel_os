@@ -59,6 +59,7 @@ import { toast } from '@/lib/ui/toast'
 
 interface ParcelaTratamenteDashboardClientProps {
   an: number
+  aplicateCount: number
   aplicariCount: number
   createPlanHref: string
   importPlanHref: string
@@ -84,6 +85,7 @@ interface ParcelaTratamenteDashboardClientProps {
 
 export function ParcelaTratamenteDashboardClient({
   an,
+  aplicateCount,
   aplicariCount,
   createPlanHref,
   importPlanHref,
@@ -470,11 +472,22 @@ export function ParcelaTratamenteDashboardClient({
                 </div>
               </>
             )}
+            {aplicateCount > 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                <Link
+                  href={`/parcele/${parcelaId}/tratamente/toate`}
+                  className="font-medium text-[var(--agri-primary)] underline-offset-2 hover:underline"
+                >
+                  {aplicateCount} aplicări efectuate în {an}
+                </Link>
+              </p>
+            ) : null}
           </section>
         </div>
       ) : (
         <ParcelaTratamenteMobileHub
           an={an}
+          aplicateCount={aplicateCount}
           aplicariCount={aplicariCount}
           configurareSezon={configurareSezon}
           createPlanHref={createPlanHref}

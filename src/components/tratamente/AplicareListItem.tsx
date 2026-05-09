@@ -72,8 +72,8 @@ export function AplicareListItem({
   configurareSezon,
 }: AplicareListItemProps) {
   const href = `/parcele/${parcelaId}/tratamente/aplicare/${aplicare.id}`
-  const planificata = aplicare.data_planificata ?? aplicare.created_at
-  const dateLabel = format(parseISO(planificata), 'EEEE, d MMM', { locale: ro })
+  const dataAfisata = aplicare.data_aplicata ?? aplicare.data_planificata ?? aplicare.created_at
+  const dateLabel = format(parseISO(dataAfisata), 'EEEE, d MMM', { locale: ro })
   const doza = formatDoza(aplicare)
   const triggerLabel = getTriggerLabel(aplicare, configurareSezon ?? null)
   const cohortLabel = getCohortLabel(aplicare)

@@ -37,6 +37,7 @@ import {
   getActivityPauseRemainingDays,
 } from '@/lib/activitati/timeline'
 import { queryKeys } from '@/lib/query-keys'
+import { getSupabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import {
@@ -116,6 +117,39 @@ type UnitFilter = 'toate' | UnitateTip
 type JournalTypeFilter = 'all' | 'activitati' | 'tratamente' | 'recoltari' | 'stadii'
 type JournalPeriodFilter = '7d' | '30d' | 'sezon' | 'tot'
 
+type AplicareRecentaRow = {
+  id: string
+  parcela_id: string | null
+  data_aplicata: string | null
+  created_at: string
+  updated_at: string | null
+  sursa: string | null
+  doza_ml_per_hl: number | null
+  doza_l_per_ha: number | null
+  produse_aplicare:
+    | Array<{
+        produs: { nume_comercial: string | null } | null
+        produs_nume_snapshot: string | null
+        produs_nume_manual: string | null
+      }>
+    | null
+}
+
+type AplicareAsActivitate = {
+  id: string
+  parcela_id: string | null
+  data_aplicare: string
+  tip_activitate: string
+  produs_utilizat?: string
+  doza?: string
+  created_at: string
+  updated_at?: string | null
+  _sursa: 'tratament'
+  sursa?: string | null
+}
+
+type ParcelaActivityItem = ActivitateAgricola | AplicareAsActivitate
+
 export type MeteoAutoSummary =
   | { state: 'empty'; reason: string }
   | { state: 'loading'; reason: string }
@@ -154,6 +188,13 @@ function toIsoDate(value: Date): string {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(
     value.getDate()
   ).padStart(2, '0')}`
+}
+
+function getAplicariRecenteCutoffIso(): string {
+  const cutoff = new Date()
+  cutoff.setHours(0, 0, 0, 0)
+  cutoff.setDate(cutoff.getDate() - 90)
+  return toIsoDate(cutoff)
 }
 
 function normalizeStr(value: string | null | undefined): string {
@@ -383,6 +424,44 @@ function isTreatmentLikeActivity(activity: ActivitateAgricola): boolean {
     tip.includes('fungicid') ||
     tip.includes('insecticid')
   )
+}
+
+function isAplicareAsActivitate(activity: ParcelaActivityItem): activity is AplicareAsActivitate {
+  return '_sursa' in activity && activity._sursa === 'tratament'
+}
+
+function formatAplicareDoza(row: Pick<AplicareRecentaRow, 'doza_ml_per_hl' | 'doza_l_per_ha'>): string | undefined {
+  if (typeof row.doza_ml_per_hl === 'number') return `${row.doza_ml_per_hl} ml/hl`
+  if (typeof row.doza_l_per_ha === 'number') return `${row.doza_l_per_ha} l/ha`
+  return undefined
+}
+
+function formatAplicareSursaLabel(value: string | null | undefined): string {
+  if (value === 'din_plan') return 'din plan'
+  if (value === 'manuala') return 'manuală'
+  return 'manuală'
+}
+
+function mapAplicareToActivitate(row: AplicareRecentaRow): AplicareAsActivitate {
+  const firstProduct = row.produse_aplicare?.[0]
+  const produsUtilizat =
+    firstProduct?.produs?.nume_comercial ??
+    firstProduct?.produs_nume_snapshot ??
+    firstProduct?.produs_nume_manual ??
+    undefined
+
+  return {
+    id: row.id,
+    parcela_id: row.parcela_id,
+    data_aplicare: row.data_aplicata ?? row.created_at,
+    tip_activitate: 'Tratament aplicat',
+    produs_utilizat: produsUtilizat,
+    doza: formatAplicareDoza(row),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    _sursa: 'tratament',
+    sursa: row.sursa,
+  }
 }
 
 function getJournalTypeLabel(value: JournalTypeFilter): string {
@@ -1180,7 +1259,7 @@ function ParcelaTerenMobileSheet({
     | { date: string; type: string; product: string; pauseUntil?: string | null; tipDeprecat?: boolean }
     | undefined
   meteoAutoSummary: MeteoAutoSummary
-  activitatiParcela: ActivitateAgricola[]
+  activitatiParcela: ParcelaActivityItem[]
   today: Date
   hasManualMicroclimat: boolean
   /** Împiedică închiderea Sheet-ului (ex. dialog microclimat deschis deasupra). */
@@ -1359,9 +1438,18 @@ function ParcelaTerenMobileSheet({
             ) : (
               <div className="space-y-0">
                 {activitatiParcela.map((activity, idx) => {
-                  const kind = isTreatmentLikeActivity(activity) ? ('tratament' as const) : ('activitate' as const)
+                  const kind =
+                    isAplicareAsActivitate(activity) || isTreatmentLikeActivity(activity)
+                      ? ('tratament' as const)
+                      : ('activitate' as const)
                   const meta = getJournalKindMeta(kind)
                   const d = activity.data_aplicare || activity.created_at || ''
+                  const title = isAplicareAsActivitate(activity)
+                    ? activity.produs_utilizat || activity.tip_activitate || 'Tratament aplicat'
+                    : activity.tip_activitate || 'Activitate'
+                  const metaLine = isAplicareAsActivitate(activity)
+                    ? activity.doza || formatAplicareSursaLabel(activity.sursa)
+                    : [activity.produs_utilizat, activity.doza].filter(Boolean).join(' · ') || '—'
                   return (
                     <div key={activity.id} className="flex gap-3 py-2">
                       <div className="flex flex-col items-center pt-1">
@@ -1371,10 +1459,8 @@ function ParcelaTerenMobileSheet({
                         ) : null}
                       </div>
                       <div className="min-w-0 flex-1 pb-1">
-                        <p className="text-sm font-semibold text-[var(--agri-text)]">{activity.tip_activitate || 'Activitate'}</p>
-                        <p className="text-xs text-[var(--agri-text-muted)]">
-                          {[activity.produs_utilizat, activity.doza].filter(Boolean).join(' · ') || '—'}
-                        </p>
+                        <p className="text-sm font-semibold text-[var(--agri-text)]">{title}</p>
+                        <p className="text-xs text-[var(--agri-text-muted)]">{metaLine}</p>
                         <p className="mt-0.5 text-[11px] text-[var(--agri-text-muted)] tabular-nums">
                           {d ? new Date(d).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </p>
@@ -1735,6 +1821,31 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     queryFn: getActivitatiAgricole,
     staleTime: 30000,
     refetchOnWindowFocus: false,
+  })
+  const { data: tratamenteAplicateRecente = [] } = useQuery({
+    queryKey: ['parcele', 'activitate', 'tratamente-recente', expandedId ?? null],
+    enabled: Boolean(expandedId && !isDesktop),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      if (!expandedId) return []
+
+      const supabase = getSupabase()
+      const { data, error } = await supabase
+        .from('aplicari_tratament')
+        .select(
+          'id,parcela_id,data_aplicata,created_at,updated_at,sursa,doza_ml_per_hl,doza_l_per_ha,produse_aplicare:aplicari_tratament_produse(produs_nume_snapshot,produs_nume_manual,produs:produse_fitosanitare(nume_comercial))'
+        )
+        .eq('parcela_id', expandedId)
+        .in('status', ['aplicata', 'aplicata_partial'])
+        .gte('data_aplicata', getAplicariRecenteCutoffIso())
+        .order('data_aplicata', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      return ((data ?? []) as AplicareRecentaRow[]).map(mapAplicareToActivitate)
+    },
   })
   const { data: recoltari = [] } = useQuery({
     queryKey: queryKeys.recoltari,
@@ -2216,11 +2327,10 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   )
   const mobileTerenSheetActivitati = useMemo(() => {
     if (!expandedId) return []
-    return [...activitati]
-      .filter((a) => a.parcela_id === expandedId)
+    return [...activitati.filter((a) => a.parcela_id === expandedId), ...tratamenteAplicateRecente.filter((a) => a.parcela_id === expandedId)]
       .sort((a, b) => compareActivityRecency(a, b))
       .slice(0, 40)
-  }, [activitati, expandedId])
+  }, [activitati, expandedId, tratamenteAplicateRecente])
   const mobileTerenSheetOpen = Boolean(!isDesktop && mobileTerenSheetParcela)
   const mobileTerenSheetHasManualMicro = Boolean(
     mobileTerenSheetParcela &&
