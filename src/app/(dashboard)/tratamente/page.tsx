@@ -1,4 +1,4 @@
-import { addDays, endOfDay, startOfDay } from 'date-fns'
+import { addDays, endOfDay, startOfDay, subDays } from 'date-fns'
 
 import { HubTratamenteClient } from '@/components/tratamente/HubTratamenteClient'
 import {
@@ -11,15 +11,16 @@ import {
 
 export default async function TratamenteHubPage() {
   const today = startOfDay(new Date())
+  const intervalStart = startOfDay(subDays(today, 30))
   const intervalEnd = endOfDay(addDays(today, 7))
 
   const [aplicari, statistici, produseFitosanitare, parceleSelector, interventiiRelevante] = await Promise.all([
     listAplicariCrossParcelPentruInterval({
-      dataStart: today,
+      dataStart: intervalStart,
       dataEnd: intervalEnd,
     }),
     getStatisticiAplicariCrossParcel({
-      dataStart: today,
+      dataStart: intervalStart,
       dataEnd: intervalEnd,
     }),
     listProduseFitosanitare({ activ: true }),
