@@ -10,6 +10,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -20,6 +30,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   anuleazaAction,
+  deleteAplicareAction,
   markAplicataAction,
   reprogrameazaAction,
   salveazaCiornaAction,
@@ -487,12 +498,14 @@ export function AplicareDetaliuClient({
   } | null>(null)
   const [reprogrameazaOpen, setReprogrameazaOpen] = useState(false)
   const [anulareOpen, setAnulareOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [motivAnulare, setMotivAnulare] = useState('')
   const [produseFormular, setProduseFormular] = useState<AplicareProdusForm[]>(() => buildInitialFormProducts(aplicare))
   const [operatorLocal, setOperatorLocal] = useState(aplicare.operator ?? currentOperator ?? '')
   const [observatiiLocale, setObservatiiLocale] = useState(aplicare.observatii ?? '')
   const [dataAplicariiLocale, setDataAplicariiLocale] = useState(new Date().toISOString().slice(0, 10))
   const [isPending, startTransition] = useTransition()
+  const [isDeletePending, startDeleteTransition] = useTransition()
 
   const snapshotSalvat = isMeteoSnapshot(aplicare.meteo_snapshot) ? aplicare.meteo_snapshot : null
   const isPlanificata = aplicare.status === 'planificata'
@@ -764,6 +777,21 @@ export function AplicareDetaliuClient({
 
       toast.success('Aplicarea a fost anulată.')
       setAnulareOpen(false)
+      router.refresh()
+    })
+  }
+
+  const handleDeleteAplicare = () => {
+    startDeleteTransition(async () => {
+      const result = await deleteAplicareAction(aplicare.id, parcelaId)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+
+      toast.success('Aplicarea a fost ștearsă definitiv.')
+      setDeleteOpen(false)
+      router.push(`/parcele/${parcelaId}/tratamente/toate`)
       router.refresh()
     })
   }
@@ -1363,9 +1391,20 @@ export function AplicareDetaliuClient({
 
       {!isEditable ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--divider)] bg-[color:color-mix(in_srgb,var(--surface-page)_92%,transparent)] px-4 py-3 backdrop-blur-sm md:static md:mx-auto md:mt-2 md:max-w-5xl md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none">
-          <Button type="button" variant="outline" className="w-full md:w-auto" asChild>
-            <Link href={`/parcele/${parcelaId}/tratamente`}>Înapoi la listă</Link>
-          </Button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-end">
+            <Button type="button" variant="outline" className="w-full md:w-auto" asChild>
+              <Link href={`/parcele/${parcelaId}/tratamente`}>Înapoi la listă</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full md:w-auto"
+              disabled={isDeletePending}
+              onClick={() => setDeleteOpen(true)}
+            >
+              {isDeletePending ? 'Se șterge...' : 'Șterge aplicarea'}
+            </Button>
+          </div>
         </div>
       ) : showMobileWizard && aplicatSuccess ? null : showMobileWizard ? (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--divider)] bg-[color:color-mix(in_srgb,var(--surface-page)_92%,transparent)] px-4 py-3 backdrop-blur-sm">
@@ -1416,45 +1455,84 @@ export function AplicareDetaliuClient({
             <Button type="button" variant="ghost" className="w-full text-[var(--status-danger-text)] md:w-auto" onClick={() => setAnulareOpen(true)}>
               Anulează
             </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="w-full md:w-auto"
+              disabled={isDeletePending}
+              onClick={() => setDeleteOpen(true)}
+            >
+              {isDeletePending ? 'Se șterge...' : 'Șterge aplicarea'}
+            </Button>
           </div>
         </div>
       )}
 
-      <MarkAplicataSheet
-        cohortLaAplicareBlocata={cohortBlocata}
-        defaultCantitateMl={defaultCantitateMl}
-        defaultCohortLaAplicare={cohortImplicita}
-        defaultOperator={currentOperator}
-        defaultStadiu={stadiuImplicit}
-        configurareSezon={configurareSezon}
-        grupBiologic={grupBiologic}
-        isRubusMixt={rubusMixt}
-        meteoSnapshot={meteoZi?.snapshot_curent ?? null}
-        onOpenChange={setMarkOpen}
-        onSubmit={handleMarkAplicata}
-        open={markOpen}
-        pending={isPending}
-        produseEfective={isEditable ? produsePentruMarcare : aplicare.produse_aplicare ?? []}
-        produseFitosanitare={produseFitosanitare}
-        produsePlanificate={aplicare.linie?.produse ?? []}
-      />
+      {markOpen ? (
+        <MarkAplicataSheet
+          cohortLaAplicareBlocata={cohortBlocata}
+          defaultCantitateMl={defaultCantitateMl}
+          defaultCohortLaAplicare={cohortImplicita}
+          defaultOperator={currentOperator}
+          defaultStadiu={stadiuImplicit}
+          configurareSezon={configurareSezon}
+          grupBiologic={grupBiologic}
+          isRubusMixt={rubusMixt}
+          meteoSnapshot={meteoZi?.snapshot_curent ?? null}
+          onOpenChange={setMarkOpen}
+          onSubmit={handleMarkAplicata}
+          open={markOpen}
+          pending={isPending}
+          produseEfective={isEditable ? produsePentruMarcare : aplicare.produse_aplicare ?? []}
+          produseFitosanitare={produseFitosanitare}
+          produsePlanificate={aplicare.linie?.produse ?? []}
+        />
+      ) : null}
 
-      <ReprogrameazaSheet
-        defaultDate={aplicare.data_planificata ?? new Date().toISOString().slice(0, 10)}
-        onOpenChange={setReprogrameazaOpen}
-        onSubmit={handleReprogrameaza}
-        open={reprogrameazaOpen}
-        pending={isPending}
-      />
+      {reprogrameazaOpen ? (
+        <ReprogrameazaSheet
+          defaultDate={aplicare.data_planificata ?? new Date().toISOString().slice(0, 10)}
+          onOpenChange={setReprogrameazaOpen}
+          onSubmit={handleReprogrameaza}
+          open={reprogrameazaOpen}
+          pending={isPending}
+        />
+      ) : null}
 
-      <AnuleazaDialog
-        motiv={motivAnulare}
-        onConfirm={handleAnuleaza}
-        onMotivChange={setMotivAnulare}
-        onOpenChange={setAnulareOpen}
-        open={anulareOpen}
-        pending={isPending}
-      />
+      {anulareOpen ? (
+        <AnuleazaDialog
+          motiv={motivAnulare}
+          onConfirm={handleAnuleaza}
+          onMotivChange={setMotivAnulare}
+          onOpenChange={setAnulareOpen}
+          open={anulareOpen}
+          pending={isPending}
+        />
+      ) : null}
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Șterge aplicarea?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Această acțiune este ireversibilă. Aplicarea și toate produsele asociate vor fi șterse permanent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletePending}>Anulează</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={isDeletePending}
+              onClick={(event) => {
+                event.preventDefault()
+                handleDeleteAplicare()
+              }}
+            >
+              {isDeletePending ? 'Se șterge...' : 'Șterge definitiv'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

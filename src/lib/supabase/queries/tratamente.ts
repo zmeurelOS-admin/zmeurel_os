@@ -4074,16 +4074,12 @@ export async function anuleazaAplicare(id: string, motiv: string): Promise<Aplic
 }
 
 /**
- * Șterge definitiv o aplicare doar dacă este încă în starea `planificata`.
+ * Șterge definitiv o aplicare din tenantul curent.
  * Exemplu: `deleteAplicare('uuid-aplicare')`
  */
 export async function deleteAplicare(id: string): Promise<void> {
   const ctx = await getQueryContext()
-  const aplicare = await getAplicareOwnedByTenant(ctx, id)
-
-  if (aplicare.status !== 'planificata') {
-    throw new Error('Doar aplicările cu status planificată pot fi șterse definitiv.')
-  }
+  await getAplicareOwnedByTenant(ctx, id)
 
   const { error } = await ctx.supabase
     .from('aplicari_tratament')

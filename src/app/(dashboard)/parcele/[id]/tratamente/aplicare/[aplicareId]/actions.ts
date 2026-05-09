@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import {
   anuleazaAplicare,
+  deleteAplicare,
   getAplicareById,
   mapTratamenteError,
   markAplicareAsAplicata,
@@ -101,6 +102,7 @@ const reprogrameazaSchema = z.object({
 
 function revalidateAplicarePaths(parcelaId: string, aplicareId: string) {
   revalidatePath(`/parcele/${parcelaId}/tratamente`)
+  revalidatePath(`/parcele/${parcelaId}/tratamente/toate`)
   revalidatePath(`/parcele/${parcelaId}/tratamente/aplicare/${aplicareId}`)
 }
 
@@ -307,6 +309,27 @@ export async function anuleazaAction(aplicareId: string, motiv: string): Promise
     return {
       ok: false,
       error: mapTratamenteError(error, 'Nu am putut anula aplicarea.').message,
+    }
+  }
+}
+
+export async function deleteAplicareAction(aplicareId: string, parcelaId: string): Promise<ActionResult> {
+  if (!z.string().uuid().safeParse(aplicareId).success) {
+    return { ok: false, error: 'Aplicarea selectată nu este validă.' }
+  }
+
+  if (!z.string().uuid().safeParse(parcelaId).success) {
+    return { ok: false, error: 'Parcela selectată nu este validă.' }
+  }
+
+  try {
+    await deleteAplicare(aplicareId)
+    revalidateAplicarePaths(parcelaId, aplicareId)
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error: mapTratamenteError(error, 'Nu am putut șterge aplicarea.').message,
     }
   }
 }
