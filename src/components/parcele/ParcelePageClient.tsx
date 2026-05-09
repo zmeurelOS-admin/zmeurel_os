@@ -1792,6 +1792,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const [unitFilter, setUnitFilter] = useState<UnitFilter>(() => resolveUnitFilterParam(searchParams))
   const [isDesktop, setIsDesktop] = useState(false)
   const [desktopSelectedParcelaId, setDesktopSelectedParcelaId] = useState<string | null>(null)
+  const tratamenteRecenteParcelaId = expandedId ?? desktopSelectedParcelaId ?? null
   const [desktopInspectorTab, setDesktopInspectorTab] = useState<'prezentare' | 'jurnal' | 'tratamente' | 'microclimat'>(
     'prezentare'
   )
@@ -1823,12 +1824,12 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     refetchOnWindowFocus: false,
   })
   const { data: tratamenteAplicateRecente = [] } = useQuery({
-    queryKey: ['parcele', 'activitate', 'tratamente-recente', expandedId ?? null],
-    enabled: Boolean(expandedId && !isDesktop),
+    queryKey: ['parcele', 'activitate', 'tratamente-recente', tratamenteRecenteParcelaId],
+    enabled: Boolean(tratamenteRecenteParcelaId),
     staleTime: 30000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      if (!expandedId) return []
+      if (!tratamenteRecenteParcelaId) return []
 
       const supabase = getSupabase()
       const { data, error } = await supabase
@@ -1836,7 +1837,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         .select(
           'id,parcela_id,data_aplicata,created_at,updated_at,sursa,doza_ml_per_hl,doza_l_per_ha,produse_aplicare:aplicari_tratament_produse(produs_nume_snapshot,produs_nume_manual,produs:produse_fitosanitare(nume_comercial))'
         )
-        .eq('parcela_id', expandedId)
+        .eq('parcela_id', tratamenteRecenteParcelaId)
         .in('status', ['aplicata', 'aplicata_partial'])
         .gte('data_aplicata', getAplicariRecenteCutoffIso())
         .order('data_aplicata', { ascending: false })
@@ -2240,11 +2241,27 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     () => getCurrentCanonicalStage(desktopStadiiCanonice, desktopSelectedGrupBiologic),
     [desktopStadiiCanonice, desktopSelectedGrupBiologic]
   )
+  const selectedParcelaTratamenteRecente = useMemo(
+    () =>
+      desktopSelectedParcelaIdResolved
+        ? tratamenteAplicateRecente
+            .filter((item) => item.parcela_id === desktopSelectedParcelaIdResolved)
+            .map((item) => ({
+              date: item.data_aplicare || item.created_at || '',
+              type: 'Tratament aplicat',
+              product: item.produs_utilizat || '',
+              dose: item.doza || formatAplicareSursaLabel(item.sursa),
+            }))
+        : [],
+    [desktopSelectedParcelaIdResolved, tratamenteAplicateRecente]
+  )
   const selectedParcelaTratamente = useMemo(
     () => (desktopSelectedParcelaIdResolved ? tratamenteByParcela.get(desktopSelectedParcelaIdResolved) ?? [] : []),
     [desktopSelectedParcelaIdResolved, tratamenteByParcela]
   )
-  const lastTreatmentEntry = selectedParcelaTratamente[0] ?? null
+  const selectedParcelaTratamenteDisplay =
+    selectedParcelaTratamente.length > 0 ? selectedParcelaTratamente : selectedParcelaTratamenteRecente
+  const lastTreatmentEntry = selectedParcelaTratamenteDisplay[0] ?? null
   const lastTreatmentDays = lastTreatmentEntry
     ? Math.max(0, Math.floor((today.getTime() - new Date(lastTreatmentEntry.date).getTime()) / 86_400_000))
     : null
@@ -2267,6 +2284,15 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         title: activity.tip_activitate || 'Activitate',
         details: [activity.produs_utilizat, activity.doza].filter(Boolean).join(' · ') || null,
       }))
+    const appliedTreatments = tratamenteAplicateRecente
+      .filter((activity) => activity.parcela_id === desktopSelectedParcelaIdResolved)
+      .map((activity) => ({
+        id: `tratament-aplicat:${activity.id}`,
+        date: activity.data_aplicare || activity.created_at || '',
+        kind: 'tratament' as const,
+        title: activity.produs_utilizat || 'Tratament aplicat',
+        details: activity.doza || formatAplicareSursaLabel(activity.sursa) || 'manuală',
+      }))
     const harvests = selectedParcelaRecoltari.map((recoltare) => ({
       id: `recoltare:${recoltare.id}`,
       date: recoltare.data || recoltare.created_at || '',
@@ -2278,11 +2304,11 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       id: `stadiu:${stage.id}`,
       date: stage.data_observata || stage.created_at || '',
       kind: 'stadiu' as const,
-      title: formatEtapaLabel(stage.stadiu, desktopSelectedGrupBiologic, stage.cohort),
-      details: stage.observatii || null,
-    }))
+        title: formatEtapaLabel(stage.stadiu, desktopSelectedGrupBiologic, stage.cohort),
+        details: stage.observatii || null,
+      }))
 
-    return [...activities, ...harvests, ...stages].sort((a, b) => {
+    return [...activities, ...appliedTreatments, ...harvests, ...stages].sort((a, b) => {
       const left = new Date(b.date).getTime()
       const right = new Date(a.date).getTime()
       return left - right
@@ -2293,6 +2319,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     desktopSelectedParcelaIdResolved,
     desktopStadiiCanonice,
     selectedParcelaRecoltari,
+    tratamenteAplicateRecente,
   ])
   const filteredJournalEntries = useMemo(() => {
     const periodStart = getJournalPeriodStart(desktopJournalPeriodFilter, currentSezon)
@@ -2806,11 +2833,14 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 ) : (
                                   <p className="mt-1.5 text-sm text-[var(--agri-text-muted)]">Nicio activitate recentă în datele încărcate.</p>
                                 )}
-                                {latestTreatmentByParcela.get(desktopSelectedParcela.id) ? (
+                                {(
+                                  latestTreatmentByParcela.get(desktopSelectedParcela.id) ??
+                                  selectedParcelaTratamenteRecente[0]
+                                ) ? (
                                   <p className="mt-2 text-sm text-[var(--agri-text)]">
-                                    Tratament: {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.type}
-                                    {latestTreatmentByParcela.get(desktopSelectedParcela.id)?.product
-                                      ? ` · ${latestTreatmentByParcela.get(desktopSelectedParcela.id)?.product}`
+                                    Tratament: {(latestTreatmentByParcela.get(desktopSelectedParcela.id) ?? selectedParcelaTratamenteRecente[0])?.type}
+                                    {(latestTreatmentByParcela.get(desktopSelectedParcela.id) ?? selectedParcelaTratamenteRecente[0])?.product
+                                      ? ` · ${(latestTreatmentByParcela.get(desktopSelectedParcela.id) ?? selectedParcelaTratamenteRecente[0])?.product}`
                                       : ''}
                                   </p>
                                 ) : (
@@ -2988,7 +3018,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                               </div>
 
                               <div className="space-y-1.5">
-                                {selectedParcelaTratamente.slice(0, 8).map((item, index) => (
+                                {selectedParcelaTratamenteDisplay.slice(0, 8).map((item, index) => (
                                   <div
                                     key={`${item.date}:${item.type}:${index}`}
                                     className="rounded-lg border border-[var(--surface-divider)] bg-white px-3 py-2 dark:bg-[var(--agri-surface)]"
@@ -3009,7 +3039,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                     </div>
                                   </div>
                                 ))}
-                                {selectedParcelaTratamente.length === 0 ? null : (
+                                {selectedParcelaTratamenteDisplay.length === 0 ? null : (
                                   <button
                                     type="button"
                                     onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}/tratamente`)}
