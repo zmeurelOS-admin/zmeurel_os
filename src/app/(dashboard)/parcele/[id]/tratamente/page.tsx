@@ -166,6 +166,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
     planActiv,
     stadii,
     aplicari,
+    aplicariEfectuate,
     toatePlanurile,
     grupBiologic,
     produseFitosanitare,
@@ -175,7 +176,16 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
     getParcelaPentruConfigurareSezon(parcelaId),
     getPlanActivPentruParcela(parcelaId, an),
     listStadiiPentruParcela(parcelaId, an),
-    listAplicariParcela(parcelaId, { from, to }),
+    listAplicariParcela(parcelaId, {
+      from,
+      to,
+      excludeStatuses: ['aplicata', 'aplicata_partial'],
+    }),
+    listAplicariParcela(parcelaId, {
+      from,
+      to,
+      status: 'aplicata',
+    }),
     listPlanuriTratament({ activ: true }),
     getGrupBiologicParcela(parcelaId),
     listProduseFitosanitare({ activ: true }),
@@ -201,7 +211,8 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
   const aplicariSortate = sortAplicariAsc(aplicari)
   const urmatoareleAplicari = aplicariSortate.slice(0, 10)
   const aplicariCount = aplicariSortate.length
-  const isGlobalEmpty = !planActiv && stadii.length === 0 && aplicariSortate.length === 0
+  const aplicateCount = aplicariEfectuate.length
+  const isGlobalEmpty = !planActiv && stadii.length === 0 && aplicariSortate.length === 0 && aplicateCount === 0
   const canGenerate = Boolean(
     planActiv?.plan?.id &&
       (
@@ -244,6 +255,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
     >
       <ParcelaTratamenteDashboardClient
         an={an}
+        aplicateCount={aplicateCount}
         aplicariCount={aplicariCount}
         createPlanHref={`/tratamente/planuri/nou?parcela_id=${parcelaId}`}
         importPlanHref="/tratamente/planuri/import"

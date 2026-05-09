@@ -505,6 +505,7 @@ export interface CreateAplicareManualaInput {
 
 export interface ListAplicariOpts {
   status?: AplicareTratament['status']
+  excludeStatuses?: Array<AplicareTratament['status'] | 'aplicata_partial'>
   from?: Date
   to?: Date
 }
@@ -3371,6 +3372,7 @@ export async function listAplicariParcela(
   opts?: ListAplicariOpts
 ): Promise<AplicareTratamentDetaliu[]> {
   const { supabase, tenantId } = await getQueryContext()
+  const excludedStatuses = opts?.excludeStatuses?.filter(Boolean) ?? []
 
   let query = supabase
     .from('aplicari_tratament')
@@ -3384,6 +3386,9 @@ export async function listAplicariParcela(
 
   if (opts?.status) {
     query = query.eq('status', opts.status)
+  }
+  if (excludedStatuses.length > 0) {
+    query = query.not('status', 'in', `(${excludedStatuses.join(',')})`)
   }
 
   const { data, error } = await query

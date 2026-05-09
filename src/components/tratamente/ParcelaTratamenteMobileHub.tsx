@@ -31,6 +31,7 @@ import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/conf
 import { listStadiiPentruGrup, normalizeStadiu, type GrupBiologic } from '@/lib/tratamente/stadii-canonic'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/ui/toast'
+import { getAplicareStatusLabel } from '@/components/tratamente/aplicare-status'
 
 function formatObservedShort(stadiuCurent: StadiuFenologicParcela): string {
   try {
@@ -84,6 +85,7 @@ function normalizeCohortaValue(value: string | null | undefined): Cohorta | null
 
 interface ParcelaTratamenteMobileHubProps {
   an: number
+  aplicateCount: number
   aplicariCount: number
   configurareSezon: ConfigurareSezon | null
   createPlanHref: string
@@ -233,6 +235,7 @@ function SingleStageMiniCard(props: {
 
 export function ParcelaTratamenteMobileHub({
   an,
+  aplicateCount,
   aplicariCount,
   configurareSezon,
   createPlanHref,
@@ -736,7 +739,8 @@ export function ParcelaTratamenteMobileHub({
             {urmatoareleAplicari.map((aplicare) => {
               const dateText = formatAplicareDateShort(aplicare.data_planificata ?? aplicare.data_aplicata ?? null)
               const fromPlan = Boolean(aplicare.plan_linie_id)
-              const headerBadge = fromPlan ? 'Din plan' : 'Planificată'
+              const statusLabel = getAplicareStatusLabel(aplicare.status)
+              const headerBadge = fromPlan ? `Din plan · ${statusLabel}` : statusLabel
               const produs =
                 aplicare.produse_aplicare?.[0]?.produs?.nume_comercial ??
                 aplicare.produse_aplicare?.[0]?.produs_nume_snapshot ??
@@ -795,6 +799,16 @@ export function ParcelaTratamenteMobileHub({
             </Button>
           </div>
         )}
+        {aplicateCount > 0 ? (
+          <p className="text-sm text-[var(--text-secondary)]">
+            <Link
+              href={`/parcele/${parcelaId}/tratamente/toate`}
+              className="font-medium text-[var(--agri-primary)] underline-offset-2 hover:underline"
+            >
+              {aplicateCount} aplicări efectuate în {an}
+            </Link>
+          </p>
+        ) : null}
       </section>
 
       <InterventieRapidApplySheet
