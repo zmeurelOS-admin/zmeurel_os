@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { addDays, format, formatISO, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
+import { ClipboardList } from 'lucide-react'
 
 import { planificaInterventieRelevantaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
 import { reprogrameazaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
@@ -17,7 +18,6 @@ import type { StageState } from '@/components/tratamente/StadiuCurentCard'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { colors } from '@/lib/design-tokens'
 import type {
   AplicareTratamentDetaliu,
   InterventieRelevantaV2,
@@ -395,16 +395,16 @@ export function ParcelaTratamenteMobileHub({
   return (
     <div className="mx-auto w-full max-w-[min(96vw,94rem)] space-y-3 px-3 py-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
-          ⚠ {summary.intarziate} întârziate
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fcebeb] px-3 py-1 text-xs font-medium text-[#a32d2d]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#a32d2d]" />
+          {summary.intarziate} întârziate
         </span>
-        <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-          ● {summary.azi} azi
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#faeeda] px-3 py-1 text-xs font-medium text-[#854f0b]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#854f0b]" />
+          {summary.azi} azi
         </span>
-        <span
-          className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
-          style={{ background: colors.greenLight, color: colors.primary }}
-        >
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-card-muted)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-secondary)]" />
           {summary.cuPlan}/{summary.total} planificate
         </span>
       </div>
@@ -478,13 +478,13 @@ export function ParcelaTratamenteMobileHub({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">Intervenții</p>
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)]">INTERVENȚII</p>
         {filteredInterventii.length === 0 ? (
-          <AppCard className="rounded-xl border border-dashed border-[var(--border-default)] p-3 text-sm text-[var(--text-secondary)]">
+          <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 py-3 text-[13px] text-[var(--text-secondary)]">
             {interventiiRelevante.length === 0
               ? 'Nu există intervenții relevante acum.'
               : 'Nicio intervenție pentru cohorta selectată.'}
-          </AppCard>
+          </div>
         ) : (
           <div className="flex flex-col gap-2.5">
             {filteredInterventii.map((inv) => {
@@ -636,9 +636,9 @@ export function ParcelaTratamenteMobileHub({
       />
 
       <section className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-secondary)]">Plan asociat</p>
-        <AppCard className="rounded-2xl">
-          {planActiv?.plan ? (
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)]">PLAN ASOCIAT</p>
+        {planActiv?.plan ? (
+          <AppCard className="rounded-2xl">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -696,44 +696,49 @@ export function ParcelaTratamenteMobileHub({
                 Schimbă plan
               </Button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-[var(--text-secondary)]">Nu există încă un plan asociat pentru această parcelă.</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full rounded-[10px] bg-[var(--agri-primary)] px-4 py-2 text-sm font-medium text-white"
-                  onClick={onAssignPlan}
-                >
-                  Asociază plan
-                </Button>
-                {createPlanHref ? (
-                  <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-700" asChild>
-                    <Link href={createPlanHref}>Creează plan</Link>
-                  </Button>
-                ) : (
-                  <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-400" disabled>
-                    Creează plan
-                  </Button>
-                )}
+          </AppCard>
+        ) : (
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4">
+            <div className="mb-3 flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
+                <ClipboardList className="h-4 w-4" />
               </div>
+              <p className="text-[13px] text-[var(--text-secondary)]">Nu există încă un plan asociat pentru această parcelă.</p>
             </div>
-          )}
-        </AppCard>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="w-full rounded-[10px] bg-[var(--agri-primary)] px-4 py-2 text-sm font-medium text-white"
+                onClick={onAssignPlan}
+              >
+                Asociază plan
+              </Button>
+              {createPlanHref ? (
+                <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-700" asChild>
+                  <Link href={createPlanHref}>Creează plan</Link>
+                </Button>
+              ) : (
+                <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-400" disabled>
+                  Creează plan
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="space-y-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-[var(--text-primary)]">Următoarele aplicări</h2>
-          <span className="inline-flex rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
+        <div className="mb-2.5 flex items-center justify-between">
+          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)]">Următoarele aplicări</p>
+          <span className="rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
             {aplicariCount}
           </span>
         </div>
         {urmatoareleAplicari.length === 0 ? (
-          <AppCard className="rounded-xl border border-dashed p-3 text-sm text-[var(--text-secondary)]">
+          <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 py-3 text-[13px] text-[var(--text-secondary)]">
             Nu există încă aplicări planificate pentru această parcelă în anul curent.
-          </AppCard>
+          </div>
         ) : (
           <div className="space-y-2">
             {urmatoareleAplicari.map((aplicare) => {
@@ -800,12 +805,12 @@ export function ParcelaTratamenteMobileHub({
           </div>
         )}
         {aplicateCount > 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="mt-2.5 text-[12px] font-medium text-[#3D7A5F]">
             <Link
               href={`/parcele/${parcelaId}/tratamente/toate`}
-              className="font-medium text-[var(--agri-primary)] underline-offset-2 hover:underline"
+              className="cursor-pointer underline-offset-2 hover:underline"
             >
-              {aplicateCount} aplicări efectuate în {an}
+              {aplicateCount} aplicări efectuate în {an} →
             </Link>
           </p>
         ) : null}
