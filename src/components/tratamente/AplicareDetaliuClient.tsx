@@ -1510,29 +1510,31 @@ export function AplicareDetaliuClient({
         />
       ) : null}
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Șterge aplicarea?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Această acțiune este ireversibilă. Aplicarea și toate produsele asociate vor fi șterse permanent.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletePending}>Anulează</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              disabled={isDeletePending}
-              onClick={(event) => {
-                event.preventDefault()
-                handleDeleteAplicare()
-              }}
-            >
-              {isDeletePending ? 'Se șterge...' : 'Șterge definitiv'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteOpen ? (
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Șterge aplicarea?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Această acțiune este ireversibilă. Aplicarea și toate produsele asociate vor fi șterse permanent.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletePending}>Anulează</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={isDeletePending}
+                onClick={(event) => {
+                  event.preventDefault()
+                  handleDeleteAplicare()
+                }}
+              >
+                {isDeletePending ? 'Se șterge...' : 'Șterge definitiv'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : null}
     </>
   )
 }

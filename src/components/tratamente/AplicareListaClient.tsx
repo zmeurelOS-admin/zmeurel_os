@@ -72,13 +72,15 @@ export function AplicareListaClient({
       {count > 0 ? (
         <div className="space-y-3">
           {aplicari.map((aplicare) => (
-            <div key={aplicare.id} className="relative">
-              <AplicareListItem aplicare={aplicare} parcelaId={parcelaId} />
+            <div key={aplicare.id} className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                <AplicareListItem aplicare={aplicare} parcelaId={parcelaId} />
+              </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="absolute right-2 top-2 z-10 h-9 w-9 text-[var(--text-secondary)] hover:text-[var(--status-danger-text)]"
+                className="mt-1 h-8 w-8 shrink-0 text-[var(--text-secondary)] hover:text-destructive"
                 aria-label="Șterge aplicarea"
                 disabled={isPending}
                 onClick={() => setSelectedAplicare(aplicare)}
