@@ -495,6 +495,7 @@ function getJournalPeriodStart(period: JournalPeriodFilter, seasonYear: number):
 function getJournalEntryKind(entry: { id: string }): 'activitate' | 'tratament' | 'recoltare' | 'stadiu' {
   if (entry.id.startsWith('recoltare:')) return 'recoltare'
   if (entry.id.startsWith('stadiu:')) return 'stadiu'
+  if (entry.id.startsWith('tratament-aplicat:')) return 'tratament'
   if (entry.id.startsWith('activitate:tratament:')) return 'tratament'
   if (entry.id.startsWith('activitate:')) return 'activitate'
   return 'activitate'
