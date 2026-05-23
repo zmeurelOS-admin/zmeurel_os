@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Check, ChevronDown, Sprout, TreePine, Warehouse } from 'lucide-react'
+import { useMemo } from 'react'
+import { Sprout, TreePine, Warehouse } from 'lucide-react'
 import { type UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -12,13 +12,14 @@ import {
   DesktopFormPanel,
   FormDialogSection,
 } from '@/components/ui/form-dialog-layout'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
-import type { ActivityOption } from '@/lib/activitati/activity-options'
-import { cn } from '@/lib/utils'
-
+import {
+  formatActivityTypeLabel,
+  type ActivityOption,
+} from '@/lib/activitati/activity-options'
 export const activitateAgricolaFormSchema = z.object({
   data_aplicare: z.string().min(1, 'Data este obligatorie'),
   parcela_id: z.string().optional(),
@@ -86,29 +87,6 @@ function getUnitIcon(tipUnitate: string | null | undefined) {
   return <Sprout className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
 }
 
-function getActivityEmoji(value: string | null | undefined): string {
-  const normalized = normalizeText(value)
-  if (!normalized) return '🔧'
-  if (normalized.includes('lastar')) return '🌿'
-  if (normalized.includes('palis')) return '🪢'
-  if (normalized.includes('irig')) return '💧'
-  if (normalized.includes('pras')) return '⛏️'
-  if (normalized.includes('mulc')) return '🍂'
-  if (normalized.includes('recolt') || normalized.includes('cules')) return '🧺'
-  if (normalized.includes('copilit') || normalized.includes('ciup') || normalized.includes('carnir')) return '✂️'
-  if (normalized.includes('curata')) return '🧹'
-  if (normalized.includes('arat') || normalized.includes('discuit') || normalized.includes('transport')) return '🚜'
-  if (normalized.includes('aeris') || normalized.includes('rasad') || normalized.includes('seman')) return '🏡'
-  if (normalized.includes('formare') || normalized.includes('fructificare')) return '🌳'
-  return '🔧'
-}
-
-function formatActivityTypeLabel(value: string | null | undefined): string {
-  const current = (value ?? '').trim()
-  if (!current) return '—'
-  return `${getActivityEmoji(current)} ${current}`
-}
-
 function formatTerrainLabel(parcela: ActivitateAgricolaParcelaOption | null | undefined): string {
   if (!parcela) return '—'
   return parcela.tip_unitate ? `${parcela.nume_parcela || 'Teren'} (${parcela.tip_unitate})` : parcela.nume_parcela || 'Teren'
@@ -174,10 +152,19 @@ export function ActivitateAgricolaForm({
   selectedTip,
   contextParcelaLabel,
 }: ActivitateAgricolaFormProps) {
-  const [terrainMenuOpen, setTerrainMenuOpen] = useState(false)
   const selectedTerrain = useMemo(
     () => parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null,
     [parcele, selectedParcelaId]
+  )
+  const terrainOptions = useMemo(
+    () => [
+      { value: '', label: 'Selectează teren' },
+      ...parcele.map((parcela) => ({
+        value: parcela.id,
+        label: formatTerrainLabel(parcela),
+      })),
+    ],
+    [parcele]
   )
   const observedDate = form.watch('data_aplicare')
   const observedNotes = form.watch('observatii')
@@ -207,92 +194,31 @@ export function ActivitateAgricolaForm({
               ) : null}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="act_parcela">Teren</Label>
-              <select
-                id="act_parcela"
-                className="agri-control h-11 w-full px-3 text-base md:hidden"
-                {...form.register('parcela_id')}
-              >
-                <option value="">Selectează teren</option>
-                {parcele.map((parcela) => (
-                  <option key={parcela.id} value={parcela.id}>
-                    {formatTerrainLabel(parcela)}
-                  </option>
-                ))}
-              </select>
-              <div className="hidden md:block">
-                <Popover open={terrainMenuOpen} onOpenChange={setTerrainMenuOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="agri-control flex h-10 w-full items-center justify-between rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-sm text-[var(--agri-text)] shadow-sm"
-                    >
-                      <span
-                        className={cn(
-                          'flex min-w-0 items-center gap-2',
-                          selectedTerrain ? 'text-[var(--agri-text)]' : 'text-[var(--agri-text-muted)]'
-                        )}
-                      >
-                        {selectedTerrain ? (
-                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
-                            {getUnitIcon(selectedTerrain.tip_unitate)}
-                          </span>
-                        ) : null}
-                        <span className="truncate">{selectedTerrain ? formatTerrainLabel(selectedTerrain) : 'Selectează teren'}</span>
-                      </span>
-                      <ChevronDown className="h-4 w-4 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    sideOffset={6}
-                    className="w-[var(--radix-popover-trigger-width)] rounded-xl border border-[var(--agri-border)] p-1 shadow-[var(--agri-shadow)]"
-                  >
-                    <div className="max-h-72 overflow-y-auto">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          form.setValue('parcela_id', '', { shouldDirty: true, shouldValidate: true })
-                          setTerrainMenuOpen(false)
-                        }}
-                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-[var(--agri-text)] transition-colors hover:bg-[var(--agri-surface-muted)]"
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
-                            <Sprout className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
-                          </span>
-                          <span className="truncate">Selectează teren</span>
-                        </span>
-                        {selectedParcelaId ? null : <Check className="h-4 w-4 text-[var(--agri-primary)]" aria-hidden />}
-                      </button>
-                      {parcele.map((parcela) => {
-                        const isSelected = parcela.id === selectedParcelaId
-                        return (
-                          <button
-                            key={parcela.id}
-                            type="button"
-                            onClick={() => {
-                              form.setValue('parcela_id', parcela.id, { shouldDirty: true, shouldValidate: true })
-                              setTerrainMenuOpen(false)
-                            }}
-                            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-sm text-[var(--agri-text)] transition-colors hover:bg-[var(--agri-surface-muted)]"
-                          >
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
-                                {getUnitIcon(parcela.tip_unitate)}
-                              </span>
-                              <span className="truncate">{formatTerrainLabel(parcela)}</span>
-                            </span>
-                            {isSelected ? <Check className="h-4 w-4 text-[var(--agri-primary)]" aria-hidden /> : null}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
+            <AppSelect
+              id="act_parcela"
+              label="Teren"
+              placeholder="Selectează teren"
+              value={selectedParcelaId}
+              options={terrainOptions}
+              showSearchThreshold={10}
+              searchPlaceholder="Caută teren..."
+              triggerClassName="h-11 text-[15px] md:h-10"
+              listClassName="max-h-72"
+              menuClassName="w-[var(--radix-popover-trigger-width)]"
+              onChange={(nextValue) =>
+                form.setValue('parcela_id', nextValue, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              getOptionLeadingIcon={(option) => {
+                if (!option.value) {
+                  return <Sprout className="h-3.5 w-3.5 text-[var(--agri-text-muted)]" aria-hidden />
+                }
+                const parcela = parcele.find((item) => item.id === option.value)
+                return parcela ? getUnitIcon(parcela.tip_unitate) : null
+              }}
+            />
 
             <div className="space-y-1.5 md:col-span-2">
               <ActivityTypeCombobox

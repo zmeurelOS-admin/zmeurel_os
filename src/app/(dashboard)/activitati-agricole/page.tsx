@@ -28,6 +28,10 @@ import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import {
+  getActivityDisplayLabel,
+  getActivityEmoji,
+} from '@/lib/activitati/activity-options'
+import {
   buildLatestActivityByParcela,
 } from '@/lib/activitati/timeline'
 import { deleteActivitateAgricola, getActivitatiAgricole, type ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
@@ -48,24 +52,6 @@ function activityKind(tip: string | null | undefined): TipFilter {
   if (value.includes('tund') || value.includes('tai') || value.includes('curata') || value.includes('copilit') || value.includes('defolier')) return 'taiere'
   if (value.includes('toate')) return 'toate'
   return 'altele'
-}
-
-function activityEmojiByTip(tip: string | null | undefined): string {
-  const t = normalizeText(tip)
-  if (t.includes('fungic') || t.includes('pestic') || t.includes('erbic') || t.includes('insecticid') || t.includes('tratament')) return '🧪'
-  if (t.includes('fertirig') || (t.includes('irig') && t.includes('fert'))) return '💧'
-  if (t.includes('fertiliz') || t.includes('foliar')) return '🌿'
-  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier')) return '✂️'
-  return '🔧'
-}
-
-function activityDisplayLabel(tip: string | null | undefined): string {
-  const t = normalizeText(tip)
-  if (t.includes('fungic') || t.includes('pestic') || t.includes('erbic') || t.includes('insecticid') || t.includes('tratament')) return 'Fungicide/Pesticide'
-  if (t.includes('fertirig') || (t.includes('irig') && t.includes('fert'))) return 'Fertirigare'
-  if (t.includes('fertiliz') || t.includes('foliar')) return 'Fertilizare foliară'
-  if (t.includes('tund') || t.includes('tai') || t.includes('curata') || t.includes('copilit') || t.includes('defolier')) return 'Tăiere'
-  return 'Altele'
 }
 
 type TemporalBadge = {
@@ -377,7 +363,7 @@ export default function ActivitatiPage() {
             <div className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
               {stareParceleRows.map((row) => {
                 const badge = row.latest ? temporalBadgeForActivity(row.latest, today) : null
-                const emoji = activityEmojiByTip(row.latest?.tip_activitate)
+                const emoji = getActivityEmoji(row.latest?.tip_activitate)
                 const archivedLabel = row.latest?.tip_deprecat ? getArchivedActivityLabel(row.latest) : null
                 const isSel = selectedParcelaId === row.parcela.id
                 return (
@@ -399,7 +385,7 @@ export default function ActivitatiPage() {
                       </div>
                       <div className="mt-0.5 text-[10px] text-[var(--text-secondary)]">
                         {row.latest
-                          ? `${activityDisplayLabel(row.latest.tip_activitate)} · ${formatDateShort(row.latest.data_aplicare)}`
+                          ? `${getActivityDisplayLabel(row.latest.tip_activitate)} · ${formatDateShort(row.latest.data_aplicare)}`
                           : 'Nicio activitate'}
                       </div>
                       {archivedLabel ? (
@@ -590,7 +576,7 @@ export default function ActivitatiPage() {
               const isExpanded = expandedCardId === a.id
               const isArchived = Boolean(a.tip_deprecat)
               const archivedLabel = getArchivedActivityLabel(a)
-              const actEmoji = activityEmojiByTip(a.tip_activitate)
+              const actEmoji = getActivityEmoji(a.tip_activitate)
 
               return (
                 <div
@@ -614,7 +600,7 @@ export default function ActivitatiPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="text-sm font-bold text-[var(--text-primary)]">
-                              {isArchived ? a.tip_activitate || 'Activitate' : activityDisplayLabel(a.tip_activitate)}
+                              {isArchived ? a.tip_activitate || 'Activitate' : getActivityDisplayLabel(a.tip_activitate)}
                             </div>
                             {isArchived ? (
                               <span
