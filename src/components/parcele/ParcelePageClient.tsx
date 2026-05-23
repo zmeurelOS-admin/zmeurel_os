@@ -1410,15 +1410,8 @@ function ParcelaTerenMobileSheet({
               </button>
               <button
                 type="button"
-                onClick={() => setSheetTab('activitate')}
-                className="min-h-11 rounded-xl border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-2 text-xs font-semibold text-[var(--button-muted-text)]"
-              >
-                Istoric
-              </button>
-              <button
-                type="button"
                 onClick={() => onDelete(parcela)}
-                className="min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 text-xs font-semibold text-[var(--status-danger-text)]"
+                className="col-span-2 min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 text-xs font-semibold text-[var(--status-danger-text)]"
               >
                 Șterge
               </button>
