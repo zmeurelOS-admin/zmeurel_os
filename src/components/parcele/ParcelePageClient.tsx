@@ -28,6 +28,7 @@ import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { colors } from '@/lib/design-tokens'
 import { useMeteo } from '@/hooks/useMeteo'
 import { MicroclimatAutoCard } from '@/components/parcele/MicroclimatAutoCard'
+import { ParcelaRezumatAgronomicChips } from '@/components/parcele/ParcelaRezumatAgronomicChips'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
@@ -37,6 +38,13 @@ import {
   COHORTA_APP_SELECT_OPTIONS,
   formatStadiuOptionLabel,
 } from '@/lib/ui/app-select-maps'
+import {
+  getParcelMobileSheetTabs,
+  isParcelMobileSheetTabVisible,
+  isParcelSolar,
+  shouldShowRezumatMicroclimatBlock,
+  type ParcelMobileSheetTabId,
+} from '@/lib/parcele/mobile-sheet-tabs'
 import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
 import {
   buildLatestActivityByParcela,
@@ -1252,7 +1260,14 @@ function ParcelaTerenMobileSheet({
   onDesfiintaCultura: (c: Cultura) => void
   onOpenManualMicroclimat: () => void
 }) {
-  const [sheetTab, setSheetTab] = useState('rezumat')
+  const [sheetTab, setSheetTab] = useState<ParcelMobileSheetTabId>('rezumat')
+
+  useEffect(() => {
+    if (!parcela) return
+    if (!isParcelMobileSheetTabVisible(sheetTab, parcela.tip_unitate)) {
+      setSheetTab('rezumat')
+    }
+  }, [parcela, sheetTab])
 
   if (!parcela) return null
 
@@ -1268,7 +1283,9 @@ function ParcelaTerenMobileSheet({
   const freshness = terenActivityFreshnessStyle(latestActivity?.tipDeprecat, daysAgo)
   const daysBadgeLabel =
     latestActivity?.tipDeprecat ? 'Arhiv.' : daysAgo === null ? '—' : `${daysAgo}z`
-  const isSolar = normalizeUnitateTip(parcela.tip_unitate) === 'solar'
+  const isSolar = isParcelSolar(parcela.tip_unitate)
+  const showRezumatMicroclimat = shouldShowRezumatMicroclimatBlock(parcela.tip_unitate)
+  const sheetTabs = getParcelMobileSheetTabs(parcela.tip_unitate)
 
   return (
     <Sheet
@@ -1287,21 +1304,29 @@ function ParcelaTerenMobileSheet({
           <p className="text-left text-xs text-[var(--agri-text-muted)]">{buildParcelaInspectorSubtitle(parcela)}</p>
         </SheetHeader>
 
-        <Tabs value={sheetTab} onValueChange={setSheetTab} className="flex min-h-0 flex-1 flex-col gap-0">
+        <Tabs
+          value={sheetTab}
+          onValueChange={(next) => setSheetTab(next as ParcelMobileSheetTabId)}
+          className="flex min-h-0 flex-1 flex-col gap-0"
+        >
           <div className="shrink-0 border-b border-[var(--surface-divider)] px-3 pt-2">
-            <TabsList className="grid h-10 w-full grid-cols-4 gap-0.5 p-1">
-              <TabsTrigger value="rezumat" className="px-1 text-[10px] sm:text-xs">
-                Rezumat
-              </TabsTrigger>
-              <TabsTrigger value="activitate" className="px-1 text-[10px] sm:text-xs">
-                Activitate
-              </TabsTrigger>
-              <TabsTrigger value="microclimat" className="px-1 text-[10px] sm:text-xs">
-                Microclimat
-              </TabsTrigger>
-              <TabsTrigger value="cultura" className="px-1 text-[10px] sm:text-xs">
-                Cultură
-              </TabsTrigger>
+            <TabsList
+              className={cn(
+                'grid h-10 w-full gap-0.5 p-1',
+                sheetTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-2',
+              )}
+            >
+              {sheetTabs.map((tabId) => (
+                <TabsTrigger key={tabId} value={tabId} className="px-1 text-[10px] sm:text-xs">
+                  {tabId === 'rezumat'
+                    ? 'Rezumat'
+                    : tabId === 'activitate'
+                      ? 'Activitate'
+                      : tabId === 'microclimat'
+                        ? 'Microclimat'
+                        : 'Cultură'}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </div>
 
@@ -1314,6 +1339,8 @@ function ParcelaTerenMobileSheet({
                 {opBadge.text}
               </span>
             </div>
+
+            {!isSolar ? <ParcelaRezumatAgronomicChips parcela={parcela} /> : null}
 
             <div className="mb-3">
               <div className="mb-1 text-[11px] font-semibold text-[var(--agri-text-muted)]">Ultima activitate</div>
@@ -1344,29 +1371,31 @@ function ParcelaTerenMobileSheet({
               </div>
             ) : null}
 
-            <div className="mb-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Microclimat</p>
-              {meteoAutoSummary.state === 'ready' ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-2 text-center">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Temp.</p>
-                    <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
-                      {typeof meteoAutoSummary.temperature === 'number' ? `${meteoAutoSummary.temperature.toFixed(1)}°` : '—'}
-                    </p>
+            {showRezumatMicroclimat ? (
+              <div className="mb-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Microclimat</p>
+                {meteoAutoSummary.state === 'ready' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-2 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Temp.</p>
+                      <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                        {typeof meteoAutoSummary.temperature === 'number' ? `${meteoAutoSummary.temperature.toFixed(1)}°` : '—'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-2 text-center">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Umiditate</p>
+                      <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
+                        {typeof meteoAutoSummary.humidity === 'number' ? `${Math.round(meteoAutoSummary.humidity)}%` : '—'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)] px-2 py-2 text-center">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--agri-text-muted)]">Umiditate</p>
-                    <p className="mt-0.5 text-base font-bold tabular-nums text-[var(--agri-text)] [font-weight:750]">
-                      {typeof meteoAutoSummary.humidity === 'number' ? `${Math.round(meteoAutoSummary.humidity)}%` : '—'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-[var(--agri-text-muted)]">
-                  {meteoAutoSummary.state === 'loading' ? meteoAutoSummary.reason : meteoAutoSummary.reason}
-                </p>
-              )}
-            </div>
+                ) : (
+                  <p className="text-xs text-[var(--agri-text-muted)]">
+                    {meteoAutoSummary.state === 'loading' ? meteoAutoSummary.reason : meteoAutoSummary.reason}
+                  </p>
+                )}
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -1444,6 +1473,7 @@ function ParcelaTerenMobileSheet({
             )}
           </TabsContent>
 
+          {isSolar ? (
           <TabsContent value="microclimat" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
             {isSolar && hasManualMicroclimat ? (
               <button
@@ -1502,7 +1532,9 @@ function ParcelaTerenMobileSheet({
               </p>
             )}
           </TabsContent>
+          ) : null}
 
+          {isSolar ? (
           <TabsContent value="cultura" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
             <SolarCulturiSection
               parcela={parcela}
@@ -1514,6 +1546,7 @@ function ParcelaTerenMobileSheet({
               withTopBorder={false}
             />
           </TabsContent>
+          ) : null}
         </Tabs>
       </SheetContent>
     </Sheet>
