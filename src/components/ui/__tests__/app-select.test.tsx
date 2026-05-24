@@ -36,6 +36,32 @@ describe('AppSelect', () => {
     expect(onChange).toHaveBeenCalledWith('parcela-a')
   })
 
+  it('folosește un container de listă scrollabil pentru opțiuni lungi', async () => {
+    const user = userEvent.setup()
+    const longOptions = Array.from({ length: 12 }, (_, index) => ({
+      value: `stadiu-${index}`,
+      label: `Stadiu ${index + 1}`,
+    }))
+
+    render(
+      <AppSelect
+        id="stadiu-select-scroll"
+        label="Stadiu"
+        placeholder="Selectează stadiul"
+        value=""
+        options={longOptions}
+        onChange={() => undefined}
+      />
+    )
+
+    await user.click(screen.getByLabelText('Stadiu'))
+
+    const listbox = screen.getByRole('listbox', { name: 'Stadiu' })
+    expect(listbox).toHaveClass('overflow-y-auto')
+    expect(listbox).toHaveClass('min-h-0')
+    expect(listbox).toHaveClass('overscroll-contain')
+  })
+
   it('afișează emoji în opțiune când este furnizat', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

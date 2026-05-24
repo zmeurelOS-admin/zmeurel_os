@@ -23,7 +23,7 @@ function makeRow(
 }
 
 describe('resolveStadiuFenologicCurentParcela', () => {
-  it('filtrează pe cohortă normalizată și preferă stadiul fenologic valid la aceeași dată', () => {
+  it('ignoră rândurile invalide și alege cel valid cu created_at cel mai recent', () => {
     const stadii = [
       makeRow({
         id: 'stadiu-gol',
@@ -47,6 +47,29 @@ describe('resolveStadiuFenologicCurentParcela', () => {
 
     const current = resolveStadiuFenologicCurentParcela(stadii, 'rubus', 'floricane')
     expect(current?.id).toBe('stadiu-inflorit')
+    expect(current?.stadiu).toBe('inflorit')
+  })
+
+  it('permite corecția înapoi: câștigă ultima înregistrare, nu cea fenologic mai avansată', () => {
+    const stadii = [
+      makeRow({
+        id: 'stadiu-legare-fruct',
+        stadiu: 'legare_fruct',
+        cohort: 'floricane',
+        data_observata: '2026-05-20',
+        created_at: '2026-05-20T08:00:00Z',
+      }),
+      makeRow({
+        id: 'stadiu-inflorit-corectie',
+        stadiu: 'inflorit',
+        cohort: 'floricane',
+        data_observata: '2026-05-18',
+        created_at: '2026-05-21T09:00:00Z',
+      }),
+    ]
+
+    const current = resolveStadiuFenologicCurentParcela(stadii, 'rubus', 'floricane')
+    expect(current?.id).toBe('stadiu-inflorit-corectie')
     expect(current?.stadiu).toBe('inflorit')
   })
 

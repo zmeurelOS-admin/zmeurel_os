@@ -17,16 +17,14 @@ import {
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import { formatStadiuOptionLabel } from '@/lib/ui/app-select-maps'
+import { resolveStadiuFenologicCurentParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
   getLabelPentruGrup,
-  getOrdine,
-  getOrdineInGrup,
   listAllStadiiCanonice,
   listStadiiPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
-  type StadiuCod,
 } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 import { getCurrentSezon } from '@/lib/utils/sezon'
@@ -35,33 +33,11 @@ import { cn } from '@/lib/utils'
 const CHIP_TRIGGER_CLASS =
   'h-8 min-h-8 rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-none'
 
-function getStadiuOrder(cod: StadiuCod, grupBiologic: GrupBiologic | null): number {
-  if (grupBiologic) {
-    const indexInGroup = getOrdineInGrup(cod, grupBiologic)
-    if (indexInGroup >= 0) return indexInGroup
-  }
-  return getOrdine(cod) + 100
-}
-
 export function getCurrentCanonicalStage(
   stages: ParcelaStadiuCanonic[],
   grupBiologic: GrupBiologic | null
 ): ParcelaStadiuCanonic | null {
-  if (stages.length === 0) return null
-
-  return [...stages].sort((a, b) => {
-    const codA = normalizeStadiu(a.stadiu)
-    const codB = normalizeStadiu(b.stadiu)
-    const orderA = codA ? getStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const orderB = codB ? getStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const orderDiff = orderB - orderA
-    if (orderDiff !== 0) return orderDiff
-
-    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
-    if (observedDiff !== 0) return observedDiff
-
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })[0] ?? null
+  return resolveStadiuFenologicCurentParcela(stages, grupBiologic)
 }
 
 export function getCurrentCanonicalStageForCohort(
@@ -69,10 +45,7 @@ export function getCurrentCanonicalStageForCohort(
   grupBiologic: GrupBiologic | null,
   cohort: Cohorta
 ): ParcelaStadiuCanonic | null {
-  return getCurrentCanonicalStage(
-    stages.filter((entry) => entry.cohort === cohort),
-    grupBiologic
-  )
+  return resolveStadiuFenologicCurentParcela(stages, grupBiologic, cohort)
 }
 
 function toErrorMessage(error: unknown): string {

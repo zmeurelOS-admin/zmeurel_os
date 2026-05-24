@@ -290,7 +290,7 @@ export function AppSelect({
           sideOffset={6}
           onOpenAutoFocus={(event) => event.preventDefault()}
           className={cn(
-            'z-[1105] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
+            'z-[1105] flex max-h-[min(20rem,calc(100dvh-6rem))] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
             menuClassName
           )}
         >
@@ -329,7 +329,10 @@ export function AppSelect({
 
           <div
             id={listboxId}
-            className={cn('max-h-64 overflow-y-auto p-1', listClassName)}
+            className={cn(
+              'min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 touch-pan-y [-webkit-overflow-scrolling:touch]',
+              listClassName
+            )}
             role="listbox"
             aria-label={label ?? placeholder}
           >

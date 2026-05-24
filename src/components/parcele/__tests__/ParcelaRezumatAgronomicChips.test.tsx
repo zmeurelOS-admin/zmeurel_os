@@ -14,11 +14,15 @@ const createParcelaStadiuCanonic = vi.fn()
 const getStadiiCanoniceParcela = vi.fn()
 const getConfigurareSezonParcela = vi.fn()
 
-vi.mock('@/lib/supabase/queries/parcela-stadii', () => ({
-  createParcelaStadiuCanonic: (...args: unknown[]) => createParcelaStadiuCanonic(...args),
-  getStadiiCanoniceParcela: (...args: unknown[]) => getStadiiCanoniceParcela(...args),
-  getConfigurareSezonParcela: (...args: unknown[]) => getConfigurareSezonParcela(...args),
-}))
+vi.mock('@/lib/supabase/queries/parcela-stadii', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/supabase/queries/parcela-stadii')>()
+  return {
+    ...actual,
+    createParcelaStadiuCanonic: (...args: unknown[]) => createParcelaStadiuCanonic(...args),
+    getStadiiCanoniceParcela: (...args: unknown[]) => getStadiiCanoniceParcela(...args),
+    getConfigurareSezonParcela: (...args: unknown[]) => getConfigurareSezonParcela(...args),
+  }
+})
 
 vi.mock('@/lib/ui/toast', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -55,7 +59,7 @@ function renderChips(parcela: Parcela = baseParcela) {
 }
 
 describe('getCurrentCanonicalStageForCohort', () => {
-  it('returnează stadiul cel mai recent per cohortă', () => {
+  it('returnează ultima înregistrare validă per cohortă (created_at)', () => {
     const stages: ParcelaStadiuCanonic[] = [
       {
         id: '1',
@@ -81,7 +85,7 @@ describe('getCurrentCanonicalStageForCohort', () => {
         id: '3',
         parcela_id: 'p1',
         an: 2026,
-        stadiu: 'fruct_mic',
+        stadiu: 'fruct_verde',
         cohort: 'primocane',
         data_observata: '2026-04-15',
         observatii: null,
@@ -93,7 +97,34 @@ describe('getCurrentCanonicalStageForCohort', () => {
     const primocane = getCurrentCanonicalStageForCohort(stages, 'rubus', 'primocane')
 
     expect(floricane?.stadiu).toBe('inflorit')
-    expect(primocane?.stadiu).toBe('fruct_mic')
+    expect(primocane?.stadiu).toBe('fruct_verde')
+  })
+
+  it('permite corecția înapoi față de un stadiu fenologic mai avansat', () => {
+    const stages: ParcelaStadiuCanonic[] = [
+      {
+        id: '1',
+        parcela_id: 'p1',
+        an: 2026,
+        stadiu: 'legare_fruct',
+        cohort: 'floricane',
+        data_observata: '2026-05-20',
+        observatii: null,
+        created_at: '2026-05-20T08:00:00Z',
+      },
+      {
+        id: '2',
+        parcela_id: 'p1',
+        an: 2026,
+        stadiu: 'inflorit',
+        cohort: 'floricane',
+        data_observata: '2026-05-18',
+        observatii: null,
+        created_at: '2026-05-21T09:00:00Z',
+      },
+    ]
+
+    expect(getCurrentCanonicalStageForCohort(stages, 'rubus', 'floricane')?.stadiu).toBe('inflorit')
   })
 })
 
