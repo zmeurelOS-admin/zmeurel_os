@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { COHORTA_REQUIRED_APP_SELECT_OPTIONS } from '@/lib/ui/app-select-maps'
@@ -1064,16 +1065,15 @@ export function AplicareDetaliuClient({
                             }}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="wizard-data-aplicata">Data aplicării</Label>
-                          <Input
-                            id="wizard-data-aplicata"
-                            type="datetime-local"
-                            className="agri-control"
-                            value={dataOraAplicareMark}
-                            onChange={(event) => setDataOraAplicareMark(event.target.value)}
-                          />
-                        </div>
+                        <AppDatePicker
+                          id="wizard-data-aplicata"
+                          label="Data aplicării"
+                          mode="datetime"
+                          placeholder="Selectează data și ora"
+                          value={dataOraAplicareMark}
+                          triggerClassName="h-11 md:h-10"
+                          onChange={setDataOraAplicareMark}
+                        />
                       </div>
 
                       <div className="mt-3 space-y-3">
@@ -1329,15 +1329,14 @@ export function AplicareDetaliuClient({
           <AppCard className="rounded-2xl bg-[var(--surface-card)]">
             <h3 className="text-base text-[var(--text-primary)] [font-weight:700]">Detalii aplicare</h3>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="data-aplicarii">Data aplicării</Label>
-                <Input
-                  id="data-aplicarii"
-                  type="date"
-                  value={dataAplicariiLocale}
-                  onChange={(event) => setDataAplicariiLocale(event.target.value)}
-                />
-              </div>
+              <AppDatePicker
+                id="data-aplicarii"
+                label="Data aplicării"
+                placeholder="Selectează data"
+                value={dataAplicariiLocale}
+                triggerClassName="h-11 md:h-10"
+                onChange={setDataAplicariiLocale}
+              />
               <div className="space-y-1.5">
                 <Label htmlFor="operator-aplicare">Operator</Label>
                 <Input

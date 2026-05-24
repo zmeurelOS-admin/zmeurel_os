@@ -9,6 +9,7 @@ import {
   DesktopFormPanel,
   FormDialogSection,
 } from '@/components/ui/form-dialog-layout'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -125,15 +126,16 @@ export function CulegatorForm({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor={mode === 'edit' ? 'edit_culegator_data' : 'culegator_data'}>Data angajare</Label>
-              <Input
-                id={mode === 'edit' ? 'edit_culegator_data' : 'culegator_data'}
-                type="date"
-                className="agri-control h-11 md:h-10"
-                {...form.register('data_angajare')}
-              />
-            </div>
+            <AppDatePicker
+              id={mode === 'edit' ? 'edit_culegator_data' : 'culegator_data'}
+              label="Data angajare"
+              placeholder="Selectează data"
+              value={form.watch('data_angajare') ?? ''}
+              triggerClassName="h-11 md:h-10"
+              onChange={(nextValue) =>
+                form.setValue('data_angajare', nextValue, { shouldDirty: true, shouldValidate: true })
+              }
+            />
 
             <div className="space-y-1.5">
               <Label htmlFor={mode === 'edit' ? 'edit_culegator_activ' : 'culegator_activ'}>Status</Label>

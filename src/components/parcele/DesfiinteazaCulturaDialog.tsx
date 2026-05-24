@@ -3,11 +3,12 @@
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -50,6 +51,8 @@ export function DesfiinteazaCulturaDialog({
       })
     }
   }, [open, form])
+
+  const watchedDataDesfiintare = useWatch({ control: form.control, name: 'data_desfiintare' }) ?? ''
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) => {
@@ -101,20 +104,17 @@ export function DesfiinteazaCulturaDialog({
           className="space-y-4"
           onSubmit={form.handleSubmit((values) => mutation.mutate(values))}
         >
-          <div className="space-y-2">
-            <Label htmlFor="data_desfiintare">Data desființării *</Label>
-            <Input
-              id="data_desfiintare"
-              type="date"
-              className="agri-control h-12"
-              {...form.register('data_desfiintare')}
-            />
-            {form.formState.errors.data_desfiintare ? (
-              <p className="text-xs text-red-600">
-                {form.formState.errors.data_desfiintare.message}
-              </p>
-            ) : null}
-          </div>
+          <AppDatePicker
+            id="data_desfiintare"
+            label="Data desființării *"
+            placeholder="Selectează data"
+            value={watchedDataDesfiintare}
+            triggerClassName="h-12"
+            onChange={(nextValue) =>
+              form.setValue('data_desfiintare', nextValue, { shouldDirty: true, shouldValidate: true })
+            }
+            error={form.formState.errors.data_desfiintare?.message}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="motiv_desfiintare">Motiv (opțional)</Label>

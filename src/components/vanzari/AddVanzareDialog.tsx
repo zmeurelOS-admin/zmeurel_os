@@ -11,6 +11,7 @@ import { AppDrawer } from '@/components/app/AppDrawer'
 import { VanzareFormSummary } from '@/components/vanzari/VanzareFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -331,11 +332,17 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tena
 
               <FormDialogSection label="Financiar">
                 <div className="grid gap-4 md:grid-cols-2 md:gap-x-6 md:gap-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="v_data">Data vânzării</Label>
-                    <Input id="v_data" type="date" className="agri-control h-12 md:h-11" {...form.register('data')} />
-                    {form.formState.errors.data ? <p className="text-xs text-red-600">{form.formState.errors.data.message}</p> : null}
-                  </div>
+                  <AppDatePicker
+                    id="v_data"
+                    label="Data vânzării"
+                    placeholder="Selectează data"
+                    value={watchedData ?? ''}
+                    triggerClassName="h-12 md:h-11"
+                    onChange={(nextValue) =>
+                      form.setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })
+                    }
+                    error={form.formState.errors.data?.message}
+                  />
 
                   <div className="space-y-2">
                     <Label htmlFor="v_status">Status plată</Label>

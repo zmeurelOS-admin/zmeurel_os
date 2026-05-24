@@ -32,6 +32,7 @@ import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
@@ -596,24 +597,22 @@ function ComandaDialog({
               />
             </div>
             <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-x-3 md:gap-y-2.5">
-              <div className="space-y-1.5">
-                <Label>Data comandă</Label>
-                <Input
-                  type="date"
-                  className="agri-control h-11 md:h-10"
-                  value={form.data_comanda}
-                  onChange={(e) => setForm((prev) => ({ ...prev, data_comanda: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Data livrare</Label>
-                <Input
-                  type="date"
-                  className="agri-control h-11 md:h-10"
-                  value={form.data_livrare}
-                  onChange={(e) => setForm((prev) => ({ ...prev, data_livrare: e.target.value }))}
-                />
-              </div>
+              <AppDatePicker
+                id="comanda-data"
+                label="Data comandă"
+                placeholder="Selectează data"
+                value={form.data_comanda}
+                triggerClassName="h-11 md:h-10"
+                onChange={(nextValue) => setForm((prev) => ({ ...prev, data_comanda: nextValue }))}
+              />
+              <AppDatePicker
+                id="comanda-data-livrare"
+                label="Data livrare"
+                placeholder="Selectează data"
+                value={form.data_livrare}
+                triggerClassName="h-11 md:h-10"
+                onChange={(nextValue) => setForm((prev) => ({ ...prev, data_livrare: nextValue }))}
+              />
               <div className="space-y-1.5">
                 <Label>Cantitate (kg)</Label>
                 <Input

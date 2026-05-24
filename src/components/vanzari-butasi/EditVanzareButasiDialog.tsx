@@ -13,6 +13,7 @@ import { VanzareButasiFormSummary } from '@/components/vanzari-butasi/VanzareBut
 import { Button } from '@/components/ui/button'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, DesktopFormPanel, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -206,6 +207,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
   )
 
   const avansValue = useWatch({ control: form.control, name: 'avans_suma' })
+  const avansDateValue = useWatch({ control: form.control, name: 'avans_data' }) ?? ''
   const avans = Number(avansValue ?? 0)
   const restDeIncasat = Math.max(0, totalProduse - (Number.isFinite(avans) ? avans : 0))
   const totalBucati = (watchedItems ?? []).reduce((sum, item) => sum + Number(item.cantitate || 0), 0)
@@ -415,14 +417,32 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                     <Label htmlFor="edit_vb_data_comanda">Data comandă</Label>
                     <div className="relative">
                       <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input id="edit_vb_data_comanda" type="date" className="agri-control h-11 pl-10 md:h-10" {...form.register('data_comanda')} />
+                      <AppDatePicker
+                        id="edit_vb_data_comanda"
+                        placeholder="Selectează data"
+                        value={orderDateValue}
+                        triggerClassName="h-11 pl-10 md:h-10"
+                        onChange={(nextValue) =>
+                          form.setValue('data_comanda', nextValue, { shouldDirty: true, shouldValidate: true })
+                        }
+                        error={form.formState.errors.data_comanda?.message}
+                      />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="edit_vb_data_livrare">Data preconizată livrare</Label>
                     <div className="relative">
                       <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input id="edit_vb_data_livrare" type="date" className="agri-control h-11 pl-10 md:h-10" {...form.register('data_livrare_estimata')} />
+                      <AppDatePicker
+                        id="edit_vb_data_livrare"
+                        placeholder="Selectează data"
+                        value={deliveryDateValue}
+                        triggerClassName="h-11 pl-10 md:h-10"
+                        onChange={(nextValue) =>
+                          form.setValue('data_livrare_estimata', nextValue, { shouldDirty: true, shouldValidate: true })
+                        }
+                        error={form.formState.errors.data_livrare_estimata?.message}
+                      />
                     </div>
                   </div>
                 </div>
@@ -596,7 +616,15 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="edit_vb_avans_data">Data avans</Label>
-                    <Input id="edit_vb_avans_data" type="date" className="agri-control h-11 md:h-10" {...form.register('avans_data')} />
+                    <AppDatePicker
+                      id="edit_vb_avans_data"
+                      placeholder="Selectează data"
+                      value={avansDateValue}
+                      triggerClassName="h-11 md:h-10"
+                      onChange={(nextValue) =>
+                        form.setValue('avans_data', nextValue, { shouldDirty: true, shouldValidate: true })
+                      }
+                    />
                   </div>
                 </div>
 

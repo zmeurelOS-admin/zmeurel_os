@@ -12,6 +12,7 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
@@ -478,9 +479,9 @@ export function AssociationComenziInlineClient({ initialOrders, availableProduct
             </div>
             <SearchField containerClassName="w-full min-w-[220px] max-w-sm flex-1" placeholder="Client, produs sau fermă..." value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Căutare comenzi" />
             <div className="flex flex-wrap items-end gap-2">
-              <div className="flex min-w-[148px] flex-col gap-1"><label htmlFor="assoc_ord_from" className="text-xs font-medium text-[var(--text-secondary)]">De la (dată)</label><input id="assoc_ord_from" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="agri-control h-9 w-full min-w-0 rounded-xl px-2 text-sm text-[var(--text-primary)]" /></div>
+              <AppDatePicker id="assoc_ord_from" label="De la (dată)" placeholder="Selectează data" value={dateFrom} triggerClassName="h-9 text-sm" onChange={setDateFrom} />
               <span className="hidden pb-2 text-xs text-[var(--text-muted)] sm:inline sm:pb-0">—</span>
-              <div className="flex min-w-[148px] flex-col gap-1"><label htmlFor="assoc_ord_to" className="text-xs font-medium text-[var(--text-secondary)]">Până la (dată)</label><input id="assoc_ord_to" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="agri-control h-9 w-full min-w-0 rounded-xl px-2 text-sm text-[var(--text-primary)]" /></div>
+              <AppDatePicker id="assoc_ord_to" label="Până la (dată)" placeholder="Selectează data" value={dateTo} triggerClassName="h-9 text-sm" onChange={setDateTo} />
               {dateFrom || dateTo ? <Button type="button" variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo('') }}>Resetează perioada</Button> : null}
             </div>
           </div>

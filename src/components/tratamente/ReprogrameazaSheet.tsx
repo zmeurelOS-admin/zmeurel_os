@@ -2,11 +2,12 @@
 
 import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -56,16 +57,25 @@ export function ReprogrameazaSheet({
     }
   }, [defaultDate, form, open])
 
+  const watchedDate = useWatch({ control: form.control, name: 'data_planificata' })
+
   const save = form.handleSubmit(async (values) => {
     await onSubmit(values)
   })
 
   const content = (
     <form className="space-y-4" onSubmit={save}>
-      <div className="space-y-2">
-        <Label htmlFor="replanificare-data">Data nouă</Label>
-        <Input id="replanificare-data" type="date" {...form.register('data_planificata')} />
-      </div>
+      <AppDatePicker
+        id="replanificare-data"
+        label="Data nouă"
+        placeholder="Selectează data"
+        value={watchedDate ?? ''}
+        triggerClassName="h-11 md:h-10"
+        onChange={(nextValue) =>
+          form.setValue('data_planificata', nextValue, { shouldDirty: true, shouldValidate: true })
+        }
+        error={form.formState.errors.data_planificata?.message}
+      />
       <div className="space-y-2">
         <Label htmlFor="replanificare-motiv">Observații</Label>
         <Textarea id="replanificare-motiv" rows={4} {...form.register('motiv')} />

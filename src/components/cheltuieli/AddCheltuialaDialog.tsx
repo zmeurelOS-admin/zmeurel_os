@@ -10,6 +10,7 @@ import { AppDrawer } from '@/components/app/AppDrawer'
 import { CheltuialaFormSummary } from '@/components/cheltuieli/CheltuialaFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -157,13 +158,17 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
         >
           <FormDialogSection label="Înregistrare">
             <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="chelt_data">Data</Label>
-                <Input id="chelt_data" type="date" className="agri-control h-12 md:h-11" {...form.register('data')} />
-                {form.formState.errors.data ? (
-                  <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
-                ) : null}
-              </div>
+              <AppDatePicker
+                id="chelt_data"
+                label="Data"
+                placeholder="Selectează data"
+                value={watchedData ?? ''}
+                triggerClassName="h-12 md:h-11"
+                onChange={(nextValue) =>
+                  form.setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })
+                }
+                error={form.formState.errors.data?.message}
+              />
 
               <AppSelect
                 id="chelt_categorie"

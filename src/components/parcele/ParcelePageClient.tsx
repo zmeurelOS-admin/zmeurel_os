@@ -17,6 +17,7 @@ import {
 } from '@/components/app/module-list-chrome'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { ResponsiveFormContainer } from '@/components/ui/ResponsiveFormContainer'
 import { SearchField } from '@/components/ui/SearchField'
@@ -887,22 +888,12 @@ function CulturaCard({
                       boxSizing: 'border-box',
                   }}
                 />
-                {/* Data */}
-                <input
-                  type="date"
+                <AppDatePicker
+                  id="etapa-cultura-data"
+                  placeholder="Data etapei"
                   value={dataEtapa}
-                  onChange={(e) => setDataEtapa(e.target.value)}
-                    style={{
-                      width: '100%',
-                      fontSize: 12,
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      border: '1px solid var(--input)',
-                      background: 'var(--agri-surface)',
-                      color: 'var(--agri-text)',
-                      marginBottom: 8,
-                      boxSizing: 'border-box',
-                    }}
+                  triggerClassName="mb-2 h-9 text-sm"
+                  onChange={setDataEtapa}
                 />
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 6 }}>

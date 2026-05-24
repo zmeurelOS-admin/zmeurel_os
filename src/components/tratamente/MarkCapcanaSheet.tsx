@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { montaCapcanaAction } from '@/app/(dashboard)/tratamente/capcane/actions'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -344,12 +345,12 @@ export function MarkCapcanaSheet({
                 <Calendar className="h-4 w-4 text-[var(--agri-primary)]" aria-hidden />
                 <span className="font-semibold">Azi · {format(parseDateOnly(dataMontare), 'd MMMM yyyy', { locale: ro })}</span>
               </div>
-              <Input
+              <AppDatePicker
                 id="data-montare-capcana"
-                type="date"
-                className="mt-3"
+                placeholder="Selectează data"
                 value={dataMontare}
-                onChange={(event) => setDataMontare(event.target.value)}
+                triggerClassName="mt-3 h-11"
+                onChange={setDataMontare}
               />
             </div>
           </section>
@@ -508,14 +509,14 @@ export function MarkCapcanaSheet({
                 <span className="font-semibold">{verificareSummary}</span>
               </div>
               <p className="mt-1 text-xs text-[var(--text-secondary)]">Memento push notification</p>
-              <Input
+              <AppDatePicker
                 id="urmatoarea-verificare"
-                type="date"
-                className="mt-3"
+                placeholder="Selectează data"
                 value={dataUrmatoareaVerificare}
-                onChange={(event) => {
+                triggerClassName="mt-3 h-11"
+                onChange={(nextValue) => {
                   setNextVerificationTouched(true)
-                  setDataUrmatoareaVerificare(event.target.value)
+                  setDataUrmatoareaVerificare(nextValue)
                 }}
               />
             </div>

@@ -9,6 +9,7 @@ import { AppShell } from '@/components/app/AppShell'
 import { PageHeader } from '@/components/app/PageHeader'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -331,18 +332,15 @@ export function LegalDocumentsPageClient({
                     ) : null}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="legal-expiry">Data expirării vizei</Label>
-                    <Input
-                      id="legal-expiry"
-                      type="date"
-                      value={values.certificate_expiry ?? ''}
-                      onChange={(e) => updateField('certificate_expiry', e.target.value)}
-                    />
-                    {errors.certificate_expiry ? (
-                      <p className="text-xs text-[var(--status-danger-text)]">{errors.certificate_expiry}</p>
-                    ) : null}
-                  </div>
+                  <AppDatePicker
+                    id="legal-expiry"
+                    label="Data expirării vizei"
+                    placeholder="Selectează data"
+                    value={values.certificate_expiry ?? ''}
+                    triggerClassName="h-11 md:h-10"
+                    onChange={(nextValue) => updateField('certificate_expiry', nextValue)}
+                    error={errors.certificate_expiry}
+                  />
                 </div>
               ) : (
                 <div className="p-4">

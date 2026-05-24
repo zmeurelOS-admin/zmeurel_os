@@ -12,6 +12,7 @@ import {
   DesktopFormPanel,
   FormDialogSection,
 } from '@/components/ui/form-dialog-layout'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -186,13 +187,17 @@ export function ActivitateAgricolaForm({
       <FormDialogSection>
         <DesktopFormPanel>
           <div className="grid gap-3 md:grid-cols-2 md:gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="act_data">Data aplicare</Label>
-              <Input id="act_data" type="date" className="agri-control h-11 md:h-10" {...form.register('data_aplicare')} />
-              {form.formState.errors.data_aplicare ? (
-                <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.data_aplicare.message}</p>
-              ) : null}
-            </div>
+            <AppDatePicker
+              id="act_data"
+              label="Data aplicare"
+              placeholder="Selectează data"
+              value={observedDate ?? ''}
+              triggerClassName="h-11 md:h-10"
+              onChange={(nextValue) =>
+                form.setValue('data_aplicare', nextValue, { shouldDirty: true, shouldValidate: true })
+              }
+              error={form.formState.errors.data_aplicare?.message}
+            />
 
             <AppSelect
               id="act_parcela"

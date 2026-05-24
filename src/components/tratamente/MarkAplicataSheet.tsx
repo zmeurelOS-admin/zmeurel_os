@@ -33,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import {
   Sheet,
@@ -1048,6 +1049,8 @@ export function MarkAplicataSheet({
   const selectedManualParcelaId = useWatch({ control: form.control, name: 'manual_parcela_id' }) ?? defaultManualParcelaId ?? ''
   const selectedTipInterventie = useWatch({ control: form.control, name: 'manual_tip_select' }) ?? ''
   const selectedScopInterventie = useWatch({ control: form.control, name: 'manual_scop_select' }) ?? ''
+  const watchedDataAplicata = useWatch({ control: form.control, name: 'data_aplicata' }) ?? ''
+  const watchedManualData = useWatch({ control: form.control, name: 'manual_data' }) ?? ''
   const summaryValues = useWatch({ control: form.control })
   const sezonCurent = useMemo(() => getCurrentSezon(), [])
   const stadiiOptions = useMemo(
@@ -1644,10 +1647,18 @@ export function MarkAplicataSheet({
   ) : null
 
   const planDateField = mode === 'din_plan' ? (
-    <div className="space-y-2">
-      <Label htmlFor="aplicata-data">Data aplicată</Label>
-      <Input id="aplicata-data" type="datetime-local" className="agri-control h-11 md:h-10" {...form.register('data_aplicata')} />
-    </div>
+    <AppDatePicker
+      id="aplicata-data"
+      label="Data aplicată"
+      mode="datetime"
+      placeholder="Selectează data și ora"
+      value={watchedDataAplicata}
+      triggerClassName="h-11 md:h-10"
+      onChange={(nextValue) =>
+        form.setValue('data_aplicata', nextValue, { shouldDirty: true, shouldValidate: true })
+      }
+      error={form.formState.errors.data_aplicata?.message}
+    />
   ) : null
 
   const unitateField = metodaAplicare ? (
@@ -2401,13 +2412,18 @@ export function MarkAplicataSheet({
               ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="manual-data">
-                {selectedManualStatus === 'aplicata' ? 'Data aplicării' : 'Data planificării'}
-              </Label>
-              <Input id="manual-data" type="datetime-local" className="agri-control h-11 md:h-10" {...form.register('manual_data')} />
-              {form.formState.errors.manual_data ? (
-                <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.manual_data.message}</p>
-              ) : null}
+              <AppDatePicker
+                id="manual-data"
+                label={selectedManualStatus === 'aplicata' ? 'Data aplicării' : 'Data planificării'}
+                mode="datetime"
+                placeholder="Selectează data și ora"
+                value={watchedManualData}
+                triggerClassName="h-11 md:h-10"
+                onChange={(nextValue) =>
+                  form.setValue('manual_data', nextValue, { shouldDirty: true, shouldValidate: true })
+                }
+                error={form.formState.errors.manual_data?.message}
+              />
             </div>
           </div>
 
@@ -2571,15 +2587,18 @@ export function MarkAplicataSheet({
                   ) : null}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="manual-data">
-                    {selectedManualStatus === 'aplicata' ? 'Data aplicării' : 'Data planificării'}
-                  </Label>
-                  <Input id="manual-data" type="datetime-local" className="agri-control h-11 md:h-10" {...form.register('manual_data')} />
-                  {form.formState.errors.manual_data ? (
-                    <p className="text-xs text-[var(--status-danger-text)]">
-                      {form.formState.errors.manual_data.message}
-                    </p>
-                  ) : null}
+                  <AppDatePicker
+                    id="manual-data-desktop"
+                    label={selectedManualStatus === 'aplicata' ? 'Data aplicării' : 'Data planificării'}
+                    mode="datetime"
+                    placeholder="Selectează data și ora"
+                    value={watchedManualData}
+                    triggerClassName="h-11 md:h-10"
+                    onChange={(nextValue) =>
+                      form.setValue('manual_data', nextValue, { shouldDirty: true, shouldValidate: true })
+                    }
+                    error={form.formState.errors.manual_data?.message}
+                  />
                 </div>
                 <div className="space-y-2">
                   <AppSelect

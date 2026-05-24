@@ -13,6 +13,7 @@ import { RecoltareFormSummary } from '@/components/recoltari/RecoltareFormSummar
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, DesktopFormPanel, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -466,18 +467,17 @@ export function AddRecoltareDialog({
                       <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.parcela_id.message}</p>
                     ) : null}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="recoltare_data">Data</Label>
-                    <Input
-                      id="recoltare_data"
-                      type="date"
-                      className="agri-control h-11 md:h-10"
-                      {...form.register('data')}
-                    />
-                    {form.formState.errors.data ? (
-                      <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.data.message}</p>
-                    ) : null}
-                  </div>
+                  <AppDatePicker
+                    id="recoltare_data"
+                    label="Data"
+                    placeholder="Selectează data"
+                    value={formDataValue}
+                    triggerClassName="h-11 md:h-10"
+                    onChange={(nextValue) =>
+                      form.setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })
+                    }
+                    error={form.formState.errors.data?.message}
+                  />
                 </div>
                 {activePauseWarning ? (
                   <div className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-2.5 text-sm text-[var(--status-warning-text)]">

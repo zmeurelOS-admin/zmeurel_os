@@ -9,6 +9,7 @@ import * as z from 'zod'
 import { AppDialog } from '@/components/app/AppDialog'
 import { NumericField } from '@/components/app/NumericField'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -171,6 +172,7 @@ export function EditCulturaDialog({
     },
   })
   const tipPlanta = useWatch({ control: form.control, name: 'tip_planta' })
+  const watchedDataPlantarii = useWatch({ control: form.control, name: 'data_plantarii' }) ?? ''
   const tipPlantaOptions = useMemo(() => getCulturiOptions(tipUnitate), [tipUnitate])
   const tipPlantaAppSelectOptions = useMemo(
     () =>
@@ -380,18 +382,17 @@ export function EditCulturaDialog({
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="edit_data_plantarii">Data plantării</Label>
-          <Input
-            id="edit_data_plantarii"
-            type="date"
-            className="agri-control h-12"
-            {...form.register('data_plantarii')}
-          />
-          {form.formState.errors.data_plantarii ? (
-            <p className="text-xs text-red-600">{form.formState.errors.data_plantarii.message}</p>
-          ) : null}
-        </div>
+        <AppDatePicker
+          id="edit_data_plantarii"
+          label="Data plantării"
+          placeholder="Selectează data"
+          value={watchedDataPlantarii}
+          triggerClassName="h-12"
+          onChange={(nextValue) =>
+            form.setValue('data_plantarii', nextValue, { shouldDirty: true, shouldValidate: true })
+          }
+          error={form.formState.errors.data_plantarii?.message}
+        />
 
         <div className="space-y-2 rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 py-2">
           <Label>Stadiu curent</Label>

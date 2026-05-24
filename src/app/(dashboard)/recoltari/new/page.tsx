@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { hapticSuccess } from '@/lib/utils/haptic'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -54,6 +55,7 @@ export default function NewRecoltarePage() {
     register,
     handleSubmit,
     control,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -64,6 +66,7 @@ export default function NewRecoltarePage() {
     },
   })
 
+  const watchedData = useWatch({ control, name: 'data' }) ?? ''
   const kgCal1 = Number(useWatch({ control, name: 'kg_cal1' }) || 0)
   const kgCal2 = Number(useWatch({ control, name: 'kg_cal2' }) || 0)
   const totalKg = kgCal1 + kgCal2
@@ -132,15 +135,16 @@ export default function NewRecoltarePage() {
       <div className="overflow-y-auto px-4 pb-[calc(var(--app-nav-clearance)+6rem)] pt-4">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-4 rounded-2xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-5 shadow-sm">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Data</label>
-              <input
-                type="date"
-                {...register('data')}
-                className="min-h-12 w-full rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 text-[var(--agri-text)]"
-              />
-              {errors.data ? <p className="mt-1 text-xs text-[var(--soft-danger-text)]">{errors.data.message}</p> : null}
-            </div>
+            <AppDatePicker
+              id="recoltare-new-data"
+              label="Data"
+              placeholder="Selectează data"
+              value={watchedData}
+              max={todayInputValue()}
+              triggerClassName="h-12"
+              onChange={(nextValue) => setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })}
+              error={errors.data?.message}
+            />
 
             <div>
               <label className="mb-1 block text-sm font-medium text-[var(--agri-text-muted)]">Culegator</label>

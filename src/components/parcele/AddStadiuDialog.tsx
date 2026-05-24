@@ -8,6 +8,7 @@ import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AppSelect } from '@/components/ui/app-select'
@@ -177,6 +178,7 @@ export function AddStadiuDialog({
 
   const stadiuValue = useWatch({ control: form.control, name: 'stadiu' }) || ''
   const cohortValue = useWatch({ control: form.control, name: 'cohort' }) || undefined
+  const watchedData = useWatch({ control: form.control, name: 'data' }) || ''
   const stageOptions = useMemo(() => {
     const emojiByCod = Object.fromEntries(
       getStadiuOptions(grupBiologic).map((option) => [option.value, option.emoji])
@@ -259,18 +261,17 @@ export function AddStadiuDialog({
           />
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor="data_stadiu">Data *</Label>
-          <Input
-            id="data_stadiu"
-            type="date"
-            className="agri-control h-12"
-            {...form.register('data')}
-          />
-          {form.formState.errors.data ? (
-            <p className="text-xs text-red-600">{form.formState.errors.data.message}</p>
-          ) : null}
-        </div>
+        <AppDatePicker
+          id="data_stadiu"
+          label="Data *"
+          placeholder="Selectează data"
+          value={watchedData}
+          triggerClassName="h-12"
+          onChange={(nextValue) =>
+            form.setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })
+          }
+          error={form.formState.errors.data?.message}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="observatii_stadiu">Observații (opțional)</Label>

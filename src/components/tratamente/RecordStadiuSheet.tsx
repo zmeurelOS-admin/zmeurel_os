@@ -7,6 +7,7 @@ import { z } from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -119,6 +120,7 @@ export function RecordStadiuSheet({
   const selectedStadiu = useWatch({ control: form.control, name: 'stadiu' })
   const selectedSursa = useWatch({ control: form.control, name: 'sursa' })
   const selectedCohort = useWatch({ control: form.control, name: 'cohort' })
+  const observedDate = useWatch({ control: form.control, name: 'data_observata' })
   const cohortValue = selectedCohort ?? resolvedCohortPreselectat
   const stadiiOptions = useMemo(
     () =>
@@ -187,13 +189,17 @@ export function RecordStadiuSheet({
         error={form.formState.errors.stadiu?.message}
       />
 
-      <div className="space-y-2">
-        <Label htmlFor="record-stadiu-data">Data observării</Label>
-        <Input id="record-stadiu-data" type="date" {...form.register('data_observata')} />
-        {form.formState.errors.data_observata ? (
-          <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.data_observata.message}</p>
-        ) : null}
-      </div>
+      <AppDatePicker
+        id="record-stadiu-data"
+        label="Data observării"
+        placeholder="Selectează data"
+        value={observedDate ?? ''}
+        triggerClassName="h-11 md:h-10"
+        onChange={(nextValue) =>
+          form.setValue('data_observata', nextValue, { shouldDirty: true, shouldValidate: true })
+        }
+        error={form.formState.errors.data_observata?.message}
+      />
 
       <div className="space-y-2">
         <Label>Sursa</Label>
