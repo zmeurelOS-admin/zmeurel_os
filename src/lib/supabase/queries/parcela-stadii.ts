@@ -55,6 +55,29 @@ export async function getStadiiCanoniceParcela(
   return data ?? []
 }
 
+export function mergeParcelaStadiuInList(
+  list: ParcelaStadiuCanonic[],
+  saved: ParcelaStadiuCanonic
+): ParcelaStadiuCanonic[] {
+  const savedCohort = normalizeCohort(saved.cohort)
+  const index = list.findIndex(
+    (row) =>
+      row.parcela_id === saved.parcela_id &&
+      row.an === saved.an &&
+      row.stadiu === saved.stadiu &&
+      row.sursa === saved.sursa &&
+      normalizeCohort(row.cohort) === savedCohort
+  )
+
+  if (index >= 0) {
+    const next = [...list]
+    next[index] = saved
+    return next
+  }
+
+  return [saved, ...list]
+}
+
 export async function getConfigurareSezonParcela(
   parcelaId: string,
   an = getCurrentSezon()
@@ -85,6 +108,7 @@ export async function createParcelaStadiuCanonic(
     throw new Error('Selecteaza un stadiu valid.')
   }
 
+  const nowIso = new Date().toISOString()
   const payload: StadiuInsert = {
     tenant_id: tenantId,
     parcela_id: input.parcela_id,
@@ -94,6 +118,7 @@ export async function createParcelaStadiuCanonic(
     data_observata: input.data_observata,
     sursa: 'manual',
     observatii: input.observatii?.trim() || null,
+    updated_at: nowIso,
   }
 
   const { data, error } = await supabase

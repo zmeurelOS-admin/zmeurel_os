@@ -19,18 +19,23 @@ function isValidStadiuRow(stadiu: ParcelaStadiuCanonic): boolean {
   return normalizeStadiu(stadiu.stadiu) !== null
 }
 
-function compareByRegistrationMoment(a: ParcelaStadiuCanonic, b: ParcelaStadiuCanonic): number {
-  const createdDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  if (createdDiff !== 0) return createdDiff
+export function getStadiuRegistrationTimestamp(stadiu: ParcelaStadiuCanonic): number {
+  const created = new Date(stadiu.created_at).getTime()
+  const updated = new Date(stadiu.updated_at).getTime()
+  const createdSafe = Number.isFinite(created) ? created : 0
+  const updatedSafe = Number.isFinite(updated) ? updated : createdSafe
+  return Math.max(createdSafe, updatedSafe)
+}
 
-  const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
-  if (observedDiff !== 0) return observedDiff
+function compareByRegistrationMoment(a: ParcelaStadiuCanonic, b: ParcelaStadiuCanonic): number {
+  const momentDiff = getStadiuRegistrationTimestamp(b) - getStadiuRegistrationTimestamp(a)
+  if (momentDiff !== 0) return momentDiff
 
   return b.id.localeCompare(a.id)
 }
 
 /**
- * Stadiul curent = ultima înregistrare VALIDĂ a utilizatorului (created_at desc),
+ * Stadiul curent = ultima înregistrare VALIDĂ a utilizatorului (max(created_at, updated_at) desc),
  * indiferent de ordinea fenologică — permite corecții „înapoi”.
  */
 export function resolveStadiuFenologicCurentParcela(

@@ -8,7 +8,9 @@ import {
   ParcelaRezumatAgronomicChips,
 } from '@/components/parcele/ParcelaRezumatAgronomicChips'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
+import { queryKeys } from '@/lib/query-keys'
 import type { ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
+import { getLabelPentruGrup } from '@/lib/tratamente/stadii-canonic'
 
 const createParcelaStadiuCanonic = vi.fn()
 const getStadiiCanoniceParcela = vi.fn()
@@ -26,6 +28,10 @@ vi.mock('@/lib/supabase/queries/parcela-stadii', async (importOriginal) => {
 
 vi.mock('@/lib/ui/toast', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
 }))
 
 const baseParcela = {
@@ -47,15 +53,34 @@ const baseParcela = {
   updated_at: '2026-01-01T00:00:00Z',
 } as Parcela
 
+function makeStageRow(
+  overrides: Partial<ParcelaStadiuCanonic> & Pick<ParcelaStadiuCanonic, 'id' | 'stadiu'>
+): ParcelaStadiuCanonic {
+  return {
+    tenant_id: 'tenant-1',
+    parcela_id: 'parcela-1',
+    an: 2026,
+    cohort: null,
+    data_observata: '2026-05-01',
+    observatii: null,
+    sursa: 'manual',
+    created_by: null,
+    created_at: '2026-05-01T00:00:00Z',
+    updated_at: '2026-05-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
 function renderChips(parcela: Parcela = baseParcela) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <ParcelaRezumatAgronomicChips parcela={parcela} />
     </QueryClientProvider>
   )
+  return { ...view, queryClient }
 }
 
 describe('getCurrentCanonicalStageForCohort', () => {
@@ -159,6 +184,55 @@ describe('ParcelaRezumatAgronomicChips', () => {
       expect(screen.getByText('Primocane')).toBeInTheDocument()
     })
     expect(screen.getAllByRole('combobox')).toHaveLength(2)
+  })
+
+  it('reafișează stadiul selectat după salvare (setQueryData + refetch)', async () => {
+    const user = userEvent.setup()
+    const inflorit = makeStageRow({
+      id: 'stadiu-inflorit',
+      stadiu: 'inflorit',
+      created_at: '2026-05-10T08:00:00Z',
+      updated_at: '2026-05-10T08:00:00Z',
+    })
+    const legare = makeStageRow({
+      id: 'stadiu-legare',
+      stadiu: 'legare_fruct',
+      created_at: '2026-05-22T09:00:00Z',
+      updated_at: '2026-05-22T09:00:00Z',
+    })
+
+    getConfigurareSezonParcela.mockResolvedValue(null)
+    getStadiiCanoniceParcela.mockResolvedValue([inflorit])
+    createParcelaStadiuCanonic.mockResolvedValue(legare)
+
+    const { queryClient } = renderChips()
+
+    const trigger = await screen.findByRole('combobox')
+    const infloritLabel = getLabelPentruGrup('inflorit', 'rubus')
+    await waitFor(() => {
+      expect(trigger).toHaveTextContent(infloritLabel)
+    })
+
+    getStadiiCanoniceParcela.mockResolvedValue([inflorit, legare])
+
+    await user.click(trigger)
+    const legareLabel = getLabelPentruGrup('legare_fruct', 'rubus')
+    const legareOption = await screen.findByRole('option', { name: new RegExp(legareLabel, 'i') })
+    await user.click(legareOption)
+
+    await waitFor(() => {
+      expect(createParcelaStadiuCanonic).toHaveBeenCalledWith(
+        expect.objectContaining({ stadiu: 'legare_fruct' })
+      )
+    })
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<ParcelaStadiuCanonic[]>(
+        queryKeys.parcelaCultureStages('parcela-1')
+      )
+      expect(cached?.some((row) => row.stadiu === 'legare_fruct')).toBe(true)
+      expect(screen.getByRole('combobox')).toHaveTextContent(legareLabel)
+    })
   })
 
   it('salvează stadiul la schimbare în AppSelect', async () => {

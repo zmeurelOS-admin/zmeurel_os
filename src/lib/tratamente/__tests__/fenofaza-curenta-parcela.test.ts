@@ -50,6 +50,28 @@ describe('resolveStadiuFenologicCurentParcela', () => {
     expect(current?.stadiu).toBe('inflorit')
   })
 
+  it('preferă updated_at la reînregistrarea aceluiași stadiu (upsert)', () => {
+    const stadii = [
+      makeRow({
+        id: 'stadiu-legare-fruct',
+        stadiu: 'legare_fruct',
+        cohort: 'floricane',
+        created_at: '2026-05-21T10:00:00Z',
+        updated_at: '2026-05-21T10:00:00Z',
+      }),
+      makeRow({
+        id: 'stadiu-inflorit',
+        stadiu: 'inflorit',
+        cohort: 'floricane',
+        created_at: '2026-05-18T08:00:00Z',
+        updated_at: '2026-05-22T09:00:00Z',
+      }),
+    ]
+
+    const current = resolveStadiuFenologicCurentParcela(stadii, 'rubus', 'floricane')
+    expect(current?.stadiu).toBe('inflorit')
+  })
+
   it('permite corecția înapoi: câștigă ultima înregistrare, nu cea fenologic mai avansată', () => {
     const stadii = [
       makeRow({
@@ -58,6 +80,7 @@ describe('resolveStadiuFenologicCurentParcela', () => {
         cohort: 'floricane',
         data_observata: '2026-05-20',
         created_at: '2026-05-20T08:00:00Z',
+        updated_at: '2026-05-20T08:00:00Z',
       }),
       makeRow({
         id: 'stadiu-inflorit-corectie',
@@ -65,6 +88,7 @@ describe('resolveStadiuFenologicCurentParcela', () => {
         cohort: 'floricane',
         data_observata: '2026-05-18',
         created_at: '2026-05-21T09:00:00Z',
+        updated_at: '2026-05-21T09:00:00Z',
       }),
     ]
 

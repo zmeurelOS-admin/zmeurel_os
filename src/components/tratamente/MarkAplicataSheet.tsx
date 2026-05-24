@@ -20,7 +20,6 @@ import {
 import { AppDialog } from '@/components/app/AppDialog'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
   DesktopFormGrid,
@@ -74,6 +73,7 @@ import {
   markAplicataAction,
 } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
+import { mapMetodaToManualTipSelect } from '@/lib/tratamente/map-metoda-manual-tip'
 import { getSupabase } from '@/lib/supabase/client'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
@@ -296,6 +296,7 @@ function buildDefaultValues(
   defaultManualData: string,
   defaultManualParcelaId: string | null,
   defaultManualStatus: 'planificata' | 'aplicata',
+  defaultMetoda?: MetodaAplicare | null,
 ): z.infer<typeof formSchema> {
   const normalizedStadiu = defaultStadiu ? normalizeStadiu(defaultStadiu) : null
   return {
@@ -305,7 +306,7 @@ function buildDefaultValues(
     manual_status: defaultManualStatus,
     tip_interventie: '',
     scop: '',
-    manual_tip_select: '',
+    manual_tip_select: mapMetodaToManualTipSelect(defaultMetoda),
     manual_tip_custom: '',
     manual_scop_select: '',
     manual_scop_custom: '',
@@ -1068,6 +1069,7 @@ export function MarkAplicataSheet({
         stableDefaultManualData,
         defaultManualParcelaId,
         defaultManualStatus,
+        mode === 'manual' ? defaultMetoda : null,
       )
       const editMetoda = aplicareExistenta?.metodaAplicare ?? null
       form.reset(
@@ -1079,7 +1081,12 @@ export function MarkAplicataSheet({
               stadiu_la_aplicare: normalizeStadiu(aplicareExistenta.stadiuLaAplicare ?? '') ?? '',
               observatii: aplicareExistenta.observatii ?? '',
             }
-          : baseValues
+          : mode === 'manual'
+            ? {
+                ...baseValues,
+                manual_tip_select: mapMetodaToManualTipSelect(defaultMetoda),
+              }
+            : baseValues
       )
       const nextProduse =
         mode === 'edit'
@@ -2151,25 +2158,30 @@ export function MarkAplicataSheet({
 
   const manualMoreDetailsSection =
     mode === 'manual' ? (
-      <Collapsible open={manualMoreDetailsOpen} onOpenChange={setManualMoreDetailsOpen}>
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex w-full min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)]"
-          >
-            Mai multe detalii
-            <ChevronDown
-              className={cn('h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform', manualMoreDetailsOpen && 'rotate-180')}
-              aria-hidden
-            />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-3 pt-3">
-          {operatorField}
-          {observatiiField}
-          {meteoBlock}
-        </CollapsibleContent>
-      </Collapsible>
+      <div className="space-y-3">
+        <button
+          type="button"
+          aria-expanded={manualMoreDetailsOpen}
+          className="flex w-full min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)]"
+          onClick={() => setManualMoreDetailsOpen((current) => !current)}
+        >
+          Mai multe detalii
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform',
+              manualMoreDetailsOpen && 'rotate-180'
+            )}
+            aria-hidden
+          />
+        </button>
+        {manualMoreDetailsOpen ? (
+          <div className="space-y-3 border-t border-[var(--border-default)] pt-3">
+            {operatorField}
+            {observatiiField}
+            {meteoBlock}
+          </div>
+        ) : null}
+      </div>
     ) : null
 
   const mobileContent = (

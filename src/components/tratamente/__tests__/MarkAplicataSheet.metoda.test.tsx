@@ -362,6 +362,25 @@ describe('MarkAplicataSheet.defaultMetoda', () => {
     expect(screen.queryByText('Atenție PHI')).not.toBeInTheDocument()
   })
 
+  it('prepopulează Tip intervenție din defaultMetoda (picker)', async () => {
+    seedRecomandariFixtures()
+
+    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
+
+    expect(await screen.findByRole('combobox', { name: /Tip intervenție/i })).toHaveTextContent('Foliar')
+  })
+
+  it('expandează „Mai multe detalii” la click', async () => {
+    const user = userEvent.setup()
+    seedRecomandariFixtures()
+
+    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
+
+    expect(screen.queryByLabelText('Operator')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Mai multe detalii/i }))
+    expect(screen.getByLabelText('Operator')).toBeInTheDocument()
+  })
+
   it('nu afișează recomandările în mod manual (indiferent de stadiu în DB)', async () => {
     seedRecomandariFixtures()
 

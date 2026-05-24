@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { AppSelect } from '@/components/ui/app-select'
@@ -11,6 +12,7 @@ import {
   createParcelaStadiuCanonic,
   getConfigurareSezonParcela,
   getStadiiCanoniceParcela,
+  mergeParcelaStadiuInList,
   type ConfigurareParcelaSezon,
   type ParcelaStadiuCanonic,
 } from '@/lib/supabase/queries/parcela-stadii'
@@ -72,6 +74,7 @@ function AgronomicStadiuChip({
   seasonConfig: ConfigurareParcelaSezon | null
 }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const currentSezon = getCurrentSezon()
 
   const currentStage = useMemo(
@@ -115,9 +118,14 @@ function AgronomicStadiuChip({
         data_observata: today,
       })
     },
-    onSuccess: () => {
+    onSuccess: async (savedRow) => {
+      const cacheKey = queryKeys.parcelaCultureStages(parcelaId)
+      queryClient.setQueryData<ParcelaStadiuCanonic[]>(cacheKey, (current) =>
+        mergeParcelaStadiuInList(current ?? [], savedRow)
+      )
+      await queryClient.refetchQueries({ queryKey: cacheKey, type: 'active' })
       toast.success('Stadiu salvat')
-      queryClient.invalidateQueries({ queryKey: queryKeys.parcelaCultureStages(parcelaId) })
+      router.refresh()
     },
     onError: (err: unknown) => toast.error(toErrorMessage(err)),
   })
