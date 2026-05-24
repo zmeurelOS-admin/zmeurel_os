@@ -146,6 +146,14 @@ function sortAplicariAsc(aplicari: AplicareTratamentDetaliu[]): AplicareTratamen
   })
 }
 
+function sortAplicariEfectuateDesc(aplicari: AplicareTratamentDetaliu[]): AplicareTratamentDetaliu[] {
+  return [...aplicari].sort((a, b) => {
+    const first = new Date(a.data_aplicata ?? a.data_planificata ?? a.created_at).getTime()
+    const second = new Date(b.data_aplicata ?? b.data_planificata ?? b.created_at).getTime()
+    return second - first
+  })
+}
+
 function getPlanDetailsHref(planActiv: PlanActivParcela | null): string | null {
   return planActiv?.plan?.id ? `/tratamente/planuri/${planActiv.plan.id}` : null
 }
@@ -209,9 +217,10 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
     : null
 
   const aplicariSortate = sortAplicariAsc(aplicari)
+  const aplicariEfectuateSortate = sortAplicariEfectuateDesc(aplicariEfectuate)
   const urmatoareleAplicari = aplicariSortate.slice(0, 10)
   const aplicariCount = aplicariSortate.length
-  const aplicateCount = aplicariEfectuate.length
+  const aplicateCount = aplicariEfectuateSortate.length
   const isGlobalEmpty = !planActiv && stadii.length === 0 && aplicariSortate.length === 0 && aplicateCount === 0
   const canGenerate = Boolean(
     planActiv?.plan?.id &&
@@ -248,7 +257,11 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
         <ParcelaTratamenteHeader
           an={an}
           backHref={`/parcele?selected=${encodeURIComponent(parcelaId)}`}
+          configurareSezon={configurareSezon}
+          dualStageState={dualStageState}
+          grupBiologic={grupBiologic}
           parcelaName={parcela.nume_parcela ?? 'Parcelă'}
+          singleStageState={singleStageState}
         />
       }
       bottomInset="calc(var(--app-nav-clearance) + 1rem)"
@@ -257,6 +270,7 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
         an={an}
         aplicateCount={aplicateCount}
         aplicariCount={aplicariCount}
+        aplicariEfectuate={aplicariEfectuateSortate}
         createPlanHref={`/tratamente/planuri/nou?parcela_id=${parcelaId}`}
         configurareSezon={configurareSezon}
         detailsHref={getPlanDetailsHref(planActiv)}

@@ -11,6 +11,43 @@ vi.mock('@/hooks/useMediaQuery', () => ({
   useMediaQuery: () => false,
 }))
 
+vi.mock('@/components/app/DashboardAuthContext', () => ({
+  useDashboardAuth: () => ({
+    userId: 'user-1',
+    email: 'fermier@example.test',
+    isSuperAdmin: false,
+    tenantId: 'tenant-1',
+  }),
+}))
+
+const stadiuQueryMock = vi.hoisted(() => ({
+  data: null as { stadiu: string } | null,
+}))
+
+vi.mock('@/lib/supabase/client', () => ({
+  getSupabase: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          eq: () => ({
+            eq: () => ({
+              order: () => ({
+                order: () => ({
+                  limit: () =>
+                    Promise.resolve({
+                      data: stadiuQueryMock.data ? [stadiuQueryMock.data] : [],
+                      error: null,
+                    }),
+                }),
+              }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  }),
+}))
+
 const originalHasPointerCapture = HTMLElement.prototype.hasPointerCapture
 const originalSetPointerCapture = HTMLElement.prototype.setPointerCapture
 const originalReleasePointerCapture = HTMLElement.prototype.releasePointerCapture
@@ -212,6 +249,57 @@ describe('MarkAplicataSheet', () => {
       expect.arrayContaining(['Cantitate diferită la produs #1', 'Produs #2 diferă de plan'])
     )
   }, 15_000)
+
+  it('preia stadiul automat din fenofază și nu cere selectorul gol în mod manual', async () => {
+    stadiuQueryMock.data = { stadiu: 'inflorit' }
+
+    renderSheet(
+      <MarkAplicataSheet
+        defaultMetoda="foliar"
+        defaultManualParcelaId="parcela-1"
+        defaultManualParcelaLabel="Parcela Nord"
+        defaultManualStatus="aplicata"
+        grupBiologic="rubus"
+        isRubusMixt={false}
+        manualParcele={[]}
+        meteoSnapshot={null}
+        mode="manual"
+        onOpenChange={() => undefined}
+        onSubmit={() => undefined}
+        open
+        produseFitosanitare={[]}
+      />
+    )
+
+    expect(await screen.findByText(/Fenofază la aplicare/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Nu există fenofază înregistrată/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Stadiu la aplicare')).not.toBeInTheDocument()
+  })
+
+  it('cere stadiul manual când fenofaza lipsește', async () => {
+    stadiuQueryMock.data = null
+
+    renderSheet(
+      <MarkAplicataSheet
+        defaultMetoda="foliar"
+        defaultManualParcelaId="parcela-1"
+        defaultManualParcelaLabel="Parcela Nord"
+        defaultManualStatus="aplicata"
+        grupBiologic="rubus"
+        isRubusMixt={false}
+        manualParcele={[]}
+        meteoSnapshot={null}
+        mode="manual"
+        onOpenChange={() => undefined}
+        onSubmit={() => undefined}
+        open
+        produseFitosanitare={[]}
+      />
+    )
+
+    expect(await screen.findByText(/Nu există fenofază înregistrată/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Stadiu la aplicare')).toBeInTheDocument()
+  })
 
   it.todo(
     'salvează intervenție manuală cu parcelă, sursă manuală și produse multiple — UI-ul a trecut la controale custom și branch async cu meteo; testul se rescrie în Sprint 4 odată cu extinderea sheet-ului'

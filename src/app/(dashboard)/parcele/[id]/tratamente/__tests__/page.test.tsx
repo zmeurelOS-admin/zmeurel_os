@@ -237,7 +237,7 @@ describe('parcela tratamente page', () => {
 
     render(<QueryClientProvider client={queryClient}>{element}</QueryClientProvider>)
 
-    expect(screen.getByText(/Buton verde|Inflorescențe vizibile/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/Buton verde|Inflorescențe vizibile/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Nicio parcelă asociată pentru 2026')).toBeInTheDocument()
     expect(screen.getByText(/Nu există încă aplicări planificate pentru această parcelă în anul curent\./i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generează aplicări' })).not.toBeInTheDocument()

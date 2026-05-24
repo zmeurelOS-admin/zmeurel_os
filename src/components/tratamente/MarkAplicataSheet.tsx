@@ -20,6 +20,7 @@ import {
 import { AppDialog } from '@/components/app/AppDialog'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
   DesktopFormGrid,
@@ -771,14 +772,21 @@ async function loadStadiuCurentParcelaClient(params: {
   parcelaId: string
   tenantId: string
   an: number
+  cohort?: Cohorta | null
 }): Promise<ParcelaStadiuRow | null> {
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('stadii_fenologice_parcela')
     .select('id,tenant_id,parcela_id,an,stadiu,cohort,data_observata,sursa,observatii,created_at,updated_at,created_by')
     .eq('tenant_id', params.tenantId)
     .eq('parcela_id', params.parcelaId)
     .eq('an', params.an)
+
+  if (params.cohort) {
+    query = query.eq('cohort', params.cohort)
+  }
+
+  const { data, error } = await query
     .order('data_observata', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(1)
@@ -1079,6 +1087,13 @@ export function MarkAplicataSheet({
   // Sprint 4: defaultMetoda support
   const shouldShowStadiuChip =
     mode === 'manual' && metodaAplicare !== null && Boolean(grupBiologic)
+  const shouldRequireStadiuPicker =
+    mode === 'manual' &&
+    selectedManualStatus === 'aplicata' &&
+    !stadiuChipCurent &&
+    !stadiuContextLoading &&
+    (!isRubusMixt || Boolean(selectedCohort))
+  const [manualMoreDetailsOpen, setManualMoreDetailsOpen] = useState(false)
   // Sprint 4: defaultMetoda support
   const shouldShowRecomandari =
     mode === 'manual' &&
@@ -1204,6 +1219,10 @@ export function MarkAplicataSheet({
       setStadiuDetectat(null)
       return
     }
+    if (isRubusMixt && !selectedCohort) {
+      setStadiuDetectat(null)
+      return
+    }
 
     let cancelled = false
     startStadiuContextTransition(async () => {
@@ -1212,6 +1231,7 @@ export function MarkAplicataSheet({
           parcelaId,
           tenantId,
           an: sezonCurent,
+          cohort: selectedCohort,
         })
         if (cancelled) return
         setStadiuDetectat(normalizeStadiu(stadiuCurent?.stadiu ?? ''))
@@ -1226,9 +1246,11 @@ export function MarkAplicataSheet({
     }
   }, [
     defaultManualParcelaId,
+    isRubusMixt,
     metodaAplicare,
     mode,
     open,
+    selectedCohort,
     selectedManualParcelaId,
     sezonCurent,
     tenantId,
@@ -1735,8 +1757,24 @@ export function MarkAplicataSheet({
     />
   )
 
+  const stadiuFieldFallback = shouldRequireStadiuPicker ? (
+    <div className="space-y-1">
+      {stadiuField}
+      <p className="text-xs text-[var(--text-secondary)]">
+        Nu există fenofază înregistrată pentru această cohortă. Selectează stadiul manual.
+      </p>
+    </div>
+  ) : null
+
   const manualStadiuChip = shouldShowStadiuChip ? (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-col gap-2">
+      {stadiuChipCurent ? (
+        <p className="text-xs text-[var(--text-secondary)]">
+          Fenofază la aplicare:{' '}
+          <span className="font-semibold text-[var(--text-primary)]">{getLabelRo(stadiuChipCurent)}</span>
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
       <Popover>
         <PopoverTrigger asChild>
           <button
@@ -1780,6 +1818,8 @@ export function MarkAplicataSheet({
           </div>
         </PopoverContent>
       </Popover>
+      </div>
+      {stadiuFieldFallback}
     </div>
   ) : null
 
@@ -2350,6 +2390,29 @@ export function MarkAplicataSheet({
     </div>
   )
 
+  const manualMoreDetailsSection =
+    mode === 'manual' ? (
+      <Collapsible open={manualMoreDetailsOpen} onOpenChange={setManualMoreDetailsOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2.5 text-left text-sm font-semibold text-[var(--text-primary)]"
+          >
+            Mai multe detalii
+            <ChevronDown
+              className={cn('h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform', manualMoreDetailsOpen && 'rotate-180')}
+              aria-hidden
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {operatorField}
+          {observatiiField}
+          {meteoBlock}
+        </CollapsibleContent>
+      </Collapsible>
+    ) : null
+
   const mobileContent = (
     <form className="space-y-3.5 min-w-0" onSubmit={save}>
       {mode === 'manual' ? (
@@ -2390,6 +2453,7 @@ export function MarkAplicataSheet({
           ) : null}
 
           {manualStadiuChip}
+          {isRubusMixt ? cohortField : null}
 
           <div className="grid gap-2.5 sm:grid-cols-2">
             <div className="space-y-2">
@@ -2480,18 +2544,31 @@ export function MarkAplicataSheet({
       ) : null}
 
       {mode === 'din_plan' ? cohortField : null}
-      {planDateField}
+      {mode === 'din_plan' ? planDateField : null}
       {unitateField}
       {cantitateField}
-      {operatorField}
-      {stadiuField}
-      {observatiiField}
+      {mode === 'din_plan' ? (
+        <>
+          {operatorField}
+          {stadiuField}
+          {observatiiField}
+        </>
+      ) : null}
       {plannedProductsBlock}
       {recomandariBlock}
       {productsBlock}
       {differencesField}
       {phiWarningBlock}
-      {meteoBlock}
+      {mode === 'manual' ? manualMoreDetailsSection : null}
+      {mode === 'din_plan' ? meteoBlock : null}
+      {mode === 'edit' ? (
+        <>
+          {operatorField}
+          {stadiuField}
+          {observatiiField}
+          {meteoBlock}
+        </>
+      ) : null}
     </form>
   )
 
@@ -2675,18 +2752,19 @@ export function MarkAplicataSheet({
         <FormDialogSection>
           <DesktopFormPanel>
             {mode === 'manual' ? (
-              <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
-                {unitateField}
-                {cantitateField}
-                {operatorField}
-                {stadiuField}
+              <div className="space-y-3">
+                {isRubusMixt ? cohortField : null}
+                <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
+                  {unitateField}
+                  {cantitateField}
+                </div>
+                {manualMoreDetailsSection}
               </div>
             ) : null}
-            {mode === 'manual' ? observatiiField : null}
             {mode === 'din_plan' || mode === 'edit' ? observatiiField : null}
             {differencesField}
             {phiWarningBlock}
-            {meteoBlock}
+            {mode === 'din_plan' || mode === 'edit' ? meteoBlock : null}
             {mode === 'edit' ? (
               <Button
                 type="button"

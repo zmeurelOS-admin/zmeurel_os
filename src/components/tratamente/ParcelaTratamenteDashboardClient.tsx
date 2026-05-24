@@ -14,7 +14,7 @@ import {
   planificaInterventieRelevantaAction,
   recordStadiuAction,
 } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
-import { AddInterventieFAB } from '@/components/tratamente/AddInterventieFAB'
+import { useParcelaInterventieSheets } from '@/components/tratamente/useParcelaInterventieSheets'
 import { EmptyStateTratamente } from '@/components/tratamente/EmptyStateTratamente'
 import { AplicareListItem } from '@/components/tratamente/AplicareListItem'
 import { AssignPlanSheet } from '@/components/tratamente/AssignPlanSheet'
@@ -62,6 +62,7 @@ interface ParcelaTratamenteDashboardClientProps {
   an: number
   aplicateCount: number
   aplicariCount: number
+  aplicariEfectuate: AplicareTratamentDetaliu[]
   createPlanHref: string
   detailsHref: string | null
   editPlanHref: string | null
@@ -87,6 +88,7 @@ export function ParcelaTratamenteDashboardClient({
   an,
   aplicateCount,
   aplicariCount,
+  aplicariEfectuate,
   createPlanHref,
   detailsHref,
   editPlanHref,
@@ -337,6 +339,42 @@ export function ParcelaTratamenteDashboardClient({
     })
   }
 
+  const interventieSheets = useParcelaInterventieSheets({
+    parcelaId,
+    parcele: [
+      {
+        id: parcelaId,
+        nume_parcela: parcela.nume_parcela ?? 'Parcelă',
+        suprafata_ha:
+          typeof parcela.suprafata_m2 === 'number' && parcela.suprafata_m2 > 0
+            ? Math.round((parcela.suprafata_m2 / 10000) * 100) / 100
+            : null,
+      },
+    ],
+    fenofazaCurenta: singleStageState?.stadiuCurent?.stadiu ?? null,
+    markAplicataProps: {
+      defaultCantitateMl: null,
+      defaultOperator: '',
+      defaultStadiu: singleStageState?.stadiuCurent?.stadiu ?? null,
+      defaultManualParcelaId: parcelaId,
+      defaultManualParcelaLabel: parcela.nume_parcela ?? 'Parcelă',
+      defaultManualStatus: 'aplicata',
+      configurareSezon,
+      grupBiologic,
+      isRubusMixt,
+      manualParcele: [],
+      meteoSnapshot: null,
+      onSubmit: handleManualInterventie,
+      pending: isManualSaving,
+      produseFitosanitare,
+    },
+  })
+
+  useEffect(() => {
+    if (isDesktop) return
+    void interventieSheets.loadCapcaneActive()
+  }, [isDesktop, interventieSheets.loadCapcaneActive])
+
   const handleSaveConfigurareSezon = async (values: {
     sistem_conducere: string | null
     tip_ciclu_soi: string | null
@@ -367,7 +405,7 @@ export function ParcelaTratamenteDashboardClient({
   return (
     <>
       <div className="mx-auto w-full max-w-[min(96vw,94rem)] px-3 py-3 md:px-4 md:py-4">
-        {isGlobalEmpty ? (
+        {isGlobalEmpty && isDesktop ? (
           <EmptyStateTratamente createPlanHref={createPlanHref} />
         ) : null}
       </div>
@@ -490,6 +528,15 @@ export function ParcelaTratamenteDashboardClient({
           an={an}
           aplicateCount={aplicateCount}
           aplicariCount={aplicariCount}
+          aplicariEfectuate={aplicariEfectuate}
+          capcaneActive={interventieSheets.capcaneActive}
+          capcaneError={interventieSheets.capcaneError}
+          capcaneLoading={interventieSheets.capcaneLoading}
+          onApplyTreatment={interventieSheets.openApplyPicker}
+          onMountCapcana={interventieSheets.openMountCapcana}
+          onReloadCapcane={() => void interventieSheets.loadCapcaneActive()}
+          onVerifyCapcana={interventieSheets.openVerifyCapcana}
+          parcelaNume={parcela.nume_parcela ?? 'Parcelă'}
           configurareSezon={configurareSezon}
           createPlanHref={createPlanHref}
           detailsHref={detailsHref}
@@ -567,36 +614,8 @@ export function ParcelaTratamenteDashboardClient({
         pending={isConfiguring}
       />
 
-      <AddInterventieFAB
-        parcelaId={parcelaId}
-        parcele={[
-          {
-            id: parcelaId,
-            nume_parcela: parcela.nume_parcela ?? 'Parcelă',
-            suprafata_ha:
-              typeof parcela.suprafata_m2 === 'number' && parcela.suprafata_m2 > 0
-                ? Math.round((parcela.suprafata_m2 / 10000) * 100) / 100
-                : null,
-          },
-        ]}
-        fenofazaCurenta={singleStageState?.stadiuCurent?.stadiu ?? null}
-        markAplicataProps={{
-          defaultCantitateMl: null,
-          defaultOperator: '',
-          defaultStadiu: singleStageState?.stadiuCurent?.stadiu ?? null,
-          defaultManualParcelaId: parcelaId,
-          defaultManualParcelaLabel: parcela.nume_parcela ?? 'Parcelă',
-          defaultManualStatus: 'aplicata',
-          configurareSezon,
-          grupBiologic,
-          isRubusMixt,
-          manualParcele: [],
-          meteoSnapshot: null,
-          onSubmit: handleManualInterventie,
-          pending: isManualSaving,
-          produseFitosanitare,
-        }}
-      />
+      {isDesktop ? interventieSheets.renderFab() : null}
+      {interventieSheets.renderSheets()}
 
       <MarkAplicataSheet
         mode="manual"
