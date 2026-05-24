@@ -74,6 +74,7 @@ import {
   markAplicataAction,
 } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
+import { fetchStadiuFenologicCurentParcelaClient } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import { getSupabase } from '@/lib/supabase/client'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
@@ -175,7 +176,6 @@ interface MarkAplicataSheetProps {
   produsePlanificate?: InterventieProdusV2[]
 }
 
-type ParcelaStadiuRow = Tables<'stadii_fenologice_parcela'>
 type ParcelaPlanRow = Tables<'parcele_planuri'>
 type PlanTratamentRow = Tables<'planuri_tratament'>
 type PlanLinieRow = Tables<'planuri_tratament_linii'>
@@ -768,33 +768,6 @@ async function completeazaRecomandariClientCuReguli(params: {
   return [...params.recomandariPlan, ...fallback].slice(0, 5)
 }
 
-async function loadStadiuCurentParcelaClient(params: {
-  parcelaId: string
-  tenantId: string
-  an: number
-  cohort?: Cohorta | null
-}): Promise<ParcelaStadiuRow | null> {
-  const supabase = getSupabase()
-  let query = supabase
-    .from('stadii_fenologice_parcela')
-    .select('id,tenant_id,parcela_id,an,stadiu,cohort,data_observata,sursa,observatii,created_at,updated_at,created_by')
-    .eq('tenant_id', params.tenantId)
-    .eq('parcela_id', params.parcelaId)
-    .eq('an', params.an)
-
-  if (params.cohort) {
-    query = query.eq('cohort', params.cohort)
-  }
-
-  const { data, error } = await query
-    .order('data_observata', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (error) throw error
-  return data?.[0] ?? null
-}
-
 async function loadRecomandariParcelaClient(params: {
   parcelaId: string
   tenantId: string
@@ -1227,14 +1200,14 @@ export function MarkAplicataSheet({
     let cancelled = false
     startStadiuContextTransition(async () => {
       try {
-        const stadiuCurent = await loadStadiuCurentParcelaClient({
+        const stadiuCod = await fetchStadiuFenologicCurentParcelaClient({
           parcelaId,
-          tenantId,
           an: sezonCurent,
+          grupBiologic: grupBiologic ?? null,
           cohort: selectedCohort,
         })
         if (cancelled) return
-        setStadiuDetectat(normalizeStadiu(stadiuCurent?.stadiu ?? ''))
+        setStadiuDetectat(stadiuCod)
       } catch {
         if (cancelled) return
         setStadiuDetectat(null)
@@ -1246,6 +1219,7 @@ export function MarkAplicataSheet({
     }
   }, [
     defaultManualParcelaId,
+    grupBiologic,
     isRubusMixt,
     metodaAplicare,
     mode,

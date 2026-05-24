@@ -65,6 +65,19 @@ vi.mock('@/lib/supabase/client', () => ({
   getSupabase: getSupabaseMock,
 }))
 
+vi.mock('@/lib/supabase/queries/parcela-stadii', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/supabase/queries/parcela-stadii')>(
+    '@/lib/supabase/queries/parcela-stadii'
+  )
+  return {
+    ...actual,
+    getStadiiCanoniceParcela: vi.fn(async () => {
+      const fixture = supabaseFixtures.stadii_fenologice_parcela
+      return (fixture?.rows ?? []) as Awaited<ReturnType<typeof actual.getStadiiCanoniceParcela>>
+    }),
+  }
+})
+
 const originalHasPointerCapture = HTMLElement.prototype.hasPointerCapture
 const originalSetPointerCapture = HTMLElement.prototype.setPointerCapture
 const originalReleasePointerCapture = HTMLElement.prototype.releasePointerCapture

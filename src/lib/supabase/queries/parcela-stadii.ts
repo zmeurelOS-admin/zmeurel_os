@@ -24,7 +24,7 @@ const STADIU_SELECT =
 
 const CONFIGURARE_SELECT = 'id,tenant_id,parcela_id,an,sistem_conducere,tip_ciclu_soi,created_at,updated_at'
 
-function normalizeCohort(value: string | null | undefined): Cohorta | null {
+export function normalizeCohort(value: string | null | undefined): Cohorta | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toLowerCase()
   if (normalized === 'floricane' || normalized === 'primocane') {

@@ -20,8 +20,13 @@ vi.mock('@/components/app/DashboardAuthContext', () => ({
   }),
 }))
 
-const stadiuQueryMock = vi.hoisted(() => ({
-  data: null as { stadiu: string } | null,
+const fetchStadiuFenologicMock = vi.hoisted(() => ({
+  resolve: vi.fn<() => Promise<string | null>>(async () => null),
+}))
+
+vi.mock('@/lib/tratamente/fenofaza-curenta-parcela', () => ({
+  fetchStadiuFenologicCurentParcelaClient: (...args: unknown[]) =>
+    fetchStadiuFenologicMock.resolve(...args),
 }))
 
 vi.mock('@/lib/supabase/client', () => ({
@@ -33,11 +38,7 @@ vi.mock('@/lib/supabase/client', () => ({
             eq: () => ({
               order: () => ({
                 order: () => ({
-                  limit: () =>
-                    Promise.resolve({
-                      data: stadiuQueryMock.data ? [stadiuQueryMock.data] : [],
-                      error: null,
-                    }),
+                  limit: () => Promise.resolve({ data: [], error: null }),
                 }),
               }),
             }),
@@ -251,7 +252,7 @@ describe('MarkAplicataSheet', () => {
   }, 15_000)
 
   it('preia stadiul automat din fenofază și nu cere selectorul gol în mod manual', async () => {
-    stadiuQueryMock.data = { stadiu: 'inflorit' }
+    fetchStadiuFenologicMock.resolve.mockResolvedValue('inflorit')
 
     renderSheet(
       <MarkAplicataSheet
@@ -276,8 +277,43 @@ describe('MarkAplicataSheet', () => {
     expect(screen.queryByLabelText('Stadiu la aplicare')).not.toBeInTheDocument()
   })
 
+  it('preia stadiul pentru cohorta selectată în mod Rubus mixt', async () => {
+    const user = userEvent.setup()
+    fetchStadiuFenologicMock.resolve.mockImplementation(async (params: { cohort?: string | null }) => {
+      if (params?.cohort === 'floricane') return 'inflorit'
+      return null
+    })
+
+    renderSheet(
+      <MarkAplicataSheet
+        defaultMetoda="foliar"
+        defaultManualParcelaId="parcela-1"
+        defaultManualParcelaLabel="Parcela Nord"
+        defaultManualStatus="aplicata"
+        grupBiologic="rubus"
+        isRubusMixt
+        manualParcele={[]}
+        meteoSnapshot={null}
+        mode="manual"
+        onOpenChange={() => undefined}
+        onSubmit={() => undefined}
+        open
+        produseFitosanitare={[]}
+      />
+    )
+
+    await user.click(screen.getByRole('combobox', { name: /Cohortă pentru intervenție/i }))
+    await user.click(await screen.findByRole('option', { name: 'Floricane' }))
+
+    expect(await screen.findByText(/Fenofază la aplicare/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Nu există fenofază înregistrată/i)).not.toBeInTheDocument()
+    expect(fetchStadiuFenologicMock.resolve).toHaveBeenCalledWith(
+      expect.objectContaining({ cohort: 'floricane', parcelaId: 'parcela-1' })
+    )
+  })
+
   it('cere stadiul manual când fenofaza lipsește', async () => {
-    stadiuQueryMock.data = null
+    fetchStadiuFenologicMock.resolve.mockResolvedValue(null)
 
     renderSheet(
       <MarkAplicataSheet

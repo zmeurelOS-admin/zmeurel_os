@@ -32,9 +32,8 @@ import {
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import { isRubusMixt } from '@/lib/tratamente/configurare-sezon'
 import { genereazaAplicariPentruParcela } from '@/lib/tratamente/generator/generator'
+import { resolveStadiuFenologicCurentParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import {
-  getOrdine,
-  getOrdineInGrup,
   getStadiuUrmatorInGrup,
   listStadiiPentruGrup,
   normalizeStadiu,
@@ -71,38 +70,6 @@ function filterPlanuriDisponibile(planuri: PlanTratament[], parcela: ParcelaTrat
   return matched.length > 0 ? matched : planuri
 }
 
-function getStadiuCurent(
-  stadii: StadiuFenologicParcela[],
-  grupBiologic: GrupBiologic | null,
-  cohort?: Cohorta
-): StadiuFenologicParcela | null {
-  const stadiiFiltrate = cohort ? stadii.filter((stadiu) => stadiu.cohort === cohort) : stadii
-  if (stadiiFiltrate.length === 0) return null
-
-  return [...stadiiFiltrate].sort((a, b) => {
-    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
-    if (observedDiff !== 0) return observedDiff
-
-    const codA = normalizeStadiu(a.stadiu)
-    const codB = normalizeStadiu(b.stadiu)
-    const ordineA = codA ? resolveStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const ordineB = codB ? resolveStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const ordineDiff = ordineB - ordineA
-    if (ordineDiff !== 0) return ordineDiff
-
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })[0] ?? null
-}
-
-function resolveStadiuOrder(cod: ReturnType<typeof normalizeStadiu>, grupBiologic: GrupBiologic | null): number {
-  if (!cod) return Number.MIN_SAFE_INTEGER
-  if (grupBiologic) {
-    const inGroup = getOrdineInGrup(cod, grupBiologic)
-    if (inGroup >= 0) return inGroup
-  }
-  return getOrdine(cod) + 100
-}
-
 function getStadiuProgress(stadiu: string | null, grupBiologic: GrupBiologic | null): number {
   if (!stadiu) return 0
 
@@ -121,7 +88,7 @@ function buildStageState(
   grupBiologic: GrupBiologic | null,
   cohort: Cohorta | null
 ): StageState {
-  const stadiuCurent = getStadiuCurent(stadii, grupBiologic, cohort ?? undefined)
+  const stadiuCurent = resolveStadiuFenologicCurentParcela(stadii, grupBiologic, cohort ?? undefined)
   const stadiuCurentCod = stadiuCurent ? normalizeStadiu(stadiuCurent.stadiu) : null
   const stadiuUrmator =
     stadiuCurentCod && grupBiologic
