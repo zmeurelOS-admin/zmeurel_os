@@ -46,6 +46,13 @@ export const TIP_CAPCANA_LABEL_RO: Record<TipCapcana, string> = {
 export const metodaAplicareSchema = z.enum(METODE_APLICARE)
 export const tipCapcanaSchema = z.enum(TIPURI_CAPCANA)
 
+/** Valori DB/legacy `string` → union canonic; necunoscut → null (fără cast). */
+export function normalizeMetodaAplicare(value: string | null | undefined): MetodaAplicare | null {
+  if (value == null || value === '') return null
+  const parsed = metodaAplicareSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
 export type UnitateOption = {
   value: string
   label: string

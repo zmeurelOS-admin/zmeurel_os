@@ -1,4 +1,5 @@
 import type { AplicareTratamentDetaliu, JurnalAplicareItem } from '@/lib/supabase/queries/tratamente'
+import { normalizeMetodaAplicare } from '@/types/tratamente-metode'
 
 function getProdusDisplayNameFromDetaliu(
   produs: NonNullable<AplicareTratamentDetaliu['produse_aplicare']>[number]
@@ -61,7 +62,7 @@ export function mapAplicariParcelaToJurnal(
         dataAplicata: effectiveAplicareDate(aplicare),
         parcelaId: aplicare.parcela_id,
         parcelaNume,
-        metodaAplicare: aplicare.metoda_aplicare ?? null,
+        metodaAplicare: normalizeMetodaAplicare(aplicare.metoda_aplicare),
         produse,
         status: aplicare.status,
       }

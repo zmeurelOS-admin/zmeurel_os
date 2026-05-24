@@ -18,7 +18,7 @@ import { LinieRow } from '@/components/tratamente/LinieRow'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import type { PlanTratamentLinieCuProdus, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
-import type { MetodaAplicare } from '@/types/tratamente-metode'
+import { normalizeMetodaAplicare, type MetodaAplicare } from '@/types/tratamente-metode'
 import { toast } from '@/lib/ui/toast'
 
 import {
@@ -46,18 +46,6 @@ function normalizeTipInterventie(value: string | null | undefined): IntervenieEd
 
 function normalizeRegulaRepetare(value: string | null | undefined): IntervenieEditorValue['regula_repetare'] {
   return value === 'interval' ? 'interval' : 'fara_repetare'
-}
-
-function normalizeMetodaAplicare(value: string | null | undefined): MetodaAplicare | null {
-  return value === 'foliar' ||
-    value === 'fertirigare' ||
-    value === 'fertilizare_baza' ||
-    value === 'granulat_sol' ||
-    value === 'capcana_pus' ||
-    value === 'capcana_verificat' ||
-    value === 'altul'
-    ? value
-    : null
 }
 
 interface PlanLiniiListProps {
