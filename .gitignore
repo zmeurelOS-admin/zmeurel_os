@@ -66,3 +66,8 @@ tsc-result.txt
 /npx
 /zmeurel-audit-stage-20260330-151422/
 supabase-status.json
+
+# Artefacte temporare perf si test
+scripts/perf/.tmp/
+test-output.txt
+.git-tracked-logs-to-unindex.txt
