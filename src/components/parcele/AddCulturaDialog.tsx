@@ -17,13 +17,7 @@ import {
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import {
@@ -141,6 +135,14 @@ export function AddCulturaDialog({
   const watched = useWatch({ control: form.control })
   const tipPlanta = (watched ?? defaultValues).tip_planta
   const tipPlantaOptions = useMemo(() => getCulturiOptions(tipUnitate), [tipUnitate])
+  const tipPlantaAppSelectOptions = useMemo(
+    () =>
+      tipPlantaOptions.map((option) => ({
+        value: option === 'Altele' ? CUSTOM_CULTURA_OPTION : option,
+        label: option,
+      })),
+    [tipPlantaOptions]
+  )
   const tipPlantaSelectValue =
     isCustomTipPlanta ? CUSTOM_CULTURA_OPTION : getTipPlantaSelectValue(tipPlanta, tipUnitate)
   const fieldConfig = useMemo(() => getCulturaFieldConfig(tipUnitate), [tipUnitate])
@@ -258,10 +260,15 @@ export function AddCulturaDialog({
               <div className="grid gap-4 md:grid-cols-2 md:gap-x-5 md:gap-y-4">
           {/* Row 1: Tip plantă + Soi */}
           <div className="space-y-2">
-            <Label>Tip plantă *</Label>
-            <Select
-              value={tipPlantaSelectValue || undefined}
-              onValueChange={(value) => {
+            <AppSelect
+              id="tip_planta_select"
+              label="Tip plantă *"
+              placeholder="Alege tipul de plantă"
+              value={tipPlantaSelectValue}
+              options={tipPlantaAppSelectOptions}
+              showSearchThreshold={10}
+              triggerClassName="h-12 text-base"
+              onChange={(value) => {
                 if (value === CUSTOM_CULTURA_OPTION) {
                   setIsCustomTipPlanta(true)
                   form.setValue(
@@ -275,21 +282,8 @@ export function AddCulturaDialog({
                 setIsCustomTipPlanta(false)
                 form.setValue('tip_planta', value, { shouldDirty: true, shouldValidate: true })
               }}
-            >
-              <SelectTrigger className="agri-control h-12 w-full px-3 text-base">
-                <SelectValue placeholder="Alege tipul de plantă" />
-              </SelectTrigger>
-              <SelectContent>
-                {tipPlantaOptions.map((option) => (
-                  <SelectItem
-                    key={option}
-                    value={option === 'Altele' ? CUSTOM_CULTURA_OPTION : option}
-                  >
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              error={form.formState.errors.tip_planta?.message}
+            />
             {tipPlantaSelectValue === CUSTOM_CULTURA_OPTION ? (
               <Input
                 id="tip_planta"
@@ -297,9 +291,6 @@ export function AddCulturaDialog({
                 placeholder={getTipPlantaPlaceholder(tipUnitate)}
                 {...form.register('tip_planta')}
               />
-            ) : null}
-            {form.formState.errors.tip_planta ? (
-              <p className="text-xs text-red-600">{form.formState.errors.tip_planta.message}</p>
             ) : null}
           </div>
 

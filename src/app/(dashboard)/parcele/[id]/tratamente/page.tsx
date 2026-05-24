@@ -258,7 +258,6 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
         aplicateCount={aplicateCount}
         aplicariCount={aplicariCount}
         createPlanHref={`/tratamente/planuri/nou?parcela_id=${parcelaId}`}
-        importPlanHref="/tratamente/planuri/import"
         configurareSezon={configurareSezon}
         detailsHref={getPlanDetailsHref(planActiv)}
         editPlanHref={getPlanEditHref(planActiv)}

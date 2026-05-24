@@ -9,8 +9,10 @@ import { AppDialog } from '@/components/app/AppDialog'
 import { CheltuialaFormSummary } from '@/components/cheltuieli/CheltuialaFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { buildCategoryCheltuieliOptions } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
 import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
 import { CATEGORII_CHELTUIELI, resolveCheltuialaCategorie } from '@/lib/financial/categories'
@@ -134,24 +136,19 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
                 ) : null}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit_chelt_categorie">Categorie</Label>
-                <select
-                  id="edit_chelt_categorie"
-                  className="agri-control h-12 w-full px-3 text-base md:h-11"
-                  {...form.register('categorie')}
-                >
-                  <option value="">Selectează categoria</option>
-                  {CATEGORII_CHELTUIELI.map((categorie) => (
-                    <option key={categorie} value={categorie}>
-                      {categorie}
-                    </option>
-                  ))}
-                </select>
-                {form.formState.errors.categorie ? (
-                  <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p>
-                ) : null}
-              </div>
+              <AppSelect
+                id="edit_chelt_categorie"
+                label="Categorie"
+                placeholder="Selectează categoria"
+                value={watchedCategorie ?? ''}
+                options={buildCategoryCheltuieliOptions()}
+                showSearchThreshold={12}
+                triggerClassName="h-12 md:h-11"
+                onChange={(nextValue) =>
+                  form.setValue('categorie', nextValue, { shouldDirty: true, shouldValidate: true })
+                }
+                error={form.formState.errors.categorie?.message}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="edit_chelt_suma">Suma (lei)</Label>

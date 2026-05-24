@@ -30,6 +30,8 @@ import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PRODUS_FITOSANITAR_TIP_APP_SELECT_OPTIONS } from '@/lib/ui/app-select-maps'
+import { AppSelect } from '@/components/ui/app-select'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -52,16 +54,10 @@ import {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-export const TIP_OPTIONS = [
-  { value: 'fungicid', label: 'Fungicid' },
-  { value: 'insecticid', label: 'Insecticid' },
-  { value: 'erbicid', label: 'Erbicid' },
-  { value: 'acaricid', label: 'Acaricid' },
-  { value: 'foliar', label: 'Foliar' },
-  { value: 'ingrasamant', label: 'Îngrășământ' },
-  { value: 'bioregulator', label: 'Bioregulator' },
-  { value: 'altul', label: 'Altul' },
-] as const
+export const TIP_OPTIONS = PRODUS_FITOSANITAR_TIP_APP_SELECT_OPTIONS.map((option) => ({
+  value: option.value,
+  label: option.label,
+})) as ReadonlyArray<{ value: ProdusFitosanitar['tip']; label: string }>
 
 export const TIP_LABELS: Record<string, string> = Object.fromEntries(
   TIP_OPTIONS.map((o) => [o.value, o.label])
@@ -228,12 +224,20 @@ function ProdusFitosanitarFormFields({ form, showActiv = false }: ProdusFitosani
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="pf_tip">Tip *</Label>
-            <select id="pf_tip" className="agri-control h-11 w-full px-3 text-sm" {...register('tip')}>
-              {TIP_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="tip"
+              render={({ field }) => (
+                <AppSelect
+                  id="pf_tip"
+                  label="Tip *"
+                  value={field.value}
+                  onChange={field.onChange}
+                  options={PRODUS_FITOSANITAR_TIP_APP_SELECT_OPTIONS}
+                  error={errors.tip?.message}
+                />
+              )}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="pf_frac">FRAC/IRAC (opțional)</Label>

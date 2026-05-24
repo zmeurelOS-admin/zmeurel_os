@@ -7,14 +7,7 @@ import { z } from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import {
   Sheet,
   SheetContent,
@@ -25,23 +18,15 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import {
-  getSistemConducereLabel,
-  getTipCicluSoiLabel,
   needsConfigurareSezon,
   type SistemConducere,
   type TipCicluSoi,
 } from '@/lib/tratamente/configurare-sezon'
 import type { GrupBiologic } from '@/lib/tratamente/stadii-canonic'
-
-const sistemConducereOptions: Array<{ value: SistemConducere; label: string }> = [
-  { value: 'primocane_only', label: getSistemConducereLabel('primocane_only') },
-  { value: 'mixt_floricane_primocane', label: getSistemConducereLabel('mixt_floricane_primocane') },
-]
-
-const tipCicluOptions: Array<{ value: TipCicluSoi; label: string }> = [
-  { value: 'determinat', label: getTipCicluSoiLabel('determinat') },
-  { value: 'nedeterminat', label: getTipCicluSoiLabel('nedeterminat') },
-]
+import {
+  SISTEM_CONDUCERE_APP_SELECT_OPTIONS,
+  TIP_CICLU_SOI_APP_SELECT_OPTIONS,
+} from '@/lib/ui/app-select-maps'
 
 const formSchema = z.object({
   sistem_conducere: z.string().optional(),
@@ -120,57 +105,29 @@ export function ConfigurareSezonDialog({
           Nu sunt necesare configurări specifice pentru această cultură.
         </p>
       ) : grupBiologic === 'rubus' ? (
-        <div className="space-y-2">
-          <Label>Sistem de conducere</Label>
-          <Select
-            value={form.watch('sistem_conducere') || undefined}
-            onValueChange={(value) =>
-              form.setValue('sistem_conducere', value, { shouldValidate: true, shouldDirty: true })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selectează sistemul" />
-            </SelectTrigger>
-            <SelectContent>
-              {sistemConducereOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {form.formState.errors.sistem_conducere ? (
-            <p className="text-xs text-[var(--status-danger-text)]">
-              {form.formState.errors.sistem_conducere.message}
-            </p>
-          ) : null}
-        </div>
+        <AppSelect
+          id="config-sistem-conducere"
+          label="Sistem de conducere"
+          placeholder="Selectează sistemul"
+          value={form.watch('sistem_conducere') ?? ''}
+          onChange={(value) =>
+            form.setValue('sistem_conducere', value, { shouldValidate: true, shouldDirty: true })
+          }
+          options={SISTEM_CONDUCERE_APP_SELECT_OPTIONS.filter((option) => option.value !== '')}
+          error={form.formState.errors.sistem_conducere?.message}
+        />
       ) : grupBiologic === 'solanacee' ? (
-        <div className="space-y-2">
-          <Label>Tip ciclu soi</Label>
-          <Select
-            value={form.watch('tip_ciclu_soi') || undefined}
-            onValueChange={(value) =>
-              form.setValue('tip_ciclu_soi', value, { shouldValidate: true, shouldDirty: true })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selectează tipul de ciclu" />
-            </SelectTrigger>
-            <SelectContent>
-              {tipCicluOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {form.formState.errors.tip_ciclu_soi ? (
-            <p className="text-xs text-[var(--status-danger-text)]">
-              {form.formState.errors.tip_ciclu_soi.message}
-            </p>
-          ) : null}
-        </div>
+        <AppSelect
+          id="config-tip-ciclu-soi"
+          label="Tip ciclu soi"
+          placeholder="Selectează tipul de ciclu"
+          value={form.watch('tip_ciclu_soi') ?? ''}
+          onChange={(value) =>
+            form.setValue('tip_ciclu_soi', value, { shouldValidate: true, shouldDirty: true })
+          }
+          options={TIP_CICLU_SOI_APP_SELECT_OPTIONS.filter((option) => option.value !== '')}
+          error={form.formState.errors.tip_ciclu_soi?.message}
+        />
       ) : null}
     </form>
   )

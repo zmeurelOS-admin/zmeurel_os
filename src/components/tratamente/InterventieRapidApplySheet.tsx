@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 
-import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
+import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { planificaInterventieRelevantaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

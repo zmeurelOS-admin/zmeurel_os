@@ -40,22 +40,19 @@ PWA:
 - Service worker prezent în `public/sw.js` și `public/workbox-caec65b4.js` (+ `.map`).
 - Înregistrare SW în client: `src/components/app/ServiceWorkerRegister.tsx`.
 
-## 4) Există Sentry config? Unde?
-Da.
+## 4) Există config de error monitoring dedicat? Unde?
+Nu la data curentă.
 
 Fișiere relevante:
-- `next.config.js` (wrap cu `withSentryConfig`)
-- `sentry.server.config.ts` (init server)
-- `src/instrumentation.ts` (register + `onRequestError`)
-- `src/instrumentation-client.ts` (init client + `onRouterTransitionStart`)
-- `src/components/app/MonitoringInit.tsx`
-- `src/lib/monitoring/useSentryUser.ts` (setează user în Sentry)
+- fallback-urile UI de eroare rămân în `src/app/global-error.tsx` și `src/app/(dashboard)/*/error.tsx`
+- logging-ul runtime merge prin `src/lib/monitoring/report-error.ts`
+- redactarea contextului sensibil merge prin `src/lib/logging/redaction.ts`
 
 ## 5) package.json - dependențe principale
 Runtime (principale):
 - Framework/UI: `next@16.1.6`, `react@19.2.3`, `react-dom@19.2.3`
 - Data/Auth: `@supabase/supabase-js`, `@supabase/ssr`, `@supabase/auth-helpers-nextjs`
-- Monitoring: `@sentry/nextjs`
+- Monitoring: `console.error` + helperi de redactare
 - State/fetch/forms: `@tanstack/react-query`, `react-hook-form`, `zod`, `zustand`
 - UI libs: `@radix-ui/*`, `lucide-react`, `sonner`, `class-variance-authority`, `clsx`
 - PWA: `next-pwa`

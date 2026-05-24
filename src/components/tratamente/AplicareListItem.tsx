@@ -1,6 +1,4 @@
 'use client'
-
-import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
 
@@ -11,6 +9,7 @@ import {
   getAplicareInterventieLabel,
   getAplicareProduseSummary,
 } from '@/components/tratamente/aplicare-ui'
+import { EditAplicareButton } from '@/components/tratamente/EditAplicareButton'
 import StatusBadge from '@/components/ui/StatusBadge'
 import type { AplicareTratamentDetaliu } from '@/lib/supabase/queries/tratamente'
 import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
@@ -71,7 +70,6 @@ export function AplicareListItem({
   parcelaId,
   configurareSezon,
 }: AplicareListItemProps) {
-  const href = `/parcele/${parcelaId}/tratamente/aplicare/${aplicare.id}`
   const dataAfisata = aplicare.data_aplicata ?? aplicare.data_planificata ?? aplicare.created_at
   const dateLabel = format(parseISO(dataAfisata), 'EEEE, d MMM', { locale: ro })
   const doza = formatDoza(aplicare)
@@ -82,10 +80,7 @@ export function AplicareListItem({
   const contextLabel = getAplicareContextLabel(aplicare)
 
   return (
-    <Link
-      href={href}
-      className="block rounded-xl outline-none transition-transform duration-150 focus-visible:ring-[3px] focus-visible:ring-[color:color-mix(in_srgb,var(--agri-primary)_28%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] active:scale-[0.98]"
-    >
+    <>
       <article
         className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-elevated)]"
         style={{ borderLeftWidth: 4, borderLeftColor: getAccentColor(aplicare) }}
@@ -141,7 +136,12 @@ export function AplicareListItem({
             ) : null}
           </div>
         ) : null}
+        <div className="mt-3">
+          <EditAplicareButton aplicareId={aplicare.id} variant="ghost">
+            Vezi detalii
+          </EditAplicareButton>
+        </div>
       </article>
-    </Link>
+    </>
   )
 }

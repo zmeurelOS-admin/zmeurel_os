@@ -7,15 +7,9 @@ import { z } from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Sheet,
   SheetContent,
@@ -26,13 +20,19 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { Cohorta, ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
-import { getCohortaLabel, getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
+import { getLabelStadiuContextual } from '@/lib/tratamente/configurare-sezon'
 import {
   listStadiiPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
   type StadiuCod,
 } from '@/lib/tratamente/stadii-canonic'
+import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
+import {
+  buildStadiuAppSelectOptions,
+  COHORTA_REQUIRED_APP_SELECT_OPTIONS,
+  formatStadiuOptionLabel,
+} from '@/lib/ui/app-select-maps'
 
 const sursaValues = ['manual', 'gdd', 'poza'] as const
 
@@ -132,6 +132,20 @@ export function RecordStadiuSheet({
     [availableStadii, configurareSezon, grupBiologic, cohortValue]
   )
 
+  const stadiuAppSelectOptions = useMemo(() => {
+    const emojiByCod = Object.fromEntries(
+      getStadiuOptions(grupBiologic).map((option) => [option.value, option.emoji])
+    )
+    return buildStadiuAppSelectOptions(
+      stadiiOptions.map((option) => ({
+        value: option.value,
+        label: option.label,
+        emoji: emojiByCod[option.value],
+      })),
+      'Selectează fenofaza'
+    )
+  }, [grupBiologic, stadiiOptions])
+
   useEffect(() => {
     if (open) {
       form.reset(getDefaultValues(availableStadii, suggestedStadiu, resolvedCohortPreselectat))
@@ -149,47 +163,29 @@ export function RecordStadiuSheet({
   const content = (
     <form className="space-y-4" onSubmit={save}>
       {isRubusMixt ? (
-        <div className="space-y-2">
-          <Label>Coortă</Label>
-          <Select
-            value={cohortValue}
-            onValueChange={(value) => form.setValue('cohort', value as Cohorta, { shouldValidate: true })}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selectează cohorta" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="floricane">{getCohortaLabel('floricane')}</SelectItem>
-              <SelectItem value="primocane">{getCohortaLabel('primocane')}</SelectItem>
-            </SelectContent>
-          </Select>
-          {form.formState.errors.cohort ? (
-            <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.cohort.message}</p>
-          ) : null}
-        </div>
+        <AppSelect
+          id="record-stadiu-cohort"
+          label="Coortă"
+          placeholder="Selectează cohorta"
+          value={cohortValue ?? ''}
+          onChange={(value) =>
+            form.setValue('cohort', value as Cohorta, { shouldValidate: true })
+          }
+          options={COHORTA_REQUIRED_APP_SELECT_OPTIONS}
+          error={form.formState.errors.cohort?.message}
+        />
       ) : null}
 
-      <div className="space-y-2">
-        <Label>Fenofază</Label>
-        <Select
-          value={selectedStadiu}
-          onValueChange={(value) => form.setValue('stadiu', value, { shouldValidate: true })}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selectează fenofaza" />
-          </SelectTrigger>
-          <SelectContent>
-            {stadiiOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {form.formState.errors.stadiu ? (
-          <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.stadiu.message}</p>
-        ) : null}
-      </div>
+      <AppSelect
+        id="record-stadiu-fenofaza"
+        label="Fenofază"
+        placeholder="Selectează fenofaza"
+        value={selectedStadiu ?? ''}
+        onChange={(value) => form.setValue('stadiu', value, { shouldValidate: true })}
+        options={stadiuAppSelectOptions}
+        getOptionDisplayLabel={formatStadiuOptionLabel}
+        error={form.formState.errors.stadiu?.message}
+      />
 
       <div className="space-y-2">
         <Label htmlFor="record-stadiu-data">Data observării</Label>

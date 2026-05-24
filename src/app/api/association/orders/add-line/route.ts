@@ -6,6 +6,7 @@ import { getAssociationRole } from '@/lib/association/auth'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import type { Json } from '@/types/supabase'
 
 export const runtime = 'nodejs'
 
@@ -176,30 +177,32 @@ export async function POST(request: Request) {
     const unitPrice = round2(pretUnitar)
     const lineTotal = round2(qty * unitPrice)
     const manualNote = `Adăugat manual de admin la comanda #${originalOrder.numar_comanda_scurt || shortOrderId(orderId)}`
+    // Tipurile generate cer explicit `Json | null` și câmpuri nullable prezente, chiar dacă runtime-ul rămâne identic.
+    const insertPayload = {
+      tenant_id: product.tenant_id,
+      client_id: originalOrder.client_id ?? null,
+      client_nume_manual: originalOrder.client_nume_manual ?? null,
+      telefon: originalOrder.telefon ?? null,
+      locatie_livrare: originalOrder.locatie_livrare ?? null,
+      data_comanda: originalOrder.data_comanda,
+      data_livrare: originalOrder.data_livrare ?? originalOrder.data_comanda,
+      cantitate_kg: qty,
+      pret_per_kg: unitPrice,
+      total: lineTotal,
+      cost_livrare: 0,
+      status: originalOrder.status,
+      observatii: manualNote,
+      data_origin: MAGAZIN_ASOCIATIE,
+      produs_id: product.id,
+      note_interne: originalOrder.note_interne ?? null,
+      canal_confirmare: originalOrder.canal_confirmare ?? null,
+      customer_snapshot: (originalOrder.customer_snapshot ?? null) as Json,
+      whatsapp_consent: originalOrder.whatsapp_consent ?? false,
+    }
 
     const { data: inserted, error: insertError } = await admin
       .from('comenzi')
-      .insert({
-        tenant_id: product.tenant_id,
-        ...(originalOrder.client_id ? { client_id: originalOrder.client_id } : {}),
-        ...(originalOrder.client_nume_manual ? { client_nume_manual: originalOrder.client_nume_manual } : {}),
-        ...(originalOrder.telefon ? { telefon: originalOrder.telefon } : {}),
-        ...(originalOrder.locatie_livrare ? { locatie_livrare: originalOrder.locatie_livrare } : {}),
-        data_comanda: originalOrder.data_comanda,
-        data_livrare: originalOrder.data_livrare ?? originalOrder.data_comanda,
-        cantitate_kg: qty,
-        pret_per_kg: unitPrice,
-        total: lineTotal,
-        cost_livrare: 0,
-        status: originalOrder.status,
-        observatii: manualNote,
-        data_origin: MAGAZIN_ASOCIATIE,
-        produs_id: product.id,
-        ...(originalOrder.note_interne ? { note_interne: originalOrder.note_interne } : {}),
-        ...(originalOrder.canal_confirmare ? { canal_confirmare: originalOrder.canal_confirmare } : {}),
-        ...(originalOrder.customer_snapshot ? { customer_snapshot: originalOrder.customer_snapshot } : {}),
-        whatsapp_consent: originalOrder.whatsapp_consent ?? false,
-      })
+      .insert(insertPayload)
       .select('id')
       .single()
 

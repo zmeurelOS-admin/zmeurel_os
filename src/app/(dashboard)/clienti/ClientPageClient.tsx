@@ -1035,7 +1035,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
               )}
               {importPreview.formulaFixCount > 0 && (
                 <p className="text-xs font-medium text-[var(--soft-info-text)]">
-                  ℹ️ {importPreview.formulaFixCount} {importPreview.formulaFixCount === 1 ? 'contact are' : 'contacte au'} nume din formulă Excel — s-a folosit coloana &ldquo;First Name&rdquo;
+                  ℹ️ {importPreview.formulaFixCount} {importPreview.formulaFixCount === 1 ? 'contact are' : 'contacte au'} nume din formulă .xlsx — s-a folosit coloana &ldquo;First Name&rdquo;
                 </p>
               )}
             </div>
@@ -1216,7 +1216,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       >
         <div className="space-y-4 text-sm text-[var(--agri-text-muted)]">
           <p>
-            Poți importa clienți dintr-un fișier <strong className="text-[var(--agri-text)]">Excel (.xlsx)</strong> sau{' '}
+            Poți încărca clienți dintr-un fișier <strong className="text-[var(--agri-text)]">.xlsx</strong> sau{' '}
             <strong className="text-[var(--agri-text)]">CSV</strong>.
           </p>
           <p>

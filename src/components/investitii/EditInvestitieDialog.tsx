@@ -13,8 +13,10 @@ import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSke
 import { InvestitieFormSummary } from '@/components/investitii/InvestitieFormSummary'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { buildCategoryInvestitiiOptions } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 
@@ -72,6 +74,7 @@ export function EditInvestitieDialog({
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors },
   } = useForm<InvestitieFormData>({
     resolver: zodResolver(investitieSchema),
@@ -208,40 +211,39 @@ export function EditInvestitieDialog({
                   {errors.data ? <p className="text-xs text-red-600">{errors.data.message}</p> : null}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_inv_categorie">Categorie</Label>
-                  <select
-                    id="edit_inv_categorie"
-                    className="agri-control h-12 w-full px-3 text-base md:h-11"
-                    {...register('categorie')}
-                  >
-                    <option value="">Selectează categoria</option>
-                    {CATEGORII_INVESTITII.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.categorie ? (
-                    <p className="text-xs text-red-600">{errors.categorie.message}</p>
-                  ) : null}
-                </div>
+                <AppSelect
+                  id="edit_inv_categorie"
+                  label="Categorie"
+                  placeholder="Selectează categoria"
+                  value={watchedCategorie ?? ''}
+                  options={buildCategoryInvestitiiOptions()}
+                  showSearchThreshold={12}
+                  triggerClassName="h-12 md:h-11"
+                  onChange={(nextValue) =>
+                    setValue('categorie', nextValue, { shouldDirty: true, shouldValidate: true })
+                  }
+                  error={errors.categorie?.message}
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit_inv_parcela">Parcelă</Label>
-                  <select
-                    id="edit_inv_parcela"
-                    className="agri-control h-12 w-full px-3 text-base md:h-11"
-                    {...register('parcela_id')}
-                  >
-                    <option value="">Fără legătură cu parcelă</option>
-                    {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
-                      <option key={parcela.id} value={parcela.id}>
-                        {parcela.nume_parcela || 'Parcela'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <AppSelect
+                  id="edit_inv_parcela"
+                  label="Parcelă"
+                  placeholder="Fără legătură cu parcelă"
+                  value={watchedParcelaId ?? ''}
+                  options={[
+                    { value: '', label: 'Fără legătură cu parcelă' },
+                    ...parcele.map((parcela: { id: string; nume_parcela: string | null }) => ({
+                      value: parcela.id,
+                      label: parcela.nume_parcela || 'Parcela',
+                    })),
+                  ]}
+                  showSearchThreshold={10}
+                  searchPlaceholder="Caută parcelă..."
+                  triggerClassName="h-12 md:h-11"
+                  onChange={(nextValue) =>
+                    setValue('parcela_id', nextValue, { shouldDirty: true, shouldValidate: true })
+                  }
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="edit_inv_suma">Suma investită (lei)</Label>

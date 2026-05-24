@@ -11,7 +11,7 @@ import { ProdusFitosanitarPicker } from '@/components/tratamente/ProdusFitosanit
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
@@ -21,6 +21,14 @@ import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 
 import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
+import {
+  buildStadiuAppSelectOptions,
+  formatStadiuOptionLabel,
+  REPETARE_REGULA_APP_SELECT_OPTIONS,
+  SCOP_INTERVENTIE_APP_SELECT_OPTIONS,
+  PRODUCT_TYPE_APP_SELECT_OPTIONS,
+  TIP_INTERVENTIE_APP_SELECT_OPTIONS,
+} from '@/lib/ui/app-select-maps'
 import {
   createEmptyLineProduct,
   type PlanWizardLinieProdusDraft,
@@ -191,6 +199,10 @@ export function AdaugaInterventieManualDialog({
   })
   const [pending, setPending] = useState(false)
   const stadiuOptions = useMemo(() => getStadiuOptions(grupBiologic), [grupBiologic])
+  const stadiuAppSelectOptions = useMemo(
+    () => buildStadiuAppSelectOptions(stadiuOptions, 'Alege fenofaza'),
+    [stadiuOptions]
+  )
   const validationError = getValidationError(value)
 
   useEffect(() => {
@@ -302,49 +314,40 @@ export function AdaugaInterventieManualDialog({
     <div className="space-y-4 pr-1 min-w-0">
       <div className="grid gap-4 md:grid-cols-2 min-w-0">
         <div className="space-y-2">
-          <Label htmlFor="manual-linie-stadiu">Fenofază</Label>
-          <select
+          <AppSelect
             id="manual-linie-stadiu"
+            label="Fenofază"
+            placeholder="Alege fenofaza"
             value={value.stadiu_trigger}
-            onChange={(event) =>
-              setValue((current) => ({ ...current, stadiu_trigger: event.target.value }))
+            options={stadiuAppSelectOptions}
+            showSearchThreshold={12}
+            getOptionDisplayLabel={formatStadiuOptionLabel}
+            triggerClassName="h-11 rounded-xl text-sm"
+            onChange={(nextValue) =>
+              setValue((current) => ({ ...current, stadiu_trigger: nextValue }))
             }
-            className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-          >
-            <option value="">Alege fenofaza</option>
-            {stadiuOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.emoji} {option.label}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="manual-linie-tip">Tip intervenție</Label>
-        <Select
-          value={value.tip_interventie_select || undefined}
-          onValueChange={(next) =>
+        <AppSelect
+          id="manual-linie-tip"
+          label="Tip intervenție"
+          placeholder="Selectează tipul intervenției"
+          value={value.tip_interventie_select}
+          options={TIP_INTERVENTIE_APP_SELECT_OPTIONS}
+          triggerClassName="h-11 rounded-xl text-sm"
+          menuClassName="max-w-[calc(100vw-2rem)]"
+          onChange={(next) =>
             setValue((current) => ({
               ...current,
               tip_interventie_select: next,
               tip_interventie_custom: next === 'alt_tip' ? current.tip_interventie_custom : '',
             }))
           }
-        >
-          <SelectTrigger id="manual-linie-tip" className="agri-control h-11 w-full rounded-xl px-3 text-sm">
-            <SelectValue placeholder="Selectează tipul intervenției" />
-          </SelectTrigger>
-          <SelectContent className="max-w-[calc(100vw-2rem)]">
-            {TIP_INTERVENTIE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
         {value.tip_interventie_select === 'alt_tip' ? (
           <Input
             value={value.tip_interventie_custom}
@@ -371,27 +374,21 @@ export function AdaugaInterventieManualDialog({
 
       <div className="space-y-2">
         <Label htmlFor="manual-linie-scop">Scop / titlu intervenție</Label>
-        <Select
-          value={value.scop_select || undefined}
-          onValueChange={(next) =>
+        <AppSelect
+          id="manual-linie-scop"
+          placeholder="Selectează scopul"
+          value={value.scop_select}
+          options={SCOP_INTERVENTIE_APP_SELECT_OPTIONS}
+          triggerClassName="h-11 rounded-xl text-sm"
+          menuClassName="max-w-[calc(100vw-2rem)]"
+          onChange={(next) =>
             setValue((current) => ({
               ...current,
               scop_select: next,
               scop_custom: next === 'alt_scop' ? current.scop_custom : '',
             }))
           }
-        >
-          <SelectTrigger id="manual-linie-scop" className="agri-control h-11 w-full rounded-xl px-3 text-sm">
-            <SelectValue placeholder="Selectează scopul" />
-          </SelectTrigger>
-          <SelectContent className="max-w-[calc(100vw-2rem)]">
-            {SCOP_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
         {value.scop_select === 'alt_scop' ? (
           <Input
             value={value.scop_custom}
@@ -610,10 +607,15 @@ export function AdaugaInterventieManualDialog({
                   ) : null}
 
                   <div className="space-y-2">
-                    <Label className="md:text-[11px]">Tip produs</Label>
-                    <Select
+                    <AppSelect
+                      id={`manual-prod-tip-${produs.id}`}
+                      label="Tip produs"
+                      placeholder="Selectează tip produs"
                       value={produs.product_category}
-                      onValueChange={(next) =>
+                      options={PRODUCT_TYPE_APP_SELECT_OPTIONS}
+                      triggerClassName="h-11 rounded-xl text-sm md:py-1.5 md:text-[13px]"
+                      menuClassName="max-w-[calc(100vw-2rem)]"
+                      onChange={(next) =>
                         updateProduct(produs.id, (current) => ({
                           ...current,
                           product_category: next as ManualProductDraft['product_category'],
@@ -623,18 +625,7 @@ export function AdaugaInterventieManualDialog({
                           phi_zile_snapshot: next === 'fitosanitar' ? current.phi_zile_snapshot : null,
                         }))
                       }
-                    >
-                      <SelectTrigger className="agri-control h-11 w-full rounded-xl px-3 text-sm md:py-1.5 md:text-[13px]">
-                        <SelectValue placeholder="Selectează tip produs" />
-                      </SelectTrigger>
-                      <SelectContent className="max-w-[calc(100vw-2rem)]">
-                        {PRODUCT_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
                   <div className="hidden md:block" aria-hidden />
 
@@ -754,23 +745,20 @@ export function AdaugaInterventieManualDialog({
 
       <div className="grid gap-4 md:grid-cols-2 min-w-0">
         <div className="space-y-2">
-          <Label htmlFor="manual-linie-regula">Regula repetare</Label>
-          <select
+          <AppSelect
             id="manual-linie-regula"
+            label="Regula repetare"
             value={value.regula_repetare}
-            onChange={(event) =>
+            options={REPETARE_REGULA_APP_SELECT_OPTIONS}
+            triggerClassName="h-11 rounded-xl text-sm"
+            onChange={(nextValue) =>
               setValue((current) => ({
                 ...current,
-                regula_repetare: event.target.value as ManualInterventieValue['regula_repetare'],
-                interval_repetare_zile:
-                  event.target.value === 'interval' ? current.interval_repetare_zile : null,
+                regula_repetare: nextValue as ManualInterventieValue['regula_repetare'],
+                interval_repetare_zile: nextValue === 'interval' ? current.interval_repetare_zile : null,
               }))
             }
-            className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-          >
-            <option value="fara_repetare">Fără repetare</option>
-            <option value="interval">La interval</option>
-          </select>
+          />
         </div>
 
         {value.regula_repetare === 'interval' ? (

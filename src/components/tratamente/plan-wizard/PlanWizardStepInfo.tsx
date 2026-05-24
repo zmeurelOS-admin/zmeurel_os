@@ -3,9 +3,11 @@
 import { Sprout } from 'lucide-react'
 
 import { AppCard } from '@/components/ui/app-card'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { withPlaceholderOption } from '@/lib/ui/app-select-utils'
 
 import type { PlanWizardInfoData } from '@/components/tratamente/plan-wizard/types'
 
@@ -22,6 +24,11 @@ export function PlanWizardStepInfo({
   value,
   onChange,
 }: PlanWizardStepInfoProps) {
+  const culturaAppSelectOptions = withPlaceholderOption(
+    culturi.map((cultura) => ({ value: cultura, label: cultura, emoji: '🌱' })),
+    { value: '', label: 'Alege cultura' }
+  )
+
   return (
     <div className="space-y-4">
       <AppCard className="rounded-[22px] p-4 sm:p-5">
@@ -55,20 +62,15 @@ export function PlanWizardStepInfo({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="plan-cultura">Cultura țintă *</Label>
-            <select
+            <AppSelect
               id="plan-cultura"
+              label="Cultura țintă *"
+              placeholder="Alege cultura"
               value={value.cultura_tip}
-              onChange={(event) => onChange({ ...value, cultura_tip: event.target.value })}
-              className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-            >
-              <option value="">Alege cultura</option>
-              {culturi.map((cultura) => (
-                <option key={cultura} value={cultura}>
-                  {cultura}
-                </option>
-              ))}
-            </select>
+              options={culturaAppSelectOptions}
+              triggerClassName="h-11 rounded-xl text-sm"
+              onChange={(nextValue) => onChange({ ...value, cultura_tip: nextValue })}
+            />
             {errors.cultura_tip ? <p className="text-sm text-[var(--soft-danger-text)]">{errors.cultura_tip}</p> : null}
           </div>
 

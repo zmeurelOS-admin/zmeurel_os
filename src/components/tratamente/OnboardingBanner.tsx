@@ -39,7 +39,7 @@ export function OnboardingBanner({
         <OnboardingStep
           step={1}
           label="Creează primul plan"
-          description="Poți porni din wizard sau dintr-un import Excel existent."
+          description="Poți porni din template sau dintr-un plan gol editabil."
           status={arePlan ? 'completed' : 'active'}
           ctaHref="/tratamente/planuri/nou"
           ctaLabel="Începe"

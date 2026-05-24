@@ -7,17 +7,15 @@ import { AppDialog } from '@/components/app/AppDialog';
 import { DialogFormActions } from '@/components/ui/dialog-form-actions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AppSelect } from '@/components/ui/app-select';
+import { emojiOptionsToAppSelect } from '@/lib/ui/app-select-utils';
+import { getParcelScopOptions, getParcelStatusOperationalOptions, getParcelStatusOptions } from '@/lib/parcele/parcel-form-options';
 import { updateParcela } from '@/lib/supabase/queries/parcele';
 import type { Parcela } from '@/lib/supabase/queries/parcele';
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic';
 import { formatM2ToHa, parseLocalizedNumber } from '@/lib/utils/area';
 import { ParcelUsageFields, applyScopDefaults } from '@/components/parcele/ParcelUsageFields';
 import {
-  PARCELA_SCOPURI,
-  SCOP_LABELS,
-  STATUS_OPERATIONAL_LABELS,
-  STATUS_OPERATIONAL_VALUES,
   coerceParcelaScopFromDb,
   coerceStatusOperationalFromDb,
   type ParcelaScop,
@@ -147,10 +145,11 @@ export function EditParcelaDialog({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label>Scop</Label>
-            <Select
+            <AppSelect
+              id="edit-parcela-scop"
+              label="Scop"
               value={formData.rol}
-              onValueChange={(value) => {
+              onChange={(value) => {
                 const next = value as ParcelaScop
                 const defs = applyScopDefaults(next)
                 setFormData((prev) => ({
@@ -160,39 +159,20 @@ export function EditParcelaDialog({
                   contribuie_la_productie: defs.contribuie_la_productie,
                 }))
               }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PARCELA_SCOPURI.map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {SCOP_LABELS[key]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={emojiOptionsToAppSelect(getParcelScopOptions())}
+            />
           </div>
 
           <div className="space-y-2">
-            <Label>Situație operațională</Label>
-            <Select
+            <AppSelect
+              id="edit-parcela-status-operational"
+              label="Situație operațională"
               value={formData.status_operational}
-              onValueChange={(value) =>
+              onChange={(value) =>
                 setFormData((prev) => ({ ...prev, status_operational: value as StatusOperational }))
               }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPERATIONAL_VALUES.map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {STATUS_OPERATIONAL_LABELS[key]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={emojiOptionsToAppSelect(getParcelStatusOperationalOptions())}
+            />
           </div>
         </div>
 
@@ -212,19 +192,14 @@ export function EditParcelaDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="soi_plantat">Soi Plantat</Label>
-          <Select value={formData.soi_plantat} onValueChange={(value) => handleInputChange('soi_plantat', value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selectează soi" />
-            </SelectTrigger>
-            <SelectContent>
-              {soiuriDisponibile.map((soi) => (
-                <SelectItem key={soi} value={soi}>
-                  {soi}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AppSelect
+            id="edit-parcela-soi"
+            label="Soi Plantat"
+            placeholder="Selectează soi"
+            value={formData.soi_plantat}
+            onChange={(value) => handleInputChange('soi_plantat', value)}
+            options={soiuriDisponibile.map((soi) => ({ value: soi, label: soi, emoji: '🌿' }))}
+          />
         </div>
 
         <div className="space-y-2">
@@ -238,17 +213,13 @@ export function EditParcelaDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="status">Status *</Label>
-          <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Activ">Activ</SelectItem>
-              <SelectItem value="Inactiv">Inactiv</SelectItem>
-              <SelectItem value="In Pregatire">In Pregatire</SelectItem>
-            </SelectContent>
-          </Select>
+          <AppSelect
+            id="edit-parcela-status"
+            label="Status *"
+            value={formData.status}
+            onChange={(value) => handleInputChange('status', value)}
+            options={emojiOptionsToAppSelect(getParcelStatusOptions())}
+          />
         </div>
 
         <div className="space-y-2">

@@ -18,6 +18,7 @@ import { format, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
 
 import { Sparkline } from '@/components/dashboard/Sparkline'
+import { EditAplicareButton } from '@/components/tratamente/EditAplicareButton'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import type { DashboardTreatmentSuggestion } from '@/lib/dashboard/treatment-suggestions'
@@ -401,9 +402,6 @@ function TreatmentSuggestionBlock({
   secondary?: boolean
 }) {
   const status = treatmentStatusMeta(suggestion.status)
-  const detailHref = suggestion.aplicareId
-    ? `/parcele/${suggestion.parcelaId}/tratamente/aplicare/${suggestion.aplicareId}`
-    : '/tratamente'
   const dateLabel = formatTreatmentDate(suggestion.recommendedDate)
 
   return (
@@ -460,9 +458,9 @@ function TreatmentSuggestionBlock({
       {primary ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {suggestion.aplicareId ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={detailHref}>Vezi aplicarea</Link>
-            </Button>
+            <EditAplicareButton aplicareId={suggestion.aplicareId}>
+              Vezi aplicarea
+            </EditAplicareButton>
           ) : null}
           <Button asChild size="sm">
             <Link href="/tratamente">Deschide hub Tratamente</Link>

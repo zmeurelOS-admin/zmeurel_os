@@ -10,13 +10,7 @@ import { AppDialog } from '@/components/app/AppDialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { queryKeys } from '@/lib/query-keys'
@@ -40,6 +34,8 @@ import {
   type StadiuCod,
 } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
+import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
+import { COHORTA_APP_SELECT_OPTIONS, formatStadiuOptionLabel } from '@/lib/ui/app-select-maps'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 
 const schema = z.object({
@@ -181,13 +177,19 @@ export function AddStadiuDialog({
 
   const stadiuValue = useWatch({ control: form.control, name: 'stadiu' }) || ''
   const cohortValue = useWatch({ control: form.control, name: 'cohort' }) || undefined
-  const stageOptions = useMemo(
-    () =>
-      stageValues.map((cod) => ({
-        value: cod,
-        label: getLabelPentruGrup(cod, grupBiologic, { cohort: cohortValue }),
-      })),
-    [cohortValue, grupBiologic, stageValues]
+  const stageOptions = useMemo(() => {
+    const emojiByCod = Object.fromEntries(
+      getStadiuOptions(grupBiologic).map((option) => [option.value, option.emoji])
+    )
+    return stageValues.map((cod) => ({
+      value: cod,
+      label: getLabelPentruGrup(cod, grupBiologic, { cohort: cohortValue }),
+      emoji: emojiByCod[cod],
+    }))
+  }, [cohortValue, grupBiologic, stageValues])
+  const cohortSelectOptions = useMemo(
+    () => COHORTA_APP_SELECT_OPTIONS.filter((option) => option.value !== ''),
+    []
   )
 
   return (
@@ -231,47 +233,30 @@ export function AddStadiuDialog({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <Label>Stadiu *</Label>
-          <Select
-            value={stadiuValue}
-            onValueChange={(value) => form.setValue('stadiu', value, { shouldValidate: true })}
-          >
-            <SelectTrigger className="agri-control h-12 w-full px-3 text-base">
-              <SelectValue placeholder="Alege stadiul" />
-            </SelectTrigger>
-            <SelectContent>
-              {stageOptions.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {form.formState.errors.stadiu ? (
-            <p className="text-xs text-red-600">{form.formState.errors.stadiu.message}</p>
-          ) : null}
-        </div>
+        <AppSelect
+          id="add-stadiu-cod"
+          label="Stadiu *"
+          placeholder="Alege stadiul"
+          value={stadiuValue}
+          options={stageOptions}
+          showSearchThreshold={12}
+          getOptionDisplayLabel={formatStadiuOptionLabel}
+          triggerClassName="h-12 text-base"
+          onChange={(value) => form.setValue('stadiu', value, { shouldValidate: true })}
+          error={form.formState.errors.stadiu?.message}
+        />
 
         {isRubusMixt ? (
-          <div className="space-y-2">
-            <Label>Coortă *</Label>
-            <Select
-              value={cohortValue}
-              onValueChange={(value) => form.setValue('cohort', value as Cohorta, { shouldValidate: true })}
-            >
-              <SelectTrigger className="agri-control h-12 w-full px-3 text-base">
-                <SelectValue placeholder="Alege cohorta" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="floricane">Floricane</SelectItem>
-                <SelectItem value="primocane">Primocane</SelectItem>
-              </SelectContent>
-            </Select>
-            {form.formState.errors.cohort ? (
-              <p className="text-xs text-red-600">{form.formState.errors.cohort.message}</p>
-            ) : null}
-          </div>
+          <AppSelect
+            id="add-stadiu-cohort"
+            label="Cohortă *"
+            placeholder="Alege cohorta"
+            value={cohortValue ?? ''}
+            options={cohortSelectOptions}
+            triggerClassName="h-12 text-base"
+            onChange={(value) => form.setValue('cohort', value as Cohorta, { shouldValidate: true })}
+            error={form.formState.errors.cohort?.message}
+          />
         ) : null}
 
         <div className="space-y-2">

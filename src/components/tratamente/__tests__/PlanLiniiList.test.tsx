@@ -15,6 +15,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({
     refresh: routerRefresh,
   }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 vi.mock('@/app/(dashboard)/tratamente/planuri/[planId]/actions', () => ({
@@ -59,6 +60,7 @@ function makeLinie(index: number): PlanTratamentLinieCuProdus {
     produs_nume_manual: null,
     doza_ml_per_hl: 500,
     doza_l_per_ha: null,
+    metoda_aplicare: null,
     observatii: null,
     sursa_linie: 'din_plan',
     motiv_adaugare: null,

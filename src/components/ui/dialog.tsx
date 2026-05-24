@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from "@/lib/ui/dialog-history"
 import { MODAL_OVERLAY_CLASSES } from "@/lib/ui/modal-overlay-classes"
 import { useDocumentModalState } from "@/components/ui/modal-layer"
 
@@ -23,7 +24,7 @@ const Dialog = ({ open, onOpenChange, disableHistory = false, ...props }: Dialog
     window.history.pushState(
       {
         ...(window.history.state ?? {}),
-        __zmeurelDialog: true,
+        [DIALOG_HISTORY_MARKER]: true,
       },
       ""
     )
@@ -50,9 +51,9 @@ const Dialog = ({ open, onOpenChange, disableHistory = false, ...props }: Dialog
 
     if (addedHistoryEntryRef.current) {
       addedHistoryEntryRef.current = false
-      if (window.history.state?.__zmeurelDialog) {
-        window.history.back()
-      }
+      // Programmatic close (Cancel / X): strip marker only — do not history.back(),
+      // which would pop parent parcel sheet or leave the parcel route.
+      stripDialogHistoryMarker()
     }
   }, [open, disableHistory])
 

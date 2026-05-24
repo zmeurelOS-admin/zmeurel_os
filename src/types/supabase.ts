@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -34,8 +54,8 @@ export type Database = {
           sync_status: string | null
           tenant_id: string | null
           timp_pauza_zile: number | null
-          tip_deprecat: boolean
           tip_activitate: string | null
+          tip_deprecat: boolean
           updated_at: string
           updated_by: string | null
         }
@@ -58,8 +78,8 @@ export type Database = {
           sync_status?: string | null
           tenant_id?: string | null
           timp_pauza_zile?: number | null
-          tip_deprecat?: boolean
           tip_activitate?: string | null
+          tip_deprecat?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -82,8 +102,8 @@ export type Database = {
           sync_status?: string | null
           tenant_id?: string | null
           timp_pauza_zile?: number | null
-          tip_deprecat?: boolean
           tip_activitate?: string | null
+          tip_deprecat?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -164,284 +184,7 @@ export type Database = {
           tip_activitate?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activitati_extra_season_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      aplicari_tratament: {
-        Row: {
-          cantitate_totala_ml: number | null
-          cohort_la_aplicare: string | null
-          created_at: string
-          created_by: string | null
-          cultura_id: string | null
-          data_aplicata: string | null
-          data_planificata: string | null
-          diferente_fata_de_plan: Json | null
-          doza_l_per_ha: number | null
-          doza_ml_per_hl: number | null
-          id: string
-          meteo_snapshot: Json | null
-          observatii: string | null
-          operator: string | null
-          parcela_id: string
-          plan_linie_id: string | null
-          produs_id: string | null
-          produs_nume_manual: string | null
-          status: string
-          stadiu_la_aplicare: string | null
-          stadiu_fenologic_id: string | null
-          stoc_mutatie_id: string | null
-          scop: string | null
-          sursa: string
-          tenant_id: string
-          tip_interventie: string | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          cantitate_totala_ml?: number | null
-          cohort_la_aplicare?: string | null
-          created_at?: string
-          created_by?: string | null
-          cultura_id?: string | null
-          data_aplicata?: string | null
-          data_planificata?: string | null
-          diferente_fata_de_plan?: Json | null
-          doza_l_per_ha?: number | null
-          doza_ml_per_hl?: number | null
-          id?: string
-          meteo_snapshot?: Json | null
-          observatii?: string | null
-          operator?: string | null
-          parcela_id: string
-          plan_linie_id?: string | null
-          produs_id?: string | null
-          produs_nume_manual?: string | null
-          status?: string
-          stadiu_la_aplicare?: string | null
-          stadiu_fenologic_id?: string | null
-          stoc_mutatie_id?: string | null
-          scop?: string | null
-          sursa?: string
-          tenant_id: string
-          tip_interventie?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          cantitate_totala_ml?: number | null
-          cohort_la_aplicare?: string | null
-          created_at?: string
-          created_by?: string | null
-          cultura_id?: string | null
-          data_aplicata?: string | null
-          data_planificata?: string | null
-          diferente_fata_de_plan?: Json | null
-          doza_l_per_ha?: number | null
-          doza_ml_per_hl?: number | null
-          id?: string
-          meteo_snapshot?: Json | null
-          observatii?: string | null
-          operator?: string | null
-          parcela_id?: string
-          plan_linie_id?: string | null
-          produs_id?: string | null
-          produs_nume_manual?: string | null
-          status?: string
-          stadiu_la_aplicare?: string | null
-          stadiu_fenologic_id?: string | null
-          stoc_mutatie_id?: string | null
-          scop?: string | null
-          sursa?: string
-          tenant_id?: string
-          tip_interventie?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "aplicari_tratament_cultura_id_fkey"
-            columns: ["cultura_id"]
-            isOneToOne: false
-            referencedRelation: "culturi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_plan_linie_id_fkey"
-            columns: ["plan_linie_id"]
-            isOneToOne: false
-            referencedRelation: "planuri_tratament_linii"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_produs_id_fkey"
-            columns: ["produs_id"]
-            isOneToOne: false
-            referencedRelation: "produse_fitosanitare"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_stadiu_fenologic_id_fkey"
-            columns: ["stadiu_fenologic_id"]
-            isOneToOne: false
-            referencedRelation: "stadii_fenologice_parcela"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_stoc_mutatie_id_fkey"
-            columns: ["stoc_mutatie_id"]
-            isOneToOne: false
-            referencedRelation: "miscari_stoc"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      aplicari_tratament_produse: {
-        Row: {
-          aplicare_id: string
-          cantitate_totala: number | null
-          created_at: string
-          doza_l_per_ha: number | null
-          doza_ml_per_hl: number | null
-          frac_irac_snapshot: string | null
-          id: string
-          observatii: string | null
-          ordine: number
-          phi_zile_snapshot: number | null
-          plan_linie_produs_id: string | null
-          produs_id: string | null
-          produs_nume_manual: string | null
-          produs_nume_snapshot: string
-          stoc_mutatie_id: string | null
-          substanta_activa_snapshot: string | null
-          tenant_id: string
-          tip_snapshot: string | null
-          unitate_cantitate: string | null
-          updated_at: string
-        }
-        Insert: {
-          aplicare_id: string
-          cantitate_totala?: number | null
-          created_at?: string
-          doza_l_per_ha?: number | null
-          doza_ml_per_hl?: number | null
-          frac_irac_snapshot?: string | null
-          id?: string
-          observatii?: string | null
-          ordine: number
-          phi_zile_snapshot?: number | null
-          plan_linie_produs_id?: string | null
-          produs_id?: string | null
-          produs_nume_manual?: string | null
-          produs_nume_snapshot: string
-          stoc_mutatie_id?: string | null
-          substanta_activa_snapshot?: string | null
-          tenant_id: string
-          tip_snapshot?: string | null
-          unitate_cantitate?: string | null
-          updated_at?: string
-        }
-        Update: {
-          aplicare_id?: string
-          cantitate_totala?: number | null
-          created_at?: string
-          doza_l_per_ha?: number | null
-          doza_ml_per_hl?: number | null
-          frac_irac_snapshot?: string | null
-          id?: string
-          observatii?: string | null
-          ordine?: number
-          phi_zile_snapshot?: number | null
-          plan_linie_produs_id?: string | null
-          produs_id?: string | null
-          produs_nume_manual?: string | null
-          produs_nume_snapshot?: string
-          stoc_mutatie_id?: string | null
-          substanta_activa_snapshot?: string | null
-          tenant_id?: string
-          tip_snapshot?: string | null
-          unitate_cantitate?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "aplicari_tratament_produse_aplicare_id_fkey"
-            columns: ["aplicare_id"]
-            isOneToOne: false
-            referencedRelation: "aplicari_tratament"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_produse_plan_linie_produs_id_fkey"
-            columns: ["plan_linie_produs_id"]
-            isOneToOne: false
-            referencedRelation: "planuri_tratament_linie_produse"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_produse_produs_id_fkey"
-            columns: ["produs_id"]
-            isOneToOne: false
-            referencedRelation: "produse_fitosanitare"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_produse_stoc_mutatie_id_fkey"
-            columns: ["stoc_mutatie_id"]
-            isOneToOne: false
-            referencedRelation: "miscari_stoc"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aplicari_tratament_produse_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ai_conversations: {
         Row: {
@@ -519,9 +262,11 @@ export type Database = {
       analytics_events: {
         Row: {
           created_at: string
-          event_data: Json
+          event_data: Json | null
           event_name: string
+          event_type: string
           id: string
+          metadata: Json
           module: string
           page_url: string | null
           session_id: string | null
@@ -531,9 +276,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          event_data?: Json
+          event_data?: Json | null
           event_name: string
+          event_type?: string
           id?: string
+          metadata?: Json
           module?: string
           page_url?: string | null
           session_id?: string | null
@@ -543,9 +290,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          event_data?: Json
+          event_data?: Json | null
           event_name?: string
+          event_type?: string
           id?: string
+          metadata?: Json
           module?: string
           page_url?: string | null
           session_id?: string | null
@@ -563,29 +312,266 @@ export type Database = {
           },
         ]
       }
-      association_members: {
+      aplicari_tratament: {
         Row: {
+          cantitate_totala_ml: number | null
+          cohort_la_aplicare: string | null
           created_at: string
+          created_by: string | null
+          cultura_id: string | null
+          data_aplicata: string | null
+          data_planificata: string | null
+          diferente_fata_de_plan: Json | null
+          doza_l_per_ha: number | null
+          doza_ml_per_hl: number | null
           id: string
-          invited_by: string | null
-          role: string
-          user_id: string
+          meteo_snapshot: Json | null
+          metoda_aplicare: string | null
+          observatii: string | null
+          operator: string | null
+          parcela_id: string
+          plan_linie_id: string | null
+          produs_id: string | null
+          produs_nume_manual: string | null
+          scop: string | null
+          stadiu_fenologic_id: string | null
+          stadiu_la_aplicare: string | null
+          status: string
+          stoc_mutatie_id: string | null
+          sursa: string
+          tenant_id: string
+          tip_interventie: string | null
+          updated_at: string
+          updated_by: string | null
         }
         Insert: {
+          cantitate_totala_ml?: number | null
+          cohort_la_aplicare?: string | null
           created_at?: string
+          created_by?: string | null
+          cultura_id?: string | null
+          data_aplicata?: string | null
+          data_planificata?: string | null
+          diferente_fata_de_plan?: Json | null
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
           id?: string
-          invited_by?: string | null
-          role?: string
-          user_id: string
+          meteo_snapshot?: Json | null
+          metoda_aplicare?: string | null
+          observatii?: string | null
+          operator?: string | null
+          parcela_id: string
+          plan_linie_id?: string | null
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          scop?: string | null
+          stadiu_fenologic_id?: string | null
+          stadiu_la_aplicare?: string | null
+          status?: string
+          stoc_mutatie_id?: string | null
+          sursa?: string
+          tenant_id: string
+          tip_interventie?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Update: {
+          cantitate_totala_ml?: number | null
+          cohort_la_aplicare?: string | null
           created_at?: string
+          created_by?: string | null
+          cultura_id?: string | null
+          data_aplicata?: string | null
+          data_planificata?: string | null
+          diferente_fata_de_plan?: Json | null
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
           id?: string
-          invited_by?: string | null
-          role?: string
-          user_id?: string
+          meteo_snapshot?: Json | null
+          metoda_aplicare?: string | null
+          observatii?: string | null
+          operator?: string | null
+          parcela_id?: string
+          plan_linie_id?: string | null
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          scop?: string | null
+          stadiu_fenologic_id?: string | null
+          stadiu_la_aplicare?: string | null
+          status?: string
+          stoc_mutatie_id?: string | null
+          sursa?: string
+          tenant_id?: string
+          tip_interventie?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "aplicari_tratament_cultura_id_fkey"
+            columns: ["cultura_id"]
+            isOneToOne: false
+            referencedRelation: "culturi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_plan_linie_id_fkey"
+            columns: ["plan_linie_id"]
+            isOneToOne: false
+            referencedRelation: "planuri_tratament_linii"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produs_id_fkey"
+            columns: ["produs_id"]
+            isOneToOne: false
+            referencedRelation: "produse_fitosanitare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_stadiu_fenologic_id_fkey"
+            columns: ["stadiu_fenologic_id"]
+            isOneToOne: false
+            referencedRelation: "stadii_fenologice_parcela"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_stoc_mutatie_id_fkey"
+            columns: ["stoc_mutatie_id"]
+            isOneToOne: false
+            referencedRelation: "miscari_stoc"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      aplicari_tratament_produse: {
+        Row: {
+          aplicare_id: string
+          cantitate_text: string | null
+          cantitate_totala: number | null
+          created_at: string
+          doza_l_per_ha: number | null
+          doza_ml_per_hl: number | null
+          frac_irac_snapshot: string | null
+          id: string
+          observatii: string | null
+          ordine: number
+          phi_zile_snapshot: number | null
+          plan_linie_produs_id: string | null
+          produs_id: string | null
+          produs_nume_manual: string | null
+          produs_nume_snapshot: string
+          stoc_mutatie_id: string | null
+          substanta_activa_snapshot: string | null
+          tenant_id: string
+          tip_snapshot: string | null
+          unitate_cantitate: string | null
+          updated_at: string
+        }
+        Insert: {
+          aplicare_id: string
+          cantitate_text?: string | null
+          cantitate_totala?: number | null
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          frac_irac_snapshot?: string | null
+          id?: string
+          observatii?: string | null
+          ordine: number
+          phi_zile_snapshot?: number | null
+          plan_linie_produs_id?: string | null
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          produs_nume_snapshot: string
+          stoc_mutatie_id?: string | null
+          substanta_activa_snapshot?: string | null
+          tenant_id: string
+          tip_snapshot?: string | null
+          unitate_cantitate?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aplicare_id?: string
+          cantitate_text?: string | null
+          cantitate_totala?: number | null
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          frac_irac_snapshot?: string | null
+          id?: string
+          observatii?: string | null
+          ordine?: number
+          phi_zile_snapshot?: number | null
+          plan_linie_produs_id?: string | null
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          produs_nume_snapshot?: string
+          stoc_mutatie_id?: string | null
+          substanta_activa_snapshot?: string | null
+          tenant_id?: string
+          tip_snapshot?: string | null
+          unitate_cantitate?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aplicari_tratament_produse_aplicare_id_fkey"
+            columns: ["aplicare_id"]
+            isOneToOne: false
+            referencedRelation: "aplicari_tratament"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_plan_linie_produs_id_fkey"
+            columns: ["plan_linie_produs_id"]
+            isOneToOne: false
+            referencedRelation: "planuri_tratament_linie_produse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_produs_id_fkey"
+            columns: ["produs_id"]
+            isOneToOne: false
+            referencedRelation: "produse_fitosanitare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_stoc_mutatie_id_fkey"
+            columns: ["stoc_mutatie_id"]
+            isOneToOne: false
+            referencedRelation: "miscari_stoc"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aplicari_tratament_produse_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       association_categories: {
         Row: {
@@ -611,36 +597,27 @@ export type Database = {
         }
         Relationships: []
       }
-      association_public_contacts: {
+      association_members: {
         Row: {
           created_at: string
-          email: string | null
-          facebook_url: string | null
-          instagram_url: string | null
-          order_phone: string | null
-          phone: string | null
-          slug: string
-          updated_at: string
+          id: string
+          invited_by: string | null
+          role: string
+          user_id: string
         }
         Insert: {
           created_at?: string
-          email?: string | null
-          facebook_url?: string | null
-          instagram_url?: string | null
-          order_phone?: string | null
-          phone?: string | null
-          slug?: string
-          updated_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          user_id: string
         }
         Update: {
           created_at?: string
-          email?: string | null
-          facebook_url?: string | null
-          instagram_url?: string | null
-          order_phone?: string | null
-          phone?: string | null
-          slug?: string
-          updated_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -704,6 +681,39 @@ export type Database = {
           },
         ]
       }
+      association_public_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          facebook_url: string | null
+          instagram_url: string | null
+          order_phone: string | null
+          phone: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          order_phone?: string | null
+          phone?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          facebook_url?: string | null
+          instagram_url?: string | null
+          order_phone?: string | null
+          phone?: string | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -736,6 +746,153 @@ export type Database = {
           {
             foreignKeyName: "audit_logs_target_tenant_id_fkey"
             columns: ["target_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capcane_montate: {
+        Row: {
+          aplicare_id: string | null
+          created_at: string
+          created_by: string | null
+          data_montare: string
+          data_urmatoarea_verificare: string | null
+          foto_url: string | null
+          id: string
+          nr_bucati: number
+          observatii: string | null
+          parcela_id: string
+          status: string
+          tenant_id: string
+          tip_capcana: string
+          updated_at: string
+        }
+        Insert: {
+          aplicare_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_montare?: string
+          data_urmatoarea_verificare?: string | null
+          foto_url?: string | null
+          id?: string
+          nr_bucati: number
+          observatii?: string | null
+          parcela_id: string
+          status?: string
+          tenant_id: string
+          tip_capcana: string
+          updated_at?: string
+        }
+        Update: {
+          aplicare_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_montare?: string
+          data_urmatoarea_verificare?: string | null
+          foto_url?: string | null
+          id?: string
+          nr_bucati?: number
+          observatii?: string | null
+          parcela_id?: string
+          status?: string
+          tenant_id?: string
+          tip_capcana?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capcane_montate_aplicare_id_fkey"
+            columns: ["aplicare_id"]
+            isOneToOne: false
+            referencedRelation: "aplicari_tratament"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capcane_montate_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capcane_montate_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capcane_montate_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capcane_verificari: {
+        Row: {
+          actiune: string | null
+          aplicare_id: string | null
+          capcana_montata_id: string
+          created_at: string
+          created_by: string | null
+          data_verificare: string
+          foto_url: string | null
+          id: string
+          nr_capturati: number | null
+          observatii: string | null
+          prag_depasit: boolean | null
+          tenant_id: string
+        }
+        Insert: {
+          actiune?: string | null
+          aplicare_id?: string | null
+          capcana_montata_id: string
+          created_at?: string
+          created_by?: string | null
+          data_verificare?: string
+          foto_url?: string | null
+          id?: string
+          nr_capturati?: number | null
+          observatii?: string | null
+          prag_depasit?: boolean | null
+          tenant_id: string
+        }
+        Update: {
+          actiune?: string | null
+          aplicare_id?: string | null
+          capcana_montata_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_verificare?: string
+          foto_url?: string | null
+          id?: string
+          nr_capturati?: number | null
+          observatii?: string | null
+          prag_depasit?: boolean | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capcane_verificari_aplicare_id_fkey"
+            columns: ["aplicare_id"]
+            isOneToOne: false
+            referencedRelation: "aplicari_tratament"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capcane_verificari_capcana_montata_id_fkey"
+            columns: ["capcana_montata_id"]
+            isOneToOne: false
+            referencedRelation: "capcane_montate"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capcane_verificari_tenant_id_fkey"
+            columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
             referencedColumns: ["id"]
@@ -783,7 +940,7 @@ export type Database = {
           metoda_plata?: string | null
           suma_lei: number
           sync_status?: string | null
-          tenant_id?: string
+          tenant_id: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -854,7 +1011,7 @@ export type Database = {
           observatii?: string | null
           pret_negociat_lei_kg?: number | null
           telefon?: string | null
-          tenant_id?: string
+          tenant_id: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -889,11 +1046,13 @@ export type Database = {
       }
       comenzi: {
         Row: {
+          canal_confirmare: string | null
           cantitate_kg: number
           client_id: string | null
           client_nume_manual: string | null
           cost_livrare: number
           created_at: string
+          customer_snapshot: Json | null
           data_comanda: string
           data_livrare: string
           data_origin: string | null
@@ -901,11 +1060,14 @@ export type Database = {
           id: string
           linked_vanzare_id: string | null
           locatie_livrare: string | null
+          note_interne: string | null
+          numar_comanda_scurt: string | null
           observatii: string | null
           parent_comanda_id: string | null
           pret_per_kg: number
           produs_id: string | null
           status: string
+          stock_deducted: boolean
           telefon: string | null
           tenant_id: string
           total: number
@@ -913,11 +1075,13 @@ export type Database = {
           whatsapp_consent: boolean
         }
         Insert: {
+          canal_confirmare?: string | null
           cantitate_kg: number
           client_id?: string | null
           client_nume_manual?: string | null
           cost_livrare?: number
           created_at?: string
+          customer_snapshot?: Json | null
           data_comanda?: string
           data_livrare: string
           data_origin?: string | null
@@ -925,11 +1089,14 @@ export type Database = {
           id?: string
           linked_vanzare_id?: string | null
           locatie_livrare?: string | null
+          note_interne?: string | null
+          numar_comanda_scurt?: string | null
           observatii?: string | null
           parent_comanda_id?: string | null
           pret_per_kg: number
           produs_id?: string | null
           status?: string
+          stock_deducted?: boolean
           telefon?: string | null
           tenant_id: string
           total?: number
@@ -937,11 +1104,13 @@ export type Database = {
           whatsapp_consent?: boolean
         }
         Update: {
+          canal_confirmare?: string | null
           cantitate_kg?: number
           client_id?: string | null
           client_nume_manual?: string | null
           cost_livrare?: number
           created_at?: string
+          customer_snapshot?: Json | null
           data_comanda?: string
           data_livrare?: string
           data_origin?: string | null
@@ -949,11 +1118,14 @@ export type Database = {
           id?: string
           linked_vanzare_id?: string | null
           locatie_livrare?: string | null
+          note_interne?: string | null
+          numar_comanda_scurt?: string | null
           observatii?: string | null
           parent_comanda_id?: string | null
           pret_per_kg?: number
           produs_id?: string | null
           status?: string
+          stock_deducted?: boolean
           telefon?: string | null
           tenant_id?: string
           total?: number
@@ -1005,6 +1177,111 @@ export type Database = {
           },
         ]
       }
+      configurari_parcela_sezon: {
+        Row: {
+          an: number
+          created_at: string
+          id: string
+          parcela_id: string
+          sistem_conducere: string | null
+          tenant_id: string
+          tip_ciclu_soi: string | null
+          updated_at: string
+        }
+        Insert: {
+          an: number
+          created_at?: string
+          id?: string
+          parcela_id: string
+          sistem_conducere?: string | null
+          tenant_id: string
+          tip_ciclu_soi?: string | null
+          updated_at?: string
+        }
+        Update: {
+          an?: number
+          created_at?: string
+          id?: string
+          parcela_id?: string
+          sistem_conducere?: string | null
+          tenant_id?: string
+          tip_ciclu_soi?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configurari_parcela_sezon_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configurari_parcela_sezon_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configurari_parcela_sezon_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consent_events: {
+        Row: {
+          canal: string
+          created_at: string | null
+          granted_at: string | null
+          id: string
+          ip_address: string | null
+          order_id: string | null
+          phone: string
+          revoked_at: string | null
+          scope: string
+          tenant_context: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          canal: string
+          created_at?: string | null
+          granted_at?: string | null
+          id?: string
+          ip_address?: string | null
+          order_id?: string | null
+          phone: string
+          revoked_at?: string | null
+          scope?: string
+          tenant_context?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          canal?: string
+          created_at?: string | null
+          granted_at?: string | null
+          id?: string
+          ip_address?: string | null
+          order_id?: string | null
+          phone?: string
+          revoked_at?: string | null
+          scope?: string
+          tenant_context?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "comenzi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crop_varieties: {
         Row: {
           created_at: string
@@ -1044,12 +1321,11 @@ export type Database = {
           },
         ]
       }
-      // Manual sync for crop canonicalization migrations (`crops.cod`, then `crops.grup_biologic`).
       crops: {
         Row: {
           cod: string
           created_at: string
-          grup_biologic: string | null
+          grup_biologic: string
           id: string
           name: string
           tenant_id: string | null
@@ -1058,7 +1334,7 @@ export type Database = {
         Insert: {
           cod: string
           created_at?: string
-          grup_biologic?: string | null
+          grup_biologic: string
           id?: string
           name: string
           tenant_id?: string | null
@@ -1067,21 +1343,13 @@ export type Database = {
         Update: {
           cod?: string
           created_at?: string
-          grup_biologic?: string | null
+          grup_biologic?: string
           id?: string
           name?: string
           tenant_id?: string | null
           unit_type?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "crops_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       culegatori: {
         Row: {
@@ -1349,6 +1617,94 @@ export type Database = {
           },
         ]
       }
+      farmer_legal_docs: {
+        Row: {
+          certificate_expiry: string | null
+          certificate_number: string | null
+          certificate_photo_url: string | null
+          certificate_series: string | null
+          created_at: string
+          cui: string | null
+          full_name: string | null
+          legal_accepted_at: string | null
+          legal_docs_complete: boolean | null
+          legal_type: Database["public"]["Enums"]["farmer_legal_type"] | null
+          locality: string | null
+          phone: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          certificate_expiry?: string | null
+          certificate_number?: string | null
+          certificate_photo_url?: string | null
+          certificate_series?: string | null
+          created_at?: string
+          cui?: string | null
+          full_name?: string | null
+          legal_accepted_at?: string | null
+          legal_docs_complete?: boolean | null
+          legal_type?: Database["public"]["Enums"]["farmer_legal_type"] | null
+          locality?: string | null
+          phone?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          certificate_expiry?: string | null
+          certificate_number?: string | null
+          certificate_photo_url?: string | null
+          certificate_series?: string | null
+          created_at?: string
+          cui?: string | null
+          full_name?: string | null
+          legal_accepted_at?: string | null
+          legal_docs_complete?: boolean | null
+          legal_type?: Database["public"]["Enums"]["farmer_legal_type"] | null
+          locality?: string | null
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmer_legal_docs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      farmer_weekly_summary_runs: {
+        Row: {
+          created_at: string
+          tenant_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          tenant_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          tenant_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farmer_weekly_summary_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback: {
         Row: {
           created_at: string
@@ -1479,7 +1835,7 @@ export type Database = {
           id_investitie: string
           parcela_id?: string | null
           suma_lei: number
-          tenant_id?: string
+          tenant_id: string
           updated_at?: string | null
         }
         Update: {
@@ -1500,24 +1856,60 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "investitii_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "investitii_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "investitii_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_log: {
+        Row: {
+          canal: string
+          created_at: string | null
+          destinatar_phone: string
+          id: string
+          order_id: string | null
+          provider: string | null
+          provider_message_id: string | null
+          provider_response: Json | null
+          sent_at: string | null
+          status: string
+          tip_mesaj: string
+        }
+        Insert: {
+          canal: string
+          created_at?: string | null
+          destinatar_phone: string
+          id?: string
+          order_id?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          sent_at?: string | null
+          status?: string
+          tip_mesaj: string
+        }
+        Update: {
+          canal?: string
+          created_at?: string | null
+          destinatar_phone?: string
+          id?: string
+          order_id?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          provider_response?: Json | null
+          sent_at?: string | null
+          status?: string
+          tip_mesaj?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "comenzi"
             referencedColumns: ["id"]
           },
         ]
@@ -1706,15 +2098,7 @@ export type Database = {
           updated_at?: string | null
           valoare?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "nomenclatoare_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -1755,92 +2139,6 @@ export type Database = {
         }
         Relationships: []
       }
-      farmer_legal_docs: {
-        Row: {
-          certificate_expiry: string | null
-          certificate_number: string | null
-          certificate_photo_url: string | null
-          certificate_series: string | null
-          cui: string | null
-          created_at: string
-          full_name: string | null
-          legal_accepted_at: string | null
-          legal_docs_complete: boolean
-          legal_type: Database['public']['Enums']['farmer_legal_type'] | null
-          locality: string | null
-          phone: string | null
-          tenant_id: string
-          updated_at: string
-        }
-        Insert: {
-          certificate_expiry?: string | null
-          certificate_number?: string | null
-          certificate_photo_url?: string | null
-          certificate_series?: string | null
-          cui?: string | null
-          created_at?: string
-          full_name?: string | null
-          legal_accepted_at?: string | null
-          legal_type?: Database['public']['Enums']['farmer_legal_type'] | null
-          locality?: string | null
-          phone?: string | null
-          tenant_id: string
-          updated_at?: string
-        }
-        Update: {
-          certificate_expiry?: string | null
-          certificate_number?: string | null
-          certificate_photo_url?: string | null
-          certificate_series?: string | null
-          cui?: string | null
-          created_at?: string
-          full_name?: string | null
-          legal_accepted_at?: string | null
-          legal_type?: Database['public']['Enums']['farmer_legal_type'] | null
-          locality?: string | null
-          phone?: string | null
-          tenant_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "farmer_legal_docs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: true
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      farmer_weekly_summary_runs: {
-        Row: {
-          created_at: string
-          tenant_id: string
-          week_end: string
-          week_start: string
-        }
-        Insert: {
-          created_at?: string
-          tenant_id: string
-          week_end: string
-          week_start: string
-        }
-        Update: {
-          created_at?: string
-          tenant_id?: string
-          week_end?: string
-          week_start?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "farmer_weekly_summary_runs_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       parcele: {
         Row: {
           an_plantare: number
@@ -1867,11 +2165,6 @@ export type Database = {
           sistem_irigare: string | null
           soi: string | null
           soi_plantat: string | null
-          /**
-           * @deprecated Nefolosit de modulul Tratamente din Faza 0.
-           * Folosește stadii_fenologice_parcela pentru stadii fenologice.
-           * A nu se folosi în cod nou.
-           */
           stadiu: string
           status: string | null
           status_operational: string
@@ -1907,16 +2200,11 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
-          /**
-           * @deprecated Nefolosit de modulul Tratamente din Faza 0.
-           * Folosește stadii_fenologice_parcela pentru stadii fenologice.
-           * A nu se folosi în cod nou.
-           */
           stadiu?: string
           status?: string | null
           status_operational?: string
           suprafata_m2: number
-          tenant_id?: string
+          tenant_id: string
           tip_fruct?: string | null
           tip_unitate?: string
           updated_at?: string
@@ -1947,11 +2235,6 @@ export type Database = {
           sistem_irigare?: string | null
           soi?: string | null
           soi_plantat?: string | null
-          /**
-           * @deprecated Nefolosit de modulul Tratamente din Faza 0.
-           * Folosește stadii_fenologice_parcela pentru stadii fenologice.
-           * A nu se folosi în cod nou.
-           */
           stadiu?: string
           status?: string | null
           status_operational?: string
@@ -2084,153 +2367,9 @@ export type Database = {
           },
         ]
       }
-      configurari_parcela_sezon: {
-        Row: {
-          an: number
-          created_at: string
-          id: string
-          parcela_id: string
-          sistem_conducere: string | null
-          tenant_id: string
-          tip_ciclu_soi: string | null
-          updated_at: string
-        }
-        Insert: {
-          an: number
-          created_at?: string
-          id?: string
-          parcela_id: string
-          sistem_conducere?: string | null
-          tenant_id: string
-          tip_ciclu_soi?: string | null
-          updated_at?: string
-        }
-        Update: {
-          an?: number
-          created_at?: string
-          id?: string
-          parcela_id?: string
-          sistem_conducere?: string | null
-          tenant_id?: string
-          tip_ciclu_soi?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "configurari_parcela_sezon_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "configurari_parcela_sezon_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      planuri_tratament_linii: {
-        Row: {
-          cohort_trigger: string | null
-          created_at: string
-          doza_l_per_ha: number | null
-          doza_ml_per_hl: number | null
-          fereastra_end_offset_zile: number | null
-          fereastra_start_offset_zile: number | null
-          id: string
-          interval_repetare_zile: number | null
-          motiv_adaugare: string | null
-          numar_repetari_max: number | null
-          observatii: string | null
-          ordine: number
-          plan_id: string
-          produs_id: string | null
-          produs_nume_manual: string | null
-          regula_repetare: string
-          scop: string | null
-          stadiu_trigger: string
-          sursa_linie: "adaugata_manual" | "din_plan"
-          tenant_id: string
-          tip_interventie: string | null
-          updated_at: string
-        }
-        Insert: {
-          cohort_trigger?: string | null
-          created_at?: string
-          doza_l_per_ha?: number | null
-          doza_ml_per_hl?: number | null
-          fereastra_end_offset_zile?: number | null
-          fereastra_start_offset_zile?: number | null
-          id?: string
-          interval_repetare_zile?: number | null
-          motiv_adaugare?: string | null
-          numar_repetari_max?: number | null
-          observatii?: string | null
-          ordine: number
-          plan_id: string
-          produs_id?: string | null
-          produs_nume_manual?: string | null
-          regula_repetare?: string
-          scop?: string | null
-          stadiu_trigger: string
-          sursa_linie?: "adaugata_manual" | "din_plan"
-          tenant_id: string
-          tip_interventie?: string | null
-          updated_at?: string
-        }
-        Update: {
-          cohort_trigger?: string | null
-          created_at?: string
-          doza_l_per_ha?: number | null
-          doza_ml_per_hl?: number | null
-          fereastra_end_offset_zile?: number | null
-          fereastra_start_offset_zile?: number | null
-          id?: string
-          interval_repetare_zile?: number | null
-          motiv_adaugare?: string | null
-          numar_repetari_max?: number | null
-          observatii?: string | null
-          ordine?: number
-          plan_id?: string
-          produs_id?: string | null
-          produs_nume_manual?: string | null
-          regula_repetare?: string
-          scop?: string | null
-          stadiu_trigger?: string
-          sursa_linie?: "adaugata_manual" | "din_plan"
-          tenant_id?: string
-          tip_interventie?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "planuri_tratament_linii_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "planuri_tratament"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planuri_tratament_linii_produs_id_fkey"
-            columns: ["produs_id"]
-            isOneToOne: false
-            referencedRelation: "produse_fitosanitare"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "planuri_tratament_linii_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       planuri_tratament_linie_produse: {
         Row: {
+          cantitate_text: string | null
           created_at: string
           doza_l_per_ha: number | null
           doza_ml_per_hl: number | null
@@ -2249,6 +2388,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cantitate_text?: string | null
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
@@ -2267,6 +2407,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cantitate_text?: string | null
           created_at?: string
           doza_l_per_ha?: number | null
           doza_ml_per_hl?: number | null
@@ -2308,12 +2449,117 @@ export type Database = {
           },
         ]
       }
+      planuri_tratament_linii: {
+        Row: {
+          cohort_trigger: string | null
+          created_at: string
+          doza_l_per_ha: number | null
+          doza_ml_per_hl: number | null
+          fereastra_end_offset_zile: number | null
+          fereastra_start_offset_zile: number | null
+          id: string
+          interval_repetare_zile: number | null
+          metoda_aplicare: string | null
+          motiv_adaugare: string | null
+          numar_repetari_max: number | null
+          observatii: string | null
+          ordine: number
+          plan_id: string
+          produs_id: string | null
+          produs_nume_manual: string | null
+          regula_repetare: string
+          scop: string | null
+          stadiu_trigger: string
+          sursa_linie: string
+          tenant_id: string
+          tip_interventie: string | null
+          updated_at: string
+        }
+        Insert: {
+          cohort_trigger?: string | null
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          fereastra_end_offset_zile?: number | null
+          fereastra_start_offset_zile?: number | null
+          id?: string
+          interval_repetare_zile?: number | null
+          metoda_aplicare?: string | null
+          motiv_adaugare?: string | null
+          numar_repetari_max?: number | null
+          observatii?: string | null
+          ordine: number
+          plan_id: string
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          regula_repetare?: string
+          scop?: string | null
+          stadiu_trigger: string
+          sursa_linie?: string
+          tenant_id: string
+          tip_interventie?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cohort_trigger?: string | null
+          created_at?: string
+          doza_l_per_ha?: number | null
+          doza_ml_per_hl?: number | null
+          fereastra_end_offset_zile?: number | null
+          fereastra_start_offset_zile?: number | null
+          id?: string
+          interval_repetare_zile?: number | null
+          metoda_aplicare?: string | null
+          motiv_adaugare?: string | null
+          numar_repetari_max?: number | null
+          observatii?: string | null
+          ordine?: number
+          plan_id?: string
+          produs_id?: string | null
+          produs_nume_manual?: string | null
+          regula_repetare?: string
+          scop?: string | null
+          stadiu_trigger?: string
+          sursa_linie?: string
+          tenant_id?: string
+          tip_interventie?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planuri_tratament_linii_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planuri_tratament"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planuri_tratament_linii_produs_id_fkey"
+            columns: ["produs_id"]
+            isOneToOne: false
+            referencedRelation: "produse_fitosanitare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planuri_tratament_linii_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produse: {
         Row: {
           alergeni: string | null
           approximate_weight: string | null
-          association_listed: boolean
+          assoc_alergeni: string | null
+          assoc_ingrediente: string | null
+          assoc_pastrare: string | null
+          assoc_tip_produs: string | null
+          assoc_valabilitate: string | null
           association_category: string | null
+          association_listed: boolean
           association_price: number | null
           categorie: string
           conditii_pastrare: string | null
@@ -2340,8 +2586,13 @@ export type Database = {
         Insert: {
           alergeni?: string | null
           approximate_weight?: string | null
-          association_listed?: boolean
+          assoc_alergeni?: string | null
+          assoc_ingrediente?: string | null
+          assoc_pastrare?: string | null
+          assoc_tip_produs?: string | null
+          assoc_valabilitate?: string | null
           association_category?: string | null
+          association_listed?: boolean
           association_price?: number | null
           categorie?: string
           conditii_pastrare?: string | null
@@ -2368,8 +2619,13 @@ export type Database = {
         Update: {
           alergeni?: string | null
           approximate_weight?: string | null
-          association_listed?: boolean
+          assoc_alergeni?: string | null
+          assoc_ingrediente?: string | null
+          assoc_pastrare?: string | null
+          assoc_tip_produs?: string | null
+          assoc_valabilitate?: string | null
           association_category?: string | null
+          association_listed?: boolean
           association_price?: number | null
           categorie?: string
           conditii_pastrare?: string | null
@@ -2598,7 +2854,7 @@ export type Database = {
           parcela_id?: string | null
           pret_lei_pe_kg_snapshot?: number
           sync_status?: string | null
-          tenant_id?: string
+          tenant_id: string
           updated_at?: string
           updated_by?: string | null
           valoare_munca_lei?: number
@@ -2640,20 +2896,6 @@ export type Database = {
             columns: ["cultura_id"]
             isOneToOne: false
             referencedRelation: "culturi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recoltari_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recoltari_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
             referencedColumns: ["id"]
           },
           {
@@ -2794,12 +3036,10 @@ export type Database = {
         Row: {
           created_at: string
           date: string
-          id: string
           total_kg_cal1: number
           total_kg_cal2: number
           total_parcele: number
           total_recoltari: number
-          total_revenue: number
           total_revenue_lei: number
           total_tenants: number
           total_vanzari: number
@@ -2808,12 +3048,10 @@ export type Database = {
         Insert: {
           created_at?: string
           date: string
-          id?: string
           total_kg_cal1?: number
           total_kg_cal2?: number
           total_parcele?: number
           total_recoltari?: number
-          total_revenue?: number
           total_revenue_lei?: number
           total_tenants?: number
           total_vanzari?: number
@@ -2822,12 +3060,10 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string
-          id?: string
           total_kg_cal1?: number
           total_kg_cal2?: number
           total_parcele?: number
           total_recoltari?: number
-          total_revenue?: number
           total_revenue_lei?: number
           total_tenants?: number
           total_vanzari?: number
@@ -2878,19 +3114,26 @@ export type Database = {
           demo_seeded: boolean
           demo_seeded_at: string | null
           descriere_publica: string | null
+          email_public: string | null
           exclude_from_analytics: boolean
           expires_at: string | null
+          facebook: string | null
           id: string
+          instagram: string | null
           is_association_approved: boolean
           is_demo: boolean
           localitate: string | null
+          logo_url: string | null
           nume_ferma: string
           onboarding_shown_at: string | null
           owner_user_id: string | null
           plan: string | null
           poze_ferma: string[] | null
+          program_piata: string | null
           specialitate: string | null
           updated_at: string | null
+          website: string | null
+          whatsapp: string | null
         }
         Insert: {
           contact_phone?: string | null
@@ -2899,19 +3142,26 @@ export type Database = {
           demo_seeded?: boolean
           demo_seeded_at?: string | null
           descriere_publica?: string | null
+          email_public?: string | null
           exclude_from_analytics?: boolean
           expires_at?: string | null
+          facebook?: string | null
           id?: string
+          instagram?: string | null
           is_association_approved?: boolean
           is_demo?: boolean
           localitate?: string | null
+          logo_url?: string | null
           nume_ferma: string
           onboarding_shown_at?: string | null
           owner_user_id?: string | null
           plan?: string | null
           poze_ferma?: string[] | null
+          program_piata?: string | null
           specialitate?: string | null
           updated_at?: string | null
+          website?: string | null
+          whatsapp?: string | null
         }
         Update: {
           contact_phone?: string | null
@@ -2920,19 +3170,26 @@ export type Database = {
           demo_seeded?: boolean
           demo_seeded_at?: string | null
           descriere_publica?: string | null
+          email_public?: string | null
           exclude_from_analytics?: boolean
           expires_at?: string | null
+          facebook?: string | null
           id?: string
+          instagram?: string | null
           is_association_approved?: boolean
           is_demo?: boolean
           localitate?: string | null
+          logo_url?: string | null
           nume_ferma?: string
           onboarding_shown_at?: string | null
           owner_user_id?: string | null
           plan?: string | null
           poze_ferma?: string[] | null
+          program_piata?: string | null
           specialitate?: string | null
           updated_at?: string | null
+          website?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
@@ -2977,7 +3234,7 @@ export type Database = {
           produs_id?: string | null
           status_plata?: string | null
           sync_status?: string | null
-          tenant_id?: string
+          tenant_id: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -3023,13 +3280,6 @@ export type Database = {
             columns: ["produs_id"]
             isOneToOne: false
             referencedRelation: "produse"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3110,36 +3360,7 @@ export type Database = {
           total_lei?: number
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "vanzari_butasi_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clienti"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
-            columns: ["parcela_sursa_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
-            columns: ["parcela_sursa_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_butasi_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       vanzari_butasi_items: {
         Row: {
@@ -3332,29 +3553,7 @@ export type Database = {
           tip_activitate: string | null
           updated_at: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
-            columns: ["parcela_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activitati_extra_season_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       parcele_extended: {
         Row: {
@@ -3533,36 +3732,7 @@ export type Database = {
           total_lei?: number | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "vanzari_butasi_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clienti"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
-            columns: ["parcela_sursa_id"]
-            isOneToOne: false
-            referencedRelation: "parcele"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
-            columns: ["parcela_sursa_id"]
-            isOneToOne: false
-            referencedRelation: "parcele_extended"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_butasi_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       vanzari_extended: {
         Row: {
@@ -3641,13 +3811,6 @@ export type Database = {
             columns: ["comanda_id"]
             isOneToOne: false
             referencedRelation: "comenzi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vanzari_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3853,30 +4016,60 @@ export type Database = {
         }
         Returns: Json
       }
-      upsert_plan_tratament_cu_linii: {
-        Args: {
-          p_an: number
-          p_linii: Json
-          p_parcele_ids: string[] | null
-          p_plan_data: Json
-          p_plan_id: string | null
-        }
+      generate_business_id: { Args: { prefix: string }; Returns: string }
+      generate_farmer_weekly_summary: {
+        Args: { p_anchor_date?: string }
+        Returns: {
+          item_count: number
+          notification_id: string
+          tenant_id: string
+          week_end: string
+          week_start: string
+        }[]
+      }
+      get_association_role: { Args: { p_user_id: string }; Returns: string }
+      get_public_farmer_card: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          farm_name: string
+          full_name: string
+          legal_badge: string
+          locality: string
+          logo_url: string
+          tenant_id: string
+        }[]
+      }
+      is_legal_docs_complete: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      is_superadmin: { Args: { check_user_id?: string }; Returns: boolean }
+      list_association_farmer_legal_status: {
+        Args: never
+        Returns: {
+          farm_name: string
+          full_name: string
+          legal_docs_complete: boolean
+          legal_type: Database["public"]["Enums"]["farmer_legal_type"]
+          locality: string
+          logo_url: string
+          owner_user_id: string
+          tenant_id: string
+        }[]
+      }
+      mark_association_order_delivered_atomic: {
+        Args: { p_line_ids: string[]; p_order_id: string }
         Returns: Json
       }
-      generate_business_id: { Args: { prefix: string }; Returns: string }
-      get_association_role: { Args: { p_user_id: string }; Returns: string }
-      is_superadmin: { Args: { check_user_id?: string }; Returns: boolean }
       refresh_tenant_metrics_daily: {
         Args: { p_date?: string }
         Returns: {
           created_at: string
           date: string
-          id: string
           total_kg_cal1: number
           total_kg_cal2: number
           total_parcele: number
           total_recoltari: number
-          total_revenue: number
           total_revenue_lei: number
           total_tenants: number
           total_vanzari: number
@@ -3892,11 +4085,13 @@ export type Database = {
       reopen_comanda_atomic: {
         Args: { p_comanda_id: string; p_tenant_id?: string }
         Returns: {
+          canal_confirmare: string | null
           cantitate_kg: number
           client_id: string | null
           client_nume_manual: string | null
           cost_livrare: number
           created_at: string
+          customer_snapshot: Json | null
           data_comanda: string
           data_livrare: string
           data_origin: string | null
@@ -3904,11 +4099,14 @@ export type Database = {
           id: string
           linked_vanzare_id: string | null
           locatie_livrare: string | null
+          note_interne: string | null
+          numar_comanda_scurt: string | null
           observatii: string | null
           parent_comanda_id: string | null
           pret_per_kg: number
           produs_id: string | null
           status: string
+          stock_deducted: boolean
           telefon: string | null
           tenant_id: string
           total: number
@@ -4034,6 +4232,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      upsert_plan_tratament_cu_linii: {
+        Args: {
+          p_an: number
+          p_linii: Json
+          p_parcele_ids: string[]
+          p_plan_data: Json
+          p_plan_id: string
+        }
+        Returns: Json
+      }
       upsert_with_idempotency: {
         Args: { payload: Json; table_name: string }
         Returns: Json
@@ -4055,11 +4263,7 @@ export type Database = {
         | "in_livrare"
         | "livrata"
         | "anulata"
-      farmer_legal_type:
-        | "certificat_producator"
-        | "pfa"
-        | "ii"
-        | "srl"
+      farmer_legal_type: "certificat_producator" | "pfa" | "ii" | "srl"
       miscare_stoc_tip_global:
         | "recoltare"
         | "ajustare"
@@ -4191,6 +4395,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       comanda_status: [
@@ -4201,12 +4408,7 @@ export const Constants = {
         "livrata",
         "anulata",
       ],
-      farmer_legal_type: [
-        "certificat_producator",
-        "pfa",
-        "ii",
-        "srl",
-      ],
+      farmer_legal_type: ["certificat_producator", "pfa", "ii", "srl"],
       miscare_stoc_tip_global: [
         "recoltare",
         "ajustare",
@@ -4217,3 +4419,4 @@ export const Constants = {
     },
   },
 } as const
+

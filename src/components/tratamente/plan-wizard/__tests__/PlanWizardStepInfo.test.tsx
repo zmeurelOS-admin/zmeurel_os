@@ -43,6 +43,8 @@ describe('PlanWizardStepInfo', () => {
     await user.type(screen.getByLabelText('Denumire plan *'), 'Plan zmeur 2026')
 
     expect(onChange).toHaveBeenCalled()
-    expect(screen.getByRole('option', { name: 'zmeur' })).toBeInTheDocument()
+
+    await user.click(screen.getByLabelText('Cultura țintă *'))
+    expect(await screen.findByRole('option', { name: /zmeur/i })).toBeInTheDocument()
   })
 })

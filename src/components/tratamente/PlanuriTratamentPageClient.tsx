@@ -1,10 +1,9 @@
 'use client'
 
-import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, FileSpreadsheet } from 'lucide-react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ClipboardList } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import {
   arhiveazaPlanTratamentAction,
@@ -21,6 +20,7 @@ import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { DesktopToolbar } from '@/components/ui/desktop'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { AppSelect } from '@/components/ui/app-select'
 import { SearchField } from '@/components/ui/SearchField'
 import type { PlanTratamentListItem } from '@/lib/supabase/queries/tratamente'
 import { queryKeys } from '@/lib/query-keys'
@@ -29,9 +29,7 @@ import { toast } from '@/lib/ui/toast'
 type StatusFilter = 'active' | 'archived' | 'all'
 
 export function PlanuriTratamentPageClient() {
-  const pathname = usePathname()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
@@ -40,45 +38,6 @@ export function PlanuriTratamentPageClient() {
   const [deletePlanId, setDeletePlanId] = useState<string | null>(null)
   const [deletePlanName, setDeletePlanName] = useState('')
   const [deleteApplicariCount, setDeleteApplicariCount] = useState(0)
-
-  useEffect(() => {
-    const importedRaw = searchParams.get('imported')
-    const failedRaw = searchParams.get('failed')
-
-    if (!importedRaw && !failedRaw) return
-
-    const imported = Number(importedRaw ?? '0')
-    const failed = Number(failedRaw ?? '0')
-    const failedPlans = (searchParams.get('failedPlans') ?? '')
-      .split('||')
-      .map((item) => item.trim())
-      .filter(Boolean)
-
-    if (imported > 0 && failed === 0) {
-      toast.success(`${imported} planuri importate cu succes.`)
-    } else if (imported > 0 && failed > 0) {
-      toast.warning(
-        `${imported}/${imported + failed} planuri importate. Erori: ${
-          failedPlans.join(', ') || 'verifică fișierele respinse'
-        }.`
-      )
-    } else if (failed > 0) {
-      toast.error(
-        `Importul nu a salvat niciun plan. Erori: ${
-          failedPlans.join(', ') || 'verifică datele din review'
-        }.`
-      )
-    }
-
-    const nextParams = new URLSearchParams(searchParams.toString())
-    nextParams.delete('imported')
-    nextParams.delete('failed')
-    nextParams.delete('failedPlans')
-    const nextQuery = nextParams.toString()
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-      scroll: false,
-    })
-  }, [pathname, router, searchParams])
 
   const { data: planuri = [], isLoading, isError } = useQuery({
     queryKey: queryKeys.planuriTratament,
@@ -140,6 +99,23 @@ export function PlanuriTratamentPageClient() {
   const cultureOptions = useMemo(() => {
     return ['all', ...new Set(planuri.map((plan) => plan.cultura_tip).filter(Boolean))] as string[]
   }, [planuri])
+  const cultureFilterAppSelectOptions = useMemo(
+    () =>
+      cultureOptions.map((cultura) => ({
+        value: cultura,
+        label: cultura === 'all' ? 'Toate culturile' : cultura,
+        emoji: cultura === 'all' ? undefined : '🌱',
+      })),
+    [cultureOptions]
+  )
+  const statusFilterAppSelectOptions = useMemo(
+    () => [
+      { value: 'active', label: 'Active', emoji: '✅' },
+      { value: 'archived', label: 'Arhivate', emoji: '📦' },
+      { value: 'all', label: 'Toate', emoji: '📋' },
+    ],
+    []
+  )
 
   const filteredPlanuri = useMemo(() => {
     const normalizedSearch = search
@@ -172,25 +148,13 @@ export function PlanuriTratamentPageClient() {
           title="Planuri de tratament"
           subtitle="Strategii sezoniere pentru parcelele fermei"
           rightSlot={
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button type="button" variant="outline" asChild>
-                <Link
-                  href="/tratamente/planuri/import"
-                  aria-label="Import din Excel"
-                  title="Import din Excel"
-                >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  <span className="hidden sm:inline">Import din Excel</span>
-                </Link>
-              </Button>
-              <Button
-                type="button"
-                className="bg-[var(--agri-primary)] text-white"
-                onClick={() => router.push('/tratamente/planuri/nou')}
-              >
-                + Plan nou
-              </Button>
-            </div>
+            <Button
+              type="button"
+              className="bg-[var(--agri-primary)] text-white"
+              onClick={() => router.push('/tratamente/planuri/nou')}
+            >
+              + Plan nou
+            </Button>
           }
           expandRightSlotOnMobile
         />
@@ -261,28 +225,20 @@ export function PlanuriTratamentPageClient() {
               aria-label="Caută planuri"
             />
             <div className="flex items-center gap-2">
-              <select
+              <AppSelect
+                id="planuri-filter-culture"
                 value={cultureFilter}
-                onChange={(event) => setCultureFilter(event.target.value)}
-                className="agri-control h-9 min-w-[11rem] rounded-xl px-3 text-sm"
-                aria-label="Filtrează după cultură"
-              >
-                {cultureOptions.map((cultura) => (
-                  <option key={cultura} value={cultura}>
-                    {cultura === 'all' ? 'Toate culturile' : cultura}
-                  </option>
-                ))}
-              </select>
-              <select
+                options={cultureFilterAppSelectOptions}
+                triggerClassName="h-9 min-w-[11rem] rounded-xl text-sm"
+                onChange={setCultureFilter}
+              />
+              <AppSelect
+                id="planuri-filter-status"
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                className="agri-control h-9 min-w-[10rem] rounded-xl px-3 text-sm"
-                aria-label="Filtrează după stare"
-              >
-                <option value="active">Active</option>
-                <option value="archived">Arhivate</option>
-                <option value="all">Toate</option>
-              </select>
+                options={statusFilterAppSelectOptions}
+                triggerClassName="h-9 min-w-[10rem] rounded-xl text-sm"
+                onChange={(nextValue) => setStatusFilter(nextValue as StatusFilter)}
+              />
             </div>
           </DesktopToolbar>
         ) : null}
@@ -330,7 +286,7 @@ export function PlanuriTratamentPageClient() {
               <PlanCard
                 key={plan.id}
                 plan={plan}
-                onEdit={() => router.push(`/tratamente/planuri/${plan.id}/editeaza`)}
+                onEdit={() => router.push(`/tratamente/planuri/${plan.id}/editor`)}
                 onDuplica={() => router.push(`/tratamente/planuri/nou?duplicate_from=${plan.id}`)}
                 onArhiveaza={() => archiveMutation.mutate(plan)}
                 onSterge={() => deleteInfoMutation.mutate(plan)}

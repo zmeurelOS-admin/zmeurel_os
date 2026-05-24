@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Search } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Label } from '@/components/ui/label'
@@ -53,6 +53,9 @@ export interface AppSelectProps {
   listClassName?: string
   getOptionLeadingIcon?: (option: AppSelectOption) => ReactNode
   getOptionDisplayLabel?: (option: AppSelectOption) => string
+  /** Afișează „Folosește …” când căutarea nu are match exact (ex. tip operațiune custom). */
+  allowCustomSearchValue?: boolean
+  onValidateCustomSearchValue?: (value: string) => string | null
 }
 
 export function AppSelect({
@@ -73,10 +76,13 @@ export function AppSelect({
   listClassName,
   getOptionLeadingIcon,
   getOptionDisplayLabel,
+  allowCustomSearchValue = false,
+  onValidateCustomSearchValue,
 }: AppSelectProps) {
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [customValueMessage, setCustomValueMessage] = useState<string | null>(null)
 
   const allOptions = useMemo(() => flattenOptions(options, groups), [groups, options])
 
@@ -107,6 +113,17 @@ export function AppSelect({
     )
   }, [allOptions, effectiveQuery])
 
+  const hasExactMatch = useMemo(() => {
+    const needle = normalizeText(query)
+    if (!needle) return false
+    return allOptions.some(
+      (option) =>
+        normalizeText(option.label) === needle || normalizeText(option.value) === needle
+    )
+  }, [allOptions, query])
+
+  const customValue = query.trim()
+
   useEffect(() => {
     if (!open || !showSearch) return
     const frame = window.requestAnimationFrame(() => {
@@ -120,6 +137,16 @@ export function AppSelect({
     onChange(nextValue)
     setOpen(false)
     setQuery('')
+    setCustomValueMessage(null)
+  }
+
+  const trySelectCustomValue = (inputValue: string) => {
+    const validationMessage = onValidateCustomSearchValue?.(inputValue) ?? null
+    if (validationMessage) {
+      setCustomValueMessage(validationMessage)
+      return
+    }
+    handleSelect(inputValue)
   }
 
   const renderOptionLeading = (option: AppSelectOption) => {
@@ -146,6 +173,9 @@ export function AppSelect({
     return null
   }
 
+  const labelId = label ? `${id}-label` : undefined
+  const listboxId = `${id}-listbox`
+
   const renderOptionButton = (option: AppSelectOption) => {
     if (filteredValueSet && !filteredValueSet.has(option.value)) return null
     const isSelected = option.value === value
@@ -153,6 +183,9 @@ export function AppSelect({
       <button
         key={`${option.value}-${option.label}`}
         type="button"
+        role="option"
+        aria-selected={isSelected}
+        data-value={option.value}
         disabled={option.disabled}
         onMouseDown={(event) => {
           event.preventDefault()
@@ -201,7 +234,11 @@ export function AppSelect({
 
   return (
     <div className="space-y-1.5">
-      {label ? <Label htmlFor={id}>{label}</Label> : null}
+      {label ? (
+        <Label id={labelId} htmlFor={id}>
+          {label}
+        </Label>
+      ) : null}
       <Popover
         open={open}
         onOpenChange={(nextOpen) => {
@@ -212,15 +249,20 @@ export function AppSelect({
             return
           }
           setQuery('')
+          setCustomValueMessage(null)
         }}
       >
         <PopoverTrigger asChild>
           <button
             id={id}
             type="button"
+            role="combobox"
             disabled={disabled}
             aria-haspopup="listbox"
             aria-expanded={open}
+            aria-controls={listboxId}
+            aria-labelledby={labelId}
+            aria-label={label ? undefined : placeholder}
             className={cn(
               'agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm',
               disabled && 'cursor-not-allowed opacity-60',
@@ -259,17 +301,55 @@ export function AppSelect({
                 <input
                   ref={searchInputRef}
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    setQuery(nextValue)
+                    if (!nextValue.trim() || !onValidateCustomSearchValue?.(nextValue)) {
+                      setCustomValueMessage(null)
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && allowCustomSearchValue && customValue && !hasExactMatch) {
+                      event.preventDefault()
+                      trySelectCustomValue(customValue)
+                    }
+                  }}
                   placeholder={searchPlaceholder}
                   className="flex h-10 w-full rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] pl-9 pr-3 text-sm text-[var(--agri-text)] outline-none ring-0 placeholder:text-[var(--agri-text-muted)]"
                 />
               </div>
+              {customValueMessage ? (
+                <div className="mt-2 flex items-start gap-2 text-sm text-amber-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <p>{customValueMessage}</p>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
-          <div className={cn('max-h-64 overflow-y-auto p-1', listClassName)} role="listbox" aria-label={label ?? placeholder}>
+          <div
+            id={listboxId}
+            className={cn('max-h-64 overflow-y-auto p-1', listClassName)}
+            role="listbox"
+            aria-label={label ?? placeholder}
+          >
             {listContent}
-            {!hasVisibleOptions ? (
+
+            {allowCustomSearchValue && showSearch && customValue && !hasExactMatch ? (
+              <button
+                type="button"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  trySelectCustomValue(customValue)
+                }}
+                className="flex min-h-11 w-full items-center justify-between rounded-lg border-t border-[var(--agri-border)] px-3 py-2.5 text-left text-sm font-medium text-[var(--agri-primary)] transition-colors hover:bg-[var(--agri-surface-muted)]"
+              >
+                <span>{`Folosește "${customValue}"`}</span>
+                <Check className="h-4 w-4 shrink-0" aria-hidden />
+              </button>
+            ) : null}
+
+            {!hasVisibleOptions && !(allowCustomSearchValue && showSearch && customValue && !hasExactMatch) ? (
               <p className="px-3 py-2 text-sm text-[var(--agri-text-muted)]">{emptyMessage}</p>
             ) : null}
           </div>

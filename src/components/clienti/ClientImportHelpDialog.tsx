@@ -28,7 +28,7 @@ export function ClientImportHelpDialog({
     >
       <div className="space-y-4 text-sm text-[var(--agri-text-muted)]">
         <p>
-          Poți importa clienți dintr-un fișier <strong className="text-[var(--agri-text)]">Excel (.xlsx)</strong> sau{' '}
+          Poți încărca clienți dintr-un fișier <strong className="text-[var(--agri-text)]">.xlsx</strong> sau{' '}
           <strong className="text-[var(--agri-text)]">CSV</strong>.
         </p>
         <p>

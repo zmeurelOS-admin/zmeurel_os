@@ -1,14 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { FileSpreadsheet, Sprout, CheckCircle2, Circle } from 'lucide-react'
+import { Sprout, CheckCircle2, Circle } from 'lucide-react'
 
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 
 interface EmptyStateTratamenteProps {
   createPlanHref: string
-  importPlanHref: string
 }
 
 const steps = [
@@ -19,7 +18,6 @@ const steps = [
 
 export function EmptyStateTratamente({
   createPlanHref,
-  importPlanHref,
 }: EmptyStateTratamenteProps) {
   return (
     <AppCard className="overflow-hidden rounded-[22px] bg-[color:color-mix(in_srgb,var(--agri-primary)_5%,var(--surface-card))] p-5 shadow-[var(--shadow-soft)]">
@@ -63,12 +61,6 @@ export function EmptyStateTratamente({
       <div className="mt-5 grid gap-3 sm:max-w-sm">
         <Button asChild className="w-full bg-[var(--agri-primary)] text-white">
           <Link href={createPlanHref}>Creează plan</Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full">
-          <Link href={importPlanHref}>
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-            Importă din Excel
-          </Link>
         </Button>
       </div>
     </AppCard>

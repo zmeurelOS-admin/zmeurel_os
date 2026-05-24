@@ -8,13 +8,9 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { formatM2ToHa } from '@/lib/utils/area'
 import { toast } from '@/lib/ui/toast'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
+import { emojiOptionsToAppSelect } from '@/lib/ui/app-select-utils'
+import { getParcelScopOptions, getParcelStatusOperationalOptions, getParcelStatusOptions } from '@/lib/parcele/parcel-form-options'
 import { ParcelUsageFields, applyScopDefaults } from '@/components/parcele/ParcelUsageFields'
 import type { ParcelaScop, StatusOperational } from '@/lib/parcele/dashboard-relevance'
 
@@ -129,67 +125,43 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label className={IOS_LABEL_CLASS}>Scop</Label>
-        <Select
+        <AppSelect
+          id="parcela_scop"
+          label="Scop"
           value={form.watch('rol')}
-          onValueChange={(value) => {
+          onChange={(value) => {
             const next = value as Parameters<typeof applyScopDefaults>[0]
             form.setValue('rol', next, { shouldDirty: true })
             const defs = applyScopDefaults(next)
             form.setValue('apare_in_dashboard', defs.apare_in_dashboard, { shouldDirty: true })
             form.setValue('contribuie_la_productie', defs.contribuie_la_productie, { shouldDirty: true })
           }}
-        >
-          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="comercial">Producție comercială</SelectItem>
-            <SelectItem value="personal">Uz personal</SelectItem>
-            <SelectItem value="experimental">Experimental</SelectItem>
-            <SelectItem value="inactiv">Inactiv</SelectItem>
-          </SelectContent>
-        </Select>
+          options={emojiOptionsToAppSelect(getParcelScopOptions())}
+          triggerClassName={IOS_SELECT_TRIGGER_CLASS}
+        />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="soi_plantat" className={IOS_LABEL_CLASS}>
-          Soi / cultură
-        </Label>
-        <Select
+        <AppSelect
+          id="parcela_soi_plantat"
+          label="Soi / cultură"
+          placeholder="Selectează soi..."
           value={form.watch('soi_plantat')}
-          onValueChange={(value) => form.setValue('soi_plantat', value)}
-        >
-          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue placeholder="Selectează soi..." />
-          </SelectTrigger>
-          <SelectContent>
-            {soiuriDisponibile.map((soi) => (
-              <SelectItem key={soi} value={soi}>
-                {soi}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          onChange={(value) => form.setValue('soi_plantat', value)}
+          options={soiuriDisponibile.map((soi) => ({ value: soi, label: soi, emoji: '🌿' }))}
+          triggerClassName={IOS_SELECT_TRIGGER_CLASS}
+        />
       </div>
 
       <div className="space-y-2">
-        <Label className={IOS_LABEL_CLASS}>Situație operațională</Label>
-        <Select
+        <AppSelect
+          id="parcela_status_operational"
+          label="Situație operațională"
           value={form.watch('status_operational')}
-          onValueChange={(value) => form.setValue('status_operational', value as ParcelaFormData['status_operational'])}
-        >
-          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="activ">Activ</SelectItem>
-            <SelectItem value="in_pauza">În pauză</SelectItem>
-            <SelectItem value="neproductiv">Neproductiv</SelectItem>
-            <SelectItem value="infiintare">În înființare</SelectItem>
-            <SelectItem value="arhivat">Arhivat</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(value) => form.setValue('status_operational', value as ParcelaFormData['status_operational'])}
+          options={emojiOptionsToAppSelect(getParcelStatusOperationalOptions())}
+          triggerClassName={IOS_SELECT_TRIGGER_CLASS}
+        />
       </div>
 
       <div className="space-y-2 md:col-span-2">
@@ -264,22 +236,14 @@ export function ParcelaForm({ form, soiuriDisponibile }: ParcelaFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="status" className={IOS_LABEL_CLASS}>
-          Status *
-        </Label>
-        <Select
+        <AppSelect
+          id="parcela_status"
+          label="Status *"
           value={form.watch('status')}
-          onValueChange={(value) => form.setValue('status', value)}
-        >
-          <SelectTrigger className={IOS_SELECT_TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Activ">Activ</SelectItem>
-            <SelectItem value="Inactiv">Inactiv</SelectItem>
-            <SelectItem value="In Pregatire">In Pregatire</SelectItem>
-          </SelectContent>
-        </Select>
+          onChange={(value) => form.setValue('status', value)}
+          options={emojiOptionsToAppSelect(getParcelStatusOptions())}
+          triggerClassName={IOS_SELECT_TRIGGER_CLASS}
+        />
       </div>
 
       <div className="space-y-2">

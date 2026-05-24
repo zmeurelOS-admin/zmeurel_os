@@ -44,9 +44,10 @@
   - Logică principală: `src/app/api/chat/*` (orchestrare, contracte, extractori, detectoare)
 
 ## Observabilitate, monitorizare, analytics
-- **Sentry** (`@sentry/nextjs`)
-  - Hook-uri de inițializare în `src/app/layout.tsx` prin `MonitoringInit`
-  - Fișiere de instrumentare: `src/instrumentation.ts`, `src/instrumentation-client.ts`
+- **Vercel Analytics / Speed Insights**
+- **Error logging nativ**
+  - helper comun: `src/lib/monitoring/report-error.ts`
+  - redactare context sensibil: `src/lib/logging/redaction.ts`
 
 ## PWA / offline
 - **next-pwa** (`next-pwa`)

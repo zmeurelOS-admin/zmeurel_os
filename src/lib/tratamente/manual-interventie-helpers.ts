@@ -7,6 +7,7 @@ import {
   parseDiferenteFataDePlan,
   type AplicareProdusPayload,
 } from '@/lib/tratamente/aplicare-payload'
+import { metodaAplicareSchema, type MetodaAplicare } from '@/types/tratamente-metode'
 
 const manualInterventieSchema = z.object({
   parcelaId: z.string().uuid('Parcela selectată nu este validă.'),
@@ -14,6 +15,7 @@ const manualInterventieSchema = z.object({
   data: z.string().trim().min(1, 'Data intervenției este obligatorie.'),
   tip_interventie: z.string().trim().min(1, 'Tipul intervenției este obligatoriu.'),
   scop: z.string().trim().min(1, 'Scopul intervenției este obligatoriu.'),
+  metoda_aplicare: metodaAplicareSchema.nullable().optional(),
   stadiu_la_aplicare: z.string().trim().optional(),
   cohort_la_aplicare: z.enum(['floricane', 'primocane']).optional().nullable(),
   operator: z.string().trim().optional(),
@@ -30,6 +32,7 @@ export interface ManualInterventiePayload {
   data: string
   tip_interventie: string
   scop: string
+  metoda_aplicare: MetodaAplicare | null
   stadiu_la_aplicare: string | null
   cohort_la_aplicare: Cohorta | null
   operator: string | null
@@ -58,6 +61,7 @@ export function parseManualInterventieFormData(formData: FormData): ManualInterv
     data: getFormValue(formData, 'data'),
     tip_interventie: getFormValue(formData, 'tip_interventie'),
     scop: getFormValue(formData, 'scop'),
+    metoda_aplicare: (formData.get('metoda_aplicare') as MetodaAplicare | string | null | undefined) ?? undefined,
     stadiu_la_aplicare: getFormValue(formData, 'stadiu_la_aplicare') || undefined,
     cohort_la_aplicare: (formData.get('cohort_la_aplicare') as Cohorta | string | null | undefined) ?? undefined,
     operator: getFormValue(formData, 'operator'),
@@ -96,6 +100,7 @@ export function parseManualInterventieFormData(formData: FormData): ManualInterv
     data: parsed.data.data,
     tip_interventie: parsed.data.tip_interventie,
     scop: parsed.data.scop,
+    metoda_aplicare: parsed.data.metoda_aplicare ?? null,
     stadiu_la_aplicare: parsed.data.stadiu_la_aplicare?.trim() || null,
     cohort_la_aplicare: (parsed.data.cohort_la_aplicare === 'floricane' || parsed.data.cohort_la_aplicare === 'primocane'
       ? parsed.data.cohort_la_aplicare

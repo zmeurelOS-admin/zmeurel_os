@@ -43,6 +43,8 @@ function withParcelaDashboardDefaults(row: Record<string, unknown>): Parcela {
 export type Parcela = Tables<"parcele">
 export type ParcelaInsert = TablesInsert<"parcele">
 export type ParcelaUpdate = TablesUpdate<"parcele">
+// UI callers nu trimit `tenant_id`; helper-ul îl rezolvă din sesiune și îl injectează înainte de insert.
+export type CreateParcelaInput = Omit<ParcelaInsert, 'tenant_id'>
 export interface ParcelaDeleteImpact {
   recoltariCount: number
   activitatiCount: number
@@ -136,7 +138,7 @@ export async function getParcelaById(id: string): Promise<Parcela | null> {
 // =====================
 
 export async function createParcela(
-  input: ParcelaInsert
+  input: CreateParcelaInput
 ): Promise<Parcela> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)

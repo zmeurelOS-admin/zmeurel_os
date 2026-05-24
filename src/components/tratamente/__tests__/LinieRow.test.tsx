@@ -17,6 +17,7 @@ function makeLinie(overrides?: Partial<PlanTratamentLinieCuProdus>): PlanTratame
     produs_nume_manual: null,
     doza_ml_per_hl: 500,
     doza_l_per_ha: null,
+    metoda_aplicare: null,
     observatii: 'Observații de test pentru linie',
     sursa_linie: 'din_plan',
     motiv_adaugare: null,
@@ -87,7 +88,7 @@ describe('LinieRow', () => {
     )
 
     expect(screen.getByText('Produs manual')).toBeInTheDocument()
-    expect(screen.getByText('manual')).toBeInTheDocument()
+    expect(screen.getByText(/^Manual$/)).toBeInTheDocument()
   })
 
   it('dezactivează butonul up pe prima intervenție', () => {
@@ -140,11 +141,11 @@ describe('LinieRow', () => {
     )
 
     await user.click(screen.getByRole('button', { name: /acțiuni pentru intervenția 1/i }))
-    await user.click(screen.getByRole('button', { name: /editează/i }))
+    await user.click(screen.getAllByRole('button', { name: /editează/i }).at(-1)!)
     expect(onEdit).toHaveBeenCalledTimes(1)
 
     await user.click(screen.getByRole('button', { name: /acțiuni pentru intervenția 1/i }))
-    await user.click(screen.getByRole('button', { name: /șterge/i }))
+    await user.click(screen.getAllByRole('button', { name: /șterge/i }).at(-1)!)
     expect(onDelete).toHaveBeenCalledTimes(1)
   })
 })

@@ -24,6 +24,7 @@ import {
   updatePlanTratament,
   dezarhiveazaPlanTratament,
 } from '@/lib/supabase/queries/tratamente'
+import { metodaAplicareSchema } from '@/types/tratamente-metode'
 
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -50,6 +51,7 @@ const linieSchema = z
     sursa_linie: z.enum(['din_plan', 'adaugata_manual']).optional(),
     motiv_adaugare: z.string().trim().max(500, 'Motivul poate avea cel mult 500 de caractere.').optional().nullable(),
     tip_interventie: z.enum(['protectie', 'nutritie', 'biostimulare', 'erbicidare', 'igiena', 'monitorizare', 'altul']).optional().nullable(),
+    metoda_aplicare: metodaAplicareSchema.optional().nullable(),
     scop: z.string().trim().max(240, 'Scopul poate avea cel mult 240 de caractere.').optional().nullable(),
     regula_repetare: z.enum(['fara_repetare', 'interval']).optional(),
     interval_repetare_zile: z.number().int().min(1).optional().nullable(),
@@ -146,6 +148,7 @@ function revalidatePlanPaths(planId: string) {
   revalidatePath('/tratamente/planuri')
   revalidatePath(`/tratamente/planuri/${planId}`)
   revalidatePath(`/tratamente/planuri/${planId}/editeaza`)
+  revalidatePath(`/tratamente/planuri/${planId}/editor`)
 }
 
 function success<T = undefined>(data: T): ActionResult<T> {

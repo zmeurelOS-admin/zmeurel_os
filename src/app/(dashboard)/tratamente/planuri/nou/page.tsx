@@ -2,6 +2,9 @@ import { PlanWizardScreen } from '@/components/tratamente/plan-wizard/PlanWizard
 import { getPlanTratamentComplet } from '@/lib/supabase/queries/tratamente'
 import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
 import { getCurrentSezon } from '@/lib/utils/sezon'
+import { listCulturiPentruPlanWizardAction } from '@/app/(dashboard)/tratamente/planuri/actions'
+import { listTemplatesActive } from '@/app/(dashboard)/tratamente/planuri/templates/actions'
+import { NouPlanClient } from './NouPlanClient'
 
 type PageProps = {
   searchParams: Promise<{
@@ -29,14 +32,23 @@ export default async function TratamentePlanNouPage({ searchParams }: PageProps)
       }
     : undefined
 
-  return (
-    <PlanWizardScreen
-      configurareSezon={configurareSezon}
-      initialData={initialData}
-      preselectedParcelaId={preselectedParcelaId}
-      subtitle="Construiește strategia sezonieră în 3 pași"
-      successMessage="Planul de tratament a fost salvat."
-      title="Plan nou"
-    />
-  )
+  if (initialData) {
+    return (
+      <PlanWizardScreen
+        configurareSezon={configurareSezon}
+        initialData={initialData}
+        preselectedParcelaId={preselectedParcelaId}
+        subtitle="Construiește strategia sezonieră în 3 pași"
+        successMessage="Planul de tratament a fost salvat."
+        title="Plan nou"
+      />
+    )
+  }
+
+  const [templates, culturi] = await Promise.all([
+    listTemplatesActive(),
+    listCulturiPentruPlanWizardAction(),
+  ])
+
+  return <NouPlanClient templates={templates} culturi={culturi} />
 }

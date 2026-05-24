@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
 
-import { deleteAplicareAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
+import { deleteAplicareAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { AplicareListItem } from '@/components/tratamente/AplicareListItem'
 import {
   AlertDialog,

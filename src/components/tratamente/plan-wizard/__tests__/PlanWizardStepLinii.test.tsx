@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { PlanWizardStepLinii } from '@/components/tratamente/plan-wizard/PlanWizardStepLinii'
 import type { PlanWizardLinieDraft } from '@/components/tratamente/plan-wizard/types'
 import type { ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import { getAppSelectOptionValues, selectAppOption } from '@/test/helpers/select-app-option'
 
 const produse: ProdusFitosanitar[] = [
   {
@@ -113,7 +114,7 @@ describe('PlanWizardStepLinii', () => {
     renderStep()
 
     await user.click(screen.getAllByRole('button', { name: /adaugă intervenție/i })[0])
-    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'buton_verde')
+    await selectAppOption(user, 'Fenofază *', 'buton_verde')
     await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
     await user.click(screen.getByText('Cupru Standard'))
     await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
@@ -121,7 +122,7 @@ describe('PlanWizardStepLinii', () => {
     expect(screen.getByText('Cupru Standard')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Adaugă intervenție' }))
-    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'inflorit')
+    await selectAppOption(user, 'Fenofază *', 'inflorit')
     await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
     await user.click(screen.getByText('Sulf Rapid'))
     await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
@@ -155,8 +156,7 @@ describe('PlanWizardStepLinii', () => {
 
     await user.click(screen.getAllByRole('button', { name: /adaugă intervenție/i })[0])
 
-    const select = screen.getByLabelText('Fenofază *') as HTMLSelectElement
-    const optionValues = Array.from(select.options).map((option) => option.value)
+    const optionValues = await getAppSelectOptionValues(user, 'Fenofază *')
 
     expect(optionValues).toContain('rasad')
     expect(optionValues).toContain('transplant')
@@ -170,7 +170,7 @@ describe('PlanWizardStepLinii', () => {
     renderStep()
 
     await user.click(screen.getAllByRole('button', { name: /adaugă intervenție/i })[0])
-    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'buton_verde')
+    await selectAppOption(user, 'Fenofază *', 'buton_verde')
 
     await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
     await user.click(screen.getByText('Cupru Standard'))

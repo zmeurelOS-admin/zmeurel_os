@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { ClipboardList, FileSpreadsheet, PencilLine, Plus, RotateCcw, Copy, Archive, Trash2 } from 'lucide-react'
+import { ClipboardList, PencilLine, Plus, RotateCcw, Copy, Archive, Trash2 } from 'lucide-react'
 
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
@@ -84,7 +84,7 @@ export function PlanCard({
 
         {isEmptyPlan ? (
           <div className="rounded-[16px] border border-dashed border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 py-4 text-center text-sm text-[var(--text-secondary)]">
-            Plan gol — importă sau adaugă intervenții
+            Plan gol — adaugă intervenții în editorul vizual.
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -118,14 +118,7 @@ export function PlanCard({
 
         <div className="flex items-center justify-end gap-2 border-t border-[var(--divider)] pt-3">
           <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-            {isEmptyPlan ? (
-              <Button type="button" variant="outline" size="sm" asChild>
-                <Link href="/tratamente/planuri/import">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Import Excel
-                </Link>
-              </Button>
-            ) : null}
+            {isEmptyPlan ? <Button type="button" variant="outline" size="sm" disabled>Plan nou</Button> : null}
             {onClick ? (
               <Button
                 type="button"
@@ -177,18 +170,12 @@ export function CardPlanNou() {
       <div className="mt-4 space-y-2">
         <h3 className="text-base text-[var(--text-primary)] [font-weight:650]">Plan nou</h3>
         <p className="text-sm text-[var(--text-secondary)]">
-          Creează manual un plan sau importă-l din Excel.
+          Alege un template sau pornește de la un plan gol.
         </p>
       </div>
       <div className="mt-5 flex w-full flex-col gap-2">
-        <Button type="button" variant="outline" asChild>
-          <Link href="/tratamente/planuri/import">
-            <FileSpreadsheet className="h-4 w-4" />
-            Import Excel
-          </Link>
-        </Button>
         <Button type="button" asChild>
-          <Link href="/tratamente/planuri/nou">Creează manual</Link>
+          <Link href="/tratamente/planuri/nou">Plan nou</Link>
         </Button>
       </div>
     </AppCard>

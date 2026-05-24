@@ -14,6 +14,7 @@ import {
   planificaInterventieRelevantaAction,
   recordStadiuAction,
 } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
+import { AddInterventieFAB } from '@/components/tratamente/AddInterventieFAB'
 import { EmptyStateTratamente } from '@/components/tratamente/EmptyStateTratamente'
 import { AplicareListItem } from '@/components/tratamente/AplicareListItem'
 import { AssignPlanSheet } from '@/components/tratamente/AssignPlanSheet'
@@ -37,7 +38,7 @@ import { StadiuCurentCard, type StageState } from '@/components/tratamente/Stadi
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import { upsertConfigurareSezonAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
-import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
+import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import type {
   AplicareTratamentDetaliu,
   InterventieRelevantaV2,
@@ -62,7 +63,6 @@ interface ParcelaTratamenteDashboardClientProps {
   aplicateCount: number
   aplicariCount: number
   createPlanHref: string
-  importPlanHref: string
   detailsHref: string | null
   editPlanHref: string | null
   generationPreview: { creatableCount: number; skippedCount: number } | null
@@ -88,7 +88,6 @@ export function ParcelaTratamenteDashboardClient({
   aplicateCount,
   aplicariCount,
   createPlanHref,
-  importPlanHref,
   detailsHref,
   editPlanHref,
   generationPreview,
@@ -311,6 +310,8 @@ export function ParcelaTratamenteDashboardClient({
       formData.set('status', values.manual_status ?? 'aplicata')
       formData.set('data', values.manual_data ?? '')
       formData.set('tip_interventie', values.tip_interventie ?? '')
+      // Sprint 4: defaultMetoda support
+      formData.set('metoda_aplicare', values.metoda_aplicare ?? '')
       formData.set('scop', values.scop ?? '')
       formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
       formData.set('operator', values.operator ?? '')
@@ -367,7 +368,7 @@ export function ParcelaTratamenteDashboardClient({
     <>
       <div className="mx-auto w-full max-w-[min(96vw,94rem)] px-3 py-3 md:px-4 md:py-4">
         {isGlobalEmpty ? (
-          <EmptyStateTratamente createPlanHref={createPlanHref} importPlanHref={importPlanHref} />
+          <EmptyStateTratamente createPlanHref={createPlanHref} />
         ) : null}
       </div>
 
@@ -564,6 +565,37 @@ export function ParcelaTratamenteDashboardClient({
         onOpenChange={setSeasonOpen}
         onSubmit={handleSaveConfigurareSezon}
         pending={isConfiguring}
+      />
+
+      <AddInterventieFAB
+        parcelaId={parcelaId}
+        parcele={[
+          {
+            id: parcelaId,
+            nume_parcela: parcela.nume_parcela ?? 'Parcelă',
+            suprafata_ha:
+              typeof parcela.suprafata_m2 === 'number' && parcela.suprafata_m2 > 0
+                ? Math.round((parcela.suprafata_m2 / 10000) * 100) / 100
+                : null,
+          },
+        ]}
+        fenofazaCurenta={singleStageState?.stadiuCurent?.stadiu ?? null}
+        markAplicataProps={{
+          defaultCantitateMl: null,
+          defaultOperator: '',
+          defaultStadiu: singleStageState?.stadiuCurent?.stadiu ?? null,
+          defaultManualParcelaId: parcelaId,
+          defaultManualParcelaLabel: parcela.nume_parcela ?? 'Parcelă',
+          defaultManualStatus: 'aplicata',
+          configurareSezon,
+          grupBiologic,
+          isRubusMixt,
+          manualParcele: [],
+          meteoSnapshot: null,
+          onSubmit: handleManualInterventie,
+          pending: isManualSaving,
+          produseFitosanitare,
+        }}
       />
 
       <MarkAplicataSheet

@@ -10,6 +10,7 @@ import type { Database } from '@/types/supabase'
 
 type ComandaRow = Database['public']['Tables']['comenzi']['Row']
 type AssociationMemberRow = Database['public']['Tables']['association_members']['Row']
+type CanalConfirmare = ComandaRow['canal_confirmare']
 
 /** UUID-uri deterministe pentru teste (v4). */
 export const ASSOCIATION_TEST_IDS = {
@@ -63,6 +64,7 @@ export function mockAssociationProduct(overrides?: Partial<AssociationProduct>):
  * Rând `comenzi` — util pentru workspace admin / fluxuri magazin.
  */
 export function mockAssociationOrder(overrides?: Partial<ComandaRow>): ComandaRow {
+  // Tipurile generate cer câmpurile nullable explicite în fixture, nu `undefined`.
   return {
     id: ASSOCIATION_TEST_IDS.orderId,
     tenant_id: ASSOCIATION_TEST_IDS.tenantId,
@@ -81,10 +83,15 @@ export function mockAssociationOrder(overrides?: Partial<ComandaRow>): ComandaRo
     demo_seed_id: null,
     linked_vanzare_id: null,
     locatie_livrare: null,
+    note_interne: null,
+    numar_comanda_scurt: null,
     observatii: null,
     parent_comanda_id: null,
     produs_id: ASSOCIATION_TEST_IDS.productId,
+    stock_deducted: false,
     telefon: '+40700000000',
+    canal_confirmare: null as CanalConfirmare,
+    customer_snapshot: null,
     whatsapp_consent: true,
     ...overrides,
   }

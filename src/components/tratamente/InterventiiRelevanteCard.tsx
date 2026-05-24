@@ -7,7 +7,10 @@ import { format, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
 
 import { AppCard } from '@/components/ui/app-card'
+import { AppSelect } from '@/components/ui/app-select'
 import { Button } from '@/components/ui/button'
+import { withPlaceholderOption } from '@/lib/ui/app-select-utils'
+import { EditAplicareButton } from '@/components/tratamente/EditAplicareButton'
 import type {
   InterventieRelevantaV2,
   InterventieStatusOperational,
@@ -140,6 +143,34 @@ export function InterventiiRelevanteCard({
 
   const compactFiltersOnMobile = interventii.length <= 4
 
+  const statusFilterOptions = useMemo(
+    () =>
+      withPlaceholderOption(
+        Object.entries(STATUS_META).map(([value, meta]) => ({
+          value,
+          label: meta.label,
+        })),
+        { value: 'all', label: 'Toate statusurile' }
+      ),
+    []
+  )
+  const stageFilterOptions = useMemo(
+    () =>
+      withPlaceholderOption(
+        stageOptions.map(([value, label]) => ({ value, label })),
+        { value: 'all', label: 'Toate fenofazele' }
+      ),
+    [stageOptions]
+  )
+  const tipFilterOptions = useMemo(
+    () =>
+      withPlaceholderOption(
+        tipOptions.map((value) => ({ value, label: value })),
+        { value: 'all', label: 'Toate tipurile' }
+      ),
+    [tipOptions]
+  )
+
   const visibleInterventii = useMemo(() => {
     return interventii.filter((interventie) => {
       if (statusFilter !== 'all' && interventie.status_operational !== statusFilter) return false
@@ -165,48 +196,27 @@ export function InterventiiRelevanteCard({
 
       {showFilters && interventii.length > 0 ? (
         <div className="mt-4 grid gap-2 md:grid-cols-3">
-          <select
-            className="agri-control h-10 rounded-xl text-sm"
+          <AppSelect
+            id="interventii-filter-status"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as InterventieStatusOperational | 'all')}
-          >
-            <option value="all">Toate statusurile</option>
-            {Object.entries(STATUS_META).map(([value, meta]) => (
-              <option key={value} value={value}>
-                {meta.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={cn(
-              'agri-control h-10 rounded-xl text-sm',
-              compactFiltersOnMobile && 'max-md:hidden',
-            )}
+            options={statusFilterOptions}
+            triggerClassName="h-10 rounded-xl text-sm"
+            onChange={(nextValue) => setStatusFilter(nextValue as InterventieStatusOperational | 'all')}
+          />
+          <AppSelect
+            id="interventii-filter-stage"
             value={stageFilter}
-            onChange={(event) => setStageFilter(event.target.value)}
-          >
-            <option value="all">Toate fenofazele</option>
-            {stageOptions.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={cn(
-              'agri-control h-10 rounded-xl text-sm',
-              compactFiltersOnMobile && 'max-md:hidden',
-            )}
+            options={stageFilterOptions}
+            triggerClassName={cn('h-10 rounded-xl text-sm', compactFiltersOnMobile && 'max-md:hidden')}
+            onChange={setStageFilter}
+          />
+          <AppSelect
+            id="interventii-filter-tip"
             value={tipFilter}
-            onChange={(event) => setTipFilter(event.target.value)}
-          >
-            <option value="all">Toate tipurile</option>
-            {tipOptions.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
+            options={tipFilterOptions}
+            triggerClassName={cn('h-10 rounded-xl text-sm', compactFiltersOnMobile && 'max-md:hidden')}
+            onChange={setTipFilter}
+          />
         </div>
       ) : null}
 
@@ -288,11 +298,9 @@ export function InterventiiRelevanteCard({
 
                   <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
                     {interventie.aplicare_planificata ? (
-                      <Button type="button" size="sm" variant="outline" asChild>
-                          <Link href={`/parcele/${interventie.parcela_id}/tratamente/aplicare/${interventie.aplicare_planificata.id}`}>
-                          Vezi aplicarea
-                        </Link>
-                      </Button>
+                      <EditAplicareButton aplicareId={interventie.aplicare_planificata.id}>
+                        Vezi aplicarea
+                      </EditAplicareButton>
                     ) : null}
                     {canPlanifica ? (
                       <Button

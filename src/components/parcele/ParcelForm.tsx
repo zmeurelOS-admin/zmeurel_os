@@ -15,16 +15,10 @@ import {
 } from '@/components/ui/form-dialog-layout'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
+import { emojiOptionsToAppSelect } from '@/lib/ui/app-select-utils'
 import {
-  formatEmojiOptionLabel,
   getCultureSelectValue,
   getCulturiOptionsForTip,
   getOptionDisplayLabel,
@@ -334,52 +328,44 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                 ) : null}
               </div>
 
-              <div className="space-y-1.5">
-                <Label>Tip *</Label>
-                <Select
-                  value={tipUnitate}
-                  onValueChange={(value: 'camp' | 'solar' | 'livada' | 'cultura_mare') => {
-                    form.setValue('tip_unitate', value, { shouldDirty: true, shouldValidate: true })
+              <AppSelect
+                id="parcel_tip_unitate"
+                label="Tip *"
+                placeholder="Alege tipul unității"
+                value={tipUnitate}
+                onChange={(value) => {
+                  const next = value as 'camp' | 'solar' | 'livada' | 'cultura_mare'
+                  form.setValue('tip_unitate', next, { shouldDirty: true, shouldValidate: true })
 
-                    if (value !== 'camp') {
-                      form.setValue('nr_plante', '', { shouldDirty: true, shouldValidate: true })
-                    }
+                  if (next !== 'camp') {
+                    form.setValue('nr_plante', '', { shouldDirty: true, shouldValidate: true })
+                  }
 
-                    if (value === 'solar') {
-                      setManualCultureSelected(false)
-                      setManualSoiSelected(false)
-                      syncCultureFields({ cultura: '', soi: '', shouldDirty: true })
-                      return
-                    }
-
-                    if (!culturaValue) {
-                      setManualCultureSelected(false)
-                      setManualSoiSelected(false)
-                      return
-                    }
-
-                    if (!isKnownCultureForTip(value, culturaValue)) {
-                      setManualCultureSelected(true)
-                      setManualSoiSelected(true)
-                      return
-                    }
-
+                  if (next === 'solar') {
                     setManualCultureSelected(false)
-                    setManualSoiSelected(Boolean(soiValue) && !isKnownVarietyForCulture(culturaValue, soiValue))
-                  }}
-                >
-                  <SelectTrigger className={selectTriggerClass}>
-                    <SelectValue placeholder="Alege tipul unității" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unitateOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {formatEmojiOptionLabel(option)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    setManualSoiSelected(false)
+                    syncCultureFields({ cultura: '', soi: '', shouldDirty: true })
+                    return
+                  }
+
+                  if (!culturaValue) {
+                    setManualCultureSelected(false)
+                    setManualSoiSelected(false)
+                    return
+                  }
+
+                  if (!isKnownCultureForTip(next, culturaValue)) {
+                    setManualCultureSelected(true)
+                    setManualSoiSelected(true)
+                    return
+                  }
+
+                  setManualCultureSelected(false)
+                  setManualSoiSelected(Boolean(soiValue) && !isKnownVarietyForCulture(culturaValue, soiValue))
+                }}
+                options={emojiOptionsToAppSelect(unitateOptions)}
+                triggerClassName={selectTriggerClass}
+              />
 
               {isSolar ? (
                 <div className="space-y-1.5">
@@ -390,41 +376,36 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <Label htmlFor="parcela_cultura">Cultură</Label>
-                  <Select
-                    value={cultureSelectValue}
-                    onValueChange={(value) => {
-                      if (value === '__none') {
-                        setManualCultureSelected(false)
-                        setManualSoiSelected(false)
-                        syncCultureFields({ cultura: '', soi: '', shouldDirty: true })
-                        return
-                      }
-
-                      if (value === MANUAL_CULTURE_OPTION_VALUE) {
-                        setManualCultureSelected(true)
-                        setManualSoiSelected(true)
-                        syncCultureFields({ cultura: '', soi: '', shouldDirty: true })
-                        return
-                      }
-
+                <AppSelect
+                  id="parcela_cultura"
+                  label="Cultură"
+                  placeholder="Selectează cultura"
+                  value={cultureSelectValue}
+                  onChange={(value) => {
+                    if (value === '__none') {
                       setManualCultureSelected(false)
                       setManualSoiSelected(false)
-                      syncCultureFields({ cultura: value, soi: '', shouldDirty: true })
-                    }}
-                  >
-                    <SelectTrigger id="parcela_cultura" className={selectTriggerClass}>
-                      <SelectValue placeholder="Selectează cultura" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none">Alege cultura</SelectItem>
-                      {culturaOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {formatEmojiOptionLabel(option)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      syncCultureFields({ cultura: '', soi: '', shouldDirty: true })
+                      return
+                    }
+
+                    if (value === MANUAL_CULTURE_OPTION_VALUE) {
+                      setManualCultureSelected(true)
+                      setManualSoiSelected(true)
+                      syncCultureFields({ cultura: '', soi: '', shouldDirty: true })
+                      return
+                    }
+
+                    setManualCultureSelected(false)
+                    setManualSoiSelected(false)
+                    syncCultureFields({ cultura: value, soi: '', shouldDirty: true })
+                  }}
+                  options={[
+                    { value: '__none', label: 'Alege cultura' },
+                    ...emojiOptionsToAppSelect(culturaOptions),
+                  ]}
+                  triggerClassName={selectTriggerClass}
+                />
                   {isManualCulture ? (
                     <Input
                       className="agri-control h-10 w-full px-3 text-sm"
@@ -442,24 +423,15 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <Label>Status *</Label>
-                <Select
-                  value={form.watch('status')}
-                  onValueChange={(value) => form.setValue('status', value, { shouldDirty: true })}
-                >
-                  <SelectTrigger className={selectTriggerClass}>
-                    <SelectValue placeholder="Alege statusul" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {formatEmojiOptionLabel(option)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <AppSelect
+                id="parcela_status"
+                label="Status *"
+                placeholder="Alege statusul"
+                value={form.watch('status')}
+                onChange={(value) => form.setValue('status', value, { shouldDirty: true })}
+                options={emojiOptionsToAppSelect(statusOptions)}
+                triggerClassName={selectTriggerClass}
+              />
 
               <ParcelUsageToggleCard
                 label="Afișează în dashboard"
@@ -481,52 +453,35 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                     ?
                   </span>
                 </div>
-                <Select
+                <AppSelect
+                  id="parcela_scop"
+                  label="Scop"
                   value={scopeValue}
-                  onValueChange={(value) => {
+                  onChange={(value) => {
                     const next = value as ParcelaScop
                     form.setValue('rol', next, { shouldDirty: true, shouldValidate: true })
                     const defs = applyScopDefaults(next)
                     form.setValue('apare_in_dashboard', defs.apare_in_dashboard, { shouldDirty: true })
                     form.setValue('contribuie_la_productie', defs.contribuie_la_productie, { shouldDirty: true })
                   }}
-                >
-                  <SelectTrigger className={selectTriggerClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {scopeOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {formatEmojiOptionLabel(option)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={emojiOptionsToAppSelect(scopeOptions)}
+                  triggerClassName={selectTriggerClass}
+                />
               </div>
 
-              <div className="space-y-1.5">
-                <Label>Situație operațională</Label>
-                <Select
-                  value={statusOperational}
-                  onValueChange={(value) =>
-                    form.setValue('status_operational', value as StatusOperational, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }
-                >
-                  <SelectTrigger className={selectTriggerClass}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOperationalOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {formatEmojiOptionLabel(option)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <AppSelect
+                id="parcela_status_operational"
+                label="Situație operațională"
+                value={statusOperational}
+                onChange={(value) =>
+                  form.setValue('status_operational', value as StatusOperational, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                options={emojiOptionsToAppSelect(statusOperationalOptions)}
+                triggerClassName={selectTriggerClass}
+              />
 
               {!isSolar ? (
                 <div className="space-y-1.5">
@@ -547,9 +502,11 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                     />
                   ) : culturaValue ? (
                     <>
-                      <Select
+                      <AppSelect
+                        id="parcela_soi"
+                        placeholder="Selectează soiul"
                         value={soiSelectValue}
-                        onValueChange={(value) => {
+                        onChange={(value) => {
                           if (value === '__none') {
                             setManualSoiSelected(false)
                             syncCultureFields({
@@ -577,19 +534,12 @@ export function ParcelForm({ form, soiuriDisponibile: _soiuriDisponibile }: Parc
                             shouldDirty: true,
                           })
                         }}
-                      >
-                        <SelectTrigger id="parcela_soi" className={selectTriggerClass}>
-                          <SelectValue placeholder="Selectează soiul" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none">Alege soiul</SelectItem>
-                          {soiOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {formatEmojiOptionLabel(option)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        options={[
+                          { value: '__none', label: 'Alege soiul' },
+                          ...emojiOptionsToAppSelect(soiOptions),
+                        ]}
+                        triggerClassName={selectTriggerClass}
+                      />
                       {soiSelectValue === MANUAL_VARIETY_OPTION_VALUE ? (
                         <Input
                           className="agri-control h-10 w-full px-3 text-sm"

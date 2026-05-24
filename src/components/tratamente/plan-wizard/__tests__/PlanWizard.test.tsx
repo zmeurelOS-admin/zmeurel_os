@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { PlanWizard } from '@/components/tratamente/plan-wizard/PlanWizard'
 import type { PlanTratamentComplet, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import { selectAppOption } from '@/test/helpers/select-app-option'
 
 const { upsertPlanTratamentCuLiniiActionMock } = vi.hoisted(() => ({
   upsertPlanTratamentCuLiniiActionMock: vi.fn(),
@@ -96,7 +97,7 @@ describe('PlanWizard', () => {
     const { onSave } = renderWizard()
 
     await user.type(screen.getByLabelText('Denumire plan *'), 'Plan zmeur 2026')
-    await user.selectOptions(screen.getByLabelText('Cultura țintă *'), 'zmeur')
+    await selectAppOption(user, 'Cultura țintă *', 'zmeur')
     await user.type(screen.getByLabelText('Descriere'), 'Plan test')
 
     await user.click(screen.getByRole('button', { name: 'Continuă' }))
@@ -104,7 +105,7 @@ describe('PlanWizard', () => {
     expect(screen.getByRole('heading', { name: 'Intervenții planificate', level: 1 })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Adaugă intervenție' }))
-    await user.selectOptions(screen.getByLabelText('Fenofază *'), 'buton_verde')
+    await selectAppOption(user, 'Fenofază *', 'buton_verde')
     await user.click(screen.getByRole('button', { name: /Adaugă manual/i }))
     await user.click(screen.getByText('Cupru Standard'))
     await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))

@@ -14,7 +14,9 @@ import {
 } from '@/lib/tratamente/stadii-canonic'
 import { getStadiuOrdine } from '@/lib/tratamente/stadiu-ordering'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
+import { getCurrentSezon } from '@/lib/utils/sezon'
 import type { Database, Json, Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
+import type { MetodaAplicare, TipCapcana } from '@/types/tratamente-metode'
 
 export type ProdusFitosanitar = Tables<'produse_fitosanitare'>
 export type ProdusFitosanitarInsert = TablesInsert<'produse_fitosanitare'>
@@ -46,6 +48,12 @@ export type AplicareTratamentUpdate = TablesUpdate<'aplicari_tratament'>
 export type AplicareTratamentProdus = Tables<'aplicari_tratament_produse'>
 export type AplicareTratamentProdusInsert = TablesInsert<'aplicari_tratament_produse'>
 export type AplicareTratamentProdusUpdate = TablesUpdate<'aplicari_tratament_produse'>
+export type CapcanaMontata = Tables<'capcane_montate'>
+export type CapcanaMontataInsert = TablesInsert<'capcane_montate'>
+export type CapcanaMontataUpdate = TablesUpdate<'capcane_montate'>
+export type CapcanaVerificare = Tables<'capcane_verificari'>
+export type CapcanaVerificareInsert = TablesInsert<'capcane_verificari'>
+export type CapcanaVerificareUpdate = TablesUpdate<'capcane_verificari'>
 
 export type AplicareTratamentMeteoSnapshot = Json
 
@@ -61,7 +69,7 @@ const PLAN_SELECT =
   'id,tenant_id,nume,cultura_tip,descriere,activ,arhivat,created_at,updated_at,created_by,updated_by'
 
 const LINIE_SELECT =
-  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,tip_interventie,scop,regula_repetare,interval_repetare_zile,numar_repetari_max,fereastra_start_offset_zile,fereastra_end_offset_zile,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,observatii,sursa_linie,motiv_adaugare,created_at,updated_at'
+  'id,tenant_id,plan_id,ordine,stadiu_trigger,cohort_trigger,tip_interventie,scop,regula_repetare,interval_repetare_zile,numar_repetari_max,fereastra_start_offset_zile,fereastra_end_offset_zile,produs_id,produs_nume_manual,doza_ml_per_hl,doza_l_per_ha,metoda_aplicare,observatii,sursa_linie,motiv_adaugare,created_at,updated_at'
 
 const PLAN_LINIE_PRODUS_SELECT =
   'id,tenant_id,plan_linie_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_text,observatii,created_at,updated_at'
@@ -73,7 +81,7 @@ const STADIU_SELECT =
   'id,tenant_id,parcela_id,an,stadiu,cohort,data_observata,sursa,observatii,created_at,updated_at,created_by'
 
 const APLICARE_SELECT =
-  'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,sursa,tip_interventie,scop,stadiu_fenologic_id,diferente_fata_de_plan,meteo_snapshot,stadiu_la_aplicare,cohort_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
+  'id,tenant_id,parcela_id,cultura_id,plan_linie_id,produs_id,produs_nume_manual,data_planificata,data_aplicata,doza_ml_per_hl,doza_l_per_ha,cantitate_totala_ml,stoc_mutatie_id,status,sursa,tip_interventie,scop,metoda_aplicare,stadiu_fenologic_id,diferente_fata_de_plan,meteo_snapshot,stadiu_la_aplicare,cohort_la_aplicare,observatii,operator,created_at,updated_at,created_by,updated_by'
 
 const APLICARE_PRODUS_SELECT =
   'id,tenant_id,aplicare_id,plan_linie_produs_id,ordine,produs_id,produs_nume_manual,produs_nume_snapshot,substanta_activa_snapshot,tip_snapshot,frac_irac_snapshot,phi_zile_snapshot,doza_ml_per_hl,doza_l_per_ha,cantitate_totala,unitate_cantitate,cantitate_text,stoc_mutatie_id,observatii,created_at,updated_at'
@@ -158,6 +166,7 @@ export interface CreatePlanTratamentLinieInput {
   motiv_adaugare?: string | null
   tip_interventie?: string | null
   scop?: string | null
+  metoda_aplicare?: MetodaAplicare | null
   regula_repetare?: 'fara_repetare' | 'interval'
   interval_repetare_zile?: number | null
   numar_repetari_max?: number | null
@@ -247,6 +256,7 @@ export interface PlanTratamentLiniePayload {
   motiv_adaugare?: string | null
   tip_interventie?: string | null
   scop?: string | null
+  metoda_aplicare?: MetodaAplicare | null
   regula_repetare?: 'fara_repetare' | 'interval'
   interval_repetare_zile?: number | null
   numar_repetari_max?: number | null
@@ -292,6 +302,7 @@ export interface ParcelaTratamenteSelectOption {
   id: string
   id_parcela: string | null
   nume_parcela: string | null
+  suprafata_m2: number | null
 }
 
 export interface AplicareProdusV2 extends AplicareTratamentProdus {
@@ -334,6 +345,7 @@ export interface AplicareCrossParcelItem {
   status: AplicareTratament['status']
   tip_interventie: string | null
   scop: string | null
+  metoda_aplicare?: MetodaAplicare | null
   parcela_nume: string | null
   parcela_cod: string | null
   parcela_suprafata_m2: number | null
@@ -399,6 +411,72 @@ export interface InterventieRelevantaV2 {
   motiv: string
 }
 
+export interface RecomandareInterventie {
+  linieId: string
+  titlu: string
+  produse: Array<{
+    nume: string
+    dozaSugerataMlPerHl: number | null
+    dozaSugerataLPerHa: number | null
+    cantitateText: string | null
+  }>
+  stadiuTrigger: string
+  sursa?: 'plan' | 'platforma'
+}
+
+export interface RegulaRecomandarePlatforma {
+  id: string
+  cod: string
+  cultura_tip: string
+  fenofaza: string
+  metoda_aplicare: MetodaAplicare
+  cohort: Cohorta | null
+  luni_active: number[] | null
+  titlu: string
+  descriere: string | null
+  produs_sugerat_nume: string | null
+  produs_sugerat_doza_text: string | null
+  tip_interventie: string | null
+  prioritate: number
+  activ: boolean
+  sursa: string | null
+}
+
+export type JurnalAplicareItem = {
+  aplicareId: string
+  dataAplicata: string
+  parcelaId: string
+  parcelaNume: string
+  metodaAplicare: MetodaAplicare | null
+  produse: Array<{
+    nume: string
+    dozaText: string
+  }>
+  status: 'aplicata' | 'ciorna'
+}
+
+export type SugestieAstazi = {
+  parcela: { id: string; nume: string }
+  fenofazaCurenta: string
+  metoda: MetodaAplicare
+  titlu: string
+  produs: { nume: string; dozaText: string }
+  sursa: 'plan' | 'platforma'
+}
+
+export interface CapcanaMontataView extends Omit<CapcanaMontata, 'tip_capcana' | 'status'> {
+  tip_capcana: TipCapcana
+  status: 'activ' | 'scos' | 'expirat'
+}
+
+export interface CapcanaVerificareView extends Omit<CapcanaVerificare, 'actiune'> {
+  actiune: 'inlocuit' | 'curatat' | 'scos' | 'doar_observat' | null
+}
+
+export interface CapcanaCuVerificariView extends CapcanaMontataView {
+  verificari: CapcanaVerificareView[]
+}
+
 export interface AplicareAgregata {
   id: string
   tenant_id: string
@@ -455,6 +533,7 @@ export interface InsertAplicarePlanificata {
   sursa?: 'din_plan' | 'manuala'
   tip_interventie?: string | null
   scop?: string | null
+  metoda_aplicare?: MetodaAplicare | null
   stadiu_fenologic_id?: string | null
   diferente_fata_de_plan?: Json | null
   produs_id?: string | null
@@ -487,6 +566,7 @@ export interface CreateAplicareManualaInput {
   data_aplicata?: string | null
   tip_interventie?: string | null
   scop?: string | null
+  metoda_aplicare?: MetodaAplicare | null
   stadiu_fenologic_id?: string | null
   diferente_fata_de_plan?: Json | null
   produs_id?: string | null
@@ -549,6 +629,25 @@ export interface MarkAplicareAsAplicataPayload {
   cohortLaAplicare?: Cohorta | null
   produse?: InsertAplicarePlanificata['produse']
   diferenteFataDePlan?: Json | null
+}
+
+export interface MontaCapcanaPayload {
+  parcelaId: string
+  tipCapcana: TipCapcana
+  nrBucati: number
+  dataMontare?: string | null
+  dataUrmatoareaVerificare?: string | null
+  observatii?: string | null
+  fotoUrl?: string | null
+}
+
+export interface VerificaCapcanaPayload {
+  capcanaMontataId: string
+  nrCapturati?: number | null
+  actiune: 'inlocuit' | 'curatat' | 'scos' | 'doar_observat'
+  pragDepasit?: boolean | null
+  observatii?: string | null
+  fotoUrl?: string | null
 }
 
 interface QueryContext {
@@ -650,6 +749,16 @@ function normalizeOptionalPositiveNumber(value: number | null | undefined): numb
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 
+function getProdusDisplayName(
+  produs: {
+    produs_nume_snapshot?: string | null
+    produs_nume_manual?: string | null
+    produs?: Pick<ProdusFitosanitar, 'nume_comercial'> | null
+  }
+): string {
+  return produs.produs?.nume_comercial ?? produs.produs_nume_snapshot ?? produs.produs_nume_manual ?? 'Produs fără nume'
+}
+
 type PlanLinieProdusRelationRow = PlanTratamentLinieProdus & {
   produs: ProdusFitosanitar | ProdusFitosanitar[] | null
 }
@@ -700,6 +809,7 @@ function buildLegacyInterventieProdus(
     phi_zile_snapshot: produs?.phi_zile ?? null,
     doza_ml_per_hl: linie.doza_ml_per_hl,
     doza_l_per_ha: linie.doza_l_per_ha,
+    cantitate_text: null,
     observatii: linie.observatii,
     created_at: linie.created_at,
     updated_at: linie.updated_at,
@@ -774,6 +884,7 @@ function buildLegacyAplicareProdus(
     doza_l_per_ha: aplicare.doza_l_per_ha,
     cantitate_totala: aplicare.cantitate_totala_ml,
     unitate_cantitate: aplicare.cantitate_totala_ml == null ? null : 'ml',
+    cantitate_text: null,
     stoc_mutatie_id: aplicare.stoc_mutatie_id,
     observatii: aplicare.observatii,
     created_at: aplicare.created_at,
@@ -1011,6 +1122,7 @@ function mapAplicariCrossParcel(
       status: row.status,
       tip_interventie: row.tip_interventie ?? linie?.tip_interventie ?? null,
       scop: row.scop ?? linie?.scop ?? null,
+      metoda_aplicare: (row.metoda_aplicare ?? linie?.metoda_aplicare ?? null) as MetodaAplicare | null,
       parcela_nume: parcela?.nume_parcela ?? null,
       parcela_cod: parcela?.id_parcela ?? null,
       parcela_suprafata_m2: parcela?.suprafata_m2 ?? null,
@@ -1979,6 +2091,7 @@ export async function upsertPlanTratamentCuLinii(
       numar_repetari_max: linie.numar_repetari_max ?? null,
       fereastra_start_offset_zile: linie.fereastra_start_offset_zile ?? null,
       fereastra_end_offset_zile: linie.fereastra_end_offset_zile ?? null,
+      metoda_aplicare: linie.metoda_aplicare ?? null,
       produse,
       produs_id: firstProdus?.produs_id ?? null,
       produs_nume_manual: normalizeText(firstProdus?.produs_nume_manual),
@@ -2220,6 +2333,7 @@ export async function createPlanTratament(
           numar_repetari_max: linie.numar_repetari_max ?? null,
           fereastra_start_offset_zile: linie.fereastra_start_offset_zile ?? null,
           fereastra_end_offset_zile: linie.fereastra_end_offset_zile ?? null,
+          metoda_aplicare: linie.metoda_aplicare ?? null,
           produs_id: firstProdus?.produs_id ?? null,
           produs_nume_manual: firstProdus?.produs_id ? null : normalizeText(firstProdus?.produs_nume_manual),
           doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? null,
@@ -2347,6 +2461,7 @@ export async function addLinieToPlan(
     produs_nume_manual: firstProdus?.produs_id ? null : normalizeText(firstProdus?.produs_nume_manual),
     doza_ml_per_hl: firstProdus?.doza_ml_per_hl ?? null,
     doza_l_per_ha: firstProdus?.doza_l_per_ha ?? null,
+    metoda_aplicare: linie.metoda_aplicare ?? null,
     observatii: normalizeText(linie.observatii),
   }
 
@@ -2383,6 +2498,7 @@ export async function updateLiniePlan(
   if (data.numar_repetari_max !== undefined) payload.numar_repetari_max = data.numar_repetari_max
   if (data.fereastra_start_offset_zile !== undefined) payload.fereastra_start_offset_zile = data.fereastra_start_offset_zile
   if (data.fereastra_end_offset_zile !== undefined) payload.fereastra_end_offset_zile = data.fereastra_end_offset_zile
+  if (data.metoda_aplicare !== undefined) payload.metoda_aplicare = data.metoda_aplicare
   if (
     data.produse !== undefined ||
     data.produs_id !== undefined ||
@@ -2724,7 +2840,7 @@ export async function listParceleTratamenteSelector(): Promise<ParcelaTratamente
 
   const { data, error } = await supabase
     .from('parcele')
-    .select('id,id_parcela,nume_parcela')
+    .select('id,id_parcela,nume_parcela,suprafata_m2')
     .eq('tenant_id', tenantId)
     .order('nume_parcela', { ascending: true })
     .order('id_parcela', { ascending: true })
@@ -3009,6 +3125,77 @@ function getInterventieProdusLabel(interventie: InterventiePlanV2): string {
   return interventie.produse.length > 1 ? `${name} +${interventie.produse.length - 1}` : name
 }
 
+function resolveParcelaCulturaTip(parcela: ParcelaTratamenteContext | null): string | null {
+  if (!parcela) return null
+  return normalizeCulturaKey(parcela.cultura) ?? normalizeCulturaKey(parcela.tip_fruct)
+}
+
+function normalizeRecomandareProductKey(value: string | null | undefined): string | null {
+  return normalizeText(value)?.toLowerCase() ?? null
+}
+
+function regulaMatchesFallbackContext(
+  regula: RegulaRecomandarePlatforma,
+  cohort: Cohorta | null,
+  lunaCurenta: number
+): boolean {
+  if (!regula.activ) return false
+  if (regula.cohort && regula.cohort !== cohort) return false
+  if (Array.isArray(regula.luni_active) && regula.luni_active.length > 0) {
+    return regula.luni_active.includes(lunaCurenta)
+  }
+
+  return true
+}
+
+export function mapRegulaPlatformaToRecomandare(regula: RegulaRecomandarePlatforma): RecomandareInterventie {
+  return {
+    linieId: `regula_${regula.id}`,
+    titlu: regula.titlu,
+    produse: [
+      {
+        nume: regula.produs_sugerat_nume?.trim() || regula.titlu,
+        dozaSugerataMlPerHl: null,
+        dozaSugerataLPerHa: null,
+        cantitateText: regula.produs_sugerat_doza_text,
+      },
+    ],
+    stadiuTrigger: regula.fenofaza,
+    sursa: 'platforma',
+  }
+}
+
+export function completeazaRecomandariCuReguliPlatforma(params: {
+  recomandariPlan: RecomandareInterventie[]
+  reguli: RegulaRecomandarePlatforma[]
+  cohort: Cohorta | null
+  lunaCurenta: number
+}): RecomandareInterventie[] {
+  if (params.recomandariPlan.length >= 3) {
+    return params.recomandariPlan.slice(0, 5)
+  }
+
+  const produseDejaSugerate = new Set(
+    params.recomandariPlan
+      .map((recomandare) => normalizeRecomandareProductKey(recomandare.produse[0]?.nume))
+      .filter((value): value is string => Boolean(value))
+  )
+
+  const fallback = [...params.reguli]
+    .filter((regula) => regulaMatchesFallbackContext(regula, params.cohort, params.lunaCurenta))
+    .sort((first, second) => second.prioritate - first.prioritate)
+    .map(mapRegulaPlatformaToRecomandare)
+    .filter((recomandare) => {
+      const productKey = normalizeRecomandareProductKey(recomandare.produse[0]?.nume)
+      if (!productKey) return true
+      if (produseDejaSugerate.has(productKey)) return false
+      produseDejaSugerate.add(productKey)
+      return true
+    })
+
+  return [...params.recomandariPlan, ...fallback].slice(0, 5)
+}
+
 function buildInterventieOperationalState(params: {
   interventie: InterventiePlanV2
   fenofaza: FenofazaCurentaParcela
@@ -3190,6 +3377,131 @@ export async function listInterventiiRelevanteParcela(
     })
 }
 
+/** Filtrează intervențiile relevante după metoda de aplicare și euristica pentru planurile vechi. */
+export function filterInterventiiRelevanteByMetoda(
+  interventii: InterventieRelevantaV2[],
+  metodaAplicare: MetodaAplicare
+): InterventieRelevantaV2[] {
+  const matchesLegacyHeuristic = (tipInterventie: string | null | undefined): boolean => {
+    if (metodaAplicare === 'foliar') {
+      return tipInterventie === 'protectie' || tipInterventie === 'biostimulare' || tipInterventie === 'altul'
+    }
+    if (metodaAplicare === 'fertirigare' || metodaAplicare === 'fertilizare_baza') {
+      return tipInterventie === 'nutritie'
+    }
+    if (metodaAplicare === 'capcana_pus' || metodaAplicare === 'capcana_verificat') {
+      return tipInterventie === 'monitorizare'
+    }
+    return false
+  }
+
+  return interventii.filter((item) => {
+    const metoda = item.interventie.metoda_aplicare
+    if (metoda === metodaAplicare) return true
+    if (metoda !== null) return false
+    return matchesLegacyHeuristic(item.interventie.tip_interventie)
+  })
+}
+
+/** Transformă intervențiile filtrate în recomandări compacte pentru consumatori. */
+export function buildRecomandariInterventie(
+  interventii: InterventieRelevantaV2[]
+): RecomandareInterventie[] {
+  return [...interventii]
+    .sort((first, second) => first.interventie.ordine - second.interventie.ordine)
+    .slice(0, 5)
+    .map((item) => ({
+      linieId: item.interventie.id,
+      titlu: item.interventie.scop?.trim() || 'Intervenție',
+      produse: item.produse_planificate.map((produs) => ({
+        nume: getProdusDisplayName(produs),
+        dozaSugerataMlPerHl: produs.doza_ml_per_hl,
+        dozaSugerataLPerHa: produs.doza_l_per_ha,
+        cantitateText: produs.cantitate_text,
+      })),
+      stadiuTrigger: item.interventie.stadiu_trigger,
+      sursa: 'plan',
+    }))
+}
+
+type ReguliRecomandarePlatformaQueryResult = {
+  data: RegulaRecomandarePlatforma[] | null
+  error: unknown | null
+}
+
+interface ReguliRecomandarePlatformaQuery extends PromiseLike<ReguliRecomandarePlatformaQueryResult> {
+  select(columns: string): ReguliRecomandarePlatformaQuery
+  eq(column: string, value: unknown): ReguliRecomandarePlatformaQuery
+  order(column: string, options?: { ascending?: boolean }): ReguliRecomandarePlatformaQuery
+  limit(count: number): ReguliRecomandarePlatformaQuery
+}
+
+async function listReguliRecomandarePlatforma(params: {
+  ctx: QueryContext
+  culturaTip: string
+  fenofaza: StadiuCod
+  metodaAplicare: MetodaAplicare
+}): Promise<RegulaRecomandarePlatforma[]> {
+  const query = params.ctx.supabase.from(
+    'reguli_recomandare_platforma' as never
+  ) as unknown as ReguliRecomandarePlatformaQuery
+
+  const { data, error } = await query
+    .select('*')
+    .eq('activ', true)
+    .eq('cultura_tip', params.culturaTip)
+    .eq('fenofaza', params.fenofaza)
+    .eq('metoda_aplicare', params.metodaAplicare)
+    .order('prioritate', { ascending: false })
+    .limit(20)
+
+  if (error) throw error
+  return data ?? []
+}
+
+/** Listează recomandările pentru o parcelă, filtrate după metoda de aplicare. */
+export async function listRecomandariParcela(input: {
+  parcelaId: string
+  metodaAplicare: MetodaAplicare
+  an?: number
+}): Promise<RecomandareInterventie[]> {
+  const an = input.an ?? getCurrentSezon()
+  const interventii = await listInterventiiRelevanteParcela(input.parcelaId, an)
+  const recomandariPlan = buildRecomandariInterventie(
+    filterInterventiiRelevanteByMetoda(interventii, input.metodaAplicare)
+  )
+
+  if (recomandariPlan.length >= 3) {
+    return recomandariPlan.slice(0, 5)
+  }
+
+  const ctx = await getQueryContext()
+  const [parcela, stadiuCurent] = await Promise.all([
+    getParcelaTratamenteContext(input.parcelaId),
+    getStadiuCurentParcela(input.parcelaId, an),
+  ])
+  const culturaTip = resolveParcelaCulturaTip(parcela)
+  const fenofaza = stadiuCurent ? normalizeStadiu(stadiuCurent.stadiu) : null
+
+  if (!culturaTip || !fenofaza) {
+    return recomandariPlan
+  }
+
+  const reguli = await listReguliRecomandarePlatforma({
+    ctx,
+    culturaTip,
+    fenofaza,
+    metodaAplicare: input.metodaAplicare,
+  })
+
+  return completeazaRecomandariCuReguliPlatforma({
+    recomandariPlan,
+    reguli,
+    cohort: normalizeOptionalCohorta(stadiuCurent?.cohort),
+    lunaCurenta: new Date().getMonth() + 1,
+  })
+}
+
 export async function listInterventiiRelevanteHub(an: number): Promise<InterventieRelevantaV2[]> {
   const parcele = await listParceleTratamenteSelector()
   const results = await Promise.all(
@@ -3208,6 +3520,64 @@ export async function listInterventiiRelevanteHub(an: number): Promise<Intervent
   )
 
   return results.flat()
+}
+
+/** Listează capcanele active ale unei parcele ordonate după următoarea verificare. */
+export async function listCapcaneActive(parcelaId: string): Promise<CapcanaMontataView[]> {
+  const ctx = await getQueryContext()
+  const { data, error } = await ctx.supabase
+    .from('capcane_montate')
+    .select('*')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('parcela_id', parcelaId)
+    .eq('status', 'activ')
+    .order('data_urmatoarea_verificare', { ascending: true, nullsFirst: false })
+
+  if (error) throw error
+  return (data ?? []) as CapcanaMontataView[]
+}
+
+/** Încarcă o capcană montată împreună cu istoricul verificărilor descrescător după dată. */
+export async function getCapcanaCuVerificari(
+  capcanaMontataId: string
+): Promise<CapcanaCuVerificariView | null> {
+  const ctx = await getQueryContext()
+  const { data, error } = await ctx.supabase
+    .from('capcane_montate')
+    .select('*, verificari:capcane_verificari(*)')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('id', capcanaMontataId)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  const verificari = Array.isArray((data as { verificari?: unknown }).verificari)
+    ? ((data as { verificari: CapcanaVerificareView[] }).verificari ?? []).sort(
+        (first, second) => second.data_verificare.localeCompare(first.data_verificare)
+      )
+    : []
+
+  return {
+    ...(data as CapcanaMontataView),
+    verificari,
+  }
+}
+
+/** Listează capcanele active cu data următoarei verificări depășită. */
+export async function listCapcaneCuVerificareDepasita(): Promise<CapcanaMontataView[]> {
+  const ctx = await getQueryContext()
+  const todayIso = toIsoDate(new Date())
+  const { data, error } = await ctx.supabase
+    .from('capcane_montate')
+    .select('*')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('status', 'activ')
+    .lt('data_urmatoarea_verificare', todayIso)
+    .order('data_urmatoarea_verificare', { ascending: true, nullsFirst: false })
+
+  if (error) throw error
+  return (data ?? []) as CapcanaMontataView[]
 }
 
 export interface CreateAplicareDinInterventieInput {
@@ -3484,6 +3854,120 @@ export async function listAplicariCrossParcelPentruInterval(
     if (dateA !== dateB) return dateA.localeCompare(dateB)
     return (a.parcela_nume ?? '').localeCompare(b.parcela_nume ?? '', 'ro')
   })
+}
+
+function formatJurnalDozaText(produs: AplicareProdusV2): string {
+  if (produs.cantitate_text?.trim()) return produs.cantitate_text.trim()
+  if (typeof produs.doza_ml_per_hl === 'number') return `${produs.doza_ml_per_hl} ml/hl`
+  if (typeof produs.doza_l_per_ha === 'number') return `${produs.doza_l_per_ha} l/ha`
+  if (typeof produs.cantitate_totala === 'number' && produs.unitate_cantitate) {
+    return `${produs.cantitate_totala} ${produs.unitate_cantitate}`
+  }
+  return ''
+}
+
+function subDaysFromNow(days: number): Date {
+  const date = new Date()
+  date.setDate(date.getDate() - days)
+  return date
+}
+
+function effectiveCrossAplicareDate(aplicare: AplicareCrossParcelItem): string {
+  return aplicare.data_aplicata ?? aplicare.data_planificata ?? aplicare.data_programata ?? ''
+}
+
+export function mapAplicariCrossParcelToJurnal(
+  aplicari: AplicareCrossParcelItem[],
+  limit = 20
+): JurnalAplicareItem[] {
+  return aplicari
+    .filter((aplicare): aplicare is AplicareCrossParcelItem & { status: 'aplicata' | 'ciorna' } =>
+      aplicare.status === 'aplicata' || aplicare.status === 'ciorna'
+    )
+    .sort((first, second) => effectiveCrossAplicareDate(second).localeCompare(effectiveCrossAplicareDate(first)))
+    .slice(0, limit)
+    .map((aplicare) => {
+      const produse = aplicare.produse_aplicare.length > 0
+        ? aplicare.produse_aplicare.map((produs) => ({
+            nume: getProdusDisplayName(produs),
+            dozaText: formatJurnalDozaText(produs),
+          }))
+        : [{ nume: aplicare.produs_nume, dozaText: '' }]
+
+      return {
+        aplicareId: aplicare.id,
+        dataAplicata: effectiveCrossAplicareDate(aplicare),
+        parcelaId: aplicare.parcela_id,
+        parcelaNume: aplicare.parcela_nume ?? aplicare.parcela_cod ?? 'Parcelă',
+        metodaAplicare: aplicare.metoda_aplicare ?? null,
+        produse,
+        status: aplicare.status,
+      }
+    })
+}
+
+/** Listează jurnalul cronologic de aplicări efectuate/ciorne pentru hub-ul global. */
+export async function listJurnalAplicari(input?: {
+  zile?: number
+  limit?: number
+}): Promise<JurnalAplicareItem[]> {
+  const zile = Math.max(1, Math.min(input?.zile ?? 30, 365))
+  const limit = Math.max(1, Math.min(input?.limit ?? 20, 100))
+  const aplicari = await listAplicariCrossParcelPentruInterval({
+    dataStart: subDaysFromNow(zile),
+    dataEnd: new Date(),
+    status: ['aplicata', 'ciorna'],
+  })
+
+  return mapAplicariCrossParcelToJurnal(aplicari, limit)
+}
+
+/** Returnează sugestia principală pentru cardul "Astăzi" din hub-ul global. */
+export async function getSugestieAstazi(): Promise<SugestieAstazi | null> {
+  const parcele = await listParceleTratamenteSelector()
+  if (parcele.length === 0) return null
+
+  const aplicariRecente = await listAplicariCrossParcelPentruInterval({
+    dataStart: subDaysFromNow(30),
+    dataEnd: new Date(),
+    status: ['aplicata', 'ciorna', 'planificata', 'reprogramata'],
+  }).catch(() => [])
+
+  const aplicariCountByParcela = new Map<string, number>()
+  for (const aplicare of aplicariRecente) {
+    aplicariCountByParcela.set(aplicare.parcela_id, (aplicariCountByParcela.get(aplicare.parcela_id) ?? 0) + 1)
+  }
+
+  const parcelaPrimara = [...parcele].sort((first, second) => {
+    const countDiff = (aplicariCountByParcela.get(second.id) ?? 0) - (aplicariCountByParcela.get(first.id) ?? 0)
+    if (countDiff !== 0) return countDiff
+    return (first.nume_parcela ?? first.id_parcela ?? '').localeCompare(second.nume_parcela ?? second.id_parcela ?? '', 'ro')
+  })[0]
+  if (!parcelaPrimara) return null
+
+  const recomandari = await listRecomandariParcela({
+    parcelaId: parcelaPrimara.id,
+    metodaAplicare: 'foliar',
+    an: getCurrentSezon(),
+  })
+  const primaRecomandare = recomandari[0]
+  const produs = primaRecomandare?.produse[0]
+  if (!primaRecomandare || !produs) return null
+
+  return {
+    parcela: {
+      id: parcelaPrimara.id,
+      nume: parcelaPrimara.nume_parcela ?? parcelaPrimara.id_parcela ?? 'Parcelă',
+    },
+    fenofazaCurenta: primaRecomandare.stadiuTrigger,
+    metoda: 'foliar',
+    titlu: primaRecomandare.titlu,
+    produs: {
+      nume: produs.nume,
+      dozaText: produs.cantitateText ?? '',
+    },
+    sursa: primaRecomandare.sursa === 'platforma' ? 'platforma' : 'plan',
+  }
 }
 
 /**
@@ -3786,6 +4270,7 @@ export async function createAplicarePlanificata(
     sursa: data.sursa ?? (data.plan_linie_id ? 'din_plan' : 'manuala'),
     tip_interventie: normalizeText(data.tip_interventie),
     scop: normalizeText(data.scop),
+    metoda_aplicare: data.metoda_aplicare ?? null,
     stadiu_fenologic_id: data.stadiu_fenologic_id ?? null,
     diferente_fata_de_plan: data.diferente_fata_de_plan ?? null,
     produs_id: firstProdus?.produs_id ?? data.produs_id ?? null,
@@ -3860,6 +4345,7 @@ export async function createAplicareManuala(
     sursa: 'manuala',
     tip_interventie: normalizeText(data.tip_interventie),
     scop: normalizeText(data.scop),
+    metoda_aplicare: data.metoda_aplicare ?? null,
     stadiu_fenologic_id: data.stadiu_fenologic_id ?? null,
     diferente_fata_de_plan: data.diferente_fata_de_plan ?? null,
     produs_id: firstProdus?.produs_id ?? null,
@@ -3892,6 +4378,179 @@ export async function createAplicareManuala(
   if (error) throw error
   await replaceAplicareProduse(ctx, inserted.id, produse)
   return inserted
+}
+
+/** Montează o capcană și creează aplicarea-sursă de monitorizare în tenantul curent. */
+export async function montaCapcana(
+  input: MontaCapcanaPayload
+): Promise<CapcanaMontataView> {
+  const ctx = await getQueryContext()
+  const nowIso = new Date().toISOString()
+  const aplicarePayload: AplicareTratamentInsert = {
+    tenant_id: ctx.tenantId,
+    parcela_id: input.parcelaId,
+    cultura_id: null,
+    plan_linie_id: null,
+    sursa: 'manuala',
+    tip_interventie: 'monitorizare',
+    scop: 'Monitorizare capcane',
+    metoda_aplicare: 'capcana_pus',
+    stadiu_fenologic_id: null,
+    diferente_fata_de_plan: null,
+    produs_id: null,
+    produs_nume_manual: null,
+    data_planificata: null,
+    data_aplicata: nowIso,
+    doza_ml_per_hl: null,
+    doza_l_per_ha: null,
+    cantitate_totala_ml: null,
+    stoc_mutatie_id: null,
+    status: 'aplicata',
+    meteo_snapshot: null,
+    stadiu_la_aplicare: null,
+    cohort_la_aplicare: null,
+    observatii: normalizeText(input.observatii),
+    operator: null,
+    created_by: ctx.userId,
+    updated_by: ctx.userId,
+  }
+
+  const { data: aplicare, error: aplicareError } = await ctx.supabase
+    .from('aplicari_tratament')
+    .insert(aplicarePayload)
+    .select(APLICARE_SELECT)
+    .single()
+
+  if (aplicareError || !aplicare) {
+    throw aplicareError ?? new Error('Nu am putut crea aplicarea pentru capcană.')
+  }
+
+  const capcanaPayload: CapcanaMontataInsert = {
+    tenant_id: ctx.tenantId,
+    parcela_id: input.parcelaId,
+    aplicare_id: aplicare.id,
+    tip_capcana: input.tipCapcana,
+    nr_bucati: input.nrBucati,
+    data_montare: input.dataMontare?.trim() || undefined,
+    data_urmatoarea_verificare: normalizeText(input.dataUrmatoareaVerificare) ?? null,
+    observatii: normalizeText(input.observatii),
+    foto_url: normalizeText(input.fotoUrl),
+    created_by: ctx.userId,
+  }
+
+  const { data: capcana, error: capcanaError } = await ctx.supabase
+    .from('capcane_montate')
+    .insert(capcanaPayload)
+    .select('*')
+    .single()
+
+  if (capcanaError || !capcana) {
+    await ctx.supabase
+      .from('aplicari_tratament')
+      .delete()
+      .eq('id', aplicare.id)
+      .eq('tenant_id', ctx.tenantId)
+    throw capcanaError ?? new Error('Nu am putut salva capcana montată.')
+  }
+
+  return capcana as CapcanaMontataView
+}
+
+/** Salvează o verificare de capcană și aplicarea de monitorizare aferentă. */
+export async function verificaCapcana(
+  input: VerificaCapcanaPayload
+): Promise<CapcanaVerificareView> {
+  const ctx = await getQueryContext()
+  const { data: capcana, error: capcanaError } = await ctx.supabase
+    .from('capcane_montate')
+    .select('id,tenant_id,parcela_id,status')
+    .eq('id', input.capcanaMontataId)
+    .eq('tenant_id', ctx.tenantId)
+    .maybeSingle()
+
+  if (capcanaError) throw capcanaError
+  if (!capcana) {
+    throw new Error('Capcana selectată nu există în tenantul curent.')
+  }
+
+  const nowIso = new Date().toISOString()
+  const aplicarePayload: AplicareTratamentInsert = {
+    tenant_id: ctx.tenantId,
+    parcela_id: capcana.parcela_id,
+    cultura_id: null,
+    plan_linie_id: null,
+    sursa: 'manuala',
+    tip_interventie: 'monitorizare',
+    scop: 'Verificare capcană',
+    metoda_aplicare: 'capcana_verificat',
+    stadiu_fenologic_id: null,
+    diferente_fata_de_plan: null,
+    produs_id: null,
+    produs_nume_manual: null,
+    data_planificata: null,
+    data_aplicata: nowIso,
+    doza_ml_per_hl: null,
+    doza_l_per_ha: null,
+    cantitate_totala_ml: null,
+    stoc_mutatie_id: null,
+    status: 'aplicata',
+    meteo_snapshot: null,
+    stadiu_la_aplicare: null,
+    cohort_la_aplicare: null,
+    observatii: normalizeText(input.observatii),
+    operator: null,
+    created_by: ctx.userId,
+    updated_by: ctx.userId,
+  }
+
+  const { data: aplicare, error: aplicareError } = await ctx.supabase
+    .from('aplicari_tratament')
+    .insert(aplicarePayload)
+    .select(APLICARE_SELECT)
+    .single()
+
+  if (aplicareError || !aplicare) {
+    throw aplicareError ?? new Error('Nu am putut crea aplicarea pentru verificarea capcanei.')
+  }
+
+  const verificarePayload: CapcanaVerificareInsert = {
+    tenant_id: ctx.tenantId,
+    capcana_montata_id: input.capcanaMontataId,
+    aplicare_id: aplicare.id,
+    nr_capturati: input.nrCapturati ?? null,
+    actiune: input.actiune,
+    prag_depasit: input.pragDepasit ?? false,
+    observatii: normalizeText(input.observatii),
+    foto_url: normalizeText(input.fotoUrl),
+    created_by: ctx.userId,
+  }
+
+  const { data: verificare, error: verificareError } = await ctx.supabase
+    .from('capcane_verificari')
+    .insert(verificarePayload)
+    .select('*')
+    .single()
+
+  if (verificareError || !verificare) {
+    await ctx.supabase
+      .from('aplicari_tratament')
+      .delete()
+      .eq('id', aplicare.id)
+      .eq('tenant_id', ctx.tenantId)
+    throw verificareError ?? new Error('Nu am putut salva verificarea capcanei.')
+  }
+
+  if (input.actiune === 'scos') {
+    const { error: updateError } = await ctx.supabase
+      .from('capcane_montate')
+      .update({ status: 'scos', updated_at: nowIso })
+      .eq('id', input.capcanaMontataId)
+      .eq('tenant_id', ctx.tenantId)
+
+    if (updateError) throw updateError
+  }
+
+  return verificare as CapcanaVerificareView
 }
 
 /**

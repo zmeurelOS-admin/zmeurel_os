@@ -19,14 +19,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
+import { COHORTA_REQUIRED_APP_SELECT_OPTIONS } from '@/lib/ui/app-select-maps'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   anuleazaAction,
@@ -194,6 +189,7 @@ function getVisualProduse(
       doza_l_per_ha: aplicare.doza_l_per_ha ?? null,
       cantitate_totala: aplicare.cantitate_totala_ml ?? null,
       unitate_cantitate: aplicare.cantitate_totala_ml == null ? null : 'ml',
+      cantitate_text: null,
       stoc_mutatie_id: aplicare.stoc_mutatie_id,
       observatii: aplicare.observatii ?? '',
       created_at: aplicare.created_at,
@@ -406,6 +402,7 @@ function toAplicareProdusV2(produs: AplicareProdusForm, aplicare: AplicareTratam
     doza_l_per_ha: toNumberOrNull(produs.doza_l_per_ha),
     cantitate_totala: toNumberOrNull(produs.cantitate_totala),
     unitate_cantitate: inferQuantityUnit(produs.cantitate_totala),
+    cantitate_text: null,
     stoc_mutatie_id: null,
     observatii: produs.observatii,
     created_at: aplicare.created_at,
@@ -1100,21 +1097,15 @@ export function AplicareDetaliuClient({
                         </div>
 
                         {rubusMixt && !cohortBlocata ? (
-                          <div className="space-y-1.5">
-                            <Label>Cohortă</Label>
-                            <Select
-                              value={cohortMarcare ?? undefined}
-                              onValueChange={(value) => setCohortMarcare(value as Cohorta)}
-                            >
-                              <SelectTrigger className="agri-control h-11 w-full">
-                                <SelectValue placeholder="Selectează cohorta" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="floricane">{getCohortaLabel('floricane')}</SelectItem>
-                                <SelectItem value="primocane">{getCohortaLabel('primocane')}</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <AppSelect
+                            id="aplicare-cohort-marcare"
+                            label="Cohortă"
+                            placeholder="Selectează cohorta"
+                            value={cohortMarcare ?? ''}
+                            onChange={(value) => setCohortMarcare(value as Cohorta)}
+                            options={COHORTA_REQUIRED_APP_SELECT_OPTIONS}
+                            triggerClassName="agri-control h-11 w-full"
+                          />
                         ) : null}
 
                         <div className="space-y-1.5">

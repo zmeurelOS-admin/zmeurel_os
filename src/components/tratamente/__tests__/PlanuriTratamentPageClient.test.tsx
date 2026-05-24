@@ -171,10 +171,7 @@ describe('PlanuriTratamentPageClient', () => {
     renderPage()
 
     expect(await screen.findByText('Plan test')).toBeInTheDocument()
-    const actionButtons = await screen.findAllByRole('button', {
-      name: /Acțiuni pentru planul/i,
-    })
-    await user.click(actionButtons[0]!)
+    await user.click(screen.getByText('Plan test'))
     await user.click(await screen.findByRole('button', { name: 'Șterge' }))
 
     const dialog = await screen.findByRole('alertdialog')
@@ -189,10 +186,7 @@ describe('PlanuriTratamentPageClient', () => {
     renderPage()
 
     expect(await screen.findByText('Plan test')).toBeInTheDocument()
-    const actionButtons = await screen.findAllByRole('button', {
-      name: /Acțiuni pentru planul/i,
-    })
-    await user.click(actionButtons[0]!)
+    await user.click(screen.getByText('Plan test'))
     await user.click(await screen.findByRole('button', { name: 'Șterge' }))
 
     const dialog = await screen.findByRole('alertdialog')

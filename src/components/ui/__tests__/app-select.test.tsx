@@ -29,10 +29,10 @@ describe('AppSelect', () => {
     expect(screen.getByLabelText('Teren')).toBeInTheDocument()
 
     await user.click(screen.getByLabelText('Teren'))
-    expect(screen.getByRole('button', { name: /Maravilla 1 \(camp\)/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Solar DELNIWA/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Maravilla 1 \(camp\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Solar DELNIWA/i })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Maravilla 1 \(camp\)/i }))
+    await user.click(screen.getByRole('option', { name: /Maravilla 1 \(camp\)/i }))
     expect(onChange).toHaveBeenCalledWith('parcela-a')
   })
 
@@ -49,8 +49,8 @@ describe('AppSelect', () => {
       />
     )
 
-    await user.click(screen.getByRole('button', { name: /Selectează/i }))
-    await user.click(screen.getByRole('button', { name: /Solar DELNIWA/i }))
+    await user.click(screen.getByRole('combobox', { name: /Selectează/i }))
+    await user.click(screen.getByRole('option', { name: /Solar DELNIWA/i }))
     expect(onChange).toHaveBeenCalledWith('parcela-b')
   })
 })

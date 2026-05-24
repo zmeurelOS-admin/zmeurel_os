@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import { RecordStadiuSheet } from '@/components/tratamente/RecordStadiuSheet'
@@ -9,6 +10,8 @@ vi.mock('@/hooks/useMediaQuery', () => ({
 
 describe('RecordStadiuSheet', () => {
   it('filtrează stadiile după grupul biologic și folosește fallback Rubus doar când lipsește grupul', async () => {
+    const user = userEvent.setup()
+
     render(
       <RecordStadiuSheet
         an={2026}
@@ -20,13 +23,13 @@ describe('RecordStadiuSheet', () => {
       />
     )
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Răsad')
-    const nativeSelect = document.querySelector('select[aria-hidden="true"]') as HTMLSelectElement
-    const optionValues = Array.from(nativeSelect.options).map((option) => option.value)
+    const fenofazaTrigger = screen.getByRole('combobox', { name: 'Fenofază' })
+    expect(fenofazaTrigger).toHaveTextContent('Răsad')
 
-    expect(optionValues).toContain('transplant')
-    expect(optionValues).toContain('etaj_floral')
-    expect(optionValues).not.toContain('buton_roz')
+    await user.click(fenofazaTrigger)
+    expect(screen.getByRole('option', { name: /Răsad/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Transplant/i })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Boboci roz/i })).not.toBeInTheDocument()
   })
 
   it('afișează label contextual pentru post-recoltare la solanacee nedeterminat', async () => {
@@ -51,6 +54,6 @@ describe('RecordStadiuSheet', () => {
       />
     )
 
-    expect(screen.getByRole('combobox')).toHaveTextContent('Producție în curs')
+    expect(screen.getByRole('combobox', { name: 'Fenofază' })).toHaveTextContent('Producție în curs')
   })
 })

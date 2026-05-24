@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition, type KeyboardEvent, type MouseEvent } from 'react'
 import { CheckCircle2, CloudSun, Droplets, MapPin, Wind } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
@@ -10,12 +9,13 @@ import { ro } from 'date-fns/locale'
 import {
   markAplicataAction,
   reprogrameazaAction,
-} from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
+} from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { getAplicareStatusLabel, getAplicareStatusTone, isAplicareProgramata } from '@/components/tratamente/aplicare-status'
 import { MarkAplicataSheet, type MarkAplicataFormValues } from '@/components/tratamente/MarkAplicataSheet'
 import { MeteoWindowBar } from '@/components/tratamente/MeteoWindowBar'
 import { ReprogrameazaSheet, type ReprogrameazaFormValues } from '@/components/tratamente/ReprogrameazaSheet'
 import { AplicareSourceBadge } from '@/components/tratamente/AplicareSourceBadge'
+import { EditAplicareButton } from '@/components/tratamente/EditAplicareButton'
 import { getAplicareContextLabel, getAplicareProduseSummary } from '@/components/tratamente/aplicare-ui'
 import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -101,11 +101,9 @@ export function HubAplicareCard({
   produseFitosanitare = [],
   showMeteoBar,
 }: HubAplicareCardProps) {
-  const router = useRouter()
   const [markOpen, setMarkOpen] = useState(false)
   const [reprogrameazaOpen, setReprogrameazaOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
-  const detailHref = `/parcele/${aplicare.parcela_id}/tratamente/aplicare/${aplicare.id}`
   const parcelaHref = `/parcele/${aplicare.parcela_id}/tratamente`
   const dateLabel = formatHubDate(aplicare.data_programata ?? aplicare.data_aplicata)
   const doza = formatDoza(aplicare)
@@ -121,15 +119,8 @@ export function HubAplicareCard({
   const canEdit = isAplicareProgramata(aplicare.status)
   const rubusMixt = isRubusMixt(configurareSezon)
 
-  const handleOpenDetail = () => {
-    router.push(detailHref)
-  }
-
   const handleCardKeyDown = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      handleOpenDetail()
-    }
+    if (event.key === 'Enter' || event.key === ' ') event.preventDefault()
   }
 
   const handleMarkAplicata = async (values: MarkAplicataFormValues) => {
@@ -161,7 +152,7 @@ export function HubAplicareCard({
 
       toast.success('Aplicarea a fost marcată ca efectuată.')
       setMarkOpen(false)
-      router.refresh()
+      window.location.reload()
     })
   }
 
@@ -181,18 +172,17 @@ export function HubAplicareCard({
 
       toast.success('Aplicarea a fost reprogramată.')
       setReprogrameazaOpen(false)
-      router.refresh()
+      window.location.reload()
     })
   }
 
   return (
     <>
       <article
-        role="link"
+        role="article"
         tabIndex={0}
-        onClick={handleOpenDetail}
         onKeyDown={handleCardKeyDown}
-        className="rounded-[22px] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 text-left shadow-[var(--shadow-soft)] outline-none transition hover:bg-[var(--surface-card-elevated)] focus-visible:ring-[3px] focus-visible:ring-[color:color-mix(in_srgb,var(--agri-primary)_24%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)] active:scale-[0.985]"
+        className="rounded-[22px] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 text-left shadow-[var(--shadow-soft)] outline-none transition focus-visible:ring-[3px] focus-visible:ring-[color:color-mix(in_srgb,var(--agri-primary)_24%,transparent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-page)]"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -321,9 +311,13 @@ export function HubAplicareCard({
               </Button>
             </>
           ) : null}
-          <Button type="button" size="sm" variant="ghost" asChild>
-            <Link href={detailHref}>Vezi detalii</Link>
-          </Button>
+          <EditAplicareButton
+            aplicareId={aplicare.id}
+            produseFitosanitare={produseFitosanitare}
+            variant="ghost"
+          >
+            Vezi detalii
+          </EditAplicareButton>
         </div>
       </article>
 

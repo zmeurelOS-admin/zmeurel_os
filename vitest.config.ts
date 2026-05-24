@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       include: ['src/**/*.test.{ts,tsx}'],
       exclude: ['node_modules', 'e2e', 'tests', '.next'],
+      maxWorkers: 4,
     },
   }
 })

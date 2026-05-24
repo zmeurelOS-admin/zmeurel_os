@@ -17,6 +17,7 @@ import {
 } from '@/components/app/module-list-chrome'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { AppSelect } from '@/components/ui/app-select'
 import { ResponsiveFormContainer } from '@/components/ui/ResponsiveFormContainer'
 import { SearchField } from '@/components/ui/SearchField'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -28,7 +29,13 @@ import { useMeteo } from '@/hooks/useMeteo'
 import { MicroclimatAutoCard } from '@/components/parcele/MicroclimatAutoCard'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
+import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
+import {
+  buildStadiuAppSelectOptions,
+  COHORTA_APP_SELECT_OPTIONS,
+  formatStadiuOptionLabel,
+} from '@/lib/ui/app-select-maps'
 import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
 import {
   buildLatestActivityByParcela,
@@ -581,9 +588,13 @@ function CulturaCard({
   )
   const stageOptions = useMemo(() => {
     const values = grupBiologic ? listStadiiPentruGrup(grupBiologic) : listAllStadiiCanonice()
+    const emojiByCod = Object.fromEntries(
+      getStadiuOptions(grupBiologic).map((option) => [option.value, option.emoji])
+    )
     return values.map((cod) => ({
       value: cod,
       label: getLabelPentruGrup(cod, grupBiologic, { cohort: selectedCohort || null }),
+      emoji: emojiByCod[cod],
     }))
   }, [grupBiologic, selectedCohort])
   const firstStageValue = stageOptions[0]?.value ?? 'repaus_vegetativ'
@@ -839,47 +850,23 @@ function CulturaCard({
                   marginBottom: 8,
                 }}
               >
-                <select
+                <AppSelect
+                  id={`cultura-stadiu-${cultura.id}`}
                   value={selectedStadiu}
-                  onChange={(e) => setSelectedStadiu(e.target.value)}
-                  style={{
-                    width: '100%',
-                    fontSize: 12,
-                    padding: '6px 10px',
-                    borderRadius: 8,
-                    border: '1px solid var(--input)',
-                    background: 'var(--agri-surface)',
-                    color: 'var(--agri-text)',
-                    marginBottom: 6,
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  {stageOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={stageOptions}
+                  showSearchThreshold={14}
+                  getOptionDisplayLabel={formatStadiuOptionLabel}
+                  triggerClassName="mb-1.5 h-11 text-sm"
+                  onChange={setSelectedStadiu}
+                />
                 {isRubusMixt ? (
-                  <select
+                  <AppSelect
+                    id={`cultura-cohort-${cultura.id}`}
                     value={selectedCohort}
-                    onChange={(e) => setSelectedCohort((e.target.value as Cohorta | '') || '')}
-                    style={{
-                      width: '100%',
-                      fontSize: 12,
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      border: '1px solid var(--input)',
-                      background: 'var(--agri-surface)',
-                      color: 'var(--agri-text)',
-                      marginBottom: 6,
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    <option value="">Selectează cohorta</option>
-                    <option value="floricane">Floricane</option>
-                    <option value="primocane">Primocane</option>
-                  </select>
+                    options={COHORTA_APP_SELECT_OPTIONS}
+                    triggerClassName="mb-1.5 h-11 text-sm"
+                    onChange={(nextValue) => setSelectedCohort((nextValue as Cohorta | '') || '')}
+                  />
                 ) : null}
                 {/* Observatii */}
                 <textarea

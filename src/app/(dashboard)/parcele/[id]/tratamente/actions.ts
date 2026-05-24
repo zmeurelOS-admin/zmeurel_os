@@ -226,6 +226,7 @@ export async function createManualInterventieAction(formData: FormData): Promise
       data_aplicata: parsed.status === 'aplicata' ? new Date(parsed.data).toISOString() : null,
       tip_interventie: parsed.tip_interventie,
       scop: parsed.scop,
+      metoda_aplicare: parsed.metoda_aplicare,
       stadiu_la_aplicare: parsed.stadiu_la_aplicare,
       cohort_la_aplicare: null,
       operator: parsed.operator,

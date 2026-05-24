@@ -12,13 +12,13 @@ import {
   updateLinieAction,
   type LinieInput,
 } from '@/app/(dashboard)/tratamente/planuri/[planId]/actions'
-import { AdaugaInterventieManualDialog } from '@/components/tratamente/AdaugaInterventieManualDialog'
+import { IntervenieEditorSheet, type IntervenieEditorValue } from '@/components/tratamente/IntervenieEditorSheet'
 import { LinieDeleteDialog } from '@/components/tratamente/LinieDeleteDialog'
-import { LinieEditDialog, type LinieEditValue } from '@/components/tratamente/LinieEditDialog'
 import { LinieRow } from '@/components/tratamente/LinieRow'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
 import type { PlanTratamentLinieCuProdus, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import type { MetodaAplicare } from '@/types/tratamente-metode'
 import { toast } from '@/lib/ui/toast'
 
 import {
@@ -32,7 +32,7 @@ function normalizeCohorta(value: string | null | undefined): 'floricane' | 'prim
   return value === 'floricane' || value === 'primocane' ? value : null
 }
 
-function normalizeTipInterventie(value: string | null | undefined): LinieEditValue['tip_interventie'] {
+function normalizeTipInterventie(value: string | null | undefined): IntervenieEditorValue['tip_interventie'] {
   return value === 'protectie' ||
     value === 'nutritie' ||
     value === 'biostimulare' ||
@@ -44,8 +44,20 @@ function normalizeTipInterventie(value: string | null | undefined): LinieEditVal
     : 'protectie'
 }
 
-function normalizeRegulaRepetare(value: string | null | undefined): LinieEditValue['regula_repetare'] {
+function normalizeRegulaRepetare(value: string | null | undefined): IntervenieEditorValue['regula_repetare'] {
   return value === 'interval' ? 'interval' : 'fara_repetare'
+}
+
+function normalizeMetodaAplicare(value: string | null | undefined): MetodaAplicare | null {
+  return value === 'foliar' ||
+    value === 'fertirigare' ||
+    value === 'fertilizare_baza' ||
+    value === 'granulat_sol' ||
+    value === 'capcana_pus' ||
+    value === 'capcana_verificat' ||
+    value === 'altul'
+    ? value
+    : null
 }
 
 interface PlanLiniiListProps {
@@ -260,11 +272,12 @@ function withConsecutiveOrder(linii: PlanTratamentLinieCuProdus[]): PlanTratamen
   return linii.map((linie, index) => ({ ...linie, ordine: index + 1 }))
 }
 
-function toEditValue(linie?: PlanTratamentLinieCuProdus | null): LinieEditValue {
+function toEditValue(linie?: PlanTratamentLinieCuProdus | null): IntervenieEditorValue {
   if (!linie) {
     return {
       stadiu_trigger: '',
       cohort_trigger: null,
+      metoda_aplicare: 'foliar',
       tip_interventie: 'protectie',
       scop: null,
       regula_repetare: 'fara_repetare',
@@ -329,6 +342,7 @@ function toEditValue(linie?: PlanTratamentLinieCuProdus | null): LinieEditValue 
   return {
     stadiu_trigger: linie.stadiu_trigger,
     cohort_trigger: normalizeCohorta(linie.cohort_trigger),
+    metoda_aplicare: normalizeMetodaAplicare(linie.metoda_aplicare),
     tip_interventie: normalizeTipInterventie(linie.tip_interventie),
     scop: linie.scop ?? null,
     regula_repetare: normalizeRegulaRepetare(linie.regula_repetare),
@@ -355,7 +369,6 @@ export function PlanLiniiList({
   const searchParams = useSearchParams()
   const [localLinii, setLocalLinii] = useState<PlanTratamentLinieCuProdus[]>(sortLinii(linii))
   const [editorOpen, setEditorOpen] = useState(false)
-  const [manualEditorOpen, setManualEditorOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editingLinie, setEditingLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
   const [pendingDeleteLinie, setPendingDeleteLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
@@ -430,6 +443,10 @@ export function PlanLiniiList({
     setEditorOpen(true)
   }
 
+  function showManualPlaceholder() {
+    openAddDialog()
+  }
+
   function setStageFilter(stage: string) {
     const query = buildStageFilterQuery(typeof window === 'undefined' ? '' : window.location.search, stage)
     const nextUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname
@@ -455,10 +472,11 @@ export function PlanLiniiList({
     })
   }
 
-  async function handleSaveLinie(data: LinieEditValue) {
+  async function handleSaveLinie(data: IntervenieEditorValue) {
     const payload: LinieInput = {
       stadiu_trigger: data.stadiu_trigger,
       cohort_trigger: data.cohort_trigger,
+      metoda_aplicare: data.metoda_aplicare,
       tip_interventie: data.tip_interventie,
       scop: data.scop,
       regula_repetare: data.regula_repetare,
@@ -533,7 +551,7 @@ export function PlanLiniiList({
               <Plus className="h-4 w-4" aria-label="Adaugă intervenție" />
               <span className="hidden sm:inline">Adaugă intervenție</span>
             </Button>
-            <Button type="button" variant="outline" onClick={() => setManualEditorOpen(true)}>
+            <Button type="button" variant="outline" onClick={showManualPlaceholder}>
               <Plus className="h-4 w-4" />
               Intervenție manuală
             </Button>
@@ -580,7 +598,7 @@ export function PlanLiniiList({
             <Button type="button" variant="outline" onClick={openAddDialog}>
               + Adaugă intervenție
             </Button>
-            <Button type="button" variant="outline" onClick={() => setManualEditorOpen(true)}>
+            <Button type="button" variant="outline" onClick={showManualPlaceholder}>
               <Plus className="h-4 w-4" />
               Adaugă intervenție manuală
             </Button>
@@ -657,7 +675,7 @@ export function PlanLiniiList({
         </div>
       )}
 
-      <LinieEditDialog
+      <IntervenieEditorSheet
         allowCohortTrigger={allowCohortTrigger}
         culturaTip={culturaTip}
         grupBiologic={grupBiologic}
@@ -686,19 +704,6 @@ export function PlanLiniiList({
         onConfirm={handleDeleteLinie}
         pending={isPending}
         stadiuLabel={pendingDeleteLinie ? getStadiuMeta(pendingDeleteLinie.stadiu_trigger, grupBiologic, pendingDeleteLinie.cohort_trigger).label : 'selectat'}
-      />
-
-      <AdaugaInterventieManualDialog
-        cultura={culturaTip}
-        grupBiologic={grupBiologic}
-        onOpenChange={setManualEditorOpen}
-        onSuccess={() => {
-          setManualEditorOpen(false)
-          router.refresh()
-        }}
-        open={manualEditorOpen}
-        planId={planId}
-        produse={produse}
       />
     </section>
   )

@@ -1,8 +1,8 @@
 'use client'
 
 import { listProduseFitosanitareAction, saveProdusFitosanitarInLibraryAction } from '@/app/(dashboard)/tratamente/produse-fitosanitare/actions'
-import { fuzzyMatchProdus } from '@/lib/tratamente/import/fuzzy-match'
 import type { InsertTenantProdus, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
+import { fuzzyMatchProdus } from '@/lib/tratamente/produs-match'
 import { toast } from '@/lib/ui/toast'
 
 export interface AutoSaveProdusDraft {

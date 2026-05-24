@@ -4,7 +4,7 @@ import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import type { UnitateTip } from '@/lib/parcele/unitate'
 import { getGrupBiologicForCropCod } from '@/lib/tratamente/stadii-canonic'
 import { normalizeForSearch } from '@/lib/utils/string'
-import type { Tables } from '@/types/supabase'
+import type { Tables, TablesInsert } from '@/types/supabase'
 
 export type Crop = Tables<'crops'>
 
@@ -95,15 +95,18 @@ export async function ensureCropForUnitType(name: string, unitType: UnitateTip):
   const existing = pickPreferredCrop(existingRows ?? [], normalizedName)
   if (existing) return existing
 
+  // `resolveCropCode` produce întotdeauna string, iar cast-ul pentru grup păstrează runtime-ul actual pentru culturile custom.
+  const insertPayload: TablesInsert<'crops'> = {
+    cod: resolveCropCode(cropName),
+    grup_biologic: resolveCropGroup(cropName) as Crop['grup_biologic'],
+    name: cropName,
+    unit_type: unitType,
+    tenant_id: tenantId,
+  }
+
   const { data: inserted, error: insertError } = await supabase
     .from('crops')
-    .insert({
-      cod: resolveCropCode(cropName),
-      grup_biologic: resolveCropGroup(cropName),
-      name: cropName,
-      unit_type: unitType,
-      tenant_id: tenantId,
-    })
+    .insert(insertPayload)
     .select('id,cod,name,unit_type,tenant_id,grup_biologic,created_at')
     .single()
 

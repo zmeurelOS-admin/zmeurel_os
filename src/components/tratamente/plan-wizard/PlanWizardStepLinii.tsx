@@ -24,8 +24,15 @@ import {
 import {
   Dialog,
 } from '@/components/ui/dialog'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  buildStadiuAppSelectOptions,
+  formatStadiuOptionLabel,
+  REPETARE_REGULA_APP_SELECT_OPTIONS,
+} from '@/lib/ui/app-select-maps'
+import { withPlaceholderOption } from '@/lib/ui/app-select-utils'
 import {
   Sheet,
   SheetContent,
@@ -71,7 +78,7 @@ interface PlanWizardStepLiniiProps {
   onChange: (nextLinii: PlanWizardLinieDraft[]) => void
 }
 
-interface LinieEditorProps {
+export interface InterventieEditorSheetProps {
   allowCohortTrigger?: boolean
   culturaTip: string
   grupBiologic?: GrupBiologic | null
@@ -277,7 +284,7 @@ function EditorChrome({
   )
 }
 
-function LinieEditor({
+export function InterventieEditorSheet({
   allowCohortTrigger = false,
   culturaTip,
   grupBiologic,
@@ -286,7 +293,7 @@ function LinieEditor({
   onSave,
   open,
   produse,
-}: LinieEditorProps) {
+}: InterventieEditorSheetProps) {
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const [value, setValue] = useState<PlanWizardLinieDraft>(initialValue)
   const [showAllProducts, setShowAllProducts] = useState(false)
@@ -306,6 +313,29 @@ function LinieEditor({
   const filteredProducts = useMemo(
     () => filterProduseForCulture(produse, culturaTip, showAllProducts, ''),
     [culturaTip, produse, showAllProducts]
+  )
+  const stadiuAppSelectOptions = useMemo(
+    () => buildStadiuAppSelectOptions(stadiuOptions, 'Alege fenofaza'),
+    [stadiuOptions]
+  )
+  const cohortTriggerAppSelectOptions = useMemo(
+    () => [
+      { value: '', label: 'Ambele cohorte' },
+      { value: 'floricane', label: `Doar ${getCohortaLabel('floricane')}`, emoji: '🌳' },
+      { value: 'primocane', label: `Doar ${getCohortaLabel('primocane')}`, emoji: '🌱' },
+    ],
+    []
+  )
+  const tipInterventieAppSelectOptions = useMemo(
+    () =>
+      withPlaceholderOption(
+        TIP_INTERVENTIE_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+        { value: '', label: 'Nespecificat' }
+      ),
+    []
   )
   const saveProductToLibrary = useMutation({
     mutationFn: saveProdusFitosanitarInLibraryAction,
@@ -555,83 +585,67 @@ function LinieEditor({
     <div className="space-y-4">
       <div className="grid gap-3.5 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="linie-stadiu">Fenofază *</Label>
-          <select
+          <AppSelect
             id="linie-stadiu"
+            label="Fenofază *"
+            placeholder="Alege fenofaza"
             value={value.stadiu_trigger}
-            onChange={(event) => setValue((current) => ({ ...current, stadiu_trigger: event.target.value }))}
-            className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-          >
-            <option value="">Alege fenofaza</option>
-            {stadiuOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.emoji} {option.label}
-              </option>
-            ))}
-          </select>
+            options={stadiuAppSelectOptions}
+            showSearchThreshold={12}
+            getOptionDisplayLabel={formatStadiuOptionLabel}
+            triggerClassName="h-11 rounded-xl text-sm"
+            onChange={(nextValue) => setValue((current) => ({ ...current, stadiu_trigger: nextValue }))}
+          />
           {errors.stadiu_trigger ? <p className="text-sm text-[var(--soft-danger-text)]">{errors.stadiu_trigger}</p> : null}
         </div>
 
         {allowCohortTrigger ? (
-          <div className="space-y-2">
-            <Label htmlFor="linie-cohorta">Cohortă vizată</Label>
-            <select
-              id="linie-cohorta"
-              value={value.cohort_trigger ?? ''}
-              onChange={(event) =>
-                setValue((current) => ({
-                  ...current,
-                  cohort_trigger: event.target.value ? (event.target.value as Cohorta) : null,
-                }))
-              }
-              className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-            >
-              <option value="">Ambele cohorte</option>
-              <option value="floricane">Doar {getCohortaLabel('floricane')}</option>
-              <option value="primocane">Doar {getCohortaLabel('primocane')}</option>
-            </select>
-          </div>
+          <AppSelect
+            id="linie-cohorta"
+            label="Cohortă vizată"
+            placeholder="Ambele cohorte"
+            value={value.cohort_trigger ?? ''}
+            options={cohortTriggerAppSelectOptions}
+            triggerClassName="h-11 rounded-xl text-sm"
+            onChange={(nextValue) =>
+              setValue((current) => ({
+                ...current,
+                cohort_trigger: nextValue ? (nextValue as Cohorta) : null,
+              }))
+            }
+          />
         ) : null}
       </div>
 
       <div className="grid gap-3.5 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="linie-tip-interventie">Tip intervenție</Label>
-          <select
-            id="linie-tip-interventie"
-            value={value.tip_interventie ?? ''}
-            onChange={(event) =>
-              setValue((current) => ({
-                ...current,
-                tip_interventie: event.target.value ? event.target.value as PlanWizardLinieDraft['tip_interventie'] : null,
-              }))
-            }
-            className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-          >
-            <option value="">Nespecificat</option>
-            {TIP_INTERVENTIE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </div>
+        <AppSelect
+          id="linie-tip-interventie"
+          label="Tip intervenție"
+          placeholder="Nespecificat"
+          value={value.tip_interventie ?? ''}
+          options={tipInterventieAppSelectOptions}
+          triggerClassName="h-11 rounded-xl text-sm"
+          onChange={(nextValue) =>
+            setValue((current) => ({
+              ...current,
+              tip_interventie: nextValue ? (nextValue as PlanWizardLinieDraft['tip_interventie']) : null,
+            }))
+          }
+        />
 
-        <div className="space-y-2">
-          <Label htmlFor="linie-regula">Regulă repetare</Label>
-          <select
-            id="linie-regula"
-            value={value.regula_repetare}
-            onChange={(event) =>
-              setValue((current) => ({
-                ...current,
-                regula_repetare: event.target.value as PlanWizardLinieDraft['regula_repetare'],
-              }))
-            }
-            className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-          >
-            <option value="fara_repetare">Fără repetare</option>
-            <option value="interval">Repetare la interval</option>
-          </select>
-        </div>
+        <AppSelect
+          id="linie-regula"
+          label="Regulă repetare"
+          value={value.regula_repetare}
+          options={REPETARE_REGULA_APP_SELECT_OPTIONS}
+          triggerClassName="h-11 rounded-xl text-sm"
+          onChange={(nextValue) =>
+            setValue((current) => ({
+              ...current,
+              regula_repetare: nextValue as PlanWizardLinieDraft['regula_repetare'],
+            }))
+          }
+        />
       </div>
 
       {value.regula_repetare === 'interval' ? (
@@ -722,63 +736,51 @@ function LinieEditor({
         <DesktopFormPanel>
           <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
             <div className="space-y-2">
-              <Label htmlFor="linie-stadiu">Fenofază *</Label>
-              <select
-                id="linie-stadiu"
+              <AppSelect
+                id="linie-stadiu-desktop"
+                label="Fenofază *"
+                placeholder="Alege fenofaza"
                 value={value.stadiu_trigger}
-                onChange={(event) => setValue((current) => ({ ...current, stadiu_trigger: event.target.value }))}
-                className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-              >
-                <option value="">Alege fenofaza</option>
-                {stadiuOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.emoji} {option.label}
-                  </option>
-                ))}
-              </select>
+                options={stadiuAppSelectOptions}
+                showSearchThreshold={12}
+                getOptionDisplayLabel={formatStadiuOptionLabel}
+                triggerClassName="h-11 rounded-xl text-sm"
+                onChange={(nextValue) => setValue((current) => ({ ...current, stadiu_trigger: nextValue }))}
+              />
               {errors.stadiu_trigger ? <p className="text-sm text-[var(--soft-danger-text)]">{errors.stadiu_trigger}</p> : null}
             </div>
 
             {allowCohortTrigger ? (
-              <div className="space-y-2">
-                <Label htmlFor="linie-cohorta">Cohortă vizată</Label>
-                <select
-                  id="linie-cohorta"
-                  value={value.cohort_trigger ?? ''}
-                  onChange={(event) =>
-                    setValue((current) => ({
-                      ...current,
-                      cohort_trigger: event.target.value ? (event.target.value as Cohorta) : null,
-                    }))
-                  }
-                  className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-                >
-                  <option value="">Ambele cohorte</option>
-                  <option value="floricane">Doar {getCohortaLabel('floricane')}</option>
-                  <option value="primocane">Doar {getCohortaLabel('primocane')}</option>
-                </select>
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <Label htmlFor="linie-tip-interventie">Tip intervenție</Label>
-              <select
-                id="linie-tip-interventie"
-                value={value.tip_interventie ?? ''}
-                onChange={(event) =>
+              <AppSelect
+                id="linie-cohorta-desktop"
+                label="Cohortă vizată"
+                placeholder="Ambele cohorte"
+                value={value.cohort_trigger ?? ''}
+                options={cohortTriggerAppSelectOptions}
+                triggerClassName="h-11 rounded-xl text-sm"
+                onChange={(nextValue) =>
                   setValue((current) => ({
                     ...current,
-                    tip_interventie: event.target.value ? event.target.value as PlanWizardLinieDraft['tip_interventie'] : null,
+                    cohort_trigger: nextValue ? (nextValue as Cohorta) : null,
                   }))
                 }
-                className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-              >
-                <option value="">Nespecificat</option>
-                {TIP_INTERVENTIE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
+              />
+            ) : null}
+
+            <AppSelect
+              id="linie-tip-interventie-desktop"
+              label="Tip intervenție"
+              placeholder="Nespecificat"
+              value={value.tip_interventie ?? ''}
+              options={tipInterventieAppSelectOptions}
+              triggerClassName="h-11 rounded-xl text-sm"
+              onChange={(nextValue) =>
+                setValue((current) => ({
+                  ...current,
+                  tip_interventie: nextValue ? (nextValue as PlanWizardLinieDraft['tip_interventie']) : null,
+                }))
+              }
+            />
 
             <div className="space-y-2">
               <Label htmlFor="linie-scop">Scop</Label>
@@ -800,23 +802,19 @@ function LinieEditor({
       <FormDialogSection>
         <DesktopFormPanel>
           <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
-            <div className="space-y-2">
-              <Label htmlFor="linie-regula">Regulă repetare</Label>
-              <select
-                id="linie-regula"
-                value={value.regula_repetare}
-                onChange={(event) =>
-                  setValue((current) => ({
-                    ...current,
-                    regula_repetare: event.target.value as PlanWizardLinieDraft['regula_repetare'],
-                  }))
-                }
-                className="agri-control h-11 w-full rounded-xl px-3 text-sm"
-              >
-                <option value="fara_repetare">Fără repetare</option>
-                <option value="interval">Repetare la interval</option>
-              </select>
-            </div>
+            <AppSelect
+              id="linie-regula-desktop"
+              label="Regulă repetare"
+              value={value.regula_repetare}
+              options={REPETARE_REGULA_APP_SELECT_OPTIONS}
+              triggerClassName="h-11 rounded-xl text-sm"
+              onChange={(nextValue) =>
+                setValue((current) => ({
+                  ...current,
+                  regula_repetare: nextValue as PlanWizardLinieDraft['regula_repetare'],
+                }))
+              }
+            />
 
             {value.regula_repetare === 'interval' ? (
               <>
@@ -1041,7 +1039,7 @@ export function PlanWizardStepLinii({
       )}
 
       {editingLine ? (
-        <LinieEditor
+        <InterventieEditorSheet
           allowCohortTrigger={allowCohortTrigger}
           culturaTip={culturaTip}
           grupBiologic={grupBiologic}

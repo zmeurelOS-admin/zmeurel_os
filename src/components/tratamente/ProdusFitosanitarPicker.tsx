@@ -22,7 +22,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { AppSelect } from '@/components/ui/app-select'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 import type { InsertTenantProdus, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
@@ -30,17 +30,9 @@ import {
   findProdusFitosanitarLibraryMatch,
   sortProduseFitosanitareForLibrary,
 } from '@/lib/tratamente/produse-fitosanitare-ui'
+import { PRODUS_FITOSANITAR_TIP_APP_SELECT_OPTIONS } from '@/lib/ui/app-select-maps'
 
-const TIP_OPTIONS = [
-  { value: 'fungicid', label: 'Fungicid' },
-  { value: 'insecticid', label: 'Insecticid' },
-  { value: 'erbicid', label: 'Erbicid' },
-  { value: 'acaricid', label: 'Acaricid' },
-  { value: 'foliar', label: 'Foliar' },
-  { value: 'ingrasamant', label: 'Îngrășământ' },
-  { value: 'bioregulator', label: 'Bioregulator' },
-  { value: 'altul', label: 'Altul' },
-] as const
+const TIP_OPTIONS = PRODUS_FITOSANITAR_TIP_APP_SELECT_OPTIONS
 
 function parseOptionalNumber(value: string): number | null {
   if (!value.trim()) return null
@@ -615,21 +607,15 @@ export function ProdusFitosanitarPicker({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="quick-prod-tip">Tip produs</Label>
-              <Select
+              <AppSelect
+                id="quick-prod-tip"
+                placeholder="Alege tipul"
                 value={draft.tip}
-                onValueChange={(value) => setDraft((current) => ({ ...current, tip: value as InsertTenantProdus['tip'] }))}
-              >
-                <SelectTrigger id="quick-prod-tip">
-                  <SelectValue placeholder="Alege tipul" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIP_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) =>
+                  setDraft((current) => ({ ...current, tip: value as InsertTenantProdus['tip'] }))
+                }
+                options={TIP_OPTIONS}
+              />
             </div>
 
             <div className="space-y-2">

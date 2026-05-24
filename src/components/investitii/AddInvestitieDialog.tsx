@@ -13,8 +13,10 @@ import { InvestitieFormSummary } from '@/components/investitii/InvestitieFormSum
 import { Button } from '@/components/ui/button'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
+import { AppSelect } from '@/components/ui/app-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { buildCategoryInvestitiiOptions } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { createInvestitie, CATEGORII_INVESTITII } from '@/lib/supabase/queries/investitii'
@@ -187,40 +189,39 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                   ) : null}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="inv_categorie">Categorie</Label>
-                  <select
-                    id="inv_categorie"
-                    className="agri-control h-12 w-full px-3 text-base md:h-11"
-                    {...form.register('categorie')}
-                  >
-                    <option value="">Selectează categoria</option>
-                    {CATEGORII_INVESTITII.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                  {form.formState.errors.categorie ? (
-                    <p className="text-xs text-red-600">{form.formState.errors.categorie.message}</p>
-                  ) : null}
-                </div>
+                <AppSelect
+                  id="inv_categorie"
+                  label="Categorie"
+                  placeholder="Selectează categoria"
+                  value={watchedCategorie ?? ''}
+                  options={buildCategoryInvestitiiOptions()}
+                  showSearchThreshold={12}
+                  triggerClassName="h-12 md:h-11"
+                  onChange={(nextValue) =>
+                    form.setValue('categorie', nextValue, { shouldDirty: true, shouldValidate: true })
+                  }
+                  error={form.formState.errors.categorie?.message}
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="inv_parcela_id">Parcelă</Label>
-                  <select
-                    id="inv_parcela_id"
-                    className="agri-control h-12 w-full px-3 text-base md:h-11"
-                    {...form.register('parcela_id')}
-                  >
-                    <option value="">Fără legătură cu parcelă</option>
-                    {parcele.map((parcela: { id: string; nume_parcela: string | null }) => (
-                      <option key={parcela.id} value={parcela.id}>
-                        {parcela.nume_parcela || 'Parcela'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <AppSelect
+                  id="inv_parcela_id"
+                  label="Parcelă"
+                  placeholder="Fără legătură cu parcelă"
+                  value={watchedParcelaId ?? ''}
+                  options={[
+                    { value: '', label: 'Fără legătură cu parcelă' },
+                    ...parcele.map((parcela: { id: string; nume_parcela: string | null }) => ({
+                      value: parcela.id,
+                      label: parcela.nume_parcela || 'Parcela',
+                    })),
+                  ]}
+                  showSearchThreshold={10}
+                  searchPlaceholder="Caută parcelă..."
+                  triggerClassName="h-12 md:h-11"
+                  onChange={(nextValue) =>
+                    form.setValue('parcela_id', nextValue, { shouldDirty: true, shouldValidate: true })
+                  }
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="inv_suma_lei">Suma investită (lei)</Label>

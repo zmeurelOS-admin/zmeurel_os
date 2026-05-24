@@ -1,9 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 import {
   arhiveazaPlanTratament,
+  createPlanTratament,
   dezarhiveazaPlanTratament,
   countAplicariPlan,
   listCulturiPentruPlanWizard,
@@ -25,8 +27,14 @@ function revalidatePlanuriPaths(planId?: string) {
   if (planId) {
     revalidatePath(`/tratamente/planuri/${planId}`)
     revalidatePath(`/tratamente/planuri/${planId}/editeaza`)
+    revalidatePath(`/tratamente/planuri/${planId}/editor`)
   }
 }
+
+const planGolSchema = z.object({
+  nume: z.string().trim().min(1, 'Numele planului este obligatoriu.').max(120, 'Numele planului poate avea cel mult 120 de caractere.'),
+  culturaTip: z.string().trim().min(1, 'Alege cultura pentru plan.').max(80, 'Cultura poate avea cel mult 80 de caractere.'),
+})
 
 export async function listPlanuriTratamentCompletAction(opts?: {
   culturaTip?: string
@@ -54,6 +62,29 @@ export async function listParcelePentruPlanWizardAction(
   culturaTip?: string | null
 ): Promise<PlanWizardParcelaOption[]> {
   return listParcelePentruPlanWizard(culturaTip)
+}
+
+export async function creeazaPlanGolAction(input: {
+  nume: string
+  culturaTip: string
+}): Promise<{ planId: string }> {
+  const parsed = planGolSchema.safeParse(input)
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? 'Nu am putut crea planul.')
+  }
+
+  const result = await createPlanTratament(
+    {
+      nume: parsed.data.nume,
+      cultura_tip: parsed.data.culturaTip,
+      descriere: null,
+      activ: true,
+      arhivat: false,
+    },
+    []
+  )
+  revalidatePlanuriPaths(result.id)
+  return { planId: result.id }
 }
 
 export async function upsertPlanTratamentCuLiniiAction(

@@ -8,9 +8,10 @@ import { ro } from 'date-fns/locale'
 import { ClipboardList } from 'lucide-react'
 
 import { planificaInterventieRelevantaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
-import { reprogrameazaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
-import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicare/[aplicareId]/actions'
+import { reprogrameazaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
+import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { getInterventieKey } from '@/components/tratamente/InterventiiRelevanteCard'
+import { EditAplicareButton } from '@/components/tratamente/EditAplicareButton'
 import { InterventieRapidApplySheet } from '@/components/tratamente/InterventieRapidApplySheet'
 import { MarkAplicataSheet, type MarkAplicataFormValues } from '@/components/tratamente/MarkAplicataSheet'
 import { ParcelaPlanLiniiExpandable } from '@/components/tratamente/ParcelaPlanLiniiExpandable'
@@ -611,11 +612,13 @@ export function ParcelaTratamenteMobileHub({
                         </Button>
                       ) : null}
                       {inv.aplicare_planificata ? (
-                        <Button type="button" variant="ghost" size="sm" className="mt-1 w-full" asChild>
-                          <Link href={`/parcele/${parcelaId}/tratamente/aplicare/${inv.aplicare_planificata.id}`}>
-                            Detaliu aplicare
-                          </Link>
-                        </Button>
+                        <EditAplicareButton
+                          aplicareId={inv.aplicare_planificata.id}
+                          className="mt-1 w-full"
+                          variant="ghost"
+                        >
+                          Detaliu aplicare
+                        </EditAplicareButton>
                       ) : null}
                     </CollapsibleContent>
                   </div>
@@ -765,11 +768,7 @@ export function ParcelaTratamenteMobileHub({
               const cohortLabel = cohort === 'floricane' ? '🌸 Floricane' : cohort === 'primocane' ? '🌱 Primocane' : null
 
               return (
-                <Link
-                  key={aplicare.id}
-                  href={`/parcele/${parcelaId}/tratamente/aplicare/${aplicare.id}`}
-                  className="block"
-                >
+                <div key={aplicare.id} className="block">
                   <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)]">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-[var(--text-primary)]">{dateText}</p>
@@ -795,8 +794,11 @@ export function ParcelaTratamenteMobileHub({
                         </span>
                       ) : null}
                     </div>
+                    <EditAplicareButton aplicareId={aplicare.id} className="mt-2 w-full" variant="ghost">
+                      Vezi detalii
+                    </EditAplicareButton>
                   </div>
-                </Link>
+                </div>
               )
             })}
             <Button type="button" variant="outline" size="sm" asChild>

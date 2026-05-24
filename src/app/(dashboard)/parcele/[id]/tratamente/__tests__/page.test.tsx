@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getParcelaTratamenteContext: vi.fn(),
   getParcelaPentruConfigurareSezon: vi.fn(),
   getPlanActivPentruParcela: vi.fn(),
+  getPlanTratamentCuLinii: vi.fn(),
   listStadiiPentruParcela: vi.fn(),
   listAplicariParcela: vi.fn(),
   listPlanuriTratament: vi.fn(),
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/supabase/queries/tratamente', () => ({
   getParcelaTratamenteContext: (...args: unknown[]) => mocks.getParcelaTratamenteContext(...args),
   getPlanActivPentruParcela: (...args: unknown[]) => mocks.getPlanActivPentruParcela(...args),
+  getPlanTratamentCuLinii: (...args: unknown[]) => mocks.getPlanTratamentCuLinii(...args),
   listStadiiPentruParcela: (...args: unknown[]) => mocks.listStadiiPentruParcela(...args),
   listAplicariParcela: (...args: unknown[]) => mocks.listAplicariParcela(...args),
   listPlanuriTratament: (...args: unknown[]) => mocks.listPlanuriTratament(...args),
@@ -176,6 +178,7 @@ describe('parcela tratamente page', () => {
     vi.clearAllMocks()
     mocks.getParcelaTratamenteContext.mockResolvedValue(parcela)
     mocks.getPlanActivPentruParcela.mockResolvedValue(null)
+    mocks.getPlanTratamentCuLinii.mockResolvedValue(null)
     mocks.listStadiiPentruParcela.mockResolvedValue([])
     mocks.listAplicariParcela.mockResolvedValue([])
     mocks.listPlanuriTratament.mockResolvedValue([])
@@ -214,10 +217,7 @@ describe('parcela tratamente page', () => {
       'href',
       `/tratamente/planuri/nou?parcela_id=${parcela.id}`
     )
-    expect(screen.getByRole('link', { name: /Importă din Excel/i })).toHaveAttribute(
-      'href',
-      '/tratamente/planuri/import'
-    )
+    expect(screen.queryByRole('link', { name: /Importă din Excel/i })).not.toBeInTheDocument()
     expect(screen.getByText('Nu ai înregistrat încă nicio fenofază anul acesta.')).toBeInTheDocument()
     expect(screen.getByText('Nicio parcelă asociată pentru 2026')).toBeInTheDocument()
     expect(screen.getByText(/Nu există încă aplicări planificate pentru această parcelă în anul curent\./i)).toBeInTheDocument()
@@ -261,6 +261,10 @@ describe('parcela tratamente page', () => {
       buildAplicare('a2', 'insecticid'),
       buildAplicare('a3', 'ingrasamant_foliar'),
     ])
+    mocks.getPlanTratamentCuLinii.mockResolvedValue({
+      ...plan,
+      linii: [],
+    })
     mocks.listPlanuriTratament.mockResolvedValue([plan])
 
     const element = await Page({ params: Promise.resolve({ id: parcela.id }) })
