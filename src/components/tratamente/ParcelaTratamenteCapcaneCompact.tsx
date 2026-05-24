@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ro } from 'date-fns/locale'
 import { Bug } from 'lucide-react'
@@ -36,10 +35,6 @@ export function ParcelaTratamenteCapcaneCompact({
   onRetry,
   onVerifyCapcana,
 }: ParcelaTratamenteCapcaneCompactProps) {
-  useEffect(() => {
-    onRetry()
-  }, [onRetry])
-
   return (
     <section className="space-y-2" aria-labelledby="capcane-monitor-label">
       <div className="flex items-center justify-between gap-2">
@@ -70,7 +65,7 @@ export function ParcelaTratamenteCapcaneCompact({
               <Bug className="h-4 w-4" aria-hidden />
             </div>
             <p className="text-sm text-[var(--text-secondary)]">
-              Nu ai capcane active pe această parcelă. Poți monta capcane noi din acțiunile de mai sus.
+              Nicio capcană montată. Apasă «Montare» ca să adaugi.
             </p>
           </div>
         ) : (

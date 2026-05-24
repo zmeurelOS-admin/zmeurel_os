@@ -98,6 +98,9 @@ export function useParcelaInterventieSheets({
           dataUrmatoareaVerificare: capcana.data_urmatoarea_verificare,
         }))
       )
+    } catch {
+      setCapcaneError('Nu am putut încărca capcanele. Încearcă din nou.')
+      setCapcaneActive([])
     } finally {
       setCapcaneLoading(false)
     }

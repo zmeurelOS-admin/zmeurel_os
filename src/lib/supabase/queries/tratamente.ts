@@ -3533,7 +3533,12 @@ export async function listCapcaneActive(parcelaId: string): Promise<CapcanaMonta
     .eq('status', 'activ')
     .order('data_urmatoarea_verificare', { ascending: true, nullsFirst: false })
 
-  if (error) throw error
+  if (error) {
+    if (error.code === 'PGRST205' || error.code === '42P01') {
+      return []
+    }
+    throw error
+  }
   return (data ?? []) as CapcanaMontataView[]
 }
 

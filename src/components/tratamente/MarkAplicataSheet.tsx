@@ -74,7 +74,6 @@ import {
   markAplicataAction,
 } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-biblioteca'
-import { fetchStadiuFenologicCurentParcelaClient } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import { getSupabase } from '@/lib/supabase/client'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
@@ -940,14 +939,6 @@ export function MarkAplicataSheet({
     getUnitateDefaultPentruMetoda(defaultMetoda ?? null)
   )
   // Sprint 4: defaultMetoda support
-  const [stadiuDetectat, setStadiuDetectat] = useState<StadiuCod | null>(
-    normalizeStadiu(defaultStadiu ?? '')
-  )
-  // Sprint 4: defaultMetoda support
-  const [stadiuOverride, setStadiuOverride] = useState<StadiuCod | null>(null)
-  // Sprint 4: defaultMetoda support
-  const [stadiuContextLoading, startStadiuContextTransition] = useTransition()
-  // Sprint 4: defaultMetoda support
   const [recomandariDraft, setRecomandariDraft] = useState<RecomandareInterventieDraft[]>([])
   // Sprint 4: defaultMetoda support
   const [recomandariLoading, setRecomandariLoading] = useState(false)
@@ -1055,24 +1046,8 @@ export function MarkAplicataSheet({
     () => getUnitateDefaultPentruMetoda(metodaAplicare),
     [metodaAplicare]
   )
-  // Sprint 4: defaultMetoda support
-  const stadiuChipCurent = stadiuOverride ?? stadiuDetectat
-  // Sprint 4: defaultMetoda support
-  const shouldShowStadiuChip =
-    mode === 'manual' && metodaAplicare !== null && Boolean(grupBiologic)
-  const shouldRequireStadiuPicker =
-    mode === 'manual' &&
-    selectedManualStatus === 'aplicata' &&
-    !stadiuChipCurent &&
-    !stadiuContextLoading &&
-    (!isRubusMixt || Boolean(selectedCohort))
   const [manualMoreDetailsOpen, setManualMoreDetailsOpen] = useState(false)
-  // Sprint 4: defaultMetoda support
-  const shouldShowRecomandari =
-    mode === 'manual' &&
-    metodaAplicare !== null &&
-    !METODE_FARA_PRODUS.includes(metodaAplicare) &&
-    Boolean(stadiuChipCurent)
+  const shouldShowRecomandari = false
   // Sprint 4: defaultMetoda support
   const shouldShowCantitateApa = metodaAplicare === null || metodaAplicare === 'foliar'
   // Sprint 4: defaultMetoda support
@@ -1119,11 +1094,6 @@ export function MarkAplicataSheet({
       setMetodaAplicare(mode === 'edit' ? editMetoda : defaultMetoda ?? null)
       // Sprint 4: defaultMetoda support
       setCantitateUnit(getUnitateDefaultPentruMetoda(mode === 'edit' ? editMetoda : defaultMetoda ?? null))
-      // Sprint 4: defaultMetoda support
-      setStadiuDetectat(normalizeStadiu(mode === 'edit' ? aplicareExistenta?.stadiuLaAplicare ?? '' : defaultStadiu ?? ''))
-      // Sprint 4: defaultMetoda support
-      setStadiuOverride(null)
-      // Sprint 4: defaultMetoda support
       setRecomandariDraft([])
       setRecomandariLoading(false)
       queueMicrotask(() => setEditMeteo(false))
@@ -1177,120 +1147,6 @@ export function MarkAplicataSheet({
     setCantitateUnit(unitateDefaultPentruMetoda)
   }, [unitateDefaultPentruMetoda])
 
-  useEffect(() => {
-    // Sprint 4: defaultMetoda support
-    if (mode !== 'manual') return
-    const nextStadiu = stadiuOverride ?? stadiuDetectat
-    form.setValue('stadiu_la_aplicare', nextStadiu ?? '', { shouldValidate: false })
-  }, [form, mode, stadiuDetectat, stadiuOverride])
-
-  useEffect(() => {
-    // Sprint 4: defaultMetoda support
-    if (!open || mode !== 'manual' || metodaAplicare === null) return
-    const parcelaId = selectedManualParcelaId || defaultManualParcelaId || ''
-    if (!tenantId || !parcelaId) {
-      setStadiuDetectat(null)
-      return
-    }
-    if (isRubusMixt && !selectedCohort) {
-      setStadiuDetectat(null)
-      return
-    }
-
-    let cancelled = false
-    startStadiuContextTransition(async () => {
-      try {
-        const stadiuCod = await fetchStadiuFenologicCurentParcelaClient({
-          parcelaId,
-          an: sezonCurent,
-          grupBiologic: grupBiologic ?? null,
-          cohort: selectedCohort,
-        })
-        if (cancelled) return
-        setStadiuDetectat(stadiuCod)
-      } catch {
-        if (cancelled) return
-        setStadiuDetectat(null)
-      }
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    defaultManualParcelaId,
-    grupBiologic,
-    isRubusMixt,
-    metodaAplicare,
-    mode,
-    open,
-    selectedCohort,
-    selectedManualParcelaId,
-    sezonCurent,
-    tenantId,
-  ])
-
-  useEffect(() => {
-    // Sprint 4: defaultMetoda support
-    if (!open || !shouldShowRecomandari || !tenantId || !stadiuChipCurent) {
-      setRecomandariDraft([])
-      setRecomandariLoading(false)
-      return
-    }
-
-    const parcelaId = selectedManualParcelaId || defaultManualParcelaId || ''
-    if (!parcelaId || metodaAplicare === null) {
-      setRecomandariDraft([])
-      setRecomandariLoading(false)
-      return
-    }
-
-    let cancelled = false
-    const loadingTimer = window.setTimeout(() => {
-      if (!cancelled) {
-        setRecomandariLoading(true)
-      }
-    }, 200)
-
-    void loadRecomandariParcelaClient({
-      parcelaId,
-      tenantId,
-      an: sezonCurent,
-      metodaAplicare,
-      stadiu: stadiuChipCurent,
-      cohort: selectedCohort,
-    })
-      .then((nextRecomandari) => {
-        if (cancelled) return
-        setRecomandariDraft(nextRecomandari)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setRecomandariDraft([])
-      })
-      .finally(() => {
-        window.clearTimeout(loadingTimer)
-        if (!cancelled) {
-          setRecomandariLoading(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(loadingTimer)
-    }
-  }, [
-    defaultManualParcelaId,
-    metodaAplicare,
-    open,
-    selectedCohort,
-    selectedManualParcelaId,
-    sezonCurent,
-    shouldShowRecomandari,
-    stadiuChipCurent,
-    tenantId,
-  ])
-
   const save = form.handleSubmit(async (values) => {
     const productError = validateProducts(produseDraft)
     if (productError) {
@@ -1311,7 +1167,7 @@ export function MarkAplicataSheet({
       formData.set('data_aplicata', values.data_aplicata)
       formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
       formData.set('operator', values.operator ?? '')
-      formData.set('stadiu_la_aplicare', stadiuOverride ?? stadiuDetectat ?? values.stadiu_la_aplicare ?? '')
+      formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
       if (values.cohort_la_aplicare) {
         formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
       }
@@ -1361,10 +1217,6 @@ export function MarkAplicataSheet({
         form.setError('manual_data', { type: 'manual', message: 'Data intervenției este obligatorie.' })
         return
       }
-      if (values.manual_status === 'aplicata' && !values.stadiu_la_aplicare?.trim()) {
-        form.setError('stadiu_la_aplicare', { type: 'manual', message: 'Completează stadiul real la aplicare.' })
-        return
-      }
       const tipInterventie = mapInterventieSelectToDb(values.manual_tip_select ?? '', values.manual_tip_custom)
       const scopInterventie = mapScopSelectToDb(values.manual_scop_select ?? '', values.manual_scop_custom)
       if (!tipInterventie) {
@@ -1387,7 +1239,7 @@ export function MarkAplicataSheet({
           tip_interventie: tipInterventie,
           scop: scopInterventie,
           cohort_la_aplicare: undefined,
-          stadiu_la_aplicare: stadiuOverride ?? stadiuDetectat ?? values.stadiu_la_aplicare,
+          stadiu_la_aplicare: undefined,
           meteoSnapshot: editMeteo
             ? {
                 timestamp: new Date().toISOString(),
@@ -1449,7 +1301,7 @@ export function MarkAplicataSheet({
       await onSubmit({
         ...values,
         metoda_aplicare: metodaAplicare,
-        stadiu_la_aplicare: stadiuOverride ?? stadiuDetectat ?? values.stadiu_la_aplicare,
+        stadiu_la_aplicare: values.stadiu_la_aplicare,
         meteoSnapshot: nextSnapshot,
         produse: withProductOrder(produseDraft).map((produs) => ({
           ...produs,
@@ -1725,77 +1577,10 @@ export function MarkAplicataSheet({
       getOptionDisplayLabel={formatStadiuOptionLabel}
       triggerClassName="h-11 md:h-10"
       onChange={(value) => {
-        setStadiuOverride(normalizeStadiu(value))
         form.setValue('stadiu_la_aplicare', value, { shouldValidate: true })
       }}
     />
   )
-
-  const stadiuFieldFallback = shouldRequireStadiuPicker ? (
-    <div className="space-y-1">
-      {stadiuField}
-      <p className="text-xs text-[var(--text-secondary)]">
-        Nu există fenofază înregistrată pentru această cohortă. Selectează stadiul manual.
-      </p>
-    </div>
-  ) : null
-
-  const manualStadiuChip = shouldShowStadiuChip ? (
-    <div className="flex flex-col gap-2">
-      {stadiuChipCurent ? (
-        <p className="text-xs text-[var(--text-secondary)]">
-          Fenofază la aplicare:{' '}
-          <span className="font-semibold text-[var(--text-primary)]">{getLabelRo(stadiuChipCurent)}</span>
-        </p>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-      <Popover>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition hover:opacity-90"
-            style={{
-              background: 'var(--agri-primary-light)',
-              color: 'var(--agri-primary-dark)',
-            }}
-          >
-            {stadiuContextLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles size={9} />}
-            {stadiuChipCurent ? getLabelRo(stadiuChipCurent) : <span className="italic">Fără stadiu</span>}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-64 p-3">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
-              Override fenofază
-            </p>
-            <div className="max-h-60 space-y-1 overflow-y-auto">
-              {(grupBiologic ? PROFILURI_STADII_PER_GRUP[grupBiologic] : stadiiValide).map((stadiu) => (
-                <button
-                  key={stadiu}
-                  type="button"
-                  onClick={() => {
-                    setStadiuOverride(stadiu)
-                    form.setValue('stadiu_la_aplicare', stadiu, { shouldValidate: true })
-                  }}
-                  className={cn(
-                    'flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-left text-xs transition',
-                    stadiuChipCurent === stadiu
-                      ? 'border-[var(--agri-primary)] bg-[var(--agri-primary-light)] text-[var(--agri-primary-dark)]'
-                      : 'border-[var(--border-default)] bg-white text-[var(--text-primary)]'
-                  )}
-                >
-                  <span>{getLabelRo(stadiu)}</span>
-                  {stadiuChipCurent === stadiu ? <Sparkles size={12} /> : null}
-                </button>
-              ))}
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-      </div>
-      {stadiuFieldFallback}
-    </div>
-  ) : null
 
   const recomandariBlock =
     shouldShowRecomandari && recomandariDraft.length > 0 ? (
@@ -1810,7 +1595,7 @@ export function MarkAplicataSheet({
           <Sparkles size={14} className="mt-0.5 text-[var(--agri-primary-dark)]" />
           <div>
             <div className="text-xs font-bold leading-tight text-[var(--agri-primary-dark)]">
-              Recomandate pentru {stadiuChipCurent ? getLabelRo(stadiuChipCurent) : 'fără stadiu'} —{' '}
+              Recomandate —{' '}
               {metodaAplicare ? METODA_APLICARE_LABEL_RO[metodaAplicare] : 'Intervenție'}
             </div>
             <div className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
@@ -2426,9 +2211,6 @@ export function MarkAplicataSheet({
             </div>
           ) : null}
 
-          {manualStadiuChip}
-          {isRubusMixt ? cohortField : null}
-
           <div className="grid gap-2.5 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="manual-status">Status</Label>
@@ -2557,11 +2339,11 @@ export function MarkAplicataSheet({
             statusLabel={mode === 'manual' ? (selectedManualStatus === 'aplicata' ? 'Aplicată' : 'Planificată') : null}
             dateCaption={mode === 'manual' ? 'Data intervenției' : 'Data aplicării'}
             dateLabel={formatDateTimeSummary(mode === 'manual' ? summaryValues.manual_data : summaryValues.data_aplicata)}
-            cohortLabel={selectedCohort ? getCohortaLabel(selectedCohort) : null}
+            cohortLabel={mode === 'manual' ? null : selectedCohort ? getCohortaLabel(selectedCohort) : null}
             tipInterventie={mode === 'manual' ? normalizeSummaryText(mapInterventieSelectToDb(summaryValues.manual_tip_select ?? '', summaryValues.manual_tip_custom)) : null}
             scop={mode === 'manual' ? normalizeSummaryText(mapScopSelectToDb(summaryValues.manual_scop_select ?? '', summaryValues.manual_scop_custom)) : null}
             operator={normalizeSummaryText(summaryValues.operator)}
-            stadiuLabel={selectedStadiuLabel}
+            stadiuLabel={mode === 'manual' ? null : selectedStadiuLabel}
             cantitateLabel={
               normalizeSummaryText(summaryValues.cantitate_totala_ml)
                 ? `${String(summaryValues.cantitate_totala_ml).trim()} ${cantitateUnit}`
@@ -2613,8 +2395,6 @@ export function MarkAplicataSheet({
                   {selectedManualParcelaLabel}
                 </div>
               ) : null}
-
-              {manualStadiuChip}
 
               <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
                 <div className="space-y-2">
@@ -2727,7 +2507,6 @@ export function MarkAplicataSheet({
           <DesktopFormPanel>
             {mode === 'manual' ? (
               <div className="space-y-3">
-                {isRubusMixt ? cohortField : null}
                 <div className="grid gap-3 md:grid-cols-2 md:gap-x-4">
                   {unitateField}
                   {cantitateField}

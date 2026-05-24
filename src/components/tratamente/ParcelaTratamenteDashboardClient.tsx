@@ -340,10 +340,10 @@ export function ParcelaTratamenteDashboardClient({
   }
 
   const interventieSheets = useParcelaInterventieSheets({
-    parcelaId,
+    parcelaId: parcela.id,
     parcele: [
       {
-        id: parcelaId,
+        id: parcela.id,
         nume_parcela: parcela.nume_parcela ?? 'Parcelă',
         suprafata_ha:
           typeof parcela.suprafata_m2 === 'number' && parcela.suprafata_m2 > 0
@@ -534,7 +534,7 @@ export function ParcelaTratamenteDashboardClient({
           capcaneLoading={interventieSheets.capcaneLoading}
           onApplyTreatment={interventieSheets.openApplyPicker}
           onMountCapcana={interventieSheets.openMountCapcana}
-          onReloadCapcane={() => void interventieSheets.loadCapcaneActive()}
+          onReloadCapcane={interventieSheets.loadCapcaneActive}
           onVerifyCapcana={interventieSheets.openVerifyCapcana}
           parcelaNume={parcela.nume_parcela ?? 'Parcelă'}
           configurareSezon={configurareSezon}

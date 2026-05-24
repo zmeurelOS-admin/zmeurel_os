@@ -340,7 +340,8 @@ describe('MarkAplicataSheet.defaultMetoda', () => {
     expect(screen.getByRole('combobox', { name: 'Unitate doză' })).toHaveTextContent('ml/10L apă')
     expect(screen.getByText('Cantitate apă')).toBeInTheDocument()
     expect(screen.getByText(/Opțional\./i)).toBeInTheDocument()
-    expect(await screen.findByRole('button', { name: 'Înflorit' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Înflorit' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Recomandate pentru/i)).not.toBeInTheDocument()
   }, 10_000)
 
   it("ascunde câmpul de apă pentru fertirigare și setează unitatea default corectă", () => {
@@ -361,60 +362,14 @@ describe('MarkAplicataSheet.defaultMetoda', () => {
     expect(screen.queryByText('Atenție PHI')).not.toBeInTheDocument()
   })
 
-  it('afișează recomandările și adaugă produsul sugerat în listă', async () => {
+  it('nu afișează recomandările în mod manual (indiferent de stadiu în DB)', async () => {
     seedRecomandariFixtures()
-    const user = userEvent.setup()
-
-    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
-
-    expect(
-      await screen.findByText((content) => content.includes('Recomandate pentru Înflorit'))
-    ).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /Cupru Standard/i }))
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Cupru Standard').length).toBeGreaterThan(1)
-    })
-  })
-
-  it('ascunde cardul de recomandări când nu există sugestii', async () => {
-    supabaseFixtures.stadii_fenologice_parcela = {
-      rows: [
-        {
-          id: 'stadiu-1',
-          tenant_id: 'tenant-1',
-          parcela_id: 'parcela-1',
-          an: 2026,
-          stadiu: 'inflorit',
-          cohort: null,
-          data_observata: '2026-05-10',
-          sursa: 'manual',
-          observatii: null,
-          created_at: '2026-05-10T08:00:00Z',
-          updated_at: '2026-05-10T08:00:00Z',
-          created_by: null,
-        },
-      ],
-    }
-    supabaseFixtures.parcele_planuri = { single: null }
-    supabaseFixtures.planuri_tratament = { single: null }
-    supabaseFixtures.planuri_tratament_linii = { rows: [] }
-    supabaseFixtures.planuri_tratament_linie_produse = { rows: [] }
 
     renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
 
     await waitFor(() => {
       expect(screen.queryByText(/Recomandate pentru/i)).not.toBeInTheDocument()
     })
-  })
-
-  it('afișează chip-ul fenofazei curente când stadiul este cunoscut', async () => {
-    seedRecomandariFixtures()
-
-    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
-
-    expect(await screen.findByRole('button', { name: 'Înflorit' })).toBeInTheDocument()
   })
 
   it('nu activează UI-ul Sprint 4 când defaultMetoda lipsește', async () => {
