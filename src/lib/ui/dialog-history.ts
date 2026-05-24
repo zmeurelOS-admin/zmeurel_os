@@ -15,3 +15,12 @@ export function stripDialogHistoryMarker(): void {
   delete cleanedState[DIALOG_HISTORY_MARKER]
   window.history.replaceState(cleanedState, '')
 }
+
+/**
+ * Închide un overlay (Dialog / sheet cu history) fără navigare accidentală.
+ * Apelează strip înainte de `onOpenChange(false)` ca să nu rămână marker pe stack.
+ */
+export function closeOverlay(onOpenChange?: (open: boolean) => void): void {
+  stripDialogHistoryMarker()
+  onOpenChange?.(false)
+}

@@ -6,6 +6,8 @@ import type { ReactNode } from 'react'
 
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 
 export type AppSelectOption = {
@@ -79,6 +81,7 @@ export function AppSelect({
   allowCustomSearchValue = false,
   onValidateCustomSearchValue,
 }: AppSelectProps) {
+  const isMobile = useMediaQuery('(max-width: 767px)')
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -132,6 +135,17 @@ export function AppSelect({
     })
     return () => window.cancelAnimationFrame(frame)
   }, [open, showSearch])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (disabled) return
+    setOpen(nextOpen)
+    if (nextOpen) {
+      setQuery(selectedOption ? '' : value)
+      return
+    }
+    setQuery('')
+    setCustomValueMessage(null)
+  }
 
   const handleSelect = (nextValue: string) => {
     onChange(nextValue)
@@ -232,6 +246,107 @@ export function AppSelect({
     ? allOptions.some((option) => filteredValueSet.has(option.value))
     : allOptions.length > 0
 
+  const searchField = showSearch ? (
+    <div className="shrink-0 border-b border-[var(--agri-border)] p-2">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--agri-text-muted)]" />
+        <input
+          ref={searchInputRef}
+          value={query}
+          onChange={(event) => {
+            const nextValue = event.target.value
+            setQuery(nextValue)
+            if (!nextValue.trim() || !onValidateCustomSearchValue?.(nextValue)) {
+              setCustomValueMessage(null)
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && allowCustomSearchValue && customValue && !hasExactMatch) {
+              event.preventDefault()
+              trySelectCustomValue(customValue)
+            }
+          }}
+          placeholder={searchPlaceholder}
+          className="flex h-10 w-full rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] pl-9 pr-3 text-sm text-[var(--agri-text)] outline-none ring-0 placeholder:text-[var(--agri-text-muted)]"
+        />
+      </div>
+      {customValueMessage ? (
+        <div className="mt-2 flex items-start gap-2 text-sm text-amber-700">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>{customValueMessage}</p>
+        </div>
+      ) : null}
+    </div>
+  ) : null
+
+  const listbox = (
+    <div
+      id={listboxId}
+      className={cn(
+        'min-h-0 overflow-y-auto overscroll-contain p-1 touch-pan-y [-webkit-overflow-scrolling:touch]',
+        isMobile ? 'max-h-none flex-1' : 'max-h-[min(16rem,calc(100dvh-10rem))]',
+        listClassName
+      )}
+      role="listbox"
+      aria-label={label ?? placeholder}
+    >
+      {listContent}
+
+      {allowCustomSearchValue && showSearch && customValue && !hasExactMatch ? (
+        <button
+          type="button"
+          onMouseDown={(event) => {
+            event.preventDefault()
+            trySelectCustomValue(customValue)
+          }}
+          className="flex min-h-11 w-full items-center justify-between rounded-lg border-t border-[var(--agri-border)] px-3 py-2.5 text-left text-sm font-medium text-[var(--agri-primary)] transition-colors hover:bg-[var(--agri-surface-muted)]"
+        >
+          <span>{`Folosește "${customValue}"`}</span>
+          <Check className="h-4 w-4 shrink-0" aria-hidden />
+        </button>
+      ) : null}
+
+      {!hasVisibleOptions && !(allowCustomSearchValue && showSearch && customValue && !hasExactMatch) ? (
+        <p className="px-3 py-2 text-sm text-[var(--agri-text-muted)]">{emptyMessage}</p>
+      ) : null}
+    </div>
+  )
+
+  const triggerButton = (
+    <button
+      id={id}
+      type="button"
+      role="combobox"
+      disabled={disabled}
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      aria-controls={listboxId}
+      aria-labelledby={labelId}
+      aria-label={label ? undefined : placeholder}
+      onClick={isMobile ? () => !disabled && handleOpenChange(true) : undefined}
+      className={cn(
+        'agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm',
+        disabled && 'cursor-not-allowed opacity-60',
+        triggerClassName
+      )}
+    >
+      <span
+        className={cn(
+          'flex min-w-0 items-center gap-2',
+          selectedOption || value ? 'text-[var(--agri-text)]' : 'text-[var(--agri-text-muted)]'
+        )}
+      >
+        {selectedLeading ? (
+          <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
+            {selectedLeading}
+          </span>
+        ) : null}
+        <span className="truncate">{triggerLabel}</span>
+      </span>
+      <ChevronDown className="h-4 w-4 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />
+    </button>
+  )
+
   return (
     <div className="space-y-1.5">
       {label ? (
@@ -239,125 +354,43 @@ export function AppSelect({
           {label}
         </Label>
       ) : null}
-      <Popover
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (disabled) return
-          setOpen(nextOpen)
-          if (nextOpen) {
-            setQuery(selectedOption ? '' : value)
-            return
-          }
-          setQuery('')
-          setCustomValueMessage(null)
-        }}
-      >
-        <PopoverTrigger asChild>
-          <button
-            id={id}
-            type="button"
-            role="combobox"
-            disabled={disabled}
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            aria-controls={listboxId}
-            aria-labelledby={labelId}
-            aria-label={label ? undefined : placeholder}
-            className={cn(
-              'agri-control flex h-12 w-full items-center justify-between rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-left text-base text-[var(--agri-text)] shadow-sm',
-              disabled && 'cursor-not-allowed opacity-60',
-              triggerClassName
-            )}
-          >
-            <span
+      {isMobile ? (
+        <>
+          {triggerButton}
+          <Sheet open={open} onOpenChange={handleOpenChange}>
+            <SheetContent
+              side="bottom"
+              showCloseButton
               className={cn(
-                'flex min-w-0 items-center gap-2',
-                selectedOption || value ? 'text-[var(--agri-text)]' : 'text-[var(--agri-text-muted)]'
+                'flex max-h-[min(85dvh,28rem)] flex-col rounded-t-[22px] border-x-0 border-b-0 px-0 pb-4 pt-2 sm:max-w-none',
+                menuClassName
               )}
             >
-              {selectedLeading ? (
-                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--surface-divider)] bg-[var(--agri-surface-muted)]">
-                  {selectedLeading}
-                </span>
-              ) : null}
-              <span className="truncate">{triggerLabel}</span>
-            </span>
-            <ChevronDown className="h-4 w-4 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          sideOffset={6}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          className={cn(
-            'z-[1105] flex max-h-[min(20rem,calc(100dvh-6rem))] w-[var(--radix-popover-trigger-width)] flex-col overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
-            menuClassName
-          )}
-        >
-          {showSearch ? (
-            <div className="border-b border-[var(--agri-border)] p-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--agri-text-muted)]" />
-                <input
-                  ref={searchInputRef}
-                  value={query}
-                  onChange={(event) => {
-                    const nextValue = event.target.value
-                    setQuery(nextValue)
-                    if (!nextValue.trim() || !onValidateCustomSearchValue?.(nextValue)) {
-                      setCustomValueMessage(null)
-                    }
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' && allowCustomSearchValue && customValue && !hasExactMatch) {
-                      event.preventDefault()
-                      trySelectCustomValue(customValue)
-                    }
-                  }}
-                  placeholder={searchPlaceholder}
-                  className="flex h-10 w-full rounded-md border border-[var(--agri-border)] bg-[var(--agri-surface)] pl-9 pr-3 text-sm text-[var(--agri-text)] outline-none ring-0 placeholder:text-[var(--agri-text-muted)]"
-                />
-              </div>
-              {customValueMessage ? (
-                <div className="mt-2 flex items-start gap-2 text-sm text-amber-700">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <p>{customValueMessage}</p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div
-            id={listboxId}
+              <SheetHeader className="shrink-0 px-4 pb-2 text-left">
+                <SheetTitle className="text-base text-[var(--agri-text)]">{label ?? placeholder}</SheetTitle>
+              </SheetHeader>
+              {searchField}
+              {listbox}
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        <Popover open={open} onOpenChange={handleOpenChange}>
+          <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
+          <PopoverContent
+            align="start"
+            sideOffset={6}
+            onOpenAutoFocus={(event) => event.preventDefault()}
             className={cn(
-              'min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 touch-pan-y [-webkit-overflow-scrolling:touch]',
-              listClassName
+              'z-[1105] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
+              menuClassName
             )}
-            role="listbox"
-            aria-label={label ?? placeholder}
           >
-            {listContent}
-
-            {allowCustomSearchValue && showSearch && customValue && !hasExactMatch ? (
-              <button
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                  trySelectCustomValue(customValue)
-                }}
-                className="flex min-h-11 w-full items-center justify-between rounded-lg border-t border-[var(--agri-border)] px-3 py-2.5 text-left text-sm font-medium text-[var(--agri-primary)] transition-colors hover:bg-[var(--agri-surface-muted)]"
-              >
-                <span>{`Folosește "${customValue}"`}</span>
-                <Check className="h-4 w-4 shrink-0" aria-hidden />
-              </button>
-            ) : null}
-
-            {!hasVisibleOptions && !(allowCustomSearchValue && showSearch && customValue && !hasExactMatch) ? (
-              <p className="px-3 py-2 text-sm text-[var(--agri-text-muted)]">{emptyMessage}</p>
-            ) : null}
-          </div>
-        </PopoverContent>
-      </Popover>
+            {searchField}
+            {listbox}
+          </PopoverContent>
+        </Popover>
+      )}
 
       {error ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>

@@ -26,6 +26,7 @@ import { withPlaceholderOption } from '@/lib/ui/app-select-utils'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { deleteCapcanaPhoto, uploadCapcanaPhoto, validateCapcanaPhoto, type UploadedCapcanaPhoto } from '@/lib/tratamente/capcane-photo-upload'
+import { selectableSurfaceClass, selectableSubtitleClass, selectableTitleClass } from '@/lib/ui/selectable-surface'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
 import { TIPURI_CAPCANA, TIP_CAPCANA_LABEL_RO, type TipCapcana } from '@/types/tratamente-metode'
@@ -138,6 +139,7 @@ export function MarkCapcanaSheet({
   const { tenantId } = useDashboardAuth()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const shouldKeepUploadedPhotoRef = useRef(false)
+  const wasOpenRef = useRef(false)
   const [selectedParcelaId, setSelectedParcelaId] = useState(() => getDefaultParcelaId(parcelaId, parcele))
   const [tipCapcana, setTipCapcana] = useState<TipCapcana>('drosophila_otet')
   const [nrBucati, setNrBucati] = useState(4)
@@ -171,7 +173,12 @@ export function MarkCapcanaSheet({
   )
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      wasOpenRef.current = false
+      return
+    }
+    if (wasOpenRef.current) return
+    wasOpenRef.current = true
 
     const initialDate = toIsoDate(new Date())
     setSelectedParcelaId(getDefaultParcelaId(parcelaId, parcele))
@@ -187,6 +194,11 @@ export function MarkCapcanaSheet({
     setValidationError(null)
     shouldKeepUploadedPhotoRef.current = false
   }, [open, parcelaId, parcele])
+
+  useEffect(() => {
+    if (!open || !parcelaId) return
+    setSelectedParcelaId(parcelaId)
+  }, [open, parcelaId])
 
   useEffect(() => {
     if (!open || nextVerificationTouched) return
@@ -319,7 +331,11 @@ export function MarkCapcanaSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-[28px] px-0 pb-6 sm:max-w-none">
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        className="max-h-[92dvh] rounded-t-[28px] px-0 pb-6 sm:max-w-none"
+      >
         <SheetHeader className="border-b border-[var(--border-default)] px-4 pb-4 text-left">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -392,11 +408,9 @@ export function MarkCapcanaSheet({
                   <label
                     key={tip}
                     className={cn(
-                      'block cursor-pointer rounded-[20px] border p-4 transition active:scale-[0.985]',
-                      checked
-                        ? 'border-[color:color-mix(in_srgb,var(--agri-primary)_38%,white)] bg-[color:color-mix(in_srgb,var(--agri-primary)_8%,white)] shadow-[0_12px_30px_rgba(13,155,92,0.08)]'
-                        : 'border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]',
-                      meta.tone === 'dim' ? 'opacity-60' : ''
+                      'block cursor-pointer rounded-[20px] border p-4',
+                      selectableSurfaceClass(checked),
+                      meta.tone === 'dim' && !checked ? 'opacity-60' : ''
                     )}
                   >
                     <input
@@ -421,16 +435,14 @@ export function MarkCapcanaSheet({
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm text-[var(--text-primary)] [font-weight:700]">
-                            {TIP_CAPCANA_LABEL_RO[tip]}
-                          </p>
+                          <p className={selectableTitleClass(checked)}>{TIP_CAPCANA_LABEL_RO[tip]}</p>
                           {isRecommended ? (
                             <span className="rounded-full border border-[color:color-mix(in_srgb,var(--agri-primary)_24%,transparent)] bg-[color:color-mix(in_srgb,var(--agri-primary)_10%,white)] px-2 py-0.5 text-[11px] font-semibold text-[var(--agri-primary)]">
                               Recomandat
                             </span>
                           ) : null}
                         </div>
-                        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                        <p className={selectableSubtitleClass(checked)}>
                           {isRecommended ? meta.recommendedSubtitle ?? meta.subtitle : meta.subtitle}
                         </p>
                       </div>
@@ -451,18 +463,27 @@ export function MarkCapcanaSheet({
                   type="button"
                   variant="outline"
                   size="icon-lg"
-                  onClick={() => setNrBucati((value) => Math.max(1, value - 1))}
+                  onClick={() => setNrBucati((value) => Math.max(0, value - 1))}
                   aria-label="Scade numărul de capcane"
                 >
                   <Minus className="h-4 w-4" aria-hidden />
                 </Button>
                 <Input
                   id="nr-capcane"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={String(nrBucati)}
-                  onChange={(event) => setNrBucati(Number(event.target.value))}
+                  type="text"
+                  inputMode="numeric"
+                  value={nrBucati > 0 ? String(nrBucati) : ''}
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    if (raw === '') {
+                      setNrBucati(0)
+                      return
+                    }
+                    const parsed = Number.parseInt(raw, 10)
+                    if (!Number.isNaN(parsed)) {
+                      setNrBucati(Math.min(100, Math.max(0, parsed)))
+                    }
+                  }}
                   className="text-center text-lg [font-weight:700]"
                 />
                 <Button

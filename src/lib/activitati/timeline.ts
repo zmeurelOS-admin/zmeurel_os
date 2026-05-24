@@ -1,3 +1,5 @@
+import { differenceInCalendarDays, parseISO, startOfDay } from 'date-fns'
+
 import { computeActivityRemainingDays } from '@/lib/parcele/pauza'
 
 export type TimelineActivityRow = {
@@ -77,11 +79,23 @@ export function getActivityDaysAgo(
   row: Pick<TimelineActivityRow, 'data_aplicare'> | null | undefined,
   today: Date
 ): number | null {
-  if (!row?.data_aplicare) return null
-  const activityMs = parseDateOnlyMs(row.data_aplicare)
-  if (!activityMs) return null
-  const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
-  return Math.floor((todayMs - activityMs) / (1000 * 60 * 60 * 24))
+  const dateOnly = toDateOnly(row?.data_aplicare)
+  if (!dateOnly) return null
+  const activityDate = parseISO(`${dateOnly}T12:00:00`)
+  if (Number.isNaN(activityDate.getTime())) return null
+  return differenceInCalendarDays(startOfDay(today), activityDate)
+}
+
+/** Badge scurt pe card parcelă: azi / 1z / Nz (nu afișa 0z pentru activitate de ieri). */
+export function formatActivityDaysShortBadge(
+  daysAgo: number | null,
+  options?: { deprecated?: boolean }
+): string {
+  if (options?.deprecated) return 'Arhiv.'
+  if (daysAgo === null) return '—'
+  if (daysAgo <= 0) return 'azi'
+  if (daysAgo === 1) return '1z'
+  return `${daysAgo}z`
 }
 
 export function getActivityPauseRemainingDays(row: TimelineActivityRow, today: Date): number {

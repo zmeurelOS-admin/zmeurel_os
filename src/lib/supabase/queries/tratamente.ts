@@ -5,6 +5,7 @@ import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
 import { buildConformitateMetrici } from '@/lib/tratamente/conformitate/build-metrici'
 import type { ConformitateMetrici } from '@/lib/tratamente/conformitate/types'
+import { aplicareLegacyProdusFieldsFaraProdus } from '@/lib/tratamente/aplicare-legacy-produs'
 import { getMeteoSnapshot } from '@/lib/tratamente/meteo'
 import { resolveRecurrence } from '@/lib/tratamente/recurrence'
 import {
@@ -4402,8 +4403,7 @@ export async function montaCapcana(
     metoda_aplicare: 'capcana_pus',
     stadiu_fenologic_id: null,
     diferente_fata_de_plan: null,
-    produs_id: null,
-    produs_nume_manual: null,
+    ...aplicareLegacyProdusFieldsFaraProdus(),
     data_planificata: null,
     data_aplicata: nowIso,
     doza_ml_per_hl: null,
@@ -4490,8 +4490,7 @@ export async function verificaCapcana(
     metoda_aplicare: 'capcana_verificat',
     stadiu_fenologic_id: null,
     diferente_fata_de_plan: null,
-    produs_id: null,
-    produs_nume_manual: null,
+    ...aplicareLegacyProdusFieldsFaraProdus(),
     data_planificata: null,
     data_aplicata: nowIso,
     doza_ml_per_hl: null,

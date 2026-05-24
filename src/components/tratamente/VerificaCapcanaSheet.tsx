@@ -169,7 +169,7 @@ export function VerificaCapcanaSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92dvh] rounded-t-[28px] px-0 pb-6 sm:max-w-none">
+      <SheetContent side="bottom" showCloseButton={false} className="max-h-[92dvh] rounded-t-[28px] px-0 pb-6 sm:max-w-none">
         <SheetHeader className="border-b border-[var(--border-default)] px-4 pb-4 text-left">
           <div className="flex items-start justify-between gap-3">
             <div>

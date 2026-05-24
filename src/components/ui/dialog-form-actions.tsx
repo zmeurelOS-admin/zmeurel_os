@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
 import { cn } from '@/lib/utils'
 
 interface DialogFormActionsProps {
@@ -30,7 +31,10 @@ export function DialogFormActions({
         type="button"
         variant="outline"
         className="agri-cta min-h-11 shrink-0 rounded-xl text-sm sm:min-h-12"
-        onClick={onCancel}
+        onClick={() => {
+          stripDialogHistoryMarker()
+          onCancel()
+        }}
         disabled={disabled || saving}
       >
         {cancelLabel}

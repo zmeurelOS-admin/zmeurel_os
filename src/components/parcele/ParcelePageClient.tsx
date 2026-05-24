@@ -49,6 +49,7 @@ import { normalizeUnitateTip, type UnitateTip } from '@/lib/parcele/unitate'
 import {
   buildLatestActivityByParcela,
   compareActivityRecency,
+  formatActivityDaysShortBadge,
   getActivityDaysAgo,
   getActivityPauseRemainingDays,
 } from '@/lib/activitati/timeline'
@@ -1281,8 +1282,9 @@ function ParcelaTerenMobileSheet({
   const archivedActivityLabel = latestActivity?.tipDeprecat ? `${latestActivity.type} · Arhivat` : null
   const daysAgo = getActivityDaysAgo({ data_aplicare: latestActivity?.date }, today)
   const freshness = terenActivityFreshnessStyle(latestActivity?.tipDeprecat, daysAgo)
-  const daysBadgeLabel =
-    latestActivity?.tipDeprecat ? 'Arhiv.' : daysAgo === null ? '—' : `${daysAgo}z`
+  const daysBadgeLabel = formatActivityDaysShortBadge(daysAgo, {
+    deprecated: latestActivity?.tipDeprecat,
+  })
   const isSolar = isParcelSolar(parcela.tip_unitate)
   const showRezumatMicroclimat = shouldShowRezumatMicroclimatBlock(parcela.tip_unitate)
   const sheetTabs = getParcelMobileSheetTabs(parcela.tip_unitate)
@@ -1690,8 +1692,9 @@ function TerenCard({
   const hasPause = Boolean(latestActivity?.pauseUntil)
   const daysAgo = getActivityDaysAgo({ data_aplicare: latestActivity?.date }, today)
   const freshness = terenActivityFreshnessStyle(latestActivity?.tipDeprecat, daysAgo)
-  const daysBadgeLabel =
-    latestActivity?.tipDeprecat ? 'Arhiv.' : daysAgo === null ? '—' : `${daysAgo}z`
+  const daysBadgeLabel = formatActivityDaysShortBadge(daysAgo, {
+    deprecated: latestActivity?.tipDeprecat,
+  })
   const tipBadge = (() => {
     const t = normalizeUnitateTip(parcela.tip_unitate)
     if (t === 'solar') {

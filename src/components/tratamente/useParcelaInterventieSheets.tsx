@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
@@ -64,12 +64,17 @@ export function useParcelaInterventieSheets({
   const [capcaneLoading, setCapcaneLoading] = useState(false)
   const [capcaneError, setCapcaneError] = useState<string | null>(null)
 
+  const parcelaIdsKey = useMemo(
+    () => (parcelaId ? parcelaId : parcele.map((p) => p.id).join(',')),
+    [parcelaId, parcele]
+  )
+
   const parcelaNameById = useMemo(
     () =>
       new Map(
         parcele.map((parcela) => [parcela.id, parcela.nume_parcela || 'Parcelă'] as const)
       ),
-    [parcele]
+    [parcelaIdsKey, parcele]
   )
 
   const loadCapcaneActive = useCallback(async () => {
@@ -104,7 +109,7 @@ export function useParcelaInterventieSheets({
     } finally {
       setCapcaneLoading(false)
     }
-  }, [parcelaId, parcele, parcelaNameById])
+  }, [parcelaId, parcelaIdsKey, parcelaNameById, parcele])
 
   useEffect(() => {
     if (!selectorCapcaneActiveOpen) return

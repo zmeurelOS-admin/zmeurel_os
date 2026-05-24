@@ -132,6 +132,36 @@ describe('MarkCapcanaSheet', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('păstrează nota și numărul la re-render cu parcele noi (fără reset la 4)', async () => {
+    const user = userEvent.setup()
+    const parceleA = [...singleParcela]
+    const parceleB = [...singleParcela]
+
+    const { rerender } = render(
+      <MarkCapcanaSheet open onOpenChange={vi.fn()} parcelaId={singleParcela[0].id} parcele={parceleA} />
+    )
+
+    const countField = screen.getByLabelText(/Câte capcane/i)
+    await user.clear(countField)
+    await user.type(countField, '2')
+    await user.type(screen.getByLabelText(/Notă/i), 'margine sudică')
+
+    rerender(
+      <MarkCapcanaSheet open onOpenChange={vi.fn()} parcelaId={singleParcela[0].id} parcele={parceleB} />
+    )
+
+    expect(screen.getByLabelText(/Câte capcane/i)).toHaveValue('2')
+    expect(screen.getByLabelText(/Notă/i)).toHaveValue('margine sudică')
+  })
+
+  it('are un singur buton de închidere în header', () => {
+    render(
+      <MarkCapcanaSheet open onOpenChange={vi.fn()} parcelaId={singleParcela[0].id} parcele={singleParcela} />
+    )
+
+    expect(screen.getAllByRole('button', { name: /Închide/i })).toHaveLength(1)
+  })
+
   it('validează parcela și numărul de bucăți înainte de salvare', async () => {
     const user = userEvent.setup()
     montaCapcanaActionMock.mockResolvedValue({ ok: true })
@@ -154,12 +184,15 @@ describe('MarkCapcanaSheet', () => {
       />
     )
 
-    const countInput = screen.getByRole('spinbutton')
-    await user.clear(countInput)
-    await user.type(countInput, '0')
+    await user.click(screen.getByRole('button', { name: 'Scade numărul de capcane' }))
+    await user.click(screen.getByRole('button', { name: 'Scade numărul de capcane' }))
+    await user.click(screen.getByRole('button', { name: 'Scade numărul de capcane' }))
+    await user.click(screen.getByRole('button', { name: 'Scade numărul de capcane' }))
     await user.click(screen.getByRole('button', { name: 'Salvează montarea' }))
 
-    expect(screen.getByText('Numărul de capcane trebuie să fie mai mare decât 0.')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Numărul de capcane trebuie să fie mai mare decât 0.')).toBeInTheDocument()
+    })
     expect(montaCapcanaActionMock).not.toHaveBeenCalled()
   })
 })

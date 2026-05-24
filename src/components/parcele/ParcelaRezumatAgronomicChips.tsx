@@ -18,7 +18,6 @@ import {
 } from '@/lib/supabase/queries/parcela-stadii'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
-import { formatStadiuOptionLabel } from '@/lib/ui/app-select-maps'
 import { resolveStadiuFenologicCurentParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
@@ -133,7 +132,7 @@ function AgronomicStadiuChip({
   const selectedValue = currentStage?.stadiu ? normalizeStadiu(currentStage.stadiu) ?? currentStage.stadiu : ''
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <div className="flex min-w-0 items-center gap-2">
       {cohortLabel ? (
         <span className="shrink-0 rounded-full border border-[var(--surface-divider)] bg-[var(--agri-surface)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--agri-text-muted)]">
           {cohortLabel}
@@ -146,8 +145,7 @@ function AgronomicStadiuChip({
         options={stageOptions}
         showSearchThreshold={14}
         disabled={saveMutation.isPending}
-        getOptionDisplayLabel={formatStadiuOptionLabel}
-        triggerClassName={cn(CHIP_TRIGGER_CLASS, 'min-w-[9.5rem] flex-1')}
+        triggerClassName={cn(CHIP_TRIGGER_CLASS, 'min-w-0 flex-1')}
         onChange={(nextValue) => {
           if (!nextValue || nextValue === selectedValue) return
           saveMutation.mutate(nextValue)

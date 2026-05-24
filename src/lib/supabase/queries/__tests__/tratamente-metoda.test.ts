@@ -24,6 +24,10 @@ vi.mock('next/cache', () => ({
 
 import { montaCapcanaAction, verificaCapcanaAction } from '@/app/(dashboard)/tratamente/capcane/actions'
 import {
+  APLICARE_LEGACY_PRODUS_FARA_PRODUS,
+  satisfiesAplicariTratamentProdusXorCheck,
+} from '@/lib/tratamente/aplicare-legacy-produs'
+import {
   buildRecomandariInterventie,
   filterInterventiiRelevanteByMetoda,
   listRecomandariParcela,
@@ -508,13 +512,17 @@ describe('capcane actions', () => {
     })
 
     expect(result).toEqual({ ok: true })
-    expect(aplicari.state.insertedPayloads[0]).toMatchObject({
+    const aplicarePayload = aplicari.state.insertedPayloads[0]
+    expect(aplicarePayload).toMatchObject({
       tenant_id: 'tenant-1',
       parcela_id: PARCELA_UUID,
       tip_interventie: 'monitorizare',
       metoda_aplicare: 'capcana_pus',
       status: 'aplicata',
+      produs_id: null,
+      produs_nume_manual: APLICARE_LEGACY_PRODUS_FARA_PRODUS,
     })
+    expect(satisfiesAplicariTratamentProdusXorCheck(aplicarePayload)).toBe(true)
     expect(capcane.state.insertedPayloads[0]).toMatchObject({
       tenant_id: 'tenant-1',
       parcela_id: PARCELA_UUID,
@@ -640,11 +648,15 @@ describe('capcane actions', () => {
     })
 
     expect(result).toEqual({ ok: true })
-    expect(aplicari.state.insertedPayloads[0]).toMatchObject({
+    const verificareAplicarePayload = aplicari.state.insertedPayloads[0]
+    expect(verificareAplicarePayload).toMatchObject({
       parcela_id: PARCELA_UUID,
       tip_interventie: 'monitorizare',
       metoda_aplicare: 'capcana_verificat',
+      produs_id: null,
+      produs_nume_manual: APLICARE_LEGACY_PRODUS_FARA_PRODUS,
     })
+    expect(satisfiesAplicariTratamentProdusXorCheck(verificareAplicarePayload)).toBe(true)
     expect(verificari.state.insertedPayloads[0]).toMatchObject({
       tenant_id: 'tenant-1',
       capcana_montata_id: CAPCANA_UUID,

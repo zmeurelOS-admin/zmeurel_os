@@ -57,6 +57,29 @@ describe('AppDatePicker', () => {
     expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
   })
 
+  it('folosește input nativ type="time" pentru oră (calendarul rămâne custom)', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    render(
+      <AppDatePicker
+        id="test-datetime-native"
+        label="Data și ora"
+        mode="datetime"
+        value="2026-05-23T14:30"
+        onChange={onChange}
+      />
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Data și ora' }))
+    expect(screen.getByRole('grid', { name: 'Calendar' })).toBeInTheDocument()
+
+    const timeInput = document.getElementById('test-datetime-native-time') as HTMLInputElement
+    expect(timeInput).toBeTruthy()
+    expect(timeInput.type).toBe('time')
+    expect(timeInput.value).toBe('14:30')
+  })
+
   it('păstrează ora la schimbarea zilei în mod datetime', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

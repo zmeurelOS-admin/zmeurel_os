@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { AppSelect } from '@/components/ui/app-select'
 
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useMediaQuery: () => false,
+}))
+
 const options = [
   { value: '', label: 'Selectează teren' },
   { value: 'parcela-a', label: 'Maravilla 1 (camp)' },

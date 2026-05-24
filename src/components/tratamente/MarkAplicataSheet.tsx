@@ -76,7 +76,7 @@ import { autoSaveProdusInBiblioteca } from '@/lib/tratamente/auto-save-produs-bi
 import { mapMetodaToManualTipSelect } from '@/lib/tratamente/map-metoda-manual-tip'
 import { getSupabase } from '@/lib/supabase/client'
 import { getCurrentSezon } from '@/lib/utils/sezon'
-import { DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
+import { closeOverlay, DIALOG_HISTORY_MARKER, stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
 import {
   buildStadiuAppSelectOptions,
   COHORTA_APP_SELECT_OPTIONS,
@@ -2609,7 +2609,7 @@ export function MarkAplicataSheet({
       }
       footer={
         <DialogFormActions
-          onCancel={() => onOpenChange(false)}
+          onCancel={() => closeOverlay(onOpenChange)}
           onSave={save}
           saving={pending}
           saveLabel={mode === 'edit' ? 'Salvează modificările' : mode === 'manual' ? 'Salvează intervenția' : 'Marchează aplicarea'}

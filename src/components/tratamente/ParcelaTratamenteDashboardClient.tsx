@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Plus, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -370,10 +370,13 @@ export function ParcelaTratamenteDashboardClient({
     },
   })
 
+  const loadCapcaneActiveRef = useRef(interventieSheets.loadCapcaneActive)
+  loadCapcaneActiveRef.current = interventieSheets.loadCapcaneActive
+
   useEffect(() => {
     if (isDesktop) return
-    void interventieSheets.loadCapcaneActive()
-  }, [isDesktop, interventieSheets.loadCapcaneActive])
+    void loadCapcaneActiveRef.current()
+  }, [isDesktop, parcelaId])
 
   const handleSaveConfigurareSezon = async (values: {
     sistem_conducere: string | null

@@ -17,6 +17,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { selectableSurfaceClass, selectableSubtitleClass, selectableTitleClass } from '@/lib/ui/selectable-surface'
+import { stripDialogHistoryMarker } from '@/lib/ui/dialog-history'
 import { cn } from '@/lib/utils'
 import type { MetodaAplicare } from '@/types/tratamente-metode'
 
@@ -111,11 +113,9 @@ function PickerTile({
       aria-label={option.title}
       onClick={() => onPick(option.metoda)}
       className={cn(
-        'flex min-h-20 w-full items-start gap-3 rounded-[var(--agri-radius)] border p-4 text-left transition active:scale-[0.985]',
+        'flex min-h-20 w-full items-start gap-3 rounded-[var(--agri-radius)] border p-4 text-left',
         option.wide ? 'col-span-2' : '',
-        option.accent
-          ? 'border-[color:color-mix(in_srgb,var(--agri-primary)_36%,white)] bg-[color:color-mix(in_srgb,var(--agri-primary)_10%,white)] shadow-[0_10px_24px_rgba(13,155,92,0.10)]'
-          : 'border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]'
+        selectableSurfaceClass(Boolean(option.accent))
       )}
     >
       <div
@@ -129,8 +129,8 @@ function PickerTile({
         <Icon className="h-5 w-5" aria-hidden />
       </div>
       <div className="min-w-0">
-        <p className="text-sm text-[var(--text-primary)] [font-weight:700]">{option.title}</p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">{option.subtitle}</p>
+        <p className={selectableTitleClass(Boolean(option.accent))}>{option.title}</p>
+        <p className={selectableSubtitleClass(Boolean(option.accent))}>{option.subtitle}</p>
       </div>
     </button>
   )
@@ -189,7 +189,10 @@ export function IntervenitiePickerSheet({
 
         <button
           type="button"
-          onClick={() => onOpenChange(false)}
+          onClick={() => {
+            stripDialogHistoryMarker()
+            onOpenChange(false)
+          }}
           className="mt-6 flex min-h-12 w-full items-center justify-center rounded-[var(--agri-radius)] border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-4 text-sm font-semibold text-[var(--text-primary)] transition active:scale-[0.985]"
         >
           Anulează

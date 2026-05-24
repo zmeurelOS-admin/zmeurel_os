@@ -36,9 +36,6 @@ import { cn } from '@/lib/utils'
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'] as const
 
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0'))
-const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'))
-
 export interface AppDatePickerProps {
   id: string
   label?: string
@@ -76,6 +73,34 @@ function buildCalendarDays(viewMonth: Date): Date[] {
   return eachDayOfInterval({ start: gridStart, end: gridEnd })
 }
 
+function NativeTimeInput({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value: string
+  onChange: (time: string) => void
+}) {
+  return (
+    <div className="border-t border-[var(--agri-border)] pt-3">
+      <Label htmlFor={id} className="mb-1.5 block px-0.5 text-xs font-medium text-[var(--agri-text-muted)]">
+        Oră
+      </Label>
+      <input
+        id={id}
+        type="time"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={cn(
+          'agri-control flex h-11 w-full min-h-[44px] rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-3 text-base text-[var(--agri-text)] shadow-sm',
+          '[color-scheme:light] dark:[color-scheme:dark]'
+        )}
+      />
+    </div>
+  )
+}
+
 function isDateDisabled(day: Date, min?: string, max?: string): boolean {
   const iso = toIsoDateOnly(day.getFullYear(), day.getMonth() + 1, day.getDate())
   if (min && iso < min) return true
@@ -87,6 +112,7 @@ type CalendarPanelProps = {
   viewMonth: Date
   selectedDate: Date | null
   draftTime: string
+  timeInputId: string
   mode: AppDatePickerMode
   min?: string
   max?: string
@@ -101,6 +127,7 @@ function CalendarPanel({
   viewMonth,
   selectedDate,
   draftTime,
+  timeInputId,
   mode,
   min,
   max,
@@ -111,7 +138,6 @@ function CalendarPanel({
   onTimeChange,
 }: CalendarPanelProps) {
   const days = useMemo(() => buildCalendarDays(viewMonth), [viewMonth])
-  const [hour, minute] = draftTime.split(':')
 
   return (
     <div className="space-y-3 p-1">
@@ -182,34 +208,7 @@ function CalendarPanel({
       </div>
 
       {mode === 'datetime' ? (
-        <div className="flex items-center gap-2 border-t border-[var(--agri-border)] pt-3">
-          <span className="text-xs font-medium text-[var(--agri-text-muted)]">Ora</span>
-          <select
-            aria-label="Oră"
-            value={hour ?? '00'}
-            onChange={(event) => onTimeChange(`${event.target.value}:${minute ?? '00'}`)}
-            className="agri-control h-10 flex-1 rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2 text-sm text-[var(--agri-text)]"
-          >
-            {HOUR_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <span className="text-[var(--agri-text-muted)]">:</span>
-          <select
-            aria-label="Minut"
-            value={minute ?? '00'}
-            onChange={(event) => onTimeChange(`${hour ?? '00'}:${event.target.value}`)}
-            className="agri-control h-10 flex-1 rounded-lg border border-[var(--agri-border)] bg-[var(--agri-surface)] px-2 text-sm text-[var(--agri-text)]"
-          >
-            {MINUTE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+        <NativeTimeInput id={timeInputId} value={draftTime} onChange={onTimeChange} />
       ) : null}
 
       <button
@@ -308,6 +307,7 @@ export function AppDatePicker({
         pendingDate ? localDateFromIsoDate(pendingDate) : selectedDate
       }
       draftTime={draftTime}
+      timeInputId={`${id}-time`}
       mode={mode}
       min={min}
       max={max}
