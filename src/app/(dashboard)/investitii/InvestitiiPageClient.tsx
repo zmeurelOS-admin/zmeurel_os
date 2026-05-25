@@ -28,7 +28,7 @@ import {
   DesktopSplitPane,
   DesktopToolbar,
 } from '@/components/ui/desktop'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
+import { CompactFinanceListCard } from '@/components/ui/CompactFinanceListCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -98,40 +98,50 @@ function InvestitieCardNew({
 }) {
   const suma = Number(investitie.suma_lei || 0)
   const icon = investitieCategoryIcon(investitie.categorie)
-  const title = investitie.categorie || 'Alte investiții'
-  const subtitle = investitie.furnizor || 'Furnizor nespecificat'
-  const dateLabel = investitie.data ? formatData(investitie.data) : '-'
-  const descriere = (investitie.descriere ?? '').trim()
+  const title = `${icon.emoji} ${investitie.categorie || 'Alte investiții'}`
+  const furnizor = (investitie.furnizor ?? '').trim()
   const parcelaLabel = parcelaName || 'Fără parcelă'
-  const yearLabel = investitie.data ? String(new Date(investitie.data).getFullYear()) : '—'
+  const subtitle = [furnizor || 'Furnizor nespecificat', parcelaLabel].join(' · ')
+  const dateLabel = investitie.data ? formatData(investitie.data) : '—'
+  const descriere = (investitie.descriere ?? '').trim()
+  const metaText =
+    descriere.length > 0 ? `${descriere.slice(0, 56)}${descriere.length > 56 ? '…' : ''}` : undefined
 
   return (
-    <MobileEntityCard
+    <CompactFinanceListCard
+      dateLabel={dateLabel}
       title={title}
-      icon={<span aria-hidden>{icon.emoji}</span>}
       subtitle={subtitle}
-      mainValue={`${formatRon(suma)} RON`}
-      secondaryValue={`${dateLabel} · ${parcelaLabel}`}
-      meta={descriere.length > 0 ? `${descriere.slice(0, 84)}${descriere.length > 84 ? '…' : ''}` : undefined}
-      statusLabel={yearLabel}
-      statusTone="neutral"
-      showChevron
+      meta={metaText}
+      isExpanded={isExpanded}
       onClick={onToggle}
-      bottomSlot={isExpanded ? (
-        <div className="mt-1">
-          <div className="flex flex-wrap gap-2 text-xs text-[var(--agri-text-muted)]">
-            <span><span className="text-[var(--agri-text)] font-semibold">Furnizor:</span> {investitie.furnizor || '—'}</span>
-            <span><span className="text-[var(--agri-text)] font-semibold">Parcelă:</span> {parcelaLabel}</span>
-            <span><span className="text-[var(--agri-text)] font-semibold">Dată:</span> {investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '-'}</span>
+      trailing={
+        <span className="text-sm font-bold tabular-nums leading-tight text-[var(--text-primary)]">
+          {formatRon(suma)} RON
+        </span>
+      }
+      bottomSlot={
+        <>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)]">
+            <span>
+              <span className="font-semibold text-[var(--text-primary)]">Furnizor:</span> {investitie.furnizor || '—'}
+            </span>
+            <span>
+              <span className="font-semibold text-[var(--text-primary)]">Parcelă:</span> {parcelaLabel}
+            </span>
+            <span>
+              <span className="font-semibold text-[var(--text-primary)]">Dată:</span>{' '}
+              {investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '—'}
+            </span>
           </div>
-          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+          <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-2">
             <button
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
                 onEdit()
               }}
-              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+              className="min-h-8 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
             >
               Editează
             </button>
@@ -141,13 +151,13 @@ function InvestitieCardNew({
                 event.stopPropagation()
                 onDelete()
               }}
-              className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+              className="min-h-8 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
             >
               Șterge
             </button>
           </div>
-        </div>
-      ) : undefined}
+        </>
+      }
     />
   )
 }
@@ -463,7 +473,7 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
                 columns={desktopColumns}
                 data={desktopData}
                 getRowId={(row) => row.id}
-                mobileContainerClassName="grid-cols-1"
+                mobileContainerClassName="grid-cols-1 gap-2"
                 searchPlaceholder="Caută în investiții..."
                 emptyMessage="Nu am găsit investiții pentru filtrele curente."
                 desktopContainerClassName="md:min-w-0"

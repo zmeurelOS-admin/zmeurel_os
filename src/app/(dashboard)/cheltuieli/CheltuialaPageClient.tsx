@@ -29,7 +29,7 @@ import {
   DesktopSplitPane,
   DesktopToolbar,
 } from '@/components/ui/desktop'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
+import { CompactFinanceListCard } from '@/components/ui/CompactFinanceListCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -166,39 +166,49 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
   const descriere = (cheltuiala.descriere ?? '').trim()
   const furnizor = (cheltuiala.furnizor ?? '').trim()
 
-  const titleText = categorie || 'Altele'
-  const subtitleText = furnizor || 'Furnizor nespecificat'
-  const dateLabel = cheltuiala.data ? formatCheltuialaStatusLabel(cheltuiala.data) : undefined
+  const titleText = `${emoji} ${categorie || 'Altele'}`
+  const subtitleText = furnizor || undefined
+  const dateLabel = cheltuiala.data ? formatData(cheltuiala.data) : '—'
   const metaText =
-    descriere.length > 0 ? `${descriere.slice(0, 72)}${descriere.length > 72 ? '…' : ''}` : undefined
+    descriere.length > 0 ? `${descriere.slice(0, 56)}${descriere.length > 56 ? '…' : ''}` : undefined
   const autoLabel = isAuto ? 'Automat' : 'Manual'
 
   return (
-    <MobileEntityCard
+    <CompactFinanceListCard
+      dateLabel={dateLabel}
       title={titleText}
-      icon={<span aria-hidden>{emoji}</span>}
-      mainValue={`${formatRon(suma)} RON`}
       subtitle={subtitleText}
-      secondaryValue={dateLabel}
       meta={metaText}
-      statusLabel={autoLabel}
-      statusTone={isAuto ? 'warning' : 'neutral'}
-      showChevron
+      isExpanded={isExpanded}
       onClick={onToggle}
-      bottomSlot={isExpanded ? (
+      trailing={
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="text-sm font-bold tabular-nums leading-tight text-[var(--text-primary)]">
+            {formatRon(suma)} RON
+          </span>
+          <span
+            className={
+              isAuto
+                ? 'text-[10px] font-semibold uppercase tracking-wide text-[var(--status-warning-text)]'
+                : 'text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]'
+            }
+          >
+            {autoLabel}
+          </span>
+        </div>
+      }
+      bottomSlot={
         <>
-          <div className="flex flex-wrap gap-2 text-xs text-[var(--text-primary)]">
-            <span>
-              <span className="text-[var(--text-secondary)]">Categorie: </span>
-              <span className="font-semibold">{cheltuiala.categorie || 'Altele'}</span>
-            </span>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-primary)]">
             <span>
               <span className="text-[var(--text-secondary)]">Sumă: </span>
               <span className="font-semibold text-[var(--danger-text)]">{formatRon(suma)} RON</span>
             </span>
             <span>
               <span className="text-[var(--text-secondary)]">Data: </span>
-              <span className="font-semibold">{new Date(cheltuiala.data).toLocaleDateString('ro-RO')}</span>
+              <span className="font-semibold">
+                {cheltuiala.data ? new Date(cheltuiala.data).toLocaleDateString('ro-RO') : '—'}
+              </span>
             </span>
             {cheltuiala.furnizor ? (
               <span>
@@ -207,21 +217,21 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
               </span>
             ) : null}
             {cheltuiala.descriere ? (
-              <span>
+              <span className="min-w-0 basis-full">
                 <span className="text-[var(--text-secondary)]">Observații: </span>
                 <span className="font-semibold">{cheltuiala.descriere}</span>
               </span>
             ) : null}
           </div>
 
-          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
+          <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-2">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onEdit()
               }}
-              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+              className="min-h-8 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
             >
               Editează
             </button>
@@ -231,13 +241,13 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
                 e.stopPropagation()
                 onDelete()
               }}
-              className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+              className="min-h-8 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
             >
               Șterge
             </button>
           </div>
         </>
-      ) : undefined}
+      }
     />
   )
 }
@@ -711,7 +721,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
                 columns={desktopColumns}
                 data={filtered}
                 getRowId={(row) => row.id}
-                mobileContainerClassName="grid-cols-1"
+                mobileContainerClassName="grid-cols-1 gap-2"
                 searchPlaceholder="Caută în cheltuieli..."
                 emptyMessage="Nu am găsit cheltuieli pentru filtrele curente."
                 desktopContainerClassName="md:min-w-0"
