@@ -52,6 +52,17 @@ function formatLei(value: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
 }
 
+function buildNotifyWaUrl(productId: string, name: string, phone: string): string | null {
+  let message: string | null = null
+  if (productId === 'zmeura') {
+    message = `Bună! Vreau să fiu anunțat(ă) când aveți Zmeură disponibilă.\nNumele meu: ${name}\nTelefon: ${phone}`
+  } else if (productId === 'mure') {
+    message = `Bună! Vreau să fiu anunțat(ă) când aveți Mure disponibile.\nNumele meu: ${name}\nTelefon: ${phone}`
+  }
+  if (!message) return null
+  return `${WA_BASE}?text=${encodeURIComponent(message)}`
+}
+
 function buildWaMessage(input: {
   lines: CartLine[]
   total: number
@@ -225,7 +236,13 @@ export function ShopClient({
         })
         return
       }
+      const name = state.name.trim()
+      const phone = state.phone.trim()
       updateNotify(product.id, { loading: false, done: true, open: false })
+      const notifyWaUrl = buildNotifyWaUrl(product.id, name, phone)
+      if (notifyWaUrl) {
+        window.open(notifyWaUrl, '_blank', 'noopener,noreferrer')
+      }
     } catch {
       updateNotify(product.id, { loading: false, error: 'Eroare de rețea. Încearcă din nou.' })
     }
@@ -335,7 +352,7 @@ export function ShopClient({
           <div className="grid gap-4">
             <div>
               <h1 className={`text-[1.65rem] font-semibold leading-tight ${styles.fontDisplay}`}>
-                Primele fructe ale sezonului, culese azi.
+                Primele fructe ale sezonului, Culese în ziua livrării.
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-white/95">
                 Afine siberiene proaspete din ferma noastră din Văratec. Culese dimineața și livrate în aceeași
@@ -443,7 +460,7 @@ export function ShopClient({
               <div className="my-6 flex items-center gap-3">
                 <span className="h-px flex-1 bg-[#F3DAD4]" />
                 <span className="text-xs font-semibold uppercase tracking-wide text-[#312E3F]/60">
-                  Urmează în curând
+                  Se coc pe plantă
                 </span>
                 <span className="h-px flex-1 bg-[#F3DAD4]" />
               </div>
@@ -478,8 +495,8 @@ export function ShopClient({
                         ) : null}
 
                         {notify?.done ? (
-                          <p className="mt-2 rounded-lg bg-[#E8F5EE] px-2 py-1.5 text-[11px] font-medium text-[#0D9B5C]">
-                            Te anunțăm!
+                          <p className="mt-2 rounded-lg bg-[#E8F5EE] px-2 py-1.5 text-[11px] font-medium leading-snug text-[#0D9B5C]">
+                            Te-am înregistrat! Îți trimitem un mesaj când sunt disponibile.
                           </p>
                         ) : notify?.open ? (
                           <div className="mt-2 space-y-1.5 rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] p-2">
@@ -544,7 +561,7 @@ export function ShopClient({
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">De la noi din Văratec</p>
           <h2 className={`mt-2 text-2xl font-semibold ${styles.fontDisplay}`}>Gust cu zâmbete dulci</h2>
           <p className="mt-3 text-sm leading-relaxed text-white/90">
-            Culegem cu mâna, dimineața, când fructele sunt la cel mai bun al lor. Fără grabă, fără compromisuri.
+            Culegem cu mâna, dimineața, coapte la momentul potrivit. Fără grabă, fără compromisuri.
             Ce ajunge la tine a crescut în Văratec, pe pământ bucovinean.
           </p>
           <p className="mt-3 text-sm leading-relaxed text-white/90">
@@ -552,10 +569,10 @@ export function ShopClient({
           </p>
           <ul className="mt-5 space-y-2 text-sm">
             <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Azi culese &amp; livrate
+              <span className="text-[#F16B6B]">✓</span> Culese în ziua livrării
             </li>
             <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Culese manual, cu grijă
+              <span className="text-[#F16B6B]">✓</span> Recoltă manuală, fruct cu fruct
             </li>
             <li className="flex gap-2">
               <span className="text-[#F16B6B]">✓</span> Cash sau Revolut
@@ -577,16 +594,6 @@ export function ShopClient({
           </div>
         </section>
 
-        {/* CUM COMANZI */}
-        <section className="mt-10">
-          <h2 className={`text-xl font-semibold ${styles.fontDisplay}`}>Cum comanzi</h2>
-          <ol className="mt-4 space-y-3">
-            <Step n={1} text="Alegi produsele și cantitățile din listă." />
-            <Step n={2} text="Completezi datele de livrare sau ridicare." />
-            <Step n={3} text="Confirmi pe WhatsApp — plata cash la livrare." />
-          </ol>
-        </section>
-
         {/* B2B */}
         <section
           className="mt-10 rounded-[14px] px-4 py-3.5 text-sm leading-relaxed text-[#312E3F]"
@@ -605,8 +612,7 @@ export function ShopClient({
 
         {/* FOOTER */}
         <footer className="mt-10 -mx-3 rounded-t-[26px] bg-[#F16B6B] px-5 py-8 text-white">
-          <ZmeurelLogo className="[&_span:last-child]:text-white" />
-          <p className="mt-3 text-sm text-white/90">Fructe proaspete, direct de la fermă.</p>
+          <FooterBrand />
           <p className="mt-4 text-sm leading-relaxed">
             Văratec, jud. Suceava
             <br />
@@ -614,26 +620,16 @@ export function ShopClient({
               +40 752 953 048
             </a>
           </p>
-          <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold">
-            <a href={WA_BASE} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
-              WhatsApp
-            </a>
-            <a
-              href="https://www.facebook.com/ZmeuraSuceava/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline-offset-2 hover:underline"
-            >
-              Facebook
-            </a>
-            <a
-              href="https://www.instagram.com/zmeurel_sv/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline-offset-2 hover:underline"
-            >
-              Instagram
-            </a>
+          <div className="mt-5 flex gap-3">
+            <FooterSocialLink href={WA_BASE} label="WhatsApp">
+              <FooterWhatsAppIcon />
+            </FooterSocialLink>
+            <FooterSocialLink href="https://www.facebook.com/ZmeuraSuceava/" label="Facebook">
+              <FooterFacebookIcon />
+            </FooterSocialLink>
+            <FooterSocialLink href="https://www.instagram.com/zmeurel_sv/" label="Instagram">
+              <FooterInstagramIcon />
+            </FooterSocialLink>
           </div>
           <p className="mt-6 text-xs text-white/75">© {new Date().getFullYear()} Zmeurel · Văratec</p>
         </footer>
@@ -785,14 +781,73 @@ function InfoCard({ icon, title, text }: { icon: string; title: string; text: st
   )
 }
 
-function Step({ n, text }: { n: number; text: string }) {
+function FooterBrand() {
   return (
-    <li className="flex gap-3 rounded-[22px] border border-[#F3DAD4] bg-white p-4 shadow-sm">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F16B6B] text-sm font-bold text-white">
-        {n}
-      </span>
-      <p className="text-sm leading-relaxed text-[#312E3F]/85">{text}</p>
-    </li>
+    <div className="flex items-center gap-3">
+      <svg viewBox="0 0 52 58" fill="none" className="h-[46px] w-auto shrink-0" aria-hidden>
+        <path d="M26 17C26 9 33 7 35 11" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
+        <circle cx="21" cy="20" r="4" fill="white" />
+        <circle cx="31" cy="20" r="4" fill="white" />
+        <circle cx="16" cy="28" r="4.3" fill="white" />
+        <circle cx="26" cy="28.5" r="4.5" fill="white" />
+        <circle cx="36" cy="28" r="4.3" fill="white" />
+        <circle cx="21" cy="36" r="4.2" fill="white" />
+        <circle cx="31" cy="36" r="4.2" fill="white" />
+        <circle cx="26" cy="44" r="3.9" fill="white" />
+      </svg>
+      <div>
+        <p className={`text-[28px] font-semibold leading-none text-white ${styles.fontDisplay}`}>Zmeurel</p>
+        <p className={`mt-1 text-sm italic text-white/90 ${styles.fontDisplay}`}>gust cu zâmbete dulci</p>
+      </div>
+    </div>
+  )
+}
+
+function FooterSocialLink({
+  href,
+  label,
+  children,
+}: {
+  href: string
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      className="grid h-11 w-11 place-items-center rounded-xl border border-white/28 bg-white/18 text-white transition active:scale-[0.98]"
+    >
+      {children}
+    </a>
+  )
+}
+
+function FooterWhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24" aria-hidden>
+      <path d="M12 2a10 10 0 00-8.7 15l-1.3 4.7 4.8-1.3A10 10 0 1012 2zm0 18a8 8 0 01-4-1.1l-.3-.2-2.8.7.8-2.7-.2-.3A8 8 0 1112 20zm4.4-5.6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5 0a6.5 6.5 0 01-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 00-.7.3c-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6 1.8 2.7 4.3 3.8c1.6.7 2.2.7 3 .6.5 0 1.4-.6 1.6-1.1s.2-1 .1-1.1-.2-.2-.4-.3z" />
+    </svg>
+  )
+}
+
+function FooterFacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24" aria-hidden>
+      <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" />
+    </svg>
+  )
+}
+
+function FooterInstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" width="24" height="24" aria-hidden>
+      <rect x="4" y="4" width="16" height="16" rx="5" />
+      <circle cx="12" cy="12" r="3.6" />
+      <circle cx="17" cy="7" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
   )
 }
 
