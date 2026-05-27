@@ -304,7 +304,7 @@ export function ShopClient({
         <div className="flex items-center justify-between gap-3">
           <ZmeurelLogo />
           <a
-            href={WA_BASE}
+            href="https://wa.me/40752953048?text=Bun%C4%83!%20A%C8%99%20dori%20s%C4%83%20comand%20afine%20siberiene%20de%20la%20Zmeurel."
             target="_blank"
             rel="noopener noreferrer"
             className={`inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white ${styles.waPulse}`}
