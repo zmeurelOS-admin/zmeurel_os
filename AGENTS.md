@@ -620,3 +620,13 @@ When future prompts modify architecture, domain logic, repository structure, or 
 - `docs/CODE_STRUCTURE.md`
 - `docs/DOMAIN_RULES.md`
 - `docs/KNOWN_RISKS.md`
+
+## Shop public /comanda
+
+- Rută publică Next.js, fără auth, fără ERP shell
+- Tabele: `shop_orders`, `shop_notify_requests`, `shop_products`
+- API: `/api/shop/b2c/order` (POST), `/api/shop/b2c/notify` (POST), `/api/shop/b2c/orders/[id]` (PATCH), `/api/shop/b2c/notify/[id]` (PATCH)
+- Produsele se editează din `shop_products` în Supabase
+- Comenzile B2C vizibile în `/comenzi` → tab „Shop public”
+- Lista „Anunță-mă” vizibilă în același tab, sub-tab „Anunță-mă”
+- NU lega de tabelul `comenzi` B2B sau logica de stoc

@@ -2810,6 +2810,111 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_notify_requests: {
+        Row: {
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          id: string
+          notified_at: string | null
+          product_id: string
+          product_name: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          id?: string
+          notified_at?: string | null
+          product_id: string
+          product_name: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          id?: string
+          notified_at?: string | null
+          product_id?: string
+          product_name?: string
+        }
+        Relationships: []
+      }
+      shop_orders: {
+        Row: {
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_mode: string
+          id: string
+          items: Json
+          notes: string | null
+          notified_wa: boolean
+          status: string
+          total_lei: number
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          delivery_address?: string | null
+          delivery_mode: string
+          id?: string
+          items: Json
+          notes?: string | null
+          notified_wa?: boolean
+          status?: string
+          total_lei: number
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          delivery_address?: string | null
+          delivery_mode?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          notified_wa?: boolean
+          status?: string
+          total_lei?: number
+        }
+        Relationships: []
+      }
+      shop_products: {
+        Row: {
+          available: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price_lei: number | null
+          sort_order: number
+          unit_label: string
+        }
+        Insert: {
+          available?: boolean
+          created_at?: string
+          description?: string | null
+          id: string
+          name: string
+          price_lei?: number | null
+          sort_order?: number
+          unit_label: string
+        }
+        Update: {
+          available?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price_lei?: number | null
+          sort_order?: number
+          unit_label?: string
+        }
+        Relationships: []
+      }
       recoltari: {
         Row: {
           cantitate_kg: number

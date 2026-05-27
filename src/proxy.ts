@@ -92,6 +92,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/update-password') ||
+    pathname === '/comanda' ||
+    pathname.startsWith('/comanda/') ||
     pathname.startsWith('/magazin') ||
     pathname.startsWith('/api/shop') ||
     pathname === '/api/auth/beta-signup' ||

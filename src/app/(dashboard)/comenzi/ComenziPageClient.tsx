@@ -47,6 +47,7 @@ import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
+import { ShopOrdersPanel } from '@/components/comenzi/ShopOrdersPanel'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { track } from '@/lib/analytics/track'
@@ -80,6 +81,7 @@ import {
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
 type OriginFilter = 'all' | 'magazin' | 'manual'
+type ComenziModuleView = 'ferma' | 'shop'
 
 type ContactPrompt = {
   name: string
@@ -735,6 +737,7 @@ export function ComenziPageClient() {
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
   const [originFilter, setOriginFilter] = useState<OriginFilter>('all')
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
+  const [view, setView] = useState<ComenziModuleView>('ferma')
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
@@ -982,11 +985,12 @@ export function ComenziPageClient() {
   }
 
   useEffect(() => {
+    if (view !== 'ferma') return
     const unregister = registerAddAction(() => {
       setAddOpen(true)
     }, 'Adaugă comandă')
     return unregister
-  }, [registerAddAction])
+  }, [registerAddAction, view])
 
   useEffect(() => {
     const query = search.trim()
@@ -1285,7 +1289,18 @@ export function ComenziPageClient() {
       bottomBar={null}
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
-        {activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0 ? (
+        <ModulePillRow>
+          <ModulePillFilterButton active={view === 'ferma'} onClick={() => setView('ferma')}>
+            Comenzi fermă
+          </ModulePillFilterButton>
+          <ModulePillFilterButton active={view === 'shop'} onClick={() => setView('shop')}>
+            Shop public
+          </ModulePillFilterButton>
+        </ModulePillRow>
+
+        {view === 'shop' ? <ShopOrdersPanel /> : null}
+
+        {view === 'ferma' && (activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0) ? (
           <ModuleScoreboard className="gap-x-3.5 gap-y-2">
             {activeComenzi.length > 0 ? (
               <span
@@ -1352,6 +1367,7 @@ export function ComenziPageClient() {
           </ModuleScoreboard>
         ) : null}
 
+        {view === 'ferma' ? (
         <PillTabs
           value={activeTab}
           onChange={(value) => {
@@ -1362,7 +1378,9 @@ export function ComenziPageClient() {
           activeCount={activeComenzi.length}
           livrateCount={livrateComenzi.length}
         />
+        ) : null}
 
+        {view === 'ferma' ? (
         <SearchField
           containerClassName="md:hidden"
           placeholder="Caută după client sau telefon..."
@@ -1370,7 +1388,9 @@ export function ComenziPageClient() {
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Caută comenzi"
         />
+        ) : null}
 
+        {view === 'ferma' ? (
         <DesktopToolbar
           className="hidden md:flex"
           trailing={
@@ -1396,7 +1416,9 @@ export function ComenziPageClient() {
             aria-label="Caută comenzi (desktop)"
           />
         </DesktopToolbar>
+        ) : null}
 
+        {view === 'ferma' ? (
         <div className="flex flex-wrap items-center gap-2 md:hidden">
           <span className="text-xs font-semibold text-[var(--text-tertiary)]">Origine</span>
           <ModulePillFilterButton active={originFilter === 'all'} onClick={() => setOriginFilter('all')}>
@@ -1409,11 +1431,12 @@ export function ComenziPageClient() {
             Manuale
           </ModulePillFilterButton>
         </div>
+        ) : null}
 
-        {isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
-        {isLoading ? <EntityListSkeleton /> : null}
+        {view === 'ferma' && isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
+        {view === 'ferma' && isLoading ? <EntityListSkeleton /> : null}
 
-        {!isLoading && !isError && sortedComenziForView.length === 0 ? (
+        {view === 'ferma' && !isLoading && !isError && sortedComenziForView.length === 0 ? (
           <ModuleEmptyCard
             emoji="📋"
             title="Nicio comandă încă"
@@ -1421,7 +1444,7 @@ export function ComenziPageClient() {
           />
         ) : null}
 
-        {!isLoading && !isError && sortedComenziForView.length > 0 ? (
+        {view === 'ferma' && !isLoading && !isError && sortedComenziForView.length > 0 ? (
           <>
             <DesktopSplitPane
               master={

@@ -51,7 +51,7 @@ const baseParcela = {
   status_operational: 'activ',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-} as Parcela
+} as unknown as Parcela
 
 function makeStageRow(
   overrides: Partial<ParcelaStadiuCanonic> & Pick<ParcelaStadiuCanonic, 'id' | 'stadiu'>
@@ -95,6 +95,10 @@ describe('getCurrentCanonicalStageForCohort', () => {
         data_observata: '2026-03-01',
         observatii: null,
         created_at: '2026-03-01T00:00:00Z',
+        tenant_id: 'tenant-1',
+        sursa: 'manual',
+        created_by: null,
+        updated_at: '2026-03-01T00:00:00Z',
       },
       {
         id: '2',
@@ -105,6 +109,10 @@ describe('getCurrentCanonicalStageForCohort', () => {
         data_observata: '2026-05-01',
         observatii: null,
         created_at: '2026-05-01T00:00:00Z',
+        tenant_id: 'tenant-1',
+        sursa: 'manual',
+        created_by: null,
+        updated_at: '2026-05-01T00:00:00Z',
       },
       {
         id: '3',
@@ -115,6 +123,10 @@ describe('getCurrentCanonicalStageForCohort', () => {
         data_observata: '2026-04-15',
         observatii: null,
         created_at: '2026-04-15T00:00:00Z',
+        tenant_id: 'tenant-1',
+        sursa: 'manual',
+        created_by: null,
+        updated_at: '2026-04-15T00:00:00Z',
       },
     ]
 
@@ -136,6 +148,10 @@ describe('getCurrentCanonicalStageForCohort', () => {
         data_observata: '2026-05-20',
         observatii: null,
         created_at: '2026-05-20T08:00:00Z',
+        tenant_id: 'tenant-1',
+        sursa: 'manual',
+        created_by: null,
+        updated_at: '2026-05-20T08:00:00Z',
       },
       {
         id: '2',
@@ -146,6 +162,10 @@ describe('getCurrentCanonicalStageForCohort', () => {
         data_observata: '2026-05-18',
         observatii: null,
         created_at: '2026-05-21T09:00:00Z',
+        tenant_id: 'tenant-1',
+        sursa: 'manual',
+        created_by: null,
+        updated_at: '2026-05-21T09:00:00Z',
       },
     ]
 

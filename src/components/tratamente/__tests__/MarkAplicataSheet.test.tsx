@@ -246,10 +246,13 @@ describe('MarkAplicataSheet', () => {
     renderSheet(
       <MarkAplicataSheet
         defaultMetoda="foliar"
+        defaultCantitateMl={null}
         defaultManualParcelaId="parcela-1"
         defaultManualParcelaLabel="Parcela Nord"
         defaultManualStatus="aplicata"
+        defaultOperator=""
         grupBiologic="rubus"
+        defaultStadiu={null}
         isRubusMixt
         manualParcele={[]}
         meteoSnapshot={null}
