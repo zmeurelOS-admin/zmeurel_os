@@ -13,6 +13,7 @@ import { AssociationContextSwitcher } from "@/components/association/Association
 import { AssociationSidebar } from "@/components/association/AssociationSidebar"
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { useDemoBannerVisible } from "@/hooks/useDemoBannerVisible"
+import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from "@/lib/shop/useShopOrdersInLivrareCount"
 import { cn } from "@/lib/utils"
 
 const STORAGE_KEY = "sidebar-collapsed"
@@ -61,6 +62,7 @@ const GROUPS: Group[] = [
     label: "Comercial",
     items: [
       { href: "/comenzi", label: "Comenzi", emoji: "📋" },
+      { href: "/livrari", label: "Livrări", emoji: "🚚" },
       { href: "/vanzari", label: "Vânzări", emoji: "💰" },
       { href: "/clienti", label: "Clienți", emoji: "👥" },
       { href: "/produse", label: "Produse", emoji: "🛒" },
@@ -125,6 +127,7 @@ function getGroupForPath(pathname: string): GroupKey | null {
   }
   if (
     pathname.startsWith("/comenzi") ||
+    pathname.startsWith("/livrari") ||
     pathname.startsWith("/vanzari") ||
     pathname.startsWith("/clienti") ||
     pathname.startsWith("/produse") ||
@@ -219,6 +222,7 @@ type SidebarGroupProps = {
   searchString: string
   hash: string
   onNavigate?: () => void
+  itemBadges?: Record<string, ReactNode>
 }
 
 function SidebarGroup({
@@ -231,6 +235,7 @@ function SidebarGroup({
   searchString,
   hash,
   onNavigate,
+  itemBadges,
 }: SidebarGroupProps) {
   if (collapsed) {
     return (
@@ -244,6 +249,7 @@ function SidebarGroup({
             collapsed
             active={isNavItemActive(item, pathname, searchString, hash)}
             onNavigate={onNavigate}
+            badge={itemBadges?.[item.href]}
           />
         ))}
       </div>
@@ -283,6 +289,7 @@ function SidebarGroup({
                 collapsed={false}
                 active={isNavItemActive(item, pathname, searchString, hash)}
                 onNavigate={onNavigate}
+                badge={itemBadges?.[item.href]}
               />
             ))}
           </div>
@@ -402,6 +409,18 @@ export function Sidebar() {
   const currentGroup = useMemo(() => getGroupForPath(pathname), [pathname])
   const searchString = searchParams.toString()
   const inAssociationWorkspace = pathname.startsWith("/asociatie")
+
+  const { data: shopInLivrareCount = 0 } = useShopOrdersInLivrareCount()
+
+  const comercialItemBadges = useMemo(
+    () =>
+      shopInLivrareCount > 0
+        ? {
+            "/livrari": <ShopOrdersInLivrareNavBadge count={shopInLivrareCount} />,
+          }
+        : undefined,
+    [shopInLivrareCount],
+  )
 
   useEffect(() => {
     const syncTimer = window.setTimeout(() => {
@@ -537,6 +556,7 @@ export function Sidebar() {
                         pathname={pathname}
                         searchString={searchString}
                         hash={hash}
+                        itemBadges={group.key === "comercial" ? comercialItemBadges : undefined}
                       />
                     ))}
                   </div>

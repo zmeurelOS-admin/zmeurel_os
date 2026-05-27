@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, Phone } from 'lucide-react'
+import { MessageCircle, Phone, RefreshCw } from 'lucide-react'
 
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
@@ -160,6 +160,21 @@ export function ShopOrdersPanel() {
     queryFn: fetchShopNotifyRequests,
   })
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: SHOP_ORDERS_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: SHOP_NOTIFY_QUERY_KEY })
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [queryClient])
+
+  const refreshShopData = () => {
+    void queryClient.invalidateQueries({ queryKey: SHOP_ORDERS_QUERY_KEY })
+    void queryClient.invalidateQueries({ queryKey: SHOP_NOTIFY_QUERY_KEY })
+  }
+
+  const isRefreshing = ordersQuery.isFetching || notifyQuery.isFetching
+
   const patchOrderMutation = useMutation({
     mutationFn: async (input: { id: string; status?: ShopOrderStatus; notified_wa?: boolean }) => {
       const res = await fetch(`/api/shop/b2c/orders/${input.id}`, {
@@ -206,14 +221,27 @@ export function ShopOrdersPanel() {
 
   return (
     <div className="flex flex-col gap-3">
-      <ModulePillRow>
-        <ModulePillFilterButton active={panelTab === 'comenzi'} onClick={() => setPanelTab('comenzi')}>
-          Comenzi
-        </ModulePillFilterButton>
-        <ModulePillFilterButton active={panelTab === 'anunta'} onClick={() => setPanelTab('anunta')}>
-          Anunță-mă
-        </ModulePillFilterButton>
-      </ModulePillRow>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ModulePillRow>
+          <ModulePillFilterButton active={panelTab === 'comenzi'} onClick={() => setPanelTab('comenzi')}>
+            Comenzi
+          </ModulePillFilterButton>
+          <ModulePillFilterButton active={panelTab === 'anunta'} onClick={() => setPanelTab('anunta')}>
+            Anunță-mă
+          </ModulePillFilterButton>
+        </ModulePillRow>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5"
+          disabled={isRefreshing}
+          onClick={refreshShopData}
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} aria-hidden />
+          Reîncarcă
+        </Button>
+      </div>
 
       {panelTab === 'comenzi' ? (
         <ShopOrdersTab

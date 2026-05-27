@@ -21,6 +21,7 @@ import {
   SprayCan,
   Store,
   TrendingUp,
+  Truck,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -32,6 +33,10 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { Button } from '@/components/ui/button'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
+import {
+  ShopOrdersInLivrareNavBadge,
+  useShopOrdersInLivrareCount,
+} from '@/lib/shop/useShopOrdersInLivrareCount'
 
 interface MoreMenuDrawerProps {
   open: boolean
@@ -60,6 +65,7 @@ const groups: MenuGroup[] = [
       { href: '/tratamente/conformitate', label: 'Protecție & Nutriție', icon: SprayCan },
       { href: '/investitii', label: 'Investiții', icon: TrendingUp },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
+      { href: '/livrari', label: 'Livrări', icon: Truck },
       { href: '/vanzari', label: 'Vânzări', icon: BanknoteArrowUp },
       { href: '/stocuri', label: 'Stocuri', icon: Archive },
       { href: '/vanzari-butasi', label: 'Material săditor', icon: ShoppingBag },
@@ -125,6 +131,7 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   }
 
   const inAssociationWorkspace = pathname.startsWith('/asociatie')
+  const { data: shopInLivrareCount = 0 } = useShopOrdersInLivrareCount()
 
   const farmMenuSections = useMemo(() => {
     const cleanedGroups = groups.map((group) => ({
@@ -173,7 +180,12 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
               }`}
             >
               <Icon className="h-4 w-4" />
-              {item.label}
+              <span className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="truncate">{item.label}</span>
+                {item.href === '/livrari' && shopInLivrareCount > 0 ? (
+                  <ShopOrdersInLivrareNavBadge count={shopInLivrareCount} />
+                ) : null}
+              </span>
             </button>
           )
         })}
