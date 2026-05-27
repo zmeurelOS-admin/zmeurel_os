@@ -31,6 +31,15 @@ export default async function ComandaPage() {
     .select('id, name, description, unit_label, price_lei, available, sort_order')
     .order('sort_order', { ascending: true })
 
+  if (error) {
+    console.error('[comanda/page] failed to load shop_products', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    })
+  }
+
   const products = (data ?? []).map(mapRow)
 
   return <ShopClient products={products} loadError={error ? 'Nu am putut încărca produsele.' : null} />

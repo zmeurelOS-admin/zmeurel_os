@@ -26,8 +26,15 @@ export const metadata: Metadata = {
 
 export default function ComandaLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`${fraunces.variable} ${hanken.variable} ${styles.root} ${styles.fontBody}`}>
-      {children}
+    <div
+      className={`${fraunces.variable} ${hanken.variable} ${styles.root} ${styles.fontBody}`}
+      style={{
+        minHeight: '100vh',
+        background: '#FFF6F3',
+        boxShadow: '0 0 60px rgba(49,46,63,.06)',
+      }}
+    >
+      <div className="mx-auto w-full max-w-[540px]">{children}</div>
     </div>
   )
 }

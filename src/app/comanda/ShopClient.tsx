@@ -34,18 +34,17 @@ type NotifyState = {
   error: string | null
 }
 
-function productAccent(id: string): string {
+function productImageSrc(id: string): string | null {
   switch (id) {
     case 'afine-300':
-      return 'linear-gradient(145deg, #FFB4A8 0%, #F16B6B 100%)'
     case 'afine-500':
-      return 'linear-gradient(145deg, #F16B6B 0%, #E15453 100%)'
+      return '/shop/shop-afine.jpg'
     case 'zmeura':
-      return 'linear-gradient(145deg, #5B4FCF 0%, #7B6BFF 100%)'
+      return '/shop/shop-zmeura.jpg'
     case 'mure':
-      return 'linear-gradient(145deg, #312E3F 0%, #5B4FCF 100%)'
+      return '/shop/shop-mure.jpg'
     default:
-      return 'linear-gradient(145deg, #F3DAD4 0%, #F16B6B 100%)'
+      return null
   }
 }
 
@@ -351,8 +350,13 @@ export function ShopClient({
               </button>
             </div>
 
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-gradient-to-br from-[#FFB4A8] to-[#E15453]">
-              <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[22px]">
+              <img
+                src="/shop/shop-hero.jpg"
+                alt="Afine siberiene proaspete culese dimineața în ferma din Văratec"
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-[#312E3F]/25">
                 <span className={`text-center text-lg font-semibold text-white/90 ${styles.fontDisplay}`}>
                   Culese azi-dimineață
                 </span>
@@ -383,11 +387,13 @@ export function ShopClient({
                   key={product.id}
                   className="overflow-hidden rounded-[22px] border border-[#F3DAD4] bg-white shadow-sm"
                 >
-                  <div
-                    className="aspect-[16/10] w-full"
-                    style={{ background: productAccent(product.id) }}
-                    aria-hidden
-                  />
+                  <div className="relative aspect-[16/10] w-full overflow-hidden">
+                    <img
+                      src={productImageSrc(product.id) ?? '/shop/shop-afine.jpg'}
+                      alt={`${product.name} — ${product.unit_label}, culese proaspăt`}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
                   <div className="p-4">
                     <h3 className={`text-lg font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
                       {product.name}
@@ -456,7 +462,12 @@ export function ShopClient({
                       key={product.id}
                       className="overflow-hidden rounded-[22px] border border-[#F3DAD4] bg-white shadow-sm"
                     >
-                      <div className="relative aspect-[16/10] w-full" style={{ background: productAccent(product.id) }}>
+                      <div className="relative aspect-[16/10] w-full overflow-hidden">
+                        <img
+                          src={productImageSrc(product.id) ?? '/shop/shop-zmeura.jpg'}
+                          alt={`${product.name} — în curând la fermă`}
+                          className="h-full w-full object-cover"
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#5B4FCF]/70 to-[#7B6BFF]/40" />
                         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#5B4FCF]">
                           Se coc pe plantă
@@ -527,6 +538,13 @@ export function ShopClient({
 
         {/* DESPRE */}
         <section className="mt-10 rounded-[26px] bg-[#312E3F] p-6 text-white">
+          <div className="relative mb-5 aspect-[16/10] w-full overflow-hidden rounded-[18px]">
+            <img
+              src="/shop/shop-ferma.jpg"
+              alt="Ferma Zmeurel din Văratec, pe pământ bucovinean"
+              className="h-full w-full object-cover"
+            />
+          </div>
           <p className="text-xs font-semibold uppercase tracking-wide text-white/70">De la noi din Văratec</p>
           <h2 className={`mt-2 text-2xl font-semibold ${styles.fontDisplay}`}>Gust cu zâmbete dulci</h2>
           <p className="mt-3 text-sm leading-relaxed text-white/90">
