@@ -31,10 +31,19 @@ export default function ComandaLayout({ children }: { children: React.ReactNode 
       style={{
         minHeight: '100vh',
         background: '#FFF6F3',
-        boxShadow: '0 0 60px rgba(49,46,63,.06)',
       }}
     >
-      <div className="mx-auto w-full max-w-[540px]">{children}</div>
+      <div className="mx-auto w-full max-w-[540px] md:py-8">
+        <div
+          className="w-full"
+          style={{
+            background: '#FFF6F3',
+            boxShadow: '0 0 0 1px rgba(49,46,63,.06)',
+          }}
+        >
+          {children}
+        </div>
+      </div>
     </div>
   )
 }

@@ -298,7 +298,7 @@ export function ShopClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[540px] pb-32">
+    <div className="w-full pb-32">
       {/* TOPBAR */}
       <header className="sticky top-0 z-40 border-b border-[#F3DAD4]/80 bg-[#FFF6F3]/95 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
@@ -372,73 +372,67 @@ export function ShopClient({
         <div className="mt-4 flex flex-wrap gap-2">
           <TrustPill>Culese în ziua livrării</TrustPill>
           <TrustPill>Livrare la domiciliu</TrustPill>
-          <TrustPill>Plata la livrare</TrustPill>
+          <TrustPill>Cash sau Revolut</TrustPill>
         </div>
 
         {/* PRODUSE */}
         <section id="produse" className="mt-8 scroll-mt-24">
           <h2 className={`text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>Produse</h2>
 
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 space-y-3">
             {available.map((product) => {
               const qty = qtyById[product.id] ?? 0
               return (
                 <article
                   key={product.id}
-                  className="overflow-hidden rounded-[22px] border border-[#F3DAD4] bg-white shadow-sm"
+                  className="flex items-center gap-3 rounded-[14px] border border-[#F3DAD4] bg-white p-3 shadow-sm"
                 >
-                  <div className="relative aspect-[16/10] w-full overflow-hidden">
+                  <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl">
                     <img
                       src={productImageSrc(product.id) ?? '/shop/shop-afine.jpg'}
                       alt={`${product.name} — ${product.unit_label}, culese proaspăt`}
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <div className="p-4">
-                    <h3 className={`text-lg font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
-                      {product.name}
-                    </h3>
-                    {product.description ? (
-                      <p className="mt-1 text-sm leading-relaxed text-[#312E3F]/75">{product.description}</p>
-                    ) : null}
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-[#312E3F]/70">{product.unit_label}</p>
-                        <p className="text-lg font-bold text-[#F16B6B]">
-                          {product.price_lei != null ? `${formatLei(product.price_lei)} lei` : '—'}
-                        </p>
-                      </div>
-                      {qty === 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => setQty(product.id, 1)}
-                          className="rounded-full bg-[#F16B6B] px-4 py-2 text-sm font-semibold text-white active:scale-[0.98]"
-                        >
-                          ＋ Adaugă
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 rounded-full border border-[#F3DAD4] bg-[#FFF6F3] px-1 py-1">
-                          <button
-                            type="button"
-                            aria-label="Scade cantitatea"
-                            onClick={() => setQty(product.id, qty - 1)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full text-lg font-semibold text-[#312E3F]"
-                          >
-                            −
-                          </button>
-                          <span className="min-w-[1.5rem] text-center text-sm font-bold tabular-nums">{qty}</span>
-                          <button
-                            type="button"
-                            aria-label="Crește cantitatea"
-                            onClick={() => setQty(product.id, qty + 1)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F16B6B] text-lg font-semibold text-white"
-                          >
-                            ＋
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[15px] font-semibold leading-tight text-[#312E3F]">{product.name}</h3>
+                    <p className="mt-0.5 text-xs text-[#312E3F]/60">{product.unit_label}</p>
+                    <p className="mt-0.5 text-[17px] font-bold text-[#F16B6B]">
+                      {product.price_lei != null ? `${formatLei(product.price_lei)} lei` : '—'}
+                    </p>
                   </div>
+                  {qty === 0 ? (
+                    <button
+                      type="button"
+                      aria-label={`Adaugă ${product.name}`}
+                      onClick={() => setQty(product.id, 1)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F16B6B] text-[22px] leading-none font-light text-white active:scale-[0.98]"
+                    >
+                      +
+                    </button>
+                  ) : (
+                    <div className="flex shrink-0 items-center gap-1 rounded-full border border-[#F3DAD4] bg-[#FFF6F3] px-0.5 py-0.5">
+                      <button
+                        type="button"
+                        aria-label="Scade cantitatea"
+                        onClick={() => setQty(product.id, qty - 1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-base font-semibold text-[#312E3F]"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[1.25rem] text-center text-sm font-bold tabular-nums text-[#312E3F]">
+                        {qty}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Crește cantitatea"
+                        onClick={() => setQty(product.id, qty + 1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F16B6B] text-base font-semibold text-white"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                 </article>
               )
             })}
@@ -454,75 +448,77 @@ export function ShopClient({
                 <span className="h-px flex-1 bg-[#F3DAD4]" />
               </div>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2.5">
                 {comingSoon.map((product) => {
                   const notify = notifyById[product.id]
                   return (
                     <article
                       key={product.id}
-                      className="overflow-hidden rounded-[22px] border border-[#F3DAD4] bg-white shadow-sm"
+                      className="overflow-hidden rounded-[14px] border border-[#F3DAD4] bg-white shadow-sm"
                     >
-                      <div className="relative aspect-[16/10] w-full overflow-hidden">
+                      <div className="relative h-[90px] w-full overflow-hidden">
                         <img
                           src={productImageSrc(product.id) ?? '/shop/shop-zmeura.jpg'}
                           alt={`${product.name} — în curând la fermă`}
                           className="h-full w-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#5B4FCF]/70 to-[#7B6BFF]/40" />
-                        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-[#5B4FCF]">
-                          Se coc pe plantă
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#5B4FCF] to-[#7B6BFF]" />
+                        <span className="absolute left-2 top-2 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+                          Se coc
                         </span>
-                      </div>
-                      <div className="p-4">
-                        <h3 className={`text-lg font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
+                        <h3
+                          className={`absolute bottom-2 left-2 right-2 text-sm font-semibold leading-tight text-white ${styles.fontDisplay}`}
+                        >
                           {product.name}
                         </h3>
+                      </div>
+                      <div className="p-2.5">
                         {product.description ? (
-                          <p className="mt-1 text-sm leading-relaxed text-[#312E3F]/75">{product.description}</p>
+                          <p className="text-[11px] leading-snug text-[#312E3F]/60">{product.description}</p>
                         ) : null}
 
                         {notify?.done ? (
-                          <p className="mt-4 rounded-xl bg-[#E8F5EE] px-3 py-2 text-sm font-medium text-[#0D9B5C]">
-                            Mulțumim! Te anunțăm când e disponibil.
+                          <p className="mt-2 rounded-lg bg-[#E8F5EE] px-2 py-1.5 text-[11px] font-medium text-[#0D9B5C]">
+                            Te anunțăm!
                           </p>
                         ) : notify?.open ? (
-                          <div className="mt-4 space-y-2 rounded-xl border border-[#F3DAD4] bg-[#FFF6F3] p-3">
-                            <label className="block text-xs font-semibold text-[#312E3F]">
+                          <div className="mt-2 space-y-1.5 rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] p-2">
+                            <label className="block text-[10px] font-semibold text-[#312E3F]">
                               Nume
                               <input
                                 value={notify.name}
                                 onChange={(e) => updateNotify(product.id, { name: e.target.value })}
-                                className="mt-1 w-full rounded-lg border border-[#F3DAD4] bg-white px-3 py-2 text-sm outline-none focus:border-[#F16B6B]"
+                                className="mt-0.5 w-full rounded-md border border-[#F3DAD4] bg-white px-2 py-1.5 text-xs outline-none focus:border-[#F16B6B]"
                                 autoComplete="name"
                               />
                             </label>
-                            <label className="block text-xs font-semibold text-[#312E3F]">
+                            <label className="block text-[10px] font-semibold text-[#312E3F]">
                               Telefon
                               <input
                                 value={notify.phone}
                                 onChange={(e) => updateNotify(product.id, { phone: e.target.value })}
-                                className="mt-1 w-full rounded-lg border border-[#F3DAD4] bg-white px-3 py-2 text-sm outline-none focus:border-[#F16B6B]"
+                                className="mt-0.5 w-full rounded-md border border-[#F3DAD4] bg-white px-2 py-1.5 text-xs outline-none focus:border-[#F16B6B]"
                                 autoComplete="tel"
                                 inputMode="tel"
                               />
                             </label>
                             {notify.error ? (
-                              <p className="text-xs text-[#E15453]">{notify.error}</p>
+                              <p className="text-[10px] text-[#E15453]">{notify.error}</p>
                             ) : null}
                             <button
                               type="button"
                               disabled={notify.loading}
                               onClick={() => submitNotify(product)}
-                              className="w-full rounded-full bg-gradient-to-r from-[#5B4FCF] to-[#7B6BFF] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                              className="w-full rounded-lg bg-gradient-to-r from-[#5B4FCF] to-[#7B6BFF] py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
                             >
-                              {notify.loading ? 'Se trimite…' : 'Trimite'}
+                              {notify.loading ? '…' : 'Trimite'}
                             </button>
                           </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => openNotify(product.id)}
-                            className="mt-4 w-full rounded-full border border-[#5B4FCF]/30 bg-[#F5F3FF] py-2.5 text-sm font-semibold text-[#5B4FCF]"
+                            className="mt-2 w-full rounded-lg border border-[#5B4FCF] bg-white py-1.5 text-xs font-bold text-[#5B4FCF]"
                           >
                             Anunță-mă
                           </button>
@@ -551,15 +547,18 @@ export function ShopClient({
             Culegem cu mâna, dimineața, când fructele sunt la cel mai bun al lor. Fără grabă, fără compromisuri.
             Ce ajunge la tine a crescut în Văratec, pe pământ bucovinean.
           </p>
+          <p className="mt-3 text-sm leading-relaxed text-white/90">
+            Cultivăm cu pasiune și livrăm prospețime direct la ușa ta încă din noiembrie 2020.
+          </p>
           <ul className="mt-5 space-y-2 text-sm">
             <li className="flex gap-2">
               <span className="text-[#F16B6B]">✓</span> Azi culese &amp; livrate
             </li>
             <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Manual cules cu mâna
+              <span className="text-[#F16B6B]">✓</span> Culese manual, cu grijă
             </li>
             <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Cash — plata la livrare
+              <span className="text-[#F16B6B]">✓</span> Cash sau Revolut
             </li>
           </ul>
         </section>
@@ -588,6 +587,22 @@ export function ShopClient({
           </ol>
         </section>
 
+        {/* B2B */}
+        <section
+          className="mt-10 rounded-[14px] px-4 py-3.5 text-sm leading-relaxed text-[#312E3F]"
+          style={{ background: '#FCE3DF' }}
+        >
+          Ai o cofetărie sau o brutărie? Contactează-ne pentru oferte B2B dedicate.{' '}
+          <a
+            href="https://wa.me/40752953048?text=Bun%C4%83!%20Vreau%20o%20ofert%C4%83%20B2B%20pentru%20fructe%20proaspete."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-[#E15453] underline-offset-2 hover:underline"
+          >
+            WhatsApp
+          </a>
+        </section>
+
         {/* FOOTER */}
         <footer className="mt-10 -mx-3 rounded-t-[26px] bg-[#F16B6B] px-5 py-8 text-white">
           <ZmeurelLogo className="[&_span:last-child]:text-white" />
@@ -604,7 +619,7 @@ export function ShopClient({
               WhatsApp
             </a>
             <a
-              href="https://www.facebook.com/"
+              href="https://www.facebook.com/ZmeuraSuceava/"
               target="_blank"
               rel="noopener noreferrer"
               className="underline-offset-2 hover:underline"
@@ -612,7 +627,7 @@ export function ShopClient({
               Facebook
             </a>
             <a
-              href="https://www.instagram.com/"
+              href="https://www.instagram.com/zmeurel_sv/"
               target="_blank"
               rel="noopener noreferrer"
               className="underline-offset-2 hover:underline"
@@ -715,6 +730,10 @@ export function ShopClient({
                 <p className="mt-4 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs leading-relaxed text-[#312E3F]/80">
                   Livrăm în Suceava și comunele învecinate. Minim 2 kg în afara municipiului. Nu livrăm prin
                   curier.
+                </p>
+
+                <p className="mt-2 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs font-medium text-[#312E3F]/80">
+                  Plată: Cash sau Revolut
                 </p>
 
                 {orderError ? <p className="mt-3 text-sm text-[#E15453]">{orderError}</p> : null}
