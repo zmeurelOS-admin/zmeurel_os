@@ -1,12 +1,15 @@
 'use client'
 
-import Image from 'next/image'
 import { useCallback, useMemo, useState } from 'react'
 
 import styles from './comanda.module.css'
 
 const WA_NUMBER = '40752953048'
 const WA_BASE = `https://wa.me/${WA_NUMBER}`
+
+const B2B_WA_MESSAGE =
+  'Bună! Reprezentăm [numele afacerii] și suntem interesați să achiziționăm fructe proaspete de la Zmeurel pentru clienții noștri. Puteți să ne trimiteți o ofertă B2B?'
+const B2B_WA_HREF = `${WA_BASE}?text=${encodeURIComponent(B2B_WA_MESSAGE)}`
 
 export type ComandaShopProduct = {
   id: string
@@ -100,13 +103,12 @@ ${deliveryLine}${notesBlock}`
 function ZmeurelLogo({ className = '' }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/90 shadow-sm"
-        aria-hidden
-      >
-        <Image src="/icons/icon.svg" alt="" width={28} height={28} className="h-7 w-7" />
-      </span>
-      <span className={`text-xl font-semibold tracking-tight text-[#F16B6B] ${styles.fontDisplay}`}>
+      <img
+        src="/icons/icon.svg"
+        alt="Zmeurel"
+        style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }}
+      />
+      <span className={`text-[22px] font-semibold tracking-tight text-[#F16B6B] ${styles.fontDisplay}`}>
         Zmeurel
       </span>
     </div>
@@ -386,7 +388,7 @@ export function ShopClient({
         </section>
 
         {/* TRUST */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
           <TrustPill>Culese în ziua livrării</TrustPill>
           <TrustPill>Livrare la domiciliu</TrustPill>
           <TrustPill>Cash sau Revolut</TrustPill>
@@ -584,7 +586,11 @@ export function ShopClient({
         <section className="mt-10">
           <h2 className={`text-xl font-semibold ${styles.fontDisplay}`}>Livrare</h2>
           <div className="mt-4 space-y-3">
-            <InfoCard icon="🚗" title="Livrare la domiciliu" text="În Suceava și comunele din jur." />
+            <InfoCard
+              icon="🚗"
+              title="Livrare la domiciliu"
+              text="În Suceava și comunele din jur. Minim 1 kg."
+            />
             <InfoCard icon="⚖️" title="Comune din jur" text="Minim 2 kg în afara municipiului Suceava." />
             <InfoCard
               icon="🫐"
@@ -596,17 +602,23 @@ export function ShopClient({
 
         {/* B2B */}
         <section
-          className="mt-10 rounded-[14px] px-4 py-3.5 text-sm leading-relaxed text-[#312E3F]"
-          style={{ background: '#FCE3DF' }}
+          className="mt-10 rounded-2xl py-[18px] pl-4 pr-4 text-sm leading-[1.6] text-[#312E3F]"
+          style={{
+            background: '#FCE3DF',
+            borderLeft: '3px solid #F16B6B',
+          }}
         >
-          Ai o cofetărie sau o brutărie? Contactează-ne pentru oferte B2B dedicate.{' '}
+          <p className="text-[14px] leading-[1.6] text-[#312E3F]">
+            Patiserii, cofetării sau magazine locale — dacă doriți să oferiți clienților voștri fructe proaspete
+            de calitate, suntem partenerii potriviți. Contactați-ne pentru o ofertă dedicată.
+          </p>
           <a
-            href="https://wa.me/40752953048?text=Bun%C4%83!%20Vreau%20o%20ofert%C4%83%20B2B%20pentru%20fructe%20proaspete."
+            href={B2B_WA_HREF}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold text-[#E15453] underline-offset-2 hover:underline"
+            className="mt-3 inline-block w-fit rounded-full border-0 bg-[#25D366] px-5 py-2.5 text-[14px] font-extrabold text-white no-underline transition active:scale-[0.98]"
           >
-            WhatsApp
+            Scrieți-ne pe WhatsApp
           </a>
         </section>
 
@@ -620,7 +632,7 @@ export function ShopClient({
               +40 752 953 048
             </a>
           </p>
-          <div className="mt-5 flex gap-3">
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
             <FooterSocialLink href={WA_BASE} label="WhatsApp">
               <FooterWhatsAppIcon />
             </FooterSocialLink>
@@ -783,22 +795,19 @@ function InfoCard({ icon, title, text }: { icon: string; title: string; text: st
 
 function FooterBrand() {
   return (
-    <div className="flex items-center gap-3">
-      <svg viewBox="0 0 52 58" fill="none" className="h-[46px] w-auto shrink-0" aria-hidden>
-        <path d="M26 17C26 9 33 7 35 11" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
-        <circle cx="21" cy="20" r="4" fill="white" />
-        <circle cx="31" cy="20" r="4" fill="white" />
-        <circle cx="16" cy="28" r="4.3" fill="white" />
-        <circle cx="26" cy="28.5" r="4.5" fill="white" />
-        <circle cx="36" cy="28" r="4.3" fill="white" />
-        <circle cx="21" cy="36" r="4.2" fill="white" />
-        <circle cx="31" cy="36" r="4.2" fill="white" />
-        <circle cx="26" cy="44" r="3.9" fill="white" />
-      </svg>
-      <div>
-        <p className={`text-[28px] font-semibold leading-none text-white ${styles.fontDisplay}`}>Zmeurel</p>
-        <p className={`mt-1 text-sm italic text-white/90 ${styles.fontDisplay}`}>gust cu zâmbete dulci</p>
-      </div>
+    <div>
+      <img
+        src="/icons/icon.svg"
+        alt="Zmeurel"
+        style={{ width: 54, height: 54, borderRadius: 14, marginBottom: 8, display: 'block' }}
+      />
+      <p className={`text-[28px] font-semibold leading-none text-white ${styles.fontDisplay}`}>Zmeurel</p>
+      <p
+        className={`mt-1 text-sm italic ${styles.fontDisplay}`}
+        style={{ color: 'rgba(255,255,255,0.9)' }}
+      >
+        gust cu zâmbete dulci
+      </p>
     </div>
   )
 }
