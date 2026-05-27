@@ -48,6 +48,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import { ShopOrdersPanel } from '@/components/comenzi/ShopOrdersPanel'
+import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { track } from '@/lib/analytics/track'
@@ -77,11 +78,13 @@ import {
   magazinGroupKey,
   sortComenziForMagazinGrouping,
 } from '@/lib/comenzi/magazin-groups'
+import { isUnifiedOpenStatus, mergeUnifiedOrders } from '@/lib/comenzi/unified-orders'
+import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
+import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
-type OriginFilter = 'all' | 'magazin' | 'manual'
-type ComenziModuleView = 'ferma' | 'shop'
+type PageSection = 'comenzi' | 'waitlist'
 
 type ContactPrompt = {
   name: string
@@ -735,9 +738,8 @@ export function ComenziPageClient() {
   }, [])
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
-  const [originFilter, setOriginFilter] = useState<OriginFilter>('all')
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
-  const [view, setView] = useState<ComenziModuleView>('ferma')
+  const [section, setSection] = useState<PageSection>('comenzi')
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
@@ -795,9 +797,19 @@ export function ComenziPageClient() {
     queryFn: getComenzi,
   })
 
+  const {
+    data: shopOrders = [],
+    isLoading: shopOrdersLoading,
+    isError: shopOrdersError,
+    error: shopOrdersErrorObj,
+  } = useQuery({
+    queryKey: queryKeys.shopOrders,
+    queryFn: fetchShopOrders,
+  })
+
   useMobileScrollRestore({
     storageKey: 'scroll:comenzi',
-    ready: !isLoading,
+    ready: !isLoading && !shopOrdersLoading,
   })
 
   const { data: clienti = [] } = useQuery({
@@ -980,17 +992,51 @@ export function ComenziPageClient() {
     },
   })
 
+  const patchShopOrderMutation = useMutation({
+    mutationFn: async (input: { id: string; status?: ShopOrderStatus; notified_wa?: boolean }) => {
+      const res = await fetch(`/api/shop/b2c/orders/${input.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.notified_wa !== undefined ? { notified_wa: input.notified_wa } : {}),
+        }),
+      })
+      const json = (await res.json()) as { success?: boolean; error?: string }
+      if (!res.ok || !json.success) {
+        throw new Error(json.error ?? 'Actualizare eșuată')
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
+    },
+    onError: (err: Error) => {
+      hapticError()
+      toast.error(err.message)
+    },
+  })
+
   function setDeliveringAndConfirm(delivering: string | null) {
     setDeliveringId(delivering)
   }
 
   useEffect(() => {
-    if (view !== 'ferma') return
+    if (section !== 'comenzi') return
+    const interval = setInterval(() => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
+    }, 30_000)
+    return () => clearInterval(interval)
+  }, [queryClient, section])
+
+  useEffect(() => {
+    if (section !== 'comenzi') return
     const unregister = registerAddAction(() => {
       setAddOpen(true)
     }, 'Adaugă comandă')
     return unregister
-  }, [registerAddAction, view])
+  }, [registerAddAction, section])
 
   useEffect(() => {
     const query = search.trim()
@@ -1018,6 +1064,14 @@ export function ComenziPageClient() {
   const today = todayIso()
   const activeComenzi = useMemo(() => comenzi.filter((item) => isOpenStatus(item.status)), [comenzi])
   const livrateComenzi = useMemo(() => comenzi.filter((item) => item.status === 'livrata'), [comenzi])
+  const shopActiveCount = useMemo(
+    () => shopOrders.filter((item) => isUnifiedOpenStatus(item.status)).length,
+    [shopOrders],
+  )
+  const shopLivrateCount = useMemo(
+    () => shopOrders.filter((item) => item.status === 'livrata').length,
+    [shopOrders],
+  )
 
   const vanzareById = useMemo(() => {
     const map = new Map<string, (typeof vanzari)[number]>()
@@ -1075,8 +1129,6 @@ export function ComenziPageClient() {
     const term = normalize(search)
 
     return listSource.filter((item) => {
-      if (originFilter === 'magazin' && !isMagazinPublicOrder(item)) return false
-      if (originFilter === 'manual' && isMagazinPublicOrder(item)) return false
       if (activeFilter === 'azi' && !(isOpenStatus(item.status) && item.data_livrare === today)) return false
       if (activeFilter === 'active' && !isOpenStatus(item.status)) return false
       if (activeFilter === 'restante' && !(isOpenStatus(item.status) && Boolean(item.data_livrare) && item.data_livrare! < today)) return false
@@ -1088,7 +1140,31 @@ export function ComenziPageClient() {
       const phone = normalize(item.telefon || '')
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, clientMap, listSource, neincasatComandaIds, originFilter, search, today])
+  }, [activeFilter, clientMap, listSource, neincasatComandaIds, search, today])
+
+  const unifiedFiltered = useMemo(() => {
+    const merged = mergeUnifiedOrders(comenzi, shopOrders, clientMap)
+    const term = normalize(search)
+
+    return merged.filter((item) => {
+      if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
+      if (activeTab === 'livrate' && item.status !== 'livrata') return false
+
+      if (item.source === 'b2b' && item.b2bComanda) {
+        const b2b = item.b2bComanda
+        if (activeFilter === 'azi' && !(isOpenStatus(b2b.status) && b2b.data_livrare === today)) return false
+        if (activeFilter === 'active' && !isOpenStatus(b2b.status)) return false
+        if (activeFilter === 'restante' && !(isOpenStatus(b2b.status) && Boolean(b2b.data_livrare) && b2b.data_livrare! < today)) return false
+        if (activeFilter === 'viitoare' && !(isOpenStatus(b2b.status) && Boolean(b2b.data_livrare) && b2b.data_livrare! > today)) return false
+        if (activeFilter === 'neincasat' && !(b2b.status === 'livrata' && neincasatComandaIds.has(b2b.id))) return false
+      }
+
+      if (!term) return true
+      const clientName = normalize(item.customerName)
+      const phone = normalize(item.phone)
+      return clientName.includes(term) || phone.includes(term)
+    })
+  }, [activeFilter, activeTab, clientMap, comenzi, neincasatComandaIds, search, shopOrders, today])
 
   const sortedComenziForView = useMemo(
     () => sortComenziForMagazinGrouping(filteredComenzi),
@@ -1290,17 +1366,17 @@ export function ComenziPageClient() {
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
         <ModulePillRow>
-          <ModulePillFilterButton active={view === 'ferma'} onClick={() => setView('ferma')}>
-            Comenzi fermă
+          <ModulePillFilterButton active={section === 'comenzi'} onClick={() => setSection('comenzi')}>
+            Comenzi
           </ModulePillFilterButton>
-          <ModulePillFilterButton active={view === 'shop'} onClick={() => setView('shop')}>
-            Shop public
+          <ModulePillFilterButton active={section === 'waitlist'} onClick={() => setSection('waitlist')}>
+            Listă așteptare
           </ModulePillFilterButton>
         </ModulePillRow>
 
-        {view === 'shop' ? <ShopOrdersPanel /> : null}
+        {section === 'waitlist' ? <ShopOrdersPanel /> : null}
 
-        {view === 'ferma' && (activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0) ? (
+        {section === 'comenzi' && (activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0) ? (
           <ModuleScoreboard className="gap-x-3.5 gap-y-2">
             {activeComenzi.length > 0 ? (
               <span
@@ -1367,7 +1443,7 @@ export function ComenziPageClient() {
           </ModuleScoreboard>
         ) : null}
 
-        {view === 'ferma' ? (
+        {section === 'comenzi' ? (
         <PillTabs
           value={activeTab}
           onChange={(value) => {
@@ -1375,12 +1451,12 @@ export function ComenziPageClient() {
             if (value === 'de_livrat' && activeFilter === 'neincasat') setActiveFilter('none')
             if (value === 'livrate' && ['azi', 'active', 'restante', 'viitoare'].includes(activeFilter)) setActiveFilter('none')
           }}
-          activeCount={activeComenzi.length}
-          livrateCount={livrateComenzi.length}
+          activeCount={activeComenzi.length + shopActiveCount}
+          livrateCount={livrateComenzi.length + shopLivrateCount}
         />
         ) : null}
 
-        {view === 'ferma' ? (
+        {section === 'comenzi' ? (
         <SearchField
           containerClassName="md:hidden"
           placeholder="Caută după client sau telefon..."
@@ -1390,24 +1466,8 @@ export function ComenziPageClient() {
         />
         ) : null}
 
-        {view === 'ferma' ? (
-        <DesktopToolbar
-          className="hidden md:flex"
-          trailing={
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-[var(--text-tertiary)]">Origine</span>
-              <ModulePillFilterButton active={originFilter === 'all'} onClick={() => setOriginFilter('all')}>
-                Toate
-              </ModulePillFilterButton>
-              <ModulePillFilterButton active={originFilter === 'magazin'} onClick={() => setOriginFilter('magazin')}>
-                Din magazin
-              </ModulePillFilterButton>
-              <ModulePillFilterButton active={originFilter === 'manual'} onClick={() => setOriginFilter('manual')}>
-                Manuale
-              </ModulePillFilterButton>
-            </div>
-          }
-        >
+        {section === 'comenzi' ? (
+        <DesktopToolbar className="hidden md:flex">
           <SearchField
             containerClassName="w-full max-w-md min-w-[200px]"
             placeholder="Caută după client sau telefon..."
@@ -1418,34 +1478,68 @@ export function ComenziPageClient() {
         </DesktopToolbar>
         ) : null}
 
-        {view === 'ferma' ? (
-        <div className="flex flex-wrap items-center gap-2 md:hidden">
-          <span className="text-xs font-semibold text-[var(--text-tertiary)]">Origine</span>
-          <ModulePillFilterButton active={originFilter === 'all'} onClick={() => setOriginFilter('all')}>
-            Toate
-          </ModulePillFilterButton>
-          <ModulePillFilterButton active={originFilter === 'magazin'} onClick={() => setOriginFilter('magazin')}>
-            Din magazin
-          </ModulePillFilterButton>
-          <ModulePillFilterButton active={originFilter === 'manual'} onClick={() => setOriginFilter('manual')}>
-            Manuale
-          </ModulePillFilterButton>
-        </div>
+        {section === 'comenzi' && (isError || shopOrdersError) ? (
+          <ErrorState
+            title="Eroare"
+            message={((error ?? shopOrdersErrorObj) as Error)?.message ?? 'Nu am putut încărca comenzile.'}
+          />
         ) : null}
+        {section === 'comenzi' && (isLoading || shopOrdersLoading) ? <EntityListSkeleton /> : null}
 
-        {view === 'ferma' && isError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
-        {view === 'ferma' && isLoading ? <EntityListSkeleton /> : null}
-
-        {view === 'ferma' && !isLoading && !isError && sortedComenziForView.length === 0 ? (
+        {section === 'comenzi' && !isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length === 0 ? (
           <ModuleEmptyCard
             emoji="📋"
             title="Nicio comandă încă"
-            hint="Adaugă prima comandă pentru a începe"
+            hint="Adaugă prima comandă sau așteaptă comenzi din magazinul online."
           />
         ) : null}
 
-        {view === 'ferma' && !isLoading && !isError && sortedComenziForView.length > 0 ? (
+        {section === 'comenzi' && !isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length > 0 ? (
           <>
+            <div className="space-y-3 md:hidden">
+              {unifiedFiltered.map((item) => (
+                <UnifiedOrderCard
+                  key={`${item.source}-${item.id}`}
+                  item={item}
+                  disabled={updateMutation.isPending || patchShopOrderMutation.isPending}
+                  onOpenB2bDetails={(id) => {
+                    const comanda = comenzi.find((row) => row.id === id)
+                    if (comanda) setViewing(comanda)
+                  }}
+                  onB2bStatusChange={(id, status) => {
+                    updateMutation.mutate({ id, payload: { status } })
+                  }}
+                  onShopStatusChange={(id, status) => {
+                    patchShopOrderMutation.mutate({ id, status })
+                  }}
+                  onShopConfirmedChange={(id, confirmed) => {
+                    patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                  }}
+                />
+              ))}
+            </div>
+
+            {unifiedFiltered.some((item) => item.source === 'shop') ? (
+              <div className="hidden md:grid md:grid-cols-2 md:gap-3 xl:grid-cols-3">
+                {unifiedFiltered
+                  .filter((item) => item.source === 'shop')
+                  .map((item) => (
+                    <UnifiedOrderCard
+                      key={`desktop-shop-${item.id}`}
+                      item={item}
+                      disabled={patchShopOrderMutation.isPending}
+                      onShopStatusChange={(id, status) => {
+                        patchShopOrderMutation.mutate({ id, status })
+                      }}
+                      onShopConfirmedChange={(id, confirmed) => {
+                        patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                      }}
+                    />
+                  ))}
+              </div>
+            ) : null}
+
+            <div className="hidden md:block">
             <DesktopSplitPane
               master={
                 <ResponsiveDataView
@@ -1658,6 +1752,7 @@ export function ComenziPageClient() {
                 </DesktopInspectorPanel>
               }
             />
+            </div>
           </>
         ) : null}
       </DashboardContentShell>

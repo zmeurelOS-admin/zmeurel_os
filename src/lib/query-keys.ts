@@ -41,6 +41,7 @@ export const queryKeys = {
   vanzari: ['vanzari'] as const,
   vanzariButasi: ['vanzari-butasi'] as const,
   shopOrders: ['shop_orders'] as const,
+  shopNotifyRequests: ['shop_notify_requests'] as const,
   shopOrdersInLivrare: ['shop_orders', 'in_livrare'] as const,
   shopOrdersInLivrareCount: ['shop_orders', 'in_livrare', 'count'] as const,
   produseFitosanitare: ['produse-fitosanitare'] as const,
