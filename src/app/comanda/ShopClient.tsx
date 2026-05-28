@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import styles from './comanda.module.css'
 
@@ -148,6 +148,27 @@ export function ShopClient({
   const [orderSuccess, setOrderSuccess] = useState(false)
 
   const [notifyById, setNotifyById] = useState<Record<string, NotifyState>>({})
+  const [cartToastVisible, setCartToastVisible] = useState(false)
+  const cartToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showCartAddedToast = useCallback(() => {
+    if (cartToastTimerRef.current) {
+      clearTimeout(cartToastTimerRef.current)
+    }
+    setCartToastVisible(true)
+    cartToastTimerRef.current = setTimeout(() => {
+      setCartToastVisible(false)
+      cartToastTimerRef.current = null
+    }, 1300)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (cartToastTimerRef.current) {
+        clearTimeout(cartToastTimerRef.current)
+      }
+    }
+  }, [])
 
   const cartLines = useMemo((): CartLine[] => {
     return available
@@ -424,8 +445,11 @@ export function ShopClient({
                     <button
                       type="button"
                       aria-label={`Adaugă ${product.name}`}
-                      onClick={() => setQty(product.id, 1)}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F16B6B] text-[22px] leading-none font-light text-white active:scale-[0.98]"
+                      onClick={() => {
+                        setQty(product.id, 1)
+                        showCartAddedToast()
+                      }}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F16B6B] text-[22px] leading-none font-light text-white active:scale-[0.98]"
                     >
                       +
                     </button>
@@ -435,7 +459,7 @@ export function ShopClient({
                         type="button"
                         aria-label="Scade cantitatea"
                         onClick={() => setQty(product.id, qty - 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-base font-semibold text-[#312E3F]"
+                        className="flex h-11 w-11 items-center justify-center rounded-full text-base font-semibold text-[#312E3F]"
                       >
                         −
                       </button>
@@ -445,8 +469,11 @@ export function ShopClient({
                       <button
                         type="button"
                         aria-label="Crește cantitatea"
-                        onClick={() => setQty(product.id, qty + 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F16B6B] text-base font-semibold text-white"
+                        onClick={() => {
+                          setQty(product.id, qty + 1)
+                          showCartAddedToast()
+                        }}
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F16B6B] text-base font-semibold text-white"
                       >
                         +
                       </button>
@@ -537,7 +564,7 @@ export function ShopClient({
                           <button
                             type="button"
                             onClick={() => openNotify(product.id)}
-                            className="mt-2 w-full rounded-lg border border-[#5B4FCF] bg-white py-1.5 text-xs font-bold text-[#5B4FCF]"
+                            className="mt-2 w-full min-h-11 rounded-lg border border-[#5B4FCF] bg-white py-3 text-xs font-bold text-[#5B4FCF]"
                           >
                             Anunță-mă
                           </button>
@@ -730,7 +757,7 @@ export function ShopClient({
                       value={orderNotes}
                       onChange={(e) => setOrderNotes(e.target.value)}
                       rows={2}
-                      className="mt-1 w-full resize-none rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] px-3 py-2 text-sm outline-none focus:border-[#F16B6B]"
+                      className="mt-1 w-full resize-none rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] px-3 py-[14px] text-sm outline-none focus:border-[#F16B6B]"
                     />
                   </label>
                 </div>
@@ -765,6 +792,16 @@ export function ShopClient({
               Închide
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {cartToastVisible ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed left-1/2 top-20 z-[70] -translate-x-1/2 rounded-full bg-[#312E3F] px-4 py-2.5 text-sm font-semibold text-white shadow-lg"
+        >
+          ✓ Adăugat în coș
         </div>
       ) : null}
     </div>
@@ -879,7 +916,7 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-[#F3DAD4] bg-white px-3 py-2 text-sm outline-none focus:border-[#F16B6B]"
+        className="mt-1 w-full rounded-lg border border-[#F3DAD4] bg-white px-3 py-[14px] text-sm outline-none focus:border-[#F16B6B]"
         autoComplete={autoComplete}
         inputMode={inputMode}
       />

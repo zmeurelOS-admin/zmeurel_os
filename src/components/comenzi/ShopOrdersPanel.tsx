@@ -99,11 +99,12 @@ export function ShopOrdersPanel() {
     },
   })
 
-  const handleNotifyOnWhatsApp = (row: ShopNotifyRow) => {
+  const openNotifyWhatsApp = (row: ShopNotifyRow) => {
     window.open(waUrlForPhone(row.customer_phone), '_blank', 'noopener,noreferrer')
-    if (!row.notified_at) {
-      patchNotifyMutation.mutate(row.id)
-    }
+  }
+
+  const markNotifyNotified = (id: string) => {
+    patchNotifyMutation.mutate(id)
   }
 
   const isRefreshing = notifyQuery.isFetching
@@ -168,15 +169,25 @@ export function ShopOrdersPanel() {
                   <NotifyStateBadge notifiedAt={row.notified_at} />
                 </div>
                 {!row.notified_at ? (
-                  <Button
-                    type="button"
-                    className="mt-3 min-h-11 w-full gap-2 bg-[#25D366] text-[14px] font-bold text-white hover:bg-[#20BD5A]"
-                    disabled={patchNotifyMutation.isPending}
-                    onClick={() => handleNotifyOnWhatsApp(row)}
-                  >
-                    <MessageCircle className="h-4 w-4" aria-hidden />
-                    Anunță pe WhatsApp
-                  </Button>
+                  <div className="mt-3 flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      className="min-h-11 w-full gap-2 bg-[#25D366] text-[14px] font-bold text-white hover:bg-[#20BD5A]"
+                      onClick={() => openNotifyWhatsApp(row)}
+                    >
+                      <MessageCircle className="h-4 w-4" aria-hidden />
+                      Anunță pe WhatsApp
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 w-full text-[14px] font-semibold"
+                      disabled={patchNotifyMutation.isPending}
+                      onClick={() => markNotifyNotified(row.id)}
+                    >
+                      Marchează notificat
+                    </Button>
+                  </div>
                 ) : null}
               </article>
             ))}
@@ -212,16 +223,27 @@ export function ShopOrdersPanel() {
                     </td>
                     <td className="px-3 py-3 text-right">
                       {!row.notified_at ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="min-h-11 gap-1.5 bg-[#25D366] text-white hover:bg-[#20BD5A]"
-                          disabled={patchNotifyMutation.isPending}
-                          onClick={() => handleNotifyOnWhatsApp(row)}
-                        >
-                          <MessageCircle className="h-4 w-4" aria-hidden />
-                          Anunță pe WhatsApp
-                        </Button>
+                        <div className="flex flex-col items-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="min-h-11 gap-1.5 bg-[#25D366] text-white hover:bg-[#20BD5A]"
+                            onClick={() => openNotifyWhatsApp(row)}
+                          >
+                            <MessageCircle className="h-4 w-4" aria-hidden />
+                            Anunță pe WhatsApp
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="min-h-11"
+                            disabled={patchNotifyMutation.isPending}
+                            onClick={() => markNotifyNotified(row.id)}
+                          >
+                            Marchează notificat
+                          </Button>
+                        </div>
                       ) : null}
                     </td>
                   </tr>
