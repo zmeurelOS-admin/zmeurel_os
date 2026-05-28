@@ -4,6 +4,8 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { isPublicNoPwaInstallPath } from '@/lib/pwa/public-install-paths'
+
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
@@ -73,7 +75,7 @@ export default function PWAInstallPrompt() {
   }, [clearExitTimer])
 
   const maybeShowPrompt = useCallback(() => {
-    if (pathname !== '/') return
+    if (isPublicNoPwaInstallPath(pathname)) return
     if (!delayElapsedRef.current) return
     if (!deferredPromptRef.current) return
     if (isStandaloneMode()) return
@@ -148,7 +150,7 @@ export default function PWAInstallPrompt() {
 
   const dismissed = typeof window !== 'undefined' ? isDismissed() : false
 
-  if (pathname !== '/' || !showPrompt || isStandaloneMode() || (dismissed && !isExiting)) {
+  if (isPublicNoPwaInstallPath(pathname) || !showPrompt || isStandaloneMode() || (dismissed && !isExiting)) {
     return null
   }
 

@@ -6,6 +6,7 @@ import { Download, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { isPublicNoPwaInstallPath } from '@/lib/pwa/public-install-paths'
 import { cn } from '@/lib/utils'
 
 type BeforeInstallPromptEvent = Event & {
@@ -68,6 +69,8 @@ function setPermanentDismiss() {
 }
 
 function isDashboardWorkspacePath(pathname: string) {
+  if (isPublicNoPwaInstallPath(pathname)) return false
+
   return !(
     pathname === '/' ||
     pathname === '/start' ||
@@ -132,10 +135,12 @@ export function PwaInstallBanner() {
     if (!mounted || installed) return true
     if (sessionHidden) return true
     if (typeof window === 'undefined') return true
+    if (isPublicNoPwaInstallPath(pathname)) return true
+    if (!isDashboardWorkspacePath(pathname)) return true
     if (isPermanentlyDismissed()) return true
     if (isPostponed()) return true
     return false
-  }, [installed, mounted, sessionHidden])
+  }, [installed, mounted, pathname, sessionHidden])
 
   const mode = useMemo<'install' | 'ios' | null>(() => {
     if (shouldSuppress) return null

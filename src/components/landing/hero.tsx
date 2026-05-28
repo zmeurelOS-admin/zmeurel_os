@@ -20,9 +20,7 @@ export function Hero() {
         }}
       >
         <div className="mx-auto max-w-3xl text-center">
-          <div className="mb-2.5 flex justify-center">
-            <FarmPill />
-          </div>
+          <FarmPill />
 
           <span className="inline-flex items-center rounded-full border border-[#B7DFC9] bg-[#E8F5EE] px-4 py-1.5 text-xs font-semibold tracking-wide text-[#3D7A5F]">
             🔓 Beta deschis — locuri limitate

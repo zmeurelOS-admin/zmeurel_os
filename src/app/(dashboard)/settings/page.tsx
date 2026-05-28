@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Download, KeyRound, Loader2, MapPin, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2 } from 'lucide-react'
+import { Download, KeyRound, Loader2, MapPin, MonitorSmartphone, Moon, Settings2, Sun, UserCircle2, UsersRound } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { toast } from '@/lib/ui/toast'
 
@@ -281,6 +281,7 @@ export default function SettingsPage() {
       { id: 'parola', label: 'Parolă' },
       { id: 'gdpr', label: 'Date și export' },
       { id: 'notificari-push', label: 'Notificări push' },
+      { id: 'echipa', label: 'Echipa mea' },
       { id: 'ai', label: 'Asistent AI' },
     ]
     if (isDemo) items.push({ id: 'demo', label: 'Mod demo' })
@@ -1119,6 +1120,25 @@ export default function SettingsPage() {
             </p>
           </div>
           <PushNotificationsSettings />
+        </section>
+
+        <section id="echipa" className="agri-card scroll-mt-24 space-y-4 p-6 md:scroll-mt-28">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--info-bg)] text-[var(--info-text)]">
+                <UsersRound className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-[var(--agri-text)]">Echipa mea</h2>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--agri-text-muted)]">
+                  Adaugă operatori și livratori cu acces limitat.
+                </p>
+              </div>
+            </div>
+            <Button type="button" variant="outline" className="agri-control h-11 shrink-0" asChild>
+              <Link href="/settings/echipa">Deschide Echipa mea</Link>
+            </Button>
+          </div>
         </section>
 
         <section id="gdpr" className="agri-card w-full scroll-mt-24 space-y-4 p-6 md:scroll-mt-28">

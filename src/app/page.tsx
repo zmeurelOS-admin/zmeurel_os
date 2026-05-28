@@ -10,7 +10,6 @@ import { HowItWorks } from '@/components/landing/how-it-works'
 import { LandingFooter } from '@/components/landing/landing-footer'
 import { LandingHeader } from '@/components/landing/landing-header'
 import { Problems } from '@/components/landing/problems'
-import { PWAInstallPromptMount } from '@/components/pwa/PWAInstallPromptMount'
 import { PwaInstall } from '@/components/landing/pwa-install'
 import { Solution } from '@/components/landing/solution'
 import { Story } from '@/components/landing/story'
@@ -71,7 +70,6 @@ export default function LandingPage() {
       <LandingHeader />
       <main id="main-content">
         <Hero />
-        <PWAInstallPromptMount />
         <ValueProps />
         <FarmSection />
         <Problems />
