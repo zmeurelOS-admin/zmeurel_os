@@ -2,13 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
-  MessageCircle,
-  RefreshCw,
-} from 'lucide-react'
+import { ChevronDown, GripVertical, MessageCircle, RefreshCw } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
@@ -58,11 +52,8 @@ function saveStoredOrderIds(ids: string[]) {
   localStorage.setItem(livrariOrderStorageKey(), JSON.stringify(ids))
 }
 
-function truncateAddress(value: string | null | undefined, max = 40): string {
-  const trimmed = (value ?? '').trim()
-  if (!trimmed) return '—'
-  if (trimmed.length <= max) return trimmed
-  return `${trimmed.slice(0, max - 1)}…`
+function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
+  return lines.map((line) => `${line.label} × ${line.qty}`).join(' · ')
 }
 
 function telHref(phone: string) {
@@ -105,6 +96,7 @@ export function LivrariPageClient() {
 
   const totalLei = orders.reduce((sum, order) => sum + order.total_lei, 0)
   const summary = buildDeliverySummary(orders)
+  const summaryBullets = formatSummaryBullets(summary.lines)
 
   const refreshAll = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
@@ -210,25 +202,19 @@ export function LivrariPageClient() {
 
         {!ordersQuery.isLoading && !ordersQuery.isError && orders.length > 0 ? (
           <>
-            <section
-              className="rounded-2xl border px-4 py-4"
-              style={{
-                background: 'rgba(241, 107, 107, 0.12)',
-                borderColor: 'rgba(241, 107, 107, 0.25)',
-              }}
-            >
-              <p className="text-sm font-bold text-inherit">Ce ai de livrat azi:</p>
-              <ul className="mt-3 space-y-1.5 text-sm text-inherit">
-                {summary.lines.map((line) => (
-                  <li key={line.vid}>
-                    • {line.label}: {line.qty} {line.qty === 1 ? 'casetă' : 'casete'}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-sm font-extrabold text-[#F16B6B]">
-                Total de încasat: {formatLei(summary.totalLei)} lei
-              </p>
-            </section>
+            <header className="border-b border-[var(--border-default)] pb-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[15px] font-bold text-[var(--text-primary)]">🚚 Livrări de azi</p>
+                <p className="shrink-0 text-[15px] font-bold text-[#F16B6B]">
+                  {formatLei(summary.totalLei)} lei total
+                </p>
+              </div>
+              {summaryBullets ? (
+                <p className="mt-2 text-[13px] leading-snug text-[var(--text-secondary)]">
+                  {summaryBullets}
+                </p>
+              ) : null}
+            </header>
 
             <div className="space-y-2">
               {orderedOrders.map((order, index) => (
@@ -273,6 +259,49 @@ export function LivrariPageClient() {
   )
 }
 
+function ReorderGrip({
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
+}: {
+  isFirst: boolean
+  isLast: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
+}) {
+  return (
+    <div
+      className="relative flex h-11 w-7 shrink-0 cursor-grab active:cursor-grabbing"
+      aria-label="Reordonare"
+    >
+      <button
+        type="button"
+        className="absolute inset-x-0 top-0 z-10 h-1/2 opacity-0 disabled:pointer-events-none"
+        disabled={isFirst}
+        aria-label="Mută mai sus"
+        onClick={(e) => {
+          e.stopPropagation()
+          onMoveUp()
+        }}
+      />
+      <button
+        type="button"
+        className="absolute inset-x-0 bottom-0 z-10 h-1/2 opacity-0 disabled:pointer-events-none"
+        disabled={isLast}
+        aria-label="Mută mai jos"
+        onClick={(e) => {
+          e.stopPropagation()
+          onMoveDown()
+        }}
+      />
+      <span className="pointer-events-none flex h-full w-full items-center justify-center text-[var(--text-tertiary)]">
+        <GripVertical className="h-5 w-5" aria-hidden />
+      </span>
+    </div>
+  )
+}
+
 function DeliveryOrderAccordion({
   order,
   position,
@@ -299,66 +328,36 @@ function DeliveryOrderAccordion({
   const chatWaUrl = waUrlForPhone(order.customer_phone)
   const messageWaUrl = buildLivrareWaUrl(order)
   const productsLabel = formatItemsHuman(order.items)
-  const addressShort = truncateAddress(order.delivery_address)
+  const addressFull = (order.delivery_address ?? '').trim() || '—'
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
-      <div className="flex min-h-[60px] items-stretch gap-1 px-2 py-2">
-        <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
-          <GripVertical
-            className="h-4 w-4 text-[var(--text-tertiary)]"
-            aria-hidden
-          />
+    <article
+      className={`overflow-hidden border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
+        expanded ? 'rounded-2xl' : 'rounded-2xl'
+      }`}
+    >
+      <div className="px-3 py-2.5">
+        <div className="flex min-h-[44px] items-center gap-2">
+          <span
+            className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg text-xs font-extrabold tabular-nums"
+            style={{ background: '#FCE3DF', color: '#E15453' }}
+            aria-label={`Poziția ${position}`}
+          >
+            {position}
+          </span>
+
           <button
             type="button"
-            className="flex min-h-[22px] min-w-[28px] items-center justify-center rounded-md text-[var(--text-tertiary)] disabled:opacity-30"
-            disabled={isFirst}
-            aria-label="Mută mai sus"
-            onClick={(e) => {
-              e.stopPropagation()
-              onMoveUp()
-            }}
+            className="min-w-0 flex-1 truncate text-left text-[16px] font-bold leading-tight text-[var(--text-primary)]"
+            onClick={onToggleExpand}
           >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="flex min-h-[22px] min-w-[28px] items-center justify-center rounded-md text-[var(--text-tertiary)] disabled:opacity-30"
-            disabled={isLast}
-            aria-label="Mută mai jos"
-            onClick={(e) => {
-              e.stopPropagation()
-              onMoveDown()
-            }}
-          >
-            <ChevronDown className="h-4 w-4" />
-          </button>
-        </div>
-
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center self-center rounded-full bg-[var(--surface-card-muted)] text-xs font-bold text-[var(--text-primary)]"
-          aria-label={`Poziția ${position}`}
-        >
-          {position}
-        </span>
-
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 flex-col justify-center text-left"
-          onClick={onToggleExpand}
-        >
-          <span className="truncate text-[15px] font-bold text-[var(--text-primary)]">
             {order.customer_name}
-          </span>
-          <span className="mt-0.5 truncate text-[12px] text-[var(--text-secondary)]">
-            📍 {addressShort}
-          </span>
-        </button>
+          </button>
 
-        <div className="flex shrink-0 items-center gap-1.5 self-center">
-          <span className="text-base font-bold tabular-nums text-[#F16B6B]">
+          <span className="shrink-0 text-[17px] font-extrabold tabular-nums text-[#F16B6B]">
             {formatLei(order.total_lei)}
           </span>
+
           <a
             href={chatWaUrl}
             target="_blank"
@@ -369,9 +368,10 @@ function DeliveryOrderAccordion({
           >
             <MessageCircle className="h-4 w-4" aria-hidden />
           </a>
+
           <button
             type="button"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center text-[var(--text-tertiary)]"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-[var(--text-tertiary)]"
             aria-expanded={expanded}
             aria-label={expanded ? 'Restrânge detaliile' : 'Arată detaliile'}
             onClick={(e) => {
@@ -380,51 +380,74 @@ function DeliveryOrderAccordion({
             }}
           >
             <ChevronDown
-              className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              className={`h-5 w-5 transition-transform duration-200 ease-out ${
+                expanded ? 'rotate-180' : ''
+              }`}
               aria-hidden
             />
           </button>
+
+          <ReorderGrip
+            isFirst={isFirst}
+            isLast={isLast}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+          />
         </div>
+
+        <p
+          className="mt-1 line-clamp-2 pl-[34px] text-[11px] leading-[1.4] text-[var(--text-secondary)]"
+        >
+          📍 {addressFull}
+        </p>
       </div>
 
-      {expanded ? (
-        <div className="border-t border-[var(--border-default)] px-3 pb-3 pt-3">
-          <p className="text-[14px] text-[var(--text-secondary)]">
-            <span className="font-semibold text-[var(--text-primary)]">Produse: </span>
-            {productsLabel}
-          </p>
-          <p className="mt-2 text-[14px]">
-            <span className="font-semibold text-[var(--text-primary)]">Telefon: </span>
-            <a
-              href={telHref(order.customer_phone)}
-              className="font-medium text-[var(--info-text)] underline-offset-2 hover:underline"
-            >
-              {order.customer_phone}
-            </a>
-          </p>
+      <div
+        className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+          expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-dashed border-[var(--border-default)] px-3.5 py-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px] text-[var(--text-secondary)]">
+              <p className="min-w-0 flex-1">
+                <span className="font-semibold text-[var(--text-primary)]">Produse: </span>
+                {productsLabel}
+              </p>
+            </div>
+            <p className="mt-2 text-[13px]">
+              <span className="font-semibold text-[var(--text-primary)]">Telefon: </span>
+              <a
+                href={telHref(order.customer_phone)}
+                className="font-medium text-[#1868DB] underline-offset-2 hover:underline"
+              >
+                {order.customer_phone}
+              </a>
+            </p>
 
-          <div className="mt-3 flex flex-col gap-2">
-            <a
-              href={messageWaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 text-[14px] font-bold text-white transition active:scale-[0.98]"
-            >
-              <MessageCircle className="h-4 w-4" aria-hidden />
-              Trimite mesaj WA
-            </a>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full rounded-full text-[14px] font-semibold"
-              disabled={marking}
-              onClick={onMarkDelivered}
-            >
-              {marking ? 'Se salvează…' : '✓ Livrat'}
-            </Button>
+            <div className="mt-3 flex gap-2">
+              <a
+                href={messageWaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 min-h-11 flex-[2] items-center justify-center gap-1.5 rounded-xl bg-[#25D366] px-3 text-[14px] font-bold text-white transition active:scale-[0.98]"
+              >
+                <MessageCircle className="h-4 w-4 shrink-0" aria-hidden />
+                Mesaj WA
+              </a>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 min-h-11 flex-1 rounded-xl border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[14px] font-semibold text-[var(--text-primary)]"
+                disabled={marking}
+                onClick={onMarkDelivered}
+              >
+                {marking ? '…' : '✓ Livrat'}
+              </Button>
+            </div>
           </div>
         </div>
-      ) : null}
+      </div>
     </article>
   )
 }
