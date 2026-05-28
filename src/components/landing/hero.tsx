@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
+import { FarmPill } from '@/components/landing/FarmPill'
 import { SectionShell } from '@/components/landing/landing-shared'
-import { ShopBanner } from '@/components/landing/ShopBanner'
 
 const stats = [
   { value: '30 sec', label: 'să notezi o recoltare' },
@@ -20,11 +20,13 @@ export function Hero() {
         }}
       >
         <div className="mx-auto max-w-3xl text-center">
+          <div className="mb-2.5 flex justify-center">
+            <FarmPill />
+          </div>
+
           <span className="inline-flex items-center rounded-full border border-[#B7DFC9] bg-[#E8F5EE] px-4 py-1.5 text-xs font-semibold tracking-wide text-[#3D7A5F]">
             🔓 Beta deschis — locuri limitate
           </span>
-
-          <ShopBanner />
 
           <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-800 md:text-5xl lg:text-6xl">
             Nu mai pierde bani din fermă.

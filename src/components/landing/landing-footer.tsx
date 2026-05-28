@@ -2,9 +2,17 @@ import Link from 'next/link'
 
 import { SectionShell } from '@/components/landing/landing-shared'
 
-const footerLinks = [
+type FooterLinkItem = {
+  href: string
+  label: string
+  external?: boolean
+  tone?: 'default' | 'shop'
+}
+
+const footerLinks: FooterLinkItem[] = [
   { href: '/start', label: 'Demo' },
   { href: '/login', label: 'Login' },
+  { href: '/comanda', label: 'Magazinul fermei', tone: 'shop' },
   { href: 'https://wa.me/40752953048', label: 'WhatsApp', external: true },
   { href: 'mailto:contact@zmeurel.ro', label: 'Contact', external: true },
   { href: '/ajutor', label: 'Ajutor' },
@@ -37,7 +45,11 @@ export function LandingFooter() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="text-sm font-medium text-slate-600 transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2"
+                className={
+                  link.tone === 'shop'
+                    ? 'text-xs text-[#F16B6B] transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2'
+                    : 'text-sm font-medium text-slate-600 transition hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2'
+                }
               >
                 {link.label}
               </Link>

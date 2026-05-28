@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { AssociationMarketplace } from '@/components/landing/association-marketplace'
 import { DemoCta } from '@/components/landing/demo-cta'
 import { Faq } from '@/components/landing/faq'
+import { FarmSection } from '@/components/landing/FarmSection'
 import { FarmTypes } from '@/components/landing/farm-types'
 import { Hero } from '@/components/landing/hero'
 import { HowItWorks } from '@/components/landing/how-it-works'
@@ -72,6 +73,7 @@ export default function LandingPage() {
         <Hero />
         <PWAInstallPromptMount />
         <ValueProps />
+        <FarmSection />
         <Problems />
         <Solution />
         <HowItWorks />
