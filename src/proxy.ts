@@ -31,6 +31,24 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(new URL(buildLoginUrl({ next }), request.url))
 }
 
+const OPERATOR_BLOCKED_ROUTE_PREFIXES = [
+  '/vanzari',
+  '/finante',
+  '/stocuri',
+  '/parcele',
+  '/rapoarte',
+  '/setari',
+  '/settings',
+  '/administrare',
+  '/admin',
+]
+
+function isOperatorBlockedRoute(pathname: string): boolean {
+  return OPERATOR_BLOCKED_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  )
+}
+
 export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
 
@@ -94,8 +112,10 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/update-password') ||
     pathname === '/comanda' ||
     pathname.startsWith('/comanda/') ||
+    pathname.startsWith('/livrator/') ||
     pathname.startsWith('/magazin') ||
     pathname.startsWith('/api/shop') ||
+    pathname.startsWith('/api/livrator/') ||
     pathname === '/api/auth/beta-signup' ||
     pathname === '/api/auth/beta-guest' ||
     pathname.startsWith('/api/cron/') ||
@@ -194,6 +214,35 @@ export async function proxy(request: NextRequest) {
 
   if (!tenantId && !isPublicRoute && !isApiRoute) {
     return redirectTo(request, '/start')
+  }
+
+  if (tenantId) {
+    try {
+      // `farm_members` is newer than the generated Supabase types in this branch.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const farmMembersClient = supabase as any
+      const { data, error } = await farmMembersClient
+        .from('farm_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+
+      if (!error && data?.role === 'operator') {
+        requestHeaders.set('x-zmeurel-member-role', 'operator')
+        if (isOperatorBlockedRoute(pathname)) {
+          return redirectTo(request, '/comenzi')
+        }
+      } else {
+        requestHeaders.delete('x-zmeurel-member-role')
+      }
+    } catch {
+      // Fail open: dacă verificarea rolului eșuează, păstrăm comportamentul existent.
+      requestHeaders.delete('x-zmeurel-member-role')
+    }
+  } else {
+    requestHeaders.delete('x-zmeurel-member-role')
   }
 
   // User is authenticated, allow access to protected routes
