@@ -49,8 +49,30 @@ function isOperatorBlockedRoute(pathname: string): boolean {
   )
 }
 
+/** Document routes with no session, tenant, or auth cookie handling in proxy. */
+function isPurePublicNoAuthBypassRoute(pathname: string): boolean {
+  return (
+    pathname === '/' ||
+    pathname === '/comanda' ||
+    pathname.startsWith('/comanda/')
+  )
+}
+
 export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
+  const { pathname } = request.nextUrl
+
+  const isAuthCallbackRoute =
+    pathname === '/auth/callback' ||
+    pathname === '/auth/callback/'
+
+  if (isPurePublicNoAuthBypassRoute(pathname)) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
 
   let supabaseResponse = NextResponse.next({
     request: {
@@ -82,8 +104,6 @@ export async function proxy(request: NextRequest) {
       },
     }
   )
-
-  const { pathname } = request.nextUrl
 
   const isApiRoute = pathname.startsWith('/api/')
   const isStaticPublicFile = /\.(?:js|map|svg|png|jpg|jpeg|gif|webp|ico)$/i.test(pathname)
@@ -120,10 +140,6 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/auth/beta-guest' ||
     pathname.startsWith('/api/cron/') ||
     isPublicAssetRoute
-
-  const isAuthCallbackRoute =
-    pathname === '/auth/callback' ||
-    pathname === '/auth/callback/'
 
   // Never touch auth cookies on callback routes; PKCE exchange depends on code_verifier.
   if (isAuthCallbackRoute) {
