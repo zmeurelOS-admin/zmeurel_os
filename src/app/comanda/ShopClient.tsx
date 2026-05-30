@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import styles from './comanda.module.css'
@@ -103,10 +104,13 @@ ${deliveryLine}${notesBlock}`
 function ZmeurelLogo({ className = '' }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <img
+      <Image
         src="/icons/icon.svg"
         alt="Zmeurel"
-        style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }}
+        width={36}
+        height={36}
+        unoptimized
+        className="shrink-0 rounded-[10px]"
       />
       <span className={`text-[22px] font-semibold tracking-tight text-[#F16B6B] ${styles.fontDisplay}`}>
         Zmeurel
@@ -391,10 +395,13 @@ export function ShopClient({
             </div>
 
             <div className="relative aspect-[4/3] overflow-hidden rounded-[22px]">
-              <img
+              <Image
                 src="/shop/shop-hero.jpg"
                 alt="Afine siberiene proaspete culese dimineața în ferma din Văratec"
-                className="h-full w-full object-cover"
+                fill
+                priority
+                sizes="(max-width: 640px) 100vw, 540px"
+                className="object-cover"
               />
               <div className="absolute inset-0 flex items-center justify-center bg-[#312E3F]/25">
                 <span className={`text-center text-lg font-semibold text-white/90 ${styles.fontDisplay}`}>
@@ -428,9 +435,12 @@ export function ShopClient({
                   className="flex items-center gap-3 rounded-[14px] border border-[#F3DAD4] bg-white p-3 shadow-sm"
                 >
                   <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl">
-                    <img
+                    <Image
                       src={productImageSrc(product.id) ?? '/shop/shop-afine.jpg'}
                       alt={`${product.name} — ${product.unit_label}, culese proaspăt`}
+                      width={72}
+                      height={72}
+                      sizes="72px"
                       className="h-full w-full object-cover"
                     />
                   </div>
@@ -503,10 +513,12 @@ export function ShopClient({
                       className="overflow-hidden rounded-[14px] border border-[#F3DAD4] bg-white shadow-sm"
                     >
                       <div className="relative h-[90px] w-full overflow-hidden">
-                        <img
+                        <Image
                           src={productImageSrc(product.id) ?? '/shop/shop-zmeura.jpg'}
                           alt={`${product.name} — în curând la fermă`}
-                          className="h-full w-full object-cover"
+                          fill
+                          sizes="(max-width: 640px) 50vw, 200px"
+                          className="object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-br from-[#5B4FCF] to-[#7B6BFF]" />
                         <span className="absolute left-2 top-2 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
@@ -833,10 +845,13 @@ function InfoCard({ icon, title, text }: { icon: string; title: string; text: st
 function FooterBrand() {
   return (
     <div>
-      <img
+      <Image
         src="/icons/icon.svg"
         alt="Zmeurel"
-        style={{ width: 54, height: 54, borderRadius: 14, marginBottom: 8, display: 'block' }}
+        width={54}
+        height={54}
+        unoptimized
+        className="mb-2 block rounded-[14px]"
       />
       <p className={`text-[28px] font-semibold leading-none text-white ${styles.fontDisplay}`}>Zmeurel</p>
       <p

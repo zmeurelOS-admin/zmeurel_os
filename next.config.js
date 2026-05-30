@@ -225,6 +225,11 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ilybohhdeplwcrbpblqw.supabase.co',
+        pathname: '/**',
+      },
     ],
   },
   async headers() {
