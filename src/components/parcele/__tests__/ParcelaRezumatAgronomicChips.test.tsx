@@ -3,13 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import {
-  getCurrentCanonicalStageForCohort,
-  ParcelaRezumatAgronomicChips,
-} from '@/components/parcele/ParcelaRezumatAgronomicChips'
+import { ParcelaRezumatAgronomicChips } from '@/components/parcele/ParcelaRezumatAgronomicChips'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import { queryKeys } from '@/lib/query-keys'
 import type { ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
+import { resolveStadiuFenologicCurentParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import { getLabelPentruGrup } from '@/lib/tratamente/stadii-canonic'
 
 const createParcelaStadiuCanonic = vi.fn()
@@ -83,7 +81,7 @@ function renderChips(parcela: Parcela = baseParcela) {
   return { ...view, queryClient }
 }
 
-describe('getCurrentCanonicalStageForCohort', () => {
+describe('resolveStadiuFenologicCurentParcela (per cohortă)', () => {
   it('returnează ultima înregistrare validă per cohortă (created_at)', () => {
     const stages: ParcelaStadiuCanonic[] = [
       {
@@ -130,8 +128,8 @@ describe('getCurrentCanonicalStageForCohort', () => {
       },
     ]
 
-    const floricane = getCurrentCanonicalStageForCohort(stages, 'rubus', 'floricane')
-    const primocane = getCurrentCanonicalStageForCohort(stages, 'rubus', 'primocane')
+    const floricane = resolveStadiuFenologicCurentParcela(stages, 'rubus', 'floricane')
+    const primocane = resolveStadiuFenologicCurentParcela(stages, 'rubus', 'primocane')
 
     expect(floricane?.stadiu).toBe('inflorit')
     expect(primocane?.stadiu).toBe('fruct_verde')
@@ -169,7 +167,7 @@ describe('getCurrentCanonicalStageForCohort', () => {
       },
     ]
 
-    expect(getCurrentCanonicalStageForCohort(stages, 'rubus', 'floricane')?.stadiu).toBe('inflorit')
+    expect(resolveStadiuFenologicCurentParcela(stages, 'rubus', 'floricane')?.stadiu).toBe('inflorit')
   })
 })
 

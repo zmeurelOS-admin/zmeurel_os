@@ -29,6 +29,7 @@ import { colors } from '@/lib/design-tokens'
 import { useMeteo } from '@/hooks/useMeteo'
 import { MicroclimatAutoCard } from '@/components/parcele/MicroclimatAutoCard'
 import { ParcelaRezumatAgronomicChips } from '@/components/parcele/ParcelaRezumatAgronomicChips'
+import { ParcelaStadiuCurentDisplay } from '@/components/parcele/ParcelaStadiuCurentDisplay'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
@@ -75,16 +76,14 @@ import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import { isParcelaRubusMixtFenologie } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
   getLabelPentruGrup,
-  getOrdine,
-  getOrdineInGrup,
   listAllStadiiCanonice,
   listStadiiPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
-  type StadiuCod,
 } from '@/lib/tratamente/stadii-canonic'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { toast } from '@/lib/ui/toast'
@@ -263,35 +262,6 @@ function formatEtapaLabel(
   if (cod) return getLabelPentruGrup(cod, grupBiologic, { cohort })
   const normalized = raw.replaceAll('_', ' ').trim()
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
-
-function getStadiuOrder(cod: StadiuCod, grupBiologic: GrupBiologic | null): number {
-  if (grupBiologic) {
-    const indexInGroup = getOrdineInGrup(cod, grupBiologic)
-    if (indexInGroup >= 0) return indexInGroup
-  }
-  return getOrdine(cod) + 100
-}
-
-function getCurrentCanonicalStage(
-  stages: ParcelaStadiuCanonic[],
-  grupBiologic: GrupBiologic | null
-): ParcelaStadiuCanonic | null {
-  if (stages.length === 0) return null
-
-  return [...stages].sort((a, b) => {
-    const codA = normalizeStadiu(a.stadiu)
-    const codB = normalizeStadiu(b.stadiu)
-    const orderA = codA ? getStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const orderB = codB ? getStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const orderDiff = orderB - orderA
-    if (orderDiff !== 0) return orderDiff
-
-    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
-    if (observedDiff !== 0) return observedDiff
-
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })[0] ?? null
 }
 
 function toErrorMessage(error: unknown): string {
@@ -608,24 +578,9 @@ function CulturaCard({
     }))
   }, [grupBiologic, selectedCohort])
   const firstStageValue = stageOptions[0]?.value ?? 'repaus_vegetativ'
-  const hasCanonicalCohorts = useMemo(
-    () => canonicalStages.some((entry) => entry.cohort === 'floricane' || entry.cohort === 'primocane'),
-    [canonicalStages]
-  )
-  const isRubusMixt =
-    grupBiologic === 'rubus' &&
-    (
-      seasonConfig?.sistem_conducere === 'mixt_floricane_primocane' ||
-      hasCanonicalCohorts
-    )
-  const currentCanonicalStage = useMemo(
-    () => getCurrentCanonicalStage(canonicalStages, grupBiologic),
-    [canonicalStages, grupBiologic]
-  )
+  const isRubusMixt = isParcelaRubusMixtFenologie(grupBiologic, seasonConfig, canonicalStages)
   const latestLegacyStage = etapeLegacy[0]?.etapa ?? fallbackStage
-  const latestStageLabel = currentCanonicalStage
-    ? formatEtapaLabel(currentCanonicalStage.stadiu, grupBiologic, currentCanonicalStage.cohort)
-    : formatEtapaLabel(latestLegacyStage)
+  const legacyStageFallbackLabel = formatEtapaLabel(latestLegacyStage)
 
   const addMutation = useMutation({
     mutationFn: () => {
@@ -682,20 +637,13 @@ function CulturaCard({
             </div>
           ) : null}
         </div>
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 700,
-            borderRadius: 20,
-            padding: '2px 7px',
-            background: 'var(--agri-surface-muted)',
-            color: 'var(--agri-text)',
-            border: '1px solid var(--agri-border)',
-            flexShrink: 0,
-          }}
-        >
-          {latestStageLabel}
-        </span>
+        <ParcelaStadiuCurentDisplay
+          canonicalStages={canonicalStages}
+          grupBiologic={grupBiologic}
+          seasonConfig={seasonConfig}
+          variant="badge"
+          fallbackLabel={legacyStageFallbackLabel}
+        />
         <span style={{ fontSize: 10, color: 'var(--text-hint)', flexShrink: 0 }}>{expanded ? '▲' : '▼'}</span>
       </div>
 
@@ -2235,6 +2183,13 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
     refetchOnWindowFocus: false,
     enabled: Boolean(desktopSelectedParcelaIdResolved),
   })
+  const { data: desktopSeasonConfig = null } = useQuery({
+    queryKey: ['desktop-inspector', ...queryKeys.parcelaSeasonConfig(desktopSelectedParcelaIdResolved ?? '', currentSezon)],
+    queryFn: () => getConfigurareSezonParcela(desktopSelectedParcelaIdResolved ?? '', currentSezon),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+    enabled: Boolean(desktopSelectedParcelaIdResolved),
+  })
   const desktopSelectedCropCod = useMemo(
     () =>
       normalizeCropCod(desktopSelectedParcela?.cultura) ??
@@ -2244,10 +2199,6 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const desktopSelectedGrupBiologic = useMemo(
     () => getGrupBiologicForCropCod(desktopSelectedCropCod),
     [desktopSelectedCropCod]
-  )
-  const desktopCurrentStage = useMemo(
-    () => getCurrentCanonicalStage(desktopStadiiCanonice, desktopSelectedGrupBiologic),
-    [desktopStadiiCanonice, desktopSelectedGrupBiologic]
   )
   const selectedParcelaTratamenteRecente = useMemo(
     () =>
@@ -2800,20 +2751,19 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                               </div>
                               <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
                                 <p className="text-xs font-medium text-[var(--agri-text-muted)]">Stadiu fenologic curent</p>
-                                <p className="mt-1.5 text-sm font-semibold text-[var(--agri-text)]">
-                                  {desktopCurrentStage
-                                    ? formatEtapaLabel(
-                                        desktopCurrentStage.stadiu,
-                                        desktopSelectedGrupBiologic,
-                                        desktopCurrentStage.cohort
-                                      )
-                                    : 'Niciun stadiu înregistrat'}
-                                </p>
-                                <p className="mt-2 text-[11px] leading-snug text-[var(--agri-text-muted)]">
-                                  {desktopCurrentStage
-                                    ? `Observat la ${new Date(desktopCurrentStage.data_observata).toLocaleDateString('ro-RO')}`
-                                    : 'Actualizează stadiul din fluxul existent (parcelă / tratamente).'}
-                                </p>
+                                <ParcelaStadiuCurentDisplay
+                                  canonicalStages={desktopStadiiCanonice}
+                                  grupBiologic={desktopSelectedGrupBiologic}
+                                  seasonConfig={desktopSeasonConfig}
+                                  variant="detail"
+                                  emptyLabel="Niciun stadiu înregistrat"
+                                  className="mt-1.5"
+                                />
+                                {!desktopStadiiCanonice.length ? (
+                                  <p className="mt-2 text-[11px] leading-snug text-[var(--agri-text-muted)]">
+                                    Actualizează stadiul din fluxul existent (parcelă / tratamente).
+                                  </p>
+                                ) : null}
                               </div>
                               <div className="flex min-h-0 flex-col rounded-lg border border-[var(--surface-divider)] bg-white p-3 shadow-[0_1px_2px_rgba(12,15,19,0.04)] dark:bg-[var(--agri-surface)]">
                                 <p className="text-xs font-medium text-[var(--agri-text-muted)]">Culturi și soiuri</p>

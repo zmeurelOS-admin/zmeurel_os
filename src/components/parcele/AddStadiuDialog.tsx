@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AppSelect } from '@/components/ui/app-select'
 import { Textarea } from '@/components/ui/textarea'
+import { ParcelaStadiuCurentDisplay } from '@/components/parcele/ParcelaStadiuCurentDisplay'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { queryKeys } from '@/lib/query-keys'
 import type { Cultura } from '@/lib/supabase/queries/culturi'
@@ -20,19 +21,16 @@ import {
   createParcelaStadiuCanonic,
   getConfigurareSezonParcela,
   getStadiiCanoniceParcela,
-  type ParcelaStadiuCanonic,
 } from '@/lib/supabase/queries/parcela-stadii'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import { isParcelaRubusMixtFenologie } from '@/lib/tratamente/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
   getLabelPentruGrup,
-  getOrdine,
-  getOrdineInGrup,
   listAllStadiiCanonice,
   listStadiiPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
-  type StadiuCod,
 } from '@/lib/tratamente/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
@@ -66,35 +64,6 @@ function formatStageLabel(
   if (cod) return getLabelPentruGrup(cod, grupBiologic, { cohort })
   const normalized = value.replaceAll('_', ' ').trim()
   return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
-
-function getStadiuOrder(cod: StadiuCod, grupBiologic: GrupBiologic | null): number {
-  if (grupBiologic) {
-    const indexInGroup = getOrdineInGrup(cod, grupBiologic)
-    if (indexInGroup >= 0) return indexInGroup
-  }
-  return getOrdine(cod) + 100
-}
-
-function getCurrentCanonicalStage(
-  stages: ParcelaStadiuCanonic[],
-  grupBiologic: GrupBiologic | null
-): ParcelaStadiuCanonic | null {
-  if (stages.length === 0) return null
-
-  return [...stages].sort((a, b) => {
-    const codA = normalizeStadiu(a.stadiu)
-    const codB = normalizeStadiu(b.stadiu)
-    const orderA = codA ? getStadiuOrder(codA, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const orderB = codB ? getStadiuOrder(codB, grupBiologic) : Number.MIN_SAFE_INTEGER
-    const orderDiff = orderB - orderA
-    if (orderDiff !== 0) return orderDiff
-
-    const observedDiff = new Date(b.data_observata).getTime() - new Date(a.data_observata).getTime()
-    if (observedDiff !== 0) return observedDiff
-
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })[0] ?? null
 }
 
 export function AddStadiuDialog({
@@ -134,14 +103,7 @@ export function AddStadiuDialog({
     staleTime: 30000,
     refetchOnWindowFocus: false,
   })
-  const currentCanonicalStage = useMemo(
-    () => getCurrentCanonicalStage(canonicalStages, grupBiologic),
-    [canonicalStages, grupBiologic]
-  )
-  const hasCanonicalCohorts = canonicalStages.some((stage) => stage.cohort === 'floricane' || stage.cohort === 'primocane')
-  const isRubusMixt =
-    grupBiologic === 'rubus' &&
-    (seasonConfig?.sistem_conducere === 'mixt_floricane_primocane' || hasCanonicalCohorts)
+  const isRubusMixt = isParcelaRubusMixtFenologie(grupBiologic, seasonConfig, canonicalStages)
   const legacyStageLabel = cultura?.stadiu ? formatStageLabel(cultura.stadiu, grupBiologic) : null
 
   useEffect(() => {
@@ -226,11 +188,15 @@ export function AddStadiuDialog({
           >
             <div>{[cultura.tip_planta, cultura.soi].filter(Boolean).join(' · ')}</div>
             <div style={{ marginTop: 4, fontSize: 11, fontWeight: 500, color: 'var(--agri-text-muted)' }}>
-              {currentCanonicalStage
-                ? `Stadiu curent: ${formatStageLabel(currentCanonicalStage.stadiu, grupBiologic, currentCanonicalStage.cohort)}`
-                : legacyStageLabel
-                  ? `Stadiu vechi: ${legacyStageLabel}`
-                  : 'Fără stadiu înregistrat'}
+              Stadiu curent:{' '}
+              <ParcelaStadiuCurentDisplay
+                canonicalStages={canonicalStages}
+                grupBiologic={grupBiologic}
+                seasonConfig={seasonConfig}
+                variant="text"
+                fallbackLabel={legacyStageLabel ? `Stadiu vechi: ${legacyStageLabel}` : null}
+                emptyLabel="Fără stadiu înregistrat"
+              />
             </div>
           </div>
         ) : null}

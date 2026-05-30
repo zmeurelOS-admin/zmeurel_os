@@ -18,7 +18,10 @@ import {
 } from '@/lib/supabase/queries/parcela-stadii'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
-import { resolveStadiuFenologicCurentParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
+import {
+  isParcelaRubusMixtFenologie,
+  resolveStadiuFenologicCurentParcela,
+} from '@/lib/tratamente/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
   getLabelPentruGrup,
@@ -33,21 +36,6 @@ import { cn } from '@/lib/utils'
 
 const CHIP_TRIGGER_CLASS =
   'h-8 min-h-8 rounded-full border border-[var(--agri-border)] bg-[var(--agri-surface-muted)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-none'
-
-export function getCurrentCanonicalStage(
-  stages: ParcelaStadiuCanonic[],
-  grupBiologic: GrupBiologic | null
-): ParcelaStadiuCanonic | null {
-  return resolveStadiuFenologicCurentParcela(stages, grupBiologic)
-}
-
-export function getCurrentCanonicalStageForCohort(
-  stages: ParcelaStadiuCanonic[],
-  grupBiologic: GrupBiologic | null,
-  cohort: Cohorta
-): ParcelaStadiuCanonic | null {
-  return resolveStadiuFenologicCurentParcela(stages, grupBiologic, cohort)
-}
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message
@@ -77,10 +65,7 @@ function AgronomicStadiuChip({
   const currentSezon = getCurrentSezon()
 
   const currentStage = useMemo(
-    () =>
-      cohort
-        ? getCurrentCanonicalStageForCohort(canonicalStages, grupBiologic, cohort)
-        : getCurrentCanonicalStage(canonicalStages, grupBiologic),
+    () => resolveStadiuFenologicCurentParcela(canonicalStages, grupBiologic, cohort ?? undefined),
     [canonicalStages, cohort, grupBiologic]
   )
 
@@ -96,13 +81,7 @@ function AgronomicStadiuChip({
     }))
   }, [cohort, grupBiologic])
 
-  const hasCanonicalCohorts = useMemo(
-    () => canonicalStages.some((entry) => entry.cohort === 'floricane' || entry.cohort === 'primocane'),
-    [canonicalStages]
-  )
-  const isRubusMixt =
-    grupBiologic === 'rubus' &&
-    (seasonConfig?.sistem_conducere === 'mixt_floricane_primocane' || hasCanonicalCohorts)
+  const isRubusMixt = isParcelaRubusMixtFenologie(grupBiologic, seasonConfig, canonicalStages)
 
   const saveMutation = useMutation({
     mutationFn: (stadiu: string) => {
@@ -180,13 +159,7 @@ export function ParcelaRezumatAgronomicChips({ parcela }: { parcela: Parcela }) 
     enabled: Boolean(parcelaId),
   })
 
-  const hasCanonicalCohorts = useMemo(
-    () => canonicalStages.some((entry) => entry.cohort === 'floricane' || entry.cohort === 'primocane'),
-    [canonicalStages]
-  )
-  const isRubusMixt =
-    grupBiologic === 'rubus' &&
-    (seasonConfig?.sistem_conducere === 'mixt_floricane_primocane' || hasCanonicalCohorts)
+  const isRubusMixt = isParcelaRubusMixtFenologie(grupBiologic, seasonConfig, canonicalStages)
 
   if (!parcelaCropCod && canonicalStages.length === 0) {
     return null
