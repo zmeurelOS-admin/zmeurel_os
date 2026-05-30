@@ -1,10 +1,7 @@
 'use client'
 
-import 'react-grid-layout/css/styles.css'
-import 'react-resizable/css/styles.css'
-
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import GridLayout, { WidthProvider } from 'react-grid-layout/legacy'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -41,6 +38,7 @@ import {
   type DashboardTodayStatItem,
 } from '@/components/dashboard/DashboardV2Sections'
 import { MeteoDashboardCard } from '@/components/dashboard/MeteoDashboardCard'
+import { DashboardStaticWidgetGrid } from '@/components/dashboard/DashboardStaticWidgetGrid'
 import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 import { WelcomeCard } from '@/components/dashboard/WelcomeCard'
 import { Button } from '@/components/ui/button'
@@ -56,7 +54,6 @@ import {
   DASHBOARD_WIDGET_META,
   normalizeDashboardLayout,
   sortDashboardWidgetsForDisplay,
-  toReactGridLayout,
   type DashboardLayoutConfig,
   type DashboardWidgetId,
 } from '@/lib/dashboard/layout'
@@ -98,9 +95,17 @@ import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import { toast } from '@/lib/ui/toast'
 import type { Tables } from '@/types/supabase'
 
+const DashboardEditableGrid = dynamic(
+  () =>
+    import('@/components/dashboard/DashboardEditableGrid').then((mod) => mod.DashboardEditableGrid),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
+
 const DAY_MS = 24 * 60 * 60 * 1000
 const EMPTY_LIST: never[] = []
-const DashboardGridLayout = WidthProvider(GridLayout)
 
 const DASHBOARD_SCOPE_FOOTNOTE =
   'Pe parcelele tale comerciale din dashboard apar recolta și ce ține de teren. Comenzi, stoc și sumarul financiar arată întreaga fermă.'
@@ -301,6 +306,7 @@ export default function DashboardPage() {
   const { userId, tenantId, associationShopApproved } = useDashboardAuth()
   const meteo = useMeteo()
   const [editMode, setEditMode] = useState(false)
+  const [editableGridReady, setEditableGridReady] = useState(false)
   const [addWidgetOpen, setAddWidgetOpen] = useState(false)
   const [draftLayout, setDraftLayout] = useState<DashboardLayoutConfig | null>(null)
   const [currentDateTime] = useState(() => new Date())
@@ -459,6 +465,22 @@ export default function DashboardPage() {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   })
+
+  useEffect(() => {
+    if (!editMode) {
+      setEditableGridReady(false)
+      return
+    }
+
+    let active = true
+    void import('@/components/dashboard/DashboardEditableGrid').then(() => {
+      if (active) setEditableGridReady(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [editMode])
 
   const savedLayout = useMemo(
     () => normalizeDashboardLayout(profileQuery.data?.dashboardLayout ?? null),
@@ -1671,27 +1693,26 @@ export default function DashboardPage() {
               ) : null}
             </div>
 
-            <div className="hidden md:block">
-              <DashboardGridLayout
-                className="dashboard-grid-layout"
-                layout={toReactGridLayout(desktopGridWidgets)}
-                cols={12}
-                rowHeight={84}
-                margin={[24, 24]}
-                containerPadding={[0, 0]}
-                isDraggable={editMode}
-                isResizable={editMode}
-                compactType="vertical"
-                useCSSTransforms
-                draggableHandle=".dashboard-widget-handle"
-                onLayoutChange={handleLayoutChange}
-              >
-                {desktopGridWidgets.map((widget) => (
-                  <div key={widget.id} className="h-full">
-                    {renderWidget(widget.id, editMode)}
-                  </div>
-                ))}
-              </DashboardGridLayout>
+            <div className="relative hidden md:block">
+              {editMode ? (
+                editableGridReady ? (
+                  <DashboardEditableGrid
+                    widgets={desktopGridWidgets}
+                    className="dashboard-grid-layout"
+                    onLayoutChange={handleLayoutChange}
+                  >
+                    {(widgetId) => renderWidget(widgetId, true)}
+                  </DashboardEditableGrid>
+                ) : (
+                  <DashboardStaticWidgetGrid widgets={desktopGridWidgets} className="dashboard-grid-layout">
+                    {(widget) => renderWidget(widget.id, true)}
+                  </DashboardStaticWidgetGrid>
+                )
+              ) : (
+                <DashboardStaticWidgetGrid widgets={desktopGridWidgets} className="dashboard-grid-layout">
+                  {(widget) => renderWidget(widget.id, false)}
+                </DashboardStaticWidgetGrid>
+              )}
             </div>
 
           </>
