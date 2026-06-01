@@ -3,7 +3,7 @@ self.addEventListener('push', function (event) {
     title: 'Zmeurel OS',
     body: '',
     icon: '/icon-192.png',
-    badge: '/icons/icon-72.png',
+    badge: '/badge-96.png',
     url: '/',
     tag: undefined,
   }
@@ -34,7 +34,7 @@ self.addEventListener('push', function (event) {
     self.registration.showNotification(payload.title, {
       body: payload.body,
       icon: payload.icon || '/icon-192.png',
-      badge: payload.badge || '/icons/icon-72.png',
+      badge: payload.badge || '/badge-96.png',
       data: {
         url: payload.url || '/',
       },

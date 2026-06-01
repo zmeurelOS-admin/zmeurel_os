@@ -52,11 +52,13 @@ next-env.d.ts
 .vercel
 .env*.local
 !.env.local.example
-# Playwright
+# Playwright (scoped — do not use global *.png; PWA icons live in public/)
 test-results/
 playwright-report/
+test-results/**/*.png
+playwright-report/**/*.png
+output/playwright/**/*.png
 *.webm
-*.png
 .playwright-cli/
 output/playwright/
 
