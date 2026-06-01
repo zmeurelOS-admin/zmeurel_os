@@ -30,7 +30,7 @@
     "test:e2e:checkout": "playwright test --config playwright.config.checkout.ts",
     "test:e2e:checkout:ui": "playwright test --config playwright.config.checkout.ts --ui",
     "prebuild": "node scripts/check-env.js",
-    "build": "next build --webpack",
+    "build": "next build --webpack && node scripts/append-push-sw-import.js",
     "analyze": "set ANALYZE=true&& next build --webpack",
     "postbuild": "node scripts/append-push-sw-import.js",
     "check": "npm run check:critical && npm run build",
