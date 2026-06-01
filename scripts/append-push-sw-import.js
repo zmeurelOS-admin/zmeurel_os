@@ -1,7 +1,7 @@
 /**
- * După `next build`, next-pwa regenerează `public/sw.js`. Acest script injectează direct
- * handler-ele push în workerul generat, ca să evităm importuri suplimentare care pot fi
- * capturate de guard-ul de auth sau de serving-ul assetelor din producție.
+ * @deprecated Folosește `importScripts: ['/push-handlers.js']` în next.config.js (next-pwa).
+ * Injecția post-build nu mai e cablată în package.json — sw.js e generat de Workbox în timpul build-ului.
+ * Păstrat doar pentru debugging local: `node scripts/append-push-sw-import.js`
  */
 const fs = require('fs')
 const path = require('path')

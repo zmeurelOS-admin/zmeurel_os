@@ -146,6 +146,8 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
+  // Push handlers must be wired at SW generation time (Workbox importScripts), not post-build.
+  importScripts: ['/push-handlers.js'],
   // Keep updates non-disruptive: user decides when to activate waiting SW.
   skipWaiting: false,
   clientsClaim: false,
