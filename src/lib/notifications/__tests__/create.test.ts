@@ -111,7 +111,14 @@ describe('createNotification', () => {
       entity_type: 'association_member',
       entity_id: 'ent-1',
     })
-    expect(fireWebPushForNotification).toHaveBeenCalled()
+    expect(fireWebPushForNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        notificationId: 'notif-uuid-1',
+        urlPath: '/test-url',
+        notificationData: expect.objectContaining({ foo: 'bar', url: '/test-url' }),
+      }),
+    )
   })
 })
 
