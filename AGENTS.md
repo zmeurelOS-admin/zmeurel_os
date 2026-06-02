@@ -630,6 +630,7 @@ When future prompts modify architecture, domain logic, repository structure, or 
 - API: `/api/shop/b2c/order` (POST), `/api/shop/b2c/notify` (POST), `/api/shop/b2c/orders/[id]` (PATCH), `/api/shop/b2c/notify/[id]` (PATCH)
 - Produsele se editează din `shop_products` în Supabase
 - Pentru notificări owner pe comenzi `/comanda`, setează `SHOP_TENANT_ID` (UUID tenant) în env server-side; fără el comanda se salvează, dar notificarea se sare (best-effort degradation).
+- Subdomain PWA: `src/proxy.ts` detectează `SHOP_DOMAIN` (fallback `comanda.zmeurel.ro`) și rescrie `/` către `/comanda`, iar `src/app/manifest.ts` returnează manifest dedicat pe același host (`name: Zmeurel`, `start_url: /`, `scope: /`). Pentru un fermier nou cu subdomain propriu, adaugă domeniul în Vercel + DNS CNAME, setează/angajează un host nou (viitor: map host → tenant), păstrează `/sw.js` și `/push-handlers.js` same-origin și filtrează produsele/comenzile după tenant înainte de a expune magazin multi-tenant.
 - Comenzile B2C vizibile în `/comenzi` → tab „Shop public”
 - Lista „Anunță-mă” vizibilă în același tab, sub-tab „Anunță-mă”
 - NU lega de tabelul `comenzi` B2B sau logica de stoc

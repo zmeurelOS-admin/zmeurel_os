@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Fraunces, Hanken_Grotesk } from 'next/font/google'
+import { headers } from 'next/headers'
 
+import { PWAInstallPromptMount } from '@/components/pwa/PWAInstallPromptMount'
 import styles from './comanda.module.css'
 
 const fraunces = Fraunces({
@@ -24,7 +26,16 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 }
 
-export default function ComandaLayout({ children }: { children: React.ReactNode }) {
+const DEFAULT_SHOP_DOMAIN = 'comanda.zmeurel.ro'
+const SHOP_DOMAIN = (process.env.SHOP_DOMAIN?.trim() || DEFAULT_SHOP_DOMAIN).toLowerCase()
+
+function normalizeHost(host: string | null): string {
+  return (host ?? '').split(':')[0]?.toLowerCase() ?? ''
+}
+
+export default async function ComandaLayout({ children }: { children: React.ReactNode }) {
+  const isShopDomain = normalizeHost((await headers()).get('host')) === SHOP_DOMAIN
+
   return (
     <div
       className={`${fraunces.variable} ${hanken.variable} ${styles.root} ${styles.fontBody}`}
@@ -44,6 +55,14 @@ export default function ComandaLayout({ children }: { children: React.ReactNode 
           {children}
         </div>
       </div>
+      {isShopDomain ? (
+        <PWAInstallPromptMount
+          allowPublicPaths
+          title="Zmeurel pe ecranul tău"
+          subtitle="Comanzi rapid · Direct de la fermă"
+          iconAlt="Zmeurel"
+        />
+      ) : null}
     </div>
   )
 }

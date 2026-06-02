@@ -49,7 +49,19 @@ function isStandaloneMode() {
   )
 }
 
-export default function PWAInstallPrompt() {
+type PWAInstallPromptProps = {
+  allowPublicPaths?: boolean
+  title?: string
+  subtitle?: string
+  iconAlt?: string
+}
+
+export default function PWAInstallPrompt({
+  allowPublicPaths = false,
+  title = 'Zmeurel OS pe ecranul tău',
+  subtitle = 'Deschide instant · Merge și fără net',
+  iconAlt = 'Zmeurel OS',
+}: PWAInstallPromptProps) {
   const pathname = usePathname()
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
   const delayElapsedRef = useRef(false)
@@ -75,7 +87,7 @@ export default function PWAInstallPrompt() {
   }, [clearExitTimer])
 
   const maybeShowPrompt = useCallback(() => {
-    if (isPublicNoPwaInstallPath(pathname)) return
+    if (!allowPublicPaths && isPublicNoPwaInstallPath(pathname)) return
     if (!delayElapsedRef.current) return
     if (!deferredPromptRef.current) return
     if (isStandaloneMode()) return
@@ -83,7 +95,7 @@ export default function PWAInstallPrompt() {
 
     setIsExiting(false)
     setShowPrompt(true)
-  }, [pathname])
+  }, [allowPublicPaths, pathname])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -150,7 +162,12 @@ export default function PWAInstallPrompt() {
 
   const dismissed = typeof window !== 'undefined' ? isDismissed() : false
 
-  if (isPublicNoPwaInstallPath(pathname) || !showPrompt || isStandaloneMode() || (dismissed && !isExiting)) {
+  if (
+    (!allowPublicPaths && isPublicNoPwaInstallPath(pathname)) ||
+    !showPrompt ||
+    isStandaloneMode() ||
+    (dismissed && !isExiting)
+  ) {
     return null
   }
 
@@ -165,15 +182,15 @@ export default function PWAInstallPrompt() {
         <div className="header flex items-start gap-3">
           <Image
             src="/icon-192.png"
-            alt="Zmeurel OS"
+            alt={iconAlt}
             width={38}
             height={38}
             className="h-[38px] w-[38px] rounded-xl border border-black/5"
           />
           <div className="min-w-0 flex-1">
-            <p className="title text-[14px] leading-5 font-[750] text-[#1a2e1f]">Zmeurel OS pe ecranul tău</p>
+            <p className="title text-[14px] leading-5 font-[750] text-[#1a2e1f]">{title}</p>
             <p className="sub mt-0.5 text-[12px] leading-[1.35] text-[#44624c]">
-              Deschide instant · Merge și fără net
+              {subtitle}
             </p>
           </div>
           <button

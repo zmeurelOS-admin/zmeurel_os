@@ -4,6 +4,13 @@ import dynamic from 'next/dynamic'
 
 const PWAInstallPrompt = dynamic(() => import('@/components/pwa/PWAInstallPrompt'), { ssr: false })
 
-export function PWAInstallPromptMount() {
-  return <PWAInstallPrompt />
+type PWAInstallPromptMountProps = {
+  allowPublicPaths?: boolean
+  title?: string
+  subtitle?: string
+  iconAlt?: string
+}
+
+export function PWAInstallPromptMount(props: PWAInstallPromptMountProps) {
+  return <PWAInstallPrompt {...props} />
 }
