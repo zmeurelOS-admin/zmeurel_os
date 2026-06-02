@@ -3,6 +3,10 @@ import { z } from 'zod'
 
 import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
+import {
+  createNotificationForTenantOwner,
+  NOTIFICATION_TYPES,
+} from '@/lib/notifications/create'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Json } from '@/types/supabase'
 
@@ -55,6 +59,7 @@ export async function POST(request: Request) {
     total_lei,
     notes,
   } = parsed.data
+  const configuredTenantId = process.env.SHOP_TENANT_ID?.trim() || null
 
   if (delivery_mode === 'livrare' && !delivery_address?.trim()) {
     return errorResponse('Introdu adresa de livrare', 400)
@@ -64,6 +69,7 @@ export async function POST(request: Request) {
   const { data, error } = await admin
     .from('shop_orders')
     .insert({
+      tenant_id: configuredTenantId,
       customer_name,
       customer_phone,
       delivery_mode,
@@ -81,6 +87,47 @@ export async function POST(request: Request) {
       sanitizeForLog(toSafeErrorContext(error ?? { message: 'missing id' })),
     )
     return errorResponse('Nu am putut salva comanda. Încearcă din nou.', 500)
+  }
+
+  if (!configuredTenantId) {
+    console.warn(
+      '[shop/b2c/order] SHOP_TENANT_ID missing; created order without tenant notification',
+      sanitizeForLog({ orderId: data.id }),
+    )
+    return NextResponse.json({ success: true, order_id: data.id })
+  }
+
+  const productSummary = items.map((item) => item.label).join(', ')
+  const extra = {
+    orderId: data.id,
+    tenantId: configuredTenantId,
+    clientName: customer_name,
+    totalLei: total_lei,
+    lineCount: items.length,
+    channel: 'farm_shop',
+  }
+
+  try {
+    void createNotificationForTenantOwner(
+      configuredTenantId,
+      NOTIFICATION_TYPES.order_new,
+      'Comandă nouă din magazin',
+      `${customer_name} a comandat: ${productSummary}`,
+      extra,
+      'order',
+      data.id,
+    )
+  } catch (notificationError) {
+    console.error(
+      '[shop/b2c/order] notification dispatch failed',
+      sanitizeForLog(
+        toSafeErrorContext({
+          error: notificationError,
+          orderId: data.id,
+          tenantId: configuredTenantId,
+        }),
+      ),
+    )
   }
 
   return NextResponse.json({ success: true, order_id: data.id })
