@@ -47,7 +47,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   return {
     id: '/start',
     name: 'Zmeurel OS',
-    short_name: 'Zmeurel',
+    short_name: 'Zmeurel OS',
     description: 'Evidență simplă pentru fermă',
     start_url: '/start?source=pwa',
     scope: '/',
