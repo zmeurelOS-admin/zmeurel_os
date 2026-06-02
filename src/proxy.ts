@@ -31,6 +31,17 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(new URL(buildLoginUrl({ next }), request.url))
 }
 
+const DEFAULT_SHOP_DOMAIN = 'comanda.zmeurel.ro'
+const SHOP_DOMAIN = (process.env.SHOP_DOMAIN?.trim() || DEFAULT_SHOP_DOMAIN).toLowerCase()
+
+function normalizeHost(host: string | null): string {
+  return (host ?? '').split(':')[0]?.toLowerCase() ?? ''
+}
+
+function isPublicShopHost(request: NextRequest): boolean {
+  return normalizeHost(request.headers.get('host')) === SHOP_DOMAIN
+}
+
 const OPERATOR_BLOCKED_ROUTE_PREFIXES = [
   '/vanzari',
   '/finante',
@@ -50,7 +61,9 @@ function isOperatorBlockedRoute(pathname: string): boolean {
 }
 
 /** Document routes with no session, tenant, or auth cookie handling in proxy. */
-function isPurePublicNoAuthBypassRoute(pathname: string): boolean {
+function isPurePublicNoAuthBypassRoute(pathname: string, request: NextRequest): boolean {
+  if (isPublicShopHost(request)) return true
+
   return (
     pathname === '/' ||
     pathname === '/comanda' ||
@@ -61,12 +74,23 @@ function isPurePublicNoAuthBypassRoute(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   const { pathname } = request.nextUrl
+  const publicShopHost = isPublicShopHost(request)
 
   const isAuthCallbackRoute =
     pathname === '/auth/callback' ||
     pathname === '/auth/callback/'
 
-  if (isPurePublicNoAuthBypassRoute(pathname)) {
+  if (publicShopHost && pathname === '/') {
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = '/comanda'
+    return NextResponse.rewrite(rewriteUrl, {
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  }
+
+  if (isPurePublicNoAuthBypassRoute(pathname, request)) {
     return NextResponse.next({
       request: {
         headers: requestHeaders,
