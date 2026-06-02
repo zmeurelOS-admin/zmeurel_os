@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    void createNotificationForTenantOwner(
+    await createNotificationForTenantOwner(
       configuredTenantId,
       NOTIFICATION_TYPES.order_new,
       'Comandă nouă din magazin',

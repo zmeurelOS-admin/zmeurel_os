@@ -8,10 +8,21 @@ function normalizeHost(host: string | null): string {
   return (host ?? '').split(':')[0]?.toLowerCase() ?? ''
 }
 
-const icons: MetadataRoute.Manifest['icons'] = [
+const osIcons: MetadataRoute.Manifest['icons'] = [
   { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
   { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
   { src: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+]
+
+const shopIcons: MetadataRoute.Manifest['icons'] = [
+  { src: '/shop-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+  { src: '/shop-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+  {
+    src: '/shop-icon-512-maskable.png',
+    sizes: '512x512',
+    type: 'image/png',
+    purpose: 'maskable',
+  },
 ]
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
@@ -27,9 +38,9 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
       scope: '/',
       display: 'standalone',
       orientation: 'portrait',
-      background_color: '#f0fdf4',
-      theme_color: '#166534',
-      icons,
+      background_color: '#fff5f5',
+      theme_color: '#e85d5d',
+      icons: shopIcons,
     }
   }
 
@@ -44,6 +55,6 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     orientation: 'portrait',
     background_color: '#f0fdf4',
     theme_color: '#166534',
-    icons,
+    icons: osIcons,
   }
 }
