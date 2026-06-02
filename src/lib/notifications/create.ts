@@ -74,6 +74,7 @@ export async function createNotification(
         title,
         body,
         urlPath: url,
+        notificationData: dataJson as Record<string, unknown>,
       })
     }
     return id

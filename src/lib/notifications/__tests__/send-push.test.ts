@@ -111,6 +111,34 @@ describe('sendPushToUser — politică unificată', () => {
     expect(result.failed).toBe(0)
   })
 
+  it('order_new + association_shop: blocheaza web push prin policy gate', async () => {
+    const { sendPushToUser } = await loadSendPush()
+    const result = await sendPushToUser(USER_ID, 'Comandă', 'Detalii', {
+      type: 'order_new',
+      notificationData: { channel: 'association_shop' },
+    })
+    expect(result.skippedReason).toBe('disabled_by_policy')
+    expect(mocks.sendNotification).not.toHaveBeenCalled()
+    expect(mocks.adminFrom).not.toHaveBeenCalled()
+  })
+
+  it('order_new + farm_shop: permite web push', async () => {
+    const { sendPushToUser } = await loadSendPush()
+    const rows: SubRow[] = [
+      { id: 'sub-farm', endpoint: 'https://example/ep', keys_p256dh: 'p', keys_auth: 'a' },
+    ]
+    const deleted: string[] = []
+    mocks.adminFrom.mockImplementation(makeAdminFrom(rows, deleted))
+    mocks.sendNotification.mockResolvedValue({})
+    const result = await sendPushToUser(USER_ID, 'Comandă', 'Detalii', {
+      type: 'order_new',
+      notificationData: { channel: 'farm_shop' },
+    })
+    expect(result.sent).toBe(1)
+    expect(result.skippedReason).toBeNull()
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1)
+  })
+
   it('410 → subscripția invalidă este ștearsă', async () => {
     const { sendPushToUser } = await loadSendPush()
     const rows: SubRow[] = [

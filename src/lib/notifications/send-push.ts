@@ -59,9 +59,10 @@ export async function sendPushToUser(
     notificationId?: string
     type?: string
     urlPath?: string
+    notificationData?: Record<string, unknown> | null
     /**
      * Politica unificată: orice apel real către `web-push.sendNotification` trece prin
-     * `shouldSendWebPushForType(type)`. `bypassPolicy` e un flag intern, NU se
+     * `shouldSendWebPushForType(type, notificationData)`. `bypassPolicy` e un flag intern, NU se
      * citește niciodată din JSON-ul unui request — îl setează doar `/api/push/test`
      * pentru fluxul diagnostic.
      */
@@ -69,7 +70,7 @@ export async function sendPushToUser(
   },
 ): Promise<PushSendResult> {
   const type = data?.type ?? 'system'
-  if (!data?.bypassPolicy && !shouldSendWebPushForType(type)) {
+  if (!data?.bypassPolicy && !shouldSendWebPushForType(type, data?.notificationData ?? null)) {
     return { attempted: 0, sent: 0, deleted: 0, failed: 0, skippedReason: 'disabled_by_policy' }
   }
 
@@ -245,14 +246,16 @@ export function fireWebPushForNotification(input: {
   body?: string | null
   /** URL path relativ (ex. `/comenzi`) — deja calculat la insert. */
   urlPath?: string
+  notificationData?: Record<string, unknown> | null
 }): void {
-  const { userId, notificationId, type, title, body, urlPath } = input
+  const { userId, notificationId, type, title, body, urlPath, notificationData } = input
   if (!notificationId) return
-  if (!shouldSendWebPushForType(type)) return
+  if (!shouldSendWebPushForType(type, notificationData ?? null)) return
 
   void sendPushToUser(userId, title, body?.trim() || ' ', {
     notificationId,
     type,
     urlPath,
+    notificationData,
   })
 }

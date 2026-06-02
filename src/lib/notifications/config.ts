@@ -108,6 +108,12 @@ export function getNotificationUiConfig(type: string) {
   return NOTIFICATION_CONFIG.system
 }
 
-export function shouldSendWebPushForType(type: string): boolean {
+export function shouldSendWebPushForType(
+  type: string,
+  data?: Record<string, unknown> | null,
+): boolean {
+  if (type === 'order_new' && data?.channel === 'association_shop') {
+    return false
+  }
   return getNotificationUiConfig(type).pushEnabled === true
 }
