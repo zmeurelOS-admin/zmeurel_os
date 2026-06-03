@@ -2893,6 +2893,44 @@ export type Database = {
           },
         ]
       }
+      shop_interest_list: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string | null
+          notified_at: string | null
+          phone: string
+          product_name: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          notified_at?: string | null
+          phone: string
+          product_name?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string | null
+          notified_at?: string | null
+          phone?: string
+          product_name?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_interest_list_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_orders: {
         Row: {
           created_at: string

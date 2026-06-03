@@ -156,17 +156,6 @@ export function writeCustomerSnapshotToStorage(snapshot: Omit<CustomerSnapshot, 
   }
 }
 
-function buildNotifyWaUrl(productId: string, name: string, phone: string): string | null {
-  let message: string | null = null
-  if (productId === 'zmeura') {
-    message = `Bună! Vreau să fiu anunțat(ă) când aveți Zmeură disponibilă.\nNumele meu: ${name}\nTelefon: ${phone}`
-  } else if (productId === 'mure') {
-    message = `Bună! Vreau să fiu anunțat(ă) când aveți Mure disponibile.\nNumele meu: ${name}\nTelefon: ${phone}`
-  }
-  if (!message) return null
-  return `${WA_BASE}?text=${encodeURIComponent(message)}`
-}
-
 function buildWaMessage(input: {
   lines: CartLine[]
   total: number
@@ -438,8 +427,8 @@ export function ShopClient({
       ...prev,
       [productId]: {
         open: true,
-        name: prev[productId]?.name ?? '',
-        phone: prev[productId]?.phone ?? '',
+        name: prev[productId]?.name || orderName,
+        phone: prev[productId]?.phone || orderPhone,
         loading: false,
         done: prev[productId]?.done ?? false,
         error: null,
@@ -476,18 +465,17 @@ export function ShopClient({
 
     updateNotify(product.id, { loading: true, error: null })
     try {
-      const res = await fetch('/api/shop/b2c/notify', {
+      const res = await fetch('/api/shop/b2c/interest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customer_name: state.name.trim(),
-          customer_phone: state.phone.trim(),
-          product_id: product.id,
+          name: state.name.trim() || undefined,
+          phone: state.phone.trim(),
           product_name: product.name,
         }),
       })
-      const json = (await res.json()) as { success?: boolean; error?: string }
-      if (!res.ok || !json.success) {
+      const json = (await res.json()) as { ok?: boolean; error?: string }
+      if (!res.ok || !json.ok) {
         updateNotify(product.id, {
           loading: false,
           error: json.error ?? 'Nu am putut trimite cererea.',
@@ -497,14 +485,15 @@ export function ShopClient({
       const name = state.name.trim()
       const phone = state.phone.trim()
       updateNotify(product.id, { loading: false, done: true, open: false })
-      const notifyWaUrl = buildNotifyWaUrl(product.id, name, phone)
-      if (notifyWaUrl) {
-        window.open(notifyWaUrl, '_blank', 'noopener,noreferrer')
-      }
+      if (name) setOrderName((current) => current || name)
+      setOrderPhone((current) => current || phone)
     } catch {
       updateNotify(product.id, { loading: false, error: 'Eroare de rețea. Încearcă din nou.' })
     }
   }
+
+  const activeNotifyProduct = comingSoon.find((product) => notifyById[product.id]?.open) ?? null
+  const activeNotifyState = activeNotifyProduct ? notifyById[activeNotifyProduct.id] : null
 
   const submitOrder = async () => {
     if (!orderName.trim() || !orderPhone.trim()) {
@@ -776,48 +765,15 @@ export function ShopClient({
 
                         {notify?.done ? (
                           <p className="mt-2 rounded-lg bg-[#E8F5EE] px-2 py-1.5 text-[11px] font-medium leading-snug text-[#0D9B5C]">
-                            Te-am înregistrat! Îți trimitem un mesaj când sunt disponibile.
+                            Te anunțăm când apare {product.name.toLowerCase()} 🍓
                           </p>
-                        ) : notify?.open ? (
-                          <div className="mt-2 space-y-1.5 rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] p-2">
-                            <label className="block text-[10px] font-semibold text-[#312E3F]">
-                              Nume
-                              <input
-                                value={notify.name}
-                                onChange={(e) => updateNotify(product.id, { name: e.target.value })}
-                                className="mt-0.5 w-full rounded-md border border-[#F3DAD4] bg-white px-2 py-1.5 text-xs outline-none focus:border-[#F16B6B]"
-                                autoComplete="name"
-                              />
-                            </label>
-                            <label className="block text-[10px] font-semibold text-[#312E3F]">
-                              Telefon
-                              <input
-                                value={notify.phone}
-                                onChange={(e) => updateNotify(product.id, { phone: e.target.value })}
-                                className="mt-0.5 w-full rounded-md border border-[#F3DAD4] bg-white px-2 py-1.5 text-xs outline-none focus:border-[#F16B6B]"
-                                autoComplete="tel"
-                                inputMode="tel"
-                              />
-                            </label>
-                            {notify.error ? (
-                              <p className="text-[10px] text-[#E15453]">{notify.error}</p>
-                            ) : null}
-                            <button
-                              type="button"
-                              disabled={notify.loading}
-                              onClick={() => submitNotify(product)}
-                              className="w-full rounded-lg bg-gradient-to-r from-[#5B4FCF] to-[#7B6BFF] py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
-                            >
-                              {notify.loading ? '…' : 'Trimite'}
-                            </button>
-                          </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => openNotify(product.id)}
                             className="mt-2 w-full min-h-11 rounded-lg border border-[#5B4FCF] bg-white py-3 text-xs font-bold text-[#5B4FCF]"
                           >
-                            Anunță-mă
+                            🔔 Anunță-mă când e disponibil
                           </button>
                         )}
                       </div>
@@ -1070,6 +1026,65 @@ export function ShopClient({
               type="button"
               className="mt-3 w-full py-2 text-sm font-medium text-[#312E3F]/60"
               onClick={() => setSheetOpen(false)}
+            >
+              Închide
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {activeNotifyProduct && activeNotifyState ? (
+        <div className="fixed inset-0 z-[65] flex flex-col justify-end">
+          <button
+            type="button"
+            aria-label="Închide formularul de interes"
+            className="absolute inset-0 bg-black/35"
+            onClick={() =>
+              !activeNotifyState.loading &&
+              updateNotify(activeNotifyProduct.id, { open: false, error: null })
+            }
+          />
+          <div className="relative mx-auto w-full max-w-[540px] rounded-t-[24px] bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-xl">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#F3DAD4]" aria-hidden />
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#5B4FCF]">Listă de interes</p>
+            <h2 className={`mt-1 text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
+              Te anunțăm când e disponibil
+            </h2>
+            <p className="mt-1 text-sm text-[#312E3F]/70">{activeNotifyProduct.name}</p>
+
+            <div className="mt-4 space-y-3">
+              <Field
+                label="Nume (opțional)"
+                value={activeNotifyState.name}
+                onChange={(value) => updateNotify(activeNotifyProduct.id, { name: value })}
+                autoComplete="name"
+              />
+              <Field
+                label="Telefon"
+                value={activeNotifyState.phone}
+                onChange={(value) => updateNotify(activeNotifyProduct.id, { phone: value })}
+                autoComplete="tel"
+                inputMode="tel"
+              />
+            </div>
+
+            {activeNotifyState.error ? (
+              <p className="mt-3 text-sm text-[#E15453]">{activeNotifyState.error}</p>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={activeNotifyState.loading}
+              onClick={() => submitNotify(activeNotifyProduct)}
+              className="mt-4 w-full rounded-full bg-[#5B4FCF] py-3 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {activeNotifyState.loading ? 'Se salvează…' : 'Confirmă'}
+            </button>
+            <button
+              type="button"
+              disabled={activeNotifyState.loading}
+              onClick={() => updateNotify(activeNotifyProduct.id, { open: false, error: null })}
+              className="mt-3 w-full py-2 text-sm font-medium text-[#312E3F]/60"
             >
               Închide
             </button>
