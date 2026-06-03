@@ -2842,6 +2842,8 @@ export type Database = {
       }
       shop_customers: {
         Row: {
+          acquisition_source: string | null
+          avg_order_value_lei: number | null
           created_at: string | null
           default_delivery_address: string | null
           default_delivery_city: string | null
@@ -2852,10 +2854,14 @@ export type Database = {
           name: string | null
           order_count: number | null
           phone: string
+          first_order_at: string | null
           tenant_id: string | null
+          total_value_lei: number | null
           updated_at: string | null
         }
         Insert: {
+          acquisition_source?: string | null
+          avg_order_value_lei?: number | null
           created_at?: string | null
           default_delivery_address?: string | null
           default_delivery_city?: string | null
@@ -2866,10 +2872,14 @@ export type Database = {
           name?: string | null
           order_count?: number | null
           phone: string
+          first_order_at?: string | null
           tenant_id?: string | null
+          total_value_lei?: number | null
           updated_at?: string | null
         }
         Update: {
+          acquisition_source?: string | null
+          avg_order_value_lei?: number | null
           created_at?: string | null
           default_delivery_address?: string | null
           default_delivery_city?: string | null
@@ -2880,7 +2890,9 @@ export type Database = {
           name?: string | null
           order_count?: number | null
           phone?: string
+          first_order_at?: string | null
           tenant_id?: string | null
+          total_value_lei?: number | null
           updated_at?: string | null
         }
         Relationships: [

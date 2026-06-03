@@ -37,6 +37,11 @@ vi.mock('@/components/association/AssociationSidebar', () => ({
   AssociationSidebar: () => null,
 }))
 
+vi.mock('@/lib/shop/useShopOrdersInLivrareCount', () => ({
+  useShopOrdersInLivrareCount: () => ({ data: 0 }),
+  ShopOrdersInLivrareNavBadge: () => null,
+}))
+
 import { Sidebar } from '@/components/layout/Sidebar'
 
 describe('Sidebar — Protecție & Nutriție', () => {
@@ -68,5 +73,15 @@ describe('Sidebar — Protecție & Nutriție', () => {
     screen.getByRole('button', { name: 'Fermă' }).click()
 
     expect(screen.getByRole('link', { name: 'Protecție & Nutriție' })).toHaveAttribute('href', '/tratamente/conformitate')
+  })
+
+  it('include link către Clienți magazin în secțiunea Comercial', async () => {
+    const user = userEvent.setup()
+    mocks.pathname = '/dashboard'
+
+    render(<Sidebar />)
+    await user.click(screen.getByRole('button', { name: 'Comercial' }))
+
+    expect(screen.getByRole('link', { name: 'Clienți magazin' })).toHaveAttribute('href', '/clienti-magazin')
   })
 })

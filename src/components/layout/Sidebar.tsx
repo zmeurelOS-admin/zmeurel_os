@@ -64,7 +64,8 @@ const GROUPS: Group[] = [
       { href: "/comenzi", label: "Comenzi", emoji: "📋" },
       { href: "/livrari", label: "Livrări", emoji: "🚚" },
       { href: "/vanzari", label: "Vânzări", emoji: "💰" },
-      { href: "/clienti", label: "Clienți", emoji: "👥" },
+      { href: "/clienti", label: "Clienți", emoji: "👥", exact: true },
+      { href: "/clienti-magazin", label: "Clienți magazin", emoji: "🫐" },
       { href: "/produse", label: "Produse", emoji: "🛒" },
       { href: "/stocuri", label: "Stocuri", emoji: "📦" },
       { href: "/vanzari-butasi", label: "Material săditor", emoji: "🛍️" },
@@ -130,6 +131,7 @@ function getGroupForPath(pathname: string): GroupKey | null {
     pathname.startsWith("/livrari") ||
     pathname.startsWith("/vanzari") ||
     pathname.startsWith("/clienti") ||
+    pathname.startsWith("/clienti-magazin") ||
     pathname.startsWith("/produse") ||
     pathname.startsWith("/stocuri") ||
     pathname.startsWith("/vanzari-butasi")
