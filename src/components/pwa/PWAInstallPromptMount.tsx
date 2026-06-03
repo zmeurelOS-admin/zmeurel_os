@@ -6,6 +6,7 @@ const PWAInstallPrompt = dynamic(() => import('@/components/pwa/PWAInstallPrompt
 
 type PWAInstallPromptMountProps = {
   allowPublicPaths?: boolean
+  iconSrc?: string
   title?: string
   subtitle?: string
   iconAlt?: string

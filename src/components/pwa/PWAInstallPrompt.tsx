@@ -51,6 +51,7 @@ function isStandaloneMode() {
 
 type PWAInstallPromptProps = {
   allowPublicPaths?: boolean
+  iconSrc?: string
   title?: string
   subtitle?: string
   iconAlt?: string
@@ -58,6 +59,7 @@ type PWAInstallPromptProps = {
 
 export default function PWAInstallPrompt({
   allowPublicPaths = false,
+  iconSrc = '/icon-192.png',
   title = 'Zmeurel OS pe ecranul tău',
   subtitle = 'Deschide instant · Merge și fără net',
   iconAlt = 'Zmeurel OS',
@@ -181,7 +183,7 @@ export default function PWAInstallPrompt({
       <div className="body relative bg-[linear-gradient(180deg,#ffffff_0%,#f9fcfa_100%)] pl-4 pr-4 py-4">
         <div className="header flex items-start gap-3">
           <Image
-            src="/icon-192.png"
+            src={iconSrc}
             alt={iconAlt}
             width={38}
             height={38}
