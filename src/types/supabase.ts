@@ -4456,6 +4456,21 @@ export type Database = {
         }
         Returns: Json
       }
+      set_shop_customer_acquisition_source_once: {
+        Args: { p_phone: string; p_source: string; p_tenant_id: string }
+        Returns: boolean
+      }
+      upsert_shop_customer: {
+        Args: {
+          p_default_delivery_address: string | null
+          p_default_delivery_city: string | null
+          p_default_delivery_mode: string | null
+          p_name: string
+          p_phone: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       upsert_with_idempotency: {
         Args: { payload: Json; table_name: string }
         Returns: Json

@@ -13,6 +13,16 @@ const B2B_WA_MESSAGE =
 const B2B_WA_HREF = `${WA_BASE}?text=${encodeURIComponent(B2B_WA_MESSAGE)}`
 const CUSTOMER_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000
 
+type AcquisitionSource = 'facebook' | 'instagram' | 'recomandare' | 'google' | 'altceva'
+
+const ACQUISITION_SOURCE_OPTIONS: Array<{ value: AcquisitionSource; label: string }> = [
+  { value: 'facebook', label: '📘 Facebook' },
+  { value: 'instagram', label: '📸 Instagram' },
+  { value: 'recomandare', label: '👥 Recomandare' },
+  { value: 'google', label: '🔍 Google' },
+  { value: 'altceva', label: '➕ Altceva' },
+]
+
 export type ComandaShopProduct = {
   id: string
   name: string
@@ -240,6 +250,8 @@ export function ShopClient({
   const [orderSubmitting, setOrderSubmitting] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
+  const [sourceSaved, setSourceSaved] = useState(false)
   const [customerAutofillNotice, setCustomerAutofillNotice] = useState<string | null>(null)
   const [recognizedCustomerPhone, setRecognizedCustomerPhone] = useState<string | null>(null)
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
@@ -495,6 +507,26 @@ export function ShopClient({
   const activeNotifyProduct = comingSoon.find((product) => notifyById[product.id]?.open) ?? null
   const activeNotifyState = activeNotifyProduct ? notifyById[activeNotifyProduct.id] : null
 
+  const submitAcquisitionSource = async (source: AcquisitionSource) => {
+    try {
+      const res = await fetch('/api/shop/b2c/customer/source', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: orderPhone,
+          source,
+        }),
+      })
+      const json = (await res.json()) as { ok?: boolean }
+      if (res.ok && json.ok) {
+        setSourceSaved(true)
+        setSourcePromptVisible(false)
+      }
+    } catch {
+      // This survey is optional; checkout success must not depend on it.
+    }
+  }
+
   const submitOrder = async () => {
     if (!orderName.trim() || !orderPhone.trim()) {
       setOrderError('Completează numele și telefonul.')
@@ -543,6 +575,8 @@ export function ShopClient({
       }
 
       setOrderSuccess(true)
+      setSourcePromptVisible(true)
+      setSourceSaved(false)
       writeCustomerSnapshotToStorage({
         name: orderName.trim(),
         phone: orderPhone,
@@ -923,9 +957,45 @@ export function ShopClient({
             <h2 className={`text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>Finalizează comanda</h2>
 
             {orderSuccess ? (
-              <p className="mt-4 rounded-xl bg-[#E8F5EE] px-4 py-3 text-sm font-medium text-[#0D9B5C]">
-                Comanda a fost salvată. WhatsApp s-a deschis cu mesajul pregătit — trimite-l pentru confirmare.
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-sm font-medium text-[#0D9B5C]">
+                  Comanda a fost salvată. WhatsApp s-a deschis cu mesajul pregătit — trimite-l pentru confirmare.
+                </p>
+
+                {sourcePromptVisible ? (
+                  <div className="rounded-2xl border border-[#F3DAD4] bg-[#FFF6F3] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-[#312E3F]">Cum ai aflat de noi?</p>
+                        <p className="mt-0.5 text-xs text-[#312E3F]/65">Opțional, ne ajută să înțelegem ce merge.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSourcePromptVisible(false)}
+                        className="rounded-full px-2 py-1 text-xs font-semibold text-[#312E3F]/55"
+                      >
+                        Închide
+                      </button>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
+                      {ACQUISITION_SOURCE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => submitAcquisitionSource(option.value)}
+                          className="rounded-xl border border-[#F3DAD4] bg-white px-3 py-3 text-left text-sm font-semibold text-[#312E3F] active:scale-[0.98]"
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : sourceSaved ? (
+                  <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-xs font-medium text-[#0D9B5C]">
+                    Mulțumim! Am salvat răspunsul.
+                  </p>
+                ) : null}
+              </div>
             ) : (
               <>
                 <div className="mt-4 space-y-3">
