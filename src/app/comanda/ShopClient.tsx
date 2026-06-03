@@ -11,6 +11,7 @@ const WA_BASE = `https://wa.me/${WA_NUMBER}`
 const B2B_WA_MESSAGE =
   'Bună! Reprezentăm [numele afacerii] și suntem interesați să achiziționăm fructe proaspete de la Zmeurel pentru clienții noștri. Puteți să ne trimiteți o ofertă B2B?'
 const B2B_WA_HREF = `${WA_BASE}?text=${encodeURIComponent(B2B_WA_MESSAGE)}`
+const CUSTOMER_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000
 
 export type ComandaShopProduct = {
   id: string
@@ -28,6 +29,15 @@ type CartLine = {
 }
 
 type DeliveryMode = 'livrare' | 'ridicare'
+
+type CustomerSnapshot = {
+  name: string
+  phone: string
+  delivery_address: string
+  delivery_city: string
+  delivery_mode: DeliveryMode
+  savedAt: number
+}
 
 type NotifyState = {
   open: boolean
@@ -54,6 +64,71 @@ function productImageSrc(id: string): string | null {
 
 function formatLei(value: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+}
+
+export function normalizeCustomerPhone(value: string): string {
+  const digits = value.replace(/\D+/g, '')
+  if (digits.startsWith('0040') && digits.length >= 13) return digits.slice(4)
+  if (digits.startsWith('40') && digits.length >= 11) return digits.slice(2)
+  if (digits.startsWith('0') && digits.length >= 10) return digits.slice(1)
+  return digits
+}
+
+function customerStorageKey(normalizedPhone: string): string {
+  return `zmeurel_customer_${normalizedPhone}`
+}
+
+function coerceDeliveryMode(value: unknown): DeliveryMode {
+  return value === 'ridicare' ? 'ridicare' : 'livrare'
+}
+
+export function readCustomerSnapshotFromStorage(phone: string): CustomerSnapshot | null {
+  if (typeof window === 'undefined') return null
+
+  const normalizedPhone = normalizeCustomerPhone(phone)
+  if (normalizedPhone.length < 9) return null
+
+  try {
+    const raw = window.localStorage.getItem(customerStorageKey(normalizedPhone))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as Partial<CustomerSnapshot>
+    if (typeof parsed.savedAt !== 'number' || Date.now() - parsed.savedAt > CUSTOMER_CACHE_TTL_MS) {
+      window.localStorage.removeItem(customerStorageKey(normalizedPhone))
+      return null
+    }
+
+    return {
+      name: typeof parsed.name === 'string' ? parsed.name : '',
+      phone: normalizedPhone,
+      delivery_address: typeof parsed.delivery_address === 'string' ? parsed.delivery_address : '',
+      delivery_city: typeof parsed.delivery_city === 'string' ? parsed.delivery_city : '',
+      delivery_mode: coerceDeliveryMode(parsed.delivery_mode),
+      savedAt: parsed.savedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function writeCustomerSnapshotToStorage(snapshot: Omit<CustomerSnapshot, 'savedAt'>): void {
+  if (typeof window === 'undefined') return
+
+  const normalizedPhone = normalizeCustomerPhone(snapshot.phone)
+  if (normalizedPhone.length < 9) return
+
+  try {
+    window.localStorage.setItem(
+      customerStorageKey(normalizedPhone),
+      JSON.stringify({
+        ...snapshot,
+        phone: normalizedPhone,
+        savedAt: Date.now(),
+      }),
+    )
+  } catch {
+    // localStorage is best-effort.
+  }
 }
 
 function buildNotifyWaUrl(productId: string, name: string, phone: string): string | null {
@@ -146,10 +221,13 @@ export function ShopClient({
   const [orderPhone, setOrderPhone] = useState('')
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('livrare')
   const [orderAddress, setOrderAddress] = useState('')
+  const [orderCity, setOrderCity] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
   const [orderSubmitting, setOrderSubmitting] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [customerAutofillNotice, setCustomerAutofillNotice] = useState<string | null>(null)
+  const lastCustomerLookupPhoneRef = useRef<string | null>(null)
 
   const [notifyById, setNotifyById] = useState<Record<string, NotifyState>>({})
   const [cartToastVisible, setCartToastVisible] = useState(false)
@@ -173,6 +251,72 @@ export function ShopClient({
       }
     }
   }, [])
+
+  const applyCustomerSnapshot = useCallback((snapshot: CustomerSnapshot, source: 'local' | 'api') => {
+    if (snapshot.name) setOrderName(snapshot.name)
+    if (snapshot.delivery_address) setOrderAddress(snapshot.delivery_address)
+    if (snapshot.delivery_city) setOrderCity(snapshot.delivery_city)
+    setDeliveryMode(snapshot.delivery_mode)
+    setCustomerAutofillNotice(source === 'local' ? 'Date completate automat' : 'Date găsite după telefon')
+  }, [])
+
+  useEffect(() => {
+    const rawDigits = orderPhone.replace(/\D+/g, '')
+    const normalizedPhone = normalizeCustomerPhone(orderPhone)
+
+    if (rawDigits.length < 10 || normalizedPhone.length < 9) {
+      lastCustomerLookupPhoneRef.current = null
+      setCustomerAutofillNotice(null)
+      return
+    }
+
+    if (lastCustomerLookupPhoneRef.current === normalizedPhone) return
+    lastCustomerLookupPhoneRef.current = normalizedPhone
+
+    const cached = readCustomerSnapshotFromStorage(orderPhone)
+    if (cached) {
+      applyCustomerSnapshot(cached, 'local')
+      return
+    }
+
+    const controller = new AbortController()
+    const timeout = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/shop/b2c/customer?phone=${encodeURIComponent(orderPhone)}`, {
+          signal: controller.signal,
+        })
+        if (!res.ok) return
+
+        const data = (await res.json()) as {
+          found?: boolean
+          name?: string
+          delivery_address?: string
+          delivery_city?: string
+          delivery_mode?: string
+        }
+        if (!data.found) return
+
+        applyCustomerSnapshot(
+          {
+            name: data.name ?? '',
+            phone: normalizedPhone,
+            delivery_address: data.delivery_address ?? '',
+            delivery_city: data.delivery_city ?? '',
+            delivery_mode: coerceDeliveryMode(data.delivery_mode),
+            savedAt: Date.now(),
+          },
+          'api',
+        )
+      } catch {
+        // Offline/error fallback is the localStorage path above.
+      }
+    }, 350)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timeout)
+    }
+  }, [applyCustomerSnapshot, orderPhone])
 
   const cartLines = useMemo((): CartLine[] => {
     return available
@@ -309,6 +453,7 @@ export function ShopClient({
           customer_phone: orderPhone.trim(),
           delivery_mode: deliveryMode,
           delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
+          delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
           items,
           total_lei: cartTotal,
           notes: orderNotes.trim() || undefined,
@@ -322,6 +467,13 @@ export function ShopClient({
       }
 
       setOrderSuccess(true)
+      writeCustomerSnapshotToStorage({
+        name: orderName.trim(),
+        phone: orderPhone,
+        delivery_address: orderAddress.trim(),
+        delivery_city: orderCity.trim(),
+        delivery_mode: deliveryMode,
+      })
       const message = buildWaMessage({
         lines: cartLines,
         total: cartTotal,
@@ -742,6 +894,11 @@ export function ShopClient({
                     autoComplete="tel"
                     inputMode="tel"
                   />
+                  {customerAutofillNotice ? (
+                    <p className="rounded-lg bg-[#E8F5EE] px-3 py-2 text-xs font-medium text-[#0D9B5C]">
+                      {customerAutofillNotice}
+                    </p>
+                  ) : null}
 
                   <div>
                     <p className="mb-2 text-xs font-semibold text-[#312E3F]">Mod livrare</p>
@@ -760,7 +917,15 @@ export function ShopClient({
                   </div>
 
                   {deliveryMode === 'livrare' ? (
-                    <Field label="Adresă livrare" value={orderAddress} onChange={setOrderAddress} />
+                    <>
+                      <Field
+                        label="Localitate"
+                        value={orderCity}
+                        onChange={setOrderCity}
+                        autoComplete="address-level2"
+                      />
+                      <Field label="Adresă livrare" value={orderAddress} onChange={setOrderAddress} />
+                    </>
                   ) : null}
 
                   <label className="block text-xs font-semibold text-[#312E3F]">

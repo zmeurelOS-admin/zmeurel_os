@@ -7,6 +7,7 @@ import {
   createNotificationForTenantOwner,
   NOTIFICATION_TYPES,
 } from '@/lib/notifications/create'
+import { upsertShopCustomer } from '@/lib/shop/b2c-customers'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Json } from '@/types/supabase'
 
@@ -22,6 +23,7 @@ const bodySchema = z.object({
   customer_phone: z.string().trim().min(1, 'Introdu telefonul'),
   delivery_mode: z.enum(['livrare', 'ridicare']),
   delivery_address: z.string().trim().max(500).optional(),
+  delivery_city: z.string().trim().max(120).optional(),
   items: z.array(lineSchema).min(1, 'Coșul este gol'),
   total_lei: z.number().int().positive('Total invalid'),
   notes: z.string().trim().max(2000).optional(),
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
     customer_phone,
     delivery_mode,
     delivery_address,
+    delivery_city,
     items,
     total_lei,
     notes,
@@ -74,6 +77,7 @@ export async function POST(request: Request) {
       customer_phone,
       delivery_mode,
       delivery_address: delivery_address?.trim() || null,
+      delivery_city: delivery_city?.trim() || null,
       items: items as Json,
       total_lei,
       notes: notes?.trim() || null,
@@ -123,6 +127,28 @@ export async function POST(request: Request) {
       sanitizeForLog(
         toSafeErrorContext({
           error: notificationError,
+          orderId: data.id,
+          tenantId: configuredTenantId,
+        }),
+      ),
+    )
+  }
+
+  try {
+    await upsertShopCustomer({
+      tenantId: configuredTenantId,
+      phone: customer_phone,
+      name: customer_name,
+      deliveryAddress: delivery_address?.trim() || null,
+      deliveryCity: delivery_city?.trim() || null,
+      deliveryMode: delivery_mode,
+    })
+  } catch (customerError) {
+    console.error(
+      '[shop/b2c/order] customer upsert failed',
+      sanitizeForLog(
+        toSafeErrorContext({
+          error: customerError,
           orderId: data.id,
           tenantId: configuredTenantId,
         }),

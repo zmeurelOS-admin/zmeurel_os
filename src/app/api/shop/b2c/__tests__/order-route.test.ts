@@ -13,6 +13,7 @@ vi.mock('@/lib/notifications/create', () => ({
 }))
 
 const insertSpy = vi.fn()
+const rpcSpy = vi.fn()
 const getSupabaseAdmin = vi.fn()
 
 vi.mock('@/lib/supabase/admin', () => ({
@@ -21,6 +22,10 @@ vi.mock('@/lib/supabase/admin', () => ({
 
 function buildAdmin(orderId = '11111111-1111-4111-8111-111111111111') {
   return {
+    rpc: (name: string, args: Record<string, unknown>) => {
+      rpcSpy(name, args)
+      return Promise.resolve({ data: null, error: null })
+    },
     from: (table: string) => {
       if (table !== 'shop_orders') throw new Error(`unexpected table ${table}`)
       return {
@@ -46,6 +51,7 @@ function baseBody() {
     customer_phone: '0722123456',
     delivery_mode: 'livrare',
     delivery_address: 'Suceava, str. Fermierului 10',
+    delivery_city: 'Suceava',
     items: [
       { vid: 'v1', label: 'Mere', qty: 2, price_lei: 10 },
       { vid: 'v2', label: 'Pere', qty: 1, price_lei: 12 },
@@ -89,6 +95,17 @@ describe('POST /api/shop/b2c/order', () => {
       'order',
       '11111111-1111-4111-8111-111111111111',
     )
+    expect(rpcSpy).toHaveBeenCalledWith(
+      'upsert_shop_customer',
+      expect.objectContaining({
+        p_tenant_id: process.env.SHOP_TENANT_ID,
+        p_phone: '722123456',
+        p_name: 'Ion Popescu',
+        p_default_delivery_address: 'Suceava, str. Fermierului 10',
+        p_default_delivery_city: 'Suceava',
+        p_default_delivery_mode: 'livrare',
+      }),
+    )
   })
 
   it('degradeaza gratios fara tenant: comanda merge, fara notificare', async () => {
@@ -103,6 +120,7 @@ describe('POST /api/shop/b2c/order', () => {
     expect(payload.success).toBe(true)
     expect(insertSpy).toHaveBeenCalledWith(expect.objectContaining({ tenant_id: null }))
     expect(createNotificationForTenantOwner).not.toHaveBeenCalled()
+    expect(rpcSpy).not.toHaveBeenCalled()
     expect(warnSpy).toHaveBeenCalledWith(
       '[shop/b2c/order] SHOP_TENANT_ID missing; created order without tenant notification',
       expect.any(Object),

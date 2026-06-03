@@ -2840,18 +2840,73 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_customers: {
+        Row: {
+          created_at: string | null
+          default_delivery_address: string | null
+          default_delivery_city: string | null
+          default_delivery_mode: string | null
+          email: string | null
+          id: string
+          last_order_at: string | null
+          name: string | null
+          order_count: number | null
+          phone: string
+          tenant_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_delivery_address?: string | null
+          default_delivery_city?: string | null
+          default_delivery_mode?: string | null
+          email?: string | null
+          id?: string
+          last_order_at?: string | null
+          name?: string | null
+          order_count?: number | null
+          phone: string
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_delivery_address?: string | null
+          default_delivery_city?: string | null
+          default_delivery_mode?: string | null
+          email?: string | null
+          id?: string
+          last_order_at?: string | null
+          name?: string | null
+          order_count?: number | null
+          phone?: string
+          tenant_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_orders: {
         Row: {
           created_at: string
           customer_name: string
           customer_phone: string
           delivery_address: string | null
+          delivery_city: string | null
           delivery_mode: string
           id: string
           items: Json
           notes: string | null
           notified_wa: boolean
           status: string
+          tenant_id: string | null
           total_lei: number
         }
         Insert: {
@@ -2859,12 +2914,14 @@ export type Database = {
           customer_name: string
           customer_phone: string
           delivery_address?: string | null
+          delivery_city?: string | null
           delivery_mode: string
           id?: string
           items: Json
           notes?: string | null
           notified_wa?: boolean
           status?: string
+          tenant_id?: string | null
           total_lei: number
         }
         Update: {
@@ -2872,12 +2929,14 @@ export type Database = {
           customer_name?: string
           customer_phone?: string
           delivery_address?: string | null
+          delivery_city?: string | null
           delivery_mode?: string
           id?: string
           items?: Json
           notes?: string | null
           notified_wa?: boolean
           status?: string
+          tenant_id?: string | null
           total_lei?: number
         }
         Relationships: []
