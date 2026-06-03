@@ -83,5 +83,6 @@ describe('Sidebar — Protecție & Nutriție', () => {
     await user.click(screen.getByRole('button', { name: 'Comercial' }))
 
     expect(screen.getByRole('link', { name: 'Clienți magazin' })).toHaveAttribute('href', '/clienti-magazin')
+    expect(screen.getByRole('link', { name: 'Analytics magazin' })).toHaveAttribute('href', '/analytics-magazin')
   })
 })

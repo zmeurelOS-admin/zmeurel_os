@@ -626,11 +626,14 @@ When future prompts modify architecture, domain logic, repository structure, or 
 ## Shop public /comanda
 
 - Rută publică Next.js, fără auth, fără ERP shell
-- Tabele: `shop_orders`, `shop_notify_requests`, `shop_products`, `shop_customers`
-- API: `/api/shop/b2c/order` (POST), `/api/shop/b2c/customer` (GET), `/api/shop/b2c/notify` (POST), `/api/shop/b2c/orders/[id]` (PATCH), `/api/shop/b2c/notify/[id]` (PATCH)
+- Tabele: `shop_orders`, `shop_notify_requests`, `shop_products`, `shop_customers`, `shop_interest_list`
+- API: `/api/shop/b2c/order` (POST), `/api/shop/b2c/customer` (GET), `/api/shop/b2c/customer/last-order` (GET), `/api/shop/b2c/customer/source` (PATCH), `/api/shop/b2c/interest` (POST), `/api/shop/b2c/notify` (POST), `/api/shop/b2c/orders/[id]` (PATCH), `/api/shop/b2c/notify/[id]` (PATCH)
 - Produsele se editează din `shop_products` în Supabase
 - Pentru notificări owner pe comenzi `/comanda`, setează `SHOP_TENANT_ID` (UUID tenant) în env server-side; fără el comanda se salvează, dar notificarea se sare (best-effort degradation).
 - `shop_customers` păstrează clienții anonimi după telefon normalizat, cu RLS fără acces anonim direct; `/api/shop/b2c/customer` folosește service role + rate limit pentru auto-fill public-safe, iar frontend-ul păstrează fallback localStorage 90 zile.
+- Etichetele client magazin sunt calculate în TS, nu stocate: `VIP` pentru `order_count >= 5` sau `total_value_lei >= 500`, `Fidel` pentru 2-4 comenzi, `Nou` pentru prima comandă.
+- `shop_interest_list` capturează interes pentru produse indisponibile; endpoint-ul public `/api/shop/b2c/interest` este best-effort și deduplică pe `(tenant_id, phone, product_name)`.
+- Analytics magazin (`/analytics-magazin`) este RSC server-side, fără `useQuery`/real-time/charts; calculează agregări simple din `shop_customers` și `shop_orders` pentru 30/90/365 zile.
 - Subdomain PWA: `src/proxy.ts` detectează `SHOP_DOMAIN` (fallback `comanda.zmeurel.ro`) și rescrie `/` către `/comanda`, iar `src/app/manifest.ts` returnează manifest dedicat pe același host (`name: Zmeurel`, `start_url: /`, `scope: /`). Pentru un fermier nou cu subdomain propriu, adaugă domeniul în Vercel + DNS CNAME, setează/angajează un host nou (viitor: map host → tenant), păstrează `/sw.js` și `/push-handlers.js` same-origin și filtrează produsele/comenzile după tenant înainte de a expune magazin multi-tenant.
 - Comenzile B2C vizibile în `/comenzi` → tab „Shop public”
 - Lista „Anunță-mă” vizibilă în același tab, sub-tab „Anunță-mă”
