@@ -39,6 +39,20 @@ type CustomerSnapshot = {
   savedAt: number
 }
 
+type LastOrderItem = {
+  product_id: string
+  name: string
+  quantity: number
+  unit_label: string
+  price_lei: number
+}
+
+type LastOrder = {
+  items: LastOrderItem[]
+  total_lei: number
+  created_at: string
+}
+
 type NotifyState = {
   open: boolean
   name: string
@@ -64,6 +78,17 @@ function productImageSrc(id: string): string | null {
 
 function formatLei(value: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+}
+
+function formatOrderDate(value: string): string {
+  return new Intl.DateTimeFormat('ro-RO', { day: '2-digit', month: 'short' }).format(new Date(value))
+}
+
+function summarizeLastOrder(items: LastOrderItem[]): string {
+  return items
+    .slice(0, 3)
+    .map((item) => `${item.name} x${item.quantity}`)
+    .join(', ')
 }
 
 export function normalizeCustomerPhone(value: string): string {
@@ -227,6 +252,9 @@ export function ShopClient({
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [customerAutofillNotice, setCustomerAutofillNotice] = useState<string | null>(null)
+  const [recognizedCustomerPhone, setRecognizedCustomerPhone] = useState<string | null>(null)
+  const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
+  const [lastOrderApplied, setLastOrderApplied] = useState(false)
   const lastCustomerLookupPhoneRef = useRef<string | null>(null)
 
   const [notifyById, setNotifyById] = useState<Record<string, NotifyState>>({})
@@ -257,6 +285,8 @@ export function ShopClient({
     if (snapshot.delivery_address) setOrderAddress(snapshot.delivery_address)
     if (snapshot.delivery_city) setOrderCity(snapshot.delivery_city)
     setDeliveryMode(snapshot.delivery_mode)
+    setRecognizedCustomerPhone(snapshot.phone)
+    setLastOrderApplied(false)
     setCustomerAutofillNotice(source === 'local' ? 'Date completate automat' : 'Date găsite după telefon')
   }, [])
 
@@ -267,6 +297,9 @@ export function ShopClient({
     if (rawDigits.length < 10 || normalizedPhone.length < 9) {
       lastCustomerLookupPhoneRef.current = null
       setCustomerAutofillNotice(null)
+      setRecognizedCustomerPhone(null)
+      setLastOrder(null)
+      setLastOrderApplied(false)
       return
     }
 
@@ -318,6 +351,44 @@ export function ShopClient({
     }
   }, [applyCustomerSnapshot, orderPhone])
 
+  useEffect(() => {
+    if (!recognizedCustomerPhone) return
+
+    const lookupPhone = recognizedCustomerPhone
+    const controller = new AbortController()
+    async function loadLastOrder() {
+      try {
+        const res = await fetch(
+          `/api/shop/b2c/customer/last-order?phone=${encodeURIComponent(lookupPhone)}`,
+          { signal: controller.signal },
+        )
+        if (!res.ok) return
+
+        const data = (await res.json()) as {
+          found?: boolean
+          items?: LastOrderItem[]
+          total_lei?: number
+          created_at?: string
+        }
+        if (!data.found || !Array.isArray(data.items) || !data.created_at || typeof data.total_lei !== 'number') {
+          setLastOrder(null)
+          return
+        }
+
+        setLastOrder({
+          items: data.items,
+          total_lei: data.total_lei,
+          created_at: data.created_at,
+        })
+      } catch {
+        // Last order is an enhancement; the checkout must keep working without it.
+      }
+    }
+
+    void loadLastOrder()
+    return () => controller.abort()
+  }, [recognizedCustomerPhone])
+
   const cartLines = useMemo((): CartLine[] => {
     return available
       .filter((p) => (qtyById[p.id] ?? 0) > 0)
@@ -341,6 +412,22 @@ export function ShopClient({
       return { ...prev, [id]: value }
     })
   }, [])
+
+  const reorderLastOrder = useCallback(() => {
+    if (!lastOrder) return
+
+    setQtyById((prev) => {
+      const next = { ...prev }
+      for (const item of lastOrder.items) {
+        if (available.some((product) => product.id === item.product_id)) {
+          next[item.product_id] = Math.max(1, Math.min(99, Math.round(item.quantity)))
+        }
+      }
+      return next
+    })
+    setLastOrderApplied(true)
+    showCartAddedToast()
+  }, [available, lastOrder, showCartAddedToast])
 
   const scrollToProducts = () => {
     document.getElementById('produse')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -947,6 +1034,24 @@ export function ShopClient({
                 <p className="mt-2 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs font-medium text-[#312E3F]/80">
                   Plată: Cash sau Revolut
                 </p>
+
+                {lastOrder && lastOrder.items.length > 0 ? (
+                  <div className="mt-3 rounded-xl border border-[#F3DAD4] bg-white px-3 py-3 text-xs text-[#312E3F]">
+                    <p className="font-semibold">
+                      Ultima comandă: {formatOrderDate(lastOrder.created_at)} — {summarizeLastOrder(lastOrder.items)}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span className="text-[#312E3F]/65">{formatLei(lastOrder.total_lei)} lei</span>
+                      <button
+                        type="button"
+                        onClick={reorderLastOrder}
+                        className="rounded-full bg-[#F16B6B] px-3 py-2 text-xs font-bold text-white active:scale-[0.98]"
+                      >
+                        {lastOrderApplied ? 'Adăugat în coș' : 'Comandă din nou'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {orderError ? <p className="mt-3 text-sm text-[#E15453]">{orderError}</p> : null}
 
