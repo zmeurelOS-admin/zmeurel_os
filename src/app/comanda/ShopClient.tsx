@@ -3,6 +3,8 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ShopNotifPrompt } from '@/components/shop/ShopNotifPrompt'
+import { markNotificationPromptSession, shouldShowNotificationPrompt } from '@/lib/shop/useNotificationPrompt'
 import styles from './comanda.module.css'
 
 const WA_NUMBER = '40752953048'
@@ -252,6 +254,7 @@ export function ShopClient({
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
   const [sourceSaved, setSourceSaved] = useState(false)
+  const [notificationPromptVisible, setNotificationPromptVisible] = useState(false)
   const [customerAutofillNotice, setCustomerAutofillNotice] = useState<string | null>(null)
   const [recognizedCustomerPhone, setRecognizedCustomerPhone] = useState<string | null>(null)
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
@@ -261,6 +264,7 @@ export function ShopClient({
   const [notifyById, setNotifyById] = useState<Record<string, NotifyState>>({})
   const [cartToastVisible, setCartToastVisible] = useState(false)
   const cartToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const notificationPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showCartAddedToast = useCallback(() => {
     if (cartToastTimerRef.current) {
@@ -278,8 +282,37 @@ export function ShopClient({
       if (cartToastTimerRef.current) {
         clearTimeout(cartToastTimerRef.current)
       }
+      if (notificationPromptTimerRef.current) {
+        clearTimeout(notificationPromptTimerRef.current)
+      }
     }
   }, [])
+
+  useEffect(() => {
+    if (!orderSuccess) {
+      setNotificationPromptVisible(false)
+      if (notificationPromptTimerRef.current) {
+        clearTimeout(notificationPromptTimerRef.current)
+        notificationPromptTimerRef.current = null
+      }
+      return
+    }
+
+    notificationPromptTimerRef.current = setTimeout(() => {
+      if (shouldShowNotificationPrompt()) {
+        markNotificationPromptSession()
+        setNotificationPromptVisible(true)
+      }
+      notificationPromptTimerRef.current = null
+    }, 2500)
+
+    return () => {
+      if (notificationPromptTimerRef.current) {
+        clearTimeout(notificationPromptTimerRef.current)
+        notificationPromptTimerRef.current = null
+      }
+    }
+  }, [orderSuccess])
 
   const applyCustomerSnapshot = useCallback((snapshot: CustomerSnapshot, source: 'local' | 'api') => {
     if (snapshot.name) setOrderName(snapshot.name)
@@ -575,6 +608,7 @@ export function ShopClient({
       }
 
       setOrderSuccess(true)
+      setNotificationPromptVisible(false)
       setSourcePromptVisible(true)
       setSourceSaved(false)
       writeCustomerSnapshotToStorage({
@@ -1160,6 +1194,10 @@ export function ShopClient({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {notificationPromptVisible ? (
+        <ShopNotifPrompt onClose={() => setNotificationPromptVisible(false)} />
       ) : null}
 
       {cartToastVisible ? (

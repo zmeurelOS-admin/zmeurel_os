@@ -59,10 +59,10 @@ type PWAInstallPromptProps = {
 
 export default function PWAInstallPrompt({
   allowPublicPaths = false,
-  iconSrc = '/icon-192.png',
-  title = 'Zmeurel OS pe ecranul tău',
-  subtitle = 'Deschide instant · Merge și fără net',
-  iconAlt = 'Zmeurel OS',
+  iconSrc = '/shop-icon-192.png',
+  title = 'Fructe proaspete la o atingere',
+  subtitle = 'Salvează magazinul pe ecran pentru când ai poftă.',
+  iconAlt = 'Zmeurel',
 }: PWAInstallPromptProps) {
   const pathname = usePathname()
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null)
@@ -175,61 +175,45 @@ export default function PWAInstallPrompt({
 
   return (
     <div
-      className={`pwa-prompt ${isExiting ? 'pwa-exit' : 'pwa-enter'} fixed bottom-[20px] right-[12px] z-[70] w-[268px] max-w-[calc(100vw-24px)] overflow-hidden rounded-[20px] border bg-white shadow-[0_24px_54px_rgba(26,46,31,0.22),0_10px_24px_rgba(61,122,95,0.14)]`}
-      style={{ borderColor: 'rgba(61,122,95,0.15)' }}
+      className={`pwa-prompt ${isExiting ? 'pwa-exit' : 'pwa-enter'} fixed bottom-0 left-1/2 z-[70] min-h-[35dvh] w-full max-w-[420px] -translate-x-1/2 overflow-hidden rounded-t-[22px] border border-[#f3dad4] bg-white shadow-[0_-22px_54px_rgba(232,93,93,0.18),0_-8px_22px_rgba(49,46,63,0.08)] sm:bottom-5 sm:rounded-[22px]`}
       aria-live="polite"
     >
-      <div className="accent-bar h-full w-1 bg-[linear-gradient(180deg,#4E9B76_0%,#3D7A5F_45%,#2F614B_100%)] absolute inset-y-0 left-0" />
-      <div className="body relative bg-[linear-gradient(180deg,#ffffff_0%,#f9fcfa_100%)] pl-4 pr-4 py-4">
-        <div className="header flex items-start gap-3">
+      <div className="body flex min-h-[35dvh] flex-col items-center justify-center bg-[linear-gradient(180deg,#fffafa_0%,#fff5f5_100%)] px-5 py-5 text-center">
+        <div className="mb-4 h-[3px] w-8 rounded-full bg-[#d6d3d1]" aria-hidden />
+
+        <div className="flex flex-col items-center">
           <Image
             src={iconSrc}
             alt={iconAlt}
-            width={38}
-            height={38}
-            className="h-[38px] w-[38px] rounded-xl border border-black/5"
+            width={52}
+            height={52}
+            className="h-[52px] w-[52px] rounded-[16px] border border-white/80 shadow-[0_12px_26px_rgba(232,93,93,0.35)]"
           />
-          <div className="min-w-0 flex-1">
-            <p className="title text-[14px] leading-5 font-[750] text-[#1a2e1f]">{title}</p>
-            <p className="sub mt-0.5 text-[12px] leading-[1.35] text-[#44624c]">
+          <div className="mt-4 max-w-[300px]">
+            <p
+              className="title text-lg leading-6 font-semibold tracking-[-0.01em] text-[#312E3F]"
+              style={{ fontFamily: 'var(--font-comanda-display), inherit' }}
+            >
+              {title}
+            </p>
+            <p className="sub mt-2 text-sm leading-[1.45] text-gray-500">
               {subtitle}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] text-[#5a7463] transition hover:bg-[#e8f5ee] active:scale-[0.97]"
-            aria-label="Închide promptul de instalare"
-          >
-            ✕
-          </button>
         </div>
 
-        <div className="pills mt-3 flex flex-wrap gap-2">
-          {['⚡ Instant', '📴 Offline', '🔔 Notificări', '🆓 Gratuit'].map((item) => (
-            <span
-              key={item}
-              className="rounded-full border px-2.5 py-1 text-[11px] font-semibold text-[#365843]"
-              style={{ borderColor: 'rgba(61,122,95,0.14)', backgroundColor: '#e8f5ee' }}
-            >
-              {item}
-            </span>
-          ))}
-        </div>
-
-        <div className="actions mt-4 flex items-center gap-2">
+        <div className="actions mt-5 flex w-full max-w-[300px] flex-col items-center gap-2">
           <button
             type="button"
             onClick={handleInstall}
-            className="flex-1 rounded-[14px] bg-[#3D7A5F] px-3 py-2.5 text-[13px] font-bold text-white shadow-[0_12px_24px_rgba(61,122,95,0.24)] transition hover:bg-[#356a52] active:scale-[0.98]"
+            className="w-full rounded-2xl bg-[#e85d5d] px-4 py-3 text-[14px] font-bold text-white shadow-[0_14px_26px_rgba(232,93,93,0.28)] transition hover:bg-[#dc5454] active:scale-[0.98]"
           >
-            📲 Instalează
+            📲 Salvează pe telefon
           </button>
           <button
             type="button"
             onClick={handleDismiss}
-            className="rounded-[14px] border px-3 py-2.5 text-[13px] font-semibold text-[#365843] transition hover:bg-[#f4fbf7] active:scale-[0.98]"
-            style={{ borderColor: 'rgba(61,122,95,0.15)' }}
+            className="rounded-full px-4 py-2 text-[13px] font-semibold text-[#8a7478] transition hover:bg-[#fff0f0] active:scale-[0.98]"
           >
             Amână
           </button>
@@ -238,7 +222,7 @@ export default function PWAInstallPrompt({
         <button
           type="button"
           onClick={handleNeverShow}
-          className="mt-3 text-left text-[12px] font-semibold text-[#5a7463] underline underline-offset-2"
+          className="mt-1 text-center text-[11px] font-semibold text-[#a08a8e] underline underline-offset-2"
         >
           Nu mai arăta
         </button>

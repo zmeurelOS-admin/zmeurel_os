@@ -59,8 +59,8 @@ export default async function ComandaLayout({ children }: { children: React.Reac
         <PWAInstallPromptMount
           allowPublicPaths
           iconSrc="/shop-icon-192.png"
-          title="Zmeurel pe ecranul tău"
-          subtitle="Fructe culese azi · Livrate direct din Văratec"
+          title="Fructe proaspete la o atingere"
+          subtitle="Salvează magazinul pe ecran pentru când ai poftă."
           iconAlt="Zmeurel"
         />
       ) : null}
