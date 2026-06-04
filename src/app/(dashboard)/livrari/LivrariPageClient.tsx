@@ -56,11 +56,6 @@ function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
   return lines.map((line) => `${line.label} × ${line.qty}`).join(' · ')
 }
 
-function telHref(phone: string) {
-  const digits = phone.replace(/\s/g, '')
-  return digits.startsWith('+') ? `tel:${digits}` : `tel:${digits.replace(/^0/, '+40')}`
-}
-
 export function LivrariPageClient() {
   const queryClient = useQueryClient()
   const [orderedIds, setOrderedIds] = useState<string[]>([])
@@ -415,15 +410,16 @@ function DeliveryOrderAccordion({
                 {productsLabel}
               </p>
             </div>
-            <p className="mt-2 text-[13px]">
-              <span className="font-semibold text-[var(--text-primary)]">Telefon: </span>
-              <a
-                href={telHref(order.customer_phone)}
-                className="font-medium text-[#1868DB] underline-offset-2 hover:underline"
-              >
-                {order.customer_phone}
-              </a>
+            <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
+              <span className="font-semibold text-[var(--text-primary)]">Adresă: </span>
+              {addressFull}
             </p>
+            {order.notes?.trim() ? (
+              <p className="mt-2 text-[13px] text-[var(--text-secondary)]">
+                <span className="font-semibold text-[var(--text-primary)]">Note: </span>
+                {order.notes.trim()}
+              </p>
+            ) : null}
 
             <div className="mt-3 flex gap-2">
               <a

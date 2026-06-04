@@ -66,6 +66,10 @@ function parseOrderItems(items: Json): ShopOrderItem[] {
     .filter((row): row is ShopOrderItem => row !== null)
 }
 
+function hasAddress(order: ShopOrderRow): boolean {
+  return typeof order.delivery_address === 'string' && order.delivery_address.trim().length > 0
+}
+
 export function buildLivrareWaMessage(order: ShopOrderRow): string {
   const productLines = parseOrderItems(order.items).map((row) => {
     const label = row.label ?? row.vid ?? 'Produs'
@@ -75,19 +79,25 @@ export function buildLivrareWaMessage(order: ShopOrderRow): string {
   })
 
   const productsBlock = productLines.length > 0 ? productLines.join('\n') : '• —'
-  const address = order.delivery_address?.trim() || '—'
+  const customerName = order.customer_name.trim()
+  const totalLine = `Total: ${formatLei(order.total_lei)} lei (numerar)`
 
-  return `Bună ${order.customer_name.trim()}! 🍓
-Comanda ta de la Zmeurel este în drum spre tine.
+  const closingBlock = hasAddress(order)
+    ? `Dacă aveți modificări (cantitate, adresă, oră), vă rugăm să ne scrieți la acest mesaj.`
+    : `Vă rugăm să ne comunicați adresa de livrare răspunzând la acest mesaj.
+Dacă aveți și alte modificări (cantitate, oră), ne puteți scrie tot aici.`
 
-Ce urmează să primești:
+  return `Bună ziua, ${customerName}! 🍓
+Comanda dvs. este programată pentru livrare astăzi.
+
+Ce primiți:
 ${productsBlock}
 
-Total de plată: ${formatLei(order.total_lei)} lei (cash sau Revolut)
-Adresă: ${address}
+${totalLine}
 
-Ne vedem în curând! 🚚
-— Echipa Zmeurel`
+${closingBlock}
+
+— Ferma Zmeurel, Văratec 📍`
 }
 
 export function buildLivrareWaUrl(order: ShopOrderRow): string {
