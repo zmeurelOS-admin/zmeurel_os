@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 import { ShopNotifPrompt } from '@/components/shop/ShopNotifPrompt'
 import { markNotificationPromptSession, shouldShowNotificationPrompt } from '@/lib/shop/useNotificationPrompt'
@@ -14,6 +14,27 @@ const B2B_WA_MESSAGE =
   'Bună! Reprezentăm [numele afacerii] și suntem interesați să achiziționăm fructe proaspete de la Zmeurel pentru clienții noștri. Puteți să ne trimiteți o ofertă B2B?'
 const B2B_WA_HREF = `${WA_BASE}?text=${encodeURIComponent(B2B_WA_MESSAGE)}`
 const CUSTOMER_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000
+const DELIVERY_CITY_SUGGESTIONS = [
+  'Suceava',
+  'Salcea',
+  'Văratec',
+  'Șcheia',
+  'Ipotești',
+  'Bosanci',
+  'Mitocu Dragomirnei',
+  'Moara',
+  'Adâncata',
+  'Verești',
+] as const
+const DELIVERY_CITIES_DATALIST_ID = 'shop-delivery-cities'
+
+type CheckoutFieldErrors = {
+  name?: string
+  phone?: string
+  city?: string
+  address?: string
+  cart?: string
+}
 
 type AcquisitionSource = 'facebook' | 'instagram' | 'recomandare' | 'google' | 'altceva'
 
@@ -113,6 +134,41 @@ export function normalizeCustomerPhone(value: string): string {
 
 function customerStorageKey(normalizedPhone: string): string {
   return `zmeurel_customer_${normalizedPhone}`
+}
+
+export function validateCheckoutForm(input: {
+  orderName: string
+  orderPhone: string
+  orderCity: string
+  orderAddress: string
+  deliveryMode: DeliveryMode
+  cartLineCount: number
+}): CheckoutFieldErrors {
+  const errors: CheckoutFieldErrors = {}
+
+  if (input.orderName.trim().length < 2) {
+    errors.name = 'Numele trebuie să aibă cel puțin 2 caractere.'
+  }
+
+  const phoneDigits = input.orderPhone.replace(/\D/g, '')
+  if (phoneDigits.length < 10) {
+    errors.phone = 'Introdu un număr valid (minim 10 cifre).'
+  }
+
+  if (input.cartLineCount === 0) {
+    errors.cart = 'Coșul este gol.'
+  }
+
+  if (input.deliveryMode === 'livrare') {
+    if (!input.orderCity.trim()) {
+      errors.city = 'Completează localitatea.'
+    }
+    if (input.orderAddress.trim().length < 5) {
+      errors.address = 'Adresa trebuie să aibă cel puțin 5 caractere.'
+    }
+  }
+
+  return errors
 }
 
 function coerceDeliveryMode(value: unknown): DeliveryMode {
@@ -220,6 +276,33 @@ function ZmeurelLogo({ className = '' }: { className?: string }) {
   )
 }
 
+function CheckoutOrderSummary({ lines, total }: { lines: CartLine[]; total: number }) {
+  return (
+    <section className="rounded-xl bg-[#faf8f8] px-3.5 py-3">
+      <p className="text-sm font-bold text-[#312E3F]">Comanda ta</p>
+      <ul className="mt-2 space-y-1.5 text-[13px] text-[#312E3F]">
+        {lines.map((line) => {
+          const unitPrice = line.product.price_lei ?? 0
+          const lineTotal = unitPrice * line.qty
+          const label = `${line.product.name} — ${line.product.unit_label}`
+          return (
+            <li key={line.product.id}>
+              {label} × {line.qty} — {formatLei(lineTotal)} lei
+            </li>
+          )
+        })}
+      </ul>
+      <div className="my-3 h-px bg-[#F3DAD4]" aria-hidden />
+      <p className="text-[15px] font-extrabold tabular-nums text-[#312E3F]">
+        TOTAL: {formatLei(total)} lei
+      </p>
+      <p className="mt-2 text-[11px] font-medium leading-relaxed text-[#6b7280]">
+        ✓ Livrare locală · ✓ Culese azi · ✓ Cash
+      </p>
+    </section>
+  )
+}
+
 function TrustPill({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F3DAD4] bg-white px-3 py-2 text-xs font-medium text-[#312E3F]">
@@ -251,6 +334,7 @@ export function ShopClient({
   const [orderNotes, setOrderNotes] = useState('')
   const [orderSubmitting, setOrderSubmitting] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
   const [sourceSaved, setSourceSaved] = useState(false)
@@ -265,6 +349,11 @@ export function ShopClient({
   const [cartToastVisible, setCartToastVisible] = useState(false)
   const cartToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const notificationPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const nameFieldRef = useRef<HTMLDivElement>(null)
+  const phoneFieldRef = useRef<HTMLDivElement>(null)
+  const cityFieldRef = useRef<HTMLDivElement>(null)
+  const addressFieldRef = useRef<HTMLDivElement>(null)
+  const cartErrorRef = useRef<HTMLParagraphElement>(null)
 
   const showCartAddedToast = useCallback(() => {
     if (cartToastTimerRef.current) {
@@ -560,20 +649,41 @@ export function ShopClient({
     }
   }
 
+  const scrollToFirstFieldError = useCallback((errors: CheckoutFieldErrors) => {
+    const targets: Array<[keyof CheckoutFieldErrors, RefObject<HTMLElement | null>]> = [
+      ['name', nameFieldRef],
+      ['phone', phoneFieldRef],
+      ['city', cityFieldRef],
+      ['address', addressFieldRef],
+      ['cart', cartErrorRef],
+    ]
+
+    for (const [key, ref] of targets) {
+      if (errors[key] && ref.current) {
+        ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        break
+      }
+    }
+  }, [])
+
   const submitOrder = async () => {
-    if (!orderName.trim() || !orderPhone.trim()) {
-      setOrderError('Completează numele și telefonul.')
-      return
-    }
-    if (deliveryMode === 'livrare' && !orderAddress.trim()) {
-      setOrderError('Introdu adresa de livrare.')
-      return
-    }
-    if (cartLines.length === 0) {
-      setOrderError('Coșul este gol.')
+    const validationErrors = validateCheckoutForm({
+      orderName,
+      orderPhone,
+      orderCity,
+      orderAddress,
+      deliveryMode,
+      cartLineCount: cartLines.length,
+    })
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors)
+      setOrderError(null)
+      scrollToFirstFieldError(validationErrors)
       return
     }
 
+    setFieldErrors({})
     setOrderSubmitting(true)
     setOrderError(null)
     setOrderSuccess(false)
@@ -1032,20 +1142,33 @@ export function ShopClient({
               </div>
             ) : (
               <>
+                <div className="mt-4">
+                  <CheckoutOrderSummary lines={cartLines} total={cartTotal} />
+                </div>
+
                 <div className="mt-4 space-y-3">
-                  <Field label="Nume" value={orderName} onChange={setOrderName} autoComplete="name" />
-                  <Field
-                    label="Telefon"
-                    value={orderPhone}
-                    onChange={setOrderPhone}
-                    autoComplete="tel"
-                    inputMode="tel"
-                  />
-                  {customerAutofillNotice ? (
-                    <p className="rounded-lg bg-[#E8F5EE] px-3 py-2 text-xs font-medium text-[#0D9B5C]">
-                      {customerAutofillNotice}
-                    </p>
-                  ) : null}
+                  <div ref={nameFieldRef}>
+                    <Field
+                      label="Nume"
+                      value={orderName}
+                      onChange={setOrderName}
+                      autoComplete="name"
+                      error={fieldErrors.name}
+                    />
+                  </div>
+                  <div ref={phoneFieldRef}>
+                    <Field
+                      label="Telefon"
+                      value={orderPhone}
+                      onChange={setOrderPhone}
+                      autoComplete="tel"
+                      inputMode="tel"
+                      error={fieldErrors.phone}
+                    />
+                    {customerAutofillNotice ? (
+                      <p className="mt-1 text-xs text-[#6b7280]">{customerAutofillNotice}</p>
+                    ) : null}
+                  </div>
 
                   <div>
                     <p className="mb-2 text-xs font-semibold text-[#312E3F]">Mod livrare</p>
@@ -1065,13 +1188,29 @@ export function ShopClient({
 
                   {deliveryMode === 'livrare' ? (
                     <>
-                      <Field
-                        label="Localitate"
-                        value={orderCity}
-                        onChange={setOrderCity}
-                        autoComplete="address-level2"
-                      />
-                      <Field label="Adresă livrare" value={orderAddress} onChange={setOrderAddress} />
+                      <div ref={cityFieldRef}>
+                        <Field
+                          label="Localitate"
+                          value={orderCity}
+                          onChange={setOrderCity}
+                          autoComplete="address-level2"
+                          list={DELIVERY_CITIES_DATALIST_ID}
+                          error={fieldErrors.city}
+                        />
+                      </div>
+                      <datalist id={DELIVERY_CITIES_DATALIST_ID}>
+                        {DELIVERY_CITY_SUGGESTIONS.map((city) => (
+                          <option key={city} value={city} />
+                        ))}
+                      </datalist>
+                      <div ref={addressFieldRef}>
+                        <Field
+                          label="Adresă livrare"
+                          value={orderAddress}
+                          onChange={setOrderAddress}
+                          error={fieldErrors.address}
+                        />
+                      </div>
                     </>
                   ) : null}
 
@@ -1092,7 +1231,7 @@ export function ShopClient({
                 </p>
 
                 <p className="mt-2 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs font-medium text-[#312E3F]/80">
-                  Plată: Cash sau Revolut
+                  Plată: cash la livrare
                 </p>
 
                 {lastOrder && lastOrder.items.length > 0 ? (
@@ -1111,6 +1250,12 @@ export function ShopClient({
                       </button>
                     </div>
                   </div>
+                ) : null}
+
+                {fieldErrors.cart ? (
+                  <p ref={cartErrorRef} className="mt-3 text-sm text-[#E15453]">
+                    {fieldErrors.cart}
+                  </p>
                 ) : null}
 
                 {orderError ? <p className="mt-3 text-sm text-[#E15453]">{orderError}</p> : null}
@@ -1311,12 +1456,16 @@ function Field({
   onChange,
   autoComplete,
   inputMode,
+  list,
+  error,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   autoComplete?: string
   inputMode?: 'tel' | 'text'
+  list?: string
+  error?: string
 }) {
   return (
     <label className="block text-xs font-semibold text-[#312E3F]">
@@ -1324,10 +1473,14 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-[#F3DAD4] bg-white px-3 py-[14px] text-sm outline-none focus:border-[#F16B6B]"
+        list={list}
+        className={`mt-1 w-full rounded-lg border bg-white px-3 py-[14px] text-sm outline-none ${
+          error ? 'border-[#E15453] focus:border-[#E15453]' : 'border-[#F3DAD4] focus:border-[#F16B6B]'
+        }`}
         autoComplete={autoComplete}
         inputMode={inputMode}
       />
+      {error ? <p className="mt-1 text-xs font-medium text-[#E15453]">{error}</p> : null}
     </label>
   )
 }
