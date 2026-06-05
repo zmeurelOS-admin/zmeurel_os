@@ -133,6 +133,10 @@ export function normalizeCustomerPhone(value: string): string {
 }
 
 function customerStorageKey(normalizedPhone: string): string {
+  return `zmeurel_c_${normalizedPhone}`
+}
+
+function legacyCustomerStorageKey(normalizedPhone: string): string {
   return `zmeurel_customer_${normalizedPhone}`
 }
 
@@ -182,7 +186,9 @@ export function readCustomerSnapshotFromStorage(phone: string): CustomerSnapshot
   if (normalizedPhone.length < 9) return null
 
   try {
-    const raw = window.localStorage.getItem(customerStorageKey(normalizedPhone))
+    const raw =
+      window.localStorage.getItem(customerStorageKey(normalizedPhone)) ??
+      window.localStorage.getItem(legacyCustomerStorageKey(normalizedPhone))
     if (!raw) return null
 
     const parsed = JSON.parse(raw) as Partial<CustomerSnapshot>
@@ -410,8 +416,15 @@ export function ShopClient({
     setDeliveryMode(snapshot.delivery_mode)
     setRecognizedCustomerPhone(snapshot.phone)
     setLastOrderApplied(false)
-    setCustomerAutofillNotice(source === 'local' ? 'Date completate automat' : 'Date găsite după telefon')
+    void source
+    setCustomerAutofillNotice('Date completate automat ✓')
   }, [])
+
+  useEffect(() => {
+    if (!customerAutofillNotice) return
+    const timeout = window.setTimeout(() => setCustomerAutofillNotice(null), 3000)
+    return () => window.clearTimeout(timeout)
+  }, [customerAutofillNotice])
 
   useEffect(() => {
     const rawDigits = orderPhone.replace(/\D+/g, '')
@@ -466,7 +479,7 @@ export function ShopClient({
       } catch {
         // Offline/error fallback is the localStorage path above.
       }
-    }, 350)
+    }, 500)
 
     return () => {
       controller.abort()
