@@ -838,7 +838,7 @@ export function ShopClient({
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <TrustPill>Culese în ziua livrării</TrustPill>
           <TrustPill>Livrare la domiciliu</TrustPill>
-          <TrustPill>Cash sau Revolut</TrustPill>
+          <TrustPill>Plată cash</TrustPill>
         </div>
 
         {/* PRODUSE */}
@@ -1002,7 +1002,7 @@ export function ShopClient({
               <span className="text-[#F16B6B]">✓</span> Recoltă manuală, fruct cu fruct
             </li>
             <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Cash sau Revolut
+              <span className="text-[#F16B6B]">✓</span> Plată cash
             </li>
           </ul>
         </section>

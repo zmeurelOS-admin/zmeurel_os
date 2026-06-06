@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   title: 'Zmeurel — Afine siberiene | Văratec, Suceava',
   description:
     'Afine siberiene proaspete din Văratec. Culese dimineața, livrate în aceeași zi în Suceava și împrejurimi. Comandă direct de la fermă.',
+  manifest: '/comanda/manifest.webmanifest',
   robots: { index: true, follow: true },
 }
 
