@@ -2950,7 +2950,9 @@ export type Database = {
           customer_phone: string
           delivery_address: string | null
           delivery_city: string | null
+          delivery_date: string | null
           delivery_mode: string
+          delivery_position: number | null
           id: string
           items: Json
           notes: string | null
@@ -2965,7 +2967,9 @@ export type Database = {
           customer_phone: string
           delivery_address?: string | null
           delivery_city?: string | null
+          delivery_date?: string | null
           delivery_mode: string
+          delivery_position?: number | null
           id?: string
           items: Json
           notes?: string | null
@@ -2980,7 +2984,9 @@ export type Database = {
           customer_phone?: string
           delivery_address?: string | null
           delivery_city?: string | null
+          delivery_date?: string | null
           delivery_mode?: string
+          delivery_position?: number | null
           id?: string
           items?: Json
           notes?: string | null
@@ -4258,6 +4264,32 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { check_user_id?: string }; Returns: boolean }
+      list_shop_orders_in_delivery_today: {
+        Args: never
+        Returns: {
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_city: string | null
+          delivery_date: string | null
+          delivery_mode: string
+          delivery_position: number | null
+          id: string
+          items: Json
+          notes: string | null
+          notified_wa: boolean
+          status: string
+          tenant_id: string | null
+          total_lei: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shop_orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       list_association_farmer_legal_status: {
         Args: never
         Returns: {
@@ -4295,6 +4327,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reorder_shop_deliveries_today: {
+        Args: { p_order_ids: string[] }
+        Returns: number
       }
       reopen_comanda_atomic: {
         Args: { p_comanda_id: string; p_tenant_id?: string }
@@ -4648,4 +4684,3 @@ export const Constants = {
     },
   },
 } as const
-

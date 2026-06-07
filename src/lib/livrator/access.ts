@@ -1,5 +1,9 @@
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
+import {
+  getBucharestDayUtcRange,
+  todayBucharestDate,
+  type ShopOrderRow,
+} from '@/lib/shop/b2c-order-helpers'
 
 export const LIVRATOR_TOKEN_COOKIE = 'livrator_token'
 export const LIVRATOR_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
@@ -55,12 +59,19 @@ export async function getActiveLivratorByToken(
   }
 }
 
-export async function listLivratorOrdersInLivrare(): Promise<ShopOrderRow[]> {
+export async function listLivratorOrdersInLivrare(tenantId: string): Promise<ShopOrderRow[]> {
   const admin = getSupabaseAdmin()
+  const today = todayBucharestDate()
+  const { startIso, endIso } = getBucharestDayUtcRange(today)
   const { data, error } = await admin
     .from('shop_orders')
     .select('*')
+    .eq('tenant_id', tenantId)
     .eq('status', 'in_livrare')
+    .or(
+      `delivery_date.eq.${today},and(delivery_date.is.null,created_at.gte.${startIso},created_at.lt.${endIso})`,
+    )
+    .order('delivery_position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
 
   if (error) {

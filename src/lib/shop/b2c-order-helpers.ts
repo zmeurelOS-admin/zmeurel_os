@@ -9,11 +9,68 @@ export type ShopOrderRow = {
   customer_phone: string
   delivery_mode: string
   delivery_address: string | null
+  delivery_date: string | null
+  delivery_position: number | null
   items: Json
   total_lei: number
   notes: string | null
   status: ShopOrderStatus
   notified_wa: boolean
+}
+
+export function todayBucharestDate(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Bucharest',
+  }).format(new Date())
+}
+
+function bucharestMidnightUtc(year: number, month: number, day: number): number {
+  const desiredUtc = Date.UTC(year, month - 1, day)
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Bucharest',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+  const adjustGuess = (utcGuess: number) => {
+    const values = Object.fromEntries(
+      formatter.formatToParts(new Date(utcGuess)).map((part) => [part.type, part.value]),
+    )
+    const representedUtc = Date.UTC(
+      Number(values.year),
+      Number(values.month) - 1,
+      Number(values.day),
+      Number(values.hour),
+      Number(values.minute),
+      Number(values.second),
+    )
+    return utcGuess - (representedUtc - desiredUtc)
+  }
+
+  return adjustGuess(adjustGuess(desiredUtc))
+}
+
+export function getBucharestDayUtcRange(dateKey = todayBucharestDate()): {
+  startIso: string
+  endIso: string
+} {
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const startMs = bucharestMidnightUtc(year, month, day)
+  const nextDate = new Date(Date.UTC(year, month - 1, day + 1))
+  const endMs = bucharestMidnightUtc(
+    nextDate.getUTCFullYear(),
+    nextDate.getUTCMonth() + 1,
+    nextDate.getUTCDate(),
+  )
+
+  return {
+    startIso: new Date(startMs).toISOString(),
+    endIso: new Date(endMs).toISOString(),
+  }
 }
 
 type ShopOrderItem = {

@@ -31,7 +31,7 @@ export default async function LivratorLivrariPage() {
     )
   }
 
-  const orders = await listLivratorOrdersInLivrare()
+  const orders = await listLivratorOrdersInLivrare(member.tenant_id)
 
   return (
     <LivratorLivrariClient

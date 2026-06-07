@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildLivrareWaMessage, type ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
+import {
+  buildLivrareWaMessage,
+  getBucharestDayUtcRange,
+  type ShopOrderRow,
+} from '@/lib/shop/b2c-order-helpers'
 
 function makeOrder(overrides: Partial<ShopOrderRow> = {}): ShopOrderRow {
   return {
@@ -10,6 +14,8 @@ function makeOrder(overrides: Partial<ShopOrderRow> = {}): ShopOrderRow {
     customer_phone: '0752123456',
     delivery_mode: 'livrare',
     delivery_address: 'Str. Florilor 12, Suceava',
+    delivery_date: null,
+    delivery_position: null,
     items: [{ label: 'Afine 500g', qty: 2, price_lei: 40 }],
     total_lei: 80,
     notes: null,
@@ -62,5 +68,16 @@ describe('buildLivrareWaMessage', () => {
     expect(message).not.toContain(
       'Dacă aveți modificări (cantitate, adresă, oră), vă rugăm să ne scrieți la acest mesaj.',
     )
+  })
+})
+
+describe('getBucharestDayUtcRange', () => {
+  it.each([
+    ['2026-01-07', '2026-01-06T22:00:00.000Z', '2026-01-07T22:00:00.000Z'],
+    ['2026-06-07', '2026-06-06T21:00:00.000Z', '2026-06-07T21:00:00.000Z'],
+    ['2026-03-29', '2026-03-28T22:00:00.000Z', '2026-03-29T21:00:00.000Z'],
+    ['2026-10-25', '2026-10-24T21:00:00.000Z', '2026-10-25T22:00:00.000Z'],
+  ])('calculează corect intervalul UTC pentru %s', (dateKey, startIso, endIso) => {
+    expect(getBucharestDayUtcRange(dateKey)).toEqual({ startIso, endIso })
   })
 })

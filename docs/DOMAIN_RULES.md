@@ -112,6 +112,8 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 ## Orders And Sales Rules
 
 - `comenzi` represent open or historical client orders.
+- `shop_orders` delivery routing is day-scoped by nullable `delivery_date`, with legacy fallback to the Bucharest calendar date of `created_at`; route order is stored in nullable `delivery_position`.
+- Reordering a B2C delivery route must update the complete current-day tenant route in one transaction. It may set missing `delivery_date`, but must not change status, item, total, stock, sale, or revenue fields.
 - Order statuses include `noua`, `confirmata`, `programata`, `in_livrare`, `livrata`, `anulata`.
 - Delivering an order can:
   - deduct stock
