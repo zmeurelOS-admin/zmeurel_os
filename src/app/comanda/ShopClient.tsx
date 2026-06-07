@@ -708,7 +708,7 @@ export function ShopClient({
             fill
             priority
             sizes="(max-width: 640px) 100vw, 540px"
-            className="object-cover object-center"
+            className="object-cover object-bottom"
           />
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#312E3F]/35 to-transparent" aria-hidden />
           <span className="absolute left-4 top-4 rounded-full bg-[#FFF6F3]/95 px-3 py-2 text-xs font-bold text-[#3D7A5F] shadow-md backdrop-blur-sm">
