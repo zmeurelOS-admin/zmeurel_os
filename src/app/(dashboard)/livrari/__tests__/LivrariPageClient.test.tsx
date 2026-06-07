@@ -142,7 +142,7 @@ describe('LivrariPageClient', () => {
 
     expect(screen.getByRole('heading', { name: 'Marchezi comanda ca livrată?' })).toBeInTheDocument()
     expect(
-      screen.getByText(/Nu creează automat o vânzare sau încasare și nu scade stocul/),
+      screen.getByText(/creează venitul în Vânzări și scade din stoc/),
     ).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
@@ -150,6 +150,26 @@ describe('LivrariPageClient', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
     expect(await screen.findByText('Livrate (1)')).toBeInTheDocument()
     expect(toastSuccessMock).toHaveBeenCalledWith('Comandă livrată')
+  })
+
+  it('restaurează comanda și totalul când livrarea atomică eșuează', async () => {
+    const user = userEvent.setup()
+    vi.mocked(global.fetch).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ success: false, error: 'Stoc insuficient pentru livrare.' }),
+    } as Response)
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
+    await user.click(screen.getByRole('button', { name: /Marchează livrat/ }))
+    await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith('Stoc insuficient pentru livrare.'),
+    )
+    expect(screen.getByText('Maria Popescu')).toBeInTheDocument()
+    expect(screen.getByText(/1 comandă · Rămân 20 lei/)).toBeInTheDocument()
+    expect(screen.queryByText('Livrate (1)')).not.toBeInTheDocument()
   })
 
   it('recalculează totalul local în editarea rapidă fără a salva în DB', async () => {

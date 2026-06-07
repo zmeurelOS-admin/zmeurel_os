@@ -190,6 +190,10 @@ export function LivrariPageClient() {
     onMutate: async (order) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.shopOrdersInLivrare })
       const previous = queryClient.getQueryData<ShopOrderRow[]>(queryKeys.shopOrdersInLivrare)
+      const previousCount = queryClient.getQueryData<number>(
+        queryKeys.shopOrdersInLivrareCount,
+      )
+      const previousOrderedIds = orderedIds
       queryClient.setQueryData<ShopOrderRow[]>(
         queryKeys.shopOrdersInLivrare,
         (current) => current?.filter((item) => item.id !== order.id) ?? [],
@@ -205,7 +209,7 @@ export function LivrariPageClient() {
       if (expandedId === order.id) setExpandedId(null)
       if (reorderingId === order.id) setReorderingId(null)
       setDeliverTarget(null)
-      return { previous, order }
+      return { previous, previousCount, previousOrderedIds, order }
     },
     onSuccess: () => {
       toast.success('Comandă livrată')
@@ -214,6 +218,12 @@ export function LivrariPageClient() {
     onError: (error: Error, _order, context) => {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.shopOrdersInLivrare, context.previous)
+      }
+      if (context?.previousCount !== undefined) {
+        queryClient.setQueryData(queryKeys.shopOrdersInLivrareCount, context.previousCount)
+      }
+      if (context?.previousOrderedIds) {
+        setOrderedIds(context.previousOrderedIds)
       }
       if (context?.order) {
         setDeliveredInSession((current) =>
@@ -611,8 +621,8 @@ function DeliveryConfirmationDialog({
                 </p>
               </div>
               <p>
-                Fluxul actual schimbă doar statusul comenzii. Nu creează automat o vânzare sau
-                încasare și nu scade stocul.
+                Confirmarea creează venitul în Vânzări și scade din stoc greutatea produselor
+                livrate. Dacă stocul este insuficient, comanda rămâne nelivrată.
               </p>
             </div>
           </AlertDialogDescription>

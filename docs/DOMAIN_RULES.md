@@ -114,6 +114,9 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 - `comenzi` represent open or historical client orders.
 - `shop_orders` delivery routing is day-scoped by nullable `delivery_date`, with legacy fallback to the Bucharest calendar date of `created_at`; route order is stored in nullable `delivery_position`.
 - Reordering a B2C delivery route must update the complete current-day tenant route in one transaction. It may set missing `delivery_date`, but must not change status, item, total, stock, sale, or revenue fields.
+- Delivering a B2C `shop_order` must use `deliver_shop_order_atomic`, never a direct status update. The RPC locks the tenant-scoped shop order, requires a positive `shop_products.unit_weight_kg` for every item, snapshots the weights in `shop_order_erp_links`, creates one aggregated ERP `comenzi` row, and delegates sale/stock mutation to the unchanged `deliver_order_atomic`.
+- `shop_order_erp_links.shop_order_id` is unique and is the idempotency boundary: retries return the existing ERP link and must not create another sale or deduct stock again.
+- Product package weights are configuration, not inferred from labels. Schema migrations must not backfill `shop_products.unit_weight_kg`; delivery remains blocked with a clear error until each ordered product has an explicit weight.
 - Order statuses include `noua`, `confirmata`, `programata`, `in_livrare`, `livrata`, `anulata`.
 - Delivering an order can:
   - deduct stock

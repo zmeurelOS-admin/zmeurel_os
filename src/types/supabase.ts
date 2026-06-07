@@ -2997,6 +2997,52 @@ export type Database = {
         }
         Relationships: []
       }
+      shop_order_erp_links: {
+        Row: {
+          comanda_id: string
+          created_at: string
+          shop_order_id: string
+          tenant_id: string
+          weight_snapshot: Json
+        }
+        Insert: {
+          comanda_id: string
+          created_at?: string
+          shop_order_id: string
+          tenant_id: string
+          weight_snapshot?: Json
+        }
+        Update: {
+          comanda_id?: string
+          created_at?: string
+          shop_order_id?: string
+          tenant_id?: string
+          weight_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_order_erp_links_comanda_id_fkey"
+            columns: ["comanda_id"]
+            isOneToOne: true
+            referencedRelation: "comenzi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_order_erp_links_shop_order_id_fkey"
+            columns: ["shop_order_id"]
+            isOneToOne: true
+            referencedRelation: "shop_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_order_erp_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_products: {
         Row: {
           available: boolean
@@ -3006,6 +3052,7 @@ export type Database = {
           name: string
           price_lei: number | null
           sort_order: number
+          unit_weight_kg: number | null
           unit_label: string
         }
         Insert: {
@@ -3016,6 +3063,7 @@ export type Database = {
           name: string
           price_lei?: number | null
           sort_order?: number
+          unit_weight_kg?: number | null
           unit_label: string
         }
         Update: {
@@ -3026,6 +3074,7 @@ export type Database = {
           name?: string
           price_lei?: number | null
           sort_order?: number
+          unit_weight_kg?: number | null
           unit_label?: string
         }
         Relationships: []
@@ -4233,6 +4282,13 @@ export type Database = {
           p_order_id: string
           p_payment_status?: string
           p_remaining_delivery_date?: string
+        }
+        Returns: Json
+      }
+      deliver_shop_order_atomic: {
+        Args: {
+          p_payment_status?: string
+          p_shop_order_id: string
         }
         Returns: Json
       }

@@ -51,6 +51,7 @@ The product also includes:
 
 - `comenzi` represent client delivery orders.
 - Delivering an order can atomically create a linked sale and deduct stock.
+- Delivering a B2C `shop_order` uses `deliver_shop_order_atomic`: package quantities are converted to kg from explicit `shop_products.unit_weight_kg`, then the existing ERP `deliver_order_atomic` creates the sale and stock movement. `shop_order_erp_links` makes this bridge traceable and idempotent.
 - `vanzari` represent sales, also backed by stock-safe RPCs.
 - `vanzari_butasi` is a separate workflow for seedling orders with line items.
 
@@ -104,7 +105,7 @@ Common table groups:
 
 - identity and tenancy: `profiles`, `tenants`
 - farm operations: `parcele`, `culturi`, `activitati_agricole`, `recoltari`, `culegatori`
-- commercial: `clienti`, `comenzi`, `vanzari`, `vanzari_butasi`, `vanzari_butasi_items`
+- commercial: `clienti`, `comenzi`, `vanzari`, `vanzari_butasi`, `vanzari_butasi_items`, `shop_orders`, `shop_order_erp_links`
 - finance/inventory: `cheltuieli_diverse`, `investitii`, `miscari_stoc`
 - solar-specific: `solar_climate_logs`, `culture_stage_logs`, `crops`, `crop_varieties`
 - product telemetry/admin: `analytics_events`, `alert_dismissals`, `integrations_google_contacts`

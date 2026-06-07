@@ -17,6 +17,9 @@ const patchBodySchema = z
   .refine((body) => body.status !== undefined || body.notified_wa !== undefined, {
     message: 'Trimite status sau notified_wa.',
   })
+  .refine((body) => body.status !== 'livrata' || body.notified_wa === undefined, {
+    message: 'Livrarea și notificarea WhatsApp se actualizează separat.',
+  })
 
 function errorResponse(message: string, status: number) {
   return NextResponse.json({ success: false, error: message }, { status })
@@ -53,6 +56,23 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) {
     const first = parsed.error.issues[0]?.message ?? 'Date invalide'
     return errorResponse(first, 400)
+  }
+
+  if (parsed.data.status === 'livrata') {
+    const { data, error } = await supabase.rpc('deliver_shop_order_atomic', {
+      p_shop_order_id: id,
+      p_payment_status: 'platit',
+    })
+
+    if (error) {
+      console.error(
+        '[shop/b2c/orders] atomic delivery failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...error })),
+      )
+      return errorResponse(error.message || 'Nu am putut marca livrarea.', 409)
+    }
+
+    return NextResponse.json({ success: true, delivery: data })
   }
 
   const updates: { status?: string; notified_wa?: boolean } = {}

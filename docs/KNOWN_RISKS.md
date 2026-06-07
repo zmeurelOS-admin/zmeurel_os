@@ -52,9 +52,12 @@
   - `update_vanzare_with_stock`
   - `delete_vanzare_with_stock`
   - `deliver_order_atomic`
+  - `deliver_shop_order_atomic`
   - `delete_comanda_atomic`
   - `reopen_comanda_atomic`
 - Changing client logic around these flows can cause stock inconsistencies.
+- B2C delivery is blocked when any ordered `shop_products` row lacks a positive `unit_weight_kg`. Do not infer weight from `unit_label` or product labels, and do not bypass the bridge with a direct `shop_orders.status = livrata` update.
+- `deliver_shop_order_atomic` currently aggregates all shop lines into one ERP order and relies on the accepted global stock allocation behavior of `deliver_order_atomic`; product-specific stock allocation is not represented by this bridge.
 - The automated stock audit in `Rapoarte` is advisory and depends on the integrity of both:
   - domain tables (`recoltari`, `vanzari`)
   - ledger data (`miscari_stoc`)
