@@ -20,9 +20,9 @@ const hanken = Hanken_Grotesk({
 })
 
 export const metadata: Metadata = {
-  title: 'Zmeurel — Afine siberiene | Văratec, Suceava',
+  title: 'Zmeurel — Zmeură proaspătă | Văratec, Suceava',
   description:
-    'Afine siberiene proaspete din Văratec. Culese dimineața, livrate în aceeași zi în Suceava și împrejurimi. Comandă direct de la fermă.',
+    'Zmeură proaspătă din Văratec. Culeasă dimineața, livrată în aceeași zi în Suceava și împrejurimi. Comandă direct de la fermă.',
   manifest: '/comanda/manifest.webmanifest',
   robots: { index: true, follow: true },
 }

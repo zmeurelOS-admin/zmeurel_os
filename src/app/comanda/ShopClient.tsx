@@ -767,7 +767,7 @@ export function ShopClient({
         <div className="flex items-center justify-between gap-3">
           <ZmeurelLogo />
           <a
-            href="https://wa.me/40752953048?text=Bun%C4%83!%20A%C8%99%20dori%20s%C4%83%20comand%20afine%20siberiene%20de%20la%20Zmeurel."
+            href="https://wa.me/40752953048?text=Bun%C4%83!%20A%C8%99%20dori%20s%C4%83%20comand%20zmeur%C4%83%20proasp%C4%83t%C4%83%20de%20la%20Zmeurel."
             target="_blank"
             rel="noopener noreferrer"
             className={`inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white ${styles.waPulse}`}
@@ -791,7 +791,7 @@ export function ShopClient({
             className={`mb-4 inline-block rounded-2xl bg-gradient-to-r from-[#5B4FCF] to-[#7B6BFF] px-4 py-2 text-[11px] font-semibold leading-snug tracking-wide text-white shadow-md ${styles.badgeTilt}`}
           >
             <span className="block uppercase opacity-90">Acum disponibile</span>
-            <span className={`block text-sm ${styles.fontDisplay}`}>Afine siberiene</span>
+            <span className={`block text-sm ${styles.fontDisplay}`}>Zmeură proaspătă</span>
             <span className="block opacity-90">Recoltă 2026 · Văratec</span>
           </div>
 
@@ -801,8 +801,7 @@ export function ShopClient({
                 Primele fructe ale sezonului, Culese în ziua livrării.
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-white/95">
-                Afine siberiene proaspete din ferma noastră din Văratec. Culese dimineața și livrate în aceeași
-                zi.
+                Zmeură proaspătă din ferma noastră din Văratec. Culeasă dimineața și livrată în aceeași zi.
               </p>
               <button
                 type="button"
@@ -816,7 +815,7 @@ export function ShopClient({
             <div className="relative aspect-[4/3] overflow-hidden rounded-[22px]">
               <Image
                 src="/shop/shop-hero.jpg"
-                alt="Afine siberiene proaspete culese dimineața în ferma din Văratec"
+                alt="Zmeură proaspătă culeasă dimineața în ferma din Văratec"
                 fill
                 priority
                 sizes="(max-width: 640px) 100vw, 540px"
