@@ -4,6 +4,13 @@ import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
 import { ShopNotifPrompt } from '@/components/shop/ShopNotifPrompt'
+import {
+  computeZmeuraSavingsLei,
+  computeZmeuraTotalLei,
+  ZMEURA_CASEROLA_PRICE_LEI,
+  ZMEURA_KG_PRICE_LEI,
+  ZMEURA_PRODUCT_ID,
+} from '@/lib/shop/pricing'
 import { markNotificationPromptSession, shouldShowNotificationPrompt } from '@/lib/shop/useNotificationPrompt'
 import styles from './comanda.module.css'
 
@@ -241,8 +248,7 @@ function buildWaMessage(input: {
 }) {
   const productLines = input.lines
     .map((line) => {
-      const unit = line.product.price_lei ?? 0
-      const sub = unit * line.qty
+      const sub = computeZmeuraTotalLei(line.qty)
       return `• ${line.product.unit_label} × ${line.qty} = ${formatLei(sub)} lei`
     })
     .join('\n')
@@ -283,13 +289,15 @@ function ZmeurelLogo({ className = '' }: { className?: string }) {
 }
 
 function CheckoutOrderSummary({ lines, total }: { lines: CartLine[]; total: number }) {
+  const totalQty = lines.reduce((sum, line) => sum + line.qty, 0)
+  const savingsLei = computeZmeuraSavingsLei(totalQty)
+
   return (
     <section className="rounded-xl bg-[#faf8f8] px-3.5 py-3">
       <p className="text-sm font-bold text-[#312E3F]">Comanda ta</p>
       <ul className="mt-2 space-y-1.5 text-[13px] text-[#312E3F]">
         {lines.map((line) => {
-          const unitPrice = line.product.price_lei ?? 0
-          const lineTotal = unitPrice * line.qty
+          const lineTotal = computeZmeuraTotalLei(line.qty)
           const label = `${line.product.name} — ${line.product.unit_label}`
           return (
             <li key={line.product.id}>
@@ -302,6 +310,11 @@ function CheckoutOrderSummary({ lines, total }: { lines: CartLine[]; total: numb
       <p className="text-[15px] font-extrabold tabular-nums text-[#312E3F]">
         TOTAL: {formatLei(total)} lei
       </p>
+      {savingsLei > 0 ? (
+        <p className="mt-1 text-xs font-semibold text-[#0D9B5C]">
+          Preț pe volum: economisești {formatLei(savingsLei)} lei.
+        </p>
+      ) : null}
       <p className="mt-2 text-[11px] font-medium leading-relaxed text-[#6b7280]">
         ✓ Livrare locală · ✓ Culese azi · ✓ Cash
       </p>
@@ -327,8 +340,14 @@ export function ShopClient({
   products: ComandaShopProduct[]
   loadError: string | null
 }) {
-  const available = useMemo(() => products.filter((p) => p.available), [products])
-  const comingSoon = useMemo(() => products.filter((p) => !p.available), [products])
+  const available = useMemo(
+    () => products.filter((product) => product.available && product.id === ZMEURA_PRODUCT_ID),
+    [products],
+  )
+  const comingSoon = useMemo(
+    () => products.filter((product) => !product.available && product.id === ZMEURA_PRODUCT_ID),
+    [products],
+  )
 
   const [qtyById, setQtyById] = useState<Record<string, number>>({})
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -384,14 +403,7 @@ export function ShopClient({
   }, [])
 
   useEffect(() => {
-    if (!orderSuccess) {
-      setNotificationPromptVisible(false)
-      if (notificationPromptTimerRef.current) {
-        clearTimeout(notificationPromptTimerRef.current)
-        notificationPromptTimerRef.current = null
-      }
-      return
-    }
+    if (!orderSuccess) return
 
     notificationPromptTimerRef.current = setTimeout(() => {
       if (shouldShowNotificationPrompt()) {
@@ -420,6 +432,20 @@ export function ShopClient({
     setCustomerAutofillNotice('Date completate automat ✓')
   }, [])
 
+  const updateOrderPhone = useCallback((value: string) => {
+    setOrderPhone(value)
+
+    const rawDigits = value.replace(/\D+/g, '')
+    const normalizedPhone = normalizeCustomerPhone(value)
+    if (rawDigits.length >= 10 && normalizedPhone.length >= 9) return
+
+    lastCustomerLookupPhoneRef.current = null
+    setCustomerAutofillNotice(null)
+    setRecognizedCustomerPhone(null)
+    setLastOrder(null)
+    setLastOrderApplied(false)
+  }, [])
+
   useEffect(() => {
     if (!customerAutofillNotice) return
     const timeout = window.setTimeout(() => setCustomerAutofillNotice(null), 3000)
@@ -432,10 +458,6 @@ export function ShopClient({
 
     if (rawDigits.length < 10 || normalizedPhone.length < 9) {
       lastCustomerLookupPhoneRef.current = null
-      setCustomerAutofillNotice(null)
-      setRecognizedCustomerPhone(null)
-      setLastOrder(null)
-      setLastOrderApplied(false)
       return
     }
 
@@ -444,8 +466,10 @@ export function ShopClient({
 
     const cached = readCustomerSnapshotFromStorage(orderPhone)
     if (cached) {
-      applyCustomerSnapshot(cached, 'local')
-      return
+      const cachedApplyTimeout = window.setTimeout(() => {
+        applyCustomerSnapshot(cached, 'local')
+      }, 0)
+      return () => window.clearTimeout(cachedApplyTimeout)
     }
 
     const controller = new AbortController()
@@ -532,10 +556,8 @@ export function ShopClient({
   }, [available, qtyById])
 
   const cartCount = useMemo(() => cartLines.reduce((s, l) => s + l.qty, 0), [cartLines])
-  const cartTotal = useMemo(
-    () => cartLines.reduce((s, l) => s + (l.product.price_lei ?? 0) * l.qty, 0),
-    [cartLines],
-  )
+  const cartTotal = useMemo(() => computeZmeuraTotalLei(cartCount), [cartCount])
+  const cartSavingsLei = useMemo(() => computeZmeuraSavingsLei(cartCount), [cartCount])
 
   const setQty = useCallback((id: string, next: number) => {
     setQtyById((prev) => {
@@ -700,12 +722,13 @@ export function ShopClient({
     setOrderSubmitting(true)
     setOrderError(null)
     setOrderSuccess(false)
+    setNotificationPromptVisible(false)
 
     const items = cartLines.map((line) => ({
       vid: line.product.id,
       label: `${line.product.name} — ${line.product.unit_label}`,
       qty: line.qty,
-      price_lei: line.product.price_lei ?? 0,
+      price_lei: ZMEURA_CASEROLA_PRICE_LEI,
     }))
 
     try {
@@ -866,7 +889,10 @@ export function ShopClient({
                     <h3 className="text-[15px] font-semibold leading-tight text-[#312E3F]">{product.name}</h3>
                     <p className="mt-0.5 text-xs text-[#312E3F]/60">{product.unit_label}</p>
                     <p className="mt-0.5 text-[17px] font-bold text-[#F16B6B]">
-                      {product.price_lei != null ? `${formatLei(product.price_lei)} lei` : '—'}
+                      {formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei / caserolă
+                    </p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-[#0D9B5C]">
+                      {formatLei(ZMEURA_KG_PRICE_LEI)} lei/kg · 2 caserole
                     </p>
                   </div>
                   {qty === 0 ? (
@@ -1080,11 +1106,17 @@ export function ShopClient({
                 {cartCount} {cartCount === 1 ? 'produs' : 'produse'}
               </p>
               <p className="text-white/80">{formatLei(cartTotal)} lei</p>
+              {cartSavingsLei > 0 ? (
+                <p className="text-[11px] font-semibold text-[#A7F3D0]">
+                  Economisești {formatLei(cartSavingsLei)} lei
+                </p>
+              ) : null}
             </div>
             <button
               type="button"
               onClick={() => {
                 setOrderSuccess(false)
+                setNotificationPromptVisible(false)
                 setOrderError(null)
                 setSheetOpen(true)
               }}
@@ -1172,7 +1204,7 @@ export function ShopClient({
                     <Field
                       label="Telefon"
                       value={orderPhone}
-                      onChange={setOrderPhone}
+                      onChange={updateOrderPhone}
                       autoComplete="tel"
                       inputMode="tel"
                       error={fieldErrors.phone}

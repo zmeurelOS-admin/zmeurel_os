@@ -8,6 +8,11 @@ import {
   NOTIFICATION_TYPES,
 } from '@/lib/notifications/create'
 import { upsertShopCustomer } from '@/lib/shop/b2c-customers'
+import {
+  computeZmeuraTotalLei,
+  ZMEURA_CASEROLA_PRICE_LEI,
+  ZMEURA_PRODUCT_ID,
+} from '@/lib/shop/pricing'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Json } from '@/types/supabase'
 
@@ -24,7 +29,7 @@ const bodySchema = z.object({
   delivery_mode: z.enum(['livrare', 'ridicare']),
   delivery_address: z.string().trim().max(500).optional(),
   delivery_city: z.string().trim().max(120).optional(),
-  items: z.array(lineSchema).min(1, 'Coșul este gol'),
+  items: z.array(lineSchema).length(1, 'Coșul trebuie să conțină doar zmeură'),
   total_lei: z.number().int().positive('Total invalid'),
   notes: z.string().trim().max(2000).optional(),
 })
@@ -59,14 +64,26 @@ export async function POST(request: Request) {
     delivery_address,
     delivery_city,
     items,
-    total_lei,
     notes,
   } = parsed.data
   const configuredTenantId = process.env.SHOP_TENANT_ID?.trim() || null
+  const item = items[0]
 
   if (delivery_mode === 'livrare' && !delivery_address?.trim()) {
     return errorResponse('Introdu adresa de livrare', 400)
   }
+
+  if (!item || item.vid !== ZMEURA_PRODUCT_ID) {
+    return errorResponse('Magazinul acceptă momentan doar comenzi de zmeură.', 400)
+  }
+
+  const totalLei = computeZmeuraTotalLei(item.qty)
+  const normalizedItems = [
+    {
+      ...item,
+      price_lei: ZMEURA_CASEROLA_PRICE_LEI,
+    },
+  ]
 
   const admin = getSupabaseAdmin()
   const { data, error } = await admin
@@ -78,8 +95,8 @@ export async function POST(request: Request) {
       delivery_mode,
       delivery_address: delivery_address?.trim() || null,
       delivery_city: delivery_city?.trim() || null,
-      items: items as Json,
-      total_lei,
+      items: normalizedItems as Json,
+      total_lei: totalLei,
       notes: notes?.trim() || null,
     })
     .select('id')
@@ -98,16 +115,16 @@ export async function POST(request: Request) {
       '[shop/b2c/order] SHOP_TENANT_ID missing; created order without tenant notification',
       sanitizeForLog({ orderId: data.id }),
     )
-    return NextResponse.json({ success: true, order_id: data.id })
+    return NextResponse.json({ success: true, order_id: data.id, total_lei: totalLei })
   }
 
-  const productSummary = items.map((item) => item.label).join(', ')
+  const productSummary = normalizedItems.map((orderItem) => orderItem.label).join(', ')
   const extra = {
     orderId: data.id,
     tenantId: configuredTenantId,
     clientName: customer_name,
-    totalLei: total_lei,
-    lineCount: items.length,
+    totalLei,
+    lineCount: normalizedItems.length,
     channel: 'farm_shop',
   }
 
@@ -156,5 +173,5 @@ export async function POST(request: Request) {
     )
   }
 
-  return NextResponse.json({ success: true, order_id: data.id })
+  return NextResponse.json({ success: true, order_id: data.id, total_lei: totalLei })
 }

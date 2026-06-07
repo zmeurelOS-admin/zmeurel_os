@@ -117,6 +117,7 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 - Delivering a B2C `shop_order` must use `deliver_shop_order_atomic`, never a direct status update. The RPC locks the tenant-scoped shop order, requires a positive `shop_products.unit_weight_kg` for every item, snapshots the weights in `shop_order_erp_links`, creates one aggregated ERP `comenzi` row, and delegates sale/stock mutation to the unchanged `deliver_order_atomic`.
 - `shop_order_erp_links.shop_order_id` is unique and is the idempotency boundary: retries return the existing ERP link and must not create another sale or deduct stock again.
 - Product package weights are configuration, not inferred from labels. Schema migrations must not backfill `shop_products.unit_weight_kg`; delivery remains blocked with a clear error until each ordered product has an explicit weight.
+- B2C raspberry pricing is canonical in `src/lib/shop/pricing.ts`: `floor(qty / 2) * 35 + (qty % 2) * 18`, where each unit is one 500 g package. The public order API must recalculate this total server-side and must accept only a positive integer quantity for product ID `zmeura`; client totals and line prices are not trusted.
 - Order statuses include `noua`, `confirmata`, `programata`, `in_livrare`, `livrata`, `anulata`.
 - Delivering an order can:
   - deduct stock
