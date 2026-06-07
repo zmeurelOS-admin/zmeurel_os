@@ -5,21 +5,24 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 
 import { ShopNotifPrompt } from '@/components/shop/ShopNotifPrompt'
 import {
-  computeZmeuraSavingsLei,
   computeZmeuraTotalLei,
   ZMEURA_CASEROLA_PRICE_LEI,
   ZMEURA_KG_PRICE_LEI,
   ZMEURA_PRODUCT_ID,
 } from '@/lib/shop/pricing'
+import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import { markNotificationPromptSession, shouldShowNotificationPrompt } from '@/lib/shop/useNotificationPrompt'
 import styles from './comanda.module.css'
 
 const WA_NUMBER = '40752953048'
 const WA_BASE = `https://wa.me/${WA_NUMBER}`
-
-const B2B_WA_MESSAGE =
-  'Bună! Reprezentăm [numele afacerii] și suntem interesați să achiziționăm fructe proaspete de la Zmeurel pentru clienții noștri. Puteți să ne trimiteți o ofertă B2B?'
-const B2B_WA_HREF = `${WA_BASE}?text=${encodeURIComponent(B2B_WA_MESSAGE)}`
+const FACEBOOK_HREF = 'https://www.facebook.com/ZmeuraSuceava/'
+const INSTAGRAM_HREF = 'https://www.instagram.com/zmeurel_sv/'
+const PHONE_HREF = 'tel:+40752953048'
+const PHONE_LABEL = '+40 752 953 048'
+const FARM_ADDRESS = 'Văratec, jud. Suceava'
+const FARM_PICKUP_SCHEDULE = 'Ridicare zilnic 9:00–18:00'
+const FARM_MAP_HREF = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(FARM_ADDRESS)}`
 const CUSTOMER_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000
 const DELIVERY_CITY_SUGGESTIONS = [
   'Suceava',
@@ -93,31 +96,12 @@ type LastOrder = {
   created_at: string
 }
 
-type NotifyState = {
-  open: boolean
-  name: string
-  phone: string
-  loading: boolean
-  done: boolean
-  error: string | null
-}
-
-function productImageSrc(id: string): string | null {
-  switch (id) {
-    case 'afine-300':
-    case 'afine-500':
-      return '/shop/shop-afine.jpg'
-    case 'zmeura':
-      return '/shop/shop-zmeura.jpg'
-    case 'mure':
-      return '/shop/shop-mure.jpg'
-    default:
-      return null
-  }
-}
-
 function formatLei(value: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+}
+
+function formatKg(qty: number) {
+  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(qty / 2)
 }
 
 function formatOrderDate(value: string): string {
@@ -132,11 +116,8 @@ function summarizeLastOrder(items: LastOrderItem[]): string {
 }
 
 export function normalizeCustomerPhone(value: string): string {
-  const digits = value.replace(/\D+/g, '')
-  if (digits.startsWith('0040') && digits.length >= 13) return digits.slice(4)
-  if (digits.startsWith('40') && digits.length >= 11) return digits.slice(2)
-  if (digits.startsWith('0') && digits.length >= 10) return digits.slice(1)
-  return digits
+  const normalized = normalizeRomanianMobilePhone(value)
+  return normalized ? normalized.slice(1) : ''
 }
 
 function customerStorageKey(normalizedPhone: string): string {
@@ -161,9 +142,8 @@ export function validateCheckoutForm(input: {
     errors.name = 'Numele trebuie să aibă cel puțin 2 caractere.'
   }
 
-  const phoneDigits = input.orderPhone.replace(/\D/g, '')
-  if (phoneDigits.length < 10) {
-    errors.phone = 'Introdu un număr valid (minim 10 cifre).'
+  if (!normalizeRomanianMobilePhone(input.orderPhone)) {
+    errors.phone = ROMANIAN_PHONE_ERROR
   }
 
   if (input.cartLineCount === 0) {
@@ -270,7 +250,13 @@ Telefon: ${input.phone.trim()}
 ${deliveryLine}${notesBlock}`
 }
 
-function ZmeurelLogo({ className = '' }: { className?: string }) {
+function ZmeurelLogo({
+  className = '',
+  wordmarkClassName = 'text-[#F16B6B]',
+}: {
+  className?: string
+  wordmarkClassName?: string
+}) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Image
@@ -281,7 +267,7 @@ function ZmeurelLogo({ className = '' }: { className?: string }) {
         unoptimized
         className="shrink-0 rounded-[10px]"
       />
-      <span className={`text-[22px] font-semibold tracking-tight text-[#F16B6B] ${styles.fontDisplay}`}>
+      <span className={`text-[22px] font-semibold tracking-tight ${wordmarkClassName} ${styles.fontDisplay}`}>
         Zmeurel
       </span>
     </div>
@@ -290,46 +276,30 @@ function ZmeurelLogo({ className = '' }: { className?: string }) {
 
 function CheckoutOrderSummary({ lines, total }: { lines: CartLine[]; total: number }) {
   const totalQty = lines.reduce((sum, line) => sum + line.qty, 0)
-  const savingsLei = computeZmeuraSavingsLei(totalQty)
 
   return (
-    <section className="rounded-xl bg-[#faf8f8] px-3.5 py-3">
-      <p className="text-sm font-bold text-[#312E3F]">Comanda ta</p>
-      <ul className="mt-2 space-y-1.5 text-[13px] text-[#312E3F]">
+    <section className="rounded-[18px] bg-[#FFF6F3] px-4 py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold text-[#312E3F]">Sumar comandă</p>
+          <p className="mt-1 text-xs text-[#312E3F]/65">
+            {totalQty} {totalQty === 1 ? 'caserolă' : 'caserole'} · {formatKg(totalQty)} kg
+          </p>
+        </div>
+        <p className="text-xl font-extrabold tabular-nums text-[#F16B6B]">{formatLei(total)} lei</p>
+      </div>
+      <ul className="mt-3 space-y-1.5 text-[13px] text-[#312E3F]">
         {lines.map((line) => {
           const lineTotal = computeZmeuraTotalLei(line.qty)
-          const label = `${line.product.name} — ${line.product.unit_label}`
           return (
-            <li key={line.product.id}>
-              {label} × {line.qty} — {formatLei(lineTotal)} lei
+            <li key={line.product.id} className="flex items-center justify-between gap-3">
+              <span>Zmeură · caserolă 500g × {line.qty}</span>
+              <span className="shrink-0 font-semibold tabular-nums">{formatLei(lineTotal)} lei</span>
             </li>
           )
         })}
       </ul>
-      <div className="my-3 h-px bg-[#F3DAD4]" aria-hidden />
-      <p className="text-[15px] font-extrabold tabular-nums text-[#312E3F]">
-        TOTAL: {formatLei(total)} lei
-      </p>
-      {savingsLei > 0 ? (
-        <p className="mt-1 text-xs font-semibold text-[#0D9B5C]">
-          Preț pe volum: economisești {formatLei(savingsLei)} lei.
-        </p>
-      ) : null}
-      <p className="mt-2 text-[11px] font-medium leading-relaxed text-[#6b7280]">
-        ✓ Livrare locală · ✓ Culese azi · ✓ Cash
-      </p>
     </section>
-  )
-}
-
-function TrustPill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F3DAD4] bg-white px-3 py-2 text-xs font-medium text-[#312E3F]">
-      <span className="text-[#0D9B5C]" aria-hidden>
-        ✓
-      </span>
-      {children}
-    </span>
   )
 }
 
@@ -344,12 +314,11 @@ export function ShopClient({
     () => products.filter((product) => product.available && product.id === ZMEURA_PRODUCT_ID),
     [products],
   )
-  const comingSoon = useMemo(
-    () => products.filter((product) => !product.available && product.id === ZMEURA_PRODUCT_ID),
-    [products],
-  )
+  const primaryProduct = available[0] ?? products.find((product) => product.id === ZMEURA_PRODUCT_ID) ?? null
 
-  const [qtyById, setQtyById] = useState<Record<string, number>>({})
+  const [qtyById, setQtyById] = useState<Record<string, number>>(() =>
+    available[0] ? { [available[0].id]: 1 } : {},
+  )
   const [sheetOpen, setSheetOpen] = useState(false)
   const [orderName, setOrderName] = useState('')
   const [orderPhone, setOrderPhone] = useState('')
@@ -361,6 +330,7 @@ export function ShopClient({
   const [orderError, setOrderError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [phoneTouched, setPhoneTouched] = useState(false)
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
   const [sourceSaved, setSourceSaved] = useState(false)
   const [notificationPromptVisible, setNotificationPromptVisible] = useState(false)
@@ -370,9 +340,6 @@ export function ShopClient({
   const [lastOrderApplied, setLastOrderApplied] = useState(false)
   const lastCustomerLookupPhoneRef = useRef<string | null>(null)
 
-  const [notifyById, setNotifyById] = useState<Record<string, NotifyState>>({})
-  const [cartToastVisible, setCartToastVisible] = useState(false)
-  const cartToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const notificationPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nameFieldRef = useRef<HTMLDivElement>(null)
   const phoneFieldRef = useRef<HTMLDivElement>(null)
@@ -380,22 +347,8 @@ export function ShopClient({
   const addressFieldRef = useRef<HTMLDivElement>(null)
   const cartErrorRef = useRef<HTMLParagraphElement>(null)
 
-  const showCartAddedToast = useCallback(() => {
-    if (cartToastTimerRef.current) {
-      clearTimeout(cartToastTimerRef.current)
-    }
-    setCartToastVisible(true)
-    cartToastTimerRef.current = setTimeout(() => {
-      setCartToastVisible(false)
-      cartToastTimerRef.current = null
-    }, 1300)
-  }, [])
-
   useEffect(() => {
     return () => {
-      if (cartToastTimerRef.current) {
-        clearTimeout(cartToastTimerRef.current)
-      }
       if (notificationPromptTimerRef.current) {
         clearTimeout(notificationPromptTimerRef.current)
       }
@@ -434,6 +387,13 @@ export function ShopClient({
 
   const updateOrderPhone = useCallback((value: string) => {
     setOrderPhone(value)
+    setPhoneTouched(true)
+    setFieldErrors((current) => {
+      if (!current.phone) return current
+      const next = { ...current }
+      delete next.phone
+      return next
+    })
 
     const rawDigits = value.replace(/\D+/g, '')
     const normalizedPhone = normalizeCustomerPhone(value)
@@ -445,6 +405,12 @@ export function ShopClient({
     setLastOrder(null)
     setLastOrderApplied(false)
   }, [])
+
+  const normalizeOrderPhoneOnBlur = useCallback(() => {
+    setPhoneTouched(true)
+    const normalized = normalizeRomanianMobilePhone(orderPhone)
+    if (normalized) setOrderPhone(normalized)
+  }, [orderPhone])
 
   useEffect(() => {
     if (!customerAutofillNotice) return
@@ -557,7 +523,11 @@ export function ShopClient({
 
   const cartCount = useMemo(() => cartLines.reduce((s, l) => s + l.qty, 0), [cartLines])
   const cartTotal = useMemo(() => computeZmeuraTotalLei(cartCount), [cartCount])
-  const cartSavingsLei = useMemo(() => computeZmeuraSavingsLei(cartCount), [cartCount])
+  const primaryQty = primaryProduct ? (qtyById[primaryProduct.id] ?? 0) : 0
+  const normalizedOrderPhone = normalizeRomanianMobilePhone(orderPhone)
+  const hasValidIdentity = orderName.trim().length >= 2 && normalizedOrderPhone !== null
+  const visiblePhoneError =
+    fieldErrors.phone ?? (phoneTouched && !normalizedOrderPhone ? ROMANIAN_PHONE_ERROR : undefined)
 
   const setQty = useCallback((id: string, next: number) => {
     setQtyById((prev) => {
@@ -584,85 +554,17 @@ export function ShopClient({
       return next
     })
     setLastOrderApplied(true)
-    showCartAddedToast()
-  }, [available, lastOrder, showCartAddedToast])
+  }, [available, lastOrder])
 
-  const scrollToProducts = () => {
-    document.getElementById('produse')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  const openNotify = (productId: string) => {
-    setNotifyById((prev) => ({
-      ...prev,
-      [productId]: {
-        open: true,
-        name: prev[productId]?.name || orderName,
-        phone: prev[productId]?.phone || orderPhone,
-        loading: false,
-        done: prev[productId]?.done ?? false,
-        error: null,
-      },
-    }))
-  }
-
-  const updateNotify = (productId: string, patch: Partial<NotifyState>) => {
-    setNotifyById((prev) => {
-      const current: NotifyState = prev[productId] ?? {
-        open: true,
-        name: '',
-        phone: '',
-        loading: false,
-        done: false,
-        error: null,
-      }
-      return {
-        ...prev,
-        [productId]: {
-          ...current,
-          ...patch,
-        },
-      }
-    })
-  }
-
-  const submitNotify = async (product: ComandaShopProduct) => {
-    const state = notifyById[product.id]
-    if (!state?.name.trim() || !state.phone.trim()) {
-      updateNotify(product.id, { error: 'Completează numele și telefonul.' })
-      return
+  const openCheckout = useCallback(() => {
+    if (primaryProduct?.available && primaryQty === 0) {
+      setQty(primaryProduct.id, 1)
     }
-
-    updateNotify(product.id, { loading: true, error: null })
-    try {
-      const res = await fetch('/api/shop/b2c/interest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: state.name.trim() || undefined,
-          phone: state.phone.trim(),
-          product_name: product.name,
-        }),
-      })
-      const json = (await res.json()) as { ok?: boolean; error?: string }
-      if (!res.ok || !json.ok) {
-        updateNotify(product.id, {
-          loading: false,
-          error: json.error ?? 'Nu am putut trimite cererea.',
-        })
-        return
-      }
-      const name = state.name.trim()
-      const phone = state.phone.trim()
-      updateNotify(product.id, { loading: false, done: true, open: false })
-      if (name) setOrderName((current) => current || name)
-      setOrderPhone((current) => current || phone)
-    } catch {
-      updateNotify(product.id, { loading: false, error: 'Eroare de rețea. Încearcă din nou.' })
-    }
-  }
-
-  const activeNotifyProduct = comingSoon.find((product) => notifyById[product.id]?.open) ?? null
-  const activeNotifyState = activeNotifyProduct ? notifyById[activeNotifyProduct.id] : null
+    setOrderSuccess(false)
+    setNotificationPromptVisible(false)
+    setOrderError(null)
+    setSheetOpen(true)
+  }, [primaryProduct, primaryQty, setQty])
 
   const submitAcquisitionSource = async (source: AcquisitionSource) => {
     try {
@@ -713,10 +615,13 @@ export function ShopClient({
 
     if (Object.keys(validationErrors).length > 0) {
       setFieldErrors(validationErrors)
+      setPhoneTouched(true)
       setOrderError(null)
       scrollToFirstFieldError(validationErrors)
       return
     }
+
+    if (!normalizedOrderPhone) return
 
     setFieldErrors({})
     setOrderSubmitting(true)
@@ -737,7 +642,7 @@ export function ShopClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_name: orderName.trim(),
-          customer_phone: orderPhone.trim(),
+          customer_phone: normalizedOrderPhone,
           delivery_mode: deliveryMode,
           delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
           delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
@@ -759,7 +664,7 @@ export function ShopClient({
       setSourceSaved(false)
       writeCustomerSnapshotToStorage({
         name: orderName.trim(),
-        phone: orderPhone,
+        phone: normalizedOrderPhone,
         delivery_address: orderAddress.trim(),
         delivery_city: orderCity.trim(),
         delivery_mode: deliveryMode,
@@ -768,14 +673,14 @@ export function ShopClient({
         lines: cartLines,
         total: cartTotal,
         name: orderName,
-        phone: orderPhone,
+        phone: normalizedOrderPhone,
         deliveryMode,
         address: orderAddress,
         notes: orderNotes,
       })
       window.open(`${WA_BASE}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
 
-      setQtyById({})
+      setQtyById(primaryProduct?.available ? { [primaryProduct.id]: 1 } : {})
       setOrderSubmitting(false)
     } catch {
       setOrderError('Eroare de rețea. Încearcă din nou.')
@@ -785,345 +690,183 @@ export function ShopClient({
 
   return (
     <div className="w-full pb-32">
-      {/* TOPBAR */}
-      <header className="sticky top-0 z-40 border-b border-[#F3DAD4]/80 bg-[#FFF6F3]/95 px-4 py-3 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-3">
-          <ZmeurelLogo />
-          <a
-            href="https://wa.me/40752953048?text=Bun%C4%83!%20A%C8%99%20dori%20s%C4%83%20comand%20zmeur%C4%83%20proasp%C4%83t%C4%83%20de%20la%20Zmeurel."
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white ${styles.waPulse}`}
-          >
-            <WaIcon />
-            WhatsApp
-          </a>
-        </div>
+      <header className="sticky top-0 z-40 border-b-4 border-[#F16B6B] bg-[#312E3F] px-4 py-3">
+        <ZmeurelLogo wordmarkClassName="text-white" />
       </header>
 
-      <div className="px-3 pt-3">
-        {loadError ? (
-          <p className="mb-3 rounded-2xl border border-[#F3DAD4] bg-white px-4 py-3 text-sm text-[#E15453]">
-            {loadError}
-          </p>
-        ) : null}
+      {loadError ? (
+        <p className="mx-3 mt-3 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-[#E15453] shadow-sm">
+          {loadError}
+        </p>
+      ) : null}
 
-        {/* HERO */}
-        <section className="overflow-hidden rounded-[26px] bg-[#F16B6B] p-5 text-white shadow-md">
-          <div
-            className={`mb-4 inline-block rounded-2xl bg-gradient-to-r from-[#5B4FCF] to-[#7B6BFF] px-4 py-2 text-[11px] font-semibold leading-snug tracking-wide text-white shadow-md ${styles.badgeTilt}`}
-          >
-            <span className="block uppercase opacity-90">Acum disponibile</span>
-            <span className={`block text-sm ${styles.fontDisplay}`}>Zmeură proaspătă</span>
-            <span className="block opacity-90">Recoltă 2026 · Văratec</span>
+      <main>
+        <section className="relative aspect-[25/14] overflow-hidden bg-[#312E3F]">
+          <Image
+            src="/shop/shop-hero.jpg"
+            alt="Caserolă cu zmeură proaspătă ținută în mână, în plantația din Văratec"
+            fill
+            priority
+            sizes="(max-width: 640px) 100vw, 540px"
+            className="object-cover object-center"
+          />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#312E3F]/35 to-transparent" aria-hidden />
+          <span className="absolute left-4 top-4 rounded-full bg-[#FFF6F3]/95 px-3 py-2 text-xs font-bold text-[#3D7A5F] shadow-md backdrop-blur-sm">
+            ✓ Culeasă în ziua livrării
+          </span>
+        </section>
+
+        <section className="relative z-10 mx-3 -mt-11 rounded-[26px] bg-white p-[18px] shadow-[0_12px_36px_rgba(120,100,70,0.16)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className={`text-[26px] font-semibold leading-tight text-[#312E3F] ${styles.fontDisplay}`}>
+                Zmeură proaspătă
+              </h1>
+              <p className="mt-1 text-sm font-medium text-[#312E3F]/65">Caserolă 500g · Văratec, Suceava</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[28px] font-extrabold leading-none tabular-nums text-[#F16B6B]">
+                {formatLei(cartTotal)} lei
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-[#3D7A5F]">
+                {formatLei(ZMEURA_KG_PRICE_LEI)} lei/kg
+              </p>
+            </div>
           </div>
 
-          <div className="grid gap-4">
-            <div>
-              <h1 className={`text-[1.65rem] font-semibold leading-tight ${styles.fontDisplay}`}>
-                Primele fructe ale sezonului, Culese în ziua livrării.
-              </h1>
-              <p className="mt-3 text-sm leading-relaxed text-white/95">
-                Zmeură proaspătă din ferma noastră din Văratec. Culeasă dimineața și livrată în aceeași zi.
+          {primaryProduct?.available ? (
+            <>
+              <div className="mt-4 flex items-center justify-center gap-4">
+                <button
+                  type="button"
+                  aria-label="Scade cantitatea"
+                  onClick={() => setQty(primaryProduct.id, Math.max(1, primaryQty - 1))}
+                  className="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-[#FFF6F3] text-[28px] font-medium text-[#312E3F] shadow-sm transition active:scale-[0.985] active:shadow-none"
+                >
+                  −
+                </button>
+                <span className="min-w-16 text-center text-[32px] font-extrabold tabular-nums text-[#312E3F]">
+                  {primaryQty}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Crește cantitatea"
+                  onClick={() => setQty(primaryProduct.id, primaryQty + 1)}
+                  className="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-[#F16B6B] text-[28px] font-medium text-white shadow-md transition active:scale-[0.985] active:shadow-sm"
+                >
+                  +
+                </button>
+              </div>
+              <p className="mt-1 text-center text-sm font-semibold text-[#312E3F]/70">
+                {primaryQty} {primaryQty === 1 ? 'caserolă' : 'caserole'} · {formatKg(primaryQty)} kg
               </p>
+
+              <div className="mt-3 grid grid-cols-4 gap-2" aria-label="Cantități rapide">
+                {[1, 2, 4, 6].map((qty) => (
+                  <button
+                    key={qty}
+                    type="button"
+                    aria-label={`Alege ${qty} ${qty === 1 ? 'caserolă' : 'caserole'}`}
+                    aria-pressed={primaryQty === qty}
+                    onClick={() => setQty(primaryProduct.id, qty)}
+                    className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-[0.985] ${
+                      primaryQty === qty
+                        ? 'bg-[#312E3F] text-white shadow-sm'
+                        : 'bg-[#FFF6F3] text-[#312E3F]'
+                    }`}
+                  >
+                    {qty}
+                  </button>
+                ))}
+              </div>
+
               <button
                 type="button"
-                onClick={scrollToProducts}
-                className="mt-5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#E15453] shadow-sm transition active:scale-[0.98]"
+                onClick={openCheckout}
+                className="mt-4 min-h-[54px] w-full rounded-2xl bg-[#F16B6B] px-5 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.3)] transition active:scale-[0.985] active:shadow-sm"
               >
-                Comandă acum
+                Comandă acum · {formatLei(cartTotal)} lei
               </button>
-            </div>
-
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[22px]">
-              <Image
-                src="/shop/shop-hero.jpg"
-                alt="Zmeură proaspătă culeasă dimineața în ferma din Văratec"
-                fill
-                priority
-                sizes="(max-width: 640px) 100vw, 540px"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-[#312E3F]/25">
-                <span className={`text-center text-lg font-semibold text-white/90 ${styles.fontDisplay}`}>
-                  Culese azi-dimineață
-                </span>
-              </div>
-              <span className="absolute bottom-3 left-3 rounded-full bg-[#312E3F]/85 px-3 py-1 text-xs font-medium text-white">
-                Văratec · Suceava
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* TRUST */}
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
-          <TrustPill>Culese în ziua livrării</TrustPill>
-          <TrustPill>Livrare la domiciliu</TrustPill>
-          <TrustPill>Plată cash</TrustPill>
-        </div>
-
-        {/* PRODUSE */}
-        <section id="produse" className="mt-8 scroll-mt-24">
-          <h2 className={`text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>Produse</h2>
-
-          <div className="mt-4 space-y-3">
-            {available.map((product) => {
-              const qty = qtyById[product.id] ?? 0
-              return (
-                <article
-                  key={product.id}
-                  className="flex items-center gap-3 rounded-[14px] border border-[#F3DAD4] bg-white p-3 shadow-sm"
-                >
-                  <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl">
-                    <Image
-                      src={productImageSrc(product.id) ?? '/shop/shop-afine.jpg'}
-                      alt={`${product.name} — ${product.unit_label}, culese proaspăt`}
-                      width={72}
-                      height={72}
-                      sizes="72px"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-[15px] font-semibold leading-tight text-[#312E3F]">{product.name}</h3>
-                    <p className="mt-0.5 text-xs text-[#312E3F]/60">{product.unit_label}</p>
-                    <p className="mt-0.5 text-[17px] font-bold text-[#F16B6B]">
-                      {formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei / caserolă
-                    </p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-[#0D9B5C]">
-                      {formatLei(ZMEURA_KG_PRICE_LEI)} lei/kg · 2 caserole
-                    </p>
-                  </div>
-                  {qty === 0 ? (
-                    <button
-                      type="button"
-                      aria-label={`Adaugă ${product.name}`}
-                      onClick={() => {
-                        setQty(product.id, 1)
-                        showCartAddedToast()
-                      }}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#F16B6B] text-[22px] leading-none font-light text-white active:scale-[0.98]"
-                    >
-                      +
-                    </button>
-                  ) : (
-                    <div className="flex shrink-0 items-center gap-1 rounded-full border border-[#F3DAD4] bg-[#FFF6F3] px-0.5 py-0.5">
-                      <button
-                        type="button"
-                        aria-label="Scade cantitatea"
-                        onClick={() => setQty(product.id, qty - 1)}
-                        className="flex h-11 w-11 items-center justify-center rounded-full text-base font-semibold text-[#312E3F]"
-                      >
-                        −
-                      </button>
-                      <span className="min-w-[1.25rem] text-center text-sm font-bold tabular-nums text-[#312E3F]">
-                        {qty}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Crește cantitatea"
-                        onClick={() => {
-                          setQty(product.id, qty + 1)
-                          showCartAddedToast()
-                        }}
-                        className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F16B6B] text-base font-semibold text-white"
-                      >
-                        +
-                      </button>
-                    </div>
-                  )}
-                </article>
-              )
-            })}
-          </div>
-
-          {comingSoon.length > 0 ? (
-            <>
-              <div className="my-6 flex items-center gap-3">
-                <span className="h-px flex-1 bg-[#F3DAD4]" />
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#312E3F]/60">
-                  Se coc pe plantă
-                </span>
-                <span className="h-px flex-1 bg-[#F3DAD4]" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                {comingSoon.map((product) => {
-                  const notify = notifyById[product.id]
-                  return (
-                    <article
-                      key={product.id}
-                      className="overflow-hidden rounded-[14px] border border-[#F3DAD4] bg-white shadow-sm"
-                    >
-                      <div className="relative h-[90px] w-full overflow-hidden">
-                        <Image
-                          src={productImageSrc(product.id) ?? '/shop/shop-zmeura.jpg'}
-                          alt={`${product.name} — în curând la fermă`}
-                          fill
-                          sizes="(max-width: 640px) 50vw, 200px"
-                          className="object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#5B4FCF] to-[#7B6BFF]" />
-                        <span className="absolute left-2 top-2 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
-                          Se coc
-                        </span>
-                        <h3
-                          className={`absolute bottom-2 left-2 right-2 text-sm font-semibold leading-tight text-white ${styles.fontDisplay}`}
-                        >
-                          {product.name}
-                        </h3>
-                      </div>
-                      <div className="p-2.5">
-                        {product.description ? (
-                          <p className="text-[11px] leading-snug text-[#312E3F]/60">{product.description}</p>
-                        ) : null}
-
-                        {notify?.done ? (
-                          <p className="mt-2 rounded-lg bg-[#E8F5EE] px-2 py-1.5 text-[11px] font-medium leading-snug text-[#0D9B5C]">
-                            Te anunțăm când apare {product.name.toLowerCase()} 🍓
-                          </p>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => openNotify(product.id)}
-                            className="mt-2 w-full min-h-11 rounded-lg border border-[#5B4FCF] bg-white py-3 text-xs font-bold text-[#5B4FCF]"
-                          >
-                            🔔 Anunță-mă când e disponibil
-                          </button>
-                        )}
-                      </div>
-                    </article>
-                  )
-                })}
-              </div>
+              <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-[#312E3F]/60">
+                ✓ Culeasă în ziua livrării · ✓ Livrare locală · ✓ Plată cash
+              </p>
             </>
-          ) : null}
+          ) : (
+            <p className="mt-4 rounded-2xl bg-[#FFF6F3] px-4 py-4 text-sm font-semibold text-[#312E3F]">
+              Zmeura nu este disponibilă momentan. Revino curând.
+            </p>
+          )}
         </section>
 
-        {/* DESPRE */}
-        <section className="mt-10 rounded-[26px] bg-[#312E3F] p-6 text-white">
-          <div className="relative mb-5 aspect-[16/10] w-full overflow-hidden rounded-[18px]">
-            <img
+        <section className="mt-8 px-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Benefit icon="🚚" label="Livrare locală" />
+            <Benefit icon="🌿" label="Culeasă în ziua livrării" />
+            <Benefit icon="🍓" label="De la fermă" />
+          </div>
+          <div className="relative mt-4 aspect-[2/1] overflow-hidden rounded-[24px] bg-[#F3DAD4] shadow-md">
+            <Image
               src="/shop/shop-ferma.jpg"
-              alt="Ferma Zmeurel din Văratec, pe pământ bucovinean"
-              className="h-full w-full object-cover"
+              alt="Ferma Zmeurel din Văratec"
+              fill
+              sizes="(max-width: 640px) 100vw, 540px"
+              className="object-cover object-center"
             />
-          </div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-white/70">De la noi din Văratec</p>
-          <h2 className={`mt-2 text-2xl font-semibold ${styles.fontDisplay}`}>Gust cu zâmbete dulci</h2>
-          <p className="mt-3 text-sm leading-relaxed text-white/90">
-            Culegem cu mâna, dimineața, coapte la momentul potrivit. Fără grabă, fără compromisuri.
-            Ce ajunge la tine a crescut în Văratec, pe pământ bucovinean.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-white/90">
-            Cultivăm cu pasiune și livrăm prospețime direct la ușa ta încă din noiembrie 2020.
-          </p>
-          <ul className="mt-5 space-y-2 text-sm">
-            <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Culese în ziua livrării
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Recoltă manuală, fruct cu fruct
-            </li>
-            <li className="flex gap-2">
-              <span className="text-[#F16B6B]">✓</span> Plată cash
-            </li>
-          </ul>
-        </section>
-
-        {/* LIVRARE */}
-        <section className="mt-10">
-          <h2 className={`text-xl font-semibold ${styles.fontDisplay}`}>Livrare</h2>
-          <div className="mt-4 space-y-3">
-            <InfoCard
-              icon="🚗"
-              title="Livrare la domiciliu"
-              text="În Suceava și comunele din jur. Minim 1 kg."
-            />
-            <InfoCard icon="⚖️" title="Comune din jur" text="Minim 2 kg în afara municipiului Suceava." />
-            <InfoCard
-              icon="🫐"
-              title="Proaspete garantat"
-              text="Culegem în ziua livrării — fără depozitare lungă."
-            />
+            <span className="absolute bottom-3 left-3 rounded-full bg-[#312E3F]/85 px-3 py-1.5 text-xs font-semibold text-white">
+              Direct de la fermă
+            </span>
           </div>
         </section>
 
-        {/* B2B */}
-        <section
-          className="mt-10 rounded-2xl py-[18px] pl-4 pr-4 text-sm leading-[1.6] text-[#312E3F]"
-          style={{
-            background: '#FCE3DF',
-            borderLeft: '3px solid #F16B6B',
-          }}
-        >
-          <p className="text-[14px] leading-[1.6] text-[#312E3F]">
-            Patiserii, cofetării sau magazine locale — dacă doriți să oferiți clienților voștri fructe proaspete
-            de calitate, suntem partenerii potriviți. Contactați-ne pentru o ofertă dedicată.
-          </p>
-          <a
-            href={B2B_WA_HREF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-block w-fit rounded-full border-0 bg-[#25D366] px-5 py-2.5 text-[14px] font-extrabold text-white no-underline transition active:scale-[0.98]"
-          >
-            Scrieți-ne pe WhatsApp
-          </a>
-        </section>
-
-        {/* FOOTER */}
-        <footer className="mt-10 -mx-3 rounded-t-[26px] bg-[#F16B6B] px-5 py-8 text-white">
+        <footer className="mt-8 border-t-4 border-[#F16B6B] bg-[#312E3F] px-5 pb-10 pt-8 text-white">
           <FooterBrand />
-          <p className="mt-4 text-sm leading-relaxed">
-            Văratec, jud. Suceava
-            <br />
-            <a href="tel:+40752953048" className="font-semibold underline-offset-2 hover:underline">
-              +40 752 953 048
+          <div className="mt-6 space-y-2 text-sm">
+            <a
+              href={PHONE_HREF}
+              className="flex min-h-11 items-center gap-3 rounded-xl bg-white/10 px-3 font-semibold transition active:scale-[0.985]"
+            >
+              <span aria-hidden>☎</span>
+              {PHONE_LABEL}
             </a>
-          </p>
-          <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <FooterSocialLink href={WA_BASE} label="WhatsApp">
+            <div className="flex min-h-11 items-center gap-3 rounded-xl bg-white/10 px-3">
+              <span aria-hidden>⌖</span>
+              {FARM_ADDRESS}
+            </div>
+          </div>
+          <div className="mt-5 grid gap-2 min-[390px]:grid-cols-3">
+            <FooterSocialLink href={WA_BASE} label="WhatsApp" className="bg-[#25D366]">
               <FooterWhatsAppIcon />
             </FooterSocialLink>
-            <FooterSocialLink href="https://www.facebook.com/ZmeuraSuceava/" label="Facebook">
+            <FooterSocialLink href={FACEBOOK_HREF} label="Facebook" className="bg-[#1877F2]">
               <FooterFacebookIcon />
             </FooterSocialLink>
-            <FooterSocialLink href="https://www.instagram.com/zmeurel_sv/" label="Instagram">
+            <FooterSocialLink
+              href={INSTAGRAM_HREF}
+              label="Instagram"
+              className="bg-gradient-to-br from-[#833AB4] via-[#E4405F] to-[#FCAF45]"
+            >
               <FooterInstagramIcon />
             </FooterSocialLink>
           </div>
-          <p className="mt-6 text-xs text-white/75">© {new Date().getFullYear()} Zmeurel · Văratec</p>
+          <p className="mt-6 text-xs text-white/60">© {new Date().getFullYear()} Zmeurel · Văratec</p>
         </footer>
-      </div>
+      </main>
 
-      {/* COȘ FIX */}
-      {cartCount > 0 ? (
-        <div className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="mx-auto flex max-w-[540px] items-center justify-between gap-3 rounded-[18px] bg-[#312E3F] px-4 py-3 text-white shadow-lg">
-            <div className="text-sm">
-              <p className="font-semibold">
-                {cartCount} {cartCount === 1 ? 'produs' : 'produse'}
+      {primaryProduct?.available && cartCount > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-[540px] items-center justify-between gap-3 rounded-[20px] bg-[#312E3F] px-4 py-3 text-white shadow-[0_12px_34px_rgba(49,46,63,0.3)]">
+            <div>
+              <p className="text-xs font-medium text-white/65">
+                {cartCount} {cartCount === 1 ? 'caserolă' : 'caserole'} · {formatKg(cartCount)} kg
               </p>
-              <p className="text-white/80">{formatLei(cartTotal)} lei</p>
-              {cartSavingsLei > 0 ? (
-                <p className="text-[11px] font-semibold text-[#A7F3D0]">
-                  Economisești {formatLei(cartSavingsLei)} lei
-                </p>
-              ) : null}
+              <p className="text-lg font-extrabold tabular-nums">{formatLei(cartTotal)} lei</p>
             </div>
             <button
               type="button"
-              onClick={() => {
-                setOrderSuccess(false)
-                setNotificationPromptVisible(false)
-                setOrderError(null)
-                setSheetOpen(true)
-              }}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-full bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white ${styles.waPulse}`}
+              onClick={openCheckout}
+              className="min-h-12 shrink-0 rounded-2xl bg-[#F16B6B] px-5 text-sm font-extrabold text-white transition active:scale-[0.985]"
             >
-              <WaIcon />
-              Comandă pe WhatsApp
+              Comandă acum
             </button>
           </div>
         </div>
@@ -1201,14 +944,16 @@ export function ShopClient({
                     />
                   </div>
                   <div ref={phoneFieldRef}>
-                    <Field
-                      label="Telefon"
-                      value={orderPhone}
-                      onChange={updateOrderPhone}
-                      autoComplete="tel"
-                      inputMode="tel"
-                      error={fieldErrors.phone}
-                    />
+                      <Field
+                        label="Telefon"
+                        value={orderPhone}
+                        onChange={updateOrderPhone}
+                        onBlur={normalizeOrderPhoneOnBlur}
+                        autoComplete="tel"
+                        inputMode="tel"
+                        placeholder="07xxxxxxxx"
+                        error={visiblePhoneError}
+                      />
                     {customerAutofillNotice ? (
                       <p className="mt-1 text-xs text-[#6b7280]">{customerAutofillNotice}</p>
                     ) : null}
@@ -1256,7 +1001,21 @@ export function ShopClient({
                         />
                       </div>
                     </>
-                  ) : null}
+                  ) : (
+                    <div className="rounded-[18px] bg-[#FFF6F3] p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-[#3D7A5F]">Ridicare de la fermă</p>
+                      <p className="mt-2 text-sm font-bold text-[#312E3F]">{FARM_ADDRESS}</p>
+                      <p className="mt-1 text-xs text-[#312E3F]/70">{FARM_PICKUP_SCHEDULE}</p>
+                      <a
+                        href={FARM_MAP_HREF}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-[#3D7A5F] px-4 text-sm font-bold text-white transition active:scale-[0.985]"
+                      >
+                        Vezi pe hartă
+                      </a>
+                    </div>
+                  )}
 
                   <label className="block text-xs font-semibold text-[#312E3F]">
                     Observații (opțional)
@@ -1306,9 +1065,9 @@ export function ShopClient({
 
                 <button
                   type="button"
-                  disabled={orderSubmitting}
+                  disabled={orderSubmitting || !hasValidIdentity}
                   onClick={submitOrder}
-                  className="mt-4 w-full rounded-full bg-[#25D366] py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  className="mt-4 min-h-[52px] w-full rounded-2xl bg-[#F16B6B] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.25)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {orderSubmitting ? 'Se salvează…' : 'Trimite comanda'}
                 </button>
@@ -1326,100 +1085,20 @@ export function ShopClient({
         </div>
       ) : null}
 
-      {activeNotifyProduct && activeNotifyState ? (
-        <div className="fixed inset-0 z-[65] flex flex-col justify-end">
-          <button
-            type="button"
-            aria-label="Închide formularul de interes"
-            className="absolute inset-0 bg-black/35"
-            onClick={() =>
-              !activeNotifyState.loading &&
-              updateNotify(activeNotifyProduct.id, { open: false, error: null })
-            }
-          />
-          <div className="relative mx-auto w-full max-w-[540px] rounded-t-[24px] bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-xl">
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#F3DAD4]" aria-hidden />
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#5B4FCF]">Listă de interes</p>
-            <h2 className={`mt-1 text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
-              Te anunțăm când e disponibil
-            </h2>
-            <p className="mt-1 text-sm text-[#312E3F]/70">{activeNotifyProduct.name}</p>
-
-            <div className="mt-4 space-y-3">
-              <Field
-                label="Nume (opțional)"
-                value={activeNotifyState.name}
-                onChange={(value) => updateNotify(activeNotifyProduct.id, { name: value })}
-                autoComplete="name"
-              />
-              <Field
-                label="Telefon"
-                value={activeNotifyState.phone}
-                onChange={(value) => updateNotify(activeNotifyProduct.id, { phone: value })}
-                autoComplete="tel"
-                inputMode="tel"
-              />
-            </div>
-
-            {activeNotifyState.error ? (
-              <p className="mt-3 text-sm text-[#E15453]">{activeNotifyState.error}</p>
-            ) : null}
-
-            <button
-              type="button"
-              disabled={activeNotifyState.loading}
-              onClick={() => submitNotify(activeNotifyProduct)}
-              className="mt-4 w-full rounded-full bg-[#5B4FCF] py-3 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {activeNotifyState.loading ? 'Se salvează…' : 'Confirmă'}
-            </button>
-            <button
-              type="button"
-              disabled={activeNotifyState.loading}
-              onClick={() => updateNotify(activeNotifyProduct.id, { open: false, error: null })}
-              className="mt-3 w-full py-2 text-sm font-medium text-[#312E3F]/60"
-            >
-              Închide
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {notificationPromptVisible ? (
         <ShopNotifPrompt onClose={() => setNotificationPromptVisible(false)} />
-      ) : null}
-
-      {cartToastVisible ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="pointer-events-none fixed left-1/2 top-20 z-[70] -translate-x-1/2 rounded-full bg-[#312E3F] px-4 py-2.5 text-sm font-semibold text-white shadow-lg"
-        >
-          ✓ Adăugat în coș
-        </div>
       ) : null}
     </div>
   )
 }
 
-function WaIcon() {
+function Benefit({ icon, label }: { icon: string; label: string }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-    </svg>
-  )
-}
-
-function InfoCard({ icon, title, text }: { icon: string; title: string; text: string }) {
-  return (
-    <div className="flex gap-3 rounded-[22px] border border-[#F3DAD4] bg-white p-4 shadow-sm">
-      <span className="text-2xl" aria-hidden>
+    <div className="flex min-h-[92px] flex-col items-center justify-center rounded-[18px] bg-white px-2 py-3 text-center shadow-[0_4px_16px_rgba(120,100,70,0.08)]">
+      <span className="text-xl" aria-hidden>
         {icon}
       </span>
-      <div>
-        <p className="font-semibold text-[#312E3F]">{title}</p>
-        <p className="mt-0.5 text-sm text-[#312E3F]/75">{text}</p>
-      </div>
+      <p className="mt-1.5 text-[11px] font-bold leading-tight text-[#312E3F]">{label}</p>
     </div>
   )
 }
@@ -1449,10 +1128,12 @@ function FooterBrand() {
 function FooterSocialLink({
   href,
   label,
+  className,
   children,
 }: {
   href: string
   label: string
+  className: string
   children: React.ReactNode
 }) {
   return (
@@ -1461,9 +1142,10 @@ function FooterSocialLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="grid h-11 w-11 place-items-center rounded-xl border border-white/28 bg-white/18 text-white transition active:scale-[0.98]"
+      className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold text-white shadow-sm transition active:scale-[0.985] ${className}`}
     >
       {children}
+      <span>{label}</span>
     </a>
   )
 }
@@ -1498,17 +1180,21 @@ function Field({
   label,
   value,
   onChange,
+  onBlur,
   autoComplete,
   inputMode,
   list,
+  placeholder,
   error,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
+  onBlur?: () => void
   autoComplete?: string
   inputMode?: 'tel' | 'text'
   list?: string
+  placeholder?: string
   error?: string
 }) {
   return (
@@ -1517,7 +1203,9 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         list={list}
+        placeholder={placeholder}
         className={`mt-1 w-full rounded-lg border bg-white px-3 py-[14px] text-sm outline-none ${
           error ? 'border-[#E15453] focus:border-[#E15453]' : 'border-[#F3DAD4] focus:border-[#F16B6B]'
         }`}
