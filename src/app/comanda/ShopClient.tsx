@@ -382,7 +382,12 @@ export function ShopClient({
     setRecognizedCustomerPhone(snapshot.phone)
     setLastOrderApplied(false)
     void source
-    setCustomerAutofillNotice('Date completate automat ✓')
+    setCustomerAutofillNotice('✓ Date preluate')
+  }, [])
+
+  const updateOrderName = useCallback((value: string) => {
+    setOrderName(value)
+    setCustomerAutofillNotice(null)
   }, [])
 
   const updateOrderPhone = useCallback((value: string) => {
@@ -802,7 +807,7 @@ export function ShopClient({
           <div className="grid grid-cols-3 gap-2">
             <Benefit icon="🚚" label="Livrare locală" />
             <Benefit icon="🌿" label="Culeasă în ziua livrării" />
-            <Benefit icon="🍓" label="De la fermă" />
+            <Benefit icon="🧺" label="De la fermă" />
           </div>
           <div className="relative mt-4 aspect-[2/1] overflow-hidden rounded-[24px] bg-[#F3DAD4] shadow-md">
             <Image
@@ -934,28 +939,34 @@ export function ShopClient({
                 </div>
 
                 <div className="mt-4 space-y-3">
+                  <div ref={phoneFieldRef}>
+                    <Field
+                      label="Telefon"
+                      value={orderPhone}
+                      onChange={updateOrderPhone}
+                      onBlur={normalizeOrderPhoneOnBlur}
+                      autoComplete="tel"
+                      inputMode="tel"
+                      placeholder="07xx xxx xxx"
+                      error={visiblePhoneError}
+                      autoFocus
+                    />
+                    {!recognizedCustomerPhone ? (
+                      <p className="mt-1 text-xs text-[#6b7280]">
+                        Dacă ai mai comandat, completăm datele automat.
+                      </p>
+                    ) : null}
+                  </div>
                   <div ref={nameFieldRef}>
                     <Field
                       label="Nume"
                       value={orderName}
-                      onChange={setOrderName}
+                      onChange={updateOrderName}
                       autoComplete="name"
                       error={fieldErrors.name}
                     />
-                  </div>
-                  <div ref={phoneFieldRef}>
-                      <Field
-                        label="Telefon"
-                        value={orderPhone}
-                        onChange={updateOrderPhone}
-                        onBlur={normalizeOrderPhoneOnBlur}
-                        autoComplete="tel"
-                        inputMode="tel"
-                        placeholder="07xxxxxxxx"
-                        error={visiblePhoneError}
-                      />
                     {customerAutofillNotice ? (
-                      <p className="mt-1 text-xs text-[#6b7280]">{customerAutofillNotice}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#3D7A5F]">{customerAutofillNotice}</p>
                     ) : null}
                   </div>
 
@@ -1186,6 +1197,7 @@ function Field({
   list,
   placeholder,
   error,
+  autoFocus,
 }: {
   label: string
   value: string
@@ -1196,6 +1208,7 @@ function Field({
   list?: string
   placeholder?: string
   error?: string
+  autoFocus?: boolean
 }) {
   return (
     <label className="block text-xs font-semibold text-[#312E3F]">
@@ -1211,6 +1224,7 @@ function Field({
         }`}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        autoFocus={autoFocus}
       />
       {error ? <p className="mt-1 text-xs font-medium text-[#E15453]">{error}</p> : null}
     </label>

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Fraunces, Hanken_Grotesk } from 'next/font/google'
 import { headers } from 'next/headers'
 
@@ -22,9 +22,21 @@ const hanken = Hanken_Grotesk({
 export const metadata: Metadata = {
   title: 'Zmeurel — Zmeură proaspătă | Văratec, Suceava',
   description:
-    'Zmeură proaspătă din Văratec. Culeasă dimineața, livrată în aceeași zi în Suceava și împrejurimi. Comandă direct de la fermă.',
+    'Zmeură proaspătă din Văratec, culeasă în ziua livrării. Livrare locală în Suceava și împrejurimi.',
   manifest: '/comanda/manifest.webmanifest',
+  icons: {
+    apple: [{ url: '/shop-icon-192.png', sizes: '192x192', type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Zmeurel',
+    statusBarStyle: 'default',
+  },
   robots: { index: true, follow: true },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#F16B6B',
 }
 
 const DEFAULT_SHOP_DOMAIN = 'comanda.zmeurel.ro'
