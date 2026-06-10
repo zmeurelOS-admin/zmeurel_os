@@ -81,3 +81,16 @@ supabase-status.json
 scripts/perf/.tmp/
 test-output.txt
 .git-tracked-logs-to-unindex.txt
+# Temporary files
+.tmp-*
+*.log
+build-*.log
+test-*.log
+test*.json
+.playwright-mcp/
+scripts/tmp-*.mjs
+supabase/.temp/
+docs/dashboard-qa-screenshots/
+docs/final-browser-qa/
+docs/mobile-modules-qa/
+docs/mobile-step4-qa/
