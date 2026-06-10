@@ -6,6 +6,7 @@ import {
 } from '@/lib/api/public-write-guard'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { lookupShopCustomer } from '@/lib/shop/b2c-customers'
+import { normalizeRomanianMobilePhone } from '@/lib/shop/phone'
 
 const CUSTOMER_LOOKUP_RATE_LIMIT = { limit: 5, windowMs: 60_000 } as const
 
@@ -16,8 +17,9 @@ function notFoundResponse() {
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const phone = url.searchParams.get('phone')?.trim() ?? ''
+  const normalizedPhone = normalizeRomanianMobilePhone(phone)
 
-  if (phone.length < 10) {
+  if (!normalizedPhone) {
     return NextResponse.json({ found: false, error: 'Telefon invalid' }, { status: 400 })
   }
 
@@ -40,7 +42,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const customer = await lookupShopCustomer({ tenantId, phone })
+    const customer = await lookupShopCustomer({ tenantId, phone: normalizedPhone })
     if (!customer.found) return notFoundResponse()
 
     return NextResponse.json({

@@ -20,6 +20,7 @@ Next.js App Router routes, layouts, route groups, metadata, and API endpoints.
 Important areas:
 
 - `src/app/(auth)` public auth pages
+- `src/app/comanda` storefront-ul B2C dedicat hostului `comanda.zmeurel.ro`; `ShopClient.tsx` orchestrează checkout-ul existent și secțiunile campaniei UI din `src/app/comanda/components`, alimentate temporar de `src/lib/shop/campaign-mock.ts`
 - `src/app/magazin` public farmer storefront (`/magazin`, `/magazin/[tenantId]`) — catalog + coș local; loader `src/lib/shop/load-public-shop.ts`; **`/magazin/asociatie`** magazin multi-fermier „Gustă din Bucovina” (`load-association-catalog.ts`, `AssociationShopClient.tsx`, `AssociationLogo.tsx`, `AssociationHeroVisual.tsx`)
 - `src/app/(dashboard)` protected app pages
 - `src/app/(onboarding)` onboarding/demo entry

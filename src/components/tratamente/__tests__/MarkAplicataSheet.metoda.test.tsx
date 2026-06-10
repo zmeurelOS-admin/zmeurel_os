@@ -162,18 +162,19 @@ function makePlanProdus(
 }
 
 function baseManualProps(overrides?: Partial<React.ComponentProps<typeof MarkAplicataSheet>>) {
+  const parcelaId = '00000000-0000-4000-8000-000000000101'
   return {
     mode: 'manual' as const,
     defaultCantitateMl: null,
     defaultOperator: 'Ion',
     defaultStadiu: null,
-    defaultManualParcelaId: 'parcela-1',
+    defaultManualParcelaId: parcelaId,
     defaultManualParcelaLabel: 'Parcela test',
     defaultManualStatus: 'aplicata' as const,
     configurareSezon: null,
     grupBiologic: 'solanacee' as const,
     isRubusMixt: false,
-    manualParcele: [{ value: 'parcela-1', label: 'Parcela test' }],
+    manualParcele: [{ value: parcelaId, label: 'Parcela test' }],
     meteoSnapshot: null,
     onOpenChange: vi.fn(),
     onSubmit: vi.fn(),
@@ -329,59 +330,23 @@ function seedRecomandariFixtures() {
 }
 
 describe('MarkAplicataSheet.defaultMetoda', () => {
-  it("afișează badge-ul și valorile foliare implicite în mode='manual'", async () => {
-    seedRecomandariFixtures()
-
+  it("preselectează butonul vizual pentru defaultMetoda în mode='manual'", () => {
     renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
 
-    expect(
-      screen.getAllByText('Foliar').some((element) => element.tagName.toLowerCase() !== 'option')
-    ).toBe(true)
-    expect(screen.getByRole('combobox', { name: 'Unitate doză' })).toHaveTextContent('ml/10L apă')
-    expect(screen.getByText('Cantitate apă')).toBeInTheDocument()
-    expect(screen.getByText(/Opțional\./i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Înflorit' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Recomandate pentru/i)).not.toBeInTheDocument()
-  }, 10_000)
+    expect(screen.getByRole('button', { name: 'Foliar' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('Pasul 1 din 3')).toBeInTheDocument()
+    expect(screen.queryByText('Produs fără nume')).not.toBeInTheDocument()
+  })
 
-  it("ascunde câmpul de apă pentru fertirigare și setează unitatea default corectă", () => {
-    seedRecomandariFixtures()
-
+  it('afișează cele trei metode ca butoane mari', () => {
     renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'fertirigare' })} />)
 
-    expect(screen.getByRole('combobox', { name: 'Unitate doză' })).toHaveTextContent('kg/parcelă')
-    expect(screen.queryByText('Cantitate apă')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fertirigare' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Foliar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sol' })).toBeInTheDocument()
   })
 
-  it('setează unitatea de bază și ascunde warning-ul PHI pentru fertilizare_baza', () => {
-    seedRecomandariFixtures()
-
-    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'fertilizare_baza' })} />)
-
-    expect(screen.getByRole('combobox', { name: 'Unitate doză' })).toHaveTextContent('saci 50 kg')
-    expect(screen.queryByText('Atenție PHI')).not.toBeInTheDocument()
-  })
-
-  it('prepopulează Tip intervenție din defaultMetoda (picker)', async () => {
-    seedRecomandariFixtures()
-
-    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
-
-    expect(await screen.findByRole('combobox', { name: /Tip intervenție/i })).toHaveTextContent('Foliar')
-  })
-
-  it('expandează „Mai multe detalii” la click', async () => {
-    const user = userEvent.setup()
-    seedRecomandariFixtures()
-
-    renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
-
-    expect(screen.queryByLabelText('Operator')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Mai multe detalii/i }))
-    expect(screen.getByLabelText('Operator')).toBeInTheDocument()
-  })
-
-  it('nu afișează recomandările în mod manual (indiferent de stadiu în DB)', async () => {
+  it('nu injectează recomandările planului în fluxul manual', async () => {
     seedRecomandariFixtures()
 
     renderSheet(<MarkAplicataSheet {...baseManualProps({ defaultMetoda: 'foliar' })} />)
@@ -391,19 +356,52 @@ describe('MarkAplicataSheet.defaultMetoda', () => {
     })
   })
 
-  it('nu activează UI-ul Sprint 4 când defaultMetoda lipsește', async () => {
-    seedRecomandariFixtures()
+  it('caută produsul și salvează fără scop, apoi închide modalul', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const onOpenChange = vi.fn()
+    const cupru = makeProdus('prod-1', 'Cupru Standard', 'hidroxid de cupru')
+    const sulf = makeProdus('prod-2', 'Sulf Rapid', 'sulf')
 
-    renderSheet(<MarkAplicataSheet {...baseManualProps()} />)
+    renderSheet(
+      <MarkAplicataSheet
+        {...baseManualProps({
+          defaultMetoda: 'foliar',
+          onOpenChange,
+          onSubmit,
+          produseFitosanitare: [cupru, sulf],
+        })}
+      />
+    )
 
-    expect(screen.queryByRole('combobox', { name: 'Unitate doză' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/Recomandate pentru/i)).not.toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Înflorit' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continuă' }))
+    const searchInput = screen.getByPlaceholderText('Nume, substanță, tip sau FRAC/IRAC')
+    await user.type(searchInput, 'hidroxid')
+
+    expect(screen.getByRole('button', { name: /Cupru Standard/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Sulf Rapid/i })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Cupru Standard/i }))
+    await user.type(screen.getByLabelText('Cantitate aplicată'), '250')
+
+    expect(screen.getByText(/Scop/)).toHaveTextContent('opțional')
+    await user.click(screen.getByRole('button', { name: 'Salvează intervenția' }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      metoda_aplicare: 'foliar',
+      scop: undefined,
+      produse: [
+        expect.objectContaining({
+          produs_id: 'prod-1',
+          cantitate_text: '250 ml',
+        }),
+      ],
     })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it("trimite metoda_aplicare la submit în mode='din_plan' și ascunde assist-urile manuale", async () => {
+  it('păstrează fluxul existent pentru aplicările din plan', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()
     const cupru = makeProdus('prod-1', 'Cupru Standard', 'hidroxid de cupru')
@@ -430,6 +428,5 @@ describe('MarkAplicataSheet.defaultMetoda', () => {
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
       metoda_aplicare: 'foliar',
     })
-    expect(screen.queryByText(/Recomandate pentru/i)).not.toBeInTheDocument()
   })
 })

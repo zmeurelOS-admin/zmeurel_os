@@ -29,13 +29,10 @@ export default async function ToateAplicarilePage({ params }: PageProps) {
   const to = endOfYear(referintaSezon)
   const aplicari = await listAplicariParcela(parcelaId, { from, to })
 
-  const aplicate = aplicari
-    .filter((aplicare) => aplicare.status === 'aplicata' || aplicare.status === 'aplicata_partial')
-    .sort((a, b) => getAplicareTimestamp(b) - getAplicareTimestamp(a))
-  const planificate = aplicari
-    .filter((aplicare) => aplicare.status !== 'aplicata' && aplicare.status !== 'aplicata_partial')
-    .sort((a, b) => getAplicareTimestamp(a) - getAplicareTimestamp(b))
-  const isEmpty = aplicate.length === 0 && planificate.length === 0
+  const aplicariSortate = [...aplicari].sort(
+    (a, b) => getAplicareTimestamp(b) - getAplicareTimestamp(a)
+  )
+  const isEmpty = aplicariSortate.length === 0
 
   return (
     <AppShell
@@ -59,20 +56,7 @@ export default async function ToateAplicarilePage({ params }: PageProps) {
             </p>
           </AppCard>
         ) : (
-          <>
-            <AplicareListaClient
-              aplicari={aplicate}
-              parcelaId={parcelaId}
-              label="Aplicate"
-              count={aplicate.length}
-            />
-            <AplicareListaClient
-              aplicari={planificate}
-              parcelaId={parcelaId}
-              label="Planificate"
-              count={planificate.length}
-            />
-          </>
+          <AplicareListaClient aplicari={aplicariSortate} parcelaId={parcelaId} />
         )}
       </div>
     </AppShell>

@@ -50,7 +50,7 @@ describe('GET /api/shop/b2c/customer', () => {
     expect(payload.email).toBeUndefined()
     expect(mocks.lookupShopCustomer).toHaveBeenCalledWith({
       tenantId: process.env.SHOP_TENANT_ID,
-      phone: '0722 123 456',
+      phone: '0722123456',
     })
   })
 

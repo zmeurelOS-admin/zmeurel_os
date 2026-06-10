@@ -14,7 +14,7 @@ const manualInterventieSchema = z.object({
   status: z.enum(['planificata', 'aplicata']),
   data: z.string().trim().min(1, 'Data intervenției este obligatorie.'),
   tip_interventie: z.string().trim().min(1, 'Tipul intervenției este obligatoriu.'),
-  scop: z.string().trim().min(1, 'Scopul intervenției este obligatoriu.'),
+  scop: z.string().trim().optional(),
   metoda_aplicare: metodaAplicareSchema.nullable().optional(),
   stadiu_la_aplicare: z.string().trim().optional(),
   cohort_la_aplicare: z.enum(['floricane', 'primocane']).optional().nullable(),
@@ -31,7 +31,7 @@ export interface ManualInterventiePayload {
   status: 'planificata' | 'aplicata'
   data: string
   tip_interventie: string
-  scop: string
+  scop: string | null
   metoda_aplicare: MetodaAplicare | null
   stadiu_la_aplicare: string | null
   cohort_la_aplicare: Cohorta | null
@@ -99,7 +99,7 @@ export function parseManualInterventieFormData(formData: FormData): ManualInterv
     status: parsed.data.status,
     data: parsed.data.data,
     tip_interventie: parsed.data.tip_interventie,
-    scop: parsed.data.scop,
+    scop: parsed.data.scop?.trim() || null,
     metoda_aplicare: parsed.data.metoda_aplicare ?? null,
     stadiu_la_aplicare: parsed.data.stadiu_la_aplicare?.trim() || null,
     cohort_la_aplicare: (parsed.data.cohort_la_aplicare === 'floricane' || parsed.data.cohort_la_aplicare === 'primocane'

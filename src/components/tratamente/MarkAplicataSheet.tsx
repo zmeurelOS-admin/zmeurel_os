@@ -46,6 +46,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { AplicareSourceBadge } from '@/components/tratamente/AplicareSourceBadge'
 import { InterventieAplicareFormSummary } from '@/components/tratamente/InterventieAplicareFormSummary'
+import {
+  ManualInterventionWizard,
+  type QuantityUnit,
+} from '@/components/tratamente/ManualInterventionWizard'
 import { ProdusFitosanitarPicker } from '@/components/tratamente/ProdusFitosanitarPicker'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
@@ -943,6 +947,8 @@ export function MarkAplicataSheet({
   const [recomandariDraft, setRecomandariDraft] = useState<RecomandareInterventieDraft[]>([])
   // Sprint 4: defaultMetoda support
   const [recomandariLoading, setRecomandariLoading] = useState(false)
+  const [manualQuantityValue, setManualQuantityValue] = useState('')
+  const [manualQuantityUnit, setManualQuantityUnit] = useState<QuantityUnit>('ml')
   // Stabilizare deps `useEffect`-ului de reset:
   // 1. `defaultManualData` are default param `new Date()` recomputed la fiecare render
   //    când părintele nu îl pasează, deci nu poate sta direct în deps.
@@ -1022,6 +1028,7 @@ export function MarkAplicataSheet({
   const selectedManualParcelaId = useWatch({ control: form.control, name: 'manual_parcela_id' }) ?? defaultManualParcelaId ?? ''
   const selectedTipInterventie = useWatch({ control: form.control, name: 'manual_tip_select' }) ?? ''
   const selectedScopInterventie = useWatch({ control: form.control, name: 'manual_scop_select' }) ?? ''
+  const watchedObservations = useWatch({ control: form.control, name: 'observatii' }) ?? ''
   const watchedDataAplicata = useWatch({ control: form.control, name: 'data_aplicata' }) ?? ''
   const watchedManualData = useWatch({ control: form.control, name: 'manual_data' }) ?? ''
   const summaryValues = useWatch({ control: form.control })
@@ -1091,7 +1098,9 @@ export function MarkAplicataSheet({
       const nextProduse =
         mode === 'edit'
           ? buildEditProduse(aplicareExistenta)
-          : buildInitialProduse(
+          : mode === 'manual'
+            ? []
+            : buildInitialProduse(
               produseEfectiveRef.current,
               produsePlanificateRef.current
             )
@@ -1103,6 +1112,8 @@ export function MarkAplicataSheet({
       setCantitateUnit(getUnitateDefaultPentruMetoda(mode === 'edit' ? editMetoda : defaultMetoda ?? null))
       setRecomandariDraft([])
       setRecomandariLoading(false)
+      setManualQuantityValue('')
+      setManualQuantityUnit('ml')
       queueMicrotask(() => setEditMeteo(false))
     }
   }, [
@@ -1230,10 +1241,6 @@ export function MarkAplicataSheet({
         toast.error('Selectează tipul intervenției.')
         return
       }
-      if (!scopInterventie) {
-        toast.error('Selectează scopul intervenției.')
-        return
-      }
 
       try {
         await onSubmit({
@@ -1244,7 +1251,7 @@ export function MarkAplicataSheet({
           manual_data: values.manual_data,
           metoda_aplicare: metodaAplicare,
           tip_interventie: tipInterventie,
-          scop: scopInterventie,
+          scop: scopInterventie || undefined,
           cohort_la_aplicare: undefined,
           stadiu_la_aplicare: undefined,
           meteoSnapshot: editMeteo
@@ -1268,6 +1275,7 @@ export function MarkAplicataSheet({
           })),
           diferenteFataDePlan: null,
         })
+        onOpenChange(false)
         if (tenantId) {
           void autoSaveProdusInBiblioteca(
             withProductOrder(produseDraft).map((produs) => ({
@@ -1480,6 +1488,121 @@ export function MarkAplicataSheet({
         : null,
     [mode, produseDraft, produsePlanificate, summaryValues.diferente_fata_de_plan_text]
   )
+
+  const manualOverlay = mode === 'manual' ? (() => {
+    const selectedDraft = produseDraft[0] ?? null
+    const selectedCatalogProduct = selectedDraft?.produs_id
+      ? produseFitosanitare.find((product) => product.id === selectedDraft.produs_id) ?? null
+      : null
+    const wizardParcele =
+      manualParcele.length > 0
+        ? manualParcele
+        : defaultManualParcelaId
+          ? [{ value: defaultManualParcelaId, label: defaultManualParcelaLabel ?? 'Parcela curentă' }]
+          : []
+
+    const wizard = open ? (
+      <ManualInterventionWizard
+        dateValue={watchedManualData}
+        manualParcele={wizardParcele}
+        observations={watchedObservations}
+        onDateChange={(value) =>
+          form.setValue('manual_data', value, { shouldDirty: true, shouldValidate: true })
+        }
+        onMethodChange={(method, tipSelect) => {
+          setMetodaAplicare(method)
+          form.setValue('manual_tip_select', tipSelect, { shouldDirty: true, shouldValidate: true })
+        }}
+        onObservationsChange={(value) =>
+          form.setValue('observatii', value, { shouldDirty: true })
+        }
+        onParcelChange={(value) =>
+          form.setValue('manual_parcela_id', value, { shouldDirty: true, shouldValidate: true })
+        }
+        onProductChange={(product) => {
+          const next = product
+            ? {
+                ...updateProductFromCatalog(createEmptyProdusDraft(1), product),
+                tip_snapshot: product.tip ?? 'altul',
+              }
+            : {
+                ...createEmptyProdusDraft(1),
+                tip_snapshot: 'altul',
+              }
+          setProduseDraft([next])
+          setOpenProductId(next.id)
+          setManualQuantityValue('')
+        }}
+        onManualProductNameChange={(value) => {
+          if (!selectedDraft) return
+          updateProduct(selectedDraft.id, (current) => ({
+            ...current,
+            produs_id: null,
+            produs_nume_manual: value,
+            produs_nume_snapshot: value,
+          }))
+        }}
+        onQuantityChange={(value, unit) => {
+          setManualQuantityValue(value)
+          setManualQuantityUnit(unit)
+          setCantitateUnit(unit)
+          if (!selectedDraft) return
+          updateProduct(selectedDraft.id, (current) => ({
+            ...current,
+            cantitate_text: value.trim() ? `${value.trim()} ${unit}` : '',
+          }))
+        }}
+        onScopeChange={(value) =>
+          form.setValue('manual_scop_select', value, { shouldDirty: true })
+        }
+        onSubmit={save}
+        open={open}
+        pending={pending}
+        produse={produseFitosanitare}
+        quantityUnit={manualQuantityUnit}
+        quantityValue={manualQuantityValue}
+        scopeValue={selectedScopInterventie}
+        selectedMethod={metodaAplicare}
+        selectedParcelaId={selectedManualParcelaId}
+        selectedProduct={
+          selectedDraft
+            ? {
+                catalogProduct: selectedCatalogProduct,
+                manualName: selectedDraft.produs_nume_manual,
+              }
+            : null
+        }
+      />
+    ) : null
+
+    if (isMobile) {
+      return (
+        <Sheet open={open} onOpenChange={onOpenChange}>
+          <SheetContent side="bottom" className="max-h-[100dvh] rounded-none flex flex-col overflow-hidden">
+            <SheetHeader>
+              <SheetTitle>Adaugă intervenție manuală</SheetTitle>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {wizard}
+            </div>
+          </SheetContent>
+        </Sheet>
+      )
+    }
+
+    return (
+      <AppDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title="Adaugă intervenție manuală"
+        description="Trei pași simpli: context, produs și detalii."
+        showCloseButton
+        contentClassName="md:w-[min(94vw,46rem)] md:max-w-none"
+      >
+        {wizard}
+      </AppDialog>
+    )
+  })() : null
 
   const cohortField = isRubusMixt ? (
     <div className="space-y-2">
@@ -2545,6 +2668,10 @@ export function MarkAplicataSheet({
       </DesktopFormGrid>
     </form>
   )
+
+  if (manualOverlay) {
+    return manualOverlay
+  }
 
   if (isMobile) {
     return (

@@ -3,15 +3,33 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
+import { Input } from '@/components/ui/input'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { ShopNotifPrompt } from '@/components/shop/ShopNotifPrompt'
+import {
+  CAMPAIGN_DATA,
+  checkMilestoneHit,
+  type CampaignMilestone,
+} from '@/lib/shop/campaign-mock'
 import {
   computeZmeuraTotalLei,
   ZMEURA_CASEROLA_PRICE_LEI,
+  ZMEURA_CASEROLE_PER_KG,
   ZMEURA_KG_PRICE_LEI,
   ZMEURA_PRODUCT_ID,
 } from '@/lib/shop/pricing'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import { markNotificationPromptSession, shouldShowNotificationPrompt } from '@/lib/shop/useNotificationPrompt'
+import { CampaignMeter } from './components/CampaignMeter'
+import { CampaignMilestones } from './components/CampaignMilestones'
+import { CampaignRules } from './components/CampaignRules'
+import { SeasonLeaderboard } from './components/SeasonLeaderboard'
 import styles from './comanda.module.css'
 
 const WA_NUMBER = '40752953048'
@@ -102,6 +120,23 @@ function formatLei(value: number) {
 
 function formatKg(qty: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(qty / 2)
+}
+
+function formatPriceBreakdown(qty: number): string {
+  const pairs = Math.floor(qty / ZMEURA_CASEROLE_PER_KG)
+  const remainingCaserole = qty % ZMEURA_CASEROLE_PER_KG
+  const parts: string[] = []
+
+  if (pairs > 0) {
+    parts.push(`${pairs} ${pairs === 1 ? 'pereche' : 'perechi'} × ${formatLei(ZMEURA_KG_PRICE_LEI)} lei`)
+  }
+  if (remainingCaserole > 0) {
+    parts.push(
+      `${remainingCaserole} ${remainingCaserole === 1 ? 'caserolă' : 'caserole'} × ${formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei`,
+    )
+  }
+
+  return parts.join(' + ')
 }
 
 function formatOrderDate(value: string): string {
@@ -330,6 +365,7 @@ export function ShopClient({
   const [orderError, setOrderError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [capturedMilestone, setCapturedMilestone] = useState<CampaignMilestone | null>(null)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
   const [sourceSaved, setSourceSaved] = useState(false)
@@ -553,6 +589,7 @@ export function ShopClient({
       setQty(primaryProduct.id, 1)
     }
     setOrderSuccess(false)
+    setCapturedMilestone(null)
     setNotificationPromptVisible(false)
     setPendingNotifPrompt(false)
     setOrderError(null)
@@ -653,6 +690,11 @@ export function ShopClient({
       }
 
       setOrderSuccess(true)
+      setCapturedMilestone(
+        checkMilestoneHit(CAMPAIGN_DATA.currentCount, cartCount, CAMPAIGN_DATA.nextMilestone)
+          ? CAMPAIGN_DATA.nextMilestone
+          : null,
+      )
       setNotificationPromptVisible(false)
       setPendingNotifPrompt(true)
       setSourcePromptVisible(true)
@@ -685,8 +727,11 @@ export function ShopClient({
 
   return (
     <div className="w-full pb-32">
-      <header className="sticky top-0 z-40 border-b-4 border-[#F16B6B] bg-[#312E3F] px-4 py-3">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b-4 border-[#F16B6B] bg-[#312E3F] px-4 py-3">
         <ZmeurelLogo wordmarkClassName="text-white" />
+        <span className="shrink-0 rounded-full border border-[#FFB1AA]/55 bg-[#F16B6B]/18 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-[#FFD6D1]">
+          Precomenzi 2026
+        </span>
       </header>
 
       {loadError ? (
@@ -705,92 +750,138 @@ export function ShopClient({
             sizes="(max-width: 640px) 100vw, 540px"
             className="object-cover object-bottom"
           />
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#312E3F]/35 to-transparent" aria-hidden />
+          <div
+            className="absolute inset-0 bg-gradient-to-b from-[#312E3F]/35 via-transparent to-[#312E3F]/85"
+            aria-hidden
+          />
           <span className="absolute left-4 top-4 rounded-full bg-[#FFF6F3]/95 px-3 py-2 text-xs font-bold text-[#3D7A5F] shadow-md backdrop-blur-sm">
             ✓ Culeasă în ziua livrării
           </span>
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-5">
+            <h1 className={`max-w-[420px] text-[29px] font-semibold leading-[1.05] text-white ${styles.fontDisplay}`}>
+              Zmeură proaspătă din Văratec
+            </h1>
+            <p className="mt-2 text-sm font-semibold text-white/78">Campania de sezon Zmeură 2026</p>
+          </div>
         </section>
 
-        <section className="relative z-10 mx-3 -mt-11 rounded-[26px] bg-white p-[18px] shadow-[0_12px_36px_rgba(120,100,70,0.16)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className={`text-[26px] font-semibold leading-tight text-[#312E3F] ${styles.fontDisplay}`}>
-                Zmeură proaspătă
-              </h1>
-              <p className="mt-1 text-sm font-medium text-[#312E3F]/65">Caserolă 500g · Văratec, Suceava</p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-[28px] font-extrabold leading-none tabular-nums text-[#F16B6B]">
-                {formatLei(cartTotal)} lei
-              </p>
-              <p className="mt-1 text-[11px] font-semibold text-[#3D7A5F]">
-                {formatLei(ZMEURA_KG_PRICE_LEI)} lei/kg
-              </p>
-            </div>
-          </div>
-
-          {primaryProduct?.available ? (
-            <>
-              <div className="mt-4 flex items-center justify-center gap-4">
-                <button
-                  type="button"
-                  aria-label="Scade cantitatea"
-                  onClick={() => setQty(primaryProduct.id, Math.max(1, primaryQty - 1))}
-                  className="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-[#FFF6F3] text-[28px] font-medium text-[#312E3F] shadow-sm transition active:scale-[0.985] active:shadow-none"
-                >
-                  −
-                </button>
-                <span className="min-w-16 text-center text-[32px] font-extrabold tabular-nums text-[#312E3F]">
-                  {primaryQty}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Crește cantitatea"
-                  onClick={() => setQty(primaryProduct.id, primaryQty + 1)}
-                  className="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-[#F16B6B] text-[28px] font-medium text-white shadow-md transition active:scale-[0.985] active:shadow-sm"
-                >
-                  +
-                </button>
-              </div>
-              <p className="mt-1 text-center text-sm font-semibold text-[#312E3F]/70">
-                {primaryQty} {primaryQty === 1 ? 'caserolă' : 'caserole'} · {formatKg(primaryQty)} kg
-              </p>
-
-              <div className="mt-3 grid grid-cols-4 gap-2" aria-label="Cantități rapide">
-                {[1, 2, 4, 6].map((qty) => (
-                  <button
-                    key={qty}
-                    type="button"
-                    aria-label={`Alege ${qty} ${qty === 1 ? 'caserolă' : 'caserole'}`}
-                    aria-pressed={primaryQty === qty}
-                    onClick={() => setQty(primaryProduct.id, qty)}
-                    className={`min-h-11 rounded-xl text-sm font-bold transition active:scale-[0.985] ${
-                      primaryQty === qty
-                        ? 'bg-[#312E3F] text-white shadow-sm'
-                        : 'bg-[#FFF6F3] text-[#312E3F]'
-                    }`}
-                  >
-                    {qty}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={openCheckout}
-                className="mt-4 min-h-[54px] w-full rounded-2xl bg-[#F16B6B] px-5 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.3)] transition active:scale-[0.985] active:shadow-sm"
-              >
-                Comandă acum · {formatLei(cartTotal)} lei
-              </button>
-              <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-[#312E3F]/60">
-                ✓ Culeasă în ziua livrării · ✓ Livrare locală · ✓ Plată cash
-              </p>
-            </>
-          ) : (
-            <p className="mt-4 rounded-2xl bg-[#FFF6F3] px-4 py-4 text-sm font-semibold text-[#312E3F]">
-              Zmeura nu este disponibilă momentan. Revino curând.
+        <section className="px-3 pt-4">
+          <div className="rounded-[20px] border border-[#F3DAD4] bg-[#FFF0ED] px-4 py-4 text-[#312E3F] shadow-[0_6px_18px_rgba(241,107,107,0.1)]">
+            <p className="text-sm font-extrabold leading-relaxed text-[#E15453]">
+              Precomenzi deschise · Primele livrări în 1–2 săptămâni · Plata cash la livrare
             </p>
-          )}
+            <p className="mt-2 border-t border-[#F3DAD4] pt-2 text-xs leading-relaxed text-[#312E3F]/72">
+              Livrare în Suceava și localitățile apropiate. Alte zone — confirmăm telefonic.
+            </p>
+          </div>
+        </section>
+
+        <div className="mt-5">
+          <CampaignMeter campaign={CAMPAIGN_DATA} />
+        </div>
+
+        <section className="mt-7 px-3" aria-labelledby="preorder-product-title">
+          <h2
+            id="preorder-product-title"
+            className={`mb-3 text-[25px] font-semibold text-[#312E3F] ${styles.fontDisplay}`}
+          >
+            Precomandă zmeură
+          </h2>
+          <div className="rounded-[26px] bg-white p-[18px] shadow-[0_12px_36px_rgba(120,100,70,0.16)]">
+            <div className="grid gap-2 min-[360px]:grid-cols-2">
+              <div className="rounded-[18px] border border-[#F3DAD4] bg-[#FFF9F7] px-3 py-3">
+                <p className="text-xs font-bold text-[#312E3F]/68">1 caserolă · 500 g</p>
+                <p className="mt-1 text-xl font-extrabold tabular-nums text-[#F16B6B]">
+                  {formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei
+                </p>
+              </div>
+              <div className="relative rounded-[18px] border border-[#F16B6B] bg-[#FFF0ED] px-3 py-3">
+                <span className="absolute -top-2 right-2 rounded-full bg-[#F16B6B] px-2 py-0.5 text-[10px] font-extrabold text-white">
+                  -1 leu
+                </span>
+                <p className="text-xs font-bold text-[#312E3F]/68">2 caserole · 1 kg</p>
+                <p className="mt-1 text-xl font-extrabold tabular-nums text-[#F16B6B]">
+                  {formatLei(ZMEURA_KG_PRICE_LEI)} lei
+                </p>
+              </div>
+            </div>
+
+            {primaryProduct?.available ? (
+              <>
+                <div className="mt-5 flex items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    aria-label="Scade cantitatea"
+                    onClick={() => setQty(primaryProduct.id, Math.max(1, primaryQty - 1))}
+                    className="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-[#FFF6F3] text-[28px] font-medium text-[#312E3F] shadow-sm transition active:scale-[0.985] active:shadow-none"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-16 text-center text-[32px] font-extrabold tabular-nums text-[#312E3F]">
+                    {primaryQty}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Crește cantitatea"
+                    onClick={() => setQty(primaryProduct.id, primaryQty + 1)}
+                    className="grid h-[54px] w-[54px] place-items-center rounded-2xl bg-[#F16B6B] text-[28px] font-medium text-white shadow-md transition active:scale-[0.985] active:shadow-sm"
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="mt-1 text-center text-sm font-semibold text-[#312E3F]/70">
+                  {primaryQty} {primaryQty === 1 ? 'caserolă' : 'caserole'} · {formatKg(primaryQty)} kg
+                </p>
+
+                <div className="mt-3 grid grid-cols-4 gap-2" aria-label="Cantități rapide">
+                  {[1, 2, 4, 6].map((qty) => (
+                    <button
+                      key={qty}
+                      type="button"
+                      aria-label={`Alege ${qty} ${qty === 1 ? 'caserolă' : 'caserole'}`}
+                      aria-pressed={primaryQty === qty}
+                      onClick={() => setQty(primaryProduct.id, qty)}
+                      className={`relative min-h-12 rounded-xl pt-1 text-sm font-bold transition active:scale-[0.985] ${
+                        primaryQty === qty
+                          ? 'bg-[#312E3F] text-white shadow-sm'
+                          : 'bg-[#FFF6F3] text-[#312E3F]'
+                      }`}
+                    >
+                      {qty}
+                      {qty === 2 ? (
+                        <span
+                          className={`absolute inset-x-0 bottom-1 text-[8px] font-extrabold uppercase tracking-wide ${
+                            primaryQty === qty ? 'text-[#FFB1AA]' : 'text-[#E15453]'
+                          }`}
+                        >
+                          popular
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="mt-3 rounded-xl bg-[#FFF6F3] px-3 py-2 text-center text-xs font-semibold text-[#312E3F]/72">
+                  {formatPriceBreakdown(primaryQty)}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={openCheckout}
+                  className="mt-4 min-h-[54px] w-full rounded-2xl bg-[#F16B6B] px-5 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.3)] transition active:scale-[0.985] active:shadow-sm"
+                >
+                  Precomandă acum · {formatLei(cartTotal)} lei
+                </button>
+                <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-[#312E3F]/60">
+                  ✓ Culeasă în ziua livrării · ✓ Livrare locală · ✓ Plată cash
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 rounded-2xl bg-[#FFF6F3] px-4 py-4 text-sm font-semibold text-[#312E3F]">
+                Zmeura nu este disponibilă momentan. Revino curând.
+              </p>
+            )}
+          </div>
         </section>
 
         <section className="mt-8 px-3">
@@ -812,6 +903,18 @@ export function ShopClient({
             </span>
           </div>
         </section>
+
+        <div className="mt-8">
+          <CampaignMilestones campaign={CAMPAIGN_DATA} />
+        </div>
+
+        <div className="mt-8">
+          <SeasonLeaderboard campaign={CAMPAIGN_DATA} />
+        </div>
+
+        <div className="mt-8">
+          <CampaignRules campaign={CAMPAIGN_DATA} />
+        </div>
 
         <footer className="mt-8 border-t-4 border-[#F16B6B] bg-[#312E3F] px-5 pb-10 pt-8 text-white">
           <FooterBrand />
@@ -861,230 +964,256 @@ export function ShopClient({
               onClick={openCheckout}
               className="min-h-12 shrink-0 rounded-2xl bg-[#F16B6B] px-5 text-sm font-extrabold text-white transition active:scale-[0.985]"
             >
-              Comandă acum
+              Precomandă acum
             </button>
           </div>
         </div>
       ) : null}
 
       {/* ORDER SHEET */}
-      {sheetOpen ? (
-        <div className="fixed inset-0 z-[60] flex flex-col justify-end">
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          if (!orderSubmitting) setSheetOpen(open)
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          overlayClassName="!z-[59] bg-black/40 backdrop-blur-none"
+          className="!z-[60] mx-auto max-h-[90dvh] w-full max-w-[540px] rounded-t-[26px] border-[#F3DAD4] bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 text-[#312E3F] shadow-[0_-18px_48px_rgba(49,46,63,0.2)]"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            phoneFieldRef.current?.querySelector('input')?.focus({ preventScroll: true })
+          }}
+        >
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#F3DAD4]" aria-hidden />
+          <SheetHeader className="px-0 pb-0 pt-0">
+            <SheetTitle className={`text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
+              {orderSuccess ? 'Precomandă înregistrată' : 'Finalizează precomanda'}
+            </SheetTitle>
+            <SheetDescription className="text-sm text-[#312E3F]/68">
+              Te sunăm înainte de livrare pentru confirmarea zilei și a detaliilor.
+            </SheetDescription>
+          </SheetHeader>
+
+          {orderSuccess ? (
+            <div className="mt-4 space-y-3">
+              {capturedMilestone ? (
+                <div className="rounded-[20px] border border-[#F6C85F] bg-[#FFF4D8] px-4 py-5 text-center text-[#312E3F]">
+                  <p className="text-3xl" aria-hidden>
+                    🎉
+                  </p>
+                  <p className={`mt-2 text-[22px] font-semibold ${styles.fontDisplay}`}>Felicitări!</p>
+                  <p className="mt-2 text-sm leading-relaxed">
+                    Comanda ta a trecut pragul de{' '}
+                    <strong>{capturedMilestone.threshold.toLocaleString('ro-RO')} caserole</strong>. Primești{' '}
+                    <strong>{capturedMilestone.rewardLabel}</strong> la livrare.
+                  </p>
+                </div>
+              ) : (
+                <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-sm font-medium text-[#0D9B5C]">
+                  Precomanda a fost salvată. WhatsApp s-a deschis cu mesajul pregătit — trimite-l pentru
+                  confirmare.
+                </p>
+              )}
+
+              {sourcePromptVisible ? (
+                <div className="rounded-2xl border border-[#F3DAD4] bg-[#FFF6F3] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-[#312E3F]">Cum ai aflat de noi?</p>
+                      <p className="mt-0.5 text-xs text-[#312E3F]/65">Opțional, ne ajută să înțelegem ce merge.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSourcePromptVisible(false)}
+                      className="rounded-full px-2 py-1 text-xs font-semibold text-[#312E3F]/55"
+                    >
+                      Închide
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
+                    {ACQUISITION_SOURCE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => submitAcquisitionSource(option.value)}
+                        className="rounded-xl border border-[#F3DAD4] bg-white px-3 py-3 text-left text-sm font-semibold text-[#312E3F] active:scale-[0.98]"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : sourceSaved ? (
+                <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-xs font-medium text-[#0D9B5C]">
+                  Mulțumim! Am salvat răspunsul.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <p className="mt-4 rounded-xl border border-[#F6C85F] bg-[#FFF4D8] px-3 py-3 text-xs font-semibold leading-relaxed text-[#6F4B00]">
+                Aceasta este o precomandă. Vei fi contactat telefonic pentru confirmare. Plata se face cash la
+                livrare, nu în avans.
+              </p>
+
+              <div className="mt-4">
+                <CheckoutOrderSummary lines={cartLines} total={cartTotal} />
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <div ref={phoneFieldRef}>
+                  <Field
+                    label="Telefon"
+                    value={orderPhone}
+                    onChange={updateOrderPhone}
+                    onBlur={normalizeOrderPhoneOnBlur}
+                    autoComplete="tel"
+                    inputMode="tel"
+                    placeholder="07xx xxx xxx"
+                    error={visiblePhoneError}
+                  />
+                  {!recognizedCustomerPhone ? (
+                    <p className="mt-1 text-xs text-[#6b7280]">
+                      Dacă ai mai comandat, completăm datele automat.
+                    </p>
+                  ) : null}
+                </div>
+                <div ref={nameFieldRef}>
+                  <Field
+                    label="Nume"
+                    value={orderName}
+                    onChange={updateOrderName}
+                    autoComplete="name"
+                    error={fieldErrors.name}
+                  />
+                  {customerAutofillNotice ? (
+                    <p className="mt-1 text-xs font-semibold text-[#3D7A5F]">{customerAutofillNotice}</p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-[#312E3F]">Mod livrare</p>
+                  <div className="flex gap-2">
+                    <ToggleChip
+                      active={deliveryMode === 'livrare'}
+                      onClick={() => setDeliveryMode('livrare')}
+                      label="Livrare"
+                    />
+                    <ToggleChip
+                      active={deliveryMode === 'ridicare'}
+                      onClick={() => setDeliveryMode('ridicare')}
+                      label="Ridicare"
+                    />
+                  </div>
+                </div>
+
+                {deliveryMode === 'livrare' ? (
+                  <>
+                    <div ref={cityFieldRef}>
+                      <Field
+                        label="Localitate"
+                        value={orderCity}
+                        onChange={setOrderCity}
+                        autoComplete="address-level2"
+                        list={DELIVERY_CITIES_DATALIST_ID}
+                        error={fieldErrors.city}
+                      />
+                    </div>
+                    <datalist id={DELIVERY_CITIES_DATALIST_ID}>
+                      {DELIVERY_CITY_SUGGESTIONS.map((city) => (
+                        <option key={city} value={city} />
+                      ))}
+                    </datalist>
+                    <div ref={addressFieldRef}>
+                      <Field
+                        label="Adresă livrare"
+                        value={orderAddress}
+                        onChange={setOrderAddress}
+                        error={fieldErrors.address}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-[18px] bg-[#FFF6F3] p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-[#3D7A5F]">Ridicare de la fermă</p>
+                    <p className="mt-2 text-sm font-bold text-[#312E3F]">{FARM_ADDRESS}</p>
+                    <p className="mt-1 text-xs text-[#312E3F]/70">{FARM_PICKUP_SCHEDULE}</p>
+                    <a
+                      href={FARM_MAP_HREF}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-[#3D7A5F] px-4 text-sm font-bold text-white transition active:scale-[0.985]"
+                    >
+                      Vezi pe hartă
+                    </a>
+                  </div>
+                )}
+
+                <label className="block text-xs font-semibold text-[#312E3F]">
+                  Observații (opțional)
+                  <textarea
+                    value={orderNotes}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    rows={2}
+                    className="mt-1 w-full resize-none rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] px-3 py-[14px] text-sm outline-none focus:border-[#F16B6B]"
+                  />
+                </label>
+              </div>
+
+              <p className="mt-4 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs leading-relaxed text-[#312E3F]/80">
+                Livrăm în Suceava și comunele învecinate. Minim 2 kg în afara municipiului. Nu livrăm prin
+                curier.
+              </p>
+
+              {lastOrder && lastOrder.items.length > 0 ? (
+                <div className="mt-3 rounded-xl border border-[#F3DAD4] bg-white px-3 py-3 text-xs text-[#312E3F]">
+                  <p className="font-semibold">
+                    Ultima comandă: {formatOrderDate(lastOrder.created_at)} — {summarizeLastOrder(lastOrder.items)}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <span className="text-[#312E3F]/65">{formatLei(lastOrder.total_lei)} lei</span>
+                    <button
+                      type="button"
+                      onClick={reorderLastOrder}
+                      className="rounded-full bg-[#F16B6B] px-3 py-2 text-xs font-bold text-white active:scale-[0.98]"
+                    >
+                      {lastOrderApplied ? 'Adăugat în coș' : 'Comandă din nou'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {fieldErrors.cart ? (
+                <p ref={cartErrorRef} className="mt-3 text-sm text-[#E15453]">
+                  {fieldErrors.cart}
+                </p>
+              ) : null}
+
+              {orderError ? <p className="mt-3 text-sm text-[#E15453]">{orderError}</p> : null}
+
+              <button
+                type="button"
+                disabled={orderSubmitting || !hasValidIdentity}
+                onClick={submitOrder}
+                className="mt-4 min-h-[52px] w-full rounded-2xl bg-[#F16B6B] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.25)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {orderSubmitting ? 'Se salvează…' : 'Trimite precomanda'}
+              </button>
+            </>
+          )}
+
           <button
             type="button"
-            aria-label="Închide"
-            className={`absolute inset-0 bg-black/40 ${styles.sheetBackdrop}`}
-            onClick={() => !orderSubmitting && setSheetOpen(false)}
-          />
-          <div
-            className={`relative mx-auto max-h-[90dvh] w-full max-w-[540px] overflow-y-auto rounded-t-[26px] bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 ${styles.sheetPanel}`}
+            className="mt-3 w-full py-2 text-sm font-medium text-[#312E3F]/60"
+            onClick={() => setSheetOpen(false)}
           >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#F3DAD4]" aria-hidden />
-            <h2 className={`text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>Finalizează comanda</h2>
-
-            {orderSuccess ? (
-              <div className="mt-4 space-y-3">
-                <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-sm font-medium text-[#0D9B5C]">
-                  Comanda a fost salvată. WhatsApp s-a deschis cu mesajul pregătit — trimite-l pentru confirmare.
-                </p>
-
-                {sourcePromptVisible ? (
-                  <div className="rounded-2xl border border-[#F3DAD4] bg-[#FFF6F3] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold text-[#312E3F]">Cum ai aflat de noi?</p>
-                        <p className="mt-0.5 text-xs text-[#312E3F]/65">Opțional, ne ajută să înțelegem ce merge.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSourcePromptVisible(false)}
-                        className="rounded-full px-2 py-1 text-xs font-semibold text-[#312E3F]/55"
-                      >
-                        Închide
-                      </button>
-                    </div>
-                    <div className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
-                      {ACQUISITION_SOURCE_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => submitAcquisitionSource(option.value)}
-                          className="rounded-xl border border-[#F3DAD4] bg-white px-3 py-3 text-left text-sm font-semibold text-[#312E3F] active:scale-[0.98]"
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : sourceSaved ? (
-                  <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-xs font-medium text-[#0D9B5C]">
-                    Mulțumim! Am salvat răspunsul.
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <>
-                <div className="mt-4">
-                  <CheckoutOrderSummary lines={cartLines} total={cartTotal} />
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div ref={phoneFieldRef}>
-                    <Field
-                      label="Telefon"
-                      value={orderPhone}
-                      onChange={updateOrderPhone}
-                      onBlur={normalizeOrderPhoneOnBlur}
-                      autoComplete="tel"
-                      inputMode="tel"
-                      placeholder="07xx xxx xxx"
-                      error={visiblePhoneError}
-                      autoFocus
-                    />
-                    {!recognizedCustomerPhone ? (
-                      <p className="mt-1 text-xs text-[#6b7280]">
-                        Dacă ai mai comandat, completăm datele automat.
-                      </p>
-                    ) : null}
-                  </div>
-                  <div ref={nameFieldRef}>
-                    <Field
-                      label="Nume"
-                      value={orderName}
-                      onChange={updateOrderName}
-                      autoComplete="name"
-                      error={fieldErrors.name}
-                    />
-                    {customerAutofillNotice ? (
-                      <p className="mt-1 text-xs font-semibold text-[#3D7A5F]">{customerAutofillNotice}</p>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <p className="mb-2 text-xs font-semibold text-[#312E3F]">Mod livrare</p>
-                    <div className="flex gap-2">
-                      <ToggleChip
-                        active={deliveryMode === 'livrare'}
-                        onClick={() => setDeliveryMode('livrare')}
-                        label="Livrare"
-                      />
-                      <ToggleChip
-                        active={deliveryMode === 'ridicare'}
-                        onClick={() => setDeliveryMode('ridicare')}
-                        label="Ridicare"
-                      />
-                    </div>
-                  </div>
-
-                  {deliveryMode === 'livrare' ? (
-                    <>
-                      <div ref={cityFieldRef}>
-                        <Field
-                          label="Localitate"
-                          value={orderCity}
-                          onChange={setOrderCity}
-                          autoComplete="address-level2"
-                          list={DELIVERY_CITIES_DATALIST_ID}
-                          error={fieldErrors.city}
-                        />
-                      </div>
-                      <datalist id={DELIVERY_CITIES_DATALIST_ID}>
-                        {DELIVERY_CITY_SUGGESTIONS.map((city) => (
-                          <option key={city} value={city} />
-                        ))}
-                      </datalist>
-                      <div ref={addressFieldRef}>
-                        <Field
-                          label="Adresă livrare"
-                          value={orderAddress}
-                          onChange={setOrderAddress}
-                          error={fieldErrors.address}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="rounded-[18px] bg-[#FFF6F3] p-4">
-                      <p className="text-xs font-bold uppercase tracking-wide text-[#3D7A5F]">Ridicare de la fermă</p>
-                      <p className="mt-2 text-sm font-bold text-[#312E3F]">{FARM_ADDRESS}</p>
-                      <p className="mt-1 text-xs text-[#312E3F]/70">{FARM_PICKUP_SCHEDULE}</p>
-                      <a
-                        href={FARM_MAP_HREF}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-[#3D7A5F] px-4 text-sm font-bold text-white transition active:scale-[0.985]"
-                      >
-                        Vezi pe hartă
-                      </a>
-                    </div>
-                  )}
-
-                  <label className="block text-xs font-semibold text-[#312E3F]">
-                    Observații (opțional)
-                    <textarea
-                      value={orderNotes}
-                      onChange={(e) => setOrderNotes(e.target.value)}
-                      rows={2}
-                      className="mt-1 w-full resize-none rounded-lg border border-[#F3DAD4] bg-[#FFF6F3] px-3 py-[14px] text-sm outline-none focus:border-[#F16B6B]"
-                    />
-                  </label>
-                </div>
-
-                <p className="mt-4 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs leading-relaxed text-[#312E3F]/80">
-                  Livrăm în Suceava și comunele învecinate. Minim 2 kg în afara municipiului. Nu livrăm prin
-                  curier.
-                </p>
-
-                <p className="mt-2 rounded-xl bg-[#FFF6F3] px-3 py-2 text-xs font-medium text-[#312E3F]/80">
-                  Plată: cash la livrare
-                </p>
-
-                {lastOrder && lastOrder.items.length > 0 ? (
-                  <div className="mt-3 rounded-xl border border-[#F3DAD4] bg-white px-3 py-3 text-xs text-[#312E3F]">
-                    <p className="font-semibold">
-                      Ultima comandă: {formatOrderDate(lastOrder.created_at)} — {summarizeLastOrder(lastOrder.items)}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between gap-3">
-                      <span className="text-[#312E3F]/65">{formatLei(lastOrder.total_lei)} lei</span>
-                      <button
-                        type="button"
-                        onClick={reorderLastOrder}
-                        className="rounded-full bg-[#F16B6B] px-3 py-2 text-xs font-bold text-white active:scale-[0.98]"
-                      >
-                        {lastOrderApplied ? 'Adăugat în coș' : 'Comandă din nou'}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-
-                {fieldErrors.cart ? (
-                  <p ref={cartErrorRef} className="mt-3 text-sm text-[#E15453]">
-                    {fieldErrors.cart}
-                  </p>
-                ) : null}
-
-                {orderError ? <p className="mt-3 text-sm text-[#E15453]">{orderError}</p> : null}
-
-                <button
-                  type="button"
-                  disabled={orderSubmitting || !hasValidIdentity}
-                  onClick={submitOrder}
-                  className="mt-4 min-h-[52px] w-full rounded-2xl bg-[#F16B6B] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.25)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {orderSubmitting ? 'Se salvează…' : 'Trimite comanda'}
-                </button>
-              </>
-            )}
-
-            <button
-              type="button"
-              className="mt-3 w-full py-2 text-sm font-medium text-[#312E3F]/60"
-              onClick={() => setSheetOpen(false)}
-            >
-              Închide
-            </button>
-          </div>
-        </div>
-      ) : null}
+            Închide
+          </button>
+        </SheetContent>
+      </Sheet>
 
       {notificationPromptVisible ? (
         <ShopNotifPrompt onClose={() => setNotificationPromptVisible(false)} />
@@ -1203,14 +1332,17 @@ function Field({
   return (
     <label className="block text-xs font-semibold text-[#312E3F]">
       {label}
-      <input
+      <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         list={list}
         placeholder={placeholder}
-        className={`mt-1 w-full rounded-lg border bg-white px-3 py-[14px] text-sm outline-none ${
-          error ? 'border-[#E15453] focus:border-[#E15453]' : 'border-[#F3DAD4] focus:border-[#F16B6B]'
+        aria-invalid={Boolean(error)}
+        className={`mt-1 h-auto min-h-12 rounded-lg bg-white px-3 py-[14px] text-sm text-[#312E3F] shadow-none ${
+          error
+            ? 'border-[#E15453] focus-visible:border-[#E15453] focus-visible:shadow-[0_0_0_3px_rgba(225,84,83,0.12)]'
+            : 'border-[#F3DAD4] focus-visible:border-[#F16B6B] focus-visible:shadow-[0_0_0_3px_rgba(241,107,107,0.12)]'
         }`}
         autoComplete={autoComplete}
         inputMode={inputMode}

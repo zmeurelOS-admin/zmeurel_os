@@ -13,6 +13,7 @@ import {
   ZMEURA_CASEROLA_PRICE_LEI,
   ZMEURA_PRODUCT_ID,
 } from '@/lib/shop/pricing'
+import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Json } from '@/types/supabase'
 
@@ -66,8 +67,18 @@ export async function POST(request: Request) {
     items,
     notes,
   } = parsed.data
-  const configuredTenantId = process.env.SHOP_TENANT_ID?.trim() || null
+  const configuredTenantId = process.env.SHOP_TENANT_ID?.trim()
   const item = items[0]
+  const normalizedCustomerPhone = normalizeRomanianMobilePhone(customer_phone)
+
+  if (!configuredTenantId) {
+    console.error('[shop/b2c/order] SHOP_TENANT_ID missing; order rejected')
+    return errorResponse('Magazinul nu este configurat pentru preluarea comenzilor.', 500)
+  }
+
+  if (!normalizedCustomerPhone) {
+    return errorResponse(ROMANIAN_PHONE_ERROR, 400)
+  }
 
   if (delivery_mode === 'livrare' && !delivery_address?.trim()) {
     return errorResponse('Introdu adresa de livrare', 400)
@@ -91,7 +102,7 @@ export async function POST(request: Request) {
     .insert({
       tenant_id: configuredTenantId,
       customer_name,
-      customer_phone,
+      customer_phone: normalizedCustomerPhone,
       delivery_mode,
       delivery_address: delivery_address?.trim() || null,
       delivery_city: delivery_city?.trim() || null,
@@ -108,14 +119,6 @@ export async function POST(request: Request) {
       sanitizeForLog(toSafeErrorContext(error ?? { message: 'missing id' })),
     )
     return errorResponse('Nu am putut salva comanda. Încearcă din nou.', 500)
-  }
-
-  if (!configuredTenantId) {
-    console.warn(
-      '[shop/b2c/order] SHOP_TENANT_ID missing; created order without tenant notification',
-      sanitizeForLog({ orderId: data.id }),
-    )
-    return NextResponse.json({ success: true, order_id: data.id, total_lei: totalLei })
   }
 
   const productSummary = normalizedItems.map((orderItem) => orderItem.label).join(', ')
@@ -154,7 +157,7 @@ export async function POST(request: Request) {
   try {
     await upsertShopCustomer({
       tenantId: configuredTenantId,
-      phone: customer_phone,
+      phone: normalizedCustomerPhone,
       name: customer_name,
       deliveryAddress: delivery_address?.trim() || null,
       deliveryCity: delivery_city?.trim() || null,

@@ -27,12 +27,13 @@ SheetOverlay.displayName = DialogPrimitive.Overlay.displayName
 interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   side?: "bottom" | "top" | "left" | "right"
   showCloseButton?: boolean
+  overlayClassName?: string
 }
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ side = "bottom", className, children, showCloseButton = true, ...props }, ref) => {
+>(({ side = "bottom", className, children, showCloseButton = true, overlayClassName, ...props }, ref) => {
   const sideClasses: Record<NonNullable<SheetContentProps["side"]>, string> = {
     bottom:
       "fixed bottom-0 left-0 right-0 z-[1001] mt-24 rounded-t-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom max-h-[90svh] overflow-y-auto",
@@ -46,7 +47,7 @@ const SheetContent = React.forwardRef<
 
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         ref={ref}
         className={cn(sideClasses[side], className)}

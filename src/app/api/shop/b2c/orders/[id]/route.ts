@@ -5,6 +5,7 @@ import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -79,8 +80,24 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (parsed.data.status !== undefined) updates.status = parsed.data.status
   if (parsed.data.notified_wa !== undefined) updates.notified_wa = parsed.data.notified_wa
 
+  let tenantId: string
+  try {
+    tenantId = await getTenantIdByUserId(supabase, user.id)
+  } catch (tenantError) {
+    console.error(
+      '[shop/b2c/orders] tenant resolution failed',
+      sanitizeForLog(toSafeErrorContext(tenantError)),
+    )
+    return errorResponse('Tenant indisponibil pentru utilizatorul curent.', 403)
+  }
+
   const admin = getSupabaseAdmin()
-  const { error } = await admin.from('shop_orders').update(updates).eq('id', id)
+  const { data, error } = await admin
+    .from('shop_orders')
+    .update(updates)
+    .eq('id', id)
+    .eq('tenant_id', tenantId)
+    .select('id')
 
   if (error) {
     console.error(
@@ -88,6 +105,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       sanitizeForLog(toSafeErrorContext({ id, ...error })),
     )
     return errorResponse('Nu am putut actualiza comanda.', 500)
+  }
+
+  if (!data?.length) {
+    return errorResponse('Comanda nu a fost găsită.', 404)
   }
 
   return NextResponse.json({ success: true })

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       activitati_agricole: {
@@ -3612,7 +3637,7 @@ export type Database = {
           name: string
           price_lei: number | null
           sort_order: number
-          unit_label: string
+          unit_label: string | null
           unit_weight_kg: number | null
         }
         Insert: {
@@ -3623,7 +3648,7 @@ export type Database = {
           name: string
           price_lei?: number | null
           sort_order?: number
-          unit_label: string
+          unit_label?: string | null
           unit_weight_kg?: number | null
         }
         Update: {
@@ -3634,7 +3659,7 @@ export type Database = {
           name?: string
           price_lei?: number | null
           sort_order?: number
-          unit_label?: string
+          unit_label?: string | null
           unit_weight_kg?: number | null
         }
         Relationships: []
@@ -5001,6 +5026,10 @@ export type Database = {
       seed_demo_for_tenant:
         | { Args: { p_tenant_id: string }; Returns: Json }
         | { Args: { p_demo_type?: string; p_tenant_id: string }; Returns: Json }
+      set_shop_customer_acquisition_source_once: {
+        Args: { p_phone: string; p_source: string; p_tenant_id: string }
+        Returns: boolean
+      }
       sync_recoltare_stock_movements: {
         Args: {
           p_data: string
@@ -5111,10 +5140,6 @@ export type Database = {
           p_plan_id: string
         }
         Returns: Json
-      }
-      set_shop_customer_acquisition_source_once: {
-        Args: { p_phone: string; p_source: string; p_tenant_id: string }
-        Returns: boolean
       }
       upsert_shop_customer: {
         Args: {
@@ -5281,6 +5306,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       comanda_status: [

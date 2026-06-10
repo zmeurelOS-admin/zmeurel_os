@@ -15,8 +15,9 @@ describe('comanda customer localStorage cache', () => {
   it('normalizeaza telefonul in acelasi format pentru 0 si +40', () => {
     expect(normalizeCustomerPhone('0722 123 456')).toBe('722123456')
     expect(normalizeCustomerPhone('+40 722-123-456')).toBe('722123456')
-    expect(normalizeCustomerPhone('0040 722 123 456')).toBe('722123456')
+    expect(normalizeCustomerPhone('40722 123 456')).toBe('722123456')
     expect(normalizeCustomerPhone('(0722) 123-456')).toBe('722123456')
+    expect(normalizeCustomerPhone('0622 123 456')).toBe('')
   })
 
   it('salveaza si citeste snapshot-ul local cu cheia zmeurel_c_', () => {

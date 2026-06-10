@@ -24,6 +24,7 @@ type TestContext = {
   parcelaAId: string
   produsAId: string
   comandaAId: string
+  shopOrderAId: string
   miscareStocAId: string
 }
 
@@ -41,6 +42,7 @@ const context: TestContext = {
   parcelaAId: '',
   produsAId: '',
   comandaAId: '',
+  shopOrderAId: '',
   miscareStocAId: '',
 }
 
@@ -185,6 +187,24 @@ async function insertTenantAData(admin: AdminClient) {
   }
   context.comandaAId = comanda.id
 
+  const { data: shopOrder, error: shopOrderError } = await admin
+    .from('shop_orders')
+    .insert({
+      tenant_id: context.tenantAId,
+      customer_name: `Client shop ${context.runId}`,
+      customer_phone: '0700000000',
+      delivery_mode: 'ridicare',
+      items: [{ vid: 'zmeura', label: 'Zmeură', qty: 1, price_lei: 18 }],
+      total_lei: 18,
+    })
+    .select('id')
+    .single()
+
+  if (shopOrderError) {
+    throw new Error(`Failed inserting tenant A shop_order: ${shopOrderError.message}`)
+  }
+  context.shopOrderAId = shopOrder.id
+
   const { data: miscare, error: miscareError } = await admin
     .from('miscari_stoc')
     .insert({
@@ -211,7 +231,7 @@ async function insertTenantAData(admin: AdminClient) {
 }
 
 async function expectCrossTenantUpdateBlocked(
-  table: 'parcele' | 'produse' | 'comenzi' | 'miscari_stoc' | 'profiles',
+  table: 'parcele' | 'produse' | 'comenzi' | 'shop_orders' | 'miscari_stoc' | 'profiles',
   rowId: string,
   patch: Record<string, unknown>,
   email: string,
@@ -261,6 +281,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   try {
+    if (context.shopOrderAId) {
+      await context.admin.from('shop_orders').delete().eq('id', context.shopOrderAId)
+    }
     if (context.miscareStocAId) {
       await context.admin.from('miscari_stoc').delete().eq('id', context.miscareStocAId)
     }
@@ -328,6 +351,30 @@ describe('comenzi isolation', () => {
 
   it('tenant B nu poate modifica comanda tenant A', async () => {
     await expectCrossTenantUpdateBlocked('comenzi', context.comandaAId, { observatii: 'hacked' }, context.emailB, context.passwordB)
+  })
+})
+
+describe('shop_orders isolation', () => {
+  it('tenant B nu vede comanda shop a tenantului A', async () => {
+    const clientB = await createTestUserClient(context.emailB, context.passwordB)
+
+    try {
+      const { data, error } = await clientB.from('shop_orders').select('id,tenant_id')
+      expect(error).toBeNull()
+      expect(data?.find((row) => row.id === context.shopOrderAId)).toBeUndefined()
+    } finally {
+      await clientB.auth.signOut()
+    }
+  })
+
+  it('tenant B nu poate modifica comanda shop a tenantului A', async () => {
+    await expectCrossTenantUpdateBlocked(
+      'shop_orders',
+      context.shopOrderAId,
+      { notified_wa: true },
+      context.emailB,
+      context.passwordB,
+    )
   })
 })
 

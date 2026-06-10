@@ -28,4 +28,28 @@ describe('parseManualInterventieFormData', () => {
 
     expect(parsed.stadiu_la_aplicare).toBeNull()
   })
+
+  it('acceptă scopul absent și îl normalizează la null', () => {
+    const formData = new FormData()
+    formData.set('parcelaId', '00000000-0000-4000-8000-000000000101')
+    formData.set('status', 'aplicata')
+    formData.set('data', '2026-05-10T10:00:00.000Z')
+    formData.set('tip_interventie', 'foliar')
+    formData.set('metoda_aplicare', 'foliar')
+    formData.set(
+      'produse',
+      JSON.stringify([
+        {
+          ordine: 1,
+          produs_nume_manual: 'Calciu foliar',
+          tip_snapshot: 'foliar',
+          cantitate_text: '250 ml',
+        },
+      ])
+    )
+
+    const parsed = parseManualInterventieFormData(formData)
+
+    expect(parsed.scop).toBeNull()
+  })
 })
