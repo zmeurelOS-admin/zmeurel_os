@@ -28,6 +28,7 @@ Important areas:
 - `src/app/api/chat` AI chat API package split into `route.ts`, `chat-post-handler.ts`, `contract-helpers.ts`, `extractors.ts`, `signal-detectors.ts`, `conversation-memory.ts`, `date-helpers.ts`, `flow-detection.ts`, and `utils.ts`
 - `src/app/api/shop/order` — public shop checkout (POST → `comenzi`, service role); hardening anti-abuse server-side (IP/fingerprint guard) în `src/lib/api/public-write-guard.ts`; notificare fermier opțională Resend în `src/lib/shop/notify-farmer-shop-order.ts` (vezi `AGENTS.md` / env)
 - `src/app/api/shop/b2c/orders/[id]` — update-uri operaționale pentru comenzile B2C; tranziția la `livrata` apelează RPC-ul tenant-aware `deliver_shop_order_atomic`, nu face update direct de status
+- `src/app/api/shop/campaign/[slug]/admin` — clasament complet cu date personale pentru ERP; verifică sesiunea și tenantul în handler, apoi folosește service role cu filtre explicite pe tenant/campanie
 - `src/app/api/association/producer-profile` — update profil public producător (admin/moderator asociație)
 - `src/app/api/association/producer-photos` — upload/delete poze fermă pentru profilul public
 - `src/app/api/association/settings` — salvează setările publice ale asociației în Storage JSON
@@ -154,6 +155,7 @@ Repository documentation. This folder now includes persistent AI context files.
 - `/vanzari`
 - `/vanzari-butasi`
 - `/comenzi`
+- `/comenzi/campanie` — clasament complet al campaniei B2C, milestone-uri și export CSV
 - `/clienti`
 - `/culegatori`
 - `/activitati-agricole`
@@ -200,6 +202,8 @@ Key query files:
 - `solar-tracking.ts`
 - `crops.ts`
 - `crop-varieties.ts`
+
+Query-urile și agregările campaniei B2C care nu sunt CRUD generic stau în `src/lib/shop/`: `campaign-admin-queries.ts` conține agregarea pură după telefon și atribuirea premiilor finale, iar `shop-orders-queries.ts` deservește listele operaționale Shop din ERP.
 
 Implementation note:
 

@@ -14,6 +14,7 @@ export type ShopOrderRow = {
   customer_phone: string
   delivery_mode: string
   delivery_address: string | null
+  delivery_city?: string | null
   delivery_date: string | null
   delivery_position: number | null
   items: Json

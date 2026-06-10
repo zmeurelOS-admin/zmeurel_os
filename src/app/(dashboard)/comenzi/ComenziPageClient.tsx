@@ -48,6 +48,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import { ShopOrdersPanel } from '@/components/comenzi/ShopOrdersPanel'
+import {
+  ComenziSectionPills,
+  type ComenziSection,
+} from '@/components/comenzi/ComenziSectionPills'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -84,7 +88,7 @@ import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
-type PageSection = 'comenzi' | 'waitlist'
+type PageSection = ComenziSection
 
 type ContactPrompt = {
   name: string
@@ -740,7 +744,9 @@ export function ComenziPageClient() {
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
-  const [section, setSection] = useState<PageSection>('comenzi')
+  const [section, setSection] = useState<PageSection>(() =>
+    searchParams.get('section') === 'waitlist' ? 'waitlist' : 'comenzi',
+  )
   const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
@@ -1386,14 +1392,7 @@ export function ComenziPageClient() {
       bottomBar={null}
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
-        <ModulePillRow>
-          <ModulePillFilterButton active={section === 'comenzi'} onClick={() => setSection('comenzi')}>
-            Comenzi
-          </ModulePillFilterButton>
-          <ModulePillFilterButton active={section === 'waitlist'} onClick={() => setSection('waitlist')}>
-            Listă așteptare
-          </ModulePillFilterButton>
-        </ModulePillRow>
+        <ComenziSectionPills section={section} onSectionChange={setSection} />
 
         {section === 'waitlist' ? <ShopOrdersPanel /> : null}
 
