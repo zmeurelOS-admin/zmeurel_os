@@ -88,9 +88,9 @@ describe('campaign admin leaderboard', () => {
 
     expect(leaderboard[0]).toMatchObject({
       rang: 1,
-      finalPrize: '2 kg zmeură + jeleu + miere Zmeurel',
+      finalPrize: '2 kg zmeură + miere + jeleu de zmeure',
     })
-    expect(leaderboard[1].finalPrize).toBe('1 kg zmeură + jeleu')
+    expect(leaderboard[1].finalPrize).toBe('1 kg zmeură + miere')
     expect(leaderboard[2].finalPrize).toBe('1 kg zmeură')
     expect(leaderboard[9].finalPrize).toBe('Voucher sezon următor')
     expect(leaderboard[10].finalPrize).toBeNull()

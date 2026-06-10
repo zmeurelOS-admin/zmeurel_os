@@ -7,6 +7,28 @@ import {
 } from '@/lib/shop/campaign-mock'
 
 describe('campaign snapshot', () => {
+  it('păstrează textele milestone-urilor aliniate cu producția', () => {
+    expect(
+      CAMPAIGN_DATA.milestones.map(({ threshold, rewardLabel }) => ({
+        threshold,
+        rewardLabel,
+      })),
+    ).toEqual([
+      { threshold: 150, rewardLabel: '+1 caserolă 250 g' },
+      { threshold: 300, rewardLabel: '+1 caserolă 500 g' },
+      { threshold: 500, rewardLabel: '+2 caserole 500 g' },
+      { threshold: 750, rewardLabel: '+1 kg zmeură' },
+      { threshold: 1000, rewardLabel: '+2 kg zmeură' },
+      { threshold: 1250, rewardLabel: '+1 caserolă 500 g' },
+      { threshold: 1500, rewardLabel: '+2 caserole 500 g' },
+      { threshold: 1750, rewardLabel: '+2 caserole 500 g' },
+      {
+        threshold: 2000,
+        rewardLabel: '3 kg zmeură + borcan de miere de la fermă',
+      },
+    ])
+  })
+
   it('înlocuiește progresul mock și derivă următorul milestone din datele live', () => {
     const campaign = mergeCampaignSnapshot({
       currentCount: 300,

@@ -116,9 +116,9 @@ export function assignFinalPrizes(
     let finalPrize: string | null = null
 
     if (entry.rang === 1) {
-      finalPrize = '2 kg zmeură + jeleu + miere Zmeurel'
+      finalPrize = '2 kg zmeură + miere + jeleu de zmeure'
     } else if (entry.rang === 2) {
-      finalPrize = '1 kg zmeură + jeleu'
+      finalPrize = '1 kg zmeură + miere'
     } else if (entry.rang === 3) {
       finalPrize = '1 kg zmeură'
     } else if (entry.rang <= 10) {

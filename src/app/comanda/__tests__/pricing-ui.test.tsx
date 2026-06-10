@@ -113,7 +113,7 @@ describe('ShopClient volume pricing', () => {
               total_lei: 35,
               hit_milestone: true,
               milestone_threshold: 500,
-              milestone_reward: 'un coș cu produse locale',
+              milestone_reward: '+2 caserole 500 g',
             }),
             {
               status: 200,
@@ -158,7 +158,7 @@ describe('ShopClient volume pricing', () => {
     expect(await screen.findByText('Felicitări!')).toBeInTheDocument()
     const checkoutSheet = screen.getByRole('dialog')
     expect(within(checkoutSheet).getByText(/Comanda ta a trecut pragul de/)).toBeInTheDocument()
-    expect(within(checkoutSheet).getByText('un coș cu produse locale')).toBeInTheDocument()
+    expect(within(checkoutSheet).getByText('+2 caserole 500 g')).toBeInTheDocument()
 
     const orderCall = fetchSpy.mock.calls.find(([input]) =>
       String(input).includes('/api/shop/b2c/order'),

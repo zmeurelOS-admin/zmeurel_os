@@ -74,7 +74,7 @@ describe('GET /api/shop/campaign/[slug]', () => {
       data: [
         {
           threshold: 500,
-          reward_label: 'un coș cu produse locale',
+          reward_label: '+2 caserole 500 g',
           reached: false,
         },
       ],
@@ -110,7 +110,7 @@ describe('GET /api/shop/campaign/[slug]', () => {
       milestones: [
         {
           threshold: 500,
-          rewardLabel: 'un coș cu produse locale',
+          rewardLabel: '+2 caserole 500 g',
           reached: false,
         },
       ],

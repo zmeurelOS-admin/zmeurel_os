@@ -7,9 +7,14 @@ type SeasonLeaderboardProps = {
   campaign: CampaignData
 }
 
-export function SeasonLeaderboard({ campaign }: SeasonLeaderboardProps) {
-  const seasonPrizes = campaign.leaderboard.filter((entry) => entry.seasonPrizeLabel)
+const FINAL_SEASON_PRIZES = [
+  { place: 'Locul 1', prize: '2 kg zmeură + miere + jeleu de zmeure' },
+  { place: 'Locul 2', prize: '1 kg zmeură + miere' },
+  { place: 'Locul 3', prize: '1 kg zmeură' },
+  { place: 'Locurile 4-10', prize: 'Voucher sezon următor' },
+] as const
 
+export function SeasonLeaderboard({ campaign }: SeasonLeaderboardProps) {
   return (
     <section className="px-3" aria-labelledby="season-leaderboard-title">
       <Card className="gap-0 border-[#F3DAD4] bg-[#312E3F] p-[18px] text-white shadow-[0_10px_30px_rgba(49,46,63,0.2)]">
@@ -49,19 +54,17 @@ export function SeasonLeaderboard({ campaign }: SeasonLeaderboardProps) {
             Clasamentul este anonimizat. Datele personale nu sunt afișate public.
           </p>
 
-          {seasonPrizes.length > 0 ? (
-            <div className="border-t border-white/[0.12] pt-4">
-              <p className="text-sm font-extrabold text-white">Premiile finale ale sezonului</p>
-              <ul className="mt-2 space-y-1.5 text-xs text-white/75">
-                {seasonPrizes.map((entry, index) => (
-                  <li key={entry.anonId} className="flex items-start gap-2">
-                    <span className="font-extrabold text-[#FFB1AA]">Locul {index + 1}</span>
-                    <span>· {entry.seasonPrizeLabel}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <div className="border-t border-white/[0.12] pt-4">
+            <p className="text-sm font-extrabold text-white">Premiile finale ale sezonului</p>
+            <ul className="mt-2 space-y-1.5 text-xs text-white/75">
+              {FINAL_SEASON_PRIZES.map((entry) => (
+                <li key={entry.place} className="flex items-start gap-2">
+                  <span className="font-extrabold text-[#FFB1AA]">{entry.place}</span>
+                  <span>· {entry.prize}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </CardContent>
       </Card>
     </section>

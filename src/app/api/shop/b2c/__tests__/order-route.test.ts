@@ -137,7 +137,7 @@ describe('POST /api/shop/b2c/order', () => {
         current_count: 500,
         hit_milestone: true,
         milestone_threshold: 500,
-        milestone_reward: 'un coș cu produse locale',
+        milestone_reward: '+2 caserole 500 g',
         reward_id: '44444444-4444-4444-8444-444444444444',
       }),
     )
@@ -154,7 +154,7 @@ describe('POST /api/shop/b2c/order', () => {
       total_lei: 35,
       hit_milestone: true,
       milestone_threshold: 500,
-      milestone_reward: 'un coș cu produse locale',
+      milestone_reward: '+2 caserole 500 g',
     })
     expect(insertSpy).not.toHaveBeenCalled()
     expect(rpcSpy).toHaveBeenCalledWith(

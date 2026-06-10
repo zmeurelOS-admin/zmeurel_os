@@ -204,7 +204,7 @@ describe('GET /api/shop/campaign/[slug]/admin', () => {
         customerName: 'Maria Popescu',
         customerPhone: '0740123456',
         totalQty: 5,
-        finalPrize: '2 kg zmeură + jeleu + miere Zmeurel',
+        finalPrize: '2 kg zmeură + miere + jeleu de zmeure',
       }),
     ])
     expect(payload.milestones).toEqual([
