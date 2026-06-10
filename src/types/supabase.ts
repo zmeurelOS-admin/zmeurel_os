@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -184,7 +164,29 @@ export type Database = {
           tip_activitate?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activitati_extra_season_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_conversations: {
         Row: {
@@ -262,11 +264,9 @@ export type Database = {
       analytics_events: {
         Row: {
           created_at: string
-          event_data: Json | null
+          event_data: Json
           event_name: string
-          event_type: string
           id: string
-          metadata: Json
           module: string
           page_url: string | null
           session_id: string | null
@@ -276,11 +276,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          event_data?: Json | null
+          event_data?: Json
           event_name: string
-          event_type?: string
           id?: string
-          metadata?: Json
           module?: string
           page_url?: string | null
           session_id?: string | null
@@ -290,11 +288,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          event_data?: Json | null
+          event_data?: Json
           event_name?: string
-          event_type?: string
           id?: string
-          metadata?: Json
           module?: string
           page_url?: string | null
           session_id?: string | null
@@ -940,7 +936,7 @@ export type Database = {
           metoda_plata?: string | null
           suma_lei: number
           sync_status?: string | null
-          tenant_id: string
+          tenant_id?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -1011,7 +1007,7 @@ export type Database = {
           observatii?: string | null
           pret_negociat_lei_kg?: number | null
           telefon?: string | null
-          tenant_id: string
+          tenant_id?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -1325,7 +1321,7 @@ export type Database = {
         Row: {
           cod: string
           created_at: string
-          grup_biologic: string
+          grup_biologic: string | null
           id: string
           name: string
           tenant_id: string | null
@@ -1334,7 +1330,7 @@ export type Database = {
         Insert: {
           cod: string
           created_at?: string
-          grup_biologic: string
+          grup_biologic?: string | null
           id?: string
           name: string
           tenant_id?: string | null
@@ -1343,13 +1339,21 @@ export type Database = {
         Update: {
           cod?: string
           created_at?: string
-          grup_biologic?: string
+          grup_biologic?: string | null
           id?: string
           name?: string
           tenant_id?: string | null
           unit_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crops_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       culegatori: {
         Row: {
@@ -1617,6 +1621,56 @@ export type Database = {
           },
         ]
       }
+      farm_members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          invite_token: string | null
+          invite_used_at: string | null
+          is_active: boolean
+          name: string
+          phone: string | null
+          role: string
+          tenant_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invite_token?: string | null
+          invite_used_at?: string | null
+          is_active?: boolean
+          name: string
+          phone?: string | null
+          role: string
+          tenant_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invite_token?: string | null
+          invite_used_at?: string | null
+          is_active?: boolean
+          name?: string
+          phone?: string | null
+          role?: string
+          tenant_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       farmer_legal_docs: {
         Row: {
           certificate_expiry: string | null
@@ -1835,7 +1889,7 @@ export type Database = {
           id_investitie: string
           parcela_id?: string | null
           suma_lei: number
-          tenant_id: string
+          tenant_id?: string
           updated_at?: string | null
         }
         Update: {
@@ -1855,6 +1909,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "investitii_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investitii_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "investitii_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2098,7 +2166,15 @@ export type Database = {
           updated_at?: string | null
           valoare?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "nomenclatoare_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -2204,7 +2280,7 @@ export type Database = {
           status?: string | null
           status_operational?: string
           suprafata_m2: number
-          tenant_id: string
+          tenant_id?: string
           tip_fruct?: string | null
           tip_unitate?: string
           updated_at?: string
@@ -2313,6 +2389,119 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planuri_template: {
+        Row: {
+          activ: boolean
+          cod: string
+          cohort: string | null
+          created_at: string
+          cultura_tip: string
+          descriere: string | null
+          durata_sezon_estimata: string | null
+          id: string
+          nr_interventii: number
+          nume: string
+          ordine: number
+          updated_at: string
+        }
+        Insert: {
+          activ?: boolean
+          cod: string
+          cohort?: string | null
+          created_at?: string
+          cultura_tip: string
+          descriere?: string | null
+          durata_sezon_estimata?: string | null
+          id?: string
+          nr_interventii?: number
+          nume: string
+          ordine?: number
+          updated_at?: string
+        }
+        Update: {
+          activ?: boolean
+          cod?: string
+          cohort?: string | null
+          created_at?: string
+          cultura_tip?: string
+          descriere?: string | null
+          durata_sezon_estimata?: string | null
+          id?: string
+          nr_interventii?: number
+          nume?: string
+          ordine?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      planuri_template_linii: {
+        Row: {
+          cohort_trigger: string | null
+          fereastra_end_offset_zile: number | null
+          fereastra_start_offset_zile: number | null
+          id: string
+          interval_repetare_zile: number | null
+          metoda_aplicare: string | null
+          numar_repetari_max: number | null
+          observatii: string | null
+          ordine: number
+          produs_sugerat_doza_text: string | null
+          produs_sugerat_nume: string | null
+          produs_sugerat_substanta: string | null
+          regula_repetare: string
+          scop: string
+          stadiu_trigger: string
+          template_id: string
+          tip_interventie: string | null
+        }
+        Insert: {
+          cohort_trigger?: string | null
+          fereastra_end_offset_zile?: number | null
+          fereastra_start_offset_zile?: number | null
+          id?: string
+          interval_repetare_zile?: number | null
+          metoda_aplicare?: string | null
+          numar_repetari_max?: number | null
+          observatii?: string | null
+          ordine: number
+          produs_sugerat_doza_text?: string | null
+          produs_sugerat_nume?: string | null
+          produs_sugerat_substanta?: string | null
+          regula_repetare?: string
+          scop: string
+          stadiu_trigger: string
+          template_id: string
+          tip_interventie?: string | null
+        }
+        Update: {
+          cohort_trigger?: string | null
+          fereastra_end_offset_zile?: number | null
+          fereastra_start_offset_zile?: number | null
+          id?: string
+          interval_repetare_zile?: number | null
+          metoda_aplicare?: string | null
+          numar_repetari_max?: number | null
+          observatii?: string | null
+          ordine?: number
+          produs_sugerat_doza_text?: string | null
+          produs_sugerat_nume?: string | null
+          produs_sugerat_substanta?: string | null
+          regula_repetare?: string
+          scop?: string
+          stadiu_trigger?: string
+          template_id?: string
+          tip_interventie?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planuri_template_linii_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "planuri_template"
             referencedColumns: ["id"]
           },
         ]
@@ -2810,35 +2999,355 @@ export type Database = {
         }
         Relationships: []
       }
-      shop_notify_requests: {
+      recoltari: {
+        Row: {
+          cantitate_kg: number
+          client_sync_id: string
+          conflict_flag: boolean | null
+          created_at: string
+          created_by: string | null
+          culegator_id: string | null
+          cultura_id: string | null
+          data: string
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          id_recoltare: string
+          kg_cal1: number
+          kg_cal2: number
+          observatii: string | null
+          parcela_id: string | null
+          pret_lei_pe_kg_snapshot: number
+          sync_status: string | null
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+          valoare_munca_lei: number
+        }
+        Insert: {
+          cantitate_kg?: number
+          client_sync_id?: string
+          conflict_flag?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          culegator_id?: string | null
+          cultura_id?: string | null
+          data: string
+          data_origin?: string | null
+          demo_seed_id?: string | null
+          id?: string
+          id_recoltare: string
+          kg_cal1?: number
+          kg_cal2?: number
+          observatii?: string | null
+          parcela_id?: string | null
+          pret_lei_pe_kg_snapshot?: number
+          sync_status?: string | null
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare_munca_lei?: number
+        }
+        Update: {
+          cantitate_kg?: number
+          client_sync_id?: string
+          conflict_flag?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          culegator_id?: string | null
+          cultura_id?: string | null
+          data?: string
+          data_origin?: string | null
+          demo_seed_id?: string | null
+          id?: string
+          id_recoltare?: string
+          kg_cal1?: number
+          kg_cal2?: number
+          observatii?: string | null
+          parcela_id?: string | null
+          pret_lei_pe_kg_snapshot?: number
+          sync_status?: string | null
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare_munca_lei?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recoltari_culegator_id_fkey"
+            columns: ["culegator_id"]
+            isOneToOne: false
+            referencedRelation: "culegatori"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recoltari_cultura_id_fkey"
+            columns: ["cultura_id"]
+            isOneToOne: false
+            referencedRelation: "culturi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recoltari_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recoltari_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recoltari_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reguli_recomandare_platforma: {
+        Row: {
+          activ: boolean
+          cod: string
+          cohort: string | null
+          created_at: string
+          cultura_tip: string
+          descriere: string | null
+          fenofaza: string
+          id: string
+          luni_active: number[] | null
+          metoda_aplicare: string
+          prioritate: number
+          produs_sugerat_doza_text: string | null
+          produs_sugerat_nume: string | null
+          sursa: string | null
+          tip_interventie: string | null
+          titlu: string
+          updated_at: string
+        }
+        Insert: {
+          activ?: boolean
+          cod: string
+          cohort?: string | null
+          created_at?: string
+          cultura_tip: string
+          descriere?: string | null
+          fenofaza: string
+          id?: string
+          luni_active?: number[] | null
+          metoda_aplicare: string
+          prioritate?: number
+          produs_sugerat_doza_text?: string | null
+          produs_sugerat_nume?: string | null
+          sursa?: string | null
+          tip_interventie?: string | null
+          titlu: string
+          updated_at?: string
+        }
+        Update: {
+          activ?: boolean
+          cod?: string
+          cohort?: string | null
+          created_at?: string
+          cultura_tip?: string
+          descriere?: string | null
+          fenofaza?: string
+          id?: string
+          luni_active?: number[] | null
+          metoda_aplicare?: string
+          prioritate?: number
+          produs_sugerat_doza_text?: string | null
+          produs_sugerat_nume?: string | null
+          sursa?: string | null
+          tip_interventie?: string | null
+          titlu?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shop_campaign_adjustments: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          delta: number
+          id: string
+          reason: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          id?: string
+          reason: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_campaign_adjustments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "shop_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_campaign_milestone_rewards: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          id: string
+          milestone_id: string
+          order_id: string
+          reward_label: string
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          id?: string
+          milestone_id: string
+          order_id: string
+          reward_label: string
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          milestone_id?: string
+          order_id?: string
+          reward_label?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_campaign_milestone_rewards_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "shop_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_campaign_milestone_rewards_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "shop_campaign_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_campaign_milestone_rewards_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "shop_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_campaign_milestones: {
+        Row: {
+          campaign_id: string
+          id: string
+          reached: boolean
+          reached_at: string | null
+          reached_by_order_id: string | null
+          reward_label: string
+          threshold: number
+        }
+        Insert: {
+          campaign_id: string
+          id?: string
+          reached?: boolean
+          reached_at?: string | null
+          reached_by_order_id?: string | null
+          reward_label: string
+          threshold: number
+        }
+        Update: {
+          campaign_id?: string
+          id?: string
+          reached?: boolean
+          reached_at?: string | null
+          reached_by_order_id?: string | null
+          reward_label?: string
+          threshold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_campaign_milestones_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "shop_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_campaign_milestones_reached_by_order_id_fkey"
+            columns: ["reached_by_order_id"]
+            isOneToOne: false
+            referencedRelation: "shop_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shop_campaigns: {
         Row: {
           created_at: string
-          customer_name: string
-          customer_phone: string
+          current_count: number
+          ends_at: string | null
           id: string
-          notified_at: string | null
-          product_id: string
-          product_name: string
+          slug: string
+          starts_at: string
+          status: string
+          target_qty: number
+          tenant_id: string
+          title: string
         }
         Insert: {
           created_at?: string
-          customer_name: string
-          customer_phone: string
+          current_count?: number
+          ends_at?: string | null
           id?: string
-          notified_at?: string | null
-          product_id: string
-          product_name: string
+          slug: string
+          starts_at?: string
+          status?: string
+          target_qty: number
+          tenant_id: string
+          title: string
         }
         Update: {
           created_at?: string
-          customer_name?: string
-          customer_phone?: string
+          current_count?: number
+          ends_at?: string | null
           id?: string
-          notified_at?: string | null
-          product_id?: string
-          product_name?: string
+          slug?: string
+          starts_at?: string
+          status?: string
+          target_qty?: number
+          tenant_id?: string
+          title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shop_campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shop_customers: {
         Row: {
@@ -2849,12 +3358,12 @@ export type Database = {
           default_delivery_city: string | null
           default_delivery_mode: string | null
           email: string | null
+          first_order_at: string | null
           id: string
           last_order_at: string | null
           name: string | null
           order_count: number | null
           phone: string
-          first_order_at: string | null
           tenant_id: string | null
           total_value_lei: number | null
           updated_at: string | null
@@ -2867,12 +3376,12 @@ export type Database = {
           default_delivery_city?: string | null
           default_delivery_mode?: string | null
           email?: string | null
+          first_order_at?: string | null
           id?: string
           last_order_at?: string | null
           name?: string | null
           order_count?: number | null
           phone: string
-          first_order_at?: string | null
           tenant_id?: string | null
           total_value_lei?: number | null
           updated_at?: string | null
@@ -2885,12 +3394,12 @@ export type Database = {
           default_delivery_city?: string | null
           default_delivery_mode?: string | null
           email?: string | null
+          first_order_at?: string | null
           id?: string
           last_order_at?: string | null
           name?: string | null
           order_count?: number | null
           phone?: string
-          first_order_at?: string | null
           tenant_id?: string | null
           total_value_lei?: number | null
           updated_at?: string | null
@@ -2943,57 +3452,33 @@ export type Database = {
           },
         ]
       }
-      shop_orders: {
+      shop_notify_requests: {
         Row: {
           created_at: string
           customer_name: string
           customer_phone: string
-          delivery_address: string | null
-          delivery_city: string | null
-          delivery_date: string | null
-          delivery_mode: string
-          delivery_position: number | null
           id: string
-          items: Json
-          notes: string | null
-          notified_wa: boolean
-          status: string
-          tenant_id: string | null
-          total_lei: number
+          notified_at: string | null
+          product_id: string
+          product_name: string
         }
         Insert: {
           created_at?: string
           customer_name: string
           customer_phone: string
-          delivery_address?: string | null
-          delivery_city?: string | null
-          delivery_date?: string | null
-          delivery_mode: string
-          delivery_position?: number | null
           id?: string
-          items: Json
-          notes?: string | null
-          notified_wa?: boolean
-          status?: string
-          tenant_id?: string | null
-          total_lei: number
+          notified_at?: string | null
+          product_id: string
+          product_name: string
         }
         Update: {
           created_at?: string
           customer_name?: string
           customer_phone?: string
-          delivery_address?: string | null
-          delivery_city?: string | null
-          delivery_date?: string | null
-          delivery_mode?: string
-          delivery_position?: number | null
           id?: string
-          items?: Json
-          notes?: string | null
-          notified_wa?: boolean
-          status?: string
-          tenant_id?: string | null
-          total_lei?: number
+          notified_at?: string | null
+          product_id?: string
+          product_name?: string
         }
         Relationships: []
       }
@@ -3043,6 +3528,81 @@ export type Database = {
           },
         ]
       }
+      shop_orders: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_city: string | null
+          delivery_date: string | null
+          delivery_mode: string
+          delivery_position: number | null
+          id: string
+          items: Json
+          notes: string | null
+          notified_wa: boolean
+          order_kind: string
+          status: string
+          tenant_id: string | null
+          total_lei: number
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          customer_name: string
+          customer_phone: string
+          delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_date?: string | null
+          delivery_mode: string
+          delivery_position?: number | null
+          id?: string
+          items: Json
+          notes?: string | null
+          notified_wa?: boolean
+          order_kind?: string
+          status?: string
+          tenant_id?: string | null
+          total_lei: number
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          delivery_address?: string | null
+          delivery_city?: string | null
+          delivery_date?: string | null
+          delivery_mode?: string
+          delivery_position?: number | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          notified_wa?: boolean
+          order_kind?: string
+          status?: string
+          tenant_id?: string | null
+          total_lei?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "shop_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shop_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_products: {
         Row: {
           available: boolean
@@ -3052,8 +3612,8 @@ export type Database = {
           name: string
           price_lei: number | null
           sort_order: number
-          unit_weight_kg: number | null
           unit_label: string
+          unit_weight_kg: number | null
         }
         Insert: {
           available?: boolean
@@ -3063,8 +3623,8 @@ export type Database = {
           name: string
           price_lei?: number | null
           sort_order?: number
-          unit_weight_kg?: number | null
           unit_label: string
+          unit_weight_kg?: number | null
         }
         Update: {
           available?: boolean
@@ -3074,107 +3634,10 @@ export type Database = {
           name?: string
           price_lei?: number | null
           sort_order?: number
-          unit_weight_kg?: number | null
           unit_label?: string
+          unit_weight_kg?: number | null
         }
         Relationships: []
-      }
-      recoltari: {
-        Row: {
-          cantitate_kg: number
-          client_sync_id: string
-          conflict_flag: boolean | null
-          created_at: string
-          created_by: string | null
-          culegator_id: string | null
-          cultura_id: string | null
-          data: string
-          data_origin: string | null
-          demo_seed_id: string | null
-          id: string
-          id_recoltare: string
-          kg_cal1: number
-          kg_cal2: number
-          observatii: string | null
-          parcela_id: string | null
-          pret_lei_pe_kg_snapshot: number
-          sync_status: string | null
-          tenant_id: string
-          updated_at: string
-          updated_by: string | null
-          valoare_munca_lei: number
-        }
-        Insert: {
-          cantitate_kg?: number
-          client_sync_id?: string
-          conflict_flag?: boolean | null
-          created_at?: string
-          created_by?: string | null
-          culegator_id?: string | null
-          cultura_id?: string | null
-          data: string
-          data_origin?: string | null
-          demo_seed_id?: string | null
-          id?: string
-          id_recoltare: string
-          kg_cal1?: number
-          kg_cal2?: number
-          observatii?: string | null
-          parcela_id?: string | null
-          pret_lei_pe_kg_snapshot?: number
-          sync_status?: string | null
-          tenant_id: string
-          updated_at?: string
-          updated_by?: string | null
-          valoare_munca_lei?: number
-        }
-        Update: {
-          cantitate_kg?: number
-          client_sync_id?: string
-          conflict_flag?: boolean | null
-          created_at?: string
-          created_by?: string | null
-          culegator_id?: string | null
-          cultura_id?: string | null
-          data?: string
-          data_origin?: string | null
-          demo_seed_id?: string | null
-          id?: string
-          id_recoltare?: string
-          kg_cal1?: number
-          kg_cal2?: number
-          observatii?: string | null
-          parcela_id?: string | null
-          pret_lei_pe_kg_snapshot?: number
-          sync_status?: string | null
-          tenant_id?: string
-          updated_at?: string
-          updated_by?: string | null
-          valoare_munca_lei?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "recoltari_culegator_id_fkey"
-            columns: ["culegator_id"]
-            isOneToOne: false
-            referencedRelation: "culegatori"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recoltari_cultura_id_fkey"
-            columns: ["cultura_id"]
-            isOneToOne: false
-            referencedRelation: "culturi"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "recoltari_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       solar_climate_logs: {
         Row: {
@@ -3305,10 +3768,12 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          id: string
           total_kg_cal1: number
           total_kg_cal2: number
           total_parcele: number
           total_recoltari: number
+          total_revenue: number
           total_revenue_lei: number
           total_tenants: number
           total_vanzari: number
@@ -3317,10 +3782,12 @@ export type Database = {
         Insert: {
           created_at?: string
           date: string
+          id?: string
           total_kg_cal1?: number
           total_kg_cal2?: number
           total_parcele?: number
           total_recoltari?: number
+          total_revenue?: number
           total_revenue_lei?: number
           total_tenants?: number
           total_vanzari?: number
@@ -3329,10 +3796,12 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string
+          id?: string
           total_kg_cal1?: number
           total_kg_cal2?: number
           total_parcele?: number
           total_recoltari?: number
+          total_revenue?: number
           total_revenue_lei?: number
           total_tenants?: number
           total_vanzari?: number
@@ -3503,7 +3972,7 @@ export type Database = {
           produs_id?: string | null
           status_plata?: string | null
           sync_status?: string | null
-          tenant_id: string
+          tenant_id?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -3549,6 +4018,13 @@ export type Database = {
             columns: ["produs_id"]
             isOneToOne: false
             referencedRelation: "produse"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -3629,7 +4105,36 @@ export type Database = {
           total_lei?: number
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vanzari_butasi_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clienti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
+            columns: ["parcela_sursa_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
+            columns: ["parcela_sursa_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_butasi_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vanzari_butasi_items: {
         Row: {
@@ -3822,7 +4327,29 @@ export type Database = {
           tip_activitate: string | null
           updated_at: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activitati_extra_season_parcela_id_fkey"
+            columns: ["parcela_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activitati_extra_season_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       parcele_extended: {
         Row: {
@@ -4001,7 +4528,36 @@ export type Database = {
           total_lei?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vanzari_butasi_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clienti"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
+            columns: ["parcela_sursa_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_butasi_parcela_sursa_id_fkey"
+            columns: ["parcela_sursa_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_butasi_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vanzari_extended: {
         Row: {
@@ -4080,6 +4636,13 @@ export type Database = {
             columns: ["comanda_id"]
             isOneToOne: false
             referencedRelation: "comenzi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vanzari_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -4286,10 +4849,7 @@ export type Database = {
         Returns: Json
       }
       deliver_shop_order_atomic: {
-        Args: {
-          p_payment_status?: string
-          p_shop_order_id: string
-        }
+        Args: { p_payment_status?: string; p_shop_order_id: string }
         Returns: Json
       }
       generate_business_id: { Args: { prefix: string }; Returns: string }
@@ -4320,32 +4880,6 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { check_user_id?: string }; Returns: boolean }
-      list_shop_orders_in_delivery_today: {
-        Args: never
-        Returns: {
-          created_at: string
-          customer_name: string
-          customer_phone: string
-          delivery_address: string | null
-          delivery_city: string | null
-          delivery_date: string | null
-          delivery_mode: string
-          delivery_position: number | null
-          id: string
-          items: Json
-          notes: string | null
-          notified_wa: boolean
-          status: string
-          tenant_id: string | null
-          total_lei: number
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "shop_orders"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       list_association_farmer_legal_status: {
         Args: never
         Returns: {
@@ -4359,6 +4893,34 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      list_shop_orders_in_delivery_today: {
+        Args: never
+        Returns: {
+          campaign_id: string | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_city: string | null
+          delivery_date: string | null
+          delivery_mode: string
+          delivery_position: number | null
+          id: string
+          items: Json
+          notes: string | null
+          notified_wa: boolean
+          order_kind: string
+          status: string
+          tenant_id: string | null
+          total_lei: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shop_orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       mark_association_order_delivered_atomic: {
         Args: { p_line_ids: string[]; p_order_id: string }
         Returns: Json
@@ -4368,10 +4930,12 @@ export type Database = {
         Returns: {
           created_at: string
           date: string
+          id: string
           total_kg_cal1: number
           total_kg_cal2: number
           total_parcele: number
           total_recoltari: number
+          total_revenue: number
           total_revenue_lei: number
           total_tenants: number
           total_vanzari: number
@@ -4383,10 +4947,6 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
-      }
-      reorder_shop_deliveries_today: {
-        Args: { p_order_ids: string[] }
-        Returns: number
       }
       reopen_comanda_atomic: {
         Args: { p_comanda_id: string; p_tenant_id?: string }
@@ -4425,6 +4985,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reorder_shop_deliveries_today: {
+        Args: { p_order_ids: string[] }
+        Returns: number
       }
       resolve_recoltare_stock_identity: {
         Args: {
@@ -4554,14 +5118,15 @@ export type Database = {
       }
       upsert_shop_customer: {
         Args: {
-          p_default_delivery_address: string | null
-          p_default_delivery_city: string | null
-          p_default_delivery_mode: string | null
+          p_default_delivery_address?: string
+          p_default_delivery_city?: string
+          p_default_delivery_mode?: string
           p_name: string
+          p_order_value_lei?: number
           p_phone: string
           p_tenant_id: string
         }
-        Returns: undefined
+        Returns: string
       }
       upsert_with_idempotency: {
         Args: { payload: Json; table_name: string }
@@ -4716,9 +5281,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       comanda_status: [
