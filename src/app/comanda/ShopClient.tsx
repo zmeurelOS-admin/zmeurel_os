@@ -334,13 +334,13 @@ export function ShopClient({
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
   const [sourceSaved, setSourceSaved] = useState(false)
   const [notificationPromptVisible, setNotificationPromptVisible] = useState(false)
+  const [pendingNotifPrompt, setPendingNotifPrompt] = useState(false)
   const [customerAutofillNotice, setCustomerAutofillNotice] = useState<string | null>(null)
   const [recognizedCustomerPhone, setRecognizedCustomerPhone] = useState<string | null>(null)
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
   const [lastOrderApplied, setLastOrderApplied] = useState(false)
   const lastCustomerLookupPhoneRef = useRef<string | null>(null)
 
-  const notificationPromptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const nameFieldRef = useRef<HTMLDivElement>(null)
   const phoneFieldRef = useRef<HTMLDivElement>(null)
   const cityFieldRef = useRef<HTMLDivElement>(null)
@@ -348,31 +348,18 @@ export function ShopClient({
   const cartErrorRef = useRef<HTMLParagraphElement>(null)
 
   useEffect(() => {
-    return () => {
-      if (notificationPromptTimerRef.current) {
-        clearTimeout(notificationPromptTimerRef.current)
-      }
-    }
-  }, [])
+    if (sheetOpen || !pendingNotifPrompt) return
 
-  useEffect(() => {
-    if (!orderSuccess) return
-
-    notificationPromptTimerRef.current = setTimeout(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setPendingNotifPrompt(false)
       if (shouldShowNotificationPrompt()) {
         markNotificationPromptSession()
         setNotificationPromptVisible(true)
       }
-      notificationPromptTimerRef.current = null
-    }, 2500)
+    })
 
-    return () => {
-      if (notificationPromptTimerRef.current) {
-        clearTimeout(notificationPromptTimerRef.current)
-        notificationPromptTimerRef.current = null
-      }
-    }
-  }, [orderSuccess])
+    return () => window.cancelAnimationFrame(frame)
+  }, [pendingNotifPrompt, sheetOpen])
 
   const applyCustomerSnapshot = useCallback((snapshot: CustomerSnapshot, source: 'local' | 'api') => {
     if (snapshot.name) setOrderName(snapshot.name)
@@ -567,6 +554,7 @@ export function ShopClient({
     }
     setOrderSuccess(false)
     setNotificationPromptVisible(false)
+    setPendingNotifPrompt(false)
     setOrderError(null)
     setSheetOpen(true)
   }, [primaryProduct, primaryQty, setQty])
@@ -633,6 +621,7 @@ export function ShopClient({
     setOrderError(null)
     setOrderSuccess(false)
     setNotificationPromptVisible(false)
+    setPendingNotifPrompt(false)
 
     const items = cartLines.map((line) => ({
       vid: line.product.id,
@@ -665,6 +654,7 @@ export function ShopClient({
 
       setOrderSuccess(true)
       setNotificationPromptVisible(false)
+      setPendingNotifPrompt(true)
       setSourcePromptVisible(true)
       setSourceSaved(false)
       writeCustomerSnapshotToStorage({
