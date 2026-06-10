@@ -486,6 +486,12 @@ function DeliveryOrderCard({
         ) : null}
       </div>
 
+      {order.milestone_reward ? (
+        <div className="border-t border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-sm font-bold text-[var(--status-warning-text)]">
+          ⚠️ Include bonus: {order.milestone_reward.reward_label}
+        </div>
+      ) : null}
+
       {reordering ? (
         <div className="grid grid-cols-2 gap-2 border-t border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3">
           <Button

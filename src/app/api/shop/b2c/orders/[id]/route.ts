@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
+import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
@@ -76,7 +77,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ success: true, delivery: data })
   }
 
-  const updates: { status?: string; notified_wa?: boolean } = {}
+  const updates: { status?: string; notified_wa?: boolean; delivery_date?: string } = {}
   if (parsed.data.status !== undefined) updates.status = parsed.data.status
   if (parsed.data.notified_wa !== undefined) updates.notified_wa = parsed.data.notified_wa
 
@@ -92,6 +93,29 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const admin = getSupabaseAdmin()
+  if (parsed.data.status === 'in_livrare') {
+    const { data: currentOrder, error: currentOrderError } = await admin
+      .from('shop_orders')
+      .select('delivery_date')
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (currentOrderError) {
+      console.error(
+        '[shop/b2c/orders] delivery date lookup failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...currentOrderError })),
+      )
+      return errorResponse('Nu am putut pregăti comanda pentru livrare.', 500)
+    }
+
+    if (!currentOrder) {
+      return errorResponse('Comanda nu a fost găsită.', 404)
+    }
+
+    updates.delivery_date = currentOrder.delivery_date ?? todayBucharestDate()
+  }
+
   const { data, error } = await admin
     .from('shop_orders')
     .update(updates)

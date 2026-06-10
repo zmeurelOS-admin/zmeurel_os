@@ -47,6 +47,26 @@ function StatusPill({ label }: { label: string }) {
   )
 }
 
+function MilestoneRewardBadge({
+  rewardLabel,
+  status,
+}: {
+  rewardLabel: string
+  status: 'pending' | 'validated'
+}) {
+  const statusLabel = status === 'validated' ? 'Bonus validat' : 'Bonus la livrare'
+
+  return (
+    <div
+      className="mt-2 inline-flex max-w-full flex-col rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2.5 py-1.5 text-[var(--status-warning-text)]"
+      title={statusLabel}
+    >
+      <span className="truncate text-xs font-bold">🎁 {rewardLabel}</span>
+      <span className="text-[10px] font-semibold opacity-80">{statusLabel}</span>
+    </div>
+  )
+}
+
 export function UnifiedOrderCard({
   item,
   disabled,
@@ -67,6 +87,7 @@ export function UnifiedOrderCard({
   const totalFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(
     Math.round(item.totalLei),
   )
+  const milestoneReward = item.shopOrder?.milestone_reward
 
   return (
     <article className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)]">
@@ -87,6 +108,13 @@ export function UnifiedOrderCard({
           <StatusPill label={item.statusLabel} />
         </div>
       </div>
+
+      {milestoneReward ? (
+        <MilestoneRewardBadge
+          rewardLabel={milestoneReward.reward_label}
+          status={milestoneReward.status}
+        />
+      ) : null}
 
       {phoneHref ? (
         <a

@@ -2,6 +2,11 @@ import type { Json } from '@/types/supabase'
 
 export type ShopOrderStatus = 'noua' | 'confirmata' | 'in_livrare' | 'livrata' | 'anulata'
 
+export type ShopOrderMilestoneReward = {
+  reward_label: string
+  status: 'pending' | 'validated'
+}
+
 export type ShopOrderRow = {
   id: string
   created_at: string
@@ -16,6 +21,7 @@ export type ShopOrderRow = {
   notes: string | null
   status: ShopOrderStatus
   notified_wa: boolean
+  milestone_reward?: ShopOrderMilestoneReward | null
 }
 
 export function todayBucharestDate(): string {

@@ -724,6 +724,7 @@ export function ComenziPageClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pendingDeletedItems = useRef<Record<string, { item: Comanda; index: number }>>({})
+  const shopDeliveryRedirectTimer = useRef<number | null>(null)
 
   const [search, setSearch] = useState('')
   const initialFilter = useMemo<DashboardFilter>(() => {
@@ -1007,10 +1008,21 @@ export function ComenziPageClient() {
         throw new Error(json.error ?? 'Actualizare eșuată')
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
+
+      if (variables.status === 'in_livrare') {
+        toast('Comanda mutată în livrări 🚚', { duration: 1200 })
+        if (shopDeliveryRedirectTimer.current) {
+          window.clearTimeout(shopDeliveryRedirectTimer.current)
+        }
+        shopDeliveryRedirectTimer.current = window.setTimeout(() => {
+          router.push('/livrari')
+          shopDeliveryRedirectTimer.current = null
+        }, 1200)
+      }
     },
     onError: (err: Error) => {
       hapticError()
@@ -1021,6 +1033,15 @@ export function ComenziPageClient() {
   function setDeliveringAndConfirm(delivering: string | null) {
     setDeliveringId(delivering)
   }
+
+  useEffect(
+    () => () => {
+      if (shopDeliveryRedirectTimer.current) {
+        window.clearTimeout(shopDeliveryRedirectTimer.current)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (section !== 'comenzi') return

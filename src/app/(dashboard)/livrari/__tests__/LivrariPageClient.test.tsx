@@ -55,6 +55,10 @@ const order: ShopOrderRow = {
   notes: null,
   status: 'in_livrare',
   notified_wa: true,
+  milestone_reward: {
+    reward_label: 'O caserolă bonus',
+    status: 'pending',
+  },
 }
 
 const secondOrder: ShopOrderRow = {
@@ -101,6 +105,7 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     expect(await screen.findByText('Strada Florilor 10, Suceava')).toBeInTheDocument()
+    expect(screen.getByText('⚠️ Include bonus: O caserolă bonus')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Reordonează livrarea 1' }))
     expect(screen.getByRole('button', { name: /Sus/ })).toBeInTheDocument()

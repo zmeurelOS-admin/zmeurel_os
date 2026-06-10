@@ -8,6 +8,9 @@ const {
   getTenantIdByUserIdMock,
   getUserMock,
   rpcMock,
+  selectEqMock,
+  selectMaybeSingleMock,
+  updateMock,
   updateEqMock,
   updateSelectMock,
 } = vi.hoisted(() => ({
@@ -15,6 +18,9 @@ const {
   getTenantIdByUserIdMock: vi.fn(),
   getUserMock: vi.fn(),
   rpcMock: vi.fn(),
+  selectEqMock: vi.fn(),
+  selectMaybeSingleMock: vi.fn(),
+  updateMock: vi.fn(),
   updateEqMock: vi.fn(),
   updateSelectMock: vi.fn(),
 }))
@@ -79,15 +85,27 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
       data: [{ id: orderId }],
       error: null,
     })
+    selectMaybeSingleMock.mockResolvedValue({
+      data: { delivery_date: null },
+      error: null,
+    })
+    selectEqMock.mockImplementation(() => ({
+      eq: selectEqMock,
+      maybeSingle: selectMaybeSingleMock,
+    }))
     updateEqMock.mockImplementation(() => ({
       eq: updateEqMock,
       select: updateSelectMock,
     }))
+    updateMock.mockReturnValue({
+      eq: updateEqMock,
+    })
     getSupabaseAdminMock.mockReturnValue({
       from: vi.fn().mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: updateEqMock,
+        select: vi.fn().mockReturnValue({
+          eq: selectEqMock,
         }),
+        update: updateMock,
       }),
     })
   })
@@ -170,6 +188,38 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     expect(updateEqMock).toHaveBeenNthCalledWith(1, 'id', orderId)
     expect(updateEqMock).toHaveBeenNthCalledWith(2, 'tenant_id', tenantId)
     expect(updateSelectMock).toHaveBeenCalledWith('id')
+  })
+
+  it('setează data de livrare București când comanda intră în livrare fără dată', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-10T12:00:00.000Z'))
+
+    const response = await patchRequest({ status: 'in_livrare' })
+
+    expect(response.status).toBe(200)
+    expect(selectEqMock).toHaveBeenNthCalledWith(1, 'id', orderId)
+    expect(selectEqMock).toHaveBeenNthCalledWith(2, 'tenant_id', tenantId)
+    expect(updateMock).toHaveBeenCalledWith({
+      status: 'in_livrare',
+      delivery_date: '2026-06-10',
+    })
+
+    vi.useRealTimers()
+  })
+
+  it('păstrează data de livrare existentă când comanda intră în livrare', async () => {
+    selectMaybeSingleMock.mockResolvedValue({
+      data: { delivery_date: '2026-06-15' },
+      error: null,
+    })
+
+    const response = await patchRequest({ status: 'in_livrare' })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith({
+      status: 'in_livrare',
+      delivery_date: '2026-06-15',
+    })
   })
 
   it('întoarce 404 când id-ul nu aparține tenantului autentificat', async () => {
