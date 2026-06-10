@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Database } from '@/types/supabase'
 
 export const revalidate = 30
@@ -48,13 +49,26 @@ export async function GET(
       return NextResponse.json({ error: 'Campania nu este disponibilă.' }, { status: 404 })
     }
 
-    const { data: milestones, error: milestonesError } = await supabase
-      .from('shop_campaign_milestones')
-      .select('threshold, reward_label, reached')
-      .eq('campaign_id', campaign.id)
-      .order('threshold', { ascending: true })
+    const admin = getSupabaseAdmin()
+    const [
+      { data: milestones, error: milestonesError },
+      { data: leaderboard, error: leaderboardError },
+    ] = await Promise.all([
+      supabase
+        .from('shop_campaign_milestones')
+        .select('threshold, reward_label, reached')
+        .eq('campaign_id', campaign.id)
+        .order('threshold', { ascending: true }),
+      admin
+        .from('campaign_leaderboard')
+        .select('anon_id, city, total_qty')
+        .eq('campaign_id', campaign.id)
+        .order('rank', { ascending: true })
+        .limit(10),
+    ])
 
     if (milestonesError) throw milestonesError
+    if (leaderboardError) throw leaderboardError
 
     return NextResponse.json(
       {
@@ -66,6 +80,18 @@ export async function GET(
           rewardLabel: milestone.reward_label,
           reached: milestone.reached,
         })),
+        leaderboard: (leaderboard ?? []).flatMap((entry) => {
+          if (!entry.anon_id || entry.total_qty === null) return []
+
+          return [
+            {
+              anonId: entry.anon_id,
+              city: entry.city,
+              count: Number(entry.total_qty),
+              seasonPrizeLabel: null,
+            },
+          ]
+        }),
       },
       {
         headers: {

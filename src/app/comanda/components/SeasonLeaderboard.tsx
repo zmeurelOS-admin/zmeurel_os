@@ -35,7 +35,7 @@ export function SeasonLeaderboard({ campaign }: SeasonLeaderboardProps) {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-white">{entry.anonId}</p>
-                  <p className="text-xs text-white/60">{entry.city}</p>
+                  {entry.city ? <p className="text-xs text-white/60">{entry.city}</p> : null}
                 </div>
                 <p className="shrink-0 text-right text-sm font-extrabold tabular-nums text-[#FFB1AA]">
                   {entry.count}
@@ -49,17 +49,19 @@ export function SeasonLeaderboard({ campaign }: SeasonLeaderboardProps) {
             Clasamentul este anonimizat. Datele personale nu sunt afișate public.
           </p>
 
-          <div className="border-t border-white/[0.12] pt-4">
-            <p className="text-sm font-extrabold text-white">Premiile finale ale sezonului</p>
-            <ul className="mt-2 space-y-1.5 text-xs text-white/75">
-              {seasonPrizes.map((entry, index) => (
-                <li key={entry.anonId} className="flex items-start gap-2">
-                  <span className="font-extrabold text-[#FFB1AA]">Locul {index + 1}</span>
-                  <span>· {entry.seasonPrizeLabel}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {seasonPrizes.length > 0 ? (
+            <div className="border-t border-white/[0.12] pt-4">
+              <p className="text-sm font-extrabold text-white">Premiile finale ale sezonului</p>
+              <ul className="mt-2 space-y-1.5 text-xs text-white/75">
+                {seasonPrizes.map((entry, index) => (
+                  <li key={entry.anonId} className="flex items-start gap-2">
+                    <span className="font-extrabold text-[#FFB1AA]">Locul {index + 1}</span>
+                    <span>· {entry.seasonPrizeLabel}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </section>

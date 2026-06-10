@@ -4,6 +4,7 @@ import { GET } from '@/app/api/shop/campaign/[slug]/route'
 
 const maybeSingle = vi.fn()
 const order = vi.fn()
+const leaderboardLimit = vi.fn()
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
@@ -29,6 +30,25 @@ vi.mock('@supabase/supabase-js', () => ({
       }
 
       throw new Error(`unexpected table ${table}`)
+    },
+  }),
+}))
+
+vi.mock('@/lib/supabase/admin', () => ({
+  getSupabaseAdmin: () => ({
+    from: (table: string) => {
+      if (table !== 'campaign_leaderboard') {
+        throw new Error(`unexpected admin table ${table}`)
+      }
+
+      const leaderboardQuery = {
+        eq: vi.fn(() => leaderboardQuery),
+        order: vi.fn(() => leaderboardQuery),
+        limit: leaderboardLimit,
+      }
+      return {
+        select: vi.fn(() => leaderboardQuery),
+      }
     },
   }),
 }))
@@ -60,6 +80,21 @@ describe('GET /api/shop/campaign/[slug]', () => {
       ],
       error: null,
     })
+    leaderboardLimit.mockResolvedValue({
+      data: [
+        {
+          anon_id: '#A3F2B7C1',
+          city: 'Suceava',
+          total_qty: 22,
+        },
+        {
+          anon_id: '#5E18A412',
+          city: null,
+          total_qty: 16,
+        },
+      ],
+      error: null,
+    })
 
     const response = await GET(new Request('https://example.test/api/shop/campaign/zmeura-2026'), {
       params: Promise.resolve({ slug: 'zmeura-2026' }),
@@ -79,8 +114,22 @@ describe('GET /api/shop/campaign/[slug]', () => {
           reached: false,
         },
       ],
+      leaderboard: [
+        {
+          anonId: '#A3F2B7C1',
+          city: 'Suceava',
+          count: 22,
+          seasonPrizeLabel: null,
+        },
+        {
+          anonId: '#5E18A412',
+          city: null,
+          count: 16,
+          seasonPrizeLabel: null,
+        },
+      ],
     })
-    expect(JSON.stringify(payload)).not.toMatch(/phone|customer|tenant/i)
+    expect(JSON.stringify(payload)).not.toMatch(/phone|customer|tenant|address|name/i)
   })
 
   it('returnează 404 pentru o campanie inexistentă', async () => {

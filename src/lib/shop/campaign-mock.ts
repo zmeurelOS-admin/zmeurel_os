@@ -7,7 +7,7 @@ export type CampaignMilestone = {
 
 export type CampaignLeaderboardEntry = {
   anonId: string
-  city: string
+  city: string | null
   count: number
   seasonPrizeLabel: string | null
 }
@@ -31,6 +31,7 @@ export type CampaignSnapshot = {
     rewardLabel: string
     reached: boolean
   }>
+  leaderboard: CampaignLeaderboardEntry[]
 }
 
 export const CAMPAIGN_DATA: CampaignData = {
@@ -141,7 +142,9 @@ export const CAMPAIGN_DATA: CampaignData = {
 }
 
 export function mergeCampaignSnapshot(snapshot: CampaignSnapshot): CampaignData {
-  const nextMilestoneIndex = snapshot.milestones.findIndex((milestone) => !milestone.reached)
+  const nextMilestoneIndex = snapshot.milestones.findIndex(
+    (milestone) => !milestone.reached && milestone.threshold > snapshot.currentCount,
+  )
   const milestones = snapshot.milestones.map((milestone, index) => ({
     ...milestone,
     isNext: index === nextMilestoneIndex,
@@ -152,6 +155,8 @@ export function mergeCampaignSnapshot(snapshot: CampaignSnapshot): CampaignData 
     currentCount: snapshot.currentCount,
     target: snapshot.targetQty,
     milestones,
+    leaderboard:
+      snapshot.leaderboard.length > 0 ? snapshot.leaderboard : CAMPAIGN_DATA.leaderboard,
     nextMilestone:
       milestones[nextMilestoneIndex] ?? milestones.at(-1) ?? CAMPAIGN_DATA.nextMilestone,
   }
@@ -171,6 +176,14 @@ export function isCampaignSnapshot(value: unknown): value is CampaignSnapshot {
         typeof milestone?.threshold === 'number' &&
         typeof milestone.rewardLabel === 'string' &&
         typeof milestone.reached === 'boolean',
+    ) &&
+    Array.isArray(snapshot.leaderboard) &&
+    snapshot.leaderboard.every(
+      (entry) =>
+        typeof entry?.anonId === 'string' &&
+        (typeof entry.city === 'string' || entry.city === null) &&
+        typeof entry.count === 'number' &&
+        (typeof entry.seasonPrizeLabel === 'string' || entry.seasonPrizeLabel === null),
     )
   )
 }

@@ -4376,6 +4376,24 @@ export type Database = {
           },
         ]
       }
+      campaign_leaderboard: {
+        Row: {
+          anon_id: string | null
+          campaign_id: string | null
+          city: string | null
+          rank: number | null
+          total_qty: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_orders_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "shop_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parcele_extended: {
         Row: {
           an_plantare: number | null

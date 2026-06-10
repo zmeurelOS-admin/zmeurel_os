@@ -38,4 +38,26 @@ describe('campaign sections', () => {
     expect(screen.getByText('1.250 caserole')).toBeInTheDocument()
     expect(screen.getByText('2.000 caserole')).toBeInTheDocument()
   })
+
+  it('omite locația când clasamentul live nu are oraș', () => {
+    render(
+      <SeasonLeaderboard
+        campaign={{
+          ...CAMPAIGN_DATA,
+          leaderboard: [
+            {
+              anonId: '#A3F2B7C1',
+              city: null,
+              count: 22,
+              seasonPrizeLabel: null,
+            },
+          ],
+        }}
+      />,
+    )
+
+    expect(screen.getByText('#A3F2B7C1')).toBeInTheDocument()
+    expect(screen.queryByText('Locație necunoscută')).not.toBeInTheDocument()
+    expect(screen.queryByText('Premiile finale ale sezonului')).not.toBeInTheDocument()
+  })
 })

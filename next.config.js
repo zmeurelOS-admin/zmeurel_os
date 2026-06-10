@@ -48,6 +48,14 @@ const runtimeCaching = [
     },
   },
   {
+    // Campaign progress changes frequently and must never fall back to stale PWA data.
+    urlPattern: ({ url }) =>
+      self.origin === url.origin && url.pathname.startsWith('/api/shop/campaign/'),
+    handler: 'NetworkOnly',
+    method: 'GET',
+    options: {},
+  },
+  {
     // App GET APIs: online-first, short-lived cache for read endpoints.
     urlPattern: ({ url }) => self.origin === url.origin && url.pathname.startsWith('/api/'),
     handler: 'NetworkFirst',
