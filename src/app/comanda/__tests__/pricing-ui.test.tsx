@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ShopClient } from '@/app/comanda/ShopClient'
+import { CAMPAIGN_DATA } from '@/lib/shop/campaign-mock'
 
 describe('ShopClient volume pricing', () => {
   afterEach(() => {
@@ -99,25 +100,35 @@ describe('ShopClient volume pricing', () => {
     )
   })
 
-  it('afișează felicitarea doar când precomanda traversează pragul următor', async () => {
+  it('trimite campaign_id și afișează felicitarea din răspunsul API', async () => {
     const user = userEvent.setup()
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: RequestInfo | URL) => {
+    const fetchSpy = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
         const url = String(input)
         if (url.includes('/api/shop/b2c/order')) {
-          return new Response(JSON.stringify({ success: true, order_id: 'order-1', total_lei: 35 }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          })
+          return new Response(
+            JSON.stringify({
+              success: true,
+              order_id: 'order-1',
+              total_lei: 35,
+              hit_milestone: true,
+              milestone_threshold: 500,
+              milestone_reward: 'un coș cu produse locale',
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          )
         }
 
         return new Response(JSON.stringify({ found: false }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         })
-      }),
+      },
     )
+    vi.stubGlobal('fetch', fetchSpy)
     vi.spyOn(window, 'open').mockReturnValue(null)
 
     render(
@@ -148,5 +159,14 @@ describe('ShopClient volume pricing', () => {
     const checkoutSheet = screen.getByRole('dialog')
     expect(within(checkoutSheet).getByText(/Comanda ta a trecut pragul de/)).toBeInTheDocument()
     expect(within(checkoutSheet).getByText('un coș cu produse locale')).toBeInTheDocument()
+
+    const orderCall = fetchSpy.mock.calls.find(([input]) =>
+      String(input).includes('/api/shop/b2c/order'),
+    )
+    expect(JSON.parse(String(orderCall?.[1]?.body))).toEqual(
+      expect.objectContaining({
+        campaign_id: CAMPAIGN_DATA.campaignId,
+      }),
+    )
   })
 })

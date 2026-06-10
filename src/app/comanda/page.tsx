@@ -8,7 +8,7 @@ function mapRow(row: {
   id: string
   name: string
   description: string | null
-  unit_label: string
+  unit_label: string | null
   price_lei: number | null
   available: boolean
   sort_order: number
@@ -17,7 +17,7 @@ function mapRow(row: {
     id: row.id,
     name: row.name,
     description: row.description,
-    unit_label: row.unit_label,
+    unit_label: row.unit_label ?? 'Caserolă',
     price_lei: row.price_lei,
     available: row.available,
     sort_order: row.sort_order,

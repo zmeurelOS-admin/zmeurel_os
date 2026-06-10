@@ -1,0 +1,2 @@
+-- Remote history alias. Canonical local migration:
+-- 20260609120000_harden_shop_orders_tenant_rls.sql

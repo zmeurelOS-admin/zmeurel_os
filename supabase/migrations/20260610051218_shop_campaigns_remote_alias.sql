@@ -1,0 +1,2 @@
+-- Remote history alias. Canonical local migration:
+-- 20260610180000_shop_campaigns.sql

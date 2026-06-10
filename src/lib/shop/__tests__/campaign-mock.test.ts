@@ -1,27 +1,44 @@
 import { describe, expect, it } from 'vitest'
 
-import { CAMPAIGN_DATA, checkMilestoneHit } from '@/lib/shop/campaign-mock'
+import {
+  CAMPAIGN_DATA,
+  isCampaignSnapshot,
+  mergeCampaignSnapshot,
+} from '@/lib/shop/campaign-mock'
 
-describe('campaign milestone stub', () => {
-  it('marchează pragul doar când noua cantitate îl traversează', () => {
-    expect(
-      checkMilestoneHit(CAMPAIGN_DATA.currentCount, 1, CAMPAIGN_DATA.nextMilestone),
-    ).toBe(false)
-    expect(
-      checkMilestoneHit(CAMPAIGN_DATA.currentCount, 2, CAMPAIGN_DATA.nextMilestone),
-    ).toBe(true)
+describe('campaign snapshot', () => {
+  it('înlocuiește progresul mock și derivă următorul milestone din datele live', () => {
+    const campaign = mergeCampaignSnapshot({
+      currentCount: 300,
+      targetQty: 2000,
+      status: 'active',
+      milestones: [
+        { threshold: 150, rewardLabel: 'Bonus 1', reached: true },
+        { threshold: 300, rewardLabel: 'Bonus 2', reached: true },
+        { threshold: 500, rewardLabel: 'Bonus 3', reached: false },
+      ],
+    })
+
+    expect(campaign.currentCount).toBe(300)
+    expect(campaign.target).toBe(2000)
+    expect(campaign.nextMilestone).toEqual({
+      threshold: 500,
+      rewardLabel: 'Bonus 3',
+      reached: false,
+      isNext: true,
+    })
+    expect(campaign.leaderboard).toBe(CAMPAIGN_DATA.leaderboard)
   })
 
-  it('nu marchează un prag deja atins sau o cantitate invalidă', () => {
+  it('respinge payloaduri publice incomplete', () => {
     expect(
-      checkMilestoneHit(CAMPAIGN_DATA.currentCount, 0, CAMPAIGN_DATA.nextMilestone),
-    ).toBe(false)
-    expect(
-      checkMilestoneHit(300, 10, {
-        ...CAMPAIGN_DATA.nextMilestone,
-        threshold: 300,
-        reached: true,
+      isCampaignSnapshot({
+        currentCount: 10,
+        targetQty: 2000,
+        status: 'active',
+        milestones: [{ threshold: 150, rewardLabel: 'Bonus', reached: false }],
       }),
-    ).toBe(false)
+    ).toBe(true)
+    expect(isCampaignSnapshot({ currentCount: 10, milestones: [] })).toBe(false)
   })
 })

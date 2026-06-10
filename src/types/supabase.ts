@@ -4950,6 +4950,21 @@ export type Database = {
         Args: { p_line_ids: string[]; p_order_id: string }
         Returns: Json
       }
+      place_preorder_atomic: {
+        Args: {
+          p_campaign_id: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_delivery_address: string
+          p_delivery_city: string
+          p_delivery_mode: string
+          p_items: Json
+          p_notes?: string
+          p_tenant_id: string
+          p_total_lei: number
+        }
+        Returns: Json
+      }
       refresh_tenant_metrics_daily: {
         Args: { p_date?: string }
         Returns: {

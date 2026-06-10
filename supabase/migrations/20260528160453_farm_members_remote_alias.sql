@@ -1,0 +1,2 @@
+-- Remote history alias. Canonical local migration:
+-- 20260528160137_farm_members.sql

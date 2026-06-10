@@ -20,11 +20,17 @@ vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => getSupabaseAdmin(),
 }))
 
-function buildAdmin(orderId = '11111111-1111-4111-8111-111111111111') {
+function buildAdmin(
+  orderId = '11111111-1111-4111-8111-111111111111',
+  preorderResult: Record<string, unknown> | null = null,
+) {
   return {
     rpc: (name: string, args: Record<string, unknown>) => {
       rpcSpy(name, args)
-      return Promise.resolve({ data: null, error: null })
+      return Promise.resolve({
+        data: name === 'place_preorder_atomic' ? preorderResult : null,
+        error: null,
+      })
     },
     from: (table: string) => {
       if (table !== 'shop_orders') throw new Error(`unexpected table ${table}`)
@@ -90,6 +96,7 @@ describe('POST /api/shop/b2c/order', () => {
           },
         ],
         total_lei: 35,
+        order_kind: 'standard',
       }),
     )
     expect(createNotificationForTenantOwner).toHaveBeenCalledWith(
@@ -115,6 +122,63 @@ describe('POST /api/shop/b2c/order', () => {
         p_default_delivery_address: 'Suceava, str. Fermierului 10',
         p_default_delivery_city: 'Suceava',
         p_default_delivery_mode: 'livrare',
+      }),
+    )
+  })
+
+  it('folosește RPC-ul atomic pentru precomandă și returnează milestone-ul real', async () => {
+    const campaignId = '21d158e1-dfa3-4db3-894b-d64ecad29b45'
+    const orderId = '33333333-3333-4333-8333-333333333333'
+    getSupabaseAdmin.mockReturnValue(
+      buildAdmin(orderId, {
+        order_id: orderId,
+        order_kind: 'preorder',
+        campaign_id: campaignId,
+        current_count: 500,
+        hit_milestone: true,
+        milestone_threshold: 500,
+        milestone_reward: 'un coș cu produse locale',
+        reward_id: '44444444-4444-4444-8444-444444444444',
+      }),
+    )
+    const body = { ...baseBody(), campaign_id: campaignId }
+
+    const response = await POST(
+      createSameOriginRequest('/api/shop/b2c/order', { method: 'POST', json: body }),
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      order_id: orderId,
+      total_lei: 35,
+      hit_milestone: true,
+      milestone_threshold: 500,
+      milestone_reward: 'un coș cu produse locale',
+    })
+    expect(insertSpy).not.toHaveBeenCalled()
+    expect(rpcSpy).toHaveBeenCalledWith(
+      'place_preorder_atomic',
+      expect.objectContaining({
+        p_campaign_id: campaignId,
+        p_tenant_id: process.env.SHOP_TENANT_ID,
+        p_customer_phone: '0722123456',
+        p_items: [
+          {
+            vid: 'zmeura',
+            label: 'Zmeură — Caserolă 500 g',
+            qty: 2,
+            price_lei: 18,
+          },
+        ],
+        p_total_lei: 35,
+      }),
+    )
+    expect(rpcSpy).toHaveBeenCalledWith(
+      'upsert_shop_customer',
+      expect.objectContaining({
+        p_tenant_id: process.env.SHOP_TENANT_ID,
+        p_phone: '722123456',
       }),
     )
   })

@@ -22,6 +22,17 @@ export type CampaignData = {
   rules: string[]
 }
 
+export type CampaignSnapshot = {
+  currentCount: number
+  targetQty: number
+  status: string
+  milestones: Array<{
+    threshold: number
+    rewardLabel: string
+    reached: boolean
+  }>
+}
+
 export const CAMPAIGN_DATA: CampaignData = {
   campaignId: '21d158e1-dfa3-4db3-894b-d64ecad29b45',
   currentCount: 498,
@@ -129,12 +140,37 @@ export const CAMPAIGN_DATA: CampaignData = {
   ],
 }
 
-export function checkMilestoneHit(
-  currentCount: number,
-  qty: number,
-  nextMilestone: CampaignMilestone,
-): boolean {
-  if (!Number.isInteger(qty) || qty <= 0 || nextMilestone.reached) return false
+export function mergeCampaignSnapshot(snapshot: CampaignSnapshot): CampaignData {
+  const nextMilestoneIndex = snapshot.milestones.findIndex((milestone) => !milestone.reached)
+  const milestones = snapshot.milestones.map((milestone, index) => ({
+    ...milestone,
+    isNext: index === nextMilestoneIndex,
+  }))
 
-  return currentCount < nextMilestone.threshold && currentCount + qty >= nextMilestone.threshold
+  return {
+    ...CAMPAIGN_DATA,
+    currentCount: snapshot.currentCount,
+    target: snapshot.targetQty,
+    milestones,
+    nextMilestone:
+      milestones[nextMilestoneIndex] ?? milestones.at(-1) ?? CAMPAIGN_DATA.nextMilestone,
+  }
+}
+
+export function isCampaignSnapshot(value: unknown): value is CampaignSnapshot {
+  if (!value || typeof value !== 'object') return false
+
+  const snapshot = value as Partial<CampaignSnapshot>
+  return (
+    typeof snapshot.currentCount === 'number' &&
+    typeof snapshot.targetQty === 'number' &&
+    typeof snapshot.status === 'string' &&
+    Array.isArray(snapshot.milestones) &&
+    snapshot.milestones.every(
+      (milestone) =>
+        typeof milestone?.threshold === 'number' &&
+        typeof milestone.rewardLabel === 'string' &&
+        typeof milestone.reached === 'boolean',
+    )
+  )
 }

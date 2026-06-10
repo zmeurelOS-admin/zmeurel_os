@@ -14,7 +14,8 @@ import {
 import { ShopNotifPrompt } from '@/components/shop/ShopNotifPrompt'
 import {
   CAMPAIGN_DATA,
-  checkMilestoneHit,
+  isCampaignSnapshot,
+  mergeCampaignSnapshot,
   type CampaignMilestone,
 } from '@/lib/shop/campaign-mock'
 import {
@@ -365,6 +366,7 @@ export function ShopClient({
   const [orderError, setOrderError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [orderSuccess, setOrderSuccess] = useState(false)
+  const [campaign, setCampaign] = useState(CAMPAIGN_DATA)
   const [capturedMilestone, setCapturedMilestone] = useState<CampaignMilestone | null>(null)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
@@ -382,6 +384,30 @@ export function ShopClient({
   const cityFieldRef = useRef<HTMLDivElement>(null)
   const addressFieldRef = useRef<HTMLDivElement>(null)
   const cartErrorRef = useRef<HTMLParagraphElement>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadCampaign() {
+      try {
+        const response = await fetch('/api/shop/campaign/zmeura-2026', {
+          signal: controller.signal,
+        })
+        if (!response.ok) return
+
+        const snapshot: unknown = await response.json()
+        if (isCampaignSnapshot(snapshot)) {
+          setCampaign(mergeCampaignSnapshot(snapshot))
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        // The static campaign snapshot remains the non-blocking fallback.
+      }
+    }
+
+    void loadCampaign()
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     if (sheetOpen || !pendingNotifPrompt) return
@@ -677,12 +703,20 @@ export function ShopClient({
           delivery_mode: deliveryMode,
           delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
           delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
+          campaign_id: campaign.campaignId,
           items,
           total_lei: cartTotal,
           notes: orderNotes.trim() || undefined,
         }),
       })
-      const json = (await res.json()) as { success?: boolean; error?: string; order_id?: string }
+      const json = (await res.json()) as {
+        success?: boolean
+        error?: string
+        order_id?: string
+        hit_milestone?: boolean
+        milestone_threshold?: number | null
+        milestone_reward?: string | null
+      }
       if (!res.ok || !json.success) {
         setOrderError(json.error ?? 'Nu am putut salva comanda.')
         setOrderSubmitting(false)
@@ -691,8 +725,15 @@ export function ShopClient({
 
       setOrderSuccess(true)
       setCapturedMilestone(
-        checkMilestoneHit(CAMPAIGN_DATA.currentCount, cartCount, CAMPAIGN_DATA.nextMilestone)
-          ? CAMPAIGN_DATA.nextMilestone
+        json.hit_milestone &&
+          typeof json.milestone_threshold === 'number' &&
+          typeof json.milestone_reward === 'string'
+          ? {
+              threshold: json.milestone_threshold,
+              rewardLabel: json.milestone_reward,
+              reached: true,
+              isNext: false,
+            }
           : null,
       )
       setNotificationPromptVisible(false)
@@ -777,7 +818,7 @@ export function ShopClient({
         </section>
 
         <div className="mt-5">
-          <CampaignMeter campaign={CAMPAIGN_DATA} />
+          <CampaignMeter campaign={campaign} />
         </div>
 
         <section className="mt-7 px-3" aria-labelledby="preorder-product-title">
@@ -905,15 +946,15 @@ export function ShopClient({
         </section>
 
         <div className="mt-8">
-          <CampaignMilestones campaign={CAMPAIGN_DATA} />
+          <CampaignMilestones campaign={campaign} />
         </div>
 
         <div className="mt-8">
-          <SeasonLeaderboard campaign={CAMPAIGN_DATA} />
+          <SeasonLeaderboard campaign={campaign} />
         </div>
 
         <div className="mt-8">
-          <CampaignRules campaign={CAMPAIGN_DATA} />
+          <CampaignRules campaign={campaign} />
         </div>
 
         <footer className="mt-8 border-t-4 border-[#F16B6B] bg-[#312E3F] px-5 pb-10 pt-8 text-white">
