@@ -16,6 +16,7 @@ import {
   CAMPAIGN_DATA,
   isCampaignSnapshot,
   mergeCampaignSnapshot,
+  type CampaignData,
   type CampaignMilestone,
 } from '@/lib/shop/campaign-mock'
 import {
@@ -43,6 +44,7 @@ const FARM_ADDRESS = 'Văratec, jud. Suceava'
 const FARM_PICKUP_SCHEDULE = 'Ridicare zilnic 9:00–18:00'
 const FARM_MAP_HREF = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(FARM_ADDRESS)}`
 const CUSTOMER_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000
+const CAMPAIGN_RETRY_DELAYS_MS = [1000, 2000, 4000] as const
 const DELIVERY_CITY_SUGGESTIONS = [
   'Suceava',
   'Salcea',
@@ -366,7 +368,7 @@ export function ShopClient({
   const [orderError, setOrderError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({})
   const [orderSuccess, setOrderSuccess] = useState(false)
-  const [campaign, setCampaign] = useState(CAMPAIGN_DATA)
+  const [campaign, setCampaign] = useState<CampaignData | null>(null)
   const [capturedMilestone, setCapturedMilestone] = useState<CampaignMilestone | null>(null)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [sourcePromptVisible, setSourcePromptVisible] = useState(false)
@@ -378,6 +380,7 @@ export function ShopClient({
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
   const [lastOrderApplied, setLastOrderApplied] = useState(false)
   const lastCustomerLookupPhoneRef = useRef<string | null>(null)
+  const campaignFallbackRef = useRef(false)
 
   const nameFieldRef = useRef<HTMLDivElement>(null)
   const phoneFieldRef = useRef<HTMLDivElement>(null)
@@ -387,26 +390,73 @@ export function ShopClient({
 
   useEffect(() => {
     const controller = new AbortController()
+    const retryTimeouts = new Set<number>()
+    let recoveryInFlight = false
 
-    async function loadCampaign() {
+    async function loadCampaign(): Promise<boolean> {
       try {
         const response = await fetch('/api/shop/campaign/zmeura-2026', {
           signal: controller.signal,
         })
-        if (!response.ok) return
+        if (!response.ok) return false
 
         const snapshot: unknown = await response.json()
         if (isCampaignSnapshot(snapshot)) {
+          campaignFallbackRef.current = false
           setCampaign(mergeCampaignSnapshot(snapshot))
+          return true
         }
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return
-        // The static campaign snapshot remains the non-blocking fallback.
+        if (controller.signal.aborted) return false
+        if (error instanceof DOMException && error.name === 'AbortError') return false
+      }
+
+      return false
+    }
+
+    function setCampaignFallback() {
+      if (controller.signal.aborted) return
+      campaignFallbackRef.current = true
+      setCampaign(CAMPAIGN_DATA)
+    }
+
+    async function loadCampaignWithRetry(attempt = 0) {
+      const loaded = await loadCampaign()
+      if (loaded || controller.signal.aborted) return
+
+      const retryDelay = CAMPAIGN_RETRY_DELAYS_MS[attempt]
+      if (retryDelay === undefined) {
+        setCampaignFallback()
+        return
+      }
+
+      const timeout = window.setTimeout(() => {
+        retryTimeouts.delete(timeout)
+        void loadCampaignWithRetry(attempt + 1)
+      }, retryDelay)
+      retryTimeouts.add(timeout)
+    }
+
+    async function recoverCampaignWhenOnline() {
+      if (!campaignFallbackRef.current || recoveryInFlight || controller.signal.aborted) return
+
+      recoveryInFlight = true
+      try {
+        await loadCampaign()
+      } finally {
+        recoveryInFlight = false
       }
     }
 
-    void loadCampaign()
-    return () => controller.abort()
+    void loadCampaignWithRetry()
+    window.addEventListener('online', recoverCampaignWhenOnline)
+
+    return () => {
+      controller.abort()
+      retryTimeouts.forEach((timeout) => window.clearTimeout(timeout))
+      retryTimeouts.clear()
+      window.removeEventListener('online', recoverCampaignWhenOnline)
+    }
   }, [])
 
   useEffect(() => {
@@ -703,7 +753,7 @@ export function ShopClient({
           delivery_mode: deliveryMode,
           delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
           delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
-          campaign_id: campaign.campaignId,
+          campaign_id: CAMPAIGN_DATA.campaignId,
           items,
           total_lei: cartTotal,
           notes: orderNotes.trim() || undefined,
@@ -950,11 +1000,11 @@ export function ShopClient({
         </div>
 
         <div className="mt-8">
-          <SeasonLeaderboard campaign={campaign} />
+          {campaign ? <SeasonLeaderboard campaign={campaign} /> : null}
         </div>
 
         <div className="mt-8">
-          <CampaignRules campaign={campaign} />
+          {campaign ? <CampaignRules campaign={campaign} /> : null}
         </div>
 
         <footer className="mt-8 border-t-4 border-[#F16B6B] bg-[#312E3F] px-5 pb-10 pt-8 text-white">

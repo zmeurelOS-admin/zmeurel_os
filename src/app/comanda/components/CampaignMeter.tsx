@@ -5,10 +5,33 @@ import type { CampaignData } from '@/lib/shop/campaign-mock'
 import styles from '../comanda.module.css'
 
 type CampaignMeterProps = {
-  campaign: CampaignData
+  campaign: CampaignData | null
 }
 
 export function CampaignMeter({ campaign }: CampaignMeterProps) {
+  if (!campaign) {
+    return (
+      <section className="px-3" aria-label="Se încarcă progresul campaniei" aria-busy="true">
+        <Card className="min-h-[220px] gap-0 overflow-hidden border-[#F3DAD4] bg-white p-[18px] shadow-[0_10px_30px_rgba(120,100,70,0.12)]">
+          <CardContent className="animate-pulse space-y-5">
+            <div className="flex items-end justify-between gap-3">
+              <div className="flex-1 space-y-3">
+                <div className="h-3 w-36 rounded-full bg-[#F3DAD4]" />
+                <div className="h-7 w-full max-w-72 rounded-lg bg-[#F6E8E4]" />
+              </div>
+              <div className="h-12 w-16 rounded-lg bg-[#F6E8E4]" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-full rounded-full bg-[#FCE4E1]" />
+              <div className="h-3 w-full rounded-full bg-[#F6E8E4]" />
+            </div>
+            <div className="h-[62px] rounded-[18px] bg-[#FFF4D8]" />
+          </CardContent>
+        </Card>
+      </section>
+    )
+  }
+
   const progressPercent = Math.min(100, Math.max(0, (campaign.currentCount / campaign.target) * 100))
   const remainingToNext = Math.max(0, campaign.nextMilestone.threshold - campaign.currentCount)
 

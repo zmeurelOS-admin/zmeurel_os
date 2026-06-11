@@ -8,13 +8,43 @@ import type { CampaignData } from '@/lib/shop/campaign-mock'
 import styles from '../comanda.module.css'
 
 type CampaignMilestonesProps = {
-  campaign: CampaignData
+  campaign: CampaignData | null
 }
 
 const INITIAL_VISIBLE_MILESTONES = 5
 
 export function CampaignMilestones({ campaign }: CampaignMilestonesProps) {
   const [showAll, setShowAll] = useState(false)
+
+  if (!campaign) {
+    return (
+      <section className="px-3" aria-label="Se încarcă pragurile campaniei" aria-busy="true">
+        <Card className="min-h-[470px] gap-0 border-[#F3DAD4] bg-white p-[18px] shadow-[0_8px_26px_rgba(120,100,70,0.1)]">
+          <CardContent className="animate-pulse space-y-4">
+            <div className="space-y-3">
+              <div className="h-3 w-28 rounded-full bg-[#F3DAD4]" />
+              <div className="h-7 w-48 rounded-lg bg-[#F6E8E4]" />
+            </div>
+            <div className="space-y-2">
+              {Array.from({ length: INITIAL_VISIBLE_MILESTONES }, (_, index) => (
+                <div
+                  key={index}
+                  className="flex min-h-[62px] items-center gap-3 rounded-[16px] border border-[#F3DAD4] bg-[#FFF9F7] px-3 py-3"
+                >
+                  <div className="size-9 shrink-0 rounded-full bg-[#F6E8E4]" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-32 rounded-full bg-[#F3DAD4]" />
+                    <div className="h-3 w-44 max-w-full rounded-full bg-[#F6E8E4]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+    )
+  }
+
   const visibleMilestones = showAll
     ? campaign.milestones
     : campaign.milestones.slice(0, INITIAL_VISIBLE_MILESTONES)
