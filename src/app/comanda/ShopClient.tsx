@@ -848,7 +848,7 @@ export function ShopClient({
             fill
             priority
             sizes="(max-width: 640px) 100vw, 540px"
-            className="object-cover object-bottom"
+            className="object-cover object-[center_60%]"
           />
           <div
             className="absolute inset-0 bg-gradient-to-b from-[#312E3F]/35 via-transparent to-[#312E3F]/85"
