@@ -20,12 +20,31 @@ const hanken = Hanken_Grotesk({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://comanda.zmeurel.ro'),
   title: 'Zmeurel — Zmeură proaspătă | Văratec, Suceava',
   description:
     'Zmeură proaspătă din Văratec, culeasă în ziua livrării. Livrare locală în Suceava și împrejurimi.',
   manifest: '/comanda/manifest.webmanifest',
   icons: {
+    icon: [
+      { url: '/shop-icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/shop-icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
     apple: [{ url: '/shop-icon-192.png', sizes: '192x192', type: 'image/png' }],
+  },
+  openGraph: {
+    title: 'Zmeurel — Precomenzi Zmeură 2026',
+    description:
+      'Rezervă acum zmeură proaspătă din Văratec, Suceava. Precomenzi deschise, livrare în 1-2 săptămâni.',
+    url: 'https://comanda.zmeurel.ro',
+    siteName: 'Zmeurel',
+    locale: 'ro_RO',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Zmeurel — Precomenzi Zmeură 2026',
+    description: 'Rezervă acum zmeură proaspătă din Văratec, Suceava.',
   },
   appleWebApp: {
     capable: true,

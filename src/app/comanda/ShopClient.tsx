@@ -379,6 +379,9 @@ export function ShopClient({
   const [recognizedCustomerPhone, setRecognizedCustomerPhone] = useState<string | null>(null)
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
   const [lastOrderApplied, setLastOrderApplied] = useState(false)
+  const [primaryQtyInput, setPrimaryQtyInput] = useState(() =>
+    available[0] ? String(qtyById[available[0].id] ?? 1) : '',
+  )
   const lastCustomerLookupPhoneRef = useRef<string | null>(null)
   const campaignFallbackRef = useRef(false)
 
@@ -635,7 +638,7 @@ export function ShopClient({
 
   const setQty = useCallback((id: string, next: number) => {
     setQtyById((prev) => {
-      const value = Math.max(0, Math.min(99, next))
+      const value = Math.max(0, Math.min(999, next))
       if (value === 0) {
         const next = { ...prev }
         delete next[id]
@@ -644,6 +647,12 @@ export function ShopClient({
       return { ...prev, [id]: value }
     })
   }, [])
+
+  useEffect(() => {
+    if (primaryQty > 0) {
+      setPrimaryQtyInput(String(primaryQty))
+    }
+  }, [primaryQty])
 
   const reorderLastOrder = useCallback(() => {
     if (!lastOrder) return
@@ -908,9 +917,42 @@ export function ShopClient({
                   >
                     −
                   </button>
-                  <span className="min-w-16 text-center text-[32px] font-extrabold tabular-nums text-[#312E3F]">
-                    {primaryQty}
-                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={999}
+                    aria-label="Cantitate caserole"
+                    value={primaryQtyInput}
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      setPrimaryQtyInput(raw)
+                      if (!/^\d+$/.test(raw)) return
+
+                      const nextQty = Number.parseInt(raw, 10)
+                      if (nextQty >= 1) {
+                        setQty(primaryProduct.id, nextQty)
+                      }
+                    }}
+                    onBlur={(event) => {
+                      const nextQty = Number.parseInt(event.target.value, 10)
+                      if (!Number.isInteger(nextQty) || nextQty < 0) {
+                        setPrimaryQtyInput('1')
+                        setQty(primaryProduct.id, 1)
+                        return
+                      }
+                      if (nextQty === 0) {
+                        setPrimaryQtyInput('0')
+                        setQty(primaryProduct.id, 0)
+                        return
+                      }
+
+                      const normalizedQty = Math.min(999, nextQty)
+                      setPrimaryQtyInput(String(normalizedQty))
+                      setQty(primaryProduct.id, normalizedQty)
+                    }}
+                    className="h-[54px] w-20 rounded-xl bg-transparent text-center text-[32px] font-extrabold tabular-nums text-[#312E3F] outline-none transition focus:bg-[#FFF6F3] focus:ring-2 focus:ring-[#F16B6B]/35 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
                   <button
                     type="button"
                     aria-label="Crește cantitatea"
@@ -923,6 +965,12 @@ export function ShopClient({
                 <p className="mt-1 text-center text-sm font-semibold text-[#312E3F]/70">
                   {primaryQty} {primaryQty === 1 ? 'caserolă' : 'caserole'} · {formatKg(primaryQty)} kg
                 </p>
+                {primaryQty > 200 ? (
+                  <p className="mt-1 text-center text-xs leading-relaxed text-[var(--status-warning-text)]">
+                    Pentru comenzi mari (peste 200 caserole), te rugăm să ne contactezi telefonic pentru
+                    confirmare disponibilitate.
+                  </p>
+                ) : null}
 
                 <div className="mt-3 grid grid-cols-4 gap-2" aria-label="Cantități rapide">
                   {[1, 2, 4, 6].map((qty) => (

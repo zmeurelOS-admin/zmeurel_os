@@ -47,6 +47,62 @@ describe('ShopClient volume pricing', () => {
     expect(screen.getAllByText('53 lei').length).toBeGreaterThan(0)
   })
 
+  it('acceptă cantități introduse direct și normalizează valorile goale la blur', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <ShopClient
+        loadError={null}
+        products={[
+          {
+            id: 'zmeura',
+            name: 'Zmeură',
+            description: 'Zmeură proaspătă',
+            unit_label: 'Caserolă 500 g',
+            price_lei: 18,
+            available: true,
+            sort_order: 1,
+          },
+        ]}
+      />,
+    )
+
+    const qtyInput = screen.getByRole('spinbutton', { name: 'Cantitate caserole' })
+    await user.clear(qtyInput)
+    await user.type(qtyInput, '60')
+
+    expect(qtyInput).toHaveValue(60)
+    expect(screen.getAllByText('60 caserole · 30 kg').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('1.050 lei').length).toBeGreaterThan(0)
+
+    await user.clear(qtyInput)
+    await user.tab()
+    expect(qtyInput).toHaveValue(1)
+
+    await user.click(qtyInput)
+    await user.clear(qtyInput)
+    await user.type(qtyInput, '0')
+    expect(screen.getByRole('button', { name: 'Precomandă acum · 18 lei' })).toBeInTheDocument()
+    await user.tab()
+    expect(qtyInput).toHaveValue(0)
+    expect(screen.getByRole('button', { name: 'Precomandă acum · 0 lei' })).toBeInTheDocument()
+
+    await user.click(qtyInput)
+    await user.clear(qtyInput)
+    await user.type(qtyInput, '201')
+    expect(
+      screen.getByText(
+        'Pentru comenzi mari (peste 200 caserole), te rugăm să ne contactezi telefonic pentru confirmare disponibilitate.',
+      ),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Alege 4 caserole' }))
+    expect(qtyInput).toHaveValue(4)
+
+    await user.click(screen.getByRole('button', { name: 'Crește cantitatea' }))
+    expect(qtyInput).toHaveValue(5)
+  })
+
   it('blochează submit-ul pentru identitate invalidă și afișează detaliile de ridicare', async () => {
     const user = userEvent.setup()
 
