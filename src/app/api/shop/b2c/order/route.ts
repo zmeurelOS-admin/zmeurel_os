@@ -38,6 +38,7 @@ const bodySchema = z.object({
 
 const preorderResultSchema = z.object({
   order_id: z.string().uuid(),
+  current_count: z.number(),
   hit_milestone: z.boolean().optional().default(false),
   milestone_threshold: z.number().int().nullable().optional(),
   milestone_reward: z.string().nullable().optional(),
@@ -231,6 +232,7 @@ export async function POST(request: Request) {
     total_lei: totalLei,
     ...(milestoneResult
       ? {
+          current_count: milestoneResult.current_count,
           hit_milestone: milestoneResult.hit_milestone,
           milestone_threshold: milestoneResult.milestone_threshold ?? null,
           milestone_reward: milestoneResult.milestone_reward ?? null,

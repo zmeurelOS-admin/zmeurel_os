@@ -772,6 +772,7 @@ export function ShopClient({
         success?: boolean
         error?: string
         order_id?: string
+        current_count: number
         hit_milestone?: boolean
         milestone_threshold?: number | null
         milestone_reward?: string | null
@@ -783,6 +784,25 @@ export function ShopClient({
       }
 
       setOrderSuccess(true)
+      if (typeof json.current_count === 'number') {
+        setCampaign((currentCampaign) => {
+          if (!currentCampaign) return currentCampaign
+
+          return mergeCampaignSnapshot({
+            currentCount: json.current_count,
+            targetQty: currentCampaign.target,
+            status: 'active',
+            milestones: currentCampaign.milestones.map((milestone) => ({
+              threshold: milestone.threshold,
+              rewardLabel: milestone.rewardLabel,
+              reached:
+                milestone.reached ||
+                (json.hit_milestone === true && milestone.threshold === json.milestone_threshold),
+            })),
+            leaderboard: currentCampaign.leaderboard,
+          })
+        })
+      }
       setCapturedMilestone(
         json.hit_milestone &&
           typeof json.milestone_threshold === 'number' &&

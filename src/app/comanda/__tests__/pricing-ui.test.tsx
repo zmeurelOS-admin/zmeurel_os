@@ -159,7 +159,7 @@ describe('ShopClient volume pricing', () => {
   it('trimite campaign_id și afișează felicitarea din răspunsul API', async () => {
     const user = userEvent.setup()
     const fetchSpy = vi.fn(
-      async (input: RequestInfo | URL, _init?: RequestInit) => {
+      async (input: RequestInfo | URL) => {
         const url = String(input)
         if (url.includes('/api/shop/b2c/order')) {
           return new Response(
@@ -167,6 +167,7 @@ describe('ShopClient volume pricing', () => {
               success: true,
               order_id: 'order-1',
               total_lei: 35,
+              current_count: 500,
               hit_milestone: true,
               milestone_threshold: 500,
               milestone_reward: '+2 caserole 500 g',
@@ -178,7 +179,17 @@ describe('ShopClient volume pricing', () => {
           )
         }
 
-        return new Response(JSON.stringify({ found: false }), {
+        return new Response(JSON.stringify({
+          currentCount: 498,
+          targetQty: CAMPAIGN_DATA.target,
+          status: 'active',
+          milestones: CAMPAIGN_DATA.milestones.map(({ threshold, rewardLabel, reached }) => ({
+            threshold,
+            rewardLabel,
+            reached,
+          })),
+          leaderboard: [],
+        }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         })
@@ -204,6 +215,7 @@ describe('ShopClient volume pricing', () => {
       />,
     )
 
+    expect(await screen.findByText('498')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
     await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
     await user.type(screen.getByRole('textbox', { name: 'Nume' }), 'Ion Popescu')
@@ -215,6 +227,8 @@ describe('ShopClient volume pricing', () => {
     const checkoutSheet = screen.getByRole('dialog')
     expect(within(checkoutSheet).getByText(/Comanda ta a trecut pragul de/)).toBeInTheDocument()
     expect(within(checkoutSheet).getByText('+2 caserole 500 g')).toBeInTheDocument()
+    expect(await screen.findByText('500')).toBeInTheDocument()
+    expect(screen.getByText('250 caserole până la pragul 750')).toBeInTheDocument()
 
     const orderCall = fetchSpy.mock.calls.find(([input]) =>
       String(input).includes('/api/shop/b2c/order'),

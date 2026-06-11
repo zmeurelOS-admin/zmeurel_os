@@ -152,6 +152,7 @@ describe('POST /api/shop/b2c/order', () => {
       success: true,
       order_id: orderId,
       total_lei: 35,
+      current_count: 500,
       hit_milestone: true,
       milestone_threshold: 500,
       milestone_reward: '+2 caserole 500 g',
