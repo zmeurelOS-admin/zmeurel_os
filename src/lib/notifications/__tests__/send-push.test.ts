@@ -109,6 +109,8 @@ describe('sendPushToUser — politică unificată', () => {
     expect(result.sent).toBe(1)
     expect(result.deleted).toBe(0)
     expect(result.failed).toBe(0)
+    const payload = JSON.parse(String(mocks.sendNotification.mock.calls[0]?.[1]))
+    expect(payload.icon).toBeUndefined()
   })
 
   it('order_new + association_shop: blocheaza web push prin policy gate', async () => {
@@ -132,11 +134,29 @@ describe('sendPushToUser — politică unificată', () => {
     mocks.sendNotification.mockResolvedValue({})
     const result = await sendPushToUser(USER_ID, 'Comandă', 'Detalii', {
       type: 'order_new',
+      icon: '/shop-icon-192.png',
       notificationData: { channel: 'farm_shop' },
     })
     expect(result.sent).toBe(1)
     expect(result.skippedReason).toBeNull()
     expect(mocks.sendNotification).toHaveBeenCalledTimes(1)
+    const payload = JSON.parse(String(mocks.sendNotification.mock.calls[0]?.[1]))
+    expect(payload.icon).toBe('/shop-icon-192.png')
+  })
+
+  it('marchează cu puncte de suspensie body-ul trunchiat la 120 de caractere', async () => {
+    const { sendPushToUser } = await loadSendPush()
+    const rows: SubRow[] = [
+      { id: 'sub-long', endpoint: 'https://example/ep', keys_p256dh: 'p', keys_auth: 'a' },
+    ]
+    mocks.adminFrom.mockImplementation(makeAdminFrom(rows, []))
+    mocks.sendNotification.mockResolvedValue({})
+
+    await sendPushToUser(USER_ID, 'Comandă', 'x'.repeat(121), { type: 'order_new' })
+
+    const payload = JSON.parse(String(mocks.sendNotification.mock.calls[0]?.[1]))
+    expect(payload.body).toBe(`${'x'.repeat(117)}...`)
+    expect(payload.body).toHaveLength(120)
   })
 
   it('410 → subscripția invalidă este ștearsă', async () => {

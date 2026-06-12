@@ -37,6 +37,7 @@ export type PushSendResult = {
 function buildPushPayload(input: {
   title: string
   body: string
+  icon?: string
   url: string
   notificationId: string
   tag: string
@@ -44,6 +45,7 @@ function buildPushPayload(input: {
   return JSON.stringify({
     title: input.title,
     body: input.body,
+    icon: input.icon,
     url: input.url,
     notificationId: input.notificationId,
     tag: input.tag,
@@ -59,6 +61,7 @@ export async function sendPushToUser(
     notificationId?: string
     type?: string
     urlPath?: string
+    icon?: string
     notificationData?: Record<string, unknown> | null
     /**
      * Politica unificată: orice apel real către `web-push.sendNotification` trece prin
@@ -112,7 +115,8 @@ export async function sendPushToUser(
 
     const payload = buildPushPayload({
       title,
-      body: body.slice(0, 120),
+      body: body.length > 120 ? `${body.slice(0, 117)}...` : body,
+      icon: data?.icon,
       url: urlPath,
       notificationId: data?.notificationId ?? '',
       tag: data?.notificationId ?? `zmeurel-${type}`,
@@ -246,9 +250,10 @@ export function fireWebPushForNotification(input: {
   body?: string | null
   /** URL path relativ (ex. `/comenzi`) — deja calculat la insert. */
   urlPath?: string
+  icon?: string
   notificationData?: Record<string, unknown> | null
 }): void {
-  const { userId, notificationId, type, title, body, urlPath, notificationData } = input
+  const { userId, notificationId, type, title, body, urlPath, icon, notificationData } = input
   if (!notificationId) return
   if (!shouldSendWebPushForType(type, notificationData ?? null)) return
 
@@ -256,6 +261,7 @@ export function fireWebPushForNotification(input: {
     notificationId,
     type,
     urlPath,
+    icon,
     notificationData,
   })
 }

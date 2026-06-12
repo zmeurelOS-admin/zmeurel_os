@@ -67,6 +67,7 @@ export async function createNotification(
     if (error) throw error
     const id = (row as { id: string } | null)?.id ?? null
     if (id) {
+      const notificationData = dataJson as Record<string, unknown>
       fireWebPushForNotification({
         userId,
         notificationId: id,
@@ -74,7 +75,8 @@ export async function createNotification(
         title,
         body,
         urlPath: url,
-        notificationData: dataJson as Record<string, unknown>,
+        icon: typeof notificationData.icon === 'string' ? notificationData.icon : undefined,
+        notificationData,
       })
     }
     return id

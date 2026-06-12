@@ -159,7 +159,8 @@ describe('ShopClient volume pricing', () => {
   it('trimite campaign_id și afișează felicitarea din răspunsul API', async () => {
     const user = userEvent.setup()
     const fetchSpy = vi.fn(
-      async (input: RequestInfo | URL) => {
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        void init
         const url = String(input)
         if (url.includes('/api/shop/b2c/order')) {
           return new Response(

@@ -33,7 +33,7 @@ self.addEventListener('push', function (event) {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: payload.icon || '/icon-192.png',
+      icon: payload.icon ?? '/icon-192.png',
       badge: payload.badge || '/badge-96.png',
       data: {
         url: payload.url || '/',

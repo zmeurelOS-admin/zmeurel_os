@@ -102,12 +102,16 @@ describe('POST /api/shop/b2c/order', () => {
     expect(createNotificationForTenantOwner).toHaveBeenCalledWith(
       process.env.SHOP_TENANT_ID,
       'order_new',
-      'Comandă nouă din magazin',
-      'Ion Popescu a comandat: Zmeură — Caserolă 500 g',
+      'Comandă magazin 🍓',
+      '2× Zmeură — Caserolă 500 g · 35 lei — Ion Popescu, 0722123456',
       expect.objectContaining({
         channel: 'farm_shop',
+        clientName: 'Ion Popescu',
+        customerPhone: '0722123456',
+        icon: '/shop-icon-192.png',
+        items: [{ qty: 2, label: 'Zmeură — Caserolă 500 g' }],
+        orderKind: 'standard',
         tenantId: process.env.SHOP_TENANT_ID,
-        lineCount: 1,
         totalLei: 35,
       }),
       'order',
@@ -158,6 +162,19 @@ describe('POST /api/shop/b2c/order', () => {
       milestone_reward: '+2 caserole 500 g',
     })
     expect(insertSpy).not.toHaveBeenCalled()
+    expect(createNotificationForTenantOwner).toHaveBeenCalledWith(
+      process.env.SHOP_TENANT_ID,
+      'order_new',
+      'Precomandă magazin 🍓',
+      '2× Zmeură — Caserolă 500 g · 35 lei — Ion Popescu, 0722123456',
+      expect.objectContaining({
+        channel: 'farm_shop',
+        icon: '/shop-icon-192.png',
+        orderKind: 'preorder',
+      }),
+      'order',
+      orderId,
+    )
     expect(rpcSpy).toHaveBeenCalledWith(
       'place_preorder_atomic',
       expect.objectContaining({

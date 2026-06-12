@@ -99,6 +99,7 @@ export async function POST(request: Request) {
   }
 
   const totalLei = computeZmeuraTotalLei(item.qty)
+  const orderKind = campaign_id ? 'preorder' : 'standard'
   const normalizedItems = [
     {
       ...item,
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
         items: normalizedItems as Json,
         total_lei: totalLei,
         notes: notes?.trim() || null,
-        order_kind: 'standard',
+        order_kind: orderKind,
       })
       .select('id')
       .single()
@@ -171,22 +172,30 @@ export async function POST(request: Request) {
     orderId = data.id
   }
 
-  const productSummary = normalizedItems.map((orderItem) => orderItem.label).join(', ')
+  const notificationItems = normalizedItems.map(({ qty, label }) => ({ qty, label }))
+  const notificationTitle =
+    orderKind === 'preorder' ? 'Precomandă magazin 🍓' : 'Comandă magazin 🍓'
+  const notificationBody = `${notificationItems
+    .map((orderItem) => `${orderItem.qty}× ${orderItem.label}`)
+    .join(', ')} · ${totalLei} lei — ${customer_name}, ${normalizedCustomerPhone}`
   const extra = {
     orderId,
     tenantId: configuredTenantId,
     clientName: customer_name,
+    customerPhone: normalizedCustomerPhone,
     totalLei,
-    lineCount: normalizedItems.length,
+    items: notificationItems,
+    orderKind,
     channel: 'farm_shop',
+    icon: '/shop-icon-192.png',
   }
 
   try {
     await createNotificationForTenantOwner(
       configuredTenantId,
       NOTIFICATION_TYPES.order_new,
-      'Comandă nouă din magazin',
-      `${customer_name} a comandat: ${productSummary}`,
+      notificationTitle,
+      notificationBody,
       extra,
       'order',
       orderId,
