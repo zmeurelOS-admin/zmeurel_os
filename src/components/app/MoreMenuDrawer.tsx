@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   SprayCan,
+  Sprout,
   Store,
   TrendingUp,
   Truck,
@@ -60,6 +61,7 @@ const groups: MenuGroup[] = [
     title: 'Operațiuni',
     items: [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/activitati-agricole', label: 'Activități', icon: Sprout },
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
       { href: '/tratamente/conformitate', label: 'Protecție & Nutriție', icon: SprayCan },
@@ -106,7 +108,7 @@ function isMoreMenuItemActive(pathname: string, href: string) {
   return path.startsWith(href)
 }
 
-const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/recoltari', '/comenzi'])
+const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/livrari', '/recoltari', '/comenzi'])
 
 export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   const pathname = usePathname()

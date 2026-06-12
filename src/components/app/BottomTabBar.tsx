@@ -15,7 +15,7 @@ type TabDef = {
 
 const TABS: TabDef[] = [
   { label: 'Acasă', href: '/dashboard', emoji: '🏡' },
-  { label: 'Activități', href: '/activitati-agricole', emoji: '🌱' },
+  { label: 'Livrări', href: '/livrari', emoji: '🚚' },
   { label: 'Recoltări', href: '/recoltari', emoji: '🧺' },
   { label: 'Comenzi', href: '/comenzi', emoji: '📦' },
 ]
@@ -44,6 +44,7 @@ export function BottomTabBar() {
 
   useEffect(() => {
     router.prefetch('/dashboard')
+    router.prefetch('/livrari')
     router.prefetch('/recoltari')
     router.prefetch('/comenzi')
     router.prefetch('/activitati-agricole')
