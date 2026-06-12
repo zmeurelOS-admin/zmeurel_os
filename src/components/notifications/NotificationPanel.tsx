@@ -66,6 +66,10 @@ export function NotificationPanel({
 }: NotificationPanelProps) {
   const { associationRole } = useDashboardAuth()
   const router = useRouter()
+  const unreadCount = notifications.filter((notification) => !notification.read).length
+  const readCount = notifications.length - unreadCount
+  const unreadLabel = unreadCount === 1 ? '1 necitită' : `${unreadCount} necitite`
+  const readLabel = readCount === 1 ? '1 citită' : `${readCount} citite`
 
   const handleRowClick = useCallback(
     async (n: NotificationRow) => {
@@ -81,7 +85,12 @@ export function NotificationPanel({
   return (
     <div className="flex max-h-[min(480px,70dvh)] flex-col">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border-default)] px-4 py-3">
-        <h2 className="text-sm font-bold text-[var(--text-primary)]">Notificări</h2>
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-[var(--text-primary)]">Notificări</h2>
+          <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+            {unreadLabel} · {readLabel}
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => void onMarkAllRead()}
@@ -104,19 +113,56 @@ export function NotificationPanel({
                   type="button"
                   onClick={() => void handleRowClick(n)}
                   className={cn(
-                    'flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--surface-card-muted)]',
-                    !n.read && 'bg-[color:color-mix(in_srgb,var(--primary)_6%,transparent)]',
+                    'flex w-full gap-3 border-l-4 border-l-transparent px-4 py-3 text-left transition hover:bg-[var(--surface-card-muted)]',
+                    !n.read &&
+                      'border-l-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_6%,transparent)]',
                   )}
                 >
                   <span className="shrink-0 text-xl leading-none" aria-hidden>
                     {iconForType(n.type)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-[var(--text-primary)]">{n.title}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className={cn(
+                          'min-w-0 text-sm',
+                          n.read
+                            ? 'font-medium text-[var(--text-muted)]'
+                            : 'font-bold text-[var(--text-primary)]',
+                        )}
+                      >
+                        {n.title}
+                      </p>
+                      {!n.read ? (
+                        <span
+                          className="mt-1 size-2 shrink-0 rounded-full bg-[var(--primary)]"
+                          data-unread-indicator
+                          aria-hidden
+                        />
+                      ) : null}
+                    </div>
                     {n.body ? (
-                      <p className="mt-0.5 line-clamp-2 text-xs text-[var(--text-secondary)]">{n.body}</p>
+                      <p
+                        className={cn(
+                          'mt-0.5 line-clamp-2 text-xs',
+                          n.read
+                            ? 'text-[var(--text-muted)] opacity-70'
+                            : 'text-[var(--text-secondary)]',
+                        )}
+                      >
+                        {n.body}
+                      </p>
                     ) : null}
-                    <p className="mt-1 text-[11px] text-[var(--text-muted)]">{formatRelativeRo(n.created_at)}</p>
+                    <p
+                      className={cn(
+                        'mt-1 text-[11px]',
+                        n.read
+                          ? 'text-[var(--text-muted)]'
+                          : 'font-medium text-[var(--primary)]',
+                      )}
+                    >
+                      {formatRelativeRo(n.created_at)}
+                    </p>
                   </div>
                 </button>
               </li>
