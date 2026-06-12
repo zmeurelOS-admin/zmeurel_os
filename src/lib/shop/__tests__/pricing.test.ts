@@ -4,12 +4,12 @@ import { computeZmeuraTotalLei } from '@/lib/shop/pricing'
 
 describe('computeZmeuraTotalLei', () => {
   it.each([
-    [1, 18],
-    [2, 35],
-    [3, 53],
-    [4, 70],
-    [5, 88],
-    [11, 193],
+    [1, 20],
+    [2, 40],
+    [3, 60],
+    [4, 80],
+    [5, 100],
+    [11, 220],
   ])('calculează %i caserole la %i lei', (qty, expectedTotal) => {
     expect(computeZmeuraTotalLei(qty)).toBe(expectedTotal)
   })

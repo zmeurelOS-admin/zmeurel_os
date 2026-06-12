@@ -23,7 +23,7 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 18,
+            price_lei: 20,
             available: true,
             sort_order: 1,
           },
@@ -32,19 +32,19 @@ describe('ShopClient volume pricing', () => {
     )
 
     expect(screen.getAllByText('1 caserolă · 0,5 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('18 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('20 lei').length).toBeGreaterThan(0)
     expect(screen.getByText('1 caserolă · 500 g')).toBeInTheDocument()
     expect(screen.getByText('2 caserole · 1 kg')).toBeInTheDocument()
-    expect(screen.getByText('-1 leu')).toBeInTheDocument()
+    expect(screen.queryByText('-1 leu')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
     expect(screen.getAllByText('2 caserole · 1 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('35 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('40 lei').length).toBeGreaterThan(0)
     expect(screen.queryByText(/economisești/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Crește cantitatea' }))
     expect(screen.getAllByText('3 caserole · 1,5 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('53 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('60 lei').length).toBeGreaterThan(0)
   })
 
   it('acceptă cantități introduse direct și normalizează valorile goale la blur', async () => {
@@ -59,7 +59,7 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 18,
+            price_lei: 20,
             available: true,
             sort_order: 1,
           },
@@ -73,7 +73,7 @@ describe('ShopClient volume pricing', () => {
 
     expect(qtyInput).toHaveValue(60)
     expect(screen.getAllByText('60 caserole · 30 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('1.050 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('1.200 lei').length).toBeGreaterThan(0)
 
     await user.clear(qtyInput)
     await user.tab()
@@ -82,7 +82,7 @@ describe('ShopClient volume pricing', () => {
     await user.click(qtyInput)
     await user.clear(qtyInput)
     await user.type(qtyInput, '0')
-    expect(screen.getByRole('button', { name: 'Precomandă acum · 18 lei' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Precomandă acum · 20 lei' })).toBeInTheDocument()
     await user.tab()
     expect(qtyInput).toHaveValue(0)
     expect(screen.getByRole('button', { name: 'Precomandă acum · 0 lei' })).toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 18,
+            price_lei: 20,
             available: true,
             sort_order: 1,
           },
@@ -167,7 +167,7 @@ describe('ShopClient volume pricing', () => {
             JSON.stringify({
               success: true,
               order_id: 'order-1',
-              total_lei: 35,
+              total_lei: 40,
               current_count: 500,
               hit_milestone: true,
               milestone_threshold: 500,
@@ -208,7 +208,7 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 18,
+            price_lei: 20,
             available: true,
             sort_order: 1,
           },

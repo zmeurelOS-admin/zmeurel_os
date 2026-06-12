@@ -915,10 +915,7 @@ export function ShopClient({
                   {formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei
                 </p>
               </div>
-              <div className="relative rounded-[18px] border border-[#F16B6B] bg-[#FFF0ED] px-3 py-3">
-                <span className="absolute -top-2 right-2 rounded-full bg-[#F16B6B] px-2 py-0.5 text-[10px] font-extrabold text-white">
-                  -1 leu
-                </span>
+              <div className="rounded-[18px] border border-[#F16B6B] bg-[#FFF0ED] px-3 py-3">
                 <p className="text-xs font-bold text-[#312E3F]/68">2 caserole · 1 kg</p>
                 <p className="mt-1 text-xl font-extrabold tabular-nums text-[#F16B6B]">
                   {formatLei(ZMEURA_KG_PRICE_LEI)} lei
