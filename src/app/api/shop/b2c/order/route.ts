@@ -175,9 +175,17 @@ export async function POST(request: Request) {
   const notificationItems = normalizedItems.map(({ qty, label }) => ({ qty, label }))
   const notificationTitle =
     orderKind === 'preorder' ? 'Precomandă magazin 🍓' : 'Comandă magazin 🍓'
-  const notificationBody = `${notificationItems
-    .map((orderItem) => `${orderItem.qty}× ${orderItem.label}`)
-    .join(', ')} · ${totalLei} lei — ${customer_name}, ${normalizedCustomerPhone}`
+  const quantityLabel = item.qty === 1 ? '1 caserolă' : `${item.qty} caserole`
+  const quantityKg = item.qty * 0.5
+  const quantityKgLabel =
+    quantityKg % 1 === 0 ? `${quantityKg}` : quantityKg.toFixed(1).replace('.', ',')
+  const customerDetails =
+    delivery_mode === 'ridicare'
+      ? `${customer_name}, ${normalizedCustomerPhone} — ridicare`
+      : delivery_city?.trim()
+        ? `${customer_name}, ${normalizedCustomerPhone}, ${delivery_city.trim()}`
+        : `${customer_name}, ${normalizedCustomerPhone}`
+  const notificationBody = `${quantityLabel} (${quantityKgLabel} kg) · ${totalLei} lei\n${customerDetails}`
   const extra = {
     orderId,
     tenantId: configuredTenantId,

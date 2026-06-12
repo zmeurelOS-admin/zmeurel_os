@@ -103,7 +103,7 @@ describe('POST /api/shop/b2c/order', () => {
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Comandă magazin 🍓',
-      '2× Zmeură — Caserolă 500 g · 35 lei — Ion Popescu, 0722123456',
+      '2 caserole (1 kg) · 35 lei\nIon Popescu, 0722123456, Suceava',
       expect.objectContaining({
         channel: 'farm_shop',
         clientName: 'Ion Popescu',
@@ -145,7 +145,14 @@ describe('POST /api/shop/b2c/order', () => {
         reward_id: '44444444-4444-4444-8444-444444444444',
       }),
     )
-    const body = { ...baseBody(), campaign_id: campaignId }
+    const body = {
+      ...baseBody(),
+      campaign_id: campaignId,
+      delivery_mode: 'ridicare',
+      delivery_address: undefined,
+      delivery_city: undefined,
+      items: [{ ...baseBody().items[0], qty: 1 }],
+    }
 
     const response = await POST(
       createSameOriginRequest('/api/shop/b2c/order', { method: 'POST', json: body }),
@@ -155,7 +162,7 @@ describe('POST /api/shop/b2c/order', () => {
     await expect(response.json()).resolves.toEqual({
       success: true,
       order_id: orderId,
-      total_lei: 35,
+      total_lei: 18,
       current_count: 500,
       hit_milestone: true,
       milestone_threshold: 500,
@@ -166,7 +173,7 @@ describe('POST /api/shop/b2c/order', () => {
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Precomandă magazin 🍓',
-      '2× Zmeură — Caserolă 500 g · 35 lei — Ion Popescu, 0722123456',
+      '1 caserolă (0,5 kg) · 18 lei\nIon Popescu, 0722123456 — ridicare',
       expect.objectContaining({
         channel: 'farm_shop',
         icon: '/shop-icon-192.png',
@@ -185,11 +192,11 @@ describe('POST /api/shop/b2c/order', () => {
           {
             vid: 'zmeura',
             label: 'Zmeură — Caserolă 500 g',
-            qty: 2,
+            qty: 1,
             price_lei: 18,
           },
         ],
-        p_total_lei: 35,
+        p_total_lei: 18,
       }),
     )
     expect(rpcSpy).toHaveBeenCalledWith(
