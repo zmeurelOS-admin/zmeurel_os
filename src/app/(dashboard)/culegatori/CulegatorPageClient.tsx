@@ -720,8 +720,8 @@ export function CulegatorPageClient({ initialCulegatori }: Props) {
                           </p>
                           <p>
                             <span className="font-medium text-[var(--text-primary)]">Tarif: </span>
-                            {Number(c.tarif_lei_kg ?? 0) > 0
-                              ? `${Number(c.tarif_lei_kg ?? 0)} RON/kg`
+                            {c.tarif_lei_kg != null
+                              ? `${Number(c.tarif_lei_kg)} RON/kg`
                               : '—'}
                           </p>
                         </DesktopInspectorSection>

@@ -927,7 +927,7 @@ export function RecoltariPageClient({
                             <span className="font-medium text-[var(--text-primary)]">Culegător: </span>
                             {culegNume || '—'}
                           </p>
-                          {tarif != null && tarif > 0 ? (
+                          {tarif != null ? (
                             <p className="text-xs text-[var(--text-tertiary)]">
                               Tarif referință: {formatLei(tarif)} / kg
                             </p>

@@ -184,7 +184,7 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
     [culegatori, selectedCulegatorId]
   )
   const tarifLeiKg = Number(selectedCulegator?.tarif_lei_kg ?? 0)
-  const hasValidTarif = Number.isFinite(tarifLeiKg) && tarifLeiKg > 0
+  const hasValidTarif = Number.isFinite(tarifLeiKg)
   const valoareMunca = hasValidTarif ? totalKg * tarifLeiKg : null
   const pctCal1 = totalKg > 0 ? Math.round((kgCal1 / totalKg) * 100) : 0
   const pctCal2 = totalKg > 0 ? Math.round((kgCal2 / totalKg) * 100) : 0
@@ -258,12 +258,6 @@ export function EditRecoltareDialog({ recoltare, open, onOpenChange }: Props) {
 
   const onSubmit = (data: EditFormData) => {
     if (!recoltare || mutation.isPending) return
-
-    if (!hasValidTarif) {
-      hapticError()
-      toast.error('Culegătorul nu are tarif setat în profil')
-      return
-    }
 
     if (parcelCropOptions.length > 1 && !selectedCrop) {
       hapticError()
