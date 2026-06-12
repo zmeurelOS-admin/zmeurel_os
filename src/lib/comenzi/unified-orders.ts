@@ -58,10 +58,11 @@ function truncateAddress(value: string | null | undefined, max = 48): string {
 
 export function mapB2bToUnified(comanda: Comanda, clientMap: Record<string, Client>): UnifiedOrderItem {
   const cantitateKg = Number(comanda.cantitate_kg || 0)
+  const pretPerKg = Number(comanda.pret_per_kg || 0)
   const totalLei = Number(comanda.total || cantitateKg * Number(comanda.pret_per_kg || 0))
   const productsLabel =
     (comanda.observatii ?? '').trim() ||
-    `${formatKgShort(cantitateKg)} · ${formatLeiShort(totalLei)} lei`
+    `${formatNumberRo(cantitateKg)} kg · ${formatLeiRo(pretPerKg)} lei/kg · Total ${formatLeiRo(totalLei)} lei`
 
   return {
     id: comanda.id,
@@ -124,12 +125,18 @@ function formatDateShort(value: string | null | undefined): string {
   return parsed.toLocaleDateString('ro-RO')
 }
 
-function formatKgShort(value: number): string {
-  return `${Number(value || 0).toFixed(0)} kg`
+function formatNumberRo(value: number): string {
+  return new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0))
 }
 
-function formatLeiShort(value: number): string {
-  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(value))
+function formatLeiRo(value: number): string {
+  return new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0))
 }
 
 export function formatOrderDateTime(iso: string) {

@@ -149,7 +149,7 @@ export function UnifiedOrderCard({
         }).format(new Date(item.createdAt))}
       </p>
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <div className="mt-3 flex flex-col gap-2">
         {waHref ? (
           <a
             href={waHref}
@@ -162,49 +162,51 @@ export function UnifiedOrderCard({
           </a>
         ) : null}
 
-        {item.source === 'shop' ? (
-          <select
-            value={item.status}
-            disabled={disabled}
-            onChange={(e) => onShopStatusChange?.(item.id, e.target.value as ShopOrderStatus)}
-            className="min-h-11 flex-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
-            aria-label="Schimbă statusul comenzii"
-          >
-            {SHOP_STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {SHOP_STATUS_LABELS[status]}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <select
-            value={item.status}
-            disabled={disabled}
-            onChange={(e) => onB2bStatusChange?.(item.id, e.target.value as ComandaStatus)}
-            className="min-h-11 flex-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
-            aria-label="Schimbă statusul comenzii"
-          >
-            {B2B_STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {B2B_STATUS_LABELS[status]}
-              </option>
-            ))}
-          </select>
-        )}
+        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2.5">
+          <p className="mb-1.5 text-xs font-semibold text-[var(--text-secondary)]">Status</p>
+          {item.source === 'shop' ? (
+            <>
+              <select
+                value={item.status}
+                disabled={disabled}
+                onChange={(e) => onShopStatusChange?.(item.id, e.target.value as ShopOrderStatus)}
+                className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
+                aria-label="Schimbă statusul comenzii"
+              >
+                {SHOP_STATUS_OPTIONS.map((status) => (
+                  <option key={status} value={status}>
+                    {SHOP_STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+              <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2 text-[14px] font-medium text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-[var(--border-default)]"
+                  checked={item.confirmed}
+                  disabled={disabled}
+                  onChange={(e) => onShopConfirmedChange?.(item.id, e.target.checked)}
+                />
+                Confirmat
+              </label>
+            </>
+          ) : (
+            <select
+              value={item.status}
+              disabled={disabled}
+              onChange={(e) => onB2bStatusChange?.(item.id, e.target.value as ComandaStatus)}
+              className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
+              aria-label="Schimbă statusul comenzii"
+            >
+              {B2B_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {B2B_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
-
-      {item.source === 'shop' ? (
-        <label className="mt-2 flex min-h-11 cursor-pointer items-center gap-2 text-[14px] font-medium text-[var(--text-secondary)]">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-[var(--border-default)]"
-            checked={item.confirmed}
-            disabled={disabled}
-            onChange={(e) => onShopConfirmedChange?.(item.id, e.target.checked)}
-          />
-          Confirmat
-        </label>
-      ) : null}
     </article>
   )
 }

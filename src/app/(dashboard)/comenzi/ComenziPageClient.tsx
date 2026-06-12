@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Pencil, Trash2, UserRoundPlus } from 'lucide-react'
+import { Check, ChevronDown, MapPin, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -33,6 +33,7 @@ import { AddClientDialog } from '@/components/clienti/AddClientDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
@@ -133,6 +134,20 @@ interface ComandaFormState {
 
 function todayIso(): string {
   return new Date().toISOString().split('T')[0]
+}
+
+function tomorrowIso(): string {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  return tomorrow.toISOString().split('T')[0]
+}
+
+function formatCompactDateLabel(value: string): string {
+  if (!value) return 'Selectează data'
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  const prefix = value === todayIso() ? 'Azi · ' : ''
+  return `${prefix}${parsed.toLocaleDateString('ro-RO')}`
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -422,6 +437,8 @@ function ComandaDialog({
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
   const [comboInput, setComboInput] = useState(initialComboInput)
   const [comboOpen, setComboOpen] = useState(false)
+  const [mobileLocationExpanded, setMobileLocationExpanded] = useState(false)
+  const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
   const comboRef = useRef<HTMLDivElement>(null)
 
   const selectedClient = clienti.find((client) => client.id === form.client_id)
@@ -431,6 +448,8 @@ function ComandaDialog({
   const suggestedClientName =
     form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
+  const isNewClientFlow = !form.client_id && form.client_nume_manual.trim().length > 0
+  const hasSelectedClientAddress = Boolean(selectedClient?.adresa?.trim())
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
@@ -502,13 +521,42 @@ function ComandaDialog({
             statusLabel={statusLabelMap[form.status]}
             statusVariant={statusVariantMap[form.status]}
             notes={form.observatii}
-            className="md:rounded-[22px] md:p-3.5 lg:p-4"
+            className="hidden md:block md:rounded-[22px] md:p-3.5 lg:p-4"
           />
         }
       >
         <FormDialogSection>
           <DesktopFormPanel className="space-y-2.5">
-            <div ref={comboRef} className="space-y-1.5">
+            {selectedClient ? (
+              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 md:hidden">
+                <span className="flex min-w-0 items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
+                  <span className="truncate font-semibold text-[var(--text-primary)]">
+                    {selectedClient.nume_client}
+                    {resolvedPhone ? (
+                      <span className="font-normal text-[var(--text-secondary)]"> · {resolvedPhone}</span>
+                    ) : null}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                  onClick={() => {
+                    setComboInput('')
+                    setComboOpen(true)
+                    setMobileLocationExpanded(false)
+                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '' }))
+                  }}
+                >
+                  Schimbă
+                </button>
+              </div>
+            ) : null}
+
+            <div
+              ref={comboRef}
+              className={`space-y-1.5 ${selectedClient ? 'hidden md:block' : ''}`}
+            >
               <Label htmlFor="comanda_client_combo">Client</Label>
               <div className="relative">
                 <Input
@@ -541,6 +589,7 @@ function ComandaDialog({
                             e.preventDefault()
                             setComboInput(client.nume_client)
                             setComboOpen(false)
+                            setMobileLocationExpanded(false)
                             setForm((prev) => ({
                               ...prev,
                               client_id: client.id,
@@ -573,7 +622,11 @@ function ComandaDialog({
               </div>
             </div>
 
-            <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5">
+            <div
+              className={`grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5 ${
+                selectedClient ? 'hidden md:grid' : ''
+              }`}
+            >
               <div className="space-y-1.5">
                 <Label>Telefon</Label>
                 <Input
@@ -582,22 +635,46 @@ function ComandaDialog({
                   onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5 md:min-w-[148px]">
-                <Label className="opacity-0">Contact</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-10"
-                  disabled={!canSaveContact}
-                  onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
-                >
-                  <UserRoundPlus className="h-4 w-4" />
-                  Salvează contact
-                </Button>
-              </div>
+              {isNewClientFlow ? (
+                <div className="space-y-1.5 md:min-w-[148px]">
+                  <Label className="opacity-0">Contact</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-10"
+                    disabled={!canSaveContact}
+                    onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
+                  >
+                    <UserRoundPlus className="h-4 w-4" />
+                    Salvează contact
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
-            <div className="space-y-1.5">
+            {hasSelectedClientAddress && !mobileLocationExpanded ? (
+              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 md:hidden">
+                <span className="flex min-w-0 items-center gap-2 text-sm text-[var(--text-primary)]">
+                  <MapPin className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
+                  <span className="truncate">
+                    <span className="font-semibold">Adresa clientului</span> · {resolvedLocation}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                  onClick={() => setMobileLocationExpanded(true)}
+                >
+                  Schimbă
+                </button>
+              </div>
+            ) : null}
+
+            <div
+              className={`space-y-1.5 ${
+                hasSelectedClientAddress && !mobileLocationExpanded ? 'hidden md:block' : ''
+              }`}
+            >
               <Label>Locație livrare</Label>
               <Input
                 className="agri-control h-11 md:h-10"
@@ -605,7 +682,95 @@ function ComandaDialog({
                 onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 md:gap-x-3 md:gap-y-2.5">
+
+            <div className="space-y-2.5 md:hidden">
+              <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3">
+                <span className="text-sm font-medium text-[var(--text-primary)]">
+                  {formatCompactDateLabel(form.data_comanda)}
+                </span>
+                <button
+                  type="button"
+                  className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                  onClick={() => document.getElementById('comanda-data-mobile')?.click()}
+                >
+                  Schimbă
+                </button>
+              </div>
+              <div className="absolute h-px w-px overflow-hidden">
+                <AppDatePicker
+                  id="comanda-data-mobile"
+                  value={form.data_comanda}
+                  onChange={(nextValue) =>
+                    setForm((prev) => ({ ...prev, data_comanda: nextValue }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Data livrare</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Azi', value: todayIso() },
+                    { label: 'Mâine', value: tomorrowIso() },
+                  ].map((option) => {
+                    const selected = form.data_livrare === option.value
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          setForm((prev) => ({ ...prev, data_livrare: option.value }))
+                        }
+                        className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                          selected
+                            ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                            : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    aria-pressed={
+                      Boolean(form.data_livrare) &&
+                      form.data_livrare !== todayIso() &&
+                      form.data_livrare !== tomorrowIso()
+                    }
+                    onClick={() => document.getElementById('comanda-data-livrare-mobile')?.click()}
+                    className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                      Boolean(form.data_livrare) &&
+                      form.data_livrare !== todayIso() &&
+                      form.data_livrare !== tomorrowIso()
+                        ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                        : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    Altă dată
+                  </button>
+                </div>
+                {form.data_livrare &&
+                form.data_livrare !== todayIso() &&
+                form.data_livrare !== tomorrowIso() ? (
+                  <p className="text-xs font-medium text-[var(--text-secondary)]">
+                    Selectat: {formatDate(form.data_livrare)}
+                  </p>
+                ) : null}
+                <div className="absolute h-px w-px overflow-hidden">
+                  <AppDatePicker
+                    id="comanda-data-livrare-mobile"
+                    value={form.data_livrare}
+                    onChange={(nextValue) =>
+                      setForm((prev) => ({ ...prev, data_livrare: nextValue }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="hidden grid-cols-2 gap-2.5 md:grid md:gap-x-3 md:gap-y-2.5">
               <AppDatePicker
                 id="comanda-data"
                 label="Data comandă"
@@ -622,10 +787,14 @@ function ComandaDialog({
                 triggerClassName="h-11 md:h-10"
                 onChange={(nextValue) => setForm((prev) => ({ ...prev, data_livrare: nextValue }))}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 md:gap-x-3 md:gap-y-2.5">
               <div className="space-y-1.5">
                 <Label>Cantitate (kg)</Label>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   className="agri-control h-11 md:h-10"
@@ -637,6 +806,7 @@ function ComandaDialog({
                 <Label>Preț per kg</Label>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.01"
                   className="agri-control h-11 md:h-10"
@@ -644,6 +814,15 @@ function ComandaDialog({
                   onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5 text-sm md:hidden">
+              <span className="text-[var(--text-secondary)]">
+                {formatKg(previewKg)} × {formatLei(previewPret)}/kg
+              </span>
+              <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+                Total: {formatLei(previewTotal)}
+              </span>
             </div>
 
             <div className="grid gap-2.5 md:grid-cols-[minmax(0,11.5rem)_minmax(0,1fr)] md:gap-x-3">
@@ -665,7 +844,7 @@ function ComandaDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="hidden space-y-1.5 md:block">
                 <Label>Observații</Label>
                 <Textarea
                   className="agri-control min-h-[3.75rem] md:min-h-[4.25rem]"
@@ -674,6 +853,32 @@ function ComandaDialog({
                 />
               </div>
             </div>
+
+            <Collapsible
+              open={mobileObservatiiOpen}
+              onOpenChange={setMobileObservatiiOpen}
+              className="md:hidden"
+            >
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm font-semibold text-[var(--text-primary)]"
+                >
+                  Observații
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${mobileObservatiiOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Textarea
+                  className="agri-control min-h-[4.25rem]"
+                  value={form.observatii}
+                  onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
+                />
+              </CollapsibleContent>
+            </Collapsible>
           </DesktopFormPanel>
         </FormDialogSection>
       </DesktopFormGrid>
