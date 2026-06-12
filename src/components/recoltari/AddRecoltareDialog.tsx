@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronDown } from 'lucide-react'
 import { useForm, useWatch } from 'react-hook-form'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
@@ -10,10 +11,12 @@ import * as z from 'zod'
 import { AppDrawer } from '@/components/app/AppDrawer'
 import { DialogInitialDataSkeleton } from '@/components/app/DialogInitialDataSkeleton'
 import { RecoltareFormSummary } from '@/components/recoltari/RecoltareFormSummary'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, DesktopFormPanel, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { AppSelect } from '@/components/ui/app-select'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -100,6 +103,14 @@ function formatCropOptionLabel(crop: ParcelCropRow): string {
   return parts.length > 0 ? parts.join(' · ') : 'Cultură nespecificată'
 }
 
+function formatCompactDate(value: string): string {
+  if (!value) return 'Selectează data'
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  const prefix = value === todayInputValue() ? 'Azi · ' : ''
+  return `${prefix}${parsed.toLocaleDateString('ro-RO')}`
+}
+
 export function AddRecoltareDialog({
   open,
   onOpenChange,
@@ -115,10 +126,12 @@ export function AddRecoltareDialog({
   const hasOpenedRef = useRef(false)
   const appliedAiPrefillRef = useRef<string>('')
   const appliedAiParcelaHintRef = useRef<string>('')
+  const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
 
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
   const setDialogOpen = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) setMobileObservatiiOpen(false)
     if (!isControlled) setInternalOpen(nextOpen)
     onOpenChange?.(nextOpen)
   }, [isControlled, onOpenChange])
@@ -226,6 +239,24 @@ export function AddRecoltareDialog({
     () => parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null,
     [parcele, selectedParcelaId]
   )
+  const commercialParcele = useMemo(
+    () => parcele.filter((parcela) => parcela.rol === 'comercial'),
+    [parcele]
+  )
+  const activeCulegatori = useMemo(
+    () =>
+      culegatori
+        .filter((culegator) => culegator.status_activ)
+        .sort((left, right) =>
+          (left.nume_prenume || '').localeCompare(right.nume_prenume || '', 'ro')
+        ),
+    [culegatori]
+  )
+  const mobileCulegatori = activeCulegatori.slice(0, activeCulegatori.length <= 6 ? 6 : 5)
+  const hiddenCulegatoriCount = Math.max(activeCulegatori.length - mobileCulegatori.length, 0)
+  const selectedCulegatorIsHidden =
+    Boolean(selectedCulegatorId) &&
+    !mobileCulegatori.some((culegator) => culegator.id === selectedCulegatorId)
   const parcelCropOptions = useMemo(() => getParcelaCropRows(selectedParcela), [selectedParcela])
   const selectedCrop =
     parcelCropOptions.find((crop) => crop.id === selectedCropId) ??
@@ -439,7 +470,67 @@ export function AddRecoltareDialog({
           >
             <FormDialogSection>
               <DesktopFormPanel>
-                <div className="grid gap-3 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
+                <div className="space-y-3 md:hidden">
+                  <div className="space-y-2">
+                    <Label>Parcelă</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {commercialParcele.map((parcela) => {
+                        const selected = parcela.id === selectedParcelaId
+                        return (
+                          <button
+                            key={parcela.id}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() =>
+                              form.setValue('parcela_id', parcela.id, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }
+                            className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                              selected
+                                ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                                : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                            }`}
+                          >
+                            {parcela.nume_parcela || 'Parcelă'}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {form.formState.errors.parcela_id ? (
+                      <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.parcela_id.message}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3">
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {formatCompactDate(formDataValue)}
+                    </span>
+                    <button
+                      type="button"
+                      className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                      onClick={() => document.getElementById('recoltare_data_mobile')?.click()}
+                    >
+                      Schimbă
+                    </button>
+                  </div>
+                  <div className="absolute h-px w-px overflow-hidden">
+                    <AppDatePicker
+                      id="recoltare_data_mobile"
+                      value={formDataValue}
+                      onChange={(nextValue) =>
+                        form.setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })
+                      }
+                      error={form.formState.errors.data?.message}
+                    />
+                  </div>
+                  {form.formState.errors.data ? (
+                    <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.data.message}</p>
+                  ) : null}
+                </div>
+
+                <div className="hidden gap-3 md:grid md:grid-cols-2 md:gap-x-4 md:gap-y-3">
                   <div className="space-y-2">
                     <Label htmlFor="recoltare_parcela">Parcelă</Label>
                     <Select
@@ -484,7 +575,74 @@ export function AddRecoltareDialog({
                     {activePauseWarning.message}
                   </div>
                 ) : null}
-                <div className="space-y-2">
+                <div className="space-y-2 md:hidden">
+                  <Label>Culegător</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {mobileCulegatori.map((culegator) => {
+                      const selected = culegator.id === selectedCulegatorId
+                      return (
+                        <button
+                          key={culegator.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            form.setValue('culegator_id', culegator.id, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          className={`min-h-11 truncate rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                            selected
+                              ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                              : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {culegator.nume_prenume || 'Culegător'}
+                        </button>
+                      )
+                    })}
+                    {hiddenCulegatoriCount > 0 ? (
+                      <button
+                        type="button"
+                        aria-pressed={selectedCulegatorIsHidden}
+                        onClick={() => document.getElementById('recoltare_culegator_mobile_more')?.click()}
+                        className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                          selectedCulegatorIsHidden
+                            ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                            : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        +{hiddenCulegatoriCount} alții
+                      </button>
+                    ) : null}
+                  </div>
+                  {hiddenCulegatoriCount > 0 ? (
+                    <div className="absolute h-px w-px overflow-hidden">
+                      <AppSelect
+                        id="recoltare_culegator_mobile_more"
+                        label="Selectează culegătorul"
+                        value={selectedCulegatorId}
+                        onChange={(value) =>
+                          form.setValue('culegator_id', value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                        options={activeCulegatori.map((culegator) => ({
+                          value: culegator.id,
+                          label: culegator.nume_prenume || 'Culegător',
+                        }))}
+                        showSearchThreshold={0}
+                        searchPlaceholder="Caută culegător..."
+                      />
+                    </div>
+                  ) : null}
+                  {form.formState.errors.culegator_id ? (
+                    <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.culegator_id.message}</p>
+                  ) : null}
+                </div>
+
+                <div className="hidden space-y-2 md:block">
                   <Label htmlFor="recoltare_culegator">Culegător</Label>
                   <Select
                     value={selectedCulegatorId || '__none'}
@@ -517,7 +675,7 @@ export function AddRecoltareDialog({
             <FormDialogSection>
               <DesktopFormPanel>
                 {selectedParcela ? (
-                  <Card className="rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] shadow-[var(--shadow-soft)]">
+                  <Card className="hidden rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card-muted)] shadow-[var(--shadow-soft)] md:block">
                     <CardContent className="space-y-2 p-3 text-sm">
                       <CardTitle className="text-sm font-semibold text-[var(--text-primary)]">
                         Produs detectat din parcelă
@@ -563,7 +721,33 @@ export function AddRecoltareDialog({
                     </CardContent>
                   </Card>
                 ) : null}
-                <div className="grid gap-3 md:grid-cols-2 md:gap-x-4 md:gap-y-3">
+                {selectedParcela && parcelCropOptions.length > 1 ? (
+                  <div className="space-y-2 md:hidden">
+                    <Label htmlFor="recoltare_harvest_crop_mobile">Cultură recoltată</Label>
+                    <Select
+                      value={selectedCropId || '__none'}
+                      onValueChange={(value) =>
+                        form.setValue('harvest_crop_id', value === '__none' ? '' : value, {
+                          shouldDirty: true,
+                          shouldValidate: false,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="recoltare_harvest_crop_mobile" className="agri-control h-11">
+                        <SelectValue placeholder="Selectează cultura recoltată" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Selectează cultura recoltată</SelectItem>
+                        {parcelCropOptions.map((crop) => (
+                          <SelectItem key={crop.id} value={crop.id}>
+                            {formatCropOptionLabel(crop)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-2 gap-3 md:gap-x-4 md:gap-y-3">
                   <div className="space-y-2">
                     <Label htmlFor="recoltare_kg_cal1">Kg Calitatea 1</Label>
                     <Input
@@ -601,45 +785,50 @@ export function AddRecoltareDialog({
             </FormDialogSection>
 
             <div className="md:hidden">
-              <Card className="rounded-2xl border border-[var(--surface-divider)] shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Rezumat plată</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  <p>
-                    Total kg: <span className="font-semibold">{totalKg.toFixed(2)} kg</span>
-                  </p>
-                  {selectedCulegator ? (
-                    <>
-                      <p>
-                        Tarif:{' '}
-                        <span className="font-semibold">
-                          {hasValidTarif ? `${tarifLeiKg.toFixed(2)} lei/kg` : '—'}
-                        </span>{' '}
-                        <span className="text-xs text-[var(--agri-text-muted)]">(din profil culegător)</span>
-                      </p>
-                      <p>
-                        De plată:{' '}
-                        <span className="font-semibold">
-                          {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '—'}
-                        </span>
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-[var(--agri-text-muted)]">
-                        Selectează culegătorul ca să calculez plata
-                      </p>
-                      <p>
-                        De plată: <span className="font-semibold">—</span>
-                      </p>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5 text-sm">
+                <p>
+                  <span className="text-[var(--text-secondary)]">Total: </span>
+                  <span className="font-semibold">{totalKg.toFixed(2)} kg</span>
+                </p>
+                <p className="text-right">
+                  <span className="text-[var(--text-secondary)]">De plată: </span>
+                  <span className="font-semibold">
+                    {valoareMunca !== null ? `${valoareMunca.toFixed(2)} lei` : '—'}
+                  </span>
+                </p>
+              </div>
             </div>
 
-            <FormDialogSection>
+            <FormDialogSection className="md:hidden">
+              <Collapsible open={mobileObservatiiOpen} onOpenChange={setMobileObservatiiOpen}>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm font-semibold text-[var(--text-primary)]"
+                  >
+                    Detalii suplimentare
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform ${mobileObservatiiOpen ? 'rotate-180' : ''}`}
+                      aria-hidden
+                    />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <Textarea
+                    id="recoltare_observatii_mobile"
+                    rows={3}
+                    placeholder="Detalii suplimentare"
+                    className="agri-control min-h-[4.5rem] w-full px-3 py-2 text-base"
+                    value={formObservatii}
+                    onChange={(event) =>
+                      form.setValue('observatii', event.target.value, { shouldDirty: true })
+                    }
+                  />
+                </CollapsibleContent>
+              </Collapsible>
+            </FormDialogSection>
+
+            <FormDialogSection className="hidden md:block">
               <DesktopFormPanel>
                 <Textarea
                   id="recoltare_observatii"
