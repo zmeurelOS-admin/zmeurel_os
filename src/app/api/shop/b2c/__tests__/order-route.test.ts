@@ -23,13 +23,14 @@ vi.mock('@/lib/supabase/admin', () => ({
 function buildAdmin(
   orderId = '11111111-1111-4111-8111-111111111111',
   preorderResult: Record<string, unknown> | null = null,
+  preorderError: { message: string } | null = null,
 ) {
   return {
     rpc: (name: string, args: Record<string, unknown>) => {
       rpcSpy(name, args)
       return Promise.resolve({
         data: name === 'place_preorder_atomic' ? preorderResult : null,
-        error: null,
+        error: name === 'place_preorder_atomic' ? preorderError : null,
       })
     },
     from: (table: string) => {
@@ -92,10 +93,10 @@ describe('POST /api/shop/b2c/order', () => {
             vid: 'zmeura',
             label: 'Zmeură — Caserolă 500 g',
             qty: 2,
-            price_lei: 18,
+            price_lei: 20,
           },
         ],
-        total_lei: 35,
+        total_lei: 40,
         order_kind: 'standard',
       }),
     )
@@ -103,7 +104,7 @@ describe('POST /api/shop/b2c/order', () => {
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Comandă magazin 🍓',
-      '2 caserole (1 kg) · 35 lei\nIon Popescu, 0722123456, Suceava',
+      '2 caserole (1 kg) · 40 lei\nIon Popescu, 0722123456, Suceava',
       expect.objectContaining({
         channel: 'farm_shop',
         clientName: 'Ion Popescu',
@@ -112,7 +113,7 @@ describe('POST /api/shop/b2c/order', () => {
         items: [{ qty: 2, label: 'Zmeură — Caserolă 500 g' }],
         orderKind: 'standard',
         tenantId: process.env.SHOP_TENANT_ID,
-        totalLei: 35,
+        totalLei: 40,
       }),
       'order',
       '11111111-1111-4111-8111-111111111111',
@@ -148,6 +149,7 @@ describe('POST /api/shop/b2c/order', () => {
     const body = {
       ...baseBody(),
       campaign_id: campaignId,
+      idempotencyKey: '55555555-5555-4555-8555-555555555555',
       delivery_mode: 'ridicare',
       delivery_address: undefined,
       delivery_city: undefined,
@@ -162,7 +164,7 @@ describe('POST /api/shop/b2c/order', () => {
     await expect(response.json()).resolves.toEqual({
       success: true,
       order_id: orderId,
-      total_lei: 18,
+      total_lei: 20,
       current_count: 500,
       hit_milestone: true,
       milestone_threshold: 500,
@@ -173,7 +175,7 @@ describe('POST /api/shop/b2c/order', () => {
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Precomandă magazin 🍓',
-      '1 caserolă (0,5 kg) · 18 lei\nIon Popescu, 0722123456 — ridicare',
+      '1 caserolă (0,5 kg) · 20 lei\nIon Popescu, 0722123456 — ridicare',
       expect.objectContaining({
         channel: 'farm_shop',
         icon: '/shop-icon-192.png',
@@ -193,12 +195,15 @@ describe('POST /api/shop/b2c/order', () => {
             vid: 'zmeura',
             label: 'Zmeură — Caserolă 500 g',
             qty: 1,
-            price_lei: 18,
+            price_lei: 20,
           },
         ],
-        p_total_lei: 18,
+        p_total_lei: 20,
+        p_idempotency_key: '55555555-5555-4555-8555-555555555555',
       }),
     )
+    const preorderCall = rpcSpy.mock.calls.find(([name]) => name === 'place_preorder_atomic')
+    expect(preorderCall?.[1]).not.toHaveProperty('p_in_suceava')
     expect(rpcSpy).toHaveBeenCalledWith(
       'upsert_shop_customer',
       expect.objectContaining({
@@ -206,6 +211,73 @@ describe('POST /api/shop/b2c/order', () => {
         p_phone: '722123456',
       }),
     )
+  })
+
+  it('trimite zona de livrare către RPC pentru precomenzi cu livrare', async () => {
+    const campaignId = '21d158e1-dfa3-4db3-894b-d64ecad29b45'
+    const orderId = '33333333-3333-4333-8333-333333333333'
+    getSupabaseAdmin.mockReturnValue(
+      buildAdmin(orderId, {
+        order_id: orderId,
+        current_count: 502,
+        hit_milestone: false,
+      }),
+    )
+
+    const response = await POST(
+      createSameOriginRequest('/api/shop/b2c/order', {
+        method: 'POST',
+        json: {
+          ...baseBody(),
+          campaign_id: campaignId,
+          idempotencyKey: '55555555-5555-4555-8555-555555555555',
+          inSuceava: true,
+        },
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(rpcSpy).toHaveBeenCalledWith(
+      'place_preorder_atomic',
+      expect.objectContaining({
+        p_idempotency_key: '55555555-5555-4555-8555-555555555555',
+        p_in_suceava: true,
+      }),
+    )
+  })
+
+  it('propagă doar eroarea RPC pentru cantitatea minimă de livrare', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    getSupabaseAdmin.mockReturnValue(
+      buildAdmin(
+        '33333333-3333-4333-8333-333333333333',
+        null,
+        {
+          message:
+            'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg). Ai selectat 1 caserole.',
+        },
+      ),
+    )
+
+    const response = await POST(
+      createSameOriginRequest('/api/shop/b2c/order', {
+        method: 'POST',
+        json: {
+          ...baseBody(),
+          campaign_id: '21d158e1-dfa3-4db3-894b-d64ecad29b45',
+          items: [{ ...baseBody().items[0], qty: 1 }],
+        },
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error:
+        'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg). Ai selectat 1 caserole.',
+    })
+    expect(errorSpy).not.toHaveBeenCalled()
+    errorSpy.mockRestore()
   })
 
   it.each([undefined, '', '   '])(

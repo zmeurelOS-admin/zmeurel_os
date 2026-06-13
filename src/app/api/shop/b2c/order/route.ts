@@ -31,6 +31,8 @@ const bodySchema = z.object({
   delivery_address: z.string().trim().max(500).optional(),
   delivery_city: z.string().trim().max(120).optional(),
   campaign_id: z.string().uuid().nullable().optional(),
+  idempotencyKey: z.string().uuid().optional(),
+  inSuceava: z.boolean().nullable().optional(),
   items: z.array(lineSchema).length(1, 'Coșul trebuie să conțină doar zmeură'),
   total_lei: z.number().int().positive('Total invalid'),
   notes: z.string().trim().max(2000).optional(),
@@ -74,6 +76,8 @@ export async function POST(request: Request) {
     delivery_address,
     delivery_city,
     campaign_id,
+    idempotencyKey,
+    inSuceava,
     items,
     notes,
   } = parsed.data
@@ -112,7 +116,11 @@ export async function POST(request: Request) {
   let milestoneResult: z.infer<typeof preorderResultSchema> | null = null
 
   if (campaign_id) {
-    const { data, error } = await admin.rpc('place_preorder_atomic', {
+    const preorderRpc = admin.rpc as unknown as (
+      name: 'place_preorder_atomic',
+      args: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message?: string } | null }>
+    const { data, error } = await preorderRpc('place_preorder_atomic', {
       p_campaign_id: campaign_id,
       p_tenant_id: configuredTenantId,
       p_customer_name: customer_name,
@@ -123,10 +131,16 @@ export async function POST(request: Request) {
       p_items: normalizedItems as Json,
       p_total_lei: totalLei,
       p_notes: (notes?.trim() || null) as unknown as string,
+      p_idempotency_key: idempotencyKey ?? null,
+      ...(delivery_mode === 'livrare' ? { p_in_suceava: inSuceava ?? null } : {}),
     })
     const parsedResult = preorderResultSchema.safeParse(data)
 
     if (error || !parsedResult.success) {
+      if (error?.message?.startsWith('Comanda minimă pentru livrare')) {
+        return errorResponse(error.message, 400)
+      }
+
       console.error(
         '[shop/b2c/order] preorder RPC failed',
         sanitizeForLog(

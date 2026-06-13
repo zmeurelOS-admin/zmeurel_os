@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateCheckoutForm } from '@/app/comanda/ShopClient'
+import { getDeliveryMinimumMessage, validateCheckoutForm } from '@/app/comanda/ShopClient'
 
 describe('validateCheckoutForm', () => {
   const base = {
@@ -55,5 +55,29 @@ describe('validateCheckoutForm', () => {
         orderAddress: '',
       }),
     ).toEqual({})
+  })
+})
+
+describe('getDeliveryMinimumMessage', () => {
+  it('nu impune minim suplimentar pentru ridicare', () => {
+    expect(getDeliveryMinimumMessage('ridicare', null, 1)).toBeNull()
+  })
+
+  it('cere selectarea zonei pentru livrare', () => {
+    expect(getDeliveryMinimumMessage('livrare', null, 4)).toBe('Selectează zona de livrare.')
+  })
+
+  it('aplică minimul de 2 caserole în Suceava', () => {
+    expect(getDeliveryMinimumMessage('livrare', true, 1)).toBe(
+      'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg).',
+    )
+    expect(getDeliveryMinimumMessage('livrare', true, 2)).toBeNull()
+  })
+
+  it('aplică minimul de 4 caserole în afara Sucevei', () => {
+    expect(getDeliveryMinimumMessage('livrare', false, 3)).toBe(
+      'Comanda minimă pentru livrare în afara Sucevei este de 4 caserole (2 kg).',
+    )
+    expect(getDeliveryMinimumMessage('livrare', false, 4)).toBeNull()
   })
 })

@@ -3,6 +3,16 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import {
   Sheet,
@@ -117,6 +127,36 @@ type LastOrder = {
   created_at: string
 }
 
+type OrderRequestPayload = {
+  customer_name: string
+  customer_phone: string
+  delivery_mode: DeliveryMode
+  delivery_address?: string
+  delivery_city?: string
+  campaign_id: string
+  idempotencyKey: string
+  inSuceava?: boolean
+  items: Array<{
+    vid: string
+    label: string
+    qty: number
+    price_lei: number
+  }>
+  total_lei: number
+  notes?: string
+}
+
+type RecentShopOrder = {
+  found: true
+  minutes_ago: number
+  items: Array<{
+    qty: number
+    label: string
+  }>
+  total_lei: number
+  order_kind: string
+}
+
 function formatLei(value: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
 }
@@ -202,6 +242,22 @@ export function validateCheckoutForm(input: {
 
 function coerceDeliveryMode(value: unknown): DeliveryMode {
   return value === 'ridicare' ? 'ridicare' : 'livrare'
+}
+
+export function getDeliveryMinimumMessage(
+  deliveryMode: DeliveryMode,
+  inSuceava: boolean | null,
+  totalQty: number,
+): string | null {
+  if (deliveryMode === 'ridicare') return null
+  if (inSuceava === null) return 'Selectează zona de livrare.'
+  if (inSuceava && totalQty < 2) {
+    return 'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg).'
+  }
+  if (!inSuceava && totalQty < 4) {
+    return 'Comanda minimă pentru livrare în afara Sucevei este de 4 caserole (2 kg).'
+  }
+  return null
 }
 
 export function readCustomerSnapshotFromStorage(phone: string): CustomerSnapshot | null {
@@ -361,6 +417,7 @@ export function ShopClient({
   const [orderName, setOrderName] = useState('')
   const [orderPhone, setOrderPhone] = useState('')
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('livrare')
+  const [inSuceava, setInSuceava] = useState<boolean | null>(null)
   const [orderAddress, setOrderAddress] = useState('')
   const [orderCity, setOrderCity] = useState('')
   const [orderNotes, setOrderNotes] = useState('')
@@ -379,11 +436,15 @@ export function ShopClient({
   const [recognizedCustomerPhone, setRecognizedCustomerPhone] = useState<string | null>(null)
   const [lastOrder, setLastOrder] = useState<LastOrder | null>(null)
   const [lastOrderApplied, setLastOrderApplied] = useState(false)
+  const [recentOrder, setRecentOrder] = useState<RecentShopOrder | null>(null)
   const [primaryQtyInput, setPrimaryQtyInput] = useState(() =>
     available[0] ? String(qtyById[available[0].id] ?? 1) : '',
   )
   const lastCustomerLookupPhoneRef = useRef<string | null>(null)
   const campaignFallbackRef = useRef(false)
+  const checkoutIdempotencyKeyRef = useRef<string | null>(null)
+  const orderSubmitLockRef = useRef(false)
+  const pendingOrderPayloadRef = useRef<OrderRequestPayload | null>(null)
 
   const nameFieldRef = useRef<HTMLDivElement>(null)
   const phoneFieldRef = useRef<HTMLDivElement>(null)
@@ -635,6 +696,7 @@ export function ShopClient({
   const hasValidIdentity = orderName.trim().length >= 2 && normalizedOrderPhone !== null
   const visiblePhoneError =
     fieldErrors.phone ?? (phoneTouched && !normalizedOrderPhone ? ROMANIAN_PHONE_ERROR : undefined)
+  const deliveryMinimumMessage = getDeliveryMinimumMessage(deliveryMode, inSuceava, cartCount)
 
   const setQty = useCallback((id: string, next: number) => {
     setQtyById((prev) => {
@@ -672,6 +734,9 @@ export function ShopClient({
   const openCheckout = useCallback(() => {
     if (primaryProduct?.available && primaryQty === 0) {
       setQty(primaryProduct.id, 1)
+    }
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current = crypto.randomUUID()
     }
     setOrderSuccess(false)
     setCapturedMilestone(null)
@@ -718,61 +783,18 @@ export function ShopClient({
     }
   }, [])
 
-  const submitOrder = async () => {
-    const validationErrors = validateCheckoutForm({
-      orderName,
-      orderPhone,
-      orderCity,
-      orderAddress,
-      deliveryMode,
-      cartLineCount: cartLines.length,
-    })
-
-    if (Object.keys(validationErrors).length > 0) {
-      setFieldErrors(validationErrors)
-      setPhoneTouched(true)
-      setOrderError(null)
-      scrollToFirstFieldError(validationErrors)
-      return
-    }
-
-    if (!normalizedOrderPhone) return
-
-    setFieldErrors({})
-    setOrderSubmitting(true)
-    setOrderError(null)
-    setOrderSuccess(false)
-    setNotificationPromptVisible(false)
-    setPendingNotifPrompt(false)
-
-    const items = cartLines.map((line) => ({
-      vid: line.product.id,
-      label: `${line.product.name} — ${line.product.unit_label}`,
-      qty: line.qty,
-      price_lei: ZMEURA_CASEROLA_PRICE_LEI,
-    }))
-
+  const placeOrder = async (payload: OrderRequestPayload) => {
     try {
       const res = await fetch('/api/shop/b2c/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customer_name: orderName.trim(),
-          customer_phone: normalizedOrderPhone,
-          delivery_mode: deliveryMode,
-          delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
-          delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
-          campaign_id: CAMPAIGN_DATA.campaignId,
-          items,
-          total_lei: cartTotal,
-          notes: orderNotes.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const json = (await res.json()) as {
         success?: boolean
         error?: string
         order_id?: string
-        current_count: number
+        current_count?: number
         hit_milestone?: boolean
         milestone_threshold?: number | null
         milestone_reward?: string | null
@@ -780,16 +802,18 @@ export function ShopClient({
       if (!res.ok || !json.success) {
         setOrderError(json.error ?? 'Nu am putut salva comanda.')
         setOrderSubmitting(false)
+        orderSubmitLockRef.current = false
         return
       }
 
       setOrderSuccess(true)
-      if (typeof json.current_count === 'number') {
+      const currentCount = json.current_count
+      if (typeof currentCount === 'number') {
         setCampaign((currentCampaign) => {
           if (!currentCampaign) return currentCampaign
 
           return mergeCampaignSnapshot({
-            currentCount: json.current_count,
+            currentCount,
             targetQty: currentCampaign.target,
             status: 'active',
             milestones: currentCampaign.milestones.map((milestone) => ({
@@ -821,7 +845,7 @@ export function ShopClient({
       setSourceSaved(false)
       writeCustomerSnapshotToStorage({
         name: orderName.trim(),
-        phone: normalizedOrderPhone,
+        phone: payload.customer_phone,
         delivery_address: orderAddress.trim(),
         delivery_city: orderCity.trim(),
         delivery_mode: deliveryMode,
@@ -830,19 +854,128 @@ export function ShopClient({
         lines: cartLines,
         total: cartTotal,
         name: orderName,
-        phone: normalizedOrderPhone,
+        phone: payload.customer_phone,
         deliveryMode,
         address: orderAddress,
         notes: orderNotes,
       })
       window.open(`${WA_BASE}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
 
+      checkoutIdempotencyKeyRef.current = null
+      pendingOrderPayloadRef.current = null
+      setRecentOrder(null)
       setQtyById(primaryProduct?.available ? { [primaryProduct.id]: 1 } : {})
       setOrderSubmitting(false)
+      orderSubmitLockRef.current = false
     } catch {
       setOrderError('Eroare de rețea. Încearcă din nou.')
       setOrderSubmitting(false)
+      orderSubmitLockRef.current = false
     }
+  }
+
+  const submitOrder = async () => {
+    if (orderSubmitLockRef.current || deliveryMinimumMessage) return
+
+    const validationErrors = validateCheckoutForm({
+      orderName,
+      orderPhone,
+      orderCity,
+      orderAddress,
+      deliveryMode,
+      cartLineCount: cartLines.length,
+    })
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors)
+      setPhoneTouched(true)
+      setOrderError(null)
+      scrollToFirstFieldError(validationErrors)
+      return
+    }
+
+    if (!normalizedOrderPhone) return
+
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current = crypto.randomUUID()
+    }
+
+    orderSubmitLockRef.current = true
+    setFieldErrors({})
+    setOrderSubmitting(true)
+    setOrderError(null)
+    setOrderSuccess(false)
+    setNotificationPromptVisible(false)
+    setPendingNotifPrompt(false)
+
+    const items = cartLines.map((line) => ({
+      vid: line.product.id,
+      label: `${line.product.name} — ${line.product.unit_label}`,
+      qty: line.qty,
+      price_lei: ZMEURA_CASEROLA_PRICE_LEI,
+    }))
+
+    const payload: OrderRequestPayload = {
+      customer_name: orderName.trim(),
+      customer_phone: normalizedOrderPhone,
+      delivery_mode: deliveryMode,
+      delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
+      delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
+      campaign_id: CAMPAIGN_DATA.campaignId,
+      idempotencyKey: checkoutIdempotencyKeyRef.current,
+      ...(deliveryMode === 'livrare' && inSuceava !== null ? { inSuceava } : {}),
+      items,
+      total_lei: cartTotal,
+      notes: orderNotes.trim() || undefined,
+    }
+    pendingOrderPayloadRef.current = payload
+
+    try {
+      const recentResponse = await fetch('/api/shop/b2c/check-recent-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: normalizedOrderPhone,
+          campaignId: CAMPAIGN_DATA.campaignId,
+        }),
+      })
+
+      if (recentResponse.ok) {
+        const recentJson = (await recentResponse.json()) as Partial<RecentShopOrder> & { found?: boolean }
+        if (
+          recentJson.found === true &&
+          typeof recentJson.minutes_ago === 'number' &&
+          Array.isArray(recentJson.items) &&
+          recentJson.items.length > 0 &&
+          typeof recentJson.total_lei === 'number'
+        ) {
+          setRecentOrder(recentJson as RecentShopOrder)
+          setOrderSubmitting(false)
+          orderSubmitLockRef.current = false
+          return
+        }
+      }
+    } catch {
+      // Recent-order lookup is best-effort; idempotency still protects the write.
+    }
+
+    await placeOrder(payload)
+  }
+
+  const cancelRecentOrder = () => {
+    setRecentOrder(null)
+    pendingOrderPayloadRef.current = null
+  }
+
+  const confirmRecentOrder = () => {
+    const payload = pendingOrderPayloadRef.current
+    if (!payload || orderSubmitLockRef.current) return
+
+    orderSubmitLockRef.current = true
+    setRecentOrder(null)
+    setOrderSubmitting(true)
+    setOrderError(null)
+    void placeOrder(payload)
   }
 
   return (
@@ -1426,6 +1559,29 @@ export function ShopClient({
 
                 {deliveryMode === 'livrare' ? (
                   <>
+                    <div>
+                      <p className="mb-2 text-xs font-semibold text-[#312E3F]">Zona de livrare</p>
+                      <div className="flex gap-2">
+                        <ToggleChip
+                          active={inSuceava === true}
+                          onClick={() => setInSuceava(true)}
+                          label="Suceava"
+                        />
+                        <ToggleChip
+                          active={inSuceava === false}
+                          onClick={() => setInSuceava(false)}
+                          label="În afara Sucevei"
+                        />
+                      </div>
+                      {deliveryMinimumMessage ? (
+                        <p
+                          role="alert"
+                          className="mt-2 rounded-xl bg-[#FFF4D8] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]"
+                        >
+                          {deliveryMinimumMessage}
+                        </p>
+                      ) : null}
+                    </div>
                     <div ref={cityFieldRef}>
                       <Field
                         label="Localitate"
@@ -1510,7 +1666,7 @@ export function ShopClient({
 
               <button
                 type="button"
-                disabled={orderSubmitting || !hasValidIdentity}
+                disabled={orderSubmitting || !hasValidIdentity || deliveryMinimumMessage !== null}
                 onClick={submitOrder}
                 className="mt-4 min-h-[52px] w-full rounded-2xl bg-[#F16B6B] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.25)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -1528,6 +1684,37 @@ export function ShopClient({
           </button>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog
+        open={recentOrder !== null}
+        onOpenChange={(open) => {
+          if (!open) cancelRecentOrder()
+        }}
+      >
+        <AlertDialogContent className="border-[#F3DAD4] bg-white text-[#312E3F]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className={`text-[#312E3F] ${styles.fontDisplay}`}>
+              Ai mai plasat o comandă recent
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-[#312E3F]/72">
+              {recentOrder?.items[0] ? (
+                <span className="block">
+                  Acum {Math.max(0, Math.round(recentOrder.minutes_ago))} minute ai trimis o comandă de{' '}
+                  {recentOrder.items[0].qty} × {recentOrder.items[0].label} în valoare de{' '}
+                  {formatLei(recentOrder.total_lei)} lei.
+                </span>
+              ) : null}
+              <span className="block font-semibold text-[#312E3F]">
+                Mai vrei să trimiți și această comandă nouă?
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelRecentOrder}>Renunț</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRecentOrder}>Da, trimite comandă nouă</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {notificationPromptVisible ? (
         <ShopNotifPrompt onClose={() => setNotificationPromptVisible(false)} />

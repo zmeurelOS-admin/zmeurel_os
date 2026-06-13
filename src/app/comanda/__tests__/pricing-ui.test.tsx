@@ -7,6 +7,7 @@ import { CAMPAIGN_DATA } from '@/lib/shop/campaign-mock'
 
 describe('ShopClient volume pricing', () => {
   afterEach(() => {
+    window.localStorage.clear()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
@@ -145,9 +146,11 @@ describe('ShopClient volume pricing', () => {
 
     await user.clear(phoneInput)
     await user.type(phoneInput, '+40 722 123 456')
-    expect(submitButton).toBeEnabled()
+    expect(screen.getByText('Selectează zona de livrare.')).toBeInTheDocument()
+    expect(submitButton).toBeDisabled()
 
     await user.click(screen.getByRole('button', { name: 'Ridicare' }))
+    expect(submitButton).toBeEnabled()
     expect(screen.queryByRole('textbox', { name: 'Adresă livrare' })).not.toBeInTheDocument()
     expect(screen.getByText('Ridicare zilnic 9:00–18:00')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vezi pe hartă' })).toHaveAttribute(
@@ -237,6 +240,145 @@ describe('ShopClient volume pricing', () => {
     expect(JSON.parse(String(orderCall?.[1]?.body))).toEqual(
       expect.objectContaining({
         campaign_id: CAMPAIGN_DATA.campaignId,
+        idempotencyKey: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        ),
+      }),
+    )
+    expect(JSON.parse(String(orderCall?.[1]?.body))).not.toHaveProperty('inSuceava')
+  })
+
+  it('aplică live minimul de cantitate pentru zona de livrare', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <ShopClient
+        loadError={null}
+        products={[
+          {
+            id: 'zmeura',
+            name: 'Zmeură',
+            description: 'Zmeură proaspătă',
+            unit_label: 'Caserolă 500 g',
+            price_lei: 20,
+            available: true,
+            sort_order: 1,
+          },
+        ]}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
+    await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
+    await user.type(screen.getByRole('textbox', { name: 'Nume' }), 'Ion Popescu')
+    await user.type(screen.getByPlaceholderText('07xx xxx xxx'), '0722123456')
+    await user.click(screen.getByRole('button', { name: 'Livrare' }))
+
+    const submitButton = screen.getByRole('button', { name: 'Trimite precomanda' })
+    expect(screen.getByText('Selectează zona de livrare.')).toBeInTheDocument()
+    expect(submitButton).toBeDisabled()
+
+    await user.click(screen.getByRole('button', { name: 'Suceava' }))
+    expect(
+      screen.queryByText('Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg).'),
+    ).not.toBeInTheDocument()
+    expect(submitButton).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'În afara Sucevei' }))
+    expect(
+      screen.getByText('Comanda minimă pentru livrare în afara Sucevei este de 4 caserole (2 kg).'),
+    ).toBeInTheDocument()
+    expect(submitButton).toBeDisabled()
+  })
+
+  it('cere confirmare pentru o comandă recentă și păstrează aceeași cheie idempotentă', async () => {
+    const user = userEvent.setup()
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      void init
+      const url = String(input)
+      if (url.includes('/api/shop/b2c/check-recent-order')) {
+        return new Response(
+          JSON.stringify({
+            found: true,
+            minutes_ago: 3.6,
+            items: [{ qty: 2, label: 'Zmeură — Caserolă 500 g' }],
+            total_lei: 40,
+            order_kind: 'preorder',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      if (url.includes('/api/shop/b2c/order')) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            order_id: 'order-2',
+            total_lei: 40,
+            current_count: 502,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      return new Response(
+        JSON.stringify({
+          currentCount: 500,
+          targetQty: CAMPAIGN_DATA.target,
+          status: 'active',
+          milestones: CAMPAIGN_DATA.milestones,
+          leaderboard: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    })
+    vi.stubGlobal('fetch', fetchSpy)
+    vi.spyOn(window, 'open').mockReturnValue(null)
+
+    render(
+      <ShopClient
+        loadError={null}
+        products={[
+          {
+            id: 'zmeura',
+            name: 'Zmeură',
+            description: 'Zmeură proaspătă',
+            unit_label: 'Caserolă 500 g',
+            price_lei: 20,
+            available: true,
+            sort_order: 1,
+          },
+        ]}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
+    await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
+    await user.type(screen.getByRole('textbox', { name: 'Nume' }), 'Ion Popescu')
+    await user.type(screen.getByPlaceholderText('07xx xxx xxx'), '0722123456')
+    await user.click(screen.getByRole('button', { name: 'Ridicare' }))
+    await user.click(screen.getByRole('button', { name: 'Trimite precomanda' }))
+
+    expect(await screen.findByText('Ai mai plasat o comandă recent')).toBeInTheDocument()
+    expect(
+      screen.getByText('Acum 4 minute ai trimis o comandă de 2 × Zmeură — Caserolă 500 g în valoare de 40 lei.'),
+    ).toBeInTheDocument()
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).endsWith('/api/shop/b2c/order'))).toBe(false)
+
+    await user.click(screen.getByRole('button', { name: 'Renunț' }))
+    expect(screen.queryByText('Ai mai plasat o comandă recent')).not.toBeInTheDocument()
+    expect(fetchSpy.mock.calls.some(([input]) => String(input).endsWith('/api/shop/b2c/order'))).toBe(false)
+
+    await user.click(screen.getByRole('button', { name: 'Trimite precomanda' }))
+    expect(await screen.findByText('Ai mai plasat o comandă recent')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Da, trimite comandă nouă' }))
+
+    expect(await screen.findByText('Precomandă înregistrată')).toBeInTheDocument()
+    const orderCall = fetchSpy.mock.calls.find(([input]) => String(input).endsWith('/api/shop/b2c/order'))
+    expect(JSON.parse(String(orderCall?.[1]?.body))).toEqual(
+      expect.objectContaining({
+        idempotencyKey: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+        ),
       }),
     )
   })
