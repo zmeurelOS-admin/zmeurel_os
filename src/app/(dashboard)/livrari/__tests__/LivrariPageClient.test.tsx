@@ -7,8 +7,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LivrariPageClient } from '@/app/(dashboard)/livrari/LivrariPageClient'
 import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
 
-const { fetchOrdersMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
+const { fetchOrdersMock, fetchScheduledMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   fetchOrdersMock: vi.fn<() => Promise<ShopOrderRow[]>>(),
+  fetchScheduledMock: vi.fn<() => Promise<ShopOrderRow[]>>(),
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
 }))
@@ -22,8 +23,13 @@ vi.mock('@/components/app/AppShell', () => ({
   ),
 }))
 
+vi.mock('@/components/app/DashboardAuthContext', () => ({
+  useDashboardAuth: () => ({ tenantId: '00000000-0000-4000-8000-000000000301' }),
+}))
+
 vi.mock('@/lib/shop/shop-orders-queries', () => ({
   fetchShopOrdersInLivrare: fetchOrdersMock,
+  fetchShopOrdersScheduledToday: fetchScheduledMock,
 }))
 
 vi.mock('@/lib/ui/toast', () => ({
@@ -70,6 +76,14 @@ const secondOrder: ShopOrderRow = {
   delivery_position: 2,
 }
 
+const scheduledOrder: ShopOrderRow = {
+  ...order,
+  id: '00000000-0000-4000-8000-000000000103',
+  customer_name: 'Ana Programată',
+  status: 'confirmata',
+  delivery_position: null,
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -88,6 +102,8 @@ function renderPage() {
 beforeEach(() => {
   fetchOrdersMock.mockReset()
   fetchOrdersMock.mockResolvedValue([order])
+  fetchScheduledMock.mockReset()
+  fetchScheduledMock.mockResolvedValue([])
   toastErrorMock.mockReset()
   toastSuccessMock.mockReset()
   vi.stubGlobal(
@@ -214,5 +230,21 @@ describe('LivrariPageClient', () => {
       expect(toastErrorMock).toHaveBeenCalledWith('Ordinea nu a putut fi salvată.'),
     )
     expect(screen.getByText('Ion Ionescu').closest('article')).toHaveTextContent('2')
+  })
+
+  it('afișează și extinde comenzile programate azi care nu sunt încă în livrare', async () => {
+    const user = userEvent.setup()
+    fetchScheduledMock.mockResolvedValue([scheduledOrder])
+    renderPage()
+
+    const banner = await screen.findByRole('button', {
+      name: /1 comandă programată pentru azi — nu este încă în livrare/i,
+    })
+    expect(screen.queryByText('Ana Programată')).not.toBeInTheDocument()
+
+    await user.click(banner)
+
+    expect(screen.getByText('Ana Programată')).toBeInTheDocument()
+    expect(screen.getAllByText('Caserolă 300 g × 2')).toHaveLength(2)
   })
 })

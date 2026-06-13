@@ -55,7 +55,11 @@ function deliverRequest() {
   )
 }
 
-function patchRequest(body: { status?: string; notified_wa?: boolean }) {
+function patchRequest(body: {
+  status?: string
+  notified_wa?: boolean
+  delivery_date?: string | null
+}) {
   return PATCH(
     createSameOriginRequest(`/api/shop/b2c/orders/${orderId}`, {
       method: 'PATCH',
@@ -219,6 +223,26 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     expect(updateMock).toHaveBeenCalledWith({
       status: 'in_livrare',
       delivery_date: '2026-06-15',
+    })
+  })
+
+  it('actualizează separat data programată fără a schimba statusul', async () => {
+    const response = await patchRequest({ delivery_date: '2026-06-18' })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith({
+      delivery_date: '2026-06-18',
+    })
+    expect(rpcMock).not.toHaveBeenCalled()
+    expect(selectMaybeSingleMock).not.toHaveBeenCalled()
+  })
+
+  it('șterge data programată cu null', async () => {
+    const response = await patchRequest({ delivery_date: null })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith({
+      delivery_date: null,
     })
   })
 

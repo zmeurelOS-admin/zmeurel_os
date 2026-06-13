@@ -255,6 +255,15 @@ describe('GET /api/shop/campaign/[slug]/admin', () => {
       { status: 'livrata', orderCount: 0 },
       { status: 'anulata', orderCount: 1 },
     ])
+    expect(payload.deliverySchedule).toEqual([
+      {
+        date: 'neprogramate',
+        label: 'Neprogramate',
+        orderCount: 1,
+        totalQty: 5,
+        totalLei: 90,
+      },
+    ])
     expect(payload.milestones).toEqual([
       expect.objectContaining({
         id: milestoneId,

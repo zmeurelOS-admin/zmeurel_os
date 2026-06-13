@@ -13,6 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Input } from '@/components/ui/input'
 import {
   Sheet,
@@ -136,6 +137,7 @@ type OrderRequestPayload = {
   campaign_id: string
   idempotencyKey: string
   inSuceava?: boolean
+  preferredDeliveryDate?: string | null
   items: Array<{
     vid: string
     label: string
@@ -420,6 +422,8 @@ export function ShopClient({
   const [inSuceava, setInSuceava] = useState<boolean | null>(null)
   const [orderAddress, setOrderAddress] = useState('')
   const [orderCity, setOrderCity] = useState('')
+  const [preferredDeliveryDate, setPreferredDeliveryDate] = useState('')
+  const [preferredDeliveryDateVisible, setPreferredDeliveryDateVisible] = useState(false)
   const [orderNotes, setOrderNotes] = useState('')
   const [orderSubmitting, setOrderSubmitting] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
@@ -697,6 +701,24 @@ export function ShopClient({
   const visiblePhoneError =
     fieldErrors.phone ?? (phoneTouched && !normalizedOrderPhone ? ROMANIAN_PHONE_ERROR : undefined)
   const deliveryMinimumMessage = getDeliveryMinimumMessage(deliveryMode, inSuceava, cartCount)
+  const preferredDeliveryDateMin = useMemo(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 1)
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-')
+  }, [])
+  const preferredDeliveryDateMax = useMemo(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 60)
+    return [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0'),
+    ].join('-')
+  }, [])
 
   const setQty = useCallback((id: string, next: number) => {
     setQtyById((prev) => {
@@ -864,6 +886,8 @@ export function ShopClient({
       checkoutIdempotencyKeyRef.current = null
       pendingOrderPayloadRef.current = null
       setRecentOrder(null)
+      setPreferredDeliveryDate('')
+      setPreferredDeliveryDateVisible(false)
       setQtyById(primaryProduct?.available ? { [primaryProduct.id]: 1 } : {})
       setOrderSubmitting(false)
       orderSubmitLockRef.current = false
@@ -924,6 +948,9 @@ export function ShopClient({
       campaign_id: CAMPAIGN_DATA.campaignId,
       idempotencyKey: checkoutIdempotencyKeyRef.current,
       ...(deliveryMode === 'livrare' && inSuceava !== null ? { inSuceava } : {}),
+      ...(deliveryMode === 'livrare'
+        ? { preferredDeliveryDate: preferredDeliveryDate || null }
+        : {}),
       items,
       total_lei: cartTotal,
       notes: orderNotes.trim() || undefined,
@@ -1604,6 +1631,44 @@ export function ShopClient({
                         onChange={setOrderAddress}
                         error={fieldErrors.address}
                       />
+                    </div>
+                    <div>
+                      {!preferredDeliveryDateVisible && !preferredDeliveryDate ? (
+                        <button
+                          type="button"
+                          onClick={() => setPreferredDeliveryDateVisible(true)}
+                          className="min-h-11 text-left text-xs font-semibold text-[#3D7A5F] underline decoration-[#3D7A5F]/35 underline-offset-4"
+                        >
+                          Ai o dată preferată de livrare? (opțional)
+                        </button>
+                      ) : (
+                        <div className="rounded-xl border border-[#F3DAD4] bg-[#FFF6F3] p-3">
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="text-xs font-semibold text-[#312E3F]">
+                              Dată preferată de livrare (opțional)
+                            </p>
+                            {preferredDeliveryDate ? (
+                              <button
+                                type="button"
+                                aria-label="Șterge data preferată"
+                                onClick={() => setPreferredDeliveryDate('')}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold text-[#312E3F]/60 transition active:scale-[0.98]"
+                              >
+                                ×
+                              </button>
+                            ) : null}
+                          </div>
+                          <AppDatePicker
+                            id="shop-preferred-delivery-date"
+                            placeholder="Selectează data"
+                            value={preferredDeliveryDate}
+                            min={preferredDeliveryDateMin}
+                            max={preferredDeliveryDateMax}
+                            triggerClassName="h-11 border-[#F3DAD4] bg-white text-sm"
+                            onChange={setPreferredDeliveryDate}
+                          />
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : (

@@ -33,6 +33,7 @@ const bodySchema = z.object({
   campaign_id: z.string().uuid().nullable().optional(),
   idempotencyKey: z.string().uuid().optional(),
   inSuceava: z.boolean().nullable().optional(),
+  preferredDeliveryDate: z.string().date().nullable().optional(),
   items: z.array(lineSchema).length(1, 'Coșul trebuie să conțină doar zmeură'),
   total_lei: z.number().int().positive('Total invalid'),
   notes: z.string().trim().max(2000).optional(),
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
     campaign_id,
     idempotencyKey,
     inSuceava,
+    preferredDeliveryDate,
     items,
     notes,
   } = parsed.data
@@ -133,6 +135,8 @@ export async function POST(request: Request) {
       p_notes: (notes?.trim() || null) as unknown as string,
       p_idempotency_key: idempotencyKey ?? null,
       ...(delivery_mode === 'livrare' ? { p_in_suceava: inSuceava ?? null } : {}),
+      p_preferred_delivery_date:
+        delivery_mode === 'livrare' ? preferredDeliveryDate ?? null : null,
     })
     const parsedResult = preorderResultSchema.safeParse(data)
 
@@ -167,6 +171,7 @@ export async function POST(request: Request) {
         delivery_mode,
         delivery_address: delivery_address?.trim() || null,
         delivery_city: delivery_city?.trim() || null,
+        delivery_date: delivery_mode === 'livrare' ? preferredDeliveryDate ?? null : null,
         items: normalizedItems as Json,
         total_lei: totalLei,
         notes: notes?.trim() || null,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  aggregateDeliverySchedule,
   aggregateOrderStatuses,
   aggregateOrdersByDay,
   aggregateOrdersByDeliveryMode,
@@ -194,6 +195,58 @@ describe('campaign admin leaderboard', () => {
       { status: 'in_livrare', orderCount: 0 },
       { status: 'livrata', orderCount: 0 },
       { status: 'anulata', orderCount: 1 },
+    ])
+  })
+
+  it('agregă livrările din următoarele 7 zile și păstrează neprogramatele primele', () => {
+    expect(
+      aggregateDeliverySchedule(
+        [
+          order({
+            delivery_date: null,
+            items: [{ qty: 2 }],
+            total_lei: 40,
+          }),
+          order({
+            delivery_date: '2026-06-14',
+            items: [{ qty: 3 }],
+            total_lei: 60,
+          }),
+          order({
+            delivery_date: '2026-06-15',
+            items: [{ qty: 4 }],
+            total_lei: 80,
+          }),
+          order({
+            delivery_date: '2026-06-21',
+            items: [{ qty: 10 }],
+            total_lei: 200,
+          }),
+        ],
+        new Date('2026-06-14T08:00:00.000Z'),
+      ),
+    ).toEqual([
+      {
+        date: 'neprogramate',
+        label: 'Neprogramate',
+        orderCount: 1,
+        totalQty: 2,
+        totalLei: 40,
+      },
+      {
+        date: '2026-06-14',
+        label: 'Azi',
+        orderCount: 1,
+        totalQty: 3,
+        totalLei: 60,
+      },
+      {
+        date: '2026-06-15',
+        label: 'Mâine',
+        orderCount: 1,
+        totalQty: 4,
+        totalLei: 80,
+      },
     ])
   })
 })

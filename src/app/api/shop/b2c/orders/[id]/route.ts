@@ -15,12 +15,22 @@ const patchBodySchema = z
   .object({
     status: z.enum(['noua', 'confirmata', 'in_livrare', 'livrata', 'anulata']).optional(),
     notified_wa: z.boolean().optional(),
+    delivery_date: z.string().date().nullable().optional(),
   })
-  .refine((body) => body.status !== undefined || body.notified_wa !== undefined, {
-    message: 'Trimite status sau notified_wa.',
-  })
+  .refine(
+    (body) =>
+      body.status !== undefined ||
+      body.notified_wa !== undefined ||
+      body.delivery_date !== undefined,
+    {
+      message: 'Trimite status, notified_wa sau delivery_date.',
+    },
+  )
   .refine((body) => body.status !== 'livrata' || body.notified_wa === undefined, {
     message: 'Livrarea și notificarea WhatsApp se actualizează separat.',
+  })
+  .refine((body) => body.status !== 'livrata' || body.delivery_date === undefined, {
+    message: 'Livrarea și data programată se actualizează separat.',
   })
 
 function errorResponse(message: string, status: number) {
@@ -77,9 +87,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ success: true, delivery: data })
   }
 
-  const updates: { status?: string; notified_wa?: boolean; delivery_date?: string } = {}
+  const updates: { status?: string; notified_wa?: boolean; delivery_date?: string | null } = {}
   if (parsed.data.status !== undefined) updates.status = parsed.data.status
   if (parsed.data.notified_wa !== undefined) updates.notified_wa = parsed.data.notified_wa
+  if (parsed.data.delivery_date !== undefined) updates.delivery_date = parsed.data.delivery_date
 
   let tenantId: string
   try {
@@ -93,7 +104,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const admin = getSupabaseAdmin()
-  if (parsed.data.status === 'in_livrare') {
+  if (parsed.data.status === 'in_livrare' && parsed.data.delivery_date === undefined) {
     const { data: currentOrder, error: currentOrderError } = await admin
       .from('shop_orders')
       .select('delivery_date')

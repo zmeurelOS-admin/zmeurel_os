@@ -25,6 +25,12 @@ export type UnifiedOrderItem = {
   shopOrder?: ShopOrderRow
 }
 
+export type ShopOrderDeliveryGroup = {
+  date: string | null
+  orders: ShopOrderRow[]
+  totalQty: number
+}
+
 export const SHOP_STATUS_LABELS: Record<ShopOrderStatus, string> = {
   noua: 'Nouă',
   confirmata: 'Confirmată',
@@ -102,6 +108,49 @@ export function mapShopToUnified(order: ShopOrderRow): UnifiedOrderItem {
 
 export function isUnifiedOpenStatus(status: string): boolean {
   return status !== 'livrata' && status !== 'anulata'
+}
+
+export function getShopOrderQuantity(order: ShopOrderRow): number {
+  if (!Array.isArray(order.items)) return 0
+
+  return order.items.reduce<number>((total, raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return total
+    const qty = Number((raw as { qty?: unknown }).qty)
+    return Number.isFinite(qty) && qty > 0 ? total + qty : total
+  }, 0)
+}
+
+export function groupShopOrdersByDeliveryDate(
+  orders: ShopOrderRow[],
+): ShopOrderDeliveryGroup[] {
+  const eligible = orders
+    .filter((order) => order.order_kind === 'preorder' && order.status !== 'anulata')
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  const byDate = new Map<string, ShopOrderRow[]>()
+  const unscheduled: ShopOrderRow[] = []
+
+  for (const order of eligible) {
+    if (!order.delivery_date) {
+      unscheduled.push(order)
+      continue
+    }
+    const current = byDate.get(order.delivery_date) ?? []
+    current.push(order)
+    byDate.set(order.delivery_date, current)
+  }
+
+  const toGroup = (date: string | null, groupedOrders: ShopOrderRow[]) => ({
+    date,
+    orders: groupedOrders,
+    totalQty: groupedOrders.reduce((total, order) => total + getShopOrderQuantity(order), 0),
+  })
+
+  return [
+    ...(unscheduled.length > 0 ? [toGroup(null, unscheduled)] : []),
+    ...[...byDate.entries()]
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, groupedOrders]) => toGroup(date, groupedOrders)),
+  ]
 }
 
 export function mergeUnifiedOrders(

@@ -214,7 +214,8 @@ function CalendarPanel({
       <button
         type="button"
         onClick={onToday}
-        className="flex h-10 w-full items-center justify-center rounded-lg border border-[var(--agri-border)] text-sm font-medium text-[var(--agri-primary)] transition-colors hover:bg-[var(--agri-surface-muted)]"
+        disabled={isDateDisabled(new Date(), min, max)}
+        className="flex h-10 w-full items-center justify-center rounded-lg border border-[var(--agri-border)] text-sm font-medium text-[var(--agri-primary)] transition-colors hover:bg-[var(--agri-surface-muted)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
       >
         Astăzi
       </button>
@@ -289,6 +290,7 @@ export function AppDatePicker({
 
   const handleToday = () => {
     const today = new Date()
+    if (isDateDisabled(today, min, max)) return
     setViewMonth(today)
     if (mode === 'datetime') {
       const iso = getLocalTodayIsoDate()

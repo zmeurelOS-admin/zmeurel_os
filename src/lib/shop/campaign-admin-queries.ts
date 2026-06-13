@@ -55,6 +55,11 @@ export type CampaignAdminStatusSummary = {
   orderCount: number
 }
 
+export type CampaignAdminDeliveryScheduleEntry = CampaignAdminTotals & {
+  date: string
+  label: string
+}
+
 export type CampaignAdminPayload = {
   campaign: {
     id: string
@@ -71,6 +76,7 @@ export type CampaignAdminPayload = {
   deliverySummary: CampaignAdminDeliverySummary[]
   zoneSummary: CampaignAdminZoneSummary[]
   statusSummary: CampaignAdminStatusSummary[]
+  deliverySchedule: CampaignAdminDeliveryScheduleEntry[]
 }
 
 type MutableLeaderboardEntry = Omit<
@@ -102,6 +108,30 @@ function bucharestDateKey(value: string): string {
   }).formatToParts(date)
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
   return `${values.year}-${values.month}-${values.day}`
+}
+
+function addDaysToIsoDate(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number)
+  const next = new Date(Date.UTC(year, month - 1, day + days, 12))
+  return [
+    next.getUTCFullYear(),
+    String(next.getUTCMonth() + 1).padStart(2, '0'),
+    String(next.getUTCDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function deliveryScheduleLabel(date: string, today: string): string {
+  if (date === today) return 'Azi'
+  if (date === addDaysToIsoDate(today, 1)) return 'Mâine'
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T12:00:00.000Z`))
+}
+
+function emptyTotals(): CampaignAdminTotals {
+  return { orderCount: 0, totalQty: 0, totalLei: 0 }
 }
 
 export function aggregateLeaderboard(
@@ -183,6 +213,48 @@ export function aggregateOrdersByDay(
   return [...byDate.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([date, totals]) => ({ date, ...totals }))
+}
+
+export function aggregateDeliverySchedule(
+  orders: ShopOrderRow[],
+  now = new Date(),
+): CampaignAdminDeliveryScheduleEntry[] {
+  const today = bucharestDateKey(now.toISOString())
+  const lastDay = addDaysToIsoDate(today, 6)
+  const unscheduled = emptyTotals()
+  const byDate = new Map<string, CampaignAdminTotals>()
+
+  for (const order of orders) {
+    const qty = quantityFromItems(order.items)
+    if (!order.delivery_date) {
+      unscheduled.orderCount += 1
+      unscheduled.totalQty += qty
+      unscheduled.totalLei += Number(order.total_lei) || 0
+      continue
+    }
+    if (order.delivery_date < today || order.delivery_date > lastDay) continue
+
+    const current = byDate.get(order.delivery_date) ?? emptyTotals()
+    current.orderCount += 1
+    current.totalQty += qty
+    current.totalLei += Number(order.total_lei) || 0
+    byDate.set(order.delivery_date, current)
+  }
+
+  return [
+    {
+      date: 'neprogramate',
+      label: 'Neprogramate',
+      ...unscheduled,
+    },
+    ...[...byDate.entries()]
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, totals]) => ({
+        date,
+        label: deliveryScheduleLabel(date, today),
+        ...totals,
+      })),
+  ]
 }
 
 export function aggregateOrdersByDeliveryMode(

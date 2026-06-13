@@ -2,6 +2,7 @@
 
 import { MessageCircle, Phone } from 'lucide-react'
 
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import type { ComandaStatus } from '@/lib/supabase/queries/comenzi'
 import { waUrlForPhone } from '@/lib/shop/b2c-order-helpers'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
@@ -74,6 +75,7 @@ export function UnifiedOrderCard({
   onB2bStatusChange,
   onShopStatusChange,
   onShopConfirmedChange,
+  onShopDeliveryDateChange,
 }: {
   item: UnifiedOrderItem
   disabled?: boolean
@@ -81,6 +83,7 @@ export function UnifiedOrderCard({
   onB2bStatusChange?: (id: string, status: ComandaStatus) => void
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
+  onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
 }) {
   const phoneHref = item.phone ? `tel:${item.phone.replace(/\s/g, '')}` : undefined
   const waHref = item.phone ? waUrlForPhone(item.phone) : undefined
@@ -137,6 +140,11 @@ export function UnifiedOrderCard({
         <span className="text-[var(--text-tertiary)]"> · </span>
         <span className="text-[var(--text-secondary)]">{item.addressShort}</span>
       </p>
+      {item.source === 'shop' && item.shopOrder?.delivery_date ? (
+        <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">
+          Livrat preferabil: {formatOrderDateShort(item.shopOrder.delivery_date)}
+        </p>
+      ) : null}
 
       <p className="mt-1 text-xs text-[var(--text-tertiary)]">
         {new Intl.DateTimeFormat('ro-RO', {
@@ -150,6 +158,35 @@ export function UnifiedOrderCard({
       </p>
 
       <div className="mt-3 flex flex-col gap-2">
+        {item.source === 'shop' &&
+        item.shopOrder?.order_kind === 'preorder' &&
+        onShopDeliveryDateChange ? (
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2.5">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-[var(--text-secondary)]">Data livrării</p>
+              {item.shopOrder.delivery_date ? (
+                <button
+                  type="button"
+                  aria-label={`Șterge data livrării pentru ${item.customerName}`}
+                  disabled={disabled}
+                  onClick={() => onShopDeliveryDateChange(item.id, null)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-lg text-[var(--text-tertiary)] transition active:scale-[0.98] disabled:opacity-50"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+            <AppDatePicker
+              id={`shop-delivery-date-${item.id}`}
+              placeholder="Setează data"
+              value={item.shopOrder.delivery_date ?? ''}
+              disabled={disabled}
+              triggerClassName="h-11 bg-[var(--surface-card)] text-sm"
+              onChange={(value) => onShopDeliveryDateChange(item.id, value)}
+            />
+          </div>
+        ) : null}
+
         {waHref ? (
           <a
             href={waHref}
@@ -209,4 +246,12 @@ export function UnifiedOrderCard({
       </div>
     </article>
   )
+}
+
+function formatOrderDateShort(value: string): string {
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T12:00:00.000Z`))
 }

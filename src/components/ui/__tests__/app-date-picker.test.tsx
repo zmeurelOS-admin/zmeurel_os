@@ -57,6 +57,32 @@ describe('AppDatePicker', () => {
     expect(onChange).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
   })
 
+  it('dezactivează Astăzi când data minimă este mâine', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const min = [
+      tomorrow.getFullYear(),
+      String(tomorrow.getMonth() + 1).padStart(2, '0'),
+      String(tomorrow.getDate()).padStart(2, '0'),
+    ].join('-')
+
+    render(
+      <AppDatePicker
+        id="test-min-tomorrow"
+        label="Data preferată"
+        value=""
+        min={min}
+        onChange={onChange}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Data preferată' }))
+    expect(screen.getByRole('button', { name: 'Astăzi' })).toBeDisabled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('folosește input nativ type="time" pentru oră (calendarul rămâne custom)', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

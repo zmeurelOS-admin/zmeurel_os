@@ -18,6 +18,7 @@ export type ShopOrderRow = {
   in_suceava?: boolean | null
   delivery_date: string | null
   delivery_position: number | null
+  order_kind?: string
   items: Json
   total_lei: number
   notes: string | null

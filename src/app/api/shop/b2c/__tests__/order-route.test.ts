@@ -150,6 +150,7 @@ describe('POST /api/shop/b2c/order', () => {
       ...baseBody(),
       campaign_id: campaignId,
       idempotencyKey: '55555555-5555-4555-8555-555555555555',
+      preferredDeliveryDate: null,
       delivery_mode: 'ridicare',
       delivery_address: undefined,
       delivery_city: undefined,
@@ -204,6 +205,7 @@ describe('POST /api/shop/b2c/order', () => {
     )
     const preorderCall = rpcSpy.mock.calls.find(([name]) => name === 'place_preorder_atomic')
     expect(preorderCall?.[1]).not.toHaveProperty('p_in_suceava')
+    expect(preorderCall?.[1]).toHaveProperty('p_preferred_delivery_date', null)
     expect(rpcSpy).toHaveBeenCalledWith(
       'upsert_shop_customer',
       expect.objectContaining({
@@ -232,6 +234,7 @@ describe('POST /api/shop/b2c/order', () => {
           campaign_id: campaignId,
           idempotencyKey: '55555555-5555-4555-8555-555555555555',
           inSuceava: true,
+          preferredDeliveryDate: '2026-06-20',
         },
       }),
     )
@@ -242,8 +245,25 @@ describe('POST /api/shop/b2c/order', () => {
       expect.objectContaining({
         p_idempotency_key: '55555555-5555-4555-8555-555555555555',
         p_in_suceava: true,
+        p_preferred_delivery_date: '2026-06-20',
       }),
     )
+  })
+
+  it('respinge o dată preferată care nu este ISO date', async () => {
+    const response = await POST(
+      createSameOriginRequest('/api/shop/b2c/order', {
+        method: 'POST',
+        json: {
+          ...baseBody(),
+          campaign_id: '21d158e1-dfa3-4db3-894b-d64ecad29b45',
+          preferredDeliveryDate: '20.06.2026',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(rpcSpy).not.toHaveBeenCalled()
   })
 
   it('propagă doar eroarea RPC pentru cantitatea minimă de livrare', async () => {

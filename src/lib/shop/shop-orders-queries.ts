@@ -1,7 +1,8 @@
 import { getSupabase } from '@/lib/supabase/client'
-import type {
-  ShopOrderMilestoneReward,
-  ShopOrderRow,
+import {
+  todayBucharestDate,
+  type ShopOrderMilestoneReward,
+  type ShopOrderRow,
 } from '@/lib/shop/b2c-order-helpers'
 
 type RewardRow = ShopOrderMilestoneReward & {
@@ -52,6 +53,23 @@ export async function fetchShopOrders(): Promise<ShopOrderRow[]> {
 export async function fetchShopOrdersInLivrare(): Promise<ShopOrderRow[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase.rpc('list_shop_orders_in_delivery_today')
+
+  if (error) throw error
+  return attachMilestoneRewards((data ?? []) as ShopOrderRow[])
+}
+
+export async function fetchShopOrdersScheduledToday(
+  tenantId: string,
+): Promise<ShopOrderRow[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('shop_orders')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('delivery_date', todayBucharestDate())
+    .in('status', ['noua', 'confirmata'])
+    .order('delivery_position', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return attachMilestoneRewards((data ?? []) as ShopOrderRow[])

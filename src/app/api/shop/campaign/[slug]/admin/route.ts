@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
 import {
+  aggregateDeliverySchedule,
   aggregateOrderStatuses,
   aggregateOrdersByDay,
   aggregateOrdersByDeliveryMode,
@@ -197,6 +198,7 @@ export async function GET(
       statusSummary: aggregateOrderStatuses(
         (statusRows ?? []) as Array<Pick<ShopOrderRow, 'status'>>,
       ),
+      deliverySchedule: aggregateDeliverySchedule(activeOrders),
     }
 
     return NextResponse.json(payload, {

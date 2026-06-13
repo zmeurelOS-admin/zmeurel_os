@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import {
@@ -49,7 +50,10 @@ import {
   formatLei,
   type ShopOrderRow,
 } from '@/lib/shop/b2c-order-helpers'
-import { fetchShopOrdersInLivrare } from '@/lib/shop/shop-orders-queries'
+import {
+  fetchShopOrdersInLivrare,
+  fetchShopOrdersScheduledToday,
+} from '@/lib/shop/shop-orders-queries'
 import { toast } from '@/lib/ui/toast'
 import type { Json } from '@/types/supabase'
 
@@ -98,6 +102,7 @@ function parseEditableItems(items: Json): EditableOrderItem[] {
 
 export function LivrariPageClient() {
   const queryClient = useQueryClient()
+  const { tenantId } = useDashboardAuth()
   const [orderedIds, setOrderedIds] = useState<string[]>([])
   const [reorderOriginalIds, setReorderOriginalIds] = useState<string[] | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -105,13 +110,23 @@ export function LivrariPageClient() {
   const [deliverTarget, setDeliverTarget] = useState<ShopOrderRow | null>(null)
   const [editTarget, setEditTarget] = useState<ShopOrderRow | null>(null)
   const [deliveredInSession, setDeliveredInSession] = useState<ShopOrderRow[]>([])
+  const [scheduledTodayExpanded, setScheduledTodayExpanded] = useState(false)
 
   const ordersQuery = useQuery({
     queryKey: queryKeys.shopOrdersInLivrare,
     queryFn: fetchShopOrdersInLivrare,
   })
+  const scheduledTodayQuery = useQuery({
+    queryKey: queryKeys.shopOrdersScheduledToday(tenantId),
+    queryFn: () => fetchShopOrdersScheduledToday(tenantId!),
+    enabled: Boolean(tenantId),
+  })
 
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
+  const scheduledToday = useMemo(
+    () => scheduledTodayQuery.data ?? [],
+    [scheduledTodayQuery.data],
+  )
 
   const orderedOrders = useMemo(() => {
     if (orderedIds.length === 0) return orders
@@ -132,7 +147,10 @@ export function LivrariPageClient() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
-  }, [queryClient])
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.shopOrdersScheduledToday(tenantId),
+    })
+  }, [queryClient, tenantId])
 
   const moveOrder = useCallback((id: string, direction: 'up' | 'down') => {
     setOrderedIds((current) => {
@@ -277,6 +295,52 @@ export function LivrariPageClient() {
             message={(ordersQuery.error as Error)?.message ?? 'Nu am putut încărca livrările.'}
             onRetry={() => void ordersQuery.refetch()}
           />
+        ) : null}
+
+        {scheduledToday.length > 0 ? (
+          <section className="overflow-hidden rounded-[20px] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] shadow-[var(--shadow-soft)]">
+            <button
+              type="button"
+              className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left"
+              aria-expanded={scheduledTodayExpanded}
+              onClick={() => setScheduledTodayExpanded((current) => !current)}
+            >
+              <span className="text-sm font-bold leading-relaxed">
+                📋 {scheduledToday.length}{' '}
+                {scheduledToday.length === 1 ? 'comandă programată' : 'comenzi programate'} pentru
+                azi — {scheduledToday.length === 1 ? 'nu este' : 'nu sunt'} încă în livrare
+              </span>
+              <span className="shrink-0 text-xs font-bold">
+                {scheduledTodayExpanded ? 'Ascunde ↑' : 'Vezi comenzile →'}
+              </span>
+            </button>
+
+            {scheduledTodayExpanded ? (
+              <div className="space-y-2 border-t border-[var(--status-warning-border)] px-3 py-3">
+                {scheduledToday.map((order) => (
+                  <article
+                    key={order.id}
+                    className="rounded-xl bg-[var(--surface-card)] px-3 py-3 text-[var(--text-primary)]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold">{order.customer_name}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-[var(--text-secondary)]">
+                          {order.delivery_address?.trim() || 'Adresă necompletată'}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-bold text-[var(--brand-coral)]">
+                        {formatLei(order.total_lei)} lei
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-[var(--text-secondary)]">
+                      {formatItemsHuman(order.items)}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         {!ordersQuery.isLoading && !ordersQuery.isError && orders.length > 0 ? (

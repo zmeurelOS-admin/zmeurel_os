@@ -330,6 +330,80 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
           </article>
         </section>
 
+        <section className="rounded-2xl bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">
+              Livrări planificate — 7 zile
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Astăzi și următoarele 6 zile, plus comenzile fără dată
+            </p>
+          </div>
+
+          <div className="space-y-2 sm:hidden">
+            {initialData.deliverySchedule.map((entry) => (
+              <div
+                key={entry.date}
+                className={`rounded-xl p-3 ${
+                  entry.date === 'neprogramate'
+                    ? 'bg-[var(--status-warning-bg)]'
+                    : entry.label === 'Azi'
+                      ? 'bg-[var(--brand-coral-soft)]'
+                      : 'bg-[var(--surface-card-muted)]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-bold text-[var(--text-primary)]">{entry.label}</p>
+                  {entry.date === 'neprogramate' ? (
+                    <Badge variant="warning">Fără dată</Badge>
+                  ) : entry.label === 'Azi' ? (
+                    <Badge variant="default">Azi</Badge>
+                  ) : null}
+                </div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--text-secondary)]">
+                  <span>{entry.orderCount} comenzi</span>
+                  <span>{entry.totalQty} caserole</span>
+                  <span className="text-right font-bold">{formatLei(entry.totalLei)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full min-w-[560px] text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide text-[var(--text-tertiary)]">
+                <tr>
+                  <th className="px-3 py-2">Data</th>
+                  <th className="px-3 py-2 text-right">Comenzi</th>
+                  <th className="px-3 py-2 text-right">Caserole</th>
+                  <th className="px-3 py-2 text-right">Valoare</th>
+                </tr>
+              </thead>
+              <tbody>
+                {initialData.deliverySchedule.map((entry) => (
+                  <tr
+                    key={entry.date}
+                    className={`border-t border-[var(--divider)] ${
+                      entry.date === 'neprogramate'
+                        ? 'bg-[var(--status-warning-bg)]'
+                        : entry.label === 'Azi'
+                          ? 'bg-[var(--brand-coral-soft)] font-bold'
+                          : ''
+                    }`}
+                  >
+                    <td className="px-3 py-3 font-semibold">{entry.label}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{entry.orderCount}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{entry.totalQty}</td>
+                    <td className="px-3 py-3 text-right font-semibold tabular-nums">
+                      {formatLei(entry.totalLei)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section className="grid gap-4 lg:grid-cols-2">
           <article className="rounded-2xl bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
             <div className="mb-4">

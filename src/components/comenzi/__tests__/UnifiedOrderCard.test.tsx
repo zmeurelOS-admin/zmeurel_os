@@ -2,7 +2,11 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
-import { mapB2bToUnified, mapShopToUnified } from '@/lib/comenzi/unified-orders'
+import {
+  groupShopOrdersByDeliveryDate,
+  mapB2bToUnified,
+  mapShopToUnified,
+} from '@/lib/comenzi/unified-orders'
 import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
@@ -15,6 +19,7 @@ const order: ShopOrderRow = {
   delivery_address: 'Suceava',
   delivery_date: '2026-06-10',
   delivery_position: 1,
+  order_kind: 'preorder',
   items: [{ vid: 'zmeura', label: 'Caserolă', qty: 2 }],
   total_lei: 35,
   notes: null,
@@ -36,9 +41,19 @@ describe('UnifiedOrderCard', () => {
   })
 
   it('grupează controalele shop distincte sub blocul Status', () => {
-    render(<UnifiedOrderCard item={mapShopToUnified(order)} />)
+    render(
+      <UnifiedOrderCard
+        item={mapShopToUnified(order)}
+        onShopDeliveryDateChange={() => undefined}
+      />,
+    )
 
     expect(screen.getByText('Status')).toBeInTheDocument()
+    expect(screen.getByText('Livrat preferabil: 10 iun.')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Setează data' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Șterge data livrării pentru Maria Popescu' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Schimbă statusul comenzii' })).toHaveValue('in_livrare')
     expect(screen.getByRole('checkbox', { name: 'Confirmat' })).toBeChecked()
   })
@@ -70,5 +85,23 @@ describe('UnifiedOrderCard', () => {
     expect(screen.getByText('35 kg · 3,50 lei/kg · Total 122,50 lei')).toBeInTheDocument()
     expect(screen.getByText('✏️ Manual')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
+  })
+
+  it('grupează precomenzile cu neprogramatele primele și zilele cronologic', () => {
+    const groups = groupShopOrdersByDeliveryDate([
+      { ...order, id: 'scheduled-late', delivery_date: '2026-06-20', created_at: '2026-06-11T08:00:00Z' },
+      { ...order, id: 'unscheduled', delivery_date: null, created_at: '2026-06-12T08:00:00Z' },
+      { ...order, id: 'scheduled-early-new', delivery_date: '2026-06-15', created_at: '2026-06-11T08:00:00Z' },
+      { ...order, id: 'scheduled-early-old', delivery_date: '2026-06-15', created_at: '2026-06-10T08:00:00Z' },
+      { ...order, id: 'cancelled', status: 'anulata' },
+      { ...order, id: 'standard', order_kind: 'standard' },
+    ])
+
+    expect(groups.map((group) => group.date)).toEqual([null, '2026-06-15', '2026-06-20'])
+    expect(groups[1].orders.map((entry) => entry.id)).toEqual([
+      'scheduled-early-old',
+      'scheduled-early-new',
+    ])
+    expect(groups[1].totalQty).toBe(4)
   })
 })

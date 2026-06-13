@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -83,7 +83,12 @@ import {
   magazinGroupKey,
   sortComenziForMagazinGrouping,
 } from '@/lib/comenzi/magazin-groups'
-import { isUnifiedOpenStatus, mergeUnifiedOrders } from '@/lib/comenzi/unified-orders'
+import {
+  groupShopOrdersByDeliveryDate,
+  isUnifiedOpenStatus,
+  mapShopToUnified,
+  mergeUnifiedOrders,
+} from '@/lib/comenzi/unified-orders'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 
@@ -358,6 +363,41 @@ function PillTabs({
         </ModulePillFilterButton>
       ))}
     </ModulePillRow>
+  )
+}
+
+function ShopDeliveryGroupSection({
+  date,
+  orderCount,
+  totalQty,
+  children,
+}: {
+  date: string | null
+  orderCount: number
+  totalQty: number
+  children: ReactNode
+}) {
+  const label = date
+    ? `📅 ${new Intl.DateTimeFormat('ro-RO', {
+        day: 'numeric',
+        month: 'long',
+        timeZone: 'UTC',
+      }).format(new Date(`${date}T12:00:00.000Z`))}`
+    : 'Neprogramate'
+
+  return (
+    <section className="space-y-3">
+      <div
+        className={`rounded-xl px-3 py-2 text-sm font-bold ${
+          date
+            ? 'bg-[var(--surface-card-muted)] text-[var(--text-primary)]'
+            : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+        }`}
+      >
+        {label} — {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'} · {totalQty} caserole
+      </div>
+      {children}
+    </section>
   )
 }
 
@@ -1205,13 +1245,19 @@ export function ComenziPageClient() {
   })
 
   const patchShopOrderMutation = useMutation({
-    mutationFn: async (input: { id: string; status?: ShopOrderStatus; notified_wa?: boolean }) => {
+    mutationFn: async (input: {
+      id: string
+      status?: ShopOrderStatus
+      notified_wa?: boolean
+      delivery_date?: string | null
+    }) => {
       const res = await fetch(`/api/shop/b2c/orders/${input.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...(input.status !== undefined ? { status: input.status } : {}),
           ...(input.notified_wa !== undefined ? { notified_wa: input.notified_wa } : {}),
+          ...(input.delivery_date !== undefined ? { delivery_date: input.delivery_date } : {}),
         }),
       })
       const json = (await res.json()) as { success?: boolean; error?: string }
@@ -1223,6 +1269,14 @@ export function ComenziPageClient() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
+
+      if (variables.delivery_date !== undefined) {
+        toast.success(
+          variables.delivery_date
+            ? 'Data livrării a fost actualizată'
+            : 'Data livrării a fost ștearsă',
+        )
+      }
 
       if (variables.status === 'in_livrare') {
         toast('Comanda mutată în livrări 🚚', { duration: 1200 })
@@ -1296,13 +1350,20 @@ export function ComenziPageClient() {
   const today = todayIso()
   const activeComenzi = useMemo(() => comenzi.filter((item) => isOpenStatus(item.status)), [comenzi])
   const livrateComenzi = useMemo(() => comenzi.filter((item) => item.status === 'livrata'), [comenzi])
-  const shopActiveCount = useMemo(
-    () => shopOrders.filter((item) => isUnifiedOpenStatus(item.status)).length,
+  const preorderShopOrders = useMemo(
+    () =>
+      shopOrders.filter(
+        (item) => item.order_kind === 'preorder' && item.status !== 'anulata',
+      ),
     [shopOrders],
   )
+  const shopActiveCount = useMemo(
+    () => preorderShopOrders.filter((item) => isUnifiedOpenStatus(item.status)).length,
+    [preorderShopOrders],
+  )
   const shopLivrateCount = useMemo(
-    () => shopOrders.filter((item) => item.status === 'livrata').length,
-    [shopOrders],
+    () => preorderShopOrders.filter((item) => item.status === 'livrata').length,
+    [preorderShopOrders],
   )
 
   const vanzareById = useMemo(() => {
@@ -1375,7 +1436,7 @@ export function ComenziPageClient() {
   }, [activeFilter, clientMap, listSource, neincasatComandaIds, search, today])
 
   const unifiedFiltered = useMemo(() => {
-    const merged = mergeUnifiedOrders(comenzi, shopOrders, clientMap)
+    const merged = mergeUnifiedOrders(comenzi, preorderShopOrders, clientMap)
     const term = normalize(search)
 
     return merged.filter((item) => {
@@ -1396,7 +1457,18 @@ export function ComenziPageClient() {
       const phone = normalize(item.phone)
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, activeTab, clientMap, comenzi, neincasatComandaIds, search, shopOrders, today])
+  }, [activeFilter, activeTab, clientMap, comenzi, neincasatComandaIds, preorderShopOrders, search, today])
+  const visibleB2bOrders = useMemo(
+    () => unifiedFiltered.filter((item) => item.source === 'b2b'),
+    [unifiedFiltered],
+  )
+  const visibleShopGroups = useMemo(
+    () =>
+      groupShopOrdersByDeliveryDate(
+        unifiedFiltered.flatMap((item) => (item.shopOrder ? [item.shopOrder] : [])),
+      ),
+    [unifiedFiltered],
+  )
 
   const sortedComenziForView = useMemo(
     () => sortComenziForMagazinGrouping(filteredComenzi),
@@ -1721,12 +1793,39 @@ export function ComenziPageClient() {
 
         {section === 'comenzi' && !isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length > 0 ? (
           <>
-            <div className="space-y-3 md:hidden">
-              {unifiedFiltered.map((item) => (
+            <div className="space-y-5 md:hidden">
+              {visibleShopGroups.map((group) => (
+                <ShopDeliveryGroupSection
+                  key={group.date ?? 'unscheduled'}
+                  date={group.date}
+                  orderCount={group.orders.length}
+                  totalQty={group.totalQty}
+                >
+                  <div className="space-y-3">
+                    {group.orders.map((order) => (
+                      <UnifiedOrderCard
+                        key={`shop-${order.id}`}
+                        item={mapShopToUnified(order)}
+                        disabled={patchShopOrderMutation.isPending}
+                        onShopStatusChange={(id, status) => {
+                          patchShopOrderMutation.mutate({ id, status })
+                        }}
+                        onShopConfirmedChange={(id, confirmed) => {
+                          patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                        }}
+                        onShopDeliveryDateChange={(id, delivery_date) => {
+                          patchShopOrderMutation.mutate({ id, delivery_date })
+                        }}
+                      />
+                    ))}
+                  </div>
+                </ShopDeliveryGroupSection>
+              ))}
+              {visibleB2bOrders.map((item) => (
                 <UnifiedOrderCard
-                  key={`${item.source}-${item.id}`}
+                  key={`b2b-${item.id}`}
                   item={item}
-                  disabled={updateMutation.isPending || patchShopOrderMutation.isPending}
+                  disabled={updateMutation.isPending}
                   onOpenB2bDetails={(id) => {
                     const comanda = comenzi.find((row) => row.id === id)
                     if (comanda) setViewing(comanda)
@@ -1734,33 +1833,39 @@ export function ComenziPageClient() {
                   onB2bStatusChange={(id, status) => {
                     updateMutation.mutate({ id, payload: { status } })
                   }}
-                  onShopStatusChange={(id, status) => {
-                    patchShopOrderMutation.mutate({ id, status })
-                  }}
-                  onShopConfirmedChange={(id, confirmed) => {
-                    patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                  }}
                 />
               ))}
             </div>
 
-            {unifiedFiltered.some((item) => item.source === 'shop') ? (
-              <div className="hidden md:grid md:grid-cols-2 md:gap-3 xl:grid-cols-3">
-                {unifiedFiltered
-                  .filter((item) => item.source === 'shop')
-                  .map((item) => (
-                    <UnifiedOrderCard
-                      key={`desktop-shop-${item.id}`}
-                      item={item}
-                      disabled={patchShopOrderMutation.isPending}
-                      onShopStatusChange={(id, status) => {
-                        patchShopOrderMutation.mutate({ id, status })
-                      }}
-                      onShopConfirmedChange={(id, confirmed) => {
-                        patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                      }}
-                    />
-                  ))}
+            {visibleShopGroups.length > 0 ? (
+              <div className="hidden space-y-5 md:block">
+                {visibleShopGroups.map((group) => (
+                  <ShopDeliveryGroupSection
+                    key={group.date ?? 'desktop-unscheduled'}
+                    date={group.date}
+                    orderCount={group.orders.length}
+                    totalQty={group.totalQty}
+                  >
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                      {group.orders.map((order) => (
+                        <UnifiedOrderCard
+                          key={`desktop-shop-${order.id}`}
+                          item={mapShopToUnified(order)}
+                          disabled={patchShopOrderMutation.isPending}
+                          onShopStatusChange={(id, status) => {
+                            patchShopOrderMutation.mutate({ id, status })
+                          }}
+                          onShopConfirmedChange={(id, confirmed) => {
+                            patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                          }}
+                          onShopDeliveryDateChange={(id, delivery_date) => {
+                            patchShopOrderMutation.mutate({ id, delivery_date })
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </ShopDeliveryGroupSection>
+                ))}
               </div>
             ) : null}
 
