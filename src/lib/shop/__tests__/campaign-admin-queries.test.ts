@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  aggregateOrderStatuses,
+  aggregateOrdersByDay,
+  aggregateOrdersByDeliveryMode,
+  aggregateOrdersByZone,
   aggregateLeaderboard,
   assignFinalPrizes,
+  summarizeLeaderboard,
 } from '@/lib/shop/campaign-admin-queries'
 import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
 
@@ -94,5 +99,101 @@ describe('campaign admin leaderboard', () => {
     expect(leaderboard[2].finalPrize).toBe('1 kg zmeură')
     expect(leaderboard[9].finalPrize).toBe('Voucher sezon următor')
     expect(leaderboard[10].finalPrize).toBeNull()
+  })
+
+  it('calculează totalul real din leaderboard-ul agregat', () => {
+    const leaderboard = aggregateLeaderboard([
+      order({
+        customer_phone: '0711111111',
+        items: [{ qty: 2 }],
+        total_lei: 40,
+      }),
+      order({
+        customer_phone: '0711111111',
+        items: [{ qty: 3 }],
+        total_lei: 60,
+      }),
+      order({
+        customer_phone: '0722222222',
+        items: [{ qty: 4 }],
+        total_lei: 80,
+      }),
+    ])
+
+    expect(summarizeLeaderboard(leaderboard)).toEqual({
+      orderCount: 3,
+      totalQty: 9,
+      totalLei: 180,
+    })
+  })
+
+  it('grupează comenzile pe zi în fusul Europe/Bucharest', () => {
+    expect(
+      aggregateOrdersByDay([
+        order({
+          created_at: '2026-06-10T20:30:00.000Z',
+          items: [{ qty: 2 }],
+          total_lei: 40,
+        }),
+        order({
+          created_at: '2026-06-10T21:30:00.000Z',
+          items: [{ qty: 3 }],
+          total_lei: 60,
+        }),
+      ]),
+    ).toEqual([
+      { date: '2026-06-10', orderCount: 1, totalQty: 2, totalLei: 40 },
+      { date: '2026-06-11', orderCount: 1, totalQty: 3, totalLei: 60 },
+    ])
+  })
+
+  it('agregă modurile de livrare și zonele, inclusiv comenzile vechi neclasificate', () => {
+    const orders = [
+      order({
+        delivery_mode: 'livrare',
+        in_suceava: true,
+        items: [{ qty: 2 }],
+        total_lei: 40,
+      }),
+      order({
+        delivery_mode: 'livrare',
+        in_suceava: false,
+        items: [{ qty: 4 }],
+        total_lei: 80,
+      }),
+      order({
+        delivery_mode: 'ridicare',
+        in_suceava: null,
+        items: [{ qty: 1 }],
+        total_lei: 20,
+      }),
+    ]
+
+    expect(aggregateOrdersByDeliveryMode(orders)).toEqual([
+      { mode: 'livrare', orderCount: 2, totalQty: 6, totalLei: 120 },
+      { mode: 'ridicare', orderCount: 1, totalQty: 1, totalLei: 20 },
+    ])
+    expect(aggregateOrdersByZone(orders)).toEqual([
+      { zone: 'suceava', orderCount: 1, totalQty: 2 },
+      { zone: 'exterior', orderCount: 1, totalQty: 4 },
+      { zone: 'unclassified', orderCount: 1, totalQty: 1 },
+    ])
+  })
+
+  it('returnează toate statusurile cunoscute, inclusiv cele fără comenzi', () => {
+    expect(
+      aggregateOrderStatuses([
+        { status: 'noua' },
+        { status: 'confirmata' },
+        { status: 'confirmata' },
+        { status: 'anulata' },
+      ]),
+    ).toEqual([
+      { status: 'noua', orderCount: 1 },
+      { status: 'confirmata', orderCount: 2 },
+      { status: 'in_livrare', orderCount: 0 },
+      { status: 'livrata', orderCount: 0 },
+      { status: 'anulata', orderCount: 1 },
+    ])
   })
 })

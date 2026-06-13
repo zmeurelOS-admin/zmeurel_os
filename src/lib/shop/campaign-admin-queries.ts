@@ -30,6 +30,31 @@ export type CampaignAdminMilestone = {
   winnerPhone: string | null
 }
 
+export type CampaignAdminTotals = {
+  orderCount: number
+  totalQty: number
+  totalLei: number
+}
+
+export type CampaignAdminDailySummary = CampaignAdminTotals & {
+  date: string
+}
+
+export type CampaignAdminDeliverySummary = CampaignAdminTotals & {
+  mode: 'livrare' | 'ridicare'
+}
+
+export type CampaignAdminZoneSummary = {
+  zone: 'suceava' | 'exterior' | 'unclassified'
+  orderCount: number
+  totalQty: number
+}
+
+export type CampaignAdminStatusSummary = {
+  status: string
+  orderCount: number
+}
+
 export type CampaignAdminPayload = {
   campaign: {
     id: string
@@ -41,6 +66,11 @@ export type CampaignAdminPayload = {
   }
   leaderboard: CampaignAdminLeaderboardEntry[]
   milestones: CampaignAdminMilestone[]
+  activeTotals: CampaignAdminTotals
+  dailySummary: CampaignAdminDailySummary[]
+  deliverySummary: CampaignAdminDeliverySummary[]
+  zoneSummary: CampaignAdminZoneSummary[]
+  statusSummary: CampaignAdminStatusSummary[]
 }
 
 type MutableLeaderboardEntry = Omit<
@@ -58,6 +88,20 @@ function quantityFromItems(items: ShopOrderRow['items']): number {
     const qty = Number((item as Record<string, unknown>).qty)
     return Number.isFinite(qty) ? total + qty : total
   }, 0)
+}
+
+function bucharestDateKey(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value.slice(0, 10)
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Bucharest',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
 }
 
 export function aggregateLeaderboard(
@@ -107,6 +151,98 @@ export function aggregateLeaderboard(
       rang: index + 1,
       finalPrize: null,
     }))
+}
+
+export function summarizeLeaderboard(
+  leaderboard: CampaignAdminLeaderboardEntry[],
+): CampaignAdminTotals {
+  return leaderboard.reduce<CampaignAdminTotals>(
+    (totals, entry) => ({
+      orderCount: totals.orderCount + entry.orderCount,
+      totalQty: totals.totalQty + entry.totalQty,
+      totalLei: totals.totalLei + entry.totalLei,
+    }),
+    { orderCount: 0, totalQty: 0, totalLei: 0 },
+  )
+}
+
+export function aggregateOrdersByDay(
+  orders: ShopOrderRow[],
+): CampaignAdminDailySummary[] {
+  const byDate = new Map<string, CampaignAdminTotals>()
+
+  for (const order of orders) {
+    const date = bucharestDateKey(order.created_at)
+    const current = byDate.get(date) ?? { orderCount: 0, totalQty: 0, totalLei: 0 }
+    current.orderCount += 1
+    current.totalQty += quantityFromItems(order.items)
+    current.totalLei += Number(order.total_lei) || 0
+    byDate.set(date, current)
+  }
+
+  return [...byDate.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, totals]) => ({ date, ...totals }))
+}
+
+export function aggregateOrdersByDeliveryMode(
+  orders: ShopOrderRow[],
+): CampaignAdminDeliverySummary[] {
+  const summaries: Record<'livrare' | 'ridicare', CampaignAdminTotals> = {
+    livrare: { orderCount: 0, totalQty: 0, totalLei: 0 },
+    ridicare: { orderCount: 0, totalQty: 0, totalLei: 0 },
+  }
+
+  for (const order of orders) {
+    const mode = order.delivery_mode === 'ridicare' ? 'ridicare' : 'livrare'
+    summaries[mode].orderCount += 1
+    summaries[mode].totalQty += quantityFromItems(order.items)
+    summaries[mode].totalLei += Number(order.total_lei) || 0
+  }
+
+  return (['livrare', 'ridicare'] as const).map((mode) => ({
+    mode,
+    ...summaries[mode],
+  }))
+}
+
+export function aggregateOrdersByZone(
+  orders: ShopOrderRow[],
+): CampaignAdminZoneSummary[] {
+  const summaries: Record<CampaignAdminZoneSummary['zone'], Omit<CampaignAdminZoneSummary, 'zone'>> = {
+    suceava: { orderCount: 0, totalQty: 0 },
+    exterior: { orderCount: 0, totalQty: 0 },
+    unclassified: { orderCount: 0, totalQty: 0 },
+  }
+
+  for (const order of orders) {
+    const zone =
+      order.in_suceava === true
+        ? 'suceava'
+        : order.in_suceava === false
+          ? 'exterior'
+          : 'unclassified'
+    summaries[zone].orderCount += 1
+    summaries[zone].totalQty += quantityFromItems(order.items)
+  }
+
+  return (['suceava', 'exterior', 'unclassified'] as const).map((zone) => ({
+    zone,
+    ...summaries[zone],
+  }))
+}
+
+export function aggregateOrderStatuses(
+  orders: Array<Pick<ShopOrderRow, 'status'>>,
+): CampaignAdminStatusSummary[] {
+  const knownStatuses = ['noua', 'confirmata', 'in_livrare', 'livrata', 'anulata']
+  const counts = new Map(knownStatuses.map((status) => [status, 0]))
+
+  for (const order of orders) {
+    counts.set(order.status, (counts.get(order.status) ?? 0) + 1)
+  }
+
+  return [...counts.entries()].map(([status, orderCount]) => ({ status, orderCount }))
 }
 
 export function assignFinalPrizes(

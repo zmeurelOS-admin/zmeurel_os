@@ -15,6 +15,7 @@ export type ShopOrderRow = {
   delivery_mode: string
   delivery_address: string | null
   delivery_city?: string | null
+  in_suceava?: boolean | null
   delivery_date: string | null
   delivery_position: number | null
   items: Json

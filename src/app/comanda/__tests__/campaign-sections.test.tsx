@@ -46,7 +46,7 @@ describe('campaign sections', () => {
           ...CAMPAIGN_DATA,
           leaderboard: [
             {
-              anonId: '#A3F2B7C1',
+              anonId: '***mie',
               city: null,
               count: 22,
               seasonPrizeLabel: null,
@@ -56,8 +56,8 @@ describe('campaign sections', () => {
       />,
     )
 
-    expect(screen.getByText('#A3F2B7C1')).toBeInTheDocument()
+    expect(screen.getByText('***mie')).toBeInTheDocument()
     expect(screen.queryByText('Locație necunoscută')).not.toBeInTheDocument()
-    expect(screen.queryByText('Premiile finale ale sezonului')).not.toBeInTheDocument()
+    expect(screen.getByText('Premiile finale ale sezonului')).toBeInTheDocument()
   })
 })

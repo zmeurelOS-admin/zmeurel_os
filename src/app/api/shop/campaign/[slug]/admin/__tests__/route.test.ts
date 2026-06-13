@@ -8,6 +8,7 @@ const {
   getTenantIdByUserIdMock,
   getUserMock,
   ordersTenantEqMock,
+  statusesTenantEqMock,
   winnersTenantEqMock,
 } = vi.hoisted(() => ({
   campaignMaybeSingleMock: vi.fn(),
@@ -15,6 +16,7 @@ const {
   getTenantIdByUserIdMock: vi.fn(),
   getUserMock: vi.fn(),
   ordersTenantEqMock: vi.fn(),
+  statusesTenantEqMock: vi.fn(),
   winnersTenantEqMock: vi.fn(),
 }))
 
@@ -81,6 +83,7 @@ describe('GET /api/shop/campaign/[slug]/admin', () => {
           delivery_mode: 'livrare',
           delivery_address: null,
           delivery_city: 'Suceava',
+          in_suceava: true,
           delivery_date: null,
           delivery_position: null,
           items: [{ qty: 5 }],
@@ -89,6 +92,13 @@ describe('GET /api/shop/campaign/[slug]/admin', () => {
           status: 'confirmata',
           notified_wa: false,
         },
+      ],
+      error: null,
+    })
+    statusesTenantEqMock.mockResolvedValue({
+      data: [
+        { status: 'confirmata' },
+        { status: 'anulata' },
       ],
       error: null,
     })
@@ -114,6 +124,15 @@ describe('GET /api/shop/campaign/[slug]/admin', () => {
                     column === 'tenant_id' ? ordersTenantEqMock() : query,
                   ),
                   neq: vi.fn(() => query),
+                }
+                return query
+              }
+
+              if (columns === 'status') {
+                const query = {
+                  eq: vi.fn((column: string) =>
+                    column === 'tenant_id' ? statusesTenantEqMock() : query,
+                  ),
                 }
                 return query
               }
@@ -206,6 +225,35 @@ describe('GET /api/shop/campaign/[slug]/admin', () => {
         totalQty: 5,
         finalPrize: '2 kg zmeură + miere + jeleu de zmeure',
       }),
+    ])
+    expect(payload.activeTotals).toEqual({
+      orderCount: 1,
+      totalQty: 5,
+      totalLei: 90,
+    })
+    expect(payload.dailySummary).toEqual([
+      {
+        date: '2026-06-10',
+        orderCount: 1,
+        totalQty: 5,
+        totalLei: 90,
+      },
+    ])
+    expect(payload.deliverySummary).toEqual([
+      { mode: 'livrare', orderCount: 1, totalQty: 5, totalLei: 90 },
+      { mode: 'ridicare', orderCount: 0, totalQty: 0, totalLei: 0 },
+    ])
+    expect(payload.zoneSummary).toEqual([
+      { zone: 'suceava', orderCount: 1, totalQty: 5 },
+      { zone: 'exterior', orderCount: 0, totalQty: 0 },
+      { zone: 'unclassified', orderCount: 0, totalQty: 0 },
+    ])
+    expect(payload.statusSummary).toEqual([
+      { status: 'noua', orderCount: 0 },
+      { status: 'confirmata', orderCount: 1 },
+      { status: 'in_livrare', orderCount: 0 },
+      { status: 'livrata', orderCount: 0 },
+      { status: 'anulata', orderCount: 1 },
     ])
     expect(payload.milestones).toEqual([
       expect.objectContaining({

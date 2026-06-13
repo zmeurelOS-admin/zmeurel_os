@@ -41,7 +41,7 @@ describe('campaign snapshot', () => {
       ],
       leaderboard: [
         {
-          anonId: '#A3F2B7C1',
+          anonId: '***mie',
           city: 'Suceava',
           count: 22,
           seasonPrizeLabel: null,
@@ -59,7 +59,7 @@ describe('campaign snapshot', () => {
     })
     expect(campaign.leaderboard).toEqual([
       {
-        anonId: '#A3F2B7C1',
+        anonId: '***mie',
         city: 'Suceava',
         count: 22,
         seasonPrizeLabel: null,

@@ -39,11 +39,28 @@ function formatDate(value: string | null): string {
   }).format(new Date(value))
 }
 
+function formatDay(value: string): string {
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  }).format(new Date(`${value}T12:00:00+03:00`))
+}
+
 function podiumLabel(rang: number): string {
   if (rang === 1) return '🥇'
   if (rang === 2) return '🥈'
   if (rang === 3) return '🥉'
   return `#${rang}`
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  noua: 'Nouă',
+  confirmata: 'Confirmată',
+  in_livrare: 'În livrare',
+  livrata: 'Livrată',
+  anulata: 'Anulată',
 }
 
 function milestoneBadge(status: CampaignAdminMilestone['rewardStatus']) {
@@ -176,6 +193,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
     ],
     [],
   )
+  const maxDailyQty = Math.max(1, ...initialData.dailySummary.map((day) => day.totalQty))
 
   return (
     <AppShell
@@ -237,6 +255,136 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
               style={{ width: `${progress}%` }}
             />
           </div>
+          <div className="mt-4 rounded-xl bg-[var(--surface-card-muted)] px-4 py-3">
+            <p className="text-sm font-extrabold text-[var(--text-primary)]">
+              Total comenzi active: {initialData.activeTotals.totalQty} caserole ·{' '}
+              {formatLei(initialData.activeTotals.totalLei)} ·{' '}
+              {initialData.activeTotals.orderCount}{' '}
+              {initialData.activeTotals.orderCount === 1 ? 'comandă' : 'comenzi'}
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+              Calculat din comenzile neanulate; poate diferi de progresul campaniei.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          <article className="rounded-2xl bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Comenzi pe zi</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Evoluția comenzilor active, după ora României
+              </p>
+            </div>
+            {initialData.dailySummary.length > 0 ? (
+              <div className="space-y-3">
+                {initialData.dailySummary.map((day) => (
+                  <div key={day.date}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                      <span className="font-bold text-[var(--text-primary)]">{formatDay(day.date)}</span>
+                      <span className="text-[var(--text-secondary)]">
+                        {day.orderCount} {day.orderCount === 1 ? 'comandă' : 'comenzi'} · {day.totalQty}{' '}
+                        caserole · {formatLei(day.totalLei)}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
+                      <div
+                        className="h-full rounded-full bg-[var(--success-text)]"
+                        style={{ width: `${Math.max(4, (day.totalQty / maxDailyQty) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-[var(--text-secondary)]">Nu există comenzi active.</p>
+            )}
+          </article>
+
+          <article className="rounded-2xl bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Livrare vs ridicare</h2>
+              <p className="text-sm text-[var(--text-secondary)]">Distribuția comenzilor active</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {initialData.deliverySummary.map((entry) => (
+                <div
+                  key={entry.mode}
+                  className="rounded-xl bg-[var(--surface-card-muted)] p-4"
+                >
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    {entry.mode === 'livrare' ? 'Livrare' : 'Ridicare'}
+                  </p>
+                  <p className="mt-2 text-2xl font-extrabold text-[var(--success-text)]">
+                    {entry.totalQty}
+                  </p>
+                  <p className="text-xs font-semibold text-[var(--text-tertiary)]">
+                    caserole · {entry.orderCount} {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-[var(--text-secondary)]">
+                    {formatLei(entry.totalLei)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </article>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          <article className="rounded-2xl bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Zone de livrare</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Clasificarea comenzilor active după zona selectată
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {initialData.zoneSummary.map((entry) => (
+                <div
+                  key={entry.zone}
+                  className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-4"
+                >
+                  <p className="text-sm font-bold text-[var(--text-primary)]">
+                    {entry.zone === 'suceava'
+                      ? 'Suceava'
+                      : entry.zone === 'exterior'
+                        ? 'În afara Sucevei'
+                        : 'Neclasificat'}
+                  </p>
+                  <p className="mt-2 text-xl font-extrabold text-[var(--success-text)]">
+                    {entry.totalQty} caserole
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                    {entry.orderCount} {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="rounded-2xl bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">Status comenzi</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Include și comenzile anulate din această campanie
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {initialData.statusSummary.map((entry) => (
+                <div
+                  key={entry.status}
+                  className="rounded-xl bg-[var(--surface-card-muted)] px-3 py-3 text-center"
+                >
+                  <p className="text-xl font-extrabold text-[var(--text-primary)]">
+                    {entry.orderCount}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-[var(--text-secondary)]">
+                    {STATUS_LABELS[entry.status] ?? entry.status}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </article>
         </section>
 
         <section>

@@ -83,12 +83,12 @@ describe('GET /api/shop/campaign/[slug]', () => {
     leaderboardLimit.mockResolvedValue({
       data: [
         {
-          anon_id: '#A3F2B7C1',
+          anon_id: '***mie',
           city: 'Suceava',
           total_qty: 22,
         },
         {
-          anon_id: '#5E18A412',
+          anon_id: '***ela',
           city: null,
           total_qty: 16,
         },
@@ -116,13 +116,13 @@ describe('GET /api/shop/campaign/[slug]', () => {
       ],
       leaderboard: [
         {
-          anonId: '#A3F2B7C1',
+          anonId: '***mie',
           city: 'Suceava',
           count: 22,
           seasonPrizeLabel: null,
         },
         {
-          anonId: '#5E18A412',
+          anonId: '***ela',
           city: null,
           count: 16,
           seasonPrizeLabel: null,

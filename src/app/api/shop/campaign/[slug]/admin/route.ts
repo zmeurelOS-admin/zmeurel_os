@@ -4,8 +4,13 @@ import { z } from 'zod'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
 import {
+  aggregateOrderStatuses,
+  aggregateOrdersByDay,
+  aggregateOrdersByDeliveryMode,
+  aggregateOrdersByZone,
   aggregateLeaderboard,
   assignFinalPrizes,
+  summarizeLeaderboard,
   type CampaignAdminMilestone,
   type CampaignAdminMilestoneStatus,
   type CampaignAdminPayload,
@@ -90,6 +95,7 @@ export async function GET(
     const admin = getSupabaseAdmin()
     const [
       { data: orderRows, error: ordersError },
+      { data: statusRows, error: statusesError },
       { data: milestoneRows, error: milestonesError },
       { data: rewardRows, error: rewardsError },
     ] = await Promise.all([
@@ -99,6 +105,12 @@ export async function GET(
         .eq('campaign_id', campaign.id)
         .eq('order_kind', 'preorder')
         .neq('status', 'anulata')
+        .eq('tenant_id', tenantId),
+      admin
+        .from('shop_orders')
+        .select('status')
+        .eq('campaign_id', campaign.id)
+        .eq('order_kind', 'preorder')
         .eq('tenant_id', tenantId),
       admin
         .from('shop_campaign_milestones')
@@ -112,6 +124,7 @@ export async function GET(
     ])
 
     if (ordersError) throw ordersError
+    if (statusesError) throw statusesError
     if (milestonesError) throw milestonesError
     if (rewardsError) throw rewardsError
 
@@ -164,6 +177,8 @@ export async function GET(
       }
     })
 
+    const activeOrders = (orderRows ?? []) as ShopOrderRow[]
+    const leaderboard = assignFinalPrizes(aggregateLeaderboard(activeOrders))
     const payload: CampaignAdminPayload = {
       campaign: {
         id: campaign.id,
@@ -173,10 +188,15 @@ export async function GET(
         targetQty: campaign.target_qty,
         status: campaign.status,
       },
-      leaderboard: assignFinalPrizes(
-        aggregateLeaderboard((orderRows ?? []) as ShopOrderRow[]),
-      ),
+      leaderboard,
       milestones,
+      activeTotals: summarizeLeaderboard(leaderboard),
+      dailySummary: aggregateOrdersByDay(activeOrders),
+      deliverySummary: aggregateOrdersByDeliveryMode(activeOrders),
+      zoneSummary: aggregateOrdersByZone(activeOrders),
+      statusSummary: aggregateOrderStatuses(
+        (statusRows ?? []) as Array<Pick<ShopOrderRow, 'status'>>,
+      ),
     }
 
     return NextResponse.json(payload, {
