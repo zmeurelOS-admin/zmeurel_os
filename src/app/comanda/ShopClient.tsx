@@ -889,7 +889,7 @@ export function ShopClient({
       ) : null}
 
       <main>
-        <section className="relative aspect-[25/14] overflow-hidden bg-[#312E3F] lg:mx-auto lg:grid lg:aspect-auto lg:max-w-[1160px] lg:grid-cols-2 lg:items-center lg:gap-12 lg:overflow-visible lg:bg-transparent lg:px-8 lg:py-14">
+        <section className="relative aspect-[25/14] overflow-hidden bg-[#312E3F] lg:mx-auto lg:grid lg:aspect-auto lg:max-w-[1160px] lg:grid-cols-2 lg:items-start lg:gap-12 lg:overflow-visible lg:bg-transparent lg:px-8 lg:py-14">
           <div className="absolute inset-0 lg:relative lg:inset-auto lg:aspect-[4/5]">
             <div className="absolute inset-0 lg:overflow-hidden lg:rounded-2xl lg:bg-[var(--ink)]">
               <Image
@@ -910,15 +910,15 @@ export function ShopClient({
             </div>
             <svg
               viewBox="0 0 180 180"
-              className="absolute -right-5 top-7 hidden h-40 w-40 -rotate-12 text-[var(--ink)] mix-blend-multiply lg:block"
+              className="absolute -right-5 top-7 hidden h-40 w-40 -rotate-12 text-[var(--ink)] lg:block"
               aria-hidden="true"
             >
               <circle
                 cx="90"
                 cy="90"
                 r="76"
-                fill="var(--bg)"
-                fillOpacity="0.84"
+                fill="#FFF6F3"
+                fillOpacity="0.96"
                 stroke="currentColor"
                 strokeWidth="4"
               />
@@ -940,7 +940,7 @@ export function ShopClient({
             </h1>
             <p className="mt-2 text-sm font-semibold text-white/78">Campania de sezon Zmeură 2026</p>
           </div>
-          <div className="hidden lg:block">
+          <div className="hidden lg:block lg:pt-6">
             <span className="inline-flex rounded-full bg-[var(--coral)]/12 px-4 py-2 text-sm font-extrabold text-[var(--coral-deep)]">
               Precomenzi 2026
             </span>
@@ -964,7 +964,7 @@ export function ShopClient({
           </div>
         </section>
 
-        <section className="px-3 pt-4">
+        <section className="px-3 pt-4 lg:mx-auto lg:max-w-[1160px] lg:px-8 lg:py-4">
           <div className="rounded-[20px] border border-[#F3DAD4] bg-[#FFF0ED] px-4 py-4 text-[#312E3F] shadow-[0_6px_18px_rgba(241,107,107,0.1)]">
             <p className="text-sm font-extrabold leading-relaxed text-[#E15453]">
               Precomenzi deschise · Primele livrări în 1–2 săptămâni · Plata cash la livrare
