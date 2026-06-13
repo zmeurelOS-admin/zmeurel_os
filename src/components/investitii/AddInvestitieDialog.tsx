@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronDown } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
@@ -15,9 +16,10 @@ import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { DesktopFormGrid, FormDialogSection } from '@/components/ui/form-dialog-layout'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { buildCategoryInvestitiiOptions } from '@/lib/ui/app-select-maps'
+import { buildCategoryInvestitiiOptions, INVESTITII_CATEGORY_EMOJI } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { createInvestitie, CATEGORII_INVESTITII } from '@/lib/supabase/queries/investitii'
@@ -52,8 +54,21 @@ const defaultValues = (): InvestitieFormData => ({
   suma_lei: '',
 })
 
+function formatCompactDate(value: string): string {
+  if (!value) return 'Selectează data'
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  const now = new Date()
+  const today = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+  const prefix = value === today ? 'Azi · ' : ''
+  return `${prefix}${parsed.toLocaleDateString('ro-RO')}`
+}
+
 export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, initialValues }: AddInvestitieDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false)
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false)
   const isControlled = typeof open === 'boolean'
   const dialogOpen = isControlled ? open : internalOpen
   const setDialogOpen = useCallback((nextOpen: boolean) => {
@@ -84,6 +99,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
   const selectedParcelaName = watchedParcelaId
     ? parcele.find((parcela) => parcela.id === watchedParcelaId)?.nume_parcela
     : null
+  const mobileParcele = parcele.slice(0, 1 + parcele.length <= 6 ? parcele.length : 4)
+  const hiddenParceleCount = Math.max(parcele.length - mobileParcele.length, 0)
+  const selectedParcelaIsHidden =
+    Boolean(watchedParcelaId) &&
+    !mobileParcele.some((parcela) => parcela.id === watchedParcelaId)
 
   useEffect(() => {
     if (dialogOpen) {
@@ -180,7 +200,208 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
               />
             }
           >
-            <FormDialogSection label="Înregistrare">
+            <FormDialogSection className="md:hidden">
+              <div className="space-y-3">
+                <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3">
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                    {formatCompactDate(watchedData ?? '')}
+                  </span>
+                  <button
+                    type="button"
+                    className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                    onClick={() => document.getElementById('inv_data_mobile')?.click()}
+                  >
+                    Schimbă
+                  </button>
+                </div>
+                <div className="absolute h-px w-px overflow-hidden">
+                  <AppDatePicker
+                    id="inv_data_mobile"
+                    value={watchedData ?? ''}
+                    onChange={(nextValue) =>
+                      form.setValue('data', nextValue, { shouldDirty: true, shouldValidate: true })
+                    }
+                    error={form.formState.errors.data?.message}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Categorie</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {CATEGORII_INVESTITII.map((category) => {
+                      const selected = category === watchedCategorie
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            form.setValue('categorie', category, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                            selected
+                              ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                              : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          <span className="block text-base" aria-hidden>
+                            {INVESTITII_CATEGORY_EMOJI[category]}
+                          </span>
+                          <span className="block leading-tight">{category}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {form.formState.errors.categorie ? (
+                    <p className="text-xs text-[var(--danger-text)]">
+                      {form.formState.errors.categorie.message}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Parcelă</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={!watchedParcelaId}
+                      onClick={() =>
+                        form.setValue('parcela_id', '', {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                        !watchedParcelaId
+                          ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                          : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      Fără legătură cu parcelă
+                    </button>
+                    {mobileParcele.map((parcela) => {
+                      const selected = parcela.id === watchedParcelaId
+                      return (
+                        <button
+                          key={parcela.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            form.setValue('parcela_id', parcela.id, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }
+                          className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                            selected
+                              ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                              : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {parcela.nume_parcela || 'Parcela'}
+                        </button>
+                      )
+                    })}
+                    {hiddenParceleCount > 0 ? (
+                      <button
+                        type="button"
+                        aria-pressed={selectedParcelaIsHidden}
+                        onClick={() => document.getElementById('inv_parcela_mobile_more')?.click()}
+                        className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                          selectedParcelaIsHidden
+                            ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                            : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        +{hiddenParceleCount} alți
+                      </button>
+                    ) : null}
+                  </div>
+                  {hiddenParceleCount > 0 ? (
+                    <div className="absolute h-px w-px overflow-hidden">
+                      <AppSelect
+                        id="inv_parcela_mobile_more"
+                        label="Selectează parcela"
+                        value={watchedParcelaId ?? ''}
+                        options={[
+                          { value: '', label: 'Fără legătură cu parcelă' },
+                          ...parcele.map((parcela) => ({
+                            value: parcela.id,
+                            label: parcela.nume_parcela || 'Parcela',
+                          })),
+                        ]}
+                        showSearchThreshold={0}
+                        searchPlaceholder="Caută parcelă..."
+                        onChange={(nextValue) =>
+                          form.setValue('parcela_id', nextValue, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="inv_suma_lei_mobile">Suma investită (lei)</Label>
+                  <Input
+                    id="inv_suma_lei_mobile"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    className="agri-control h-12 border-[var(--primary)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
+                    placeholder="Ex: 1500.00"
+                    {...form.register('suma_lei')}
+                  />
+                  {form.formState.errors.suma_lei ? (
+                    <p className="text-xs text-[var(--danger-text)]">
+                      {form.formState.errors.suma_lei.message}
+                    </p>
+                  ) : null}
+                </div>
+
+                <Collapsible open={mobileDetailsOpen} onOpenChange={setMobileDetailsOpen}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm font-semibold text-[var(--text-primary)]"
+                    >
+                      Detalii suplimentare (opțional)
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${mobileDetailsOpen ? 'rotate-180' : ''}`}
+                        aria-hidden
+                      />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="inv_furnizor_mobile">Furnizor</Label>
+                      <Input
+                        id="inv_furnizor_mobile"
+                        className="agri-control h-12"
+                        {...form.register('furnizor')}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="inv_descriere_mobile">Descriere</Label>
+                      <Textarea
+                        id="inv_descriere_mobile"
+                        rows={4}
+                        className="agri-control w-full px-3 py-2 text-base"
+                        {...form.register('descriere')}
+                      />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+            </FormDialogSection>
+
+            <FormDialogSection label="Înregistrare" className="hidden md:block">
               <div className="grid gap-4 md:grid-cols-2 md:gap-x-8 md:gap-y-5">
                 <div className="space-y-2">
                   <AppDatePicker
@@ -254,7 +475,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
               </div>
             </FormDialogSection>
 
-            <FormDialogSection label="Detalii">
+            <FormDialogSection label="Detalii" className="hidden md:block">
               <div className="space-y-2">
                 <Label htmlFor="inv_descriere">Descriere</Label>
                 <Textarea

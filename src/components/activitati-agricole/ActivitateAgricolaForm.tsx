@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Sprout, TreePine, Warehouse } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ChevronDown, Sprout, TreePine, Warehouse } from 'lucide-react'
 import { type UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 
@@ -14,11 +14,12 @@ import {
 } from '@/components/ui/form-dialog-layout'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppSelect } from '@/components/ui/app-select'
-import { Input } from '@/components/ui/input'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   formatActivityTypeLabel,
+  getActivityEmoji,
   type ActivityOption,
 } from '@/lib/activitati/activity-options'
 export const activitateAgricolaFormSchema = z.object({
@@ -101,6 +102,18 @@ function formatDateLabel(value: string | null | undefined): string {
   return parsed.toLocaleDateString('ro-RO')
 }
 
+function formatCompactDate(value: string): string {
+  if (!value) return 'Selectează data'
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  const now = new Date()
+  const today = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000)
+    .toISOString()
+    .slice(0, 10)
+  const prefix = value === today ? 'Azi · ' : ''
+  return `${prefix}${parsed.toLocaleDateString('ro-RO')}`
+}
+
 function ActivityAgricolaFormSummary({
   dataLabel,
   terrainLabel,
@@ -153,10 +166,16 @@ export function ActivitateAgricolaForm({
   selectedTip,
   contextParcelaLabel,
 }: ActivitateAgricolaFormProps) {
+  const [mobileNotesOpen, setMobileNotesOpen] = useState(false)
   const selectedTerrain = useMemo(
     () => parcele.find((parcela) => parcela.id === selectedParcelaId) ?? null,
     [parcele, selectedParcelaId]
   )
+  const mobileParcele = parcele.slice(0, parcele.length <= 6 ? 6 : 5)
+  const hiddenParceleCount = Math.max(parcele.length - mobileParcele.length, 0)
+  const selectedParcelaIsHidden =
+    Boolean(selectedParcelaId) &&
+    !mobileParcele.some((parcela) => parcela.id === selectedParcelaId)
   const terrainOptions = useMemo(
     () => [
       { value: '', label: 'Selectează teren' },
@@ -186,7 +205,168 @@ export function ActivitateAgricolaForm({
     >
       <FormDialogSection>
         <DesktopFormPanel>
-          <div className="grid gap-3 md:grid-cols-2 md:gap-3">
+          <div className="space-y-3 md:hidden">
+            <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3">
+              <span className="text-sm font-medium text-[var(--text-primary)]">
+                {formatCompactDate(observedDate ?? '')}
+              </span>
+              <button
+                type="button"
+                className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                onClick={() => document.getElementById('act_data_mobile')?.click()}
+              >
+                Schimbă
+              </button>
+            </div>
+            <div className="absolute h-px w-px overflow-hidden">
+              <AppDatePicker
+                id="act_data_mobile"
+                value={observedDate ?? ''}
+                onChange={(nextValue) =>
+                  form.setValue('data_aplicare', nextValue, { shouldDirty: true, shouldValidate: true })
+                }
+                error={form.formState.errors.data_aplicare?.message}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Teren</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {mobileParcele.map((parcela) => {
+                  const selected = parcela.id === selectedParcelaId
+                  return (
+                    <button
+                      key={parcela.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() =>
+                        form.setValue('parcela_id', parcela.id, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                        selected
+                          ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                          : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      <span className="flex items-center justify-center gap-1.5">
+                        {getUnitIcon(parcela.tip_unitate)}
+                        <span className="truncate">{parcela.nume_parcela || 'Teren'}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+                {hiddenParceleCount > 0 ? (
+                  <button
+                    type="button"
+                    aria-pressed={selectedParcelaIsHidden}
+                    onClick={() => document.getElementById('act_parcela_mobile_more')?.click()}
+                    className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                      selectedParcelaIsHidden
+                        ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                        : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    +{hiddenParceleCount} alții
+                  </button>
+                ) : null}
+              </div>
+              {hiddenParceleCount > 0 ? (
+                <div className="absolute h-px w-px overflow-hidden">
+                  <AppSelect
+                    id="act_parcela_mobile_more"
+                    label="Selectează terenul"
+                    value={selectedParcelaId}
+                    options={terrainOptions}
+                    showSearchThreshold={0}
+                    searchPlaceholder="Caută teren..."
+                    onChange={(nextValue) =>
+                      form.setValue('parcela_id', nextValue, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    getOptionLeadingIcon={(option) => {
+                      if (!option.value) return null
+                      const parcela = parcele.find((item) => item.id === option.value)
+                      return parcela ? getUnitIcon(parcela.tip_unitate) : null
+                    }}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tip operațiune</Label>
+              {!selectedTerrain ? (
+                <div className="flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-sm text-[var(--text-secondary)]">
+                  Selectează mai întâi terenul
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {activityOptions.map((option) => {
+                    const selected = option.value === selectedTip
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() =>
+                          form.setValue('tip_activitate', option.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                        className={`min-h-11 rounded-xl border px-2 py-2 text-xs font-semibold transition ${
+                          selected
+                            ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                            : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        <span className="block text-base" aria-hidden>
+                          {getActivityEmoji(option.value)}
+                        </span>
+                        <span className="block leading-tight">{option.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {form.formState.errors.tip_activitate ? (
+                <p className="text-xs text-[var(--danger-text)]">
+                  {form.formState.errors.tip_activitate.message}
+                </p>
+              ) : null}
+            </div>
+
+            <Collapsible open={mobileNotesOpen} onOpenChange={setMobileNotesOpen}>
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center justify-between rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm font-semibold text-[var(--text-primary)]"
+                >
+                  Note (opțional)
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${mobileNotesOpen ? 'rotate-180' : ''}`}
+                    aria-hidden
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <Textarea
+                  id="act_obs_mobile"
+                  rows={3}
+                  className="agri-control min-h-[4.5rem] w-full px-3 py-2 text-base"
+                  placeholder="Detalii utile despre operațiune"
+                  {...form.register('observatii')}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          <div className="hidden gap-3 md:grid md:grid-cols-2 md:gap-3">
             <AppDatePicker
               id="act_data"
               label="Data aplicare"

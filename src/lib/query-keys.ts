@@ -6,6 +6,7 @@ export const queryKeys = {
   etapeCultura: (culturaId: string) => ['etape-cultura', culturaId] as const,
   activitatiAgricole: ['activitati'] as const,
   cheltuieli: ['cheltuieli'] as const,
+  cheltuieliFrequentSuppliers: ['cheltuieli', 'frequent-suppliers'] as const,
   clienti: ['clienti'] as const,
   comenzi: ['comenzi'] as const,
   comenziStockSummaryAzi: ['comenzi', 'stock-summary-azi'] as const,

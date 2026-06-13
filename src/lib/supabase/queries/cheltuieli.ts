@@ -163,6 +163,39 @@ export async function getCheltuieli(): Promise<Cheltuiala[]> {
   throw toReadableError(error, 'Nu am putut încărca cheltuielile.');
 }
 
+export async function getFrequentCheltuieliSuppliers(limit = 4): Promise<string[]> {
+  const supabase = getSupabase();
+  const tenantId = await getTenantId(supabase);
+
+  const { data, error } = await supabase
+    .from('cheltuieli_diverse')
+    .select('furnizor')
+    .eq('tenant_id', tenantId)
+    .not('furnizor', 'is', null)
+    .neq('furnizor', '');
+
+  if (error) {
+    throw toReadableError(error, 'Nu am putut încărca furnizorii frecvenți.');
+  }
+
+  const suppliers = new Map<string, { label: string; count: number }>();
+  for (const row of data ?? []) {
+    const label = String(row.furnizor ?? '').trim();
+    if (!label) continue;
+    const key = label.toLocaleLowerCase('ro-RO');
+    const current = suppliers.get(key);
+    suppliers.set(key, {
+      label: current?.label ?? label,
+      count: (current?.count ?? 0) + 1,
+    });
+  }
+
+  return [...suppliers.values()]
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, 'ro-RO'))
+    .slice(0, limit)
+    .map((supplier) => supplier.label);
+}
+
 export async function createCheltuiala(
   input: CreateCheltuialaInput
 ): Promise<Cheltuiala> {
