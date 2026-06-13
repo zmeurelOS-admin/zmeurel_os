@@ -76,7 +76,7 @@ export default async function ComandaLayout({ children }: { children: React.Reac
         background: '#FFF6F3',
       }}
     >
-      <div className="mx-auto w-full max-w-[540px] md:py-8">
+      <div className="mx-auto w-full max-w-[540px] md:py-8 lg:max-w-[1240px]">
         <div
           className="w-full"
           style={{

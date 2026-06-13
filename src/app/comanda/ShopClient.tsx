@@ -846,12 +846,40 @@ export function ShopClient({
   }
 
   return (
-    <div className="w-full pb-32">
-      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b-4 border-[#F16B6B] bg-[#312E3F] px-4 py-3">
+    <div className="w-full pb-32 lg:pb-0">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b-4 border-[#F16B6B] bg-[#312E3F] px-4 py-3 lg:px-8 lg:py-4">
         <ZmeurelLogo wordmarkClassName="text-white" />
-        <span className="shrink-0 rounded-full border border-[#FFB1AA]/55 bg-[#F16B6B]/18 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-[#FFD6D1]">
-          Precomenzi 2026
-        </span>
+        <nav
+          className="hidden items-center gap-7 text-sm font-bold text-white/80 lg:flex"
+          aria-label="Navigație magazin"
+        >
+          <a className="transition hover:text-white" href="#ferma">
+            Despre fermă
+          </a>
+          <a className="transition hover:text-white" href="#precomanda">
+            Precomandă
+          </a>
+          <a className="transition hover:text-white" href="#contact">
+            Contact
+          </a>
+        </nav>
+        <div className="flex items-center gap-3">
+          <a
+            className="hidden text-sm font-bold text-white/85 transition hover:text-white lg:inline-flex"
+            href={PHONE_HREF}
+          >
+            {PHONE_LABEL}
+          </a>
+          <a
+            className="hidden min-h-11 items-center rounded-xl bg-[var(--coral)] px-5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[var(--coral-deep)] lg:inline-flex"
+            href="#precomanda"
+          >
+            Precomandă
+          </a>
+          <span className="shrink-0 rounded-full border border-[#FFB1AA]/55 bg-[#F16B6B]/18 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-[#FFD6D1] lg:hidden">
+            Precomenzi 2026
+          </span>
+        </div>
       </header>
 
       {loadError ? (
@@ -861,27 +889,78 @@ export function ShopClient({
       ) : null}
 
       <main>
-        <section className="relative aspect-[25/14] overflow-hidden bg-[#312E3F]">
-          <Image
-            src="/shop/shop-hero.jpg"
-            alt="Caserolă cu zmeură proaspătă ținută în mână, în plantația din Văratec"
-            fill
-            priority
-            sizes="(max-width: 640px) 100vw, 540px"
-            className="object-cover object-[center_60%]"
-          />
-          <div
-            className="absolute inset-0 bg-gradient-to-b from-[#312E3F]/35 via-transparent to-[#312E3F]/85"
-            aria-hidden
-          />
-          <span className="absolute left-4 top-4 rounded-full bg-[#FFF6F3]/95 px-3 py-2 text-xs font-bold text-[#3D7A5F] shadow-md backdrop-blur-sm">
-            ✓ Culeasă în ziua livrării
-          </span>
-          <div className="absolute inset-x-0 bottom-0 px-4 pb-5">
+        <section className="relative aspect-[25/14] overflow-hidden bg-[#312E3F] lg:mx-auto lg:grid lg:aspect-auto lg:max-w-[1160px] lg:grid-cols-2 lg:items-center lg:gap-12 lg:overflow-visible lg:bg-transparent lg:px-8 lg:py-14">
+          <div className="absolute inset-0 lg:relative lg:inset-auto lg:aspect-[4/5]">
+            <div className="absolute inset-0 lg:overflow-hidden lg:rounded-2xl lg:bg-[var(--ink)]">
+              <Image
+                src="/shop/shop-hero.jpg"
+                alt="Caserolă cu zmeură proaspătă ținută în mână, în plantația din Văratec"
+                fill
+                priority
+                sizes="(max-width: 1023px) 100vw, 600px"
+                className="object-cover object-[center_60%]"
+              />
+              <div
+                className="absolute inset-0 bg-gradient-to-b from-[#312E3F]/35 via-transparent to-[#312E3F]/85 lg:hidden"
+                aria-hidden
+              />
+              <span className="absolute left-4 top-4 rounded-full bg-[#FFF6F3]/95 px-3 py-2 text-xs font-bold text-[#3D7A5F] shadow-md backdrop-blur-sm lg:hidden">
+                ✓ Culeasă în ziua livrării
+              </span>
+            </div>
+            <svg
+              viewBox="0 0 180 180"
+              className="absolute -right-5 top-7 hidden h-40 w-40 -rotate-12 text-[var(--ink)] mix-blend-multiply lg:block"
+              aria-hidden="true"
+            >
+              <circle
+                cx="90"
+                cy="90"
+                r="76"
+                fill="var(--bg)"
+                fillOpacity="0.84"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <circle cx="90" cy="90" r="64" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 5" />
+              <text x="90" y="64" textAnchor="middle" fill="currentColor" fontSize="17" fontWeight="800">
+                CULEASĂ AZI
+              </text>
+              <text x="90" y="94" textAnchor="middle" fill="currentColor" fontSize="25" fontWeight="900">
+                ZMEUREL
+              </text>
+              <text x="90" y="119" textAnchor="middle" fill="currentColor" fontSize="12" fontWeight="800">
+                VĂRATEC, SUCEAVA
+              </text>
+            </svg>
+          </div>
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-5 lg:hidden">
             <h1 className={`max-w-[420px] text-[29px] font-semibold leading-[1.05] text-white ${styles.fontDisplay}`}>
               Zmeură proaspătă din Văratec
             </h1>
             <p className="mt-2 text-sm font-semibold text-white/78">Campania de sezon Zmeură 2026</p>
+          </div>
+          <div className="hidden lg:block">
+            <span className="inline-flex rounded-full bg-[var(--coral)]/12 px-4 py-2 text-sm font-extrabold text-[var(--coral-deep)]">
+              Precomenzi 2026
+            </span>
+            <h1 className={`mt-5 text-6xl font-semibold leading-[0.98] text-[var(--ink)] ${styles.fontDisplay}`}>
+              Zmeură proaspătă din Văratec
+            </h1>
+            <p className="mt-5 max-w-lg text-lg font-medium leading-relaxed text-[var(--ink)]/72">
+              Rezervă zmeură culeasă manual în ziua livrării, direct din plantația noastră din Văratec.
+            </p>
+            <div className="mt-8 flex items-center gap-4">
+              <a
+                href="#precomanda"
+                className="inline-flex min-h-12 items-center rounded-2xl bg-[var(--coral)] px-6 text-base font-extrabold text-white shadow-md transition hover:bg-[var(--coral-deep)]"
+              >
+                Precomandă zmeură
+              </a>
+              <a href={PHONE_HREF} className="text-sm font-extrabold text-[var(--ink)]">
+                {PHONE_LABEL}
+              </a>
+            </div>
           </div>
         </section>
 
@@ -896,18 +975,53 @@ export function ShopClient({
           </div>
         </section>
 
-        <div className="mt-5">
+        <div className="mt-5 lg:mx-auto lg:max-w-[640px]">
           <CampaignMeter campaign={campaign} />
         </div>
 
-        <section className="mt-7 px-3" aria-labelledby="preorder-product-title">
+        <section
+          id="precomanda"
+          className="mt-7 px-3 lg:mx-auto lg:grid lg:max-w-[1160px] lg:grid-cols-[1.2fr_0.9fr] lg:items-start lg:gap-12 lg:px-8 lg:py-16"
+          aria-labelledby="preorder-product-title"
+        >
           <h2
             id="preorder-product-title"
-            className={`mb-3 text-[25px] font-semibold text-[#312E3F] ${styles.fontDisplay}`}
+            className={`mb-3 text-[25px] font-semibold text-[#312E3F] lg:hidden ${styles.fontDisplay}`}
           >
             Precomandă zmeură
           </h2>
-          <div className="rounded-[26px] bg-white p-[18px] shadow-[0_12px_36px_rgba(120,100,70,0.16)]">
+          <div className="hidden lg:block">
+            <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[var(--coral-deep)]">
+              Din recolta 2026
+            </p>
+            <h2 className={`mt-3 text-5xl font-semibold leading-tight text-[var(--ink)] ${styles.fontDisplay}`}>
+              Rezervă-ți recolta din Văratec
+            </h2>
+            <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--ink)]/72">
+              Alegi cantitatea acum, iar noi te contactăm înainte de livrare pentru toate detaliile.
+            </p>
+            <ul className="mt-8 space-y-4 text-base font-bold text-[var(--ink)]">
+              <li className="flex items-center gap-3">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--coral)]/12 text-[var(--coral-deep)]">
+                  ✓
+                </span>
+                Confirmare telefonică înainte de livrare
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--coral)]/12 text-[var(--coral-deep)]">
+                  ✓
+                </span>
+                Livrare locală în Suceava și împrejurimi
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--coral)]/12 text-[var(--coral-deep)]">
+                  ✓
+                </span>
+                Plată cash la primirea comenzii
+              </li>
+            </ul>
+          </div>
+          <div className="rounded-[26px] bg-white p-[18px] shadow-[0_12px_36px_rgba(120,100,70,0.16)] lg:sticky lg:top-[88px]">
             <div className="grid gap-2 min-[360px]:grid-cols-2">
               <div className="rounded-[18px] border border-[#F3DAD4] bg-[#FFF9F7] px-3 py-3">
                 <p className="text-xs font-bold text-[#312E3F]/68">1 caserolă · 500 g</p>
@@ -1040,74 +1154,118 @@ export function ShopClient({
           </div>
         </section>
 
-        <section className="mt-8 px-3">
-          <div className="grid grid-cols-3 gap-2">
-            <Benefit icon="🚚" label="Livrare locală" />
-            <Benefit icon="🌿" label="Culeasă în ziua livrării" />
-            <Benefit icon="🧺" label="De la fermă" />
+        <section id="ferma" className="mt-8 px-3 lg:mx-auto lg:max-w-[1160px] lg:px-8 lg:py-16">
+          <div className="grid grid-cols-3 gap-2 lg:gap-6">
+            <div>
+              <Benefit icon="🚚" label="Livrare locală" />
+            </div>
+            <div className="lg:border-l lg:border-l-[var(--line)] lg:pl-6">
+              <Benefit icon="🌿" label="Culeasă în ziua livrării" />
+            </div>
+            <div className="lg:border-l lg:border-l-[var(--line)] lg:pl-6">
+              <Benefit icon="🧺" label="De la fermă" />
+            </div>
           </div>
-          <div className="relative mt-4 aspect-[2/1] overflow-hidden rounded-[24px] bg-[#F3DAD4] shadow-md">
-            <Image
-              src="/shop/shop-ferma.jpg"
-              alt="Ferma Zmeurel din Văratec"
-              fill
-              sizes="(max-width: 640px) 100vw, 540px"
-              className="object-cover object-center"
-            />
-            <span className="absolute bottom-3 left-3 rounded-full bg-[#312E3F]/85 px-3 py-1.5 text-xs font-semibold text-white">
-              Direct de la fermă
-            </span>
+          <div className="lg:mt-14 lg:grid lg:grid-cols-2 lg:items-center lg:gap-12">
+            <div className="relative mt-4 aspect-[2/1] overflow-hidden rounded-[24px] bg-[#F3DAD4] shadow-md lg:mt-0 lg:aspect-[4/3]">
+              <Image
+                src="/shop/shop-ferma.jpg"
+                alt="Ferma Zmeurel din Văratec"
+                fill
+                sizes="(max-width: 1023px) 100vw, 600px"
+                className="object-cover object-center"
+              />
+              <span className="absolute bottom-3 left-3 rounded-full bg-[#312E3F]/85 px-3 py-1.5 text-xs font-semibold text-white">
+                Direct de la fermă
+              </span>
+            </div>
+            <div className="hidden lg:block">
+              <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[var(--coral-deep)]">
+                Cultivată cu grijă
+              </p>
+              <h2 className={`mt-3 text-5xl font-semibold leading-tight text-[var(--ink)] ${styles.fontDisplay}`}>
+                Direct de la fermă
+              </h2>
+              <p className="mt-5 text-lg leading-relaxed text-[var(--ink)]/72">
+                Cultivăm soiurile Maravilla și Delniwa în Văratec, cu irigare prin picurare și atenție la fiecare
+                plantă. Zmeura este recoltată manual, în fiecare zi, pentru a ajunge proaspătă la tine.
+              </p>
+            </div>
           </div>
         </section>
 
-        <div className="mt-8">
+        <div className="mt-8 lg:mx-auto lg:max-w-[640px]">
           <CampaignMilestones campaign={campaign} />
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 lg:mx-auto lg:max-w-[640px]">
           {campaign ? <SeasonLeaderboard campaign={campaign} /> : null}
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 lg:mx-auto lg:max-w-[640px]">
           {campaign ? <CampaignRules campaign={campaign} /> : null}
         </div>
 
-        <footer className="mt-8 border-t-4 border-[#F16B6B] bg-[#312E3F] px-5 pb-10 pt-8 text-white">
-          <FooterBrand />
-          <div className="mt-6 space-y-2 text-sm">
-            <a
-              href={PHONE_HREF}
-              className="flex min-h-11 items-center gap-3 rounded-xl bg-white/10 px-3 font-semibold transition active:scale-[0.985]"
-            >
-              <span aria-hidden>☎</span>
-              {PHONE_LABEL}
-            </a>
-            <div className="flex min-h-11 items-center gap-3 rounded-xl bg-white/10 px-3">
-              <span aria-hidden>⌖</span>
-              {FARM_ADDRESS}
+        <footer
+          id="contact"
+          className="mt-8 border-t-4 border-[#F16B6B] bg-[#312E3F] px-5 pb-10 pt-8 text-white lg:grid lg:grid-cols-3 lg:gap-12 lg:px-12 lg:py-12"
+        >
+          <div>
+            <FooterBrand />
+          </div>
+          <div>
+            <div className="mt-6 space-y-2 text-sm lg:mt-0">
+              <a
+                href={PHONE_HREF}
+                className="flex min-h-11 items-center gap-3 rounded-xl bg-white/10 px-3 font-semibold transition active:scale-[0.985]"
+              >
+                <span aria-hidden>☎</span>
+                {PHONE_LABEL}
+              </a>
+              <div className="flex min-h-11 items-center gap-3 rounded-xl bg-white/10 px-3">
+                <span aria-hidden>⌖</span>
+                {FARM_ADDRESS}
+              </div>
+            </div>
+            <div className="mt-5 grid gap-2 min-[390px]:grid-cols-3">
+              <FooterSocialLink href={WA_BASE} label="WhatsApp" className="bg-[#25D366]">
+                <FooterWhatsAppIcon />
+              </FooterSocialLink>
+              <FooterSocialLink href={FACEBOOK_HREF} label="Facebook" className="bg-[#1877F2]">
+                <FooterFacebookIcon />
+              </FooterSocialLink>
+              <FooterSocialLink
+                href={INSTAGRAM_HREF}
+                label="Instagram"
+                className="bg-gradient-to-br from-[#833AB4] via-[#E4405F] to-[#FCAF45]"
+              >
+                <FooterInstagramIcon />
+              </FooterSocialLink>
             </div>
           </div>
-          <div className="mt-5 grid gap-2 min-[390px]:grid-cols-3">
-            <FooterSocialLink href={WA_BASE} label="WhatsApp" className="bg-[#25D366]">
-              <FooterWhatsAppIcon />
-            </FooterSocialLink>
-            <FooterSocialLink href={FACEBOOK_HREF} label="Facebook" className="bg-[#1877F2]">
-              <FooterFacebookIcon />
-            </FooterSocialLink>
-            <FooterSocialLink
-              href={INSTAGRAM_HREF}
-              label="Instagram"
-              className="bg-gradient-to-br from-[#833AB4] via-[#E4405F] to-[#FCAF45]"
-            >
-              <FooterInstagramIcon />
-            </FooterSocialLink>
-          </div>
-          <p className="mt-6 text-xs text-white/60">© {new Date().getFullYear()} Zmeurel · Văratec</p>
+          <nav
+            className="hidden flex-col items-start gap-4 text-sm font-bold text-white/75 lg:flex"
+            aria-label="Linkuri footer"
+          >
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-white">Navigație</p>
+            <a className="transition hover:text-white" href="#ferma">
+              Despre fermă
+            </a>
+            <a className="transition hover:text-white" href="#precomanda">
+              Precomandă
+            </a>
+            <a className="transition hover:text-white" href="#contact">
+              Contact
+            </a>
+          </nav>
+          <p className="mt-6 text-xs text-white/60 lg:col-span-3 lg:mt-0">
+            © {new Date().getFullYear()} Zmeurel · Văratec
+          </p>
         </footer>
       </main>
 
       {primaryProduct?.available && cartCount > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
           <div className="mx-auto flex max-w-[540px] items-center justify-between gap-3 rounded-[20px] bg-[#312E3F] px-4 py-3 text-white shadow-[0_12px_34px_rgba(49,46,63,0.3)]">
             <div>
               <p className="text-xs font-medium text-white/65">
