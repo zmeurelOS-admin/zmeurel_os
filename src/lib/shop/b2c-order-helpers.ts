@@ -1,4 +1,5 @@
 import type { Json } from '@/types/supabase'
+import type { DeliveryZone } from '@/lib/shop/delivery-zones'
 
 export type ShopOrderStatus = 'noua' | 'confirmata' | 'in_livrare' | 'livrata' | 'anulata'
 
@@ -16,6 +17,8 @@ export type ShopOrderRow = {
   delivery_address: string | null
   delivery_city?: string | null
   in_suceava?: boolean | null
+  delivery_zone?: DeliveryZone | null
+  needs_confirmation?: boolean | null
   delivery_date: string | null
   delivery_position: number | null
   order_kind?: string

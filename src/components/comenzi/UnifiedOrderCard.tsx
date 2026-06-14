@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, MessageCircle, Phone } from 'lucide-react'
+import { ChevronDown, Phone } from 'lucide-react'
 
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -14,14 +14,6 @@ import {
   getShopOrderQuantity,
   SHOP_STATUS_LABELS,
 } from '@/lib/comenzi/unified-orders'
-
-const SHOP_STATUS_OPTIONS: ShopOrderStatus[] = [
-  'noua',
-  'confirmata',
-  'in_livrare',
-  'livrata',
-  'anulata',
-]
 
 const B2B_STATUS_OPTIONS = Object.keys(B2B_STATUS_LABELS) as ComandaStatus[]
 
@@ -81,6 +73,17 @@ function ShopStatusPill({ status }: { status: ShopOrderStatus }) {
   )
 }
 
+function ConfirmationBadge() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-full border px-2 py-[3px] text-[11px] font-semibold leading-none"
+      style={{ background: '#FFF8EC', color: '#854F0B', borderColor: '#FAC775' }}
+    >
+      ⏳ Necesită confirmare
+    </span>
+  )
+}
+
 function MilestoneRewardBadge({
   rewardLabel,
   status,
@@ -109,7 +112,7 @@ export function UnifiedOrderCard({
   onShopStatusChange,
   onShopConfirmedChange,
   onShopDeliveryDateChange,
-  mobileShopLayout = false,
+  onShopNotifiedChange,
 }: {
   item: UnifiedOrderItem
   disabled?: boolean
@@ -118,9 +121,9 @@ export function UnifiedOrderCard({
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
-  mobileShopLayout?: boolean
+  onShopNotifiedChange?: (id: string, notified: boolean) => void
 }) {
-  if (mobileShopLayout && item.source === 'shop' && item.shopOrder) {
+  if (item.source === 'shop' && item.shopOrder) {
     return (
       <MobileShopOrderCard
         item={item}
@@ -128,12 +131,12 @@ export function UnifiedOrderCard({
         onShopStatusChange={onShopStatusChange}
         onShopConfirmedChange={onShopConfirmedChange}
         onShopDeliveryDateChange={onShopDeliveryDateChange}
+        onShopNotifiedChange={onShopNotifiedChange}
       />
     )
   }
 
   const phoneHref = item.phone ? `tel:${item.phone.replace(/\s/g, '')}` : undefined
-  const waHref = item.phone ? waUrlForPhone(item.phone) : undefined
   const totalFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(
     Math.round(item.totalLei),
   )
@@ -187,11 +190,6 @@ export function UnifiedOrderCard({
         <span className="text-[var(--text-tertiary)]"> · </span>
         <span className="text-[var(--text-secondary)]">{item.addressShort}</span>
       </p>
-      {item.source === 'shop' && item.shopOrder?.delivery_date ? (
-        <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">
-          Livrat preferabil: {formatOrderDateShort(item.shopOrder.delivery_date)}
-        </p>
-      ) : null}
 
       <p className="mt-1 text-xs text-[var(--text-tertiary)]">
         {new Intl.DateTimeFormat('ro-RO', {
@@ -205,90 +203,21 @@ export function UnifiedOrderCard({
       </p>
 
       <div className="mt-3 flex flex-col gap-2">
-        {item.source === 'shop' &&
-        item.shopOrder?.order_kind === 'preorder' &&
-        onShopDeliveryDateChange ? (
-          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2.5">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-[var(--text-secondary)]">Data livrării</p>
-              {item.shopOrder.delivery_date ? (
-                <button
-                  type="button"
-                  aria-label={`Șterge data livrării pentru ${item.customerName}`}
-                  disabled={disabled}
-                  onClick={() => onShopDeliveryDateChange(item.id, null)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full text-lg text-[var(--text-tertiary)] transition active:scale-[0.98] disabled:opacity-50"
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>
-            <AppDatePicker
-              id={`shop-delivery-date-${item.id}`}
-              placeholder="Setează data"
-              value={item.shopOrder.delivery_date ?? ''}
-              disabled={disabled}
-              triggerClassName="h-11 bg-[var(--surface-card)] text-sm"
-              onChange={(value) => onShopDeliveryDateChange(item.id, value)}
-            />
-          </div>
-        ) : null}
-
-        {waHref ? (
-          <a
-            href={waHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 text-[14px] font-bold text-white transition active:scale-[0.98]"
-          >
-            <MessageCircle className="h-4 w-4" aria-hidden />
-            WhatsApp
-          </a>
-        ) : null}
-
         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2.5">
           <p className="mb-1.5 text-xs font-semibold text-[var(--text-secondary)]">Status</p>
-          {item.source === 'shop' ? (
-            <>
-              <select
-                value={item.status}
-                disabled={disabled}
-                onChange={(e) => onShopStatusChange?.(item.id, e.target.value as ShopOrderStatus)}
-                className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
-                aria-label="Schimbă statusul comenzii"
-              >
-                {SHOP_STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {SHOP_STATUS_LABELS[status]}
-                  </option>
-                ))}
-              </select>
-              <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-2 text-[14px] font-medium text-[var(--text-secondary)]">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-[var(--border-default)]"
-                  checked={item.confirmed}
-                  disabled={disabled}
-                  onChange={(e) => onShopConfirmedChange?.(item.id, e.target.checked)}
-                />
-                Confirmat
-              </label>
-            </>
-          ) : (
-            <select
-              value={item.status}
-              disabled={disabled}
-              onChange={(e) => onB2bStatusChange?.(item.id, e.target.value as ComandaStatus)}
-              className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
-              aria-label="Schimbă statusul comenzii"
-            >
-              {B2B_STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {B2B_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          )}
+          <select
+            value={item.status}
+            disabled={disabled}
+            onChange={(e) => onB2bStatusChange?.(item.id, e.target.value as ComandaStatus)}
+            className="min-h-11 w-full rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-[14px] font-medium"
+            aria-label="Schimbă statusul comenzii"
+          >
+            {B2B_STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {B2B_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </article>
@@ -301,12 +230,14 @@ function MobileShopOrderCard({
   onShopStatusChange,
   onShopConfirmedChange,
   onShopDeliveryDateChange,
+  onShopNotifiedChange,
 }: {
   item: UnifiedOrderItem
   disabled?: boolean
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
+  onShopNotifiedChange?: (id: string, notified: boolean) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
@@ -324,10 +255,19 @@ function MobileShopOrderCard({
     minute: '2-digit',
     timeZone: 'Europe/Bucharest',
   }).format(new Date(item.createdAt))
+  const orderDateLong = new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  }).format(new Date(item.createdAt))
   const cityLabel = order.delivery_city?.trim() || item.addressShort || item.deliveryLabel
   const fullAddress = [order.delivery_address?.trim(), order.delivery_city?.trim()]
     .filter(Boolean)
     .join(', ')
+  const needsConfirmation = order.needs_confirmation ?? order.delivery_zone === 'zona4'
+  const cardBorderLeft =
+    needsConfirmation && status === 'noua' ? 'border-l-[3px] border-l-[#E8A020]' : ''
   const cardTone =
     status === 'in_livrare'
       ? 'border-[var(--status-warning-border)]'
@@ -337,41 +277,36 @@ function MobileShopOrderCard({
           ? 'border-[var(--border-default)] opacity-50'
           : 'border-[var(--border-default)]'
 
+  const markNotified = () => {
+    if (!order.notified_wa) {
+      onShopNotifiedChange?.(item.id, true)
+    }
+  }
+
   const handleStatusChange = (nextStatus: ShopOrderStatus) => {
     setStatusMenuOpen(false)
 
     if (nextStatus === 'confirmata') {
       const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
-      const orderDate = new Intl.DateTimeFormat('ro-RO', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone: 'Europe/Bucharest',
-      }).format(new Date(item.createdAt))
       const message = `Bună ziua, ${firstName}! 🍓
 
-Am primit comanda dvs. din ${orderDate} — *${quantity} caserole zmeură proaspătă* (${totalFormatted} lei).
+Am primit comanda dvs. din ${orderDateLong} — *${quantity} caserole zmeură proaspătă* (${totalFormatted} lei).
 
 Vă vom livra în cel mai scurt timp și veți primi un mesaj în ziua livrării cu detaliile.
 
 Mulțumim că ați ales Ferma Zmeurel! 🌿`
       const whatsappUrl = `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`
       window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+      markNotified()
     }
 
     if (nextStatus === 'in_livrare') {
       const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
-      const orderDate = new Intl.DateTimeFormat('ro-RO', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone: 'Europe/Bucharest',
-      }).format(new Date(item.createdAt))
       const deliveryAddress = fullAddress || item.addressShort || 'adresa comunicată'
       const message = `Bună ziua, ${firstName}! 🍓
 
 Comanda dvs. de *${quantity} ${quantity === 1 ? 'caserolă' : 'caserole'} zmeură* (${totalFormatted} lei)
-plasată pe ${orderDate} va fi livrată astăzi la adresa: ${deliveryAddress}.
+plasată pe ${orderDateLong} va fi livrată astăzi la adresa: ${deliveryAddress}.
 
 Veți fi sunat cu puțin timp înainte de sosire.
 
@@ -380,14 +315,34 @@ Dacă doriți să modificați cantitatea, adresa sau alt detaliu, răspundeți l
 Mulțumim! — Ferma Zmeurel 🌿`
       const whatsappUrl = `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`
       window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+      markNotified()
     }
 
     onShopStatusChange?.(item.id, nextStatus)
   }
 
+  const handleZona4WhatsApp = () => {
+    const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
+    const deliveryCity = order.delivery_city?.trim() || 'localitatea dvs.'
+    const message = `Bună ziua, ${firstName}! 🍓
+
+Am primit comanda dvs. din ${orderDateLong} —
+*${quantity} caserole zmeură proaspătă* (${totalFormatted} lei)
+cu livrare în ${deliveryCity}.
+
+Ne bucurăm că doriți să comandați! Întrucât livrăm periodic
+în zona dvs., vă contactăm pentru a stabili împreună
+locul și data livrării.
+
+Vă mulțumim! — Ferma Zmeurel 🌿`
+    const whatsappUrl = `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+    markNotified()
+  }
+
   return (
     <article
-      className={`overflow-hidden rounded-2xl border bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${cardTone}`}
+      className={`overflow-hidden rounded-2xl border bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${cardTone} ${cardBorderLeft}`}
     >
       <div className="px-3 py-3">
         <button
@@ -402,6 +357,7 @@ Mulțumim! — Ferma Zmeurel 🌿`
           </p>
           <div className="flex shrink-0 items-center gap-1.5">
             <OriginBadge source="shop" />
+            {needsConfirmation ? <ConfirmationBadge /> : null}
             <span className="text-[11px] font-medium text-[var(--text-tertiary)]">{orderTime}</span>
           </div>
         </button>
@@ -534,16 +490,35 @@ Mulțumim! — Ferma Zmeurel 🌿`
         </div>
       ) : null}
 
-      <label className="flex min-h-11 cursor-pointer items-center gap-2 border-t border-[var(--divider)] px-3 py-2 text-[13px] font-medium text-[var(--text-secondary)]">
-        <input
-          type="checkbox"
-          className="h-4 w-4 rounded border-[var(--border-default)]"
-          checked={item.confirmed}
-          disabled={disabled}
-          onChange={(event) => onShopConfirmedChange?.(item.id, event.target.checked)}
-        />
-        WhatsApp trimis
-      </label>
+      {needsConfirmation && status === 'noua' ? (
+        <div className="border-t border-[var(--divider)] px-3 py-2.5">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={handleZona4WhatsApp}
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+          >
+            💬 Stabilește livrare (WhatsApp)
+          </button>
+        </div>
+      ) : null}
+
+      <div className="flex min-h-10 items-center border-t border-[var(--divider)] px-3 py-2">
+        {order.notified_wa ? (
+          <p className="text-xs font-semibold text-[#3D7A5F]">✓ Anunțat WA</p>
+        ) : (
+          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-[var(--border-default)]"
+              checked={item.confirmed}
+              disabled={disabled}
+              onChange={(event) => onShopConfirmedChange?.(item.id, event.target.checked)}
+            />
+            WhatsApp trimis
+          </label>
+        )}
+      </div>
     </article>
   )
 }

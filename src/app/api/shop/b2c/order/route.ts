@@ -14,6 +14,7 @@ import {
   ZMEURA_PRODUCT_ID,
 } from '@/lib/shop/pricing'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
+import { inSuceavaFromZone } from '@/lib/shop/delivery-zones'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import type { Json } from '@/types/supabase'
 
@@ -32,7 +33,7 @@ const bodySchema = z.object({
   delivery_city: z.string().trim().max(120).optional(),
   campaign_id: z.string().uuid().nullable().optional(),
   idempotencyKey: z.string().uuid().optional(),
-  inSuceava: z.boolean().nullable().optional(),
+  deliveryZone: z.enum(['zona1', 'zona2', 'zona3', 'zona4', 'ridicare']).nullable().optional(),
   preferredDeliveryDate: z.string().date().nullable().optional(),
   items: z.array(lineSchema).length(1, 'Coșul trebuie să conțină doar zmeură'),
   total_lei: z.number().int().positive('Total invalid'),
@@ -78,11 +79,12 @@ export async function POST(request: Request) {
     delivery_city,
     campaign_id,
     idempotencyKey,
-    inSuceava,
+    deliveryZone,
     preferredDeliveryDate,
     items,
     notes,
   } = parsed.data
+  const inSuceava = deliveryZone ? inSuceavaFromZone(deliveryZone) : null
   const configuredTenantId = process.env.SHOP_TENANT_ID?.trim()
   const item = items[0]
   const normalizedCustomerPhone = normalizeRomanianMobilePhone(customer_phone)
@@ -189,6 +191,22 @@ export async function POST(request: Request) {
     }
 
     orderId = data.id
+  }
+
+  if (deliveryZone) {
+    const { error: patchError } = await admin
+      .from('shop_orders')
+      .update({
+        delivery_zone: deliveryZone,
+        needs_confirmation: deliveryZone === 'zona4',
+      } as Record<string, unknown>)
+      .eq('id', orderId)
+    if (patchError) {
+      console.error(
+        '[shop/b2c/order] delivery_zone patch failed',
+        sanitizeForLog(toSafeErrorContext({ error: patchError, orderId })),
+      )
+    }
   }
 
   const notificationItems = normalizedItems.map(({ qty, label }) => ({ qty, label }))

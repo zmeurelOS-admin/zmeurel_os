@@ -38,6 +38,14 @@ import {
   ZMEURA_PRODUCT_ID,
 } from '@/lib/shop/pricing'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
+import {
+  DELIVERY_ZONES,
+  LOCALITIES,
+  getZoneMinimumMessage,
+  type DeliveryZone,
+  type LocalityConfig,
+  type VillageConfig,
+} from '@/lib/shop/delivery-zones'
 import { markNotificationPromptSession, shouldShowNotificationPrompt } from '@/lib/shop/useNotificationPrompt'
 import { CampaignMeter } from './components/CampaignMeter'
 import { CampaignMilestones } from './components/CampaignMilestones'
@@ -56,19 +64,6 @@ const FARM_PICKUP_SCHEDULE = 'Ridicare zilnic 9:00–18:00'
 const FARM_MAP_HREF = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(FARM_ADDRESS)}`
 const CUSTOMER_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000
 const CAMPAIGN_RETRY_DELAYS_MS = [1000, 2000, 4000] as const
-const DELIVERY_CITY_SUGGESTIONS = [
-  'Suceava',
-  'Salcea',
-  'Văratec',
-  'Șcheia',
-  'Ipotești',
-  'Bosanci',
-  'Mitocu Dragomirnei',
-  'Moara',
-  'Adâncata',
-  'Verești',
-] as const
-const DELIVERY_CITIES_DATALIST_ID = 'shop-delivery-cities'
 
 type CheckoutFieldErrors = {
   name?: string
@@ -136,7 +131,7 @@ type OrderRequestPayload = {
   delivery_city?: string
   campaign_id: string
   idempotencyKey: string
-  inSuceava?: boolean
+  deliveryZone?: DeliveryZone
   preferredDeliveryDate?: string | null
   items: Array<{
     vid: string
@@ -246,20 +241,15 @@ function coerceDeliveryMode(value: unknown): DeliveryMode {
   return value === 'ridicare' ? 'ridicare' : 'livrare'
 }
 
+/** @deprecated Use getZoneMinimumMessage from delivery-zones.ts */
 export function getDeliveryMinimumMessage(
   deliveryMode: DeliveryMode,
-  inSuceava: boolean | null,
+  zone: DeliveryZone | null,
   totalQty: number,
 ): string | null {
   if (deliveryMode === 'ridicare') return null
-  if (inSuceava === null) return 'Selectează zona de livrare.'
-  if (inSuceava && totalQty < 2) {
-    return 'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg).'
-  }
-  if (!inSuceava && totalQty < 4) {
-    return 'Comanda minimă pentru livrare în afara Sucevei este de 4 caserole (2 kg).'
-  }
-  return null
+  if (zone === null) return 'Selectează zona de livrare.'
+  return getZoneMinimumMessage(zone, totalQty)
 }
 
 export function readCustomerSnapshotFromStorage(phone: string): CustomerSnapshot | null {
@@ -419,7 +409,9 @@ export function ShopClient({
   const [orderName, setOrderName] = useState('')
   const [orderPhone, setOrderPhone] = useState('')
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('livrare')
-  const [inSuceava, setInSuceava] = useState<boolean | null>(null)
+  const [selectedLocality, setSelectedLocality] = useState<LocalityConfig | null>(null)
+  const [selectedVillage, setSelectedVillage] = useState<VillageConfig | null>(null)
+  const [deliveryZone, setDeliveryZone] = useState<DeliveryZone | null>(null)
   const [orderAddress, setOrderAddress] = useState('')
   const [orderCity, setOrderCity] = useState('')
   const [preferredDeliveryDate, setPreferredDeliveryDate] = useState('')
@@ -700,7 +692,11 @@ export function ShopClient({
   const hasValidIdentity = orderName.trim().length >= 2 && normalizedOrderPhone !== null
   const visiblePhoneError =
     fieldErrors.phone ?? (phoneTouched && !normalizedOrderPhone ? ROMANIAN_PHONE_ERROR : undefined)
-  const deliveryMinimumMessage = getDeliveryMinimumMessage(deliveryMode, inSuceava, cartCount)
+  const blockedVillage =
+    deliveryMode === 'livrare' && selectedVillage?.blocked ? selectedVillage : null
+  const deliveryMinimumMessage = blockedVillage
+    ? null
+    : getDeliveryMinimumMessage(deliveryMode, deliveryZone, cartCount)
   const preferredDeliveryDateMin = useMemo(() => {
     const date = new Date()
     date.setDate(date.getDate() + 1)
@@ -899,7 +895,7 @@ export function ShopClient({
   }
 
   const submitOrder = async () => {
-    if (orderSubmitLockRef.current || deliveryMinimumMessage) return
+    if (orderSubmitLockRef.current || deliveryMinimumMessage || blockedVillage) return
 
     const validationErrors = validateCheckoutForm({
       orderName,
@@ -944,10 +940,13 @@ export function ShopClient({
       customer_phone: normalizedOrderPhone,
       delivery_mode: deliveryMode,
       delivery_address: deliveryMode === 'livrare' ? orderAddress.trim() : undefined,
-      delivery_city: deliveryMode === 'livrare' ? orderCity.trim() || undefined : undefined,
+      delivery_city:
+        deliveryMode === 'livrare'
+          ? ((selectedVillage?.name ?? selectedLocality?.name ?? orderCity.trim()) || undefined)
+          : undefined,
       campaign_id: CAMPAIGN_DATA.campaignId,
       idempotencyKey: checkoutIdempotencyKeyRef.current,
-      ...(deliveryMode === 'livrare' && inSuceava !== null ? { inSuceava } : {}),
+      ...(deliveryMode === 'livrare' && deliveryZone !== null ? { deliveryZone } : {}),
       ...(deliveryMode === 'livrare'
         ? { preferredDeliveryDate: preferredDeliveryDate || null }
         : {}),
@@ -1586,44 +1585,41 @@ export function ShopClient({
 
                 {deliveryMode === 'livrare' ? (
                   <>
-                    <div>
-                      <p className="mb-2 text-xs font-semibold text-[#312E3F]">Zona de livrare</p>
-                      <div className="flex gap-2">
-                        <ToggleChip
-                          active={inSuceava === true}
-                          onClick={() => setInSuceava(true)}
-                          label="Suceava"
-                        />
-                        <ToggleChip
-                          active={inSuceava === false}
-                          onClick={() => setInSuceava(false)}
-                          label="În afara Sucevei"
-                        />
-                      </div>
-                      {deliveryMinimumMessage ? (
-                        <p
-                          role="alert"
-                          className="mt-2 rounded-xl bg-[#FFF4D8] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]"
-                        >
-                          {deliveryMinimumMessage}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div ref={cityFieldRef}>
-                      <Field
-                        label="Localitate"
-                        value={orderCity}
-                        onChange={setOrderCity}
-                        autoComplete="address-level2"
-                        list={DELIVERY_CITIES_DATALIST_ID}
-                        error={fieldErrors.city}
-                      />
-                    </div>
-                    <datalist id={DELIVERY_CITIES_DATALIST_ID}>
-                      {DELIVERY_CITY_SUGGESTIONS.map((city) => (
-                        <option key={city} value={city} />
-                      ))}
-                    </datalist>
+                    <LocalityZoneSelector
+                      selectedLocality={selectedLocality}
+                      selectedVillage={selectedVillage}
+                      deliveryZone={deliveryZone}
+                      cartCount={cartCount}
+                      blockedVillage={blockedVillage}
+                      deliveryMinimumMessage={deliveryMinimumMessage}
+                      onSelectLocality={(locality) => {
+                        setSelectedLocality(locality)
+                        setSelectedVillage(null)
+                        if (!locality.villages) {
+                          setDeliveryZone(locality.zone)
+                          setOrderCity(locality.name)
+                        } else {
+                          setDeliveryZone(null)
+                          setOrderCity(locality.name)
+                        }
+                      }}
+                      onSelectVillage={(village) => {
+                        setSelectedVillage(village)
+                        if (village === null) {
+                          setDeliveryZone(selectedLocality?.villages ? null : (selectedLocality?.zone ?? null))
+                          setOrderCity(selectedLocality?.name ?? '')
+                        } else {
+                          setDeliveryZone(village.blocked ? null : village.zone)
+                          setOrderCity(village.name)
+                        }
+                      }}
+                      onSelectOtherLocality={() => {
+                        setSelectedLocality(null)
+                        setSelectedVillage(null)
+                        setDeliveryZone('zona4')
+                        setOrderCity('')
+                      }}
+                    />
                     <div ref={addressFieldRef}>
                       <Field
                         label="Adresă livrare"
@@ -1938,5 +1934,154 @@ function ToggleChip({
     >
       {label}
     </button>
+  )
+}
+
+const ZONE_BORDER_COLORS: Record<DeliveryZone, string> = {
+  zona1: '#B8D89C',
+  zona2: '#B5D4F4',
+  zona3: '#FAC775',
+  zona4: '#D1D5DB',
+  ridicare: '#D1D5DB',
+}
+
+const ZONE_ACTIVE_TEXT: Record<DeliveryZone, string> = {
+  zona1: '#3B6D11',
+  zona2: '#185FA5',
+  zona3: '#854F0B',
+  zona4: '#374151',
+  ridicare: '#374151',
+}
+
+function LocalityChip({
+  label,
+  zone,
+  active,
+  blocked,
+  onClick,
+}: {
+  label: string
+  zone: DeliveryZone
+  active: boolean
+  blocked?: boolean
+  onClick?: () => void
+}) {
+  const borderColor = blocked ? '#D1D5DB' : ZONE_BORDER_COLORS[zone]
+  const activeText = blocked ? '#9CA3AF' : ZONE_ACTIVE_TEXT[zone]
+
+  if (blocked) {
+    return (
+      <span
+        className="flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs font-semibold text-[#9CA3AF]"
+        style={{ borderColor, background: '#F9FAFB', cursor: 'not-allowed' }}
+        title="Livrare indisponibilă"
+      >
+        <span>✕</span> {label}
+      </span>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={
+        active
+          ? { background: '#F16B6B', color: '#fff', borderColor: '#F16B6B' }
+          : { borderColor, color: active ? '#fff' : activeText, background: 'transparent' }
+      }
+      className="rounded-full border px-2.5 py-1.5 text-xs font-semibold transition active:scale-[0.97]"
+    >
+      {label}
+    </button>
+  )
+}
+
+function LocalityZoneSelector({
+  selectedLocality,
+  selectedVillage,
+  deliveryZone,
+  cartCount,
+  blockedVillage,
+  deliveryMinimumMessage,
+  onSelectLocality,
+  onSelectVillage,
+  onSelectOtherLocality,
+}: {
+  selectedLocality: LocalityConfig | null
+  selectedVillage: VillageConfig | null
+  deliveryZone: DeliveryZone | null
+  cartCount: number
+  blockedVillage: VillageConfig | null
+  deliveryMinimumMessage: string | null
+  onSelectLocality: (locality: LocalityConfig) => void
+  onSelectVillage: (village: VillageConfig | null) => void
+  onSelectOtherLocality: () => void
+}) {
+  const selectedName = selectedVillage?.name ?? selectedLocality?.name ?? null
+
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold text-[#312E3F]">Localitate livrare</p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {LOCALITIES.map((locality) => (
+          <LocalityChip
+            key={locality.name}
+            label={locality.name}
+            zone={locality.zone}
+            active={selectedLocality?.name === locality.name && !selectedVillage}
+            onClick={() => onSelectLocality(locality)}
+          />
+        ))}
+        <LocalityChip
+          label="Altă localitate…"
+          zone="zona4"
+          active={selectedLocality === null && deliveryZone === 'zona4'}
+          onClick={onSelectOtherLocality}
+        />
+      </div>
+
+      {selectedLocality?.villages ? (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {selectedLocality.villages.map((village) => (
+            <LocalityChip
+              key={village.name}
+              label={village.name}
+              zone={village.zone}
+              active={selectedVillage?.name === village.name}
+              blocked={village.blocked}
+              onClick={village.blocked ? undefined : () => onSelectVillage(village)}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {blockedVillage ? (
+        <p
+          role="alert"
+          className="mt-2 rounded-xl bg-[#FFF4D8] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]"
+        >
+          {blockedVillage.blockedMessage}
+        </p>
+      ) : deliveryZone === 'zona4' && selectedName ? (
+        <p className="mt-2 rounded-xl bg-[#FFF8EC] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]">
+          ℹ️ Livrăm și în {selectedName} — vom stabili împreună locul livrării după ce plasezi comanda.
+        </p>
+      ) : deliveryZone && cartCount > 0 && !deliveryMinimumMessage ? (
+        <p className="mt-2 rounded-xl bg-[#EAF3DE] px-3 py-2 text-xs font-semibold leading-relaxed text-[#3B6D11]">
+          ✓ Livrăm în {selectedName} — minim {DELIVERY_ZONES[deliveryZone].minQty} caserole ({DELIVERY_ZONES[deliveryZone].minKg} kg)
+        </p>
+      ) : deliveryMinimumMessage ? (
+        <p
+          role="alert"
+          className="mt-2 rounded-xl bg-[#FFF4D8] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]"
+        >
+          {deliveryMinimumMessage}
+        </p>
+      ) : !selectedLocality && deliveryZone !== 'zona4' ? (
+        <p className="mt-2 text-xs text-[#9CA3AF]">Selectează localitatea pentru a vedea minimul de comandă.</p>
+      ) : null}
+    </div>
   )
 }

@@ -41,30 +41,11 @@ describe('UnifiedOrderCard', () => {
     expect(screen.queryByRole('button', { name: /bonus/i })).not.toBeInTheDocument()
   })
 
-  it('grupează controalele shop distincte sub blocul Status', () => {
-    render(
-      <UnifiedOrderCard
-        item={mapShopToUnified(order)}
-        onShopDeliveryDateChange={() => undefined}
-      />,
-    )
-
-    expect(screen.getByText('Status')).toBeInTheDocument()
-    expect(screen.getByText('Livrat preferabil: 10 iun.')).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Setează data' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Șterge data livrării pentru Maria Popescu' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('combobox', { name: 'Schimbă statusul comenzii' })).toHaveValue('in_livrare')
-    expect(screen.getByRole('checkbox', { name: 'Confirmat' })).toBeChecked()
-  })
-
-  it('afișează cardul shop mobil collapsed implicit și deschide body-ul la tap pe header', async () => {
+  it('afișează cardul shop collapsed implicit și deschide body-ul la tap pe header', async () => {
     const user = userEvent.setup()
     render(
       <UnifiedOrderCard
         item={mapShopToUnified(order)}
-        mobileShopLayout
         onShopDeliveryDateChange={() => undefined}
       />,
     )
@@ -94,7 +75,6 @@ describe('UnifiedOrderCard', () => {
       render(
         <UnifiedOrderCard
           item={mapShopToUnified({ ...order, status })}
-          mobileShopLayout
           onShopStatusChange={() => undefined}
           onShopDeliveryDateChange={() => undefined}
         />,
@@ -117,7 +97,6 @@ describe('UnifiedOrderCard', () => {
       render(
         <UnifiedOrderCard
           item={mapShopToUnified({ ...order, status })}
-          mobileShopLayout
           onShopStatusChange={() => undefined}
           onShopDeliveryDateChange={() => undefined}
         />,
@@ -129,18 +108,29 @@ describe('UnifiedOrderCard', () => {
     },
   )
 
-  it('redenumește confirmarea și elimină butonul WhatsApp standalone pe mobil', () => {
+  it('afișează indicator anunțat WA când notified_wa=true și elimină checkbox', () => {
     render(
       <UnifiedOrderCard
         item={mapShopToUnified(order)}
-        mobileShopLayout
         onShopConfirmedChange={() => undefined}
       />,
     )
 
-    expect(screen.getByRole('checkbox', { name: 'WhatsApp trimis' })).toBeChecked()
+    expect(screen.getByText('✓ Anunțat WA')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
+  })
+
+  it('afișează checkbox WhatsApp trimis când notified_wa=false', () => {
+    render(
+      <UnifiedOrderCard
+        item={mapShopToUnified({ ...order, notified_wa: false })}
+        onShopConfirmedChange={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'WhatsApp trimis' })).not.toBeChecked()
+    expect(screen.queryByText('✓ Anunțat WA')).not.toBeInTheDocument()
   })
 
   it('deschide WhatsApp înainte de schimbarea statusului în livrare', async () => {
@@ -155,7 +145,6 @@ describe('UnifiedOrderCard', () => {
     render(
       <UnifiedOrderCard
         item={mapShopToUnified({ ...order, status: 'confirmata' })}
-        mobileShopLayout
         onShopStatusChange={onShopStatusChange}
       />,
     )

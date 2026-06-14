@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Check, ChevronDown, MapPin, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
+import { Check, ChevronDown, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -91,6 +91,7 @@ import {
 } from '@/lib/comenzi/unified-orders'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
+import { LOCALITIES, type LocalityConfig, type VillageConfig } from '@/lib/shop/delivery-zones'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
@@ -477,8 +478,11 @@ function ComandaDialog({
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
   const [comboInput, setComboInput] = useState(initialComboInput)
   const [comboOpen, setComboOpen] = useState(false)
-  const [mobileLocationExpanded, setMobileLocationExpanded] = useState(false)
   const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
+  const [deliveryModeSel, setDeliveryModeSel] = useState<'livrare' | 'ridicare'>('livrare')
+  const [localitySel, setLocalitySel] = useState<LocalityConfig | null>(null)
+  const [villageSel, setVillageSel] = useState<VillageConfig | null>(null)
+  const [streetSel, setStreetSel] = useState('')
   const comboRef = useRef<HTMLDivElement>(null)
 
   const selectedClient = clienti.find((client) => client.id === form.client_id)
@@ -489,7 +493,6 @@ function ComandaDialog({
     form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
   const isNewClientFlow = !form.client_id && form.client_nume_manual.trim().length > 0
-  const hasSelectedClientAddress = Boolean(selectedClient?.adresa?.trim())
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
@@ -692,36 +695,59 @@ function ComandaDialog({
               ) : null}
             </div>
 
-            {hasSelectedClientAddress && !mobileLocationExpanded ? (
-              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 md:hidden">
-                <span className="flex min-w-0 items-center gap-2 text-sm text-[var(--text-primary)]">
-                  <MapPin className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
-                  <span className="truncate">
-                    <span className="font-semibold">Adresa clientului</span> · {resolvedLocation}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
-                  onClick={() => setMobileLocationExpanded(true)}
-                >
-                  Schimbă
-                </button>
+            <div className="space-y-2">
+              <Label>Mod livrare</Label>
+              <div className="flex gap-2">
+                {(['livrare', 'ridicare'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      setDeliveryModeSel(mode)
+                      setLocalitySel(null)
+                      setVillageSel(null)
+                      setStreetSel('')
+                      const loc = mode === 'ridicare' ? 'Ridicare fermă Văratec' : ''
+                      setForm((prev) => ({ ...prev, locatie_livrare: loc }))
+                    }}
+                    className={`min-h-9 flex-1 rounded-xl border px-3 text-sm font-semibold transition ${
+                      deliveryModeSel === mode
+                        ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                        : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    {mode === 'livrare' ? 'Livrare la domiciliu' : 'Ridicare la fermă (Văratec)'}
+                  </button>
+                ))}
               </div>
-            ) : null}
-
-            <div
-              className={`space-y-1.5 ${
-                hasSelectedClientAddress && !mobileLocationExpanded ? 'hidden md:block' : ''
-              }`}
-            >
-              <Label>Locație livrare</Label>
-              <Input
-                className="agri-control h-11 md:h-10"
-                value={resolvedLocation}
-                onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
-              />
             </div>
+
+            {deliveryModeSel === 'livrare' ? (
+              <ErpLocalitySelector
+                selectedLocality={localitySel}
+                selectedVillage={villageSel}
+                street={streetSel}
+                onSelectLocality={(locality) => {
+                  setLocalitySel(locality)
+                  setVillageSel(null)
+                  const cityName = locality.villages ? '' : locality.name
+                  const loc = [cityName, streetSel].filter(Boolean).join(', ')
+                  setForm((prev) => ({ ...prev, locatie_livrare: loc }))
+                }}
+                onSelectVillage={(village) => {
+                  setVillageSel(village)
+                  const cityName = village ? village.name : (localitySel?.name ?? '')
+                  const loc = [cityName, streetSel].filter(Boolean).join(', ')
+                  setForm((prev) => ({ ...prev, locatie_livrare: loc }))
+                }}
+                onStreetChange={(street) => {
+                  setStreetSel(street)
+                  const cityName = villageSel?.name ?? (localitySel?.villages ? '' : localitySel?.name ?? '')
+                  const loc = [cityName, street].filter(Boolean).join(', ')
+                  setForm((prev) => ({ ...prev, locatie_livrare: loc }))
+                }}
+              />
+            ) : null}
 
             <div className="space-y-2.5 md:hidden">
               <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3">
@@ -876,7 +902,10 @@ function ComandaDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {COMENZI_STATUSES.map((status) => (
+                    {(mode === 'create'
+                      ? COMENZI_STATUSES.filter((s) => s === 'noua' || s === 'confirmata' || s === 'in_livrare')
+                      : COMENZI_STATUSES
+                    ).map((status) => (
                       <SelectItem key={status} value={status}>
                         {statusLabelMap[status]}
                       </SelectItem>
@@ -923,6 +952,112 @@ function ComandaDialog({
         </FormDialogSection>
       </DesktopFormGrid>
     </AppDialog>
+  )
+}
+
+const ERP_ZONE_BORDER: Record<string, string> = {
+  zona1: '#B8D89C',
+  zona2: '#B5D4F4',
+  zona3: '#FAC775',
+  zona4: '#D1D5DB',
+}
+
+function ErpLocalityChip({
+  label,
+  zone,
+  active,
+  blocked,
+  onClick,
+}: {
+  label: string
+  zone: string
+  active: boolean
+  blocked?: boolean
+  onClick?: () => void
+}) {
+  const borderColor = blocked ? '#D1D5DB' : (ERP_ZONE_BORDER[zone] ?? '#D1D5DB')
+  if (blocked) {
+    return (
+      <span
+        className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--text-tertiary)]"
+        style={{ borderColor, cursor: 'not-allowed' }}
+        title="Livrare indisponibilă"
+      >
+        ✕ {label}
+      </span>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={
+        active
+          ? { background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' }
+          : { borderColor }
+      }
+      className="rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] transition active:scale-[0.97]"
+    >
+      {label}
+    </button>
+  )
+}
+
+function ErpLocalitySelector({
+  selectedLocality,
+  selectedVillage,
+  street,
+  onSelectLocality,
+  onSelectVillage,
+  onStreetChange,
+}: {
+  selectedLocality: LocalityConfig | null
+  selectedVillage: VillageConfig | null
+  street: string
+  onSelectLocality: (locality: LocalityConfig) => void
+  onSelectVillage: (village: VillageConfig | null) => void
+  onStreetChange: (street: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>Localitate livrare</Label>
+      <div className="flex flex-wrap gap-1.5">
+        {LOCALITIES.map((locality) => (
+          <ErpLocalityChip
+            key={locality.name}
+            label={locality.name}
+            zone={locality.zone}
+            active={selectedLocality?.name === locality.name && !selectedVillage}
+            onClick={() => onSelectLocality(locality)}
+          />
+        ))}
+      </div>
+
+      {selectedLocality?.villages ? (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedLocality.villages.map((village) => (
+            <ErpLocalityChip
+              key={village.name}
+              label={village.name}
+              zone={village.zone}
+              active={selectedVillage?.name === village.name}
+              blocked={village.blocked}
+              onClick={village.blocked ? undefined : () => onSelectVillage(village)}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <div className="space-y-1.5">
+        <Label>Stradă, număr</Label>
+        <Input
+          className="agri-control h-11 md:h-10"
+          placeholder="Str. ..., nr. ..."
+          value={street}
+          onChange={(e) => onStreetChange(e.target.value)}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -1806,13 +1941,15 @@ export function ComenziPageClient() {
                       <UnifiedOrderCard
                         key={`shop-${order.id}`}
                         item={mapShopToUnified(order)}
-                        mobileShopLayout
                         disabled={patchShopOrderMutation.isPending}
                         onShopStatusChange={(id, status) => {
                           patchShopOrderMutation.mutate({ id, status })
                         }}
                         onShopConfirmedChange={(id, confirmed) => {
                           patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                        }}
+                        onShopNotifiedChange={(id, notified) => {
+                          patchShopOrderMutation.mutate({ id, notified_wa: notified })
                         }}
                         onShopDeliveryDateChange={(id, delivery_date) => {
                           patchShopOrderMutation.mutate({ id, delivery_date })
@@ -1838,37 +1975,7 @@ export function ComenziPageClient() {
               ))}
             </div>
 
-            {visibleShopGroups.length > 0 ? (
-              <div className="hidden space-y-5 md:block">
-                {visibleShopGroups.map((group) => (
-                  <ShopDeliveryGroupSection
-                    key={group.date ?? 'desktop-unscheduled'}
-                    date={group.date}
-                    orderCount={group.orders.length}
-                    totalQty={group.totalQty}
-                  >
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-                      {group.orders.map((order) => (
-                        <UnifiedOrderCard
-                          key={`desktop-shop-${order.id}`}
-                          item={mapShopToUnified(order)}
-                          disabled={patchShopOrderMutation.isPending}
-                          onShopStatusChange={(id, status) => {
-                            patchShopOrderMutation.mutate({ id, status })
-                          }}
-                          onShopConfirmedChange={(id, confirmed) => {
-                            patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                          }}
-                          onShopDeliveryDateChange={(id, delivery_date) => {
-                            patchShopOrderMutation.mutate({ id, delivery_date })
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </ShopDeliveryGroupSection>
-                ))}
-              </div>
-            ) : null}
+{/* Desktop shop groups rendered inline in the mobile list above — same compact card layout */}
 
             <div className="hidden md:block">
             <DesktopSplitPane

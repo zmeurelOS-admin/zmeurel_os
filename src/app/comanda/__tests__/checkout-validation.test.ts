@@ -67,17 +67,28 @@ describe('getDeliveryMinimumMessage', () => {
     expect(getDeliveryMinimumMessage('livrare', null, 4)).toBe('Selectează zona de livrare.')
   })
 
-  it('aplică minimul de 2 caserole în Suceava', () => {
-    expect(getDeliveryMinimumMessage('livrare', true, 1)).toBe(
-      'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg).',
+  it('aplică minimul de 2 caserole în zona1 (Suceava)', () => {
+    expect(getDeliveryMinimumMessage('livrare', 'zona1', 1)).toBe(
+      'Comanda minimă pentru livrare în Zona 1 — Suceava este de 2 caserole (1 kg).',
     )
-    expect(getDeliveryMinimumMessage('livrare', true, 2)).toBeNull()
+    expect(getDeliveryMinimumMessage('livrare', 'zona1', 2)).toBeNull()
   })
 
-  it('aplică minimul de 4 caserole în afara Sucevei', () => {
-    expect(getDeliveryMinimumMessage('livrare', false, 3)).toBe(
-      'Comanda minimă pentru livrare în afara Sucevei este de 4 caserole (2 kg).',
+  it('aplică minimul de 4 caserole în zona2', () => {
+    expect(getDeliveryMinimumMessage('livrare', 'zona2', 3)).toBe(
+      'Comanda minimă pentru livrare în Zona 2 este de 4 caserole (2 kg).',
     )
-    expect(getDeliveryMinimumMessage('livrare', false, 4)).toBeNull()
+    expect(getDeliveryMinimumMessage('livrare', 'zona2', 4)).toBeNull()
+  })
+
+  it('aplică minimul de 10 caserole în zona3', () => {
+    expect(getDeliveryMinimumMessage('livrare', 'zona3', 9)).toBe(
+      'Comanda minimă pentru livrare în Zona 3 este de 10 caserole (5 kg).',
+    )
+    expect(getDeliveryMinimumMessage('livrare', 'zona3', 10)).toBeNull()
+  })
+
+  it('nu impune minim pentru zona4 (necesită confirmare)', () => {
+    expect(getDeliveryMinimumMessage('livrare', 'zona4', 1)).toBeNull()
   })
 })
