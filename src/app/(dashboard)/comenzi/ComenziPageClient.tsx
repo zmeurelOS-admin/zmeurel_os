@@ -587,7 +587,6 @@ function ComandaDialog({
                   onClick={() => {
                     setComboInput('')
                     setComboOpen(true)
-                    setMobileLocationExpanded(false)
                     setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '' }))
                   }}
                 >
@@ -632,7 +631,6 @@ function ComandaDialog({
                             e.preventDefault()
                             setComboInput(client.nume_client)
                             setComboOpen(false)
-                            setMobileLocationExpanded(false)
                             setForm((prev) => ({
                               ...prev,
                               client_id: client.id,
