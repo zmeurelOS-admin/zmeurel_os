@@ -1981,11 +1981,12 @@ export function ComenziPageClient() {
                   orderCount={group.orders.length}
                   totalQty={group.totalQty}
                 >
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                     {group.orders.map((order) => (
                       <UnifiedOrderCard
                         key={`shop-${order.id}`}
                         item={mapShopToUnified(order)}
+                        compact
                         disabled={patchShopOrderMutation.isPending}
                         onShopStatusChange={(id, status) => {
                           patchShopOrderMutation.mutate({ id, status })

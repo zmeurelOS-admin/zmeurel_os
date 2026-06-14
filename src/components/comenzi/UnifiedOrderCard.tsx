@@ -107,6 +107,7 @@ function MilestoneRewardBadge({
 export function UnifiedOrderCard({
   item,
   disabled,
+  compact,
   onOpenB2bDetails,
   onB2bStatusChange,
   onShopStatusChange,
@@ -116,6 +117,7 @@ export function UnifiedOrderCard({
 }: {
   item: UnifiedOrderItem
   disabled?: boolean
+  compact?: boolean
   onOpenB2bDetails?: (id: string) => void
   onB2bStatusChange?: (id: string, status: ComandaStatus) => void
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void
@@ -128,6 +130,7 @@ export function UnifiedOrderCard({
       <MobileShopOrderCard
         item={item}
         disabled={disabled}
+        compact={compact}
         onShopStatusChange={onShopStatusChange}
         onShopConfirmedChange={onShopConfirmedChange}
         onShopDeliveryDateChange={onShopDeliveryDateChange}
@@ -227,6 +230,7 @@ export function UnifiedOrderCard({
 function MobileShopOrderCard({
   item,
   disabled,
+  compact,
   onShopStatusChange,
   onShopConfirmedChange,
   onShopDeliveryDateChange,
@@ -234,6 +238,7 @@ function MobileShopOrderCard({
 }: {
   item: UnifiedOrderItem
   disabled?: boolean
+  compact?: boolean
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
@@ -344,7 +349,7 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
     <article
       className={`overflow-hidden rounded-2xl border bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${cardTone} ${cardBorderLeft}`}
     >
-      <div className="px-3 py-3">
+      <div className={compact ? 'px-3 py-2' : 'px-3 py-3'}>
         <button
           type="button"
           aria-expanded={expanded}
@@ -352,21 +357,21 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
           onClick={() => setExpanded((current) => !current)}
           className="flex w-full items-start justify-between gap-2 rounded-lg text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
-          <p className="min-w-0 flex-1 truncate text-[15px] font-bold leading-tight text-[var(--text-primary)]">
+          <p className={`min-w-0 flex-1 truncate leading-tight text-[var(--text-primary)] ${compact ? 'text-[13px] font-medium' : 'text-[15px] font-bold'}`}>
             {item.customerName}
           </p>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className={`flex shrink-0 items-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
             <OriginBadge source="shop" />
             {needsConfirmation ? <ConfirmationBadge /> : null}
             <span className="text-[11px] font-medium text-[var(--text-tertiary)]">{orderTime}</span>
           </div>
         </button>
 
-        <div className="mt-1 flex items-center justify-between gap-2">
+        <div className={`flex items-center justify-between gap-2 ${compact ? 'mt-0.5' : 'mt-1'}`}>
           {phoneHref ? (
             <a
               href={phoneHref}
-              className="inline-flex min-h-8 min-w-0 items-center gap-1.5 text-[13px] font-medium text-[var(--info-text)]"
+              className={`inline-flex min-w-0 items-center gap-1 font-medium text-[var(--info-text)] ${compact ? 'min-h-6 text-[12px]' : 'min-h-8 text-[13px] gap-1.5'}`}
             >
               <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span className="truncate">{item.phone}</span>
@@ -381,7 +386,7 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
           type="button"
           aria-label={`${expanded ? 'Ascunde' : 'Arată'} rezumatul comenzii pentru ${item.customerName}`}
           onClick={() => setExpanded((current) => !current)}
-          className="mt-2 w-full border-t border-[var(--divider)] pt-2 text-left text-[13px] font-semibold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          className={`w-full border-t border-[var(--divider)] text-left font-semibold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${compact ? 'mt-1.5 pt-1.5 text-[12px]' : 'mt-2 pt-2 text-[13px]'}`}
         >
           <span>
             {quantity} {quantity === 1 ? 'caserolă' : 'caserole'} · {totalFormatted} lei
@@ -431,7 +436,7 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
       </div>
 
       {!isTerminal ? (
-        <div className="grid grid-cols-2 gap-2 border-t border-[var(--divider)] px-3 py-3">
+        <div className={`grid grid-cols-2 border-t border-[var(--divider)] px-3 ${compact ? 'gap-1.5 py-2' : 'gap-2 py-3'}`}>
           {order.order_kind === 'preorder' && onShopDeliveryDateChange ? (
             <div className="min-w-0">
               <AppDatePicker
@@ -439,7 +444,7 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
                 placeholder="Setează data"
                 value={order.delivery_date ?? ''}
                 disabled={disabled}
-                triggerClassName="h-11 bg-[var(--surface-card)] px-2 text-xs"
+                triggerClassName={compact ? 'h-8 bg-[var(--surface-card)] px-2 text-xs' : 'h-11 bg-[var(--surface-card)] px-2 text-xs'}
                 onChange={(value) => onShopDeliveryDateChange(item.id, value)}
               />
               {order.delivery_date ? (
@@ -447,7 +452,7 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
                   type="button"
                   disabled={disabled}
                   onClick={() => onShopDeliveryDateChange(item.id, null)}
-                  className="mt-1 min-h-8 w-full text-xs font-medium text-[var(--text-tertiary)]"
+                  className={`w-full text-xs font-medium text-[var(--text-tertiary)] ${compact ? 'mt-0.5 min-h-6' : 'mt-1 min-h-8'}`}
                 >
                   Șterge data
                 </button>
@@ -462,7 +467,7 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
               <button
                 type="button"
                 disabled={disabled || statusTransitions.length === 0}
-                className="flex h-11 min-w-0 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-left text-xs font-semibold text-[var(--text-primary)] disabled:opacity-50"
+                className={`flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-left text-xs font-semibold text-[var(--text-primary)] disabled:opacity-50 ${compact ? 'h-8' : 'h-11'}`}
                 aria-label="Schimbă statusul comenzii"
               >
                 <span className="truncate">{SHOP_STATUS_LABELS[status]}</span>
@@ -491,23 +496,23 @@ Vă mulțumim! — Ferma Zmeurel 🌿`
       ) : null}
 
       {needsConfirmation && status === 'noua' ? (
-        <div className="border-t border-[var(--divider)] px-3 py-2.5">
+        <div className={`border-t border-[var(--divider)] px-3 ${compact ? 'py-1.5' : 'py-2.5'}`}>
           <button
             type="button"
             disabled={disabled}
             onClick={handleZona4WhatsApp}
-            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 text-[13px] font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+            className={`flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-4 font-bold text-white transition active:scale-[0.98] disabled:opacity-50 ${compact ? 'min-h-8 text-xs' : 'min-h-10 text-[13px]'}`}
           >
             💬 Stabilește livrare (WhatsApp)
           </button>
         </div>
       ) : null}
 
-      <div className="flex min-h-10 items-center border-t border-[var(--divider)] px-3 py-2">
+      <div className={`flex items-center border-t border-[var(--divider)] px-3 ${compact ? 'min-h-8 py-1.5' : 'min-h-10 py-2'}`}>
         {order.notified_wa ? (
           <p className="text-xs font-semibold text-[#3D7A5F]">✓ Anunțat WA</p>
         ) : (
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)]">
+          <label className={`flex cursor-pointer items-center gap-2 font-medium text-[var(--text-secondary)] ${compact ? 'text-xs' : 'text-[13px]'}`}>
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-[var(--border-default)]"
