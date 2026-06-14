@@ -1973,7 +1973,38 @@ export function ComenziPageClient() {
               ))}
             </div>
 
-{/* Desktop shop groups rendered inline in the mobile list above — same compact card layout */}
+            <div className="hidden space-y-5 md:block">
+              {visibleShopGroups.map((group) => (
+                <ShopDeliveryGroupSection
+                  key={group.date ?? 'unscheduled'}
+                  date={group.date}
+                  orderCount={group.orders.length}
+                  totalQty={group.totalQty}
+                >
+                  <div className="space-y-3">
+                    {group.orders.map((order) => (
+                      <UnifiedOrderCard
+                        key={`shop-${order.id}`}
+                        item={mapShopToUnified(order)}
+                        disabled={patchShopOrderMutation.isPending}
+                        onShopStatusChange={(id, status) => {
+                          patchShopOrderMutation.mutate({ id, status })
+                        }}
+                        onShopConfirmedChange={(id, confirmed) => {
+                          patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                        }}
+                        onShopNotifiedChange={(id, notified) => {
+                          patchShopOrderMutation.mutate({ id, notified_wa: notified })
+                        }}
+                        onShopDeliveryDateChange={(id, delivery_date) => {
+                          patchShopOrderMutation.mutate({ id, delivery_date })
+                        }}
+                      />
+                    ))}
+                  </div>
+                </ShopDeliveryGroupSection>
+              ))}
+            </div>
 
             <div className="hidden md:block">
             <DesktopSplitPane
