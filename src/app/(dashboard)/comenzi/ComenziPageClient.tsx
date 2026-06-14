@@ -388,10 +388,10 @@ function ShopDeliveryGroupSection({
   return (
     <section className="space-y-3">
       <div
-        className={`rounded-xl px-3 py-2 text-sm font-bold ${
+        className={`rounded-xl border px-3 py-2 text-sm font-bold ${
           date
-            ? 'bg-[var(--surface-card-muted)] text-[var(--text-primary)]'
-            : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+            ? 'border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
+            : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
         }`}
       >
         {label} — {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'} · {totalQty} caserole
@@ -1806,6 +1806,7 @@ export function ComenziPageClient() {
                       <UnifiedOrderCard
                         key={`shop-${order.id}`}
                         item={mapShopToUnified(order)}
+                        mobileShopLayout
                         disabled={patchShopOrderMutation.isPending}
                         onShopStatusChange={(id, status) => {
                           patchShopOrderMutation.mutate({ id, status })

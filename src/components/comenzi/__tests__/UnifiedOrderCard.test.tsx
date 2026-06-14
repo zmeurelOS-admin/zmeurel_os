@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import {
@@ -56,6 +57,123 @@ describe('UnifiedOrderCard', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Schimbă statusul comenzii' })).toHaveValue('in_livrare')
     expect(screen.getByRole('checkbox', { name: 'Confirmat' })).toBeChecked()
+  })
+
+  it('afișează cardul shop mobil collapsed implicit și deschide body-ul la tap pe header', async () => {
+    const user = userEvent.setup()
+    render(
+      <UnifiedOrderCard
+        item={mapShopToUnified(order)}
+        mobileShopLayout
+        onShopDeliveryDateChange={() => undefined}
+      />,
+    )
+
+    const header = screen.getByRole('button', {
+      name: 'Arată detaliile comenzii pentru Maria Popescu',
+    })
+    expect(header).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText('Adresă').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true')
+
+    await user.click(header)
+
+    expect(
+      screen.getByRole('button', { name: 'Ascunde detaliile comenzii pentru Maria Popescu' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Adresă').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'false')
+  })
+
+  it.each([
+    ['noua', ['Confirmată', 'Anulată'], ['În livrare', 'Livrată']],
+    ['confirmata', ['În livrare', 'Anulată'], ['Confirmată', 'Livrată']],
+    ['in_livrare', ['Livrată'], ['Confirmată', 'Anulată']],
+  ] as const)(
+    'afișează doar tranzițiile valide pentru statusul %s',
+    async (status, expected, absent) => {
+      const user = userEvent.setup()
+      render(
+        <UnifiedOrderCard
+          item={mapShopToUnified({ ...order, status })}
+          mobileShopLayout
+          onShopStatusChange={() => undefined}
+          onShopDeliveryDateChange={() => undefined}
+        />,
+      )
+
+      await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+
+      for (const label of expected) {
+        expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
+      }
+      for (const label of absent) {
+        expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument()
+      }
+    },
+  )
+
+  it.each(['livrata', 'anulata'] as const)(
+    'nu afișează actions pentru status terminal %s',
+    (status) => {
+      render(
+        <UnifiedOrderCard
+          item={mapShopToUnified({ ...order, status })}
+          mobileShopLayout
+          onShopStatusChange={() => undefined}
+          onShopDeliveryDateChange={() => undefined}
+        />,
+      )
+
+      expect(
+        screen.queryByRole('button', { name: 'Schimbă statusul comenzii' }),
+      ).not.toBeInTheDocument()
+    },
+  )
+
+  it('redenumește confirmarea și elimină butonul WhatsApp standalone pe mobil', () => {
+    render(
+      <UnifiedOrderCard
+        item={mapShopToUnified(order)}
+        mobileShopLayout
+        onShopConfirmedChange={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'WhatsApp trimis' })).toBeChecked()
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
+  })
+
+  it('deschide WhatsApp înainte de schimbarea statusului în livrare', async () => {
+    const user = userEvent.setup()
+    const calls: string[] = []
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {
+      calls.push('whatsapp')
+      return null
+    })
+    const onShopStatusChange = vi.fn(() => calls.push('status'))
+
+    render(
+      <UnifiedOrderCard
+        item={mapShopToUnified({ ...order, status: 'confirmata' })}
+        mobileShopLayout
+        onShopStatusChange={onShopStatusChange}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+    await user.click(screen.getByRole('button', { name: 'În livrare' }))
+
+    expect(calls).toEqual(['whatsapp', 'status'])
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('https://wa.me/40740123456?text='),
+      '_blank',
+      'noopener,noreferrer',
+    )
+    expect(decodeURIComponent(String(openSpy.mock.calls[0][0]))).toContain(
+      'Bună ziua, Maria! 🍓',
+    )
+    expect(onShopStatusChange).toHaveBeenCalledWith(order.id, 'in_livrare')
+    openSpy.mockRestore()
   })
 
   it('afișează fallback-ul manual din cantitate, preț/kg și total', () => {
