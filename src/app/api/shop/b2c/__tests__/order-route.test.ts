@@ -47,6 +47,9 @@ function buildAdmin(
             }),
           }
         },
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        }),
       }
     },
   }
@@ -233,7 +236,7 @@ describe('POST /api/shop/b2c/order', () => {
           ...baseBody(),
           campaign_id: campaignId,
           idempotencyKey: '55555555-5555-4555-8555-555555555555',
-          inSuceava: true,
+          deliveryZone: 'zona1',
           preferredDeliveryDate: '2026-06-20',
         },
       }),
