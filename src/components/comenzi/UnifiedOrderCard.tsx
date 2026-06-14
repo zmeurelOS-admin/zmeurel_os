@@ -340,6 +340,25 @@ function MobileShopOrderCard({
   const handleStatusChange = (nextStatus: ShopOrderStatus) => {
     setStatusMenuOpen(false)
 
+    if (nextStatus === 'confirmata') {
+      const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
+      const orderDate = new Intl.DateTimeFormat('ro-RO', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Europe/Bucharest',
+      }).format(new Date(item.createdAt))
+      const message = `Bună ziua, ${firstName}! 🍓
+
+Am primit comanda dvs. din ${orderDate} — *${quantity} caserole zmeură proaspătă* (${totalFormatted} lei).
+
+Vă vom livra în cel mai scurt timp și veți primi un mesaj în ziua livrării cu detaliile.
+
+Mulțumim că ați ales Ferma Zmeurel! 🌿`
+      const whatsappUrl = `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+    }
+
     if (nextStatus === 'in_livrare') {
       const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
       const orderDate = new Intl.DateTimeFormat('ro-RO', {
