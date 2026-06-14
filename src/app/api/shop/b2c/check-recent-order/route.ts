@@ -62,16 +62,15 @@ export async function POST(request: Request) {
 
   try {
     const admin = getSupabaseAdmin()
-    const checkRecentOrderRpc = admin.rpc as unknown as (
-      name: 'check_recent_shop_order',
-      args: Record<string, unknown>,
-    ) => Promise<{ data: unknown; error: unknown }>
-    const { data, error } = await checkRecentOrderRpc('check_recent_shop_order', {
-      p_tenant_id: tenantId,
-      p_customer_phone: normalizedPhone,
-      p_campaign_id: parsed.data.campaignId ?? null,
-      p_minutes: 10,
-    })
+    const { data, error } = (await admin.rpc(
+      'check_recent_shop_order' as never,
+      {
+        p_tenant_id: tenantId,
+        p_customer_phone: normalizedPhone,
+        p_campaign_id: parsed.data.campaignId ?? null,
+        p_minutes: 10,
+      } as never,
+    )) as { data: unknown; error: unknown }
 
     if (error) throw error
     if (!data || typeof data !== 'object' || Array.isArray(data)) return notFoundResponse()
