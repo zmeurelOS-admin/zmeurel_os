@@ -142,6 +142,7 @@ export function UnifiedOrderCard({
     : isShop
       ? '#F16B6B'
       : '#3B7DD8'
+  const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
 
   const markShopNotified = () => {
     if (shopOrder && !shopOrder.notified_wa) {
@@ -198,6 +199,165 @@ export function UnifiedOrderCard({
       'noopener,noreferrer',
     )
     markShopNotified()
+  }
+
+  if (!compact) {
+    return (
+      <article
+        className={`overflow-hidden rounded-xl border bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
+          item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
+        }`}
+        style={{
+          borderColor: '#E0DEE8',
+          borderLeftWidth: '3px',
+          borderLeftColor: leftBorderColor,
+        }}
+      >
+        <button
+          type="button"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
+          onClick={() => setExpanded((current) => !current)}
+          className="flex w-full flex-col gap-1 px-3 py-2.5 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        >
+          <div className="flex items-center gap-1.5">
+            <p className="min-w-0 flex-1 truncate text-[14px] font-bold leading-tight text-[var(--text-primary)]">
+              {item.customerName}
+            </p>
+            <OriginBadge source={item.source} />
+            <StatusPill item={item} />
+          </div>
+          <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
+            <span className="min-w-0 flex-1 truncate">
+              {quantityLabel} · {totalFormatted} lei · {item.localityLabel}
+            </span>
+            <span className="shrink-0">{mobileDateLabel}</span>
+          </div>
+        </button>
+
+        <div
+          aria-hidden={!expanded}
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ${
+            expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="space-y-3 border-t border-[var(--divider)] px-3 py-3">
+              {phoneHref ? (
+                <a
+                  href={phoneHref}
+                  className="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-[var(--info-text)]"
+                >
+                  <Phone className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="truncate">{item.phone}</span>
+                </a>
+              ) : null}
+
+              {!isTerminal ? (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <AppDatePicker
+                      id={`unified-mobile-delivery-date-${item.source}-${item.id}`}
+                      placeholder="Setează data"
+                      value={item.deliveryDate ?? ''}
+                      disabled={disabled}
+                      triggerClassName="h-10 bg-[var(--surface-card)] px-3 text-sm"
+                      onChange={handleDeliveryDateChange}
+                    />
+                    {item.deliveryDate ? (
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => handleDeliveryDateChange(null)}
+                        className="w-full text-left text-xs font-medium text-[var(--text-tertiary)]"
+                      >
+                        Șterge data
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <Popover open={statusMenuOpen} onOpenChange={setStatusMenuOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        disabled={disabled || statusTransitions.length === 0}
+                        className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-left text-sm font-semibold text-[var(--text-primary)] disabled:opacity-50"
+                        aria-label="Schimbă statusul comenzii"
+                      >
+                        <span className="truncate">{item.statusLabel}</span>
+                        <ChevronDown
+                          className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]"
+                          aria-hidden
+                        />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-52 p-2">
+                      <p className="px-2 pb-1.5 text-xs font-semibold text-[var(--text-tertiary)]">
+                        Schimbă statusul
+                      </p>
+                      <div className="space-y-1">
+                        {statusTransitions.map((nextStatus) => (
+                          <button
+                            key={nextStatus}
+                            type="button"
+                            onClick={() => handleStatusChange(nextStatus)}
+                            className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] active:scale-[0.985]"
+                          >
+                            {isShop
+                              ? SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]
+                              : B2B_STATUS_LABELS[nextStatus as ComandaStatus]}
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              ) : null}
+
+              {onEdit ? (
+                <button
+                  type="button"
+                  className="min-h-10 text-left text-sm font-semibold text-[var(--primary)]"
+                  onClick={() => onEdit(item.id, isShop ? 'shop' : 'manual')}
+                >
+                  ✏ Editează
+                </button>
+              ) : null}
+
+              {shopOrder ? (
+                shopOrder.notified_wa ? (
+                  <p className="text-sm font-semibold text-[var(--success-text)]">✓ Anunțat WA</p>
+                ) : (
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-[var(--border-default)]"
+                      checked={item.confirmed}
+                      disabled={disabled}
+                      onChange={(event) =>
+                        onShopConfirmedChange?.(item.id, event.target.checked)
+                      }
+                    />
+                    WhatsApp trimis
+                  </label>
+                )
+              ) : null}
+
+              {needsConfirmation ? (
+                <button
+                  type="button"
+                  disabled={disabled || !item.phone}
+                  onClick={handleZona4WhatsApp}
+                  className="flex min-h-10 w-full items-center justify-center rounded-full bg-[#25D366] px-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                >
+                  Stabilește livrare pe WhatsApp
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </article>
+    )
   }
 
   return (
@@ -437,4 +597,16 @@ function formatDeliveryDate(value: string): string {
     month: 'short',
     timeZone: 'UTC',
   }).format(new Date(`${value}T12:00:00.000Z`))
+}
+
+function formatCompactDate(value: string): string {
+  const parsed = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: value.includes('T') ? 'Europe/Bucharest' : 'UTC',
+  })
+    .format(parsed)
+    .replace(/\./g, '')
 }

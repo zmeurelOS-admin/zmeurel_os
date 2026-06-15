@@ -92,7 +92,7 @@ import {
 } from '@/lib/shop/delivery-zones'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
-type TabKey = 'de_livrat' | 'livrate' | 'toate'
+type TabKey = 'de_livrat' | 'programate' | 'livrate' | 'toate'
 type PageSection = ComenziSection
 type ComenziOrderSort =
   | 'created_at'
@@ -106,6 +106,14 @@ type ComenziOrderGroup = {
   date: string | null
   orders: UnifiedOrderItem[]
   totalQty: number
+}
+
+const ZONE_ORDER: Record<DeliveryZone, number> = {
+  zona1: 1,
+  zona2: 2,
+  zona3: 3,
+  zona4: 4,
+  ridicare: 5,
 }
 
 type ContactPrompt = {
@@ -260,9 +268,88 @@ function buildComenziOrderGroups(
   }]
 }
 
+function compareOrdersForSort(
+  a: UnifiedOrderItem,
+  b: UnifiedOrderItem,
+  sort: ComenziOrderSort,
+): number {
+  switch (sort) {
+    case 'created_at':
+      return a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
+    case 'created_at_desc':
+      return b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id)
+    case 'delivery_date':
+      return a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
+    case 'locality':
+      return (
+        ZONE_ORDER[a.deliveryZone] - ZONE_ORDER[b.deliveryZone] ||
+        a.localityLabel.localeCompare(b.localityLabel, 'ro-RO') ||
+        a.createdAt.localeCompare(b.createdAt)
+      )
+    case 'qty_desc':
+      return (
+        b.quantity - a.quantity ||
+        b.totalLei - a.totalLei ||
+        b.createdAt.localeCompare(a.createdAt)
+      )
+    case 'total_desc':
+      return (
+        b.totalLei - a.totalLei ||
+        b.quantity - a.quantity ||
+        b.createdAt.localeCompare(a.createdAt)
+      )
+    default:
+      return 0
+  }
+}
+
+function buildProgramateGroups(
+  orders: UnifiedOrderItem[],
+  sort: ComenziOrderSort,
+): ComenziOrderGroup[] {
+  const byDate = new Map<string, UnifiedOrderItem[]>()
+
+  for (const order of orders) {
+    if (!order.deliveryDate) continue
+    const current = byDate.get(order.deliveryDate) ?? []
+    current.push(order)
+    byDate.set(order.deliveryDate, current)
+  }
+
+  return [...byDate.entries()]
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([date, groupedOrders]) => {
+      const sortedOrders = [...groupedOrders].sort((a, b) =>
+        compareOrdersForSort(a, b, sort),
+      )
+
+      return {
+        date,
+        orders: sortedOrders,
+        totalQty: sortedOrders.reduce((total, order) => total + order.quantity, 0),
+      }
+    })
+}
+
 function canDeliverStatus(status: string): boolean {
   const normalized = normalize(status)
   return ['noua', 'confirmata', 'programata', 'in_livrare'].includes(normalized)
+}
+
+function getRelativeScheduledLabel(date: string, referenceDate?: string): string | null {
+  const base = referenceDate
+    ? new Date(`${referenceDate}T12:00:00.000Z`)
+    : new Date()
+  const target = new Date(`${date}T12:00:00.000Z`)
+  if (Number.isNaN(base.getTime()) || Number.isNaN(target.getTime())) return null
+
+  const start = Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate())
+  const end = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate())
+  const diffDays = Math.round((end - start) / 86_400_000)
+
+  if (diffDays === 0) return 'Azi'
+  if (diffDays === 1) return 'Mâine'
+  return null
 }
 
 function isOpenStatus(status: ComandaStatus): boolean {
@@ -385,6 +472,7 @@ function mapInitialFilterFromQuery(filter: string | null): DashboardFilter {
 }
 
 function mapInitialTabFromQuery(filter: string | null): TabKey {
+  if (filter === 'programate') return 'programate'
   if (filter === 'livrate') return 'livrate'
   if (filter === 'toate') return 'toate'
   return 'de_livrat'
@@ -406,15 +494,18 @@ function PillTabs({
   value,
   onChange,
   activeCount,
+  scheduledCount,
   livrateCount,
 }: {
   value: TabKey
   onChange: (value: TabKey) => void
   activeCount: number
+  scheduledCount: number
   livrateCount: number
 }) {
   const tabs = [
     { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` (${activeCount})` : ''}` },
+    { key: 'programate' as const, label: `Programate${scheduledCount > 0 ? ` (${scheduledCount})` : ''}` },
     { key: 'livrate' as const, label: `Livrate${livrateCount > 0 ? ` (${livrateCount})` : ''}` },
     { key: 'toate' as const, label: 'Toate' },
   ]
@@ -439,6 +530,8 @@ function UnifiedOrderGroupSection({
   totalQty,
   quantityLabel,
   showHeader = true,
+  scheduledView = false,
+  referenceDate,
   children,
 }: {
   date: string | null
@@ -446,10 +539,12 @@ function UnifiedOrderGroupSection({
   totalQty: number
   quantityLabel: string
   showHeader?: boolean
+  scheduledView?: boolean
+  referenceDate?: string
   children: ReactNode
 }) {
   const zone = date?.startsWith('zone:') ? (date.slice(5) as DeliveryZone) : null
-  const label = zone
+  const baseLabel = zone
     ? DELIVERY_ZONES[zone].label
     : date
       ? new Intl.DateTimeFormat('ro-RO', {
@@ -458,6 +553,14 @@ function UnifiedOrderGroupSection({
           timeZone: 'UTC',
         }).format(new Date(`${date}T12:00:00.000Z`))
       : 'Neprogramate'
+  const relativeLabel =
+    scheduledView && date
+      ? getRelativeScheduledLabel(date, referenceDate)
+      : null
+  const label =
+    scheduledView && date
+      ? `📅 ${baseLabel}${relativeLabel ? ` · ${relativeLabel}` : ''}`
+      : baseLabel
 
   return (
     <section className={showHeader ? 'space-y-3' : undefined}>
@@ -1071,7 +1174,9 @@ export function ComenziPageClient() {
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
-  const [orderSort, setOrderSort] = useState<ComenziOrderSort>('created_at')
+  const [orderSort, setOrderSort] = useState<ComenziOrderSort>(() =>
+    initialTab === 'programate' ? 'delivery_date' : 'created_at',
+  )
   const [section, setSection] = useState<PageSection>(() =>
     searchParams.get('section') === 'waitlist' ? 'waitlist' : 'comenzi',
   )
@@ -1508,6 +1613,14 @@ export function ComenziPageClient() {
       ).length,
     [activeComenzi, preorderShopOrders, today],
   )
+  const programateCount = useMemo(
+    () =>
+      activeComenzi.filter((item) => Boolean(item.data_livrare)).length +
+      preorderShopOrders.filter(
+        (item) => isUnifiedOpenStatus(item.status) && Boolean(item.delivery_date),
+      ).length,
+    [activeComenzi, preorderShopOrders],
+  )
 
   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
 
@@ -1517,6 +1630,12 @@ export function ComenziPageClient() {
 
     return merged.filter((item) => {
       if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
+      if (
+        activeTab === 'programate' &&
+        !(isUnifiedOpenStatus(item.status) && Boolean(item.deliveryDate))
+      ) {
+        return false
+      }
       if (activeTab === 'livrate' && item.status !== 'livrata') return false
       if (
         activeFilter === 'azi' &&
@@ -1560,13 +1679,18 @@ export function ComenziPageClient() {
     })
   }, [activeFilter, activeTab, clientMap, manualComenzi, neincasatComandaIds, preorderShopOrders, search, today])
   const unifiedGroups = useMemo(
-    () => buildComenziOrderGroups(unifiedFiltered, orderSort),
-    [orderSort, unifiedFiltered],
+    () =>
+      activeTab === 'programate'
+        ? buildProgramateGroups(unifiedFiltered, orderSort)
+        : buildComenziOrderGroups(unifiedFiltered, orderSort),
+    [activeTab, orderSort, unifiedFiltered],
   )
-  const showOrderGroupHeaders = orderSort !== 'qty_desc' && orderSort !== 'total_desc'
+  const showOrderGroupHeaders =
+    activeTab === 'programate' || (orderSort !== 'qty_desc' && orderSort !== 'total_desc')
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
+    if (tab === 'programate') setOrderSort('delivery_date')
     setActiveFilter(filter)
   }
 
@@ -1681,10 +1805,18 @@ export function ComenziPageClient() {
           value={activeTab}
           onChange={(value) => {
             setActiveTab(value)
+            if (value === 'programate') setOrderSort('delivery_date')
             if (value === 'de_livrat' && activeFilter === 'neincasat') setActiveFilter('none')
-            if (value === 'livrate' && ['azi', 'active', 'restante', 'viitoare'].includes(activeFilter)) setActiveFilter('none')
+            if (
+              value === 'livrate' &&
+              ['azi', 'active', 'restante', 'viitoare'].includes(activeFilter)
+            ) {
+              setActiveFilter('none')
+            }
+            if (value === 'programate' && activeFilter === 'neincasat') setActiveFilter('none')
           }}
           activeCount={activeComenzi.length + shopActiveCount}
+          scheduledCount={programateCount}
           livrateCount={livrateComenzi.length + shopLivrateCount}
         />
         ) : null}
@@ -1766,6 +1898,8 @@ export function ComenziPageClient() {
                     totalQty={group.totalQty}
                     quantityLabel={quantityLabel}
                     showHeader={showOrderGroupHeaders}
+                    scheduledView={activeTab === 'programate'}
+                    referenceDate={today}
                   >
                     <div className="space-y-3">
                       {group.orders.map((item) => (
@@ -1826,6 +1960,8 @@ export function ComenziPageClient() {
                     totalQty={group.totalQty}
                     quantityLabel={quantityLabel}
                     showHeader={showOrderGroupHeaders}
+                    scheduledView={activeTab === 'programate'}
+                    referenceDate={today}
                   >
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                       {group.orders.map((item) => (
