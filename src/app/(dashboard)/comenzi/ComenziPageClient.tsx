@@ -108,6 +108,8 @@ type ComenziOrderGroup = {
   totalQty: number
 }
 
+const KG_PER_CASEROLĂ = 0.5
+
 const ZONE_ORDER: Record<DeliveryZone, number> = {
   zona1: 1,
   zona2: 2,
@@ -192,6 +194,17 @@ function formatLei(value: number): string {
 
 function formatLeiCompact(value: number): string {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(Number(value || 0)))
+}
+
+function formatKgOneDecimal(value: number): string {
+  return `${new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(Number(value || 0))} kg`
+}
+
+function getUnifiedOrderNeedKg(item: UnifiedOrderItem): number {
+  return item.quantityUnit === 'kg' ? item.quantity : item.quantity * KG_PER_CASEROLĂ
 }
 
 function normalize(value: string): string {
@@ -529,6 +542,7 @@ function UnifiedOrderGroupSection({
   orderCount,
   totalQty,
   quantityLabel,
+  necesarKg,
   showHeader = true,
   scheduledView = false,
   referenceDate,
@@ -538,6 +552,7 @@ function UnifiedOrderGroupSection({
   orderCount: number
   totalQty: number
   quantityLabel: string
+  necesarKg?: number
   showHeader?: boolean
   scheduledView?: boolean
   referenceDate?: string
@@ -574,10 +589,54 @@ function UnifiedOrderGroupSection({
         >
           {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
           {quantityLabel ? ` · ${totalQty.toLocaleString('ro-RO')} ${quantityLabel}` : ''}
+          {typeof necesarKg === 'number' && necesarKg > 0 ? ` · ${formatKgOneDecimal(necesarKg)} necesari` : ''}
         </div>
       ) : null}
       {children}
     </section>
+  )
+}
+
+function StocNecesarCard({
+  necesarKg,
+  stocDisponibilKg,
+}: {
+  necesarKg: number
+  stocDisponibilKg: number
+}) {
+  const hasEnoughStock = stocDisponibilKg >= necesarKg
+
+  return (
+    <div
+      className={`rounded-2xl border px-3 py-2 ${
+        hasEnoughStock
+          ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]'
+          : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-0.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+            Stoc vs necesar
+          </p>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            Necesar livrări: {formatKgOneDecimal(necesarKg)}
+          </p>
+          <p className="text-xs text-[var(--text-secondary)]">
+            Stoc disponibil: {formatKgOneDecimal(stocDisponibilKg)}
+          </p>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${
+            hasEnoughStock
+              ? 'bg-[var(--status-success-bg)] text-[var(--success-text)]'
+              : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+          }`}
+        >
+          {hasEnoughStock ? '✅ OK' : '⚠️ Sub necesar'}
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -1624,11 +1683,26 @@ export function ComenziPageClient() {
 
   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
 
+  const unifiedAllOrders = useMemo(
+    () => mergeUnifiedOrders(manualComenzi, preorderShopOrders, clientMap),
+    [clientMap, manualComenzi, preorderShopOrders],
+  )
+
+  const necesarKgTotal = useMemo(
+    () =>
+      unifiedAllOrders.reduce((sum, item) => {
+        if (!isUnifiedOpenStatus(item.status) || !item.deliveryDate) return sum
+        return sum + getUnifiedOrderNeedKg(item)
+      }, 0),
+    [unifiedAllOrders],
+  )
+
+  const showStocNecesarCard = necesarKgTotal > 0
+
   const unifiedFiltered = useMemo(() => {
-    const merged = mergeUnifiedOrders(manualComenzi, preorderShopOrders, clientMap)
     const term = normalize(search)
 
-    return merged.filter((item) => {
+    return unifiedAllOrders.filter((item) => {
       if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
       if (
         activeTab === 'programate' &&
@@ -1677,7 +1751,7 @@ export function ComenziPageClient() {
       const phone = normalize(item.phone)
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, activeTab, clientMap, manualComenzi, neincasatComandaIds, preorderShopOrders, search, today])
+  }, [activeFilter, activeTab, neincasatComandaIds, search, today, unifiedAllOrders])
   const unifiedGroups = useMemo(
     () =>
       activeTab === 'programate'
@@ -1733,71 +1807,80 @@ export function ComenziPageClient() {
 
         {section === 'waitlist' ? <ShopOrdersPanel /> : null}
 
-        {section === 'comenzi' && (activeComenzi.length + shopActiveCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0) ? (
-          <ModuleScoreboard className="gap-x-3.5 gap-y-2">
-            {activeComenzi.length + shopActiveCount > 0 ? (
-              <span
-                role="button"
-                tabIndex={0}
-                className="cursor-pointer"
-                onClick={() => setFilterAndTab('de_livrat', 'active')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
-                }}
-              >
-                <span className="text-lg font-extrabold text-[var(--agri-text)]">{activeComenzi.length + shopActiveCount}</span>
-                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
-              </span>
+        {section === 'comenzi' && (activeComenzi.length + shopActiveCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
+          <div className="space-y-2">
+            <ModuleScoreboard className="gap-x-3.5 gap-y-2">
+              {activeComenzi.length + shopActiveCount > 0 ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer"
+                  onClick={() => setFilterAndTab('de_livrat', 'active')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
+                  }}
+                >
+                  <span className="text-lg font-extrabold text-[var(--agri-text)]">{activeComenzi.length + shopActiveCount}</span>
+                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
+                </span>
+              ) : null}
+              {comenziAziCount > 0 ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer"
+                  onClick={() => setFilterAndTab('de_livrat', 'azi')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi')
+                  }}
+                >
+                  <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAziCount}</span>
+                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">azi</span>
+                </span>
+              ) : null}
+              {comenziRestanteCount > 0 ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer"
+                  onClick={() => setFilterAndTab('de_livrat', 'restante')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante')
+                  }}
+                >
+                  <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestanteCount}</span>
+                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">restante</span>
+                </span>
+              ) : null}
+              {neincasatRon > 0 ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cursor-pointer"
+                  onClick={() => setFilterAndTab('livrate', 'neincasat')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat')
+                  }}
+                >
+                  <span className="text-base font-bold text-[var(--status-warning-text)]">{formatLeiCompact(neincasatRon)}</span>
+                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">RON neîncasat</span>
+                </span>
+              ) : null}
+              {totalStocDisponibilKg > 0 ? (
+                <span>
+                  <span className="text-sm font-semibold text-[var(--success-text)]">{formatKg(totalStocDisponibilKg)}</span>
+                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">stoc</span>
+                </span>
+              ) : null}
+            </ModuleScoreboard>
+
+            {showStocNecesarCard ? (
+              <StocNecesarCard
+                necesarKg={necesarKgTotal}
+                stocDisponibilKg={totalStocDisponibilKg}
+              />
             ) : null}
-            {comenziAziCount > 0 ? (
-              <span
-                role="button"
-                tabIndex={0}
-                className="cursor-pointer"
-                onClick={() => setFilterAndTab('de_livrat', 'azi')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi')
-                }}
-              >
-                <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAziCount}</span>
-                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">azi</span>
-              </span>
-            ) : null}
-            {comenziRestanteCount > 0 ? (
-              <span
-                role="button"
-                tabIndex={0}
-                className="cursor-pointer"
-                onClick={() => setFilterAndTab('de_livrat', 'restante')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante')
-                }}
-              >
-                <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestanteCount}</span>
-                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">restante</span>
-              </span>
-            ) : null}
-            {neincasatRon > 0 ? (
-              <span
-                role="button"
-                tabIndex={0}
-                className="cursor-pointer"
-                onClick={() => setFilterAndTab('livrate', 'neincasat')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat')
-                }}
-              >
-                <span className="text-base font-bold text-[var(--status-warning-text)]">{formatLeiCompact(neincasatRon)}</span>
-                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">RON neîncasat</span>
-              </span>
-            ) : null}
-            {totalStocDisponibilKg > 0 ? (
-              <span>
-                <span className="text-sm font-semibold text-[var(--success-text)]">{formatKg(totalStocDisponibilKg)}</span>
-                <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">stoc</span>
-              </span>
-            ) : null}
-          </ModuleScoreboard>
+          </div>
         ) : null}
 
         {section === 'comenzi' ? (
@@ -1890,6 +1973,10 @@ export function ComenziPageClient() {
                 const units = new Set(group.orders.map((order) => order.quantityUnit))
                 const quantityLabel =
                   units.size === 1 ? (units.has('kg') ? 'kg' : 'caserole') : ''
+                const necesarKg =
+                  activeTab === 'programate'
+                    ? group.orders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)
+                    : undefined
                 return (
                   <UnifiedOrderGroupSection
                     key={group.date ?? 'unscheduled'}
@@ -1897,6 +1984,7 @@ export function ComenziPageClient() {
                     orderCount={group.orders.length}
                     totalQty={group.totalQty}
                     quantityLabel={quantityLabel}
+                    necesarKg={necesarKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
                     referenceDate={today}
@@ -1952,6 +2040,10 @@ export function ComenziPageClient() {
                 const units = new Set(group.orders.map((order) => order.quantityUnit))
                 const quantityLabel =
                   units.size === 1 ? (units.has('kg') ? 'kg' : 'caserole') : ''
+                const necesarKg =
+                  activeTab === 'programate'
+                    ? group.orders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)
+                    : undefined
                 return (
                   <UnifiedOrderGroupSection
                     key={group.date ?? 'unscheduled'}
@@ -1959,6 +2051,7 @@ export function ComenziPageClient() {
                     orderCount={group.orders.length}
                     totalQty={group.totalQty}
                     quantityLabel={quantityLabel}
+                    necesarKg={necesarKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
                     referenceDate={today}
