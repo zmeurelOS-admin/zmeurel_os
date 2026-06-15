@@ -121,7 +121,8 @@ describe('UnifiedOrderCard', () => {
     },
   )
 
-  it('afișează indicator anunțat WA când notified_wa=true și elimină checkbox', () => {
+  it('afișează indicator anunțat WA doar după expandare când notified_wa=true', async () => {
+    const user = userEvent.setup()
     render(
       <UnifiedOrderCard
         item={mapShopToUnified(order)}
@@ -129,12 +130,19 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
+    expect(screen.queryByText('✓ Anunțat WA')).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Arată detaliile comenzii pentru Maria Popescu',
+      }),
+    )
     expect(screen.getByText('✓ Anunțat WA')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
   })
 
-  it('afișează checkbox WhatsApp trimis când notified_wa=false', () => {
+  it('afișează checkbox WhatsApp trimis doar după expandare când notified_wa=false', async () => {
+    const user = userEvent.setup()
     render(
       <UnifiedOrderCard
         item={mapShopToUnified({ ...order, notified_wa: false })}
@@ -142,6 +150,14 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
+    expect(
+      screen.queryByRole('checkbox', { name: 'WhatsApp trimis' }),
+    ).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Arată detaliile comenzii pentru Maria Popescu',
+      }),
+    )
     expect(screen.getByRole('checkbox', { name: 'WhatsApp trimis' })).not.toBeChecked()
     expect(screen.queryByText('✓ Anunțat WA')).not.toBeInTheDocument()
   })

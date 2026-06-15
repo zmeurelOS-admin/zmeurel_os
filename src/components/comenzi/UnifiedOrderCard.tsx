@@ -217,11 +217,13 @@ export function UnifiedOrderCard({
           aria-expanded={expanded}
           aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
           onClick={() => setExpanded((current) => !current)}
-          className="flex w-full items-start justify-between gap-2 rounded-lg text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          className={`flex w-full items-start justify-between rounded-lg text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
+            compact ? 'gap-1' : 'gap-2'
+          }`}
         >
           <p
             className={`min-w-0 flex-1 truncate leading-tight text-[var(--text-primary)] ${
-              compact ? 'text-[13px] font-medium' : 'text-[15px] font-bold'
+              compact ? 'text-[12px] font-medium' : 'text-[15px] font-bold'
             }`}
           >
             {item.customerName}
@@ -257,7 +259,7 @@ export function UnifiedOrderCard({
           aria-label={`${expanded ? 'Ascunde' : 'Arată'} rezumatul comenzii pentru ${item.customerName}`}
           onClick={() => setExpanded((current) => !current)}
           className={`w-full border-t border-[var(--divider)] text-left font-semibold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
-            compact ? 'mt-1.5 pt-1.5 text-[12px]' : 'mt-2 pt-2 text-[13px]'
+            compact ? 'mt-1.5 pt-1.5 text-[11px]' : 'mt-2 pt-2 text-[13px]'
           }`}
         >
           <span>{quantityLabel} · {totalFormatted} lei</span>
@@ -305,6 +307,28 @@ export function UnifiedOrderCard({
                 Vezi toate detaliile
               </button>
             ) : null}
+            {expanded && shopOrder ? (
+              shopOrder.notified_wa ? (
+                <p className="text-xs font-semibold text-[var(--success-text)]">✓ Anunțat WA</p>
+              ) : (
+                <label
+                  className={`flex cursor-pointer items-center gap-2 font-medium text-[var(--text-secondary)] ${
+                    compact ? 'text-xs' : 'text-[13px]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-[var(--border-default)]"
+                    checked={item.confirmed}
+                    disabled={disabled}
+                    onChange={(event) =>
+                      onShopConfirmedChange?.(item.id, event.target.checked)
+                    }
+                  />
+                  WhatsApp trimis
+                </label>
+              )
+            ) : null}
             {onEdit ? (
               <button
                 type="button"
@@ -321,7 +345,7 @@ export function UnifiedOrderCard({
       {!isTerminal ? (
         <div
           className={`grid grid-cols-2 border-t border-[var(--divider)] px-3 ${
-            compact ? 'gap-1.5 py-2' : 'gap-2 py-3'
+            compact ? 'gap-1.5 py-1.5' : 'gap-2 py-3'
           }`}
         >
           <div className="min-w-0">
@@ -403,32 +427,6 @@ export function UnifiedOrderCard({
         </div>
       ) : null}
 
-      {shopOrder ? (
-        <div
-          className={`flex items-center border-t border-[var(--divider)] px-3 ${
-            compact ? 'min-h-8 py-1.5' : 'min-h-10 py-2'
-          }`}
-        >
-          {shopOrder.notified_wa ? (
-            <p className="text-xs font-semibold text-[var(--success-text)]">✓ Anunțat WA</p>
-          ) : (
-            <label
-              className={`flex cursor-pointer items-center gap-2 font-medium text-[var(--text-secondary)] ${
-                compact ? 'text-xs' : 'text-[13px]'
-              }`}
-            >
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-[var(--border-default)]"
-                checked={item.confirmed}
-                disabled={disabled}
-                onChange={(event) => onShopConfirmedChange?.(item.id, event.target.checked)}
-              />
-              WhatsApp trimis
-            </label>
-          )}
-        </div>
-      ) : null}
     </article>
   )
 }

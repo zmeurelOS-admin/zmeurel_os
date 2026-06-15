@@ -81,7 +81,6 @@ import {
   isUnifiedOpenStatus,
   mergeUnifiedOrders,
   type UnifiedOrderItem,
-  type UnifiedOrderSort,
 } from '@/lib/comenzi/unified-orders'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
@@ -95,6 +94,19 @@ import {
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
 type PageSection = ComenziSection
+type ComenziOrderSort =
+  | 'created_at'
+  | 'created_at_desc'
+  | 'delivery_date'
+  | 'locality'
+  | 'qty_desc'
+  | 'total_desc'
+
+type ComenziOrderGroup = {
+  date: string | null
+  orders: UnifiedOrderItem[]
+  totalQty: number
+}
 
 type ContactPrompt = {
   name: string
@@ -184,6 +196,68 @@ function normalize(value: string): string {
 
 function normalizeForExactHintMatch(value: string): string {
   return value.trim().toLowerCase()
+}
+
+function groupOrdersByCreatedDate(
+  orders: UnifiedOrderItem[],
+  direction: 'asc' | 'desc',
+): ComenziOrderGroup[] {
+  const multiplier = direction === 'asc' ? 1 : -1
+  const sorted = [...orders].sort(
+    (a, b) =>
+      multiplier * a.createdAt.localeCompare(b.createdAt) ||
+      a.id.localeCompare(b.id),
+  )
+  const byDate = new Map<string, UnifiedOrderItem[]>()
+
+  for (const order of sorted) {
+    const date = order.createdAt.slice(0, 10)
+    const current = byDate.get(date) ?? []
+    current.push(order)
+    byDate.set(date, current)
+  }
+
+  return [...byDate.entries()]
+    .sort(([dateA], [dateB]) => multiplier * dateA.localeCompare(dateB))
+    .map(([date, groupedOrders]) => ({
+      date,
+      orders: groupedOrders,
+      totalQty: groupedOrders.reduce((total, order) => total + order.quantity, 0),
+    }))
+}
+
+function buildComenziOrderGroups(
+  orders: UnifiedOrderItem[],
+  sort: ComenziOrderSort,
+): ComenziOrderGroup[] {
+  if (sort === 'created_at' || sort === 'created_at_desc') {
+    return groupOrdersByCreatedDate(orders, sort === 'created_at' ? 'asc' : 'desc')
+  }
+
+  if (sort === 'delivery_date' || sort === 'locality') {
+    return groupAllOrdersByDeliveryDate(orders, sort)
+  }
+
+  const sorted = [...orders].sort((a, b) => {
+    if (sort === 'qty_desc') {
+      return (
+        b.quantity - a.quantity ||
+        b.totalLei - a.totalLei ||
+        b.createdAt.localeCompare(a.createdAt)
+      )
+    }
+    return (
+      b.totalLei - a.totalLei ||
+      b.quantity - a.quantity ||
+      b.createdAt.localeCompare(a.createdAt)
+    )
+  })
+
+  return [{
+    date: null,
+    orders: sorted,
+    totalQty: sorted.reduce((total, order) => total + order.quantity, 0),
+  }]
 }
 
 function canDeliverStatus(status: string): boolean {
@@ -364,12 +438,14 @@ function UnifiedOrderGroupSection({
   orderCount,
   totalQty,
   quantityLabel,
+  showHeader = true,
   children,
 }: {
   date: string | null
   orderCount: number
   totalQty: number
   quantityLabel: string
+  showHeader?: boolean
   children: ReactNode
 }) {
   const zone = date?.startsWith('zone:') ? (date.slice(5) as DeliveryZone) : null
@@ -384,17 +460,19 @@ function UnifiedOrderGroupSection({
       : 'Neprogramate'
 
   return (
-    <section className="space-y-3">
-      <div
-        className={`rounded-xl border px-3 py-2 text-sm font-bold ${
-          date
-            ? 'border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
-            : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
-        }`}
-      >
-        {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
-        {quantityLabel ? ` · ${totalQty.toLocaleString('ro-RO')} ${quantityLabel}` : ''}
-      </div>
+    <section className={showHeader ? 'space-y-3' : undefined}>
+      {showHeader ? (
+        <div
+          className={`rounded-xl border px-3 py-2 text-sm font-bold ${
+            date
+              ? 'border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
+              : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+          }`}
+        >
+          {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
+          {quantityLabel ? ` · ${totalQty.toLocaleString('ro-RO')} ${quantityLabel}` : ''}
+        </div>
+      ) : null}
       {children}
     </section>
   )
@@ -993,7 +1071,7 @@ export function ComenziPageClient() {
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
-  const [orderSort, setOrderSort] = useState<UnifiedOrderSort>('created_at')
+  const [orderSort, setOrderSort] = useState<ComenziOrderSort>('created_at')
   const [section, setSection] = useState<PageSection>(() =>
     searchParams.get('section') === 'waitlist' ? 'waitlist' : 'comenzi',
   )
@@ -1482,9 +1560,10 @@ export function ComenziPageClient() {
     })
   }, [activeFilter, activeTab, clientMap, manualComenzi, neincasatComandaIds, preorderShopOrders, search, today])
   const unifiedGroups = useMemo(
-    () => groupAllOrdersByDeliveryDate(unifiedFiltered, orderSort),
+    () => buildComenziOrderGroups(unifiedFiltered, orderSort),
     [orderSort, unifiedFiltered],
   )
+  const showOrderGroupHeaders = orderSort !== 'qty_desc' && orderSort !== 'total_desc'
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
@@ -1639,15 +1718,18 @@ export function ComenziPageClient() {
             </Label>
             <Select
               value={orderSort}
-              onValueChange={(value) => setOrderSort(value as UnifiedOrderSort)}
+              onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
             >
               <SelectTrigger id="comenzi-sort" className="h-9 w-full max-w-[15rem] text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="created_at">Dată plasare</SelectItem>
+                <SelectItem value="created_at">Dată plasare ↑</SelectItem>
+                <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
                 <SelectItem value="delivery_date">Dată livrare</SelectItem>
-                <SelectItem value="locality">Localitate</SelectItem>
+                <SelectItem value="locality">Localitate / Zonă</SelectItem>
+                <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
+                <SelectItem value="total_desc">Total lei ↓</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1683,6 +1765,7 @@ export function ComenziPageClient() {
                     orderCount={group.orders.length}
                     totalQty={group.totalQty}
                     quantityLabel={quantityLabel}
+                    showHeader={showOrderGroupHeaders}
                   >
                     <div className="space-y-3">
                       {group.orders.map((item) => (
@@ -1742,6 +1825,7 @@ export function ComenziPageClient() {
                     orderCount={group.orders.length}
                     totalQty={group.totalQty}
                     quantityLabel={quantityLabel}
+                    showHeader={showOrderGroupHeaders}
                   >
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                       {group.orders.map((item) => (
