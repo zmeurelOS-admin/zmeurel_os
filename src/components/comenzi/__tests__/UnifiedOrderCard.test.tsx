@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import {
+  groupAllOrdersByDeliveryDate,
   groupShopOrdersByDeliveryDate,
+  formatOrderDateTime,
   mapB2bToUnified,
   mapShopToUnified,
 } from '@/lib/comenzi/unified-orders'
@@ -36,7 +38,7 @@ describe('UnifiedOrderCard', () => {
   it('afișează reward-ul shop ca badge read-only', () => {
     render(<UnifiedOrderCard item={mapShopToUnified(order)} />)
 
-    expect(screen.getByText('🎁 O caserolă bonus')).toBeInTheDocument()
+    expect(screen.getByText('O caserolă bonus')).toBeInTheDocument()
     expect(screen.getByText('Bonus la livrare')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /bonus/i })).not.toBeInTheDocument()
   })
@@ -190,8 +192,54 @@ describe('UnifiedOrderCard', () => {
     render(<UnifiedOrderCard item={mapB2bToUnified(manualOrder, {})} />)
 
     expect(screen.getByText('35 kg · 3,50 lei/kg · Total 122,50 lei')).toBeInTheDocument()
-    expect(screen.getByText('✏️ Manual')).toBeInTheDocument()
+    expect(screen.getByText('Manual')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
+  })
+
+  it('folosește aceleași tranziții și WhatsApp pentru comanda manuală', async () => {
+    const user = userEvent.setup()
+    const onB2bStatusChange = vi.fn()
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const manualOrder: Comanda = {
+      id: 'manual-wa',
+      tenant_id: 'tenant',
+      client_id: null,
+      client_nume_manual: 'Ion Popescu',
+      telefon: '0712 345 678',
+      locatie_livrare: 'Suceava, Str. Florilor 10',
+      data_comanda: '2026-06-10',
+      data_livrare: '2026-06-12',
+      cantitate_kg: 5,
+      pret_per_kg: 40,
+      total: 200,
+      status: 'confirmata',
+      observatii: null,
+      linked_vanzare_id: null,
+      parent_comanda_id: null,
+      created_at: '2026-06-10T08:00:00.000Z',
+      updated_at: '2026-06-10T08:00:00.000Z',
+      data_origin: null,
+    }
+
+    render(
+      <UnifiedOrderCard
+        item={mapB2bToUnified(manualOrder, {})}
+        onB2bStatusChange={onB2bStatusChange}
+        onB2bDeliveryDateChange={() => undefined}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+    await user.click(screen.getByRole('button', { name: 'În livrare' }))
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('https://wa.me/40712345678?text='),
+      '_blank',
+      'noopener,noreferrer',
+    )
+    expect(decodeURIComponent(String(openSpy.mock.calls[0][0]))).toContain('5 kg')
+    expect(onB2bStatusChange).toHaveBeenCalledWith('manual-wa', 'in_livrare')
+    openSpy.mockRestore()
   })
 
   it('grupează precomenzile cu neprogramatele primele și zilele cronologic', () => {
@@ -210,5 +258,63 @@ describe('UnifiedOrderCard', () => {
       'scheduled-early-new',
     ])
     expect(groups[1].totalQty).toBe(4)
+  })
+
+  it('grupează împreună shop și manual și sortează localitățile pe zone', () => {
+    const manualOrder: Comanda = {
+      id: 'manual-order',
+      tenant_id: 'tenant',
+      client_id: null,
+      client_nume_manual: 'Ion Popescu',
+      telefon: '0712 345 678',
+      locatie_livrare: 'Bosanci, Str. Mare 1',
+      data_comanda: '2026-06-10',
+      data_livrare: '2026-06-15',
+      cantitate_kg: 5,
+      pret_per_kg: 40,
+      total: 200,
+      status: 'confirmata',
+      observatii: null,
+      linked_vanzare_id: null,
+      parent_comanda_id: null,
+      created_at: '2026-06-10T07:00:00.000Z',
+      updated_at: '2026-06-10T07:00:00.000Z',
+      data_origin: null,
+    }
+    const groups = groupAllOrdersByDeliveryDate(
+      [
+        mapB2bToUnified(manualOrder, {}),
+        mapShopToUnified({
+          ...order,
+          id: 'shop-suceava',
+          delivery_city: 'Suceava',
+          delivery_zone: 'zona1',
+          delivery_date: '2026-06-15',
+        }),
+      ],
+      'locality',
+    )
+
+    expect(groups.map((group) => group.date)).toEqual(['zone:zona1', 'zone:zona3'])
+    expect(groups.flatMap((group) => group.orders.map((entry) => entry.id))).toEqual([
+      'shop-suceava',
+      'manual-order',
+    ])
+  })
+
+  it('pune comenzile neprogramate la final când sortarea este după data livrării', () => {
+    const groups = groupAllOrdersByDeliveryDate(
+      [
+        mapShopToUnified({ ...order, id: 'unscheduled', delivery_date: null }),
+        mapShopToUnified({ ...order, id: 'scheduled', delivery_date: '2026-06-15' }),
+      ],
+      'delivery_date',
+    )
+
+    expect(groups.map((group) => group.date)).toEqual(['2026-06-15', null])
+  })
+
+  it('formatează data completă din header în fusul Europe/Bucharest', () => {
+    expect(formatOrderDateTime('2026-06-14T09:22:00.000Z')).toBe('14 iun · 12:22')
   })
 })

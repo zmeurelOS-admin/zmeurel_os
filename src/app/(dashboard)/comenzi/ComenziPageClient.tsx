@@ -2,10 +2,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Check, ChevronDown, Pencil, Trash2, UserRoundPlus } from 'lucide-react'
+import { Check, ChevronDown, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -30,23 +29,14 @@ import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
-import {
-  DesktopInspectorPanel,
-  DesktopInspectorSection,
-  DesktopSplitPane,
-  DesktopToolbar,
-} from '@/components/ui/desktop'
+import { DesktopToolbar } from '@/components/ui/desktop'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import StatusBadge from '@/components/ui/StatusBadge'
 import { Textarea } from '@/components/ui/textarea'
 import { ShopOrdersPanel } from '@/components/comenzi/ShopOrdersPanel'
 import {
@@ -79,19 +69,22 @@ import { queryKeys } from '@/lib/query-keys'
 import {
   getMagazinGroupOrders,
   isMagazinPublicOrder,
-  magazinDesktopRowClassName,
-  magazinGroupKey,
-  sortComenziForMagazinGrouping,
 } from '@/lib/comenzi/magazin-groups'
 import {
-  groupShopOrdersByDeliveryDate,
+  groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
-  mapShopToUnified,
   mergeUnifiedOrders,
+  type UnifiedOrderSort,
 } from '@/lib/comenzi/unified-orders'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
-import { LOCALITIES, type LocalityConfig, type VillageConfig } from '@/lib/shop/delivery-zones'
+import {
+  DELIVERY_ZONES,
+  LOCALITIES,
+  type DeliveryZone,
+  type LocalityConfig,
+  type VillageConfig,
+} from '@/lib/shop/delivery-zones'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'livrate' | 'toate'
@@ -185,6 +178,57 @@ function normalize(value: string): string {
 
 function normalizeForExactHintMatch(value: string): string {
   return value.trim().toLowerCase()
+}
+
+function buildDeliveryLocation(
+  locality: LocalityConfig | null,
+  village: VillageConfig | null,
+  street: string,
+): string {
+  const localityName = village?.name ?? (locality?.villages ? '' : locality?.name ?? '')
+  return [localityName, street.trim()].filter(Boolean).join(', ')
+}
+
+function deriveDeliverySelection(location: string): {
+  mode: 'livrare' | 'ridicare'
+  locality: LocalityConfig | null
+  village: VillageConfig | null
+  street: string
+} {
+  const trimmed = location.trim()
+  if (normalize(trimmed).includes('ridicare')) {
+    return { mode: 'ridicare', locality: null, village: null, street: '' }
+  }
+
+  const [locationName = '', ...streetParts] = trimmed.split(',').map((part) => part.trim())
+  for (const locality of LOCALITIES) {
+    const village = locality.villages?.find(
+      (candidate) => normalize(candidate.name) === normalize(locationName),
+    )
+    if (village) {
+      return {
+        mode: 'livrare',
+        locality,
+        village,
+        street: streetParts.join(', '),
+      }
+    }
+    if (normalize(locality.name) === normalize(locationName)) {
+      return {
+        mode: 'livrare',
+        locality,
+        village: null,
+        street: streetParts.join(', '),
+      }
+    }
+  }
+
+  return {
+    mode: 'livrare',
+    locality: null,
+    village: null,
+    street: trimmed,
+  }
 }
 
 function canDeliverStatus(status: string): boolean {
@@ -329,13 +373,6 @@ function isPaidStatus(status: string | null | undefined): boolean {
   return value.includes('platit') || value.includes('incasat') || value.includes('achitat')
 }
 
-function statusToneForMobileCard(status: ComandaStatus): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'anulata') return 'danger'
-  if (status === 'livrata') return 'success'
-  if (status === 'confirmata' || status === 'programata' || status === 'in_livrare') return 'warning'
-  return 'neutral'
-}
-
 function PillTabs({
   value,
   onChange,
@@ -367,24 +404,29 @@ function PillTabs({
   )
 }
 
-function ShopDeliveryGroupSection({
+function UnifiedOrderGroupSection({
   date,
   orderCount,
   totalQty,
+  quantityLabel,
   children,
 }: {
   date: string | null
   orderCount: number
   totalQty: number
+  quantityLabel: string
   children: ReactNode
 }) {
-  const label = date
-    ? `📅 ${new Intl.DateTimeFormat('ro-RO', {
-        day: 'numeric',
-        month: 'long',
-        timeZone: 'UTC',
-      }).format(new Date(`${date}T12:00:00.000Z`))}`
-    : 'Neprogramate'
+  const zone = date?.startsWith('zone:') ? (date.slice(5) as DeliveryZone) : null
+  const label = zone
+    ? DELIVERY_ZONES[zone].label
+    : date
+      ? new Intl.DateTimeFormat('ro-RO', {
+          day: 'numeric',
+          month: 'long',
+          timeZone: 'UTC',
+        }).format(new Date(`${date}T12:00:00.000Z`))
+      : 'Neprogramate'
 
   return (
     <section className="space-y-3">
@@ -395,50 +437,11 @@ function ShopDeliveryGroupSection({
             : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
         }`}
       >
-        {label} — {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'} · {totalQty} caserole
+        {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
+        {quantityLabel ? ` · ${totalQty.toLocaleString('ro-RO')} ${quantityLabel}` : ''}
       </div>
       {children}
     </section>
-  )
-}
-
-function ComandaCard({
-  comanda,
-  clientName,
-  onOpenDetails,
-}: {
-  comanda: Comanda
-  clientName: string
-  onOpenDetails: (comanda: Comanda) => void
-}) {
-  const cantitateKg = Number(comanda.cantitate_kg || 0)
-  const total = Number(comanda.total || cantitateKg * Number(comanda.pret_per_kg || 0))
-  const produsDetails = (comanda.observatii ?? '').trim()
-  const subtitle = comanda.data_livrare
-    ? `Livrare ${formatDate(comanda.data_livrare)}`
-    : `Comandă ${formatDate(comanda.data_comanda)}`
-  const detailMeta =
-    produsDetails.length > 0 ? `${produsDetails.slice(0, 64)}${produsDetails.length > 64 ? '…' : ''}` : undefined
-
-  return (
-    <MobileEntityCard
-      title={clientName}
-      mainValue={`${formatLeiCompact(total)} RON`}
-      subtitle={subtitle}
-      secondaryValue={formatKg(cantitateKg)}
-      meta={detailMeta}
-      statusLabel={statusLabelMap[comanda.status] ?? comanda.status}
-      statusTone={statusToneForMobileCard(comanda.status)}
-      showChevron
-      bottomSlot={
-        isMagazinPublicOrder(comanda) ? (
-          <Badge variant="info" className="text-[10px] font-semibold">
-            Magazin
-          </Badge>
-        ) : null
-      }
-      onClick={() => onOpenDetails(comanda)}
-    />
   )
 }
 
@@ -475,14 +478,25 @@ function ComandaDialog({
     () => buildComandaDialogInitialComboInput(initialFormState, clienti),
     [clienti, initialFormState]
   )
+  const initialDeliverySelection = useMemo(
+    () => deriveDeliverySelection(initialFormState.locatie_livrare),
+    [initialFormState.locatie_livrare],
+  )
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
   const [comboInput, setComboInput] = useState(initialComboInput)
   const [comboOpen, setComboOpen] = useState(false)
   const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
-  const [deliveryModeSel, setDeliveryModeSel] = useState<'livrare' | 'ridicare'>('livrare')
-  const [localitySel, setLocalitySel] = useState<LocalityConfig | null>(null)
-  const [villageSel, setVillageSel] = useState<VillageConfig | null>(null)
-  const [streetSel, setStreetSel] = useState('')
+  const [deliveryModeSel, setDeliveryModeSel] = useState<'livrare' | 'ridicare'>(
+    initialDeliverySelection.mode,
+  )
+  const [localitySel, setLocalitySel] = useState<LocalityConfig | null>(
+    initialDeliverySelection.locality,
+  )
+  const [villageSel, setVillageSel] = useState<VillageConfig | null>(
+    initialDeliverySelection.village,
+  )
+  const [streetSel, setStreetSel] = useState(initialDeliverySelection.street)
+  const [blockedDeliveryMessage, setBlockedDeliveryMessage] = useState('')
   const comboRef = useRef<HTMLDivElement>(null)
 
   const selectedClient = clienti.find((client) => client.id === form.client_id)
@@ -631,6 +645,12 @@ function ComandaDialog({
                             e.preventDefault()
                             setComboInput(client.nume_client)
                             setComboOpen(false)
+                            const deliverySelection = deriveDeliverySelection(client.adresa ?? '')
+                            setDeliveryModeSel(deliverySelection.mode)
+                            setLocalitySel(deliverySelection.locality)
+                            setVillageSel(deliverySelection.village)
+                            setStreetSel(deliverySelection.street)
+                            setBlockedDeliveryMessage('')
                             setForm((prev) => ({
                               ...prev,
                               client_id: client.id,
@@ -663,11 +683,7 @@ function ComandaDialog({
               </div>
             </div>
 
-            <div
-              className={`grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5 ${
-                selectedClient ? 'hidden md:grid' : ''
-              }`}
-            >
+            <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5">
               <div className="space-y-1.5">
                 <Label>Telefon</Label>
                 <Input
@@ -705,7 +721,8 @@ function ComandaDialog({
                       setLocalitySel(null)
                       setVillageSel(null)
                       setStreetSel('')
-                      const loc = mode === 'ridicare' ? 'Ridicare fermă Văratec' : ''
+                      setBlockedDeliveryMessage('')
+                      const loc = mode === 'ridicare' ? 'Ridicare la fermă (Văratec)' : ''
                       setForm((prev) => ({ ...prev, locatie_livrare: loc }))
                     }}
                     className={`min-h-9 flex-1 rounded-xl border px-3 text-sm font-semibold transition ${
@@ -728,22 +745,27 @@ function ComandaDialog({
                 onSelectLocality={(locality) => {
                   setLocalitySel(locality)
                   setVillageSel(null)
-                  const cityName = locality.villages ? '' : locality.name
-                  const loc = [cityName, streetSel].filter(Boolean).join(', ')
+                  setBlockedDeliveryMessage('')
+                  const loc = buildDeliveryLocation(locality, null, streetSel)
                   setForm((prev) => ({ ...prev, locatie_livrare: loc }))
                 }}
                 onSelectVillage={(village) => {
                   setVillageSel(village)
-                  const cityName = village ? village.name : (localitySel?.name ?? '')
-                  const loc = [cityName, streetSel].filter(Boolean).join(', ')
+                  setBlockedDeliveryMessage('')
+                  const loc = buildDeliveryLocation(localitySel, village, streetSel)
                   setForm((prev) => ({ ...prev, locatie_livrare: loc }))
+                }}
+                onBlockedVillage={(village) => {
+                  setBlockedDeliveryMessage(
+                    village.blockedMessage ?? `Nu livrăm în ${village.name}.`,
+                  )
                 }}
                 onStreetChange={(street) => {
                   setStreetSel(street)
-                  const cityName = villageSel?.name ?? (localitySel?.villages ? '' : localitySel?.name ?? '')
-                  const loc = [cityName, street].filter(Boolean).join(', ')
+                  const loc = buildDeliveryLocation(localitySel, villageSel, street)
                   setForm((prev) => ({ ...prev, locatie_livrare: loc }))
                 }}
+                blockedMessage={blockedDeliveryMessage}
               />
             ) : null}
 
@@ -976,13 +998,15 @@ function ErpLocalityChip({
   const borderColor = blocked ? '#D1D5DB' : (ERP_ZONE_BORDER[zone] ?? '#D1D5DB')
   if (blocked) {
     return (
-      <span
+      <button
+        type="button"
+        onClick={onClick}
         className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--text-tertiary)]"
         style={{ borderColor, cursor: 'not-allowed' }}
         title="Livrare indisponibilă"
       >
         ✕ {label}
-      </span>
+      </button>
     )
   }
   return (
@@ -1007,14 +1031,18 @@ function ErpLocalitySelector({
   street,
   onSelectLocality,
   onSelectVillage,
+  onBlockedVillage,
   onStreetChange,
+  blockedMessage,
 }: {
   selectedLocality: LocalityConfig | null
   selectedVillage: VillageConfig | null
   street: string
   onSelectLocality: (locality: LocalityConfig) => void
   onSelectVillage: (village: VillageConfig | null) => void
+  onBlockedVillage: (village: VillageConfig) => void
   onStreetChange: (street: string) => void
+  blockedMessage: string
 }) {
   return (
     <div className="space-y-2">
@@ -1040,10 +1068,20 @@ function ErpLocalitySelector({
               zone={village.zone}
               active={selectedVillage?.name === village.name}
               blocked={village.blocked}
-              onClick={village.blocked ? undefined : () => onSelectVillage(village)}
+              onClick={
+                village.blocked
+                  ? () => onBlockedVillage(village)
+                  : () => onSelectVillage(village)
+              }
             />
           ))}
         </div>
+      ) : null}
+
+      {blockedMessage ? (
+        <p className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-medium text-[var(--status-warning-text)]">
+          {blockedMessage}
+        </p>
       ) : null}
 
       <div className="space-y-1.5">
@@ -1122,16 +1160,15 @@ export function ComenziPageClient() {
 
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>(initialFilter)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
+  const [orderSort, setOrderSort] = useState<UnifiedOrderSort>('created_at')
   const [section, setSection] = useState<PageSection>(() =>
     searchParams.get('section') === 'waitlist' ? 'waitlist' : 'comenzi',
   )
-  const [deliveringId, setDeliveringId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
   const [viewing, setViewing] = useState<Comanda | null>(null)
-  const [desktopSelectedComandaId, setDesktopSelectedComandaId] = useState<string | null>(null)
   const [contactPrompt, setContactPrompt] = useState<ContactPrompt | null>(null)
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
   const [addClientOpen, setAddClientOpen] = useState(false)
@@ -1345,14 +1382,12 @@ export function ComenziPageClient() {
         setContactPrompt({ name: deliveredName, phone: deliveredPhone })
       }
 
-      setDeliveringAndConfirm(null)
       setActiveTab('livrate')
       setActiveFilter('none')
     },
     onError: (err: Error) => {
       hapticError()
       toast.error(err.message)
-      setDeliveringId(null)
     },
   })
 
@@ -1428,10 +1463,6 @@ export function ComenziPageClient() {
     },
   })
 
-  function setDeliveringAndConfirm(delivering: string | null) {
-    setDeliveringId(delivering)
-  }
-
   useEffect(
     () => () => {
       if (shopDeliveryRedirectTimer.current) {
@@ -1481,8 +1512,18 @@ export function ComenziPageClient() {
   }
 
   const today = todayIso()
-  const activeComenzi = useMemo(() => comenzi.filter((item) => isOpenStatus(item.status)), [comenzi])
-  const livrateComenzi = useMemo(() => comenzi.filter((item) => item.status === 'livrata'), [comenzi])
+  const manualComenzi = useMemo(
+    () => comenzi.filter((item) => !isMagazinPublicOrder(item)),
+    [comenzi],
+  )
+  const activeComenzi = useMemo(
+    () => manualComenzi.filter((item) => isOpenStatus(item.status)),
+    [manualComenzi],
+  )
+  const livrateComenzi = useMemo(
+    () => manualComenzi.filter((item) => item.status === 'livrata'),
+    [manualComenzi],
+  )
   const preorderShopOrders = useMemo(
     () =>
       shopOrders.filter(
@@ -1534,55 +1575,70 @@ export function ComenziPageClient() {
   const neincasatComandaIds = useMemo(() => new Set(livrateNeincasate.map((item) => item.comanda.id)), [livrateNeincasate])
   const neincasatRon = useMemo(() => livrateNeincasate.reduce((sum, item) => sum + item.amount, 0), [livrateNeincasate])
 
-  const comenziAzi = useMemo(
-    () => activeComenzi.filter((item) => item.data_livrare === today),
-    [activeComenzi, today]
+  const comenziAziCount = useMemo(
+    () =>
+      activeComenzi.filter((item) => item.data_livrare === today).length +
+      preorderShopOrders.filter(
+        (item) => isUnifiedOpenStatus(item.status) && item.delivery_date === today,
+      ).length,
+    [activeComenzi, preorderShopOrders, today],
   )
-  const comenziRestante = useMemo(
-    () => activeComenzi.filter((item) => Boolean(item.data_livrare) && item.data_livrare! < today),
-    [activeComenzi, today]
+  const comenziRestanteCount = useMemo(
+    () =>
+      activeComenzi.filter(
+        (item) => Boolean(item.data_livrare) && item.data_livrare! < today,
+      ).length +
+      preorderShopOrders.filter(
+        (item) =>
+          isUnifiedOpenStatus(item.status) &&
+          Boolean(item.delivery_date) &&
+          item.delivery_date! < today,
+      ).length,
+    [activeComenzi, preorderShopOrders, today],
   )
 
   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
 
-  const listSource = useMemo(() => {
-    if (activeTab === 'de_livrat') return activeComenzi
-    if (activeTab === 'livrate') return livrateComenzi
-    return comenzi
-  }, [activeComenzi, activeTab, comenzi, livrateComenzi])
-
-  const filteredComenzi = useMemo(() => {
-    const term = normalize(search)
-
-    return listSource.filter((item) => {
-      if (activeFilter === 'azi' && !(isOpenStatus(item.status) && item.data_livrare === today)) return false
-      if (activeFilter === 'active' && !isOpenStatus(item.status)) return false
-      if (activeFilter === 'restante' && !(isOpenStatus(item.status) && Boolean(item.data_livrare) && item.data_livrare! < today)) return false
-      if (activeFilter === 'viitoare' && !(isOpenStatus(item.status) && Boolean(item.data_livrare) && item.data_livrare! > today)) return false
-      if (activeFilter === 'neincasat' && !(item.status === 'livrata' && neincasatComandaIds.has(item.id))) return false
-
-      if (!term) return true
-      const clientName = normalize(getClientName(item, clientMap))
-      const phone = normalize(item.telefon || '')
-      return clientName.includes(term) || phone.includes(term)
-    })
-  }, [activeFilter, clientMap, listSource, neincasatComandaIds, search, today])
-
   const unifiedFiltered = useMemo(() => {
-    const merged = mergeUnifiedOrders(comenzi, preorderShopOrders, clientMap)
+    const merged = mergeUnifiedOrders(manualComenzi, preorderShopOrders, clientMap)
     const term = normalize(search)
 
     return merged.filter((item) => {
       if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
       if (activeTab === 'livrate' && item.status !== 'livrata') return false
+      if (
+        activeFilter === 'azi' &&
+        !(isUnifiedOpenStatus(item.status) && item.deliveryDate === today)
+      ) {
+        return false
+      }
+      if (activeFilter === 'active' && !isUnifiedOpenStatus(item.status)) return false
+      if (
+        activeFilter === 'restante' &&
+        !(
+          isUnifiedOpenStatus(item.status) &&
+          Boolean(item.deliveryDate) &&
+          item.deliveryDate! < today
+        )
+      ) {
+        return false
+      }
+      if (
+        activeFilter === 'viitoare' &&
+        !(
+          isUnifiedOpenStatus(item.status) &&
+          Boolean(item.deliveryDate) &&
+          item.deliveryDate! > today
+        )
+      ) {
+        return false
+      }
 
       if (item.source === 'b2b' && item.b2bComanda) {
         const b2b = item.b2bComanda
-        if (activeFilter === 'azi' && !(isOpenStatus(b2b.status) && b2b.data_livrare === today)) return false
-        if (activeFilter === 'active' && !isOpenStatus(b2b.status)) return false
-        if (activeFilter === 'restante' && !(isOpenStatus(b2b.status) && Boolean(b2b.data_livrare) && b2b.data_livrare! < today)) return false
-        if (activeFilter === 'viitoare' && !(isOpenStatus(b2b.status) && Boolean(b2b.data_livrare) && b2b.data_livrare! > today)) return false
         if (activeFilter === 'neincasat' && !(b2b.status === 'livrata' && neincasatComandaIds.has(b2b.id))) return false
+      } else if (activeFilter === 'neincasat') {
+        return false
       }
 
       if (!term) return true
@@ -1590,33 +1646,11 @@ export function ComenziPageClient() {
       const phone = normalize(item.phone)
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, activeTab, clientMap, comenzi, neincasatComandaIds, preorderShopOrders, search, today])
-  const visibleB2bOrders = useMemo(
-    () => unifiedFiltered.filter((item) => item.source === 'b2b'),
-    [unifiedFiltered],
+  }, [activeFilter, activeTab, clientMap, manualComenzi, neincasatComandaIds, preorderShopOrders, search, today])
+  const unifiedGroups = useMemo(
+    () => groupAllOrdersByDeliveryDate(unifiedFiltered, orderSort),
+    [orderSort, unifiedFiltered],
   )
-  const visibleShopGroups = useMemo(
-    () =>
-      groupShopOrdersByDeliveryDate(
-        unifiedFiltered.flatMap((item) => (item.shopOrder ? [item.shopOrder] : [])),
-      ),
-    [unifiedFiltered],
-  )
-
-  const sortedComenziForView = useMemo(
-    () => sortComenziForMagazinGrouping(filteredComenzi),
-    [filteredComenzi],
-  )
-
-  const magazinGroupSizes = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const c of comenzi) {
-      const k = magazinGroupKey(c)
-      if (!k) continue
-      m.set(k, (m.get(k) ?? 0) + 1)
-    }
-    return m
-  }, [comenzi])
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
@@ -1634,7 +1668,6 @@ export function ComenziPageClient() {
   }
 
   const handleConfirmDeliver = async (comanda: Comanda) => {
-    setDeliveringId(comanda.id)
     await deliverMutation.mutateAsync({
       comandaId: comanda.id,
       cantitateLivrataKg: Number(comanda.cantitate_kg || 0),
@@ -1642,21 +1675,6 @@ export function ComenziPageClient() {
       dataLivrareRamasa: null,
     })
   }
-
-  const desktopSelectedComanda =
-    sortedComenziForView.find((item) => item.id === desktopSelectedComandaId) ??
-    sortedComenziForView[0] ??
-    null
-
-  const magazinGroupForInspector = useMemo(() => {
-    if (!desktopSelectedComanda) return []
-    return getMagazinGroupOrders(comenzi, desktopSelectedComanda)
-  }, [comenzi, desktopSelectedComanda])
-
-  const magazinGroupTotal = useMemo(
-    () => magazinGroupForInspector.reduce((s, l) => s + Number(l.total || 0), 0),
-    [magazinGroupForInspector],
-  )
 
   const magazinGroupForViewDialog = useMemo(() => {
     if (!viewing) return []
@@ -1668,134 +1686,6 @@ export function ComenziPageClient() {
     [magazinGroupForViewDialog],
   )
 
-  const desktopColumns = useMemo<ColumnDef<Comanda>[]>(() => [
-    {
-      id: 'data',
-      header: 'Data',
-      accessorFn: (row) => row.data_livrare || row.data_comanda,
-      cell: ({ row }) => formatDate(row.original.data_livrare || row.original.data_comanda),
-      meta: {
-        searchValue: (row: Comanda) => row.data_livrare || row.data_comanda,
-      },
-    },
-    {
-      id: 'origine',
-      header: '',
-      accessorFn: () => '',
-      cell: ({ row }) =>
-        isMagazinPublicOrder(row.original) ? (
-          <Badge variant="info" className="text-[10px] font-semibold">
-            Magazin
-          </Badge>
-        ) : (
-          <span className="text-[var(--text-tertiary)]">—</span>
-        ),
-      meta: {
-        searchable: false,
-        headerClassName: 'w-[88px]',
-        cellClassName: 'w-[88px]',
-      },
-    },
-    {
-      id: 'client',
-      header: 'Client',
-      accessorFn: (row) => getClientName(row, clientMap),
-      cell: ({ row }) => <span className="font-medium">{getClientName(row.original, clientMap)}</span>,
-      meta: {
-        searchValue: (row: Comanda) => getClientName(row, clientMap),
-      },
-    },
-    {
-      id: 'produse',
-      header: 'Linii',
-      accessorFn: (row) => {
-        const k = magazinGroupKey(row)
-        if (!k) return 1
-        return magazinGroupSizes.get(k) ?? 1
-      },
-      cell: ({ row }) => {
-        const k = magazinGroupKey(row.original)
-        const n = k ? magazinGroupSizes.get(k) ?? 1 : 1
-        return (
-          <span className="tabular-nums">
-            {n}
-            {isMagazinPublicOrder(row.original) ? (
-              <span className="ml-1 text-[10px] text-[var(--text-tertiary)]">grup</span>
-            ) : null}
-          </span>
-        )
-      },
-      meta: {
-        searchValue: (row: Comanda) => {
-          const k = magazinGroupKey(row)
-          return k ? magazinGroupSizes.get(k) ?? 1 : 1
-        },
-        numeric: true,
-      },
-    },
-    {
-      accessorKey: 'cantitate_kg',
-      header: 'Cantitate totală',
-      cell: ({ row }) => formatKg(Number(row.original.cantitate_kg || 0)),
-      meta: {
-        searchValue: (row: Comanda) => row.cantitate_kg,
-        numeric: true,
-      },
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => (
-        <StatusBadge
-          text={statusLabelMap[row.original.status] ?? row.original.status}
-          variant={statusVariantMap[row.original.status] ?? 'neutral'}
-        />
-      ),
-      meta: {
-        searchValue: (row: Comanda) => statusLabelMap[row.status] ?? row.status,
-      },
-    },
-    {
-      id: 'actions',
-      header: 'Acțiuni',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Editează comanda"
-            onClick={(event) => {
-              event.stopPropagation()
-              setEditing(row.original)
-            }}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Șterge comanda"
-            onClick={(event) => {
-              event.stopPropagation()
-              setDeleting(row.original)
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
-          </Button>
-        </div>
-      ),
-      meta: {
-        searchable: false,
-        sticky: 'right',
-        headerClassName: 'w-[104px] text-right',
-        cellClassName: 'w-[104px] text-right',
-      },
-    },
-  ], [clientMap, magazinGroupSizes])
-
   return (
     <AppShell
       header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" contentVariant="workspace" />}
@@ -1806,9 +1696,9 @@ export function ComenziPageClient() {
 
         {section === 'waitlist' ? <ShopOrdersPanel /> : null}
 
-        {section === 'comenzi' && (activeComenzi.length > 0 || comenziRestante.length > 0 || neincasatRon > 0) ? (
+        {section === 'comenzi' && (activeComenzi.length + shopActiveCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0) ? (
           <ModuleScoreboard className="gap-x-3.5 gap-y-2">
-            {activeComenzi.length > 0 ? (
+            {activeComenzi.length + shopActiveCount > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
@@ -1818,11 +1708,11 @@ export function ComenziPageClient() {
                   if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
                 }}
               >
-                <span className="text-lg font-extrabold text-[var(--agri-text)]">{activeComenzi.length}</span>
+                <span className="text-lg font-extrabold text-[var(--agri-text)]">{activeComenzi.length + shopActiveCount}</span>
                 <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
               </span>
             ) : null}
-            {comenziAzi.length > 0 ? (
+            {comenziAziCount > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
@@ -1832,11 +1722,11 @@ export function ComenziPageClient() {
                   if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi')
                 }}
               >
-                <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAzi.length}</span>
+                <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAziCount}</span>
                 <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">azi</span>
               </span>
             ) : null}
-            {comenziRestante.length > 0 ? (
+            {comenziRestanteCount > 0 ? (
               <span
                 role="button"
                 tabIndex={0}
@@ -1846,7 +1736,7 @@ export function ComenziPageClient() {
                   if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante')
                 }}
               >
-                <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestante.length}</span>
+                <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestanteCount}</span>
                 <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">restante</span>
               </span>
             ) : null}
@@ -1908,6 +1798,27 @@ export function ComenziPageClient() {
         </DesktopToolbar>
         ) : null}
 
+        {section === 'comenzi' ? (
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
+              Sortează:
+            </Label>
+            <Select
+              value={orderSort}
+              onValueChange={(value) => setOrderSort(value as UnifiedOrderSort)}
+            >
+              <SelectTrigger id="comenzi-sort" className="h-9 w-full max-w-[15rem] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at">Dată plasare</SelectItem>
+                <SelectItem value="delivery_date">Dată livrare</SelectItem>
+                <SelectItem value="locality">Localitate</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+
         {section === 'comenzi' && (isError || shopOrdersError) ? (
           <ErrorState
             title="Eroare"
@@ -1927,300 +1838,122 @@ export function ComenziPageClient() {
         {section === 'comenzi' && !isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length > 0 ? (
           <>
             <div className="space-y-5 md:hidden">
-              {visibleShopGroups.map((group) => (
-                <ShopDeliveryGroupSection
-                  key={group.date ?? 'unscheduled'}
-                  date={group.date}
-                  orderCount={group.orders.length}
-                  totalQty={group.totalQty}
-                >
-                  <div className="space-y-3">
-                    {group.orders.map((order) => (
-                      <UnifiedOrderCard
-                        key={`shop-${order.id}`}
-                        item={mapShopToUnified(order)}
-                        disabled={patchShopOrderMutation.isPending}
-                        onShopStatusChange={(id, status) => {
-                          patchShopOrderMutation.mutate({ id, status })
-                        }}
-                        onShopConfirmedChange={(id, confirmed) => {
-                          patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                        }}
-                        onShopNotifiedChange={(id, notified) => {
-                          patchShopOrderMutation.mutate({ id, notified_wa: notified })
-                        }}
-                        onShopDeliveryDateChange={(id, delivery_date) => {
-                          patchShopOrderMutation.mutate({ id, delivery_date })
-                        }}
-                      />
-                    ))}
-                  </div>
-                </ShopDeliveryGroupSection>
-              ))}
-              {visibleB2bOrders.map((item) => (
-                <UnifiedOrderCard
-                  key={`b2b-${item.id}`}
-                  item={item}
-                  disabled={updateMutation.isPending}
-                  onOpenB2bDetails={(id) => {
-                    const comanda = comenzi.find((row) => row.id === id)
-                    if (comanda) setViewing(comanda)
-                  }}
-                  onB2bStatusChange={(id, status) => {
-                    updateMutation.mutate({ id, payload: { status } })
-                  }}
-                />
-              ))}
+              {unifiedGroups.map((group) => {
+                const units = new Set(group.orders.map((order) => order.quantityUnit))
+                const quantityLabel =
+                  units.size === 1 ? (units.has('kg') ? 'kg' : 'caserole') : ''
+                return (
+                  <UnifiedOrderGroupSection
+                    key={group.date ?? 'unscheduled'}
+                    date={group.date}
+                    orderCount={group.orders.length}
+                    totalQty={group.totalQty}
+                    quantityLabel={quantityLabel}
+                  >
+                    <div className="space-y-3">
+                      {group.orders.map((item) => (
+                        <UnifiedOrderCard
+                          key={`${item.source}-${item.id}`}
+                          item={item}
+                          disabled={
+                            item.source === 'shop'
+                              ? patchShopOrderMutation.isPending
+                              : updateMutation.isPending
+                          }
+                          onOpenB2bDetails={(id) => {
+                            const comanda = comenzi.find((row) => row.id === id)
+                            if (comanda) setViewing(comanda)
+                          }}
+                          onB2bStatusChange={(id, status) => {
+                            if (status === 'livrata') {
+                              const comanda = comenzi.find((row) => row.id === id)
+                              if (comanda) void handleConfirmDeliver(comanda)
+                              return
+                            }
+                            updateMutation.mutate({ id, payload: { status } })
+                          }}
+                          onB2bDeliveryDateChange={(id, data_livrare) => {
+                            updateMutation.mutate({ id, payload: { data_livrare } })
+                          }}
+                          onShopStatusChange={(id, status) => {
+                            patchShopOrderMutation.mutate({ id, status })
+                          }}
+                          onShopConfirmedChange={(id, confirmed) => {
+                            patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                          }}
+                          onShopNotifiedChange={(id, notified) => {
+                            patchShopOrderMutation.mutate({ id, notified_wa: notified })
+                          }}
+                          onShopDeliveryDateChange={(id, delivery_date) => {
+                            patchShopOrderMutation.mutate({ id, delivery_date })
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </UnifiedOrderGroupSection>
+                )
+              })}
             </div>
 
             <div className="hidden space-y-5 md:block">
-              {visibleShopGroups.map((group) => (
-                <ShopDeliveryGroupSection
-                  key={group.date ?? 'unscheduled'}
-                  date={group.date}
-                  orderCount={group.orders.length}
-                  totalQty={group.totalQty}
-                >
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
-                    {group.orders.map((order) => (
-                      <UnifiedOrderCard
-                        key={`shop-${order.id}`}
-                        item={mapShopToUnified(order)}
-                        compact
-                        disabled={patchShopOrderMutation.isPending}
-                        onShopStatusChange={(id, status) => {
-                          patchShopOrderMutation.mutate({ id, status })
-                        }}
-                        onShopConfirmedChange={(id, confirmed) => {
-                          patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                        }}
-                        onShopNotifiedChange={(id, notified) => {
-                          patchShopOrderMutation.mutate({ id, notified_wa: notified })
-                        }}
-                        onShopDeliveryDateChange={(id, delivery_date) => {
-                          patchShopOrderMutation.mutate({ id, delivery_date })
-                        }}
-                      />
-                    ))}
-                  </div>
-                </ShopDeliveryGroupSection>
-              ))}
+              {unifiedGroups.map((group) => {
+                const units = new Set(group.orders.map((order) => order.quantityUnit))
+                const quantityLabel =
+                  units.size === 1 ? (units.has('kg') ? 'kg' : 'caserole') : ''
+                return (
+                  <UnifiedOrderGroupSection
+                    key={group.date ?? 'unscheduled'}
+                    date={group.date}
+                    orderCount={group.orders.length}
+                    totalQty={group.totalQty}
+                    quantityLabel={quantityLabel}
+                  >
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                      {group.orders.map((item) => (
+                        <UnifiedOrderCard
+                          key={`${item.source}-${item.id}`}
+                          item={item}
+                          compact
+                          disabled={
+                            item.source === 'shop'
+                              ? patchShopOrderMutation.isPending
+                              : updateMutation.isPending
+                          }
+                          onOpenB2bDetails={(id) => {
+                            const comanda = comenzi.find((row) => row.id === id)
+                            if (comanda) setViewing(comanda)
+                          }}
+                          onB2bStatusChange={(id, status) => {
+                            if (status === 'livrata') {
+                              const comanda = comenzi.find((row) => row.id === id)
+                              if (comanda) void handleConfirmDeliver(comanda)
+                              return
+                            }
+                            updateMutation.mutate({ id, payload: { status } })
+                          }}
+                          onB2bDeliveryDateChange={(id, data_livrare) => {
+                            updateMutation.mutate({ id, payload: { data_livrare } })
+                          }}
+                          onShopStatusChange={(id, status) => {
+                            patchShopOrderMutation.mutate({ id, status })
+                          }}
+                          onShopConfirmedChange={(id, confirmed) => {
+                            patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                          }}
+                          onShopNotifiedChange={(id, notified) => {
+                            patchShopOrderMutation.mutate({ id, notified_wa: notified })
+                          }}
+                          onShopDeliveryDateChange={(id, delivery_date) => {
+                            patchShopOrderMutation.mutate({ id, delivery_date })
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </UnifiedOrderGroupSection>
+                )
+              })}
             </div>
 
-            <div className="hidden md:block">
-            <DesktopSplitPane
-              master={
-                <ResponsiveDataView
-                  columns={desktopColumns}
-                  data={sortedComenziForView}
-                  mobileContainerClassName="grid-cols-1"
-                  getRowId={(row) => row.id}
-                  searchPlaceholder="Caută în comenzi..."
-                  emptyMessage="Nu am găsit comenzi pentru filtrele curente."
-                  desktopContainerClassName="md:min-w-0"
-                  skipDesktopDataFilter
-                  hideDesktopSearchRow
-                  getDesktopRowClassName={(row, index, rows) => magazinDesktopRowClassName(row, index, rows)}
-                  onDesktopRowClick={(row) => setDesktopSelectedComandaId(row.id)}
-                  isDesktopRowSelected={(row) => desktopSelectedComanda?.id === row.id}
-                  renderCard={(comanda) => (
-                    <ComandaCard
-                      comanda={comanda}
-                      clientName={getClientName(comanda, clientMap)}
-                      onOpenDetails={(item) => setViewing(item)}
-                    />
-                  )}
-                />
-              }
-              detail={
-                <DesktopInspectorPanel
-                  title="Detalii comandă"
-                  description={
-                    desktopSelectedComanda
-                      ? getClientName(desktopSelectedComanda, clientMap)
-                      : undefined
-                  }
-                  footer={
-                    desktopSelectedComanda ? (
-                      <div className="flex flex-wrap gap-2">
-                        {canDeliverStatus(desktopSelectedComanda.status) &&
-                        desktopSelectedComanda.status !== 'anulata' ? (
-                          <button
-                            type="button"
-                            className="rounded-lg border border-[var(--info-border)] bg-[var(--info-bg)] px-3 py-2 text-xs font-semibold text-[var(--info-text)] hover:brightness-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-                            disabled={deliveringId === desktopSelectedComanda.id}
-                            onClick={() => {
-                              void handleConfirmDeliver(desktopSelectedComanda)
-                            }}
-                          >
-                            {deliveringId === desktopSelectedComanda.id
-                              ? 'Se livrează...'
-                              : 'Marchează livrată'}
-                          </button>
-                        ) : null}
-                        {desktopSelectedComanda.status === 'livrata' ? (
-                          <button
-                            type="button"
-                            className="rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold text-[var(--status-warning-text)] hover:opacity-90"
-                            onClick={() => setReopening(desktopSelectedComanda)}
-                          >
-                            Redeschide
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]"
-                          onClick={() => setEditing(desktopSelectedComanda)}
-                        >
-                          Editează
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-md border border-[var(--soft-danger-border)] px-3 py-2 text-xs font-semibold text-[var(--soft-danger-text)] hover:bg-[var(--soft-danger-bg)]"
-                          onClick={() => setDeleting(desktopSelectedComanda)}
-                        >
-                          Șterge
-                        </button>
-                      </div>
-                    ) : null
-                  }
-                >
-                  {desktopSelectedComanda ? (
-                    <>
-                      {isMagazinPublicOrder(desktopSelectedComanda) ? (
-                        <>
-                          <DesktopInspectorSection label="Origine">
-                            <p className="text-sm font-medium text-[var(--text-primary)]">
-                              Origine:{' '}
-                              <span className="text-[var(--text-secondary)]">Magazin</span>
-                            </p>
-                            <Badge variant="info" className="mt-2 text-[10px] font-semibold">
-                              Magazin
-                            </Badge>
-                          </DesktopInspectorSection>
-                          <DesktopInspectorSection label="Comandă din magazin">
-                            <p className="mb-2 text-xs font-semibold text-[var(--text-primary)]">
-                              {magazinGroupForInspector.length}{' '}
-                              {magazinGroupForInspector.length === 1 ? 'linie' : 'linii'} în grup
-                            </p>
-                            {magazinGroupForInspector.length > 1 ? (
-                              <p className="mb-2 text-xs text-[var(--text-tertiary)]">
-                                Aceeași solicitare (telefon + zi calendaristică).
-                              </p>
-                            ) : (
-                              <p className="mb-2 text-xs text-[var(--text-tertiary)]">
-                                Comandă plasată din magazinul public.
-                              </p>
-                            )}
-                            <ul className="space-y-2">
-                              {magazinGroupForInspector.map((line) => (
-                                <li
-                                  key={line.id}
-                                  className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-2 text-sm"
-                                >
-                                  <div className="flex justify-between gap-2">
-                                    <span className="text-[var(--text-secondary)]">
-                                      {formatKg(Number(line.cantitate_kg || 0))} ·{' '}
-                                      {formatLei(Number(line.pret_per_kg || 0))}/kg
-                                    </span>
-                                    <span className="shrink-0 font-semibold tabular-nums text-[var(--text-primary)]">
-                                      {formatLei(Number(line.total || 0))}
-                                    </span>
-                                  </div>
-                                  {line.observatii ? (
-                                    <p className="mt-1 line-clamp-3 text-xs text-[var(--text-tertiary)]">
-                                      {line.observatii}
-                                    </p>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ul>
-                            <p className="mt-3 text-sm font-semibold text-[var(--text-primary)]">
-                              Total estimat (grup): {formatLei(magazinGroupTotal)}
-                            </p>
-                          </DesktopInspectorSection>
-                        </>
-                      ) : null}
-                      <DesktopInspectorSection label="Sumar">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge
-                            text={
-                              statusLabelMap[desktopSelectedComanda.status] ??
-                              desktopSelectedComanda.status
-                            }
-                            variant={
-                              statusVariantMap[desktopSelectedComanda.status] ?? 'neutral'
-                            }
-                          />
-                          <span className="text-xs text-[var(--text-tertiary)]">
-                            Livrare:{' '}
-                            {formatDate(
-                              desktopSelectedComanda.data_livrare ||
-                                desktopSelectedComanda.data_comanda,
-                            )}
-                          </span>
-                        </div>
-                      </DesktopInspectorSection>
-                      <DesktopInspectorSection label="Client și livrare">
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">Client: </span>
-                          {getClientName(desktopSelectedComanda, clientMap)}
-                        </p>
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">Telefon: </span>
-                          {desktopSelectedComanda.telefon || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">
-                            Locație livrare:{' '}
-                          </span>
-                          {desktopSelectedComanda.locatie_livrare || '—'}
-                        </p>
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">
-                            Data comandă:{' '}
-                          </span>
-                          {formatDate(desktopSelectedComanda.data_comanda)}
-                        </p>
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">
-                            Data livrare:{' '}
-                          </span>
-                          {formatDate(desktopSelectedComanda.data_livrare)}
-                        </p>
-                        {desktopSelectedComanda.observatii ? (
-                          <p className="pt-1 text-xs leading-relaxed text-[var(--text-tertiary)]">
-                            <span className="font-medium text-[var(--text-secondary)]">
-                              Observații:{' '}
-                            </span>
-                            {desktopSelectedComanda.observatii}
-                          </p>
-                        ) : null}
-                      </DesktopInspectorSection>
-                      <DesktopInspectorSection label="Comandă și total">
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">Cantitate: </span>
-                          {formatKg(Number(desktopSelectedComanda.cantitate_kg || 0))}
-                        </p>
-                        <p>
-                          <span className="font-medium text-[var(--text-primary)]">Preț/kg: </span>
-                          {formatLei(Number(desktopSelectedComanda.pret_per_kg || 0))}
-                        </p>
-                        <p className="text-base font-semibold text-[var(--text-primary)]">
-                          <span className="font-medium">Total: </span>
-                          {formatLei(Number(desktopSelectedComanda.total || 0))}
-                        </p>
-                      </DesktopInspectorSection>
-                    </>
-                  ) : (
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      Selectează o comandă din listă pentru a vedea detaliile.
-                    </p>
-                  )}
-                </DesktopInspectorPanel>
-              }
-            />
-            </div>
           </>
         ) : null}
       </DashboardContentShell>
