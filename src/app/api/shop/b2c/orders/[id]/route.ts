@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { validateSameOriginMutation } from '@/lib/api/route-security'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
+import { upsertClientFromShopOrder } from '@/lib/shop/clienti-sync'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
@@ -16,14 +17,18 @@ const patchBodySchema = z
     status: z.enum(['noua', 'confirmata', 'in_livrare', 'livrata', 'anulata']).optional(),
     notified_wa: z.boolean().optional(),
     delivery_date: z.string().date().nullable().optional(),
+    delivery_address: z.string().trim().max(500).optional(),
+    delivery_city: z.string().trim().max(120).optional(),
   })
   .refine(
     (body) =>
       body.status !== undefined ||
       body.notified_wa !== undefined ||
-      body.delivery_date !== undefined,
+      body.delivery_date !== undefined ||
+      body.delivery_address !== undefined ||
+      body.delivery_city !== undefined,
     {
-      message: 'Trimite status, notified_wa sau delivery_date.',
+      message: 'Trimite status, notified_wa, delivery_date, delivery_address sau delivery_city.',
     },
   )
   .refine((body) => body.status !== 'livrata' || body.notified_wa === undefined, {
@@ -87,10 +92,22 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ success: true, delivery: data })
   }
 
-  const updates: { status?: string; notified_wa?: boolean; delivery_date?: string | null } = {}
+  const updates: {
+    status?: string
+    notified_wa?: boolean
+    delivery_date?: string | null
+    delivery_address?: string | null
+    delivery_city?: string | null
+  } = {}
   if (parsed.data.status !== undefined) updates.status = parsed.data.status
   if (parsed.data.notified_wa !== undefined) updates.notified_wa = parsed.data.notified_wa
   if (parsed.data.delivery_date !== undefined) updates.delivery_date = parsed.data.delivery_date
+  if (parsed.data.delivery_address !== undefined) {
+    updates.delivery_address = parsed.data.delivery_address.trim() || null
+  }
+  if (parsed.data.delivery_city !== undefined) {
+    updates.delivery_city = parsed.data.delivery_city.trim() || null
+  }
 
   let tenantId: string
   try {
@@ -127,12 +144,19 @@ export async function PATCH(request: Request, context: RouteContext) {
     updates.delivery_date = currentOrder.delivery_date ?? todayBucharestDate()
   }
 
+  const hasAddressUpdate =
+    parsed.data.delivery_address !== undefined || parsed.data.delivery_city !== undefined
+
   const { data, error } = await admin
     .from('shop_orders')
     .update(updates)
     .eq('id', id)
     .eq('tenant_id', tenantId)
-    .select('id')
+    .select(
+      hasAddressUpdate
+        ? 'id, customer_name, customer_phone, delivery_address, delivery_city'
+        : 'id',
+    )
 
   if (error) {
     console.error(
@@ -144,6 +168,37 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (!data?.length) {
     return errorResponse('Comanda nu a fost găsită.', 404)
+  }
+
+  if (hasAddressUpdate) {
+    const updatedOrder = data[0] as {
+      customer_name?: string | null
+      customer_phone?: string | null
+      delivery_address?: string | null
+      delivery_city?: string | null
+    }
+
+    try {
+      await upsertClientFromShopOrder({
+        tenantId,
+        phone: updatedOrder.customer_phone ?? '',
+        name: updatedOrder.customer_name ?? 'Client shop',
+        deliveryAddress: updatedOrder.delivery_address ?? null,
+        deliveryCity: updatedOrder.delivery_city ?? null,
+        explicitAddressOverride: true,
+      })
+    } catch (clientSyncError) {
+      console.error(
+        '[shop/b2c/orders] clienti sync failed',
+        sanitizeForLog(
+          toSafeErrorContext({
+            error: clientSyncError,
+            id,
+            tenantId,
+          }),
+        ),
+      )
+    }
   }
 
   return NextResponse.json({ success: true })

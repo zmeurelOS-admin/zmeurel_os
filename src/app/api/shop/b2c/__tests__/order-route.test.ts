@@ -4,12 +4,17 @@ import { POST } from '@/app/api/shop/b2c/order/route'
 import { createSameOriginRequest } from '@/test/helpers/api-origin-request'
 
 const createNotificationForTenantOwner = vi.fn()
+const upsertClientFromShopOrderMock = vi.fn()
 
 vi.mock('@/lib/notifications/create', () => ({
   createNotificationForTenantOwner: (...args: unknown[]) => createNotificationForTenantOwner(...args),
   NOTIFICATION_TYPES: {
     order_new: 'order_new',
   },
+}))
+
+vi.mock('@/lib/shop/clienti-sync', () => ({
+  upsertClientFromShopOrder: (...args: unknown[]) => upsertClientFromShopOrderMock(...args),
 }))
 
 const insertSpy = vi.fn()
@@ -132,6 +137,13 @@ describe('POST /api/shop/b2c/order', () => {
         p_default_delivery_mode: 'livrare',
       }),
     )
+    expect(upsertClientFromShopOrderMock).toHaveBeenCalledWith({
+      tenantId: process.env.SHOP_TENANT_ID,
+      phone: '0722123456',
+      name: 'Ion Popescu',
+      deliveryAddress: 'Suceava, str. Fermierului 10',
+      deliveryCity: 'Suceava',
+    })
   })
 
   it('folosește RPC-ul atomic pentru precomandă și returnează milestone-ul real', async () => {
@@ -216,6 +228,13 @@ describe('POST /api/shop/b2c/order', () => {
         p_phone: '722123456',
       }),
     )
+    expect(upsertClientFromShopOrderMock).toHaveBeenCalledWith({
+      tenantId: process.env.SHOP_TENANT_ID,
+      phone: '0722123456',
+      name: 'Ion Popescu',
+      deliveryAddress: null,
+      deliveryCity: null,
+    })
   })
 
   it('trimite zona de livrare către RPC pentru precomenzi cu livrare', async () => {

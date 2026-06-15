@@ -8,6 +8,7 @@ import {
   NOTIFICATION_TYPES,
 } from '@/lib/notifications/create'
 import { upsertShopCustomer } from '@/lib/shop/b2c-customers'
+import { upsertClientFromShopOrder } from '@/lib/shop/clienti-sync'
 import {
   computeZmeuraTotalLei,
   ZMEURA_CASEROLA_PRICE_LEI,
@@ -272,6 +273,27 @@ export async function POST(request: Request) {
       sanitizeForLog(
         toSafeErrorContext({
           error: customerError,
+          orderId,
+          tenantId: configuredTenantId,
+        }),
+      ),
+    )
+  }
+
+  try {
+    await upsertClientFromShopOrder({
+      tenantId: configuredTenantId,
+      phone: normalizedCustomerPhone,
+      name: customer_name,
+      deliveryAddress: delivery_address?.trim() || null,
+      deliveryCity: delivery_city?.trim() || null,
+    })
+  } catch (clientSyncError) {
+    console.error(
+      '[shop/b2c/order] clienti sync failed',
+      sanitizeForLog(
+        toSafeErrorContext({
+          error: clientSyncError,
           orderId,
           tenantId: configuredTenantId,
         }),

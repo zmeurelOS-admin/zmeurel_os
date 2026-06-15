@@ -10,6 +10,7 @@ const {
   rpcMock,
   selectEqMock,
   selectMaybeSingleMock,
+  upsertClientFromShopOrderMock,
   updateMock,
   updateEqMock,
   updateSelectMock,
@@ -20,6 +21,7 @@ const {
   rpcMock: vi.fn(),
   selectEqMock: vi.fn(),
   selectMaybeSingleMock: vi.fn(),
+  upsertClientFromShopOrderMock: vi.fn(),
   updateMock: vi.fn(),
   updateEqMock: vi.fn(),
   updateSelectMock: vi.fn(),
@@ -42,6 +44,10 @@ vi.mock('@/lib/tenant/get-tenant', () => ({
   getTenantIdByUserId: getTenantIdByUserIdMock,
 }))
 
+vi.mock('@/lib/shop/clienti-sync', () => ({
+  upsertClientFromShopOrder: (...args: unknown[]) => upsertClientFromShopOrderMock(...args),
+}))
+
 const orderId = '00000000-0000-4000-8000-000000000101'
 const tenantId = '00000000-0000-4000-8000-000000000301'
 
@@ -59,6 +65,8 @@ function patchRequest(body: {
   status?: string
   notified_wa?: boolean
   delivery_date?: string | null
+  delivery_address?: string
+  delivery_city?: string
 }) {
   return PATCH(
     createSameOriginRequest(`/api/shop/b2c/orders/${orderId}`, {
@@ -192,6 +200,43 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     expect(updateEqMock).toHaveBeenNthCalledWith(1, 'id', orderId)
     expect(updateEqMock).toHaveBeenNthCalledWith(2, 'tenant_id', tenantId)
     expect(updateSelectMock).toHaveBeenCalledWith('id')
+  })
+
+  it('sincronizează explicit adresa în clienti când adminul actualizează comanda', async () => {
+    updateSelectMock.mockResolvedValue({
+      data: [
+        {
+          id: orderId,
+          customer_name: 'Ion Popescu',
+          customer_phone: '0722123456',
+          delivery_address: 'Str. Nouă 10',
+          delivery_city: 'Suceava',
+        },
+      ],
+      error: null,
+    })
+
+    const response = await patchRequest({
+      delivery_address: 'Str. Nouă 10',
+      delivery_city: 'Suceava',
+    })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith({
+      delivery_address: 'Str. Nouă 10',
+      delivery_city: 'Suceava',
+    })
+    expect(updateSelectMock).toHaveBeenCalledWith(
+      'id, customer_name, customer_phone, delivery_address, delivery_city',
+    )
+    expect(upsertClientFromShopOrderMock).toHaveBeenCalledWith({
+      tenantId,
+      phone: '0722123456',
+      name: 'Ion Popescu',
+      deliveryAddress: 'Str. Nouă 10',
+      deliveryCity: 'Suceava',
+      explicitAddressOverride: true,
+    })
   })
 
   it('setează data de livrare București când comanda intră în livrare fără dată', async () => {
