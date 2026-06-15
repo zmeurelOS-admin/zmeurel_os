@@ -9,6 +9,7 @@ import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
 import { ComandaFormSummary } from '@/components/comenzi/ComandaFormSummary'
+import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
   DesktopFormGrid,
@@ -39,6 +40,11 @@ import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ShopOrdersPanel } from '@/components/comenzi/ShopOrdersPanel'
+import {
+  buildDeliveryLocation,
+  deriveDeliverySelection,
+  ErpLocalitySelector,
+} from '@/components/comenzi/ErpLocalitySelector'
 import {
   ComenziSectionPills,
   type ComenziSection,
@@ -74,13 +80,13 @@ import {
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
   mergeUnifiedOrders,
+  type UnifiedOrderItem,
   type UnifiedOrderSort,
 } from '@/lib/comenzi/unified-orders'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 import {
   DELIVERY_ZONES,
-  LOCALITIES,
   type DeliveryZone,
   type LocalityConfig,
   type VillageConfig,
@@ -178,57 +184,6 @@ function normalize(value: string): string {
 
 function normalizeForExactHintMatch(value: string): string {
   return value.trim().toLowerCase()
-}
-
-function buildDeliveryLocation(
-  locality: LocalityConfig | null,
-  village: VillageConfig | null,
-  street: string,
-): string {
-  const localityName = village?.name ?? (locality?.villages ? '' : locality?.name ?? '')
-  return [localityName, street.trim()].filter(Boolean).join(', ')
-}
-
-function deriveDeliverySelection(location: string): {
-  mode: 'livrare' | 'ridicare'
-  locality: LocalityConfig | null
-  village: VillageConfig | null
-  street: string
-} {
-  const trimmed = location.trim()
-  if (normalize(trimmed).includes('ridicare')) {
-    return { mode: 'ridicare', locality: null, village: null, street: '' }
-  }
-
-  const [locationName = '', ...streetParts] = trimmed.split(',').map((part) => part.trim())
-  for (const locality of LOCALITIES) {
-    const village = locality.villages?.find(
-      (candidate) => normalize(candidate.name) === normalize(locationName),
-    )
-    if (village) {
-      return {
-        mode: 'livrare',
-        locality,
-        village,
-        street: streetParts.join(', '),
-      }
-    }
-    if (normalize(locality.name) === normalize(locationName)) {
-      return {
-        mode: 'livrare',
-        locality,
-        village: null,
-        street: streetParts.join(', '),
-      }
-    }
-  }
-
-  return {
-    mode: 'livrare',
-    locality: null,
-    village: null,
-    street: trimmed,
-  }
 }
 
 function canDeliverStatus(status: string): boolean {
@@ -975,128 +930,6 @@ function ComandaDialog({
   )
 }
 
-const ERP_ZONE_BORDER: Record<string, string> = {
-  zona1: '#B8D89C',
-  zona2: '#B5D4F4',
-  zona3: '#FAC775',
-  zona4: '#D1D5DB',
-}
-
-function ErpLocalityChip({
-  label,
-  zone,
-  active,
-  blocked,
-  onClick,
-}: {
-  label: string
-  zone: string
-  active: boolean
-  blocked?: boolean
-  onClick?: () => void
-}) {
-  const borderColor = blocked ? '#D1D5DB' : (ERP_ZONE_BORDER[zone] ?? '#D1D5DB')
-  if (blocked) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--text-tertiary)]"
-        style={{ borderColor, cursor: 'not-allowed' }}
-        title="Livrare indisponibilă"
-      >
-        ✕ {label}
-      </button>
-    )
-  }
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={
-        active
-          ? { background: 'var(--primary)', color: '#fff', borderColor: 'var(--primary)' }
-          : { borderColor }
-      }
-      className="rounded-full border px-2.5 py-1 text-xs font-medium text-[var(--text-primary)] transition active:scale-[0.97]"
-    >
-      {label}
-    </button>
-  )
-}
-
-function ErpLocalitySelector({
-  selectedLocality,
-  selectedVillage,
-  street,
-  onSelectLocality,
-  onSelectVillage,
-  onBlockedVillage,
-  onStreetChange,
-  blockedMessage,
-}: {
-  selectedLocality: LocalityConfig | null
-  selectedVillage: VillageConfig | null
-  street: string
-  onSelectLocality: (locality: LocalityConfig) => void
-  onSelectVillage: (village: VillageConfig | null) => void
-  onBlockedVillage: (village: VillageConfig) => void
-  onStreetChange: (street: string) => void
-  blockedMessage: string
-}) {
-  return (
-    <div className="space-y-2">
-      <Label>Localitate livrare</Label>
-      <div className="flex flex-wrap gap-1.5">
-        {LOCALITIES.map((locality) => (
-          <ErpLocalityChip
-            key={locality.name}
-            label={locality.name}
-            zone={locality.zone}
-            active={selectedLocality?.name === locality.name && !selectedVillage}
-            onClick={() => onSelectLocality(locality)}
-          />
-        ))}
-      </div>
-
-      {selectedLocality?.villages ? (
-        <div className="flex flex-wrap gap-1.5">
-          {selectedLocality.villages.map((village) => (
-            <ErpLocalityChip
-              key={village.name}
-              label={village.name}
-              zone={village.zone}
-              active={selectedVillage?.name === village.name}
-              blocked={village.blocked}
-              onClick={
-                village.blocked
-                  ? () => onBlockedVillage(village)
-                  : () => onSelectVillage(village)
-              }
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {blockedMessage ? (
-        <p className="rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-medium text-[var(--status-warning-text)]">
-          {blockedMessage}
-        </p>
-      ) : null}
-
-      <div className="space-y-1.5">
-        <Label>Stradă, număr</Label>
-        <Input
-          className="agri-control h-11 md:h-10"
-          placeholder="Str. ..., nr. ..."
-          value={street}
-          onChange={(e) => onStreetChange(e.target.value)}
-        />
-      </div>
-    </div>
-  )
-}
-
 function ContactSavePromptDialog({
   open,
   contact,
@@ -1166,6 +999,7 @@ export function ComenziPageClient() {
   )
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
+  const [editingOrder, setEditingOrder] = useState<UnifiedOrderItem | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
   const [viewing, setViewing] = useState<Comanda | null>(null)
@@ -1887,6 +1721,7 @@ export function ComenziPageClient() {
                           onShopDeliveryDateChange={(id, delivery_date) => {
                             patchShopOrderMutation.mutate({ id, delivery_date })
                           }}
+                          onEdit={() => setEditingOrder(item)}
                         />
                       ))}
                     </div>
@@ -1946,6 +1781,7 @@ export function ComenziPageClient() {
                           onShopDeliveryDateChange={(id, delivery_date) => {
                             patchShopOrderMutation.mutate({ id, delivery_date })
                           }}
+                          onEdit={() => setEditingOrder(item)}
                         />
                       ))}
                     </div>
@@ -1957,6 +1793,28 @@ export function ComenziPageClient() {
           </>
         ) : null}
       </DashboardContentShell>
+
+      {editingOrder ? (
+        <EditOrderSheet
+          open
+          order={editingOrder}
+          clienti={clienti}
+          onOpenChange={(open) => {
+            if (!open) setEditingOrder(null)
+          }}
+          onSaved={() => {
+            if (editingOrder.source === 'shop') {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
+              void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+              void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
+            } else {
+              void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+              void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+            }
+            setEditingOrder(null)
+          }}
+        />
+      ) : null}
 
       <ComandaDialog
         key={`create-${isCreateDialogOpen ? 'open' : 'closed'}`}

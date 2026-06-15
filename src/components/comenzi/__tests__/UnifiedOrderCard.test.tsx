@@ -66,6 +66,17 @@ describe('UnifiedOrderCard', () => {
     expect(screen.getByText('Adresă').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'false')
   })
 
+  it('expune acțiunea de editare pentru comenzile shop', async () => {
+    const user = userEvent.setup()
+    const onEdit = vi.fn()
+    render(<UnifiedOrderCard item={mapShopToUnified(order)} onEdit={onEdit} />)
+
+    await user.click(screen.getByRole('button', { name: /Arată detaliile/ }))
+    await user.click(screen.getByRole('button', { name: '✏ Editează' }))
+
+    expect(onEdit).toHaveBeenCalledWith(order.id, 'shop')
+  })
+
   it.each([
     ['noua', ['Confirmată', 'Anulată'], ['În livrare', 'Livrată']],
     ['confirmata', ['În livrare', 'Anulată'], ['Confirmată', 'Livrată']],

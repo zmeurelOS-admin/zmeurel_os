@@ -6,30 +6,15 @@ import { ChevronDown, Phone } from 'lucide-react'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
+  B2B_STATUS_TRANSITIONS,
   B2B_STATUS_LABELS,
   formatOrderDateTime,
+  SHOP_STATUS_TRANSITIONS,
   SHOP_STATUS_LABELS,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
 import type { ComandaStatus } from '@/lib/supabase/queries/comenzi'
 import { waUrlForPhone, type ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
-
-const SHOP_STATUS_TRANSITIONS: Record<ShopOrderStatus, ShopOrderStatus[]> = {
-  noua: ['confirmata', 'anulata'],
-  confirmata: ['in_livrare', 'anulata'],
-  in_livrare: ['livrata'],
-  livrata: [],
-  anulata: [],
-}
-
-const B2B_STATUS_TRANSITIONS: Record<ComandaStatus, ComandaStatus[]> = {
-  noua: ['confirmata', 'anulata'],
-  confirmata: ['in_livrare', 'anulata'],
-  programata: ['in_livrare', 'anulata'],
-  in_livrare: ['livrata'],
-  livrata: [],
-  anulata: [],
-}
 
 function OriginBadge({ source }: { source: UnifiedOrderItem['source'] }) {
   const isShop = source === 'shop'
@@ -104,6 +89,7 @@ export function UnifiedOrderCard({
   onShopConfirmedChange,
   onShopDeliveryDateChange,
   onShopNotifiedChange,
+  onEdit,
 }: {
   item: UnifiedOrderItem
   disabled?: boolean
@@ -115,6 +101,7 @@ export function UnifiedOrderCard({
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
   onShopNotifiedChange?: (id: string, notified: boolean) => void
+  onEdit?: (id: string, source: 'shop' | 'manual') => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
@@ -316,6 +303,15 @@ export function UnifiedOrderCard({
                 onClick={() => onOpenB2bDetails(item.id)}
               >
                 Vezi toate detaliile
+              </button>
+            ) : null}
+            {onEdit ? (
+              <button
+                type="button"
+                className="min-h-9 text-xs font-semibold text-[var(--primary)]"
+                onClick={() => onEdit(item.id, isShop ? 'shop' : 'manual')}
+              >
+                ✏ Editează
               </button>
             ) : null}
           </div>

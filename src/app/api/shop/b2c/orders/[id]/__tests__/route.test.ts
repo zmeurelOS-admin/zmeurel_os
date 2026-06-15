@@ -67,6 +67,11 @@ function patchRequest(body: {
   delivery_date?: string | null
   delivery_address?: string
   delivery_city?: string
+  customer_name?: string
+  customer_phone?: string
+  notes?: string | null
+  delivery_mode?: 'livrare' | 'ridicare'
+  items?: Array<{ vid: string; label: string; qty: number; price_lei: number }>
 }) {
   return PATCH(
     createSameOriginRequest(`/api/shop/b2c/orders/${orderId}`, {
@@ -200,6 +205,72 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     expect(updateEqMock).toHaveBeenNthCalledWith(1, 'id', orderId)
     expect(updateEqMock).toHaveBeenNthCalledWith(2, 'tenant_id', tenantId)
     expect(updateSelectMock).toHaveBeenCalledWith('id')
+  })
+
+  it('recalculează totalul server-side când se modifică liniile comenzii', async () => {
+    const items = [
+      { vid: 'zmeura', label: 'Zmeură — Caserolă 500 g', qty: 3, price_lei: 18 },
+    ]
+
+    const response = await patchRequest({ items })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith({
+      items,
+      total_lei: 54,
+    })
+  })
+
+  it('normalizează telefonul și sincronizează identitatea clientului', async () => {
+    updateSelectMock.mockResolvedValue({
+      data: [
+        {
+          id: orderId,
+          customer_name: 'Maria Popescu',
+          customer_phone: '0740123456',
+          delivery_address: 'Str. Florilor 10',
+          delivery_city: 'Suceava',
+        },
+      ],
+      error: null,
+    })
+
+    const response = await patchRequest({
+      customer_name: 'Maria Popescu',
+      customer_phone: '+40 740 123 456',
+    })
+
+    expect(response.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith({
+      customer_name: 'Maria Popescu',
+      customer_phone: '0740123456',
+    })
+    expect(upsertClientFromShopOrderMock).toHaveBeenCalledWith({
+      tenantId,
+      phone: '0740123456',
+      name: 'Maria Popescu',
+      deliveryAddress: 'Str. Florilor 10',
+      deliveryCity: 'Suceava',
+      explicitAddressOverride: false,
+    })
+  })
+
+  it('respinge telefonul invalid înainte de update', async () => {
+    const response = await patchRequest({ customer_phone: '123' })
+
+    expect(response.status).toBe(400)
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
+  it('nu combină livrarea atomică cu editarea câmpurilor comenzii', async () => {
+    const response = await patchRequest({
+      status: 'livrata',
+      items: [{ vid: 'zmeura', label: 'Zmeură', qty: 2, price_lei: 20 }],
+    })
+
+    expect(response.status).toBe(400)
+    expect(rpcMock).not.toHaveBeenCalled()
+    expect(updateMock).not.toHaveBeenCalled()
   })
 
   it('sincronizează explicit adresa în clienti când adminul actualizează comanda', async () => {

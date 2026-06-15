@@ -32,6 +32,10 @@ vi.mock('@/lib/shop/shop-orders-queries', () => ({
   fetchShopOrdersScheduledToday: fetchScheduledMock,
 }))
 
+vi.mock('@/lib/supabase/queries/clienti', () => ({
+  getClienți: vi.fn().mockResolvedValue([]),
+}))
+
 vi.mock('@/lib/ui/toast', () => ({
   toast: {
     error: toastErrorMock,
@@ -193,22 +197,41 @@ describe('LivrariPageClient', () => {
     expect(screen.queryByText('Livrate (1)')).not.toBeInTheDocument()
   })
 
-  it('recalculează totalul local în editarea rapidă fără a salva în DB', async () => {
+  it('recalculează totalul și persistă editarea comenzii', async () => {
     const user = userEvent.setup()
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
     await user.click(screen.getByRole('button', { name: 'Editează' }))
 
-    expect(screen.getByRole('heading', { name: 'Editare rapidă' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Editează comanda' })).toBeInTheDocument()
     const editDialog = screen.getByRole('dialog')
     expect(within(editDialog).getByText('20 lei')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Crește cantitatea pentru Caserolă 300 g' }))
+    const quantityInput = within(editDialog).getByRole('spinbutton', {
+      name: 'Cantitate (caserole)',
+    })
+    await user.clear(quantityInput)
+    await user.type(quantityInput, '3')
 
     expect(within(editDialog).getByText('30 lei')).toBeInTheDocument()
-    expect(within(editDialog).getByRole('button', { name: 'Salvează modificările' })).toBeDisabled()
-    expect(within(editDialog).getByText(/blocată până la confirmarea Fazei 2/)).toBeInTheDocument()
+    await user.click(within(editDialog).getByRole('button', { name: 'Salvează' }))
+
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        `/api/shop/b2c/orders/${order.id}`,
+        expect.objectContaining({
+          method: 'PATCH',
+        }),
+      ),
+    )
+    const patchOptions = vi.mocked(global.fetch).mock.calls.find(
+      ([url]) => url === `/api/shop/b2c/orders/${order.id}`,
+    )?.[1]
+    expect(JSON.parse(String(patchOptions?.body))).toEqual({
+      items: [{ vid: 'afine-300', label: 'Caserolă 300 g', qty: 3, price_lei: 10 }],
+    })
+    expect(toastSuccessMock).toHaveBeenCalledWith('Comanda a fost actualizată.')
   })
 
   it('revine la ordinea anterioară când persistarea reorder-ului eșuează', async () => {

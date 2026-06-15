@@ -10,12 +10,10 @@ import {
   GripVertical,
   MapPin,
   MessageCircle,
-  Minus,
   Navigation,
   PackageCheck,
   Pencil,
   Phone,
-  Plus,
   RefreshCw,
 } from 'lucide-react'
 
@@ -23,6 +21,7 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
+import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,14 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { mapShopToUnified } from '@/lib/comenzi/unified-orders'
 import { queryKeys } from '@/lib/query-keys'
 import {
   buildDeliverySummary,
@@ -54,15 +46,8 @@ import {
   fetchShopOrdersInLivrare,
   fetchShopOrdersScheduledToday,
 } from '@/lib/shop/shop-orders-queries'
+import { getClienți } from '@/lib/supabase/queries/clienti'
 import { toast } from '@/lib/ui/toast'
-import type { Json } from '@/types/supabase'
-
-type EditableOrderItem = {
-  vid: string
-  label: string
-  qty: number
-  priceLei: number
-}
 
 function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
   return lines.map((line) => `${line.label} × ${line.qty}`).join(' · ')
@@ -77,27 +62,6 @@ function mapsHref(address: string | null): string | null {
   return destination
     ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
     : null
-}
-
-function parseEditableItems(items: Json): EditableOrderItem[] {
-  if (!Array.isArray(items)) return []
-
-  return items.flatMap((raw, index) => {
-    if (!raw || typeof raw !== 'object') return []
-    const item = raw as { vid?: unknown; label?: unknown; qty?: unknown; price_lei?: unknown }
-    const label =
-      typeof item.label === 'string' && item.label.trim()
-        ? item.label.trim()
-        : typeof item.vid === 'string' && item.vid.trim()
-          ? item.vid.trim()
-          : `Produs ${index + 1}`
-    const vid =
-      typeof item.vid === 'string' && item.vid.trim() ? item.vid.trim() : `item-${index + 1}`
-    const qty = typeof item.qty === 'number' && item.qty > 0 ? item.qty : 1
-    const priceLei = typeof item.price_lei === 'number' && item.price_lei >= 0 ? item.price_lei : 0
-
-    return [{ vid, label, qty, priceLei }]
-  })
 }
 
 export function LivrariPageClient() {
@@ -120,6 +84,10 @@ export function LivrariPageClient() {
     queryKey: queryKeys.shopOrdersScheduledToday(tenantId),
     queryFn: () => fetchShopOrdersScheduledToday(tenantId!),
     enabled: Boolean(tenantId),
+  })
+  const clientiQuery = useQuery({
+    queryKey: queryKeys.clienti,
+    queryFn: getClienți,
   })
 
   const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
@@ -447,10 +415,16 @@ export function LivrariPageClient() {
       />
 
       {editTarget ? (
-        <QuickEditSheet
-          key={editTarget.id}
-          order={editTarget}
+        <EditOrderSheet
+          key={`edit-${editTarget.id}`}
+          open
+          order={mapShopToUnified(editTarget)}
+          clienti={clientiQuery.data ?? []}
           onOpenChange={(open) => !open && setEditTarget(null)}
+          onSaved={() => {
+            refreshAll()
+            setEditTarget(null)
+          }}
         />
       ) : null}
     </AppShell>
@@ -715,110 +689,6 @@ function DeliveryConfirmationDialog({
   )
 }
 
-function QuickEditSheet({
-  order,
-  onOpenChange,
-}: {
-  order: ShopOrderRow
-  onOpenChange: (open: boolean) => void
-}) {
-  const [items, setItems] = useState<EditableOrderItem[]>(() => parseEditableItems(order.items))
-
-  const total = items.reduce((sum, item) => sum + item.qty * item.priceLei, 0)
-
-  const updateQuantity = (vid: string, delta: number) => {
-    setItems((current) =>
-      current.map((item) =>
-        item.vid === vid ? { ...item, qty: Math.max(1, item.qty + delta) } : item,
-      ),
-    )
-  }
-
-  return (
-    <Sheet open onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-[28px]">
-        <SheetHeader>
-          <SheetTitle>Editare rapidă</SheetTitle>
-          <SheetDescription>
-            Ajustează cantitățile pentru {order.customer_name}.
-          </SheetDescription>
-        </SheetHeader>
-
-        <div className="space-y-3 px-4 pb-4">
-          {items.map((item) => (
-            <div
-              key={item.vid}
-              className="flex items-center gap-3 rounded-2xl bg-[var(--surface-card-muted)] p-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-[var(--brand-dark)] [font-weight:700]">
-                  {item.label}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                  {formatLei(item.priceLei)} lei / buc.
-                </p>
-              </div>
-              <div className="flex items-center gap-1 rounded-xl bg-[var(--surface-card)] p-1 shadow-[var(--shadow-soft)]">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-11 w-11"
-                  aria-label={`Scade cantitatea pentru ${item.label}`}
-                  disabled={item.qty <= 1}
-                  onClick={() => updateQuantity(item.vid, -1)}
-                >
-                  <Minus />
-                </Button>
-                <span className="min-w-8 text-center text-base tabular-nums [font-weight:750]">
-                  {item.qty}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-11 w-11"
-                  aria-label={`Crește cantitatea pentru ${item.label}`}
-                  onClick={() => updateQuantity(item.vid, 1)}
-                >
-                  <Plus />
-                </Button>
-              </div>
-            </div>
-          ))}
-
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-12 w-full rounded-xl border-dashed"
-            onClick={() =>
-              toast.info('Adăugarea și persistarea produselor necesită confirmarea Fazei 2.')
-            }
-          >
-            <Plus />
-            Adaugă produs
-          </Button>
-
-          <div className="flex items-center justify-between rounded-2xl bg-[var(--brand-coral-soft)] px-4 py-3">
-            <span className="text-sm text-[var(--brand-dark)] [font-weight:650]">Total recalculat</span>
-            <span className="text-xl tabular-nums text-[var(--brand-coral)] [font-weight:750]">
-              {formatLei(total)} lei
-            </span>
-          </div>
-        </div>
-
-        <SheetFooter>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Salvarea în DB este blocată până la confirmarea Fazei 2.
-          </p>
-          <Button type="button" className="min-h-12 w-full rounded-xl" disabled>
-            Salvează modificările
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
-  )
-}
 
 function DeliveredSection({ orders }: { orders: ShopOrderRow[] }) {
   const total = orders.reduce((sum, order) => sum + order.total_lei, 0)

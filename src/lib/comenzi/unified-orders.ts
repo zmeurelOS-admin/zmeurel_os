@@ -55,6 +55,23 @@ export const B2B_STATUS_LABELS: Record<ComandaStatus, string> = {
   anulata: 'Anulată',
 }
 
+export const SHOP_STATUS_TRANSITIONS: Record<ShopOrderStatus, ShopOrderStatus[]> = {
+  noua: ['confirmata', 'anulata'],
+  confirmata: ['in_livrare', 'anulata'],
+  in_livrare: ['livrata'],
+  livrata: [],
+  anulata: [],
+}
+
+export const B2B_STATUS_TRANSITIONS: Record<ComandaStatus, ComandaStatus[]> = {
+  noua: ['confirmata', 'anulata'],
+  confirmata: ['in_livrare', 'anulata'],
+  programata: ['in_livrare', 'anulata'],
+  in_livrare: ['livrata'],
+  livrata: [],
+  anulata: [],
+}
+
 export function getB2bClientName(comanda: Comanda, clientMap: Record<string, Client>): string {
   if (comanda.client_id && clientMap[comanda.client_id]) {
     return clientMap[comanda.client_id].nume_client
