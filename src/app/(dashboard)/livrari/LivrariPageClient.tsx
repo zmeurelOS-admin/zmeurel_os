@@ -272,8 +272,15 @@ export function LivrariPageClient() {
         plata: 'integral',
         dataLivrareRamasa: null,
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast.success('Livrare parțială înregistrată')
+      setDeliveredInSession((current) => [
+        { ...normalizeComanda(result.deliveredOrder), status: 'livrata' },
+        ...current.filter((item) => item.id !== result.deliveredOrder.id),
+      ])
+      if (expandedId === result.deliveredOrder.id) {
+        setExpandedId(null)
+      }
       setDeliverTarget(null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
@@ -566,8 +573,13 @@ export function LivrariPageClient() {
             markDeliveredMutation.mutate(deliverTarget._shopOrder)
             return
           }
-          if (deliverTarget?._comanda && deliverTarget.cantitate_kg) {
-            handleConfirmPartial(deliverTarget.cantitate_kg)
+          if (deliverTarget?._comanda) {
+            const kg = deliverTarget.cantitate_kg ?? 0
+            if (kg > 0) {
+              handleConfirmPartial(kg)
+            } else {
+              toast.error('Comanda nu are cantitate configurată. Editează comanda înainte de livrare.')
+            }
           }
         }}
         onConfirmPartial={handleConfirmPartial}
