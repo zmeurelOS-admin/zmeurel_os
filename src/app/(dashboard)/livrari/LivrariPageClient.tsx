@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { mapShopToUnified } from '@/lib/comenzi/unified-orders'
+import { mapB2bToUnified, mapShopToUnified } from '@/lib/comenzi/unified-orders'
 import { normalizeComanda, normalizeShopOrder, type DeliveryItem } from '@/lib/livrari/types'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -47,9 +47,14 @@ import {
   fetchShopOrdersInLivrare,
   fetchShopOrdersScheduledToday,
 } from '@/lib/shop/shop-orders-queries'
-import { getClienți } from '@/lib/supabase/queries/clienti'
-import { fetchComenziManualInLivrare } from '@/lib/supabase/queries/comenzi'
+import { getClienți, type Client } from '@/lib/supabase/queries/clienti'
+import { fetchComenziManualInLivrare, type Comanda } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
+
+type EditTarget =
+  | { type: 'shop'; order: ShopOrderRow }
+  | { type: 'manual'; order: Comanda }
+  | null
 
 function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
   return lines.map((line) => `${line.label} × ${line.qty}`).join(' · ')
@@ -74,7 +79,7 @@ export function LivrariPageClient() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reorderingId, setReorderingId] = useState<string | null>(null)
   const [deliverTarget, setDeliverTarget] = useState<DeliveryItem | null>(null)
-  const [editTarget, setEditTarget] = useState<ShopOrderRow | null>(null)
+  const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [deliveredInSession, setDeliveredInSession] = useState<DeliveryItem[]>([])
   const [scheduledTodayExpanded, setScheduledTodayExpanded] = useState(false)
 
@@ -102,6 +107,13 @@ export function LivrariPageClient() {
     () => scheduledTodayQuery.data ?? [],
     [scheduledTodayQuery.data],
   )
+  const clientMap = useMemo(() => {
+    const map: Record<string, Client> = {}
+    for (const client of clientiQuery.data ?? []) {
+      map[client.id] = client
+    }
+    return map
+  }, [clientiQuery.data])
   const deliveryItems = useMemo(() => {
     return [...shopOrders.map(normalizeShopOrder), ...manualOrders.map(normalizeComanda)].sort(
       (a, b) => {
@@ -114,6 +126,11 @@ export function LivrariPageClient() {
       },
     )
   }, [manualOrders, shopOrders])
+  const editUnified = useMemo(() => {
+    if (!editTarget) return null
+    if (editTarget.type === 'shop') return mapShopToUnified(editTarget.order)
+    return mapB2bToUnified(editTarget.order, clientMap)
+  }, [clientMap, editTarget])
 
   const orderedOrders = useMemo(() => {
     if (orderedIds.length === 0) return deliveryItems
@@ -405,7 +422,13 @@ export function LivrariPageClient() {
                         }
                       : undefined
                   }
-                  onEdit={order._shopOrder ? () => setEditTarget(order._shopOrder ?? null) : undefined}
+                  onEdit={
+                    order._shopOrder
+                      ? () => setEditTarget({ type: 'shop', order: order._shopOrder! })
+                      : order._comanda
+                        ? () => setEditTarget({ type: 'manual', order: order._comanda! })
+                        : undefined
+                  }
                   onMarkDelivered={order._shopOrder ? () => setDeliverTarget(order) : undefined}
                   onMoveDown={order._shopOrder ? () => moveOrder(order.id, 'down') : undefined}
                   onMoveUp={order._shopOrder ? () => moveOrder(order.id, 'up') : undefined}
@@ -459,16 +482,17 @@ export function LivrariPageClient() {
         }}
       />
 
-      {editTarget ? (
+      {editTarget && editUnified ? (
         <EditOrderSheet
-          key={`edit-${editTarget.id}`}
+          key={`edit-${editTarget.type}-${editTarget.order.id}`}
           open
-          order={mapShopToUnified(editTarget)}
+          order={editUnified}
           clienti={clientiQuery.data ?? []}
           onOpenChange={(open) => !open && setEditTarget(null)}
           onSaved={() => {
-            refreshAll()
             setEditTarget(null)
+            void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
           }}
         />
       ) : null}
