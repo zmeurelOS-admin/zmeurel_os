@@ -33,9 +33,9 @@ export const metadata: Metadata = {
     apple: [{ url: '/shop-icon-192.png', sizes: '192x192', type: 'image/png' }],
   },
   openGraph: {
-    title: 'Zmeurel — Precomenzi Zmeură 2026',
+    title: 'Zmeurel — Zmeură Proaspătă 2026',
     description:
-      'Rezervă acum zmeură proaspătă din Văratec, Suceava. Precomenzi deschise, livrare în 1-2 săptămâni.',
+      'Comandă zmeură proaspătă din Văratec, Suceava. Livrări active din recolta 2026.',
     url: 'https://comanda.zmeurel.ro',
     siteName: 'Zmeurel',
     locale: 'ro_RO',
@@ -43,8 +43,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Zmeurel — Precomenzi Zmeură 2026',
-    description: 'Rezervă acum zmeură proaspătă din Văratec, Suceava.',
+    title: 'Zmeurel — Zmeură Proaspătă 2026',
+    description: 'Comandă zmeură proaspătă din Văratec, Suceava.',
   },
   appleWebApp: {
     capable: true,

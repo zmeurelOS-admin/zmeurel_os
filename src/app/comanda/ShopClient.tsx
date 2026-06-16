@@ -1016,7 +1016,7 @@ export function ShopClient({
             Despre fermă
           </a>
           <a className="transition hover:text-white" href="#precomanda">
-            Precomandă
+            Comandă
           </a>
           <a className="transition hover:text-white" href="#contact">
             Contact
@@ -1033,10 +1033,10 @@ export function ShopClient({
             className="hidden min-h-11 items-center rounded-xl bg-[var(--coral)] px-5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[var(--coral-deep)] lg:inline-flex"
             href="#precomanda"
           >
-            Precomandă
+            Comandă acum
           </a>
           <span className="shrink-0 rounded-full border border-[#FFB1AA]/55 bg-[#F16B6B]/18 px-3 py-1.5 text-[11px] font-extrabold tracking-wide text-[#FFD6D1] lg:hidden">
-            Precomenzi 2026
+            Livrări active
           </span>
         </div>
       </header>
@@ -1097,24 +1097,24 @@ export function ShopClient({
             <h1 className={`max-w-[420px] text-[29px] font-semibold leading-[1.05] text-white ${styles.fontDisplay}`}>
               Zmeură proaspătă din Văratec
             </h1>
-            <p className="mt-2 text-sm font-semibold text-white/78">Campania de sezon Zmeură 2026</p>
+            <p className="mt-2 text-sm font-semibold text-white/78">Zmeură proaspătă 2026</p>
           </div>
           <div className="hidden lg:block lg:pt-6">
             <span className="inline-flex rounded-full bg-[var(--coral)]/12 px-4 py-2 text-sm font-extrabold text-[var(--coral-deep)]">
-              Precomenzi 2026
+              Livrări active
             </span>
             <h1 className={`mt-5 text-6xl font-semibold leading-[0.98] text-[var(--ink)] ${styles.fontDisplay}`}>
               Zmeură proaspătă din Văratec
             </h1>
             <p className="mt-5 max-w-lg text-lg font-medium leading-relaxed text-[var(--ink)]/72">
-              Rezervă zmeură culeasă manual în ziua livrării, direct din plantația noastră din Văratec.
+              Zmeură culeasă manual în ziua livrării, direct din plantația noastră din Văratec.
             </p>
             <div className="mt-8 flex items-center gap-4">
               <a
                 href="#precomanda"
                 className="inline-flex min-h-12 items-center rounded-2xl bg-[var(--coral)] px-6 text-base font-extrabold text-white shadow-md transition hover:bg-[var(--coral-deep)]"
               >
-                Precomandă zmeură
+                Comandă zmeură
               </a>
               <a href={PHONE_HREF} className="text-sm font-extrabold text-[var(--ink)]">
                 {PHONE_LABEL}
@@ -1126,7 +1126,7 @@ export function ShopClient({
         <section className="px-3 pt-4 lg:mx-auto lg:max-w-[1160px] lg:px-8 lg:py-4">
           <div className="rounded-[20px] border border-[#F3DAD4] bg-[#FFF0ED] px-4 py-4 text-[#312E3F] shadow-[0_6px_18px_rgba(241,107,107,0.1)]">
             <p className="text-sm font-extrabold leading-relaxed text-[#E15453]">
-              Precomenzi deschise · Primele livrări în 1–2 săptămâni · Plata cash la livrare
+              Livrări în curs · Comenzile se onorează în ordinea primirii · Plata cash la livrare
             </p>
             <p className="mt-2 border-t border-[#F3DAD4] pt-2 text-xs leading-relaxed text-[#312E3F]/72">
               Livrare în Suceava și localitățile apropiate. Alte zone — confirmăm telefonic.
@@ -1147,17 +1147,17 @@ export function ShopClient({
             id="preorder-product-title"
             className={`mb-3 text-[25px] font-semibold text-[#312E3F] lg:hidden ${styles.fontDisplay}`}
           >
-            Precomandă zmeură
+            Comandă zmeură
           </h2>
           <div className="hidden lg:block">
             <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[var(--coral-deep)]">
               Din recolta 2026
             </p>
             <h2 className={`mt-3 text-5xl font-semibold leading-tight text-[var(--ink)] ${styles.fontDisplay}`}>
-              Rezervă-ți recolta din Văratec
+              Comandă din recolta Văratec
             </h2>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-[var(--ink)]/72">
-              Alegi cantitatea acum, iar noi te contactăm înainte de livrare pentru toate detaliile.
+              Alegi cantitatea, iar noi te contactăm pentru stabilirea livrării.
             </p>
             <ul className="mt-8 space-y-4 text-base font-bold text-[var(--ink)]">
               <li className="flex items-center gap-3">
@@ -1299,7 +1299,7 @@ export function ShopClient({
                   onClick={openCheckout}
                   className="mt-4 min-h-[54px] w-full rounded-2xl bg-[#F16B6B] px-5 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.3)] transition active:scale-[0.985] active:shadow-sm"
                 >
-                  Precomandă acum · {formatLei(cartTotal)} lei
+                  Comandă acum · {formatLei(cartTotal)} lei
                 </button>
                 <p className="mt-3 text-center text-[11px] font-semibold leading-relaxed text-[#312E3F]/60">
                   ✓ Culeasă în ziua livrării · ✓ Livrare locală · ✓ Plată cash
@@ -1411,7 +1411,7 @@ export function ShopClient({
               Despre fermă
             </a>
             <a className="transition hover:text-white" href="#precomanda">
-              Precomandă
+              Comandă
             </a>
             <a className="transition hover:text-white" href="#contact">
               Contact
@@ -1437,7 +1437,7 @@ export function ShopClient({
               onClick={openCheckout}
               className="min-h-12 shrink-0 rounded-2xl bg-[#F16B6B] px-5 text-sm font-extrabold text-white transition active:scale-[0.985]"
             >
-              Precomandă acum
+              Comandă acum
             </button>
           </div>
         </div>
@@ -1463,7 +1463,7 @@ export function ShopClient({
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#F3DAD4]" aria-hidden />
           <SheetHeader className="px-0 pb-0 pt-0">
             <SheetTitle className={`text-xl font-semibold text-[#312E3F] ${styles.fontDisplay}`}>
-              {orderSuccess ? 'Precomandă înregistrată' : 'Finalizează precomanda'}
+              {orderSuccess ? 'Comandă înregistrată' : 'Finalizează comanda'}
             </SheetTitle>
             <SheetDescription className="text-sm text-[#312E3F]/68">
               Te sunăm înainte de livrare pentru confirmarea zilei și a detaliilor.
@@ -1486,7 +1486,7 @@ export function ShopClient({
                 </div>
               ) : (
                 <p className="rounded-xl bg-[#E8F5EE] px-4 py-3 text-sm font-medium text-[#0D9B5C]">
-                  Precomanda a fost salvată. WhatsApp s-a deschis cu mesajul pregătit — trimite-l pentru
+                  Comanda a fost salvată. WhatsApp s-a deschis cu mesajul pregătit — trimite-l pentru
                   confirmare.
                 </p>
               )}
@@ -1528,8 +1528,7 @@ export function ShopClient({
           ) : (
             <>
               <p className="mt-4 rounded-xl border border-[#F6C85F] bg-[#FFF4D8] px-3 py-3 text-xs font-semibold leading-relaxed text-[#6F4B00]">
-                Aceasta este o precomandă. Vei fi contactat telefonic pentru confirmare. Plata se face cash la
-                livrare, nu în avans.
+                Vei fi contactat telefonic pentru confirmare. Plata se face cash la livrare, nu în avans.
               </p>
 
               <div className="mt-4">
@@ -1731,7 +1730,7 @@ export function ShopClient({
                 onClick={submitOrder}
                 className="mt-4 min-h-[52px] w-full rounded-2xl bg-[#F16B6B] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.25)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {orderSubmitting ? 'Se salvează…' : 'Trimite precomanda'}
+                {orderSubmitting ? 'Se salvează…' : 'Trimite comanda'}
               </button>
             </>
           )}
