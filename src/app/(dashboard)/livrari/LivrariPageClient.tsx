@@ -76,6 +76,12 @@ function mapsHref(address: string | null): string | null {
     : null
 }
 
+function getDeliveryPriority(item: DeliveryItem): number {
+  if (item.clientTip === 'patiserie' || item.clientTip === 'magazin') return 0
+  if (item.source === 'comanda_manuala') return 1
+  return 2
+}
+
 export function LivrariPageClient() {
   const queryClient = useQueryClient()
   const { tenantId } = useDashboardAuth()
@@ -120,17 +126,21 @@ export function LivrariPageClient() {
     return map
   }, [clientiQuery.data])
   const deliveryItems = useMemo(() => {
-    return [...shopOrders.map(normalizeShopOrder), ...manualOrders.map(normalizeComanda)].sort(
-      (a, b) => {
-        if (a.delivery_position !== null && b.delivery_position !== null) {
-          return a.delivery_position - b.delivery_position
-        }
-        if (a.delivery_position !== null) return -1
-        if (b.delivery_position !== null) return 1
-        return a.created_at < b.created_at ? 1 : -1
-      },
-    )
-  }, [manualOrders, shopOrders])
+    return [
+      ...shopOrders.map(normalizeShopOrder),
+      ...manualOrders.map((c) =>
+        normalizeComanda(c, clientMap[c.client_id ?? '']?.tip ?? 'standard'),
+      ),
+    ].sort((a, b) => {
+      const priorityDiff = getDeliveryPriority(a) - getDeliveryPriority(b)
+      if (priorityDiff !== 0) return priorityDiff
+      if (a.delivery_position !== null && b.delivery_position !== null)
+        return a.delivery_position - b.delivery_position
+      if (a.delivery_position !== null) return -1
+      if (b.delivery_position !== null) return 1
+      return a.created_at < b.created_at ? 1 : -1
+    })
+  }, [manualOrders, shopOrders, clientMap])
   const editUnified = useMemo(() => {
     if (!editTarget) return null
     if (editTarget.type === 'shop') return mapShopToUnified(editTarget.order)
@@ -149,6 +159,17 @@ export function LivrariPageClient() {
   }, [deliveryItems, orderedIds])
 
   const totalKg = deliveryItems.reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
+  const kgB2b = deliveryItems
+    .filter((item) => item.clientTip === 'patiserie' || item.clientTip === 'magazin')
+    .reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
+  const kgClienti = deliveryItems
+    .filter(
+      (item) => item.source === 'comanda_manuala' && item.clientTip === 'standard',
+    )
+    .reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
+  const kgShop = deliveryItems
+    .filter((item) => item.source === 'shop_order')
+    .reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
   const totalLei = deliveryItems.reduce((sum, order) => sum + order.total_lei, 0)
   const summary = buildDeliverySummary(shopOrders)
   const summaryBullets = formatSummaryBullets(summary.lines)
@@ -339,7 +360,11 @@ export function LivrariPageClient() {
       ? deliveredInSession.length > 0
         ? 'Traseul este gata'
         : 'Nicio comandă în drum'
-      : `${deliveryItems.length} ${deliveryItems.length === 1 ? 'comandă' : 'comenzi'} · ${totalKg.toFixed(1)} kg · Rămân ${formatLei(totalLei)} lei`
+      : [
+          kgB2b > 0 ? `${kgB2b.toFixed(1)} kg B2B` : null,
+          kgClienti > 0 ? `${kgClienti.toFixed(1)} kg clienți` : null,
+          kgShop > 0 ? `${kgShop.toFixed(1)} kg shop` : null,
+        ].filter(Boolean).join(' · ') + ` · ${formatLei(totalLei)} lei`
 
   return (
     <AppShell

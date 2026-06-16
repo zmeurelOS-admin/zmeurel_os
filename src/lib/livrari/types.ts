@@ -7,6 +7,7 @@ export type DeliveryItemSource = 'shop_order' | 'comanda_manuala'
 export type DeliveryItem = {
   id: string
   source: DeliveryItemSource
+  clientTip?: 'standard' | 'patiserie' | 'magazin'
   customer_name: string
   customer_phone: string | null
   delivery_address: string | null
@@ -27,6 +28,7 @@ export function normalizeShopOrder(o: ShopOrderRow): DeliveryItem {
   return {
     id: o.id,
     source: 'shop_order',
+    clientTip: 'standard',
     customer_name: o.customer_name,
     customer_phone: o.customer_phone,
     delivery_address: o.delivery_address ?? null,
@@ -48,10 +50,14 @@ export function normalizeShopOrder(o: ShopOrderRow): DeliveryItem {
   }
 }
 
-export function normalizeComanda(c: Comanda): DeliveryItem {
+export function normalizeComanda(
+  c: Comanda,
+  clientTip?: 'standard' | 'patiserie' | 'magazin',
+): DeliveryItem {
   return {
     id: c.id,
     source: 'comanda_manuala',
+    clientTip: clientTip ?? 'standard',
     customer_name: c.client_nume_manual ?? c.client_nume ?? 'Client necunoscut',
     customer_phone: c.telefon ?? null,
     delivery_address: c.locatie_livrare ?? null,

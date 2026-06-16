@@ -3845,6 +3845,7 @@ export type Database = {
           longitudine_default: number | null
           tenant_id: string
           updated_at: string | null
+          whatsapp_b2b_message: string | null
         }
         Insert: {
           created_at?: string | null
@@ -3853,6 +3854,7 @@ export type Database = {
           longitudine_default?: number | null
           tenant_id: string
           updated_at?: string | null
+          whatsapp_b2b_message?: string | null
         }
         Update: {
           created_at?: string | null
@@ -3861,6 +3863,7 @@ export type Database = {
           longitudine_default?: number | null
           tenant_id?: string
           updated_at?: string | null
+          whatsapp_b2b_message?: string | null
         }
         Relationships: [
           {

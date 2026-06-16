@@ -10,6 +10,7 @@ import {
   clientSchema,
   getClientFormDefaults,
   type ClientFormData,
+  type ClientFormInput,
 } from '@/components/clienti/ClientForm'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import type { Client } from '@/lib/supabase/queries/clienti'
@@ -24,7 +25,7 @@ interface EditClientDialogProps {
 export function EditClientDialog({ client, open, onOpenChange, onSubmit }: EditClientDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const form = useForm<ClientFormData>({
+  const form = useForm<ClientFormInput, unknown, ClientFormData>({
     resolver: zodResolver(clientSchema),
     defaultValues: getClientFormDefaults(),
   })
@@ -33,6 +34,7 @@ export function EditClientDialog({ client, open, onOpenChange, onSubmit }: EditC
     if (!open || !client) return
     form.reset({
       nume_client: client.nume_client || '',
+      tip: client.tip || 'standard',
       telefon: client.telefon || '',
       email: client.email || '',
       adresa: client.adresa || '',

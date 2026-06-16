@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 export const clientSchema = z.object({
   nume_client: z.string().trim().min(2, 'Numele trebuie să aibă minimum 2 caractere'),
+  tip: z.enum(['standard', 'patiserie', 'magazin']).default('standard'),
   telefon: z.string().optional(),
   email: z.string().email('Email invalid').or(z.literal('')).optional(),
   adresa: z.string().optional(),
@@ -23,11 +24,13 @@ export const clientSchema = z.object({
   salveaza_in_telefon: z.boolean().optional(),
 })
 
-export type ClientFormData = z.infer<typeof clientSchema>
+export type ClientFormInput = z.input<typeof clientSchema>
+export type ClientFormData = z.output<typeof clientSchema>
 
-export function getClientFormDefaults(initialValues?: Partial<ClientFormData>): ClientFormData {
+export function getClientFormDefaults(initialValues?: Partial<ClientFormInput>): ClientFormInput {
   return {
     nume_client: initialValues?.nume_client ?? '',
+    tip: initialValues?.tip ?? 'standard',
     telefon: initialValues?.telefon ?? '',
     email: initialValues?.email ?? '',
     adresa: initialValues?.adresa ?? '',
@@ -38,7 +41,7 @@ export function getClientFormDefaults(initialValues?: Partial<ClientFormData>): 
 }
 
 interface ClientFormProps {
-  form: UseFormReturn<ClientFormData>
+  form: UseFormReturn<ClientFormInput, unknown, ClientFormData>
   mode: 'create' | 'edit'
   showSaveToPhone?: boolean
 }
@@ -74,6 +77,30 @@ export function ClientForm({ form, mode, showSaveToPhone = false }: ClientFormPr
               {form.formState.errors.nume_client ? (
                 <p className="text-xs text-[var(--danger-text)]">{form.formState.errors.nume_client.message}</p>
               ) : null}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Tip client</Label>
+              <div className="flex gap-2">
+                {(['standard', 'patiserie', 'magazin'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => form.setValue('tip', t, { shouldDirty: true })}
+                    className={`flex-1 rounded-xl border py-2 text-xs font-semibold transition ${
+                      watched.tip === t
+                        ? t === 'patiserie'
+                          ? 'border-purple-500 bg-purple-50 text-purple-700'
+                          : t === 'magazin'
+                            ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                            : 'border-[var(--brand-coral)] bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]'
+                        : 'border-[var(--divider)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    {t === 'standard' ? '👤 Standard' : t === 'patiserie' ? '🥐 Patiserie' : '🏪 Magazin'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1.5">

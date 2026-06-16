@@ -10,6 +10,7 @@ import {
   clientSchema,
   getClientFormDefaults,
   type ClientFormData,
+  type ClientFormInput,
 } from '@/components/clienti/ClientForm'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
@@ -18,13 +19,13 @@ interface AddClientDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: ClientFormData) => Promise<void>
-  initialValues?: Partial<ClientFormData>
+  initialValues?: Partial<ClientFormInput>
 }
 
 export function AddClientDialog({ open, onOpenChange, onSubmit, initialValues }: AddClientDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const form = useForm<ClientFormData>({
+  const form = useForm<ClientFormInput, unknown, ClientFormData>({
     resolver: zodResolver(clientSchema),
     defaultValues: getClientFormDefaults(initialValues),
   })

@@ -30,6 +30,7 @@ export interface CreateClientInput {
   adresa?: string | null
   pret_negociat_lei_kg?: number | null
   observatii?: string | null
+  tip?: ClientTip
 }
 
 export interface ClientDuplicateWarning {
@@ -44,6 +45,7 @@ export interface UpdateClientInput {
   adresa?: string | null
   pret_negociat_lei_kg?: number | null
   observatii?: string | null
+  tip?: ClientTip
 }
 
 export function normalizeClientTip(value: string | null | undefined): ClientTip {
@@ -120,6 +122,7 @@ export async function createClienți(
       adresa: input.adresa ?? null,
       pret_negociat_lei_kg: input.pret_negociat_lei_kg ?? null,
       observatii: input.observatii ?? null,
+      tip: normalizeClientTip(input.tip),
     })
     .select()
     .single()

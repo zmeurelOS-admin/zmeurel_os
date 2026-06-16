@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Pencil, Trash2, Users } from 'lucide-react'
+import { MessageCircle, Pencil, Trash2, Users } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -26,6 +26,7 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
@@ -34,8 +35,10 @@ import {
   createClienți as createClienti,
   deleteClienți as deleteClienti,
   getClienți as getClienti,
+  normalizeClientTip,
   updateClienți as updateClienti,
   type Client,
+  type ClientTip,
   type ClientDuplicateWarning,
 } from '@/lib/supabase/queries/clienti'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
@@ -146,6 +149,35 @@ type ImportResult = {
   skippedDuplicate: number
   failed: number
   failedRows: Array<{ name: string; error: string }>
+}
+
+const DEFAULT_WA_MESSAGE = 'Bună ziua! Am început livrările de zmeură proaspătă. Vă așteptăm cu comanda! 🍓'
+
+function getClientTipBadge(tip: ClientTip): { label: string; className: string } | null {
+  if (tip === 'patiserie') {
+    return {
+      label: '🥐 Patiserie',
+      className: 'bg-purple-100 text-purple-700',
+    }
+  }
+  if (tip === 'magazin') {
+    return {
+      label: '🏪 Magazin',
+      className: 'bg-emerald-100 text-emerald-700',
+    }
+  }
+  return null
+}
+
+function isB2bClient(tip: ClientTip): boolean {
+  return tip === 'patiserie' || tip === 'magazin'
+}
+
+function buildClientWhatsappHref(phone: string, message: string): string | null {
+  const digits = phone.replace(/\D/g, '')
+  const local = digits.replace(/^0/, '')
+  if (!local) return null
+  return `https://wa.me/4${local}?text=${encodeURIComponent(message)}`
 }
 
 function normalizeHeader(value: string): string {
@@ -321,6 +353,7 @@ function ClientCardNew({
   client,
   metrics,
   onEdit,
+  waMessage,
 }: {
   client: Client
   metrics: {
@@ -330,6 +363,7 @@ function ClientCardNew({
     comenziCount: number
   }
   onEdit: () => void
+  waMessage: string
 }) {
   const mainValue = metrics.totalRon > 0 ? `${metrics.totalRon.toFixed(0)} RON` : `${metrics.comenziCount} comenzi`
   const subtitle = client.telefon || client.email || 'Fără contact'
@@ -337,6 +371,11 @@ function ClientCardNew({
     metrics.comenziCount > 0 ? `${metrics.comenziCount} comenzi` : null,
     metrics.vanzariCount > 0 ? `${metrics.vanzariCount} vânzări` : null,
   ].filter(Boolean).join(' • ') || undefined
+  const tipBadge = getClientTipBadge(client.tip)
+  const whatsappHref =
+    isB2bClient(client.tip) && client.telefon
+      ? buildClientWhatsappHref(client.telefon, waMessage)
+      : null
   const statusLabel =
     metrics.unpaidRon > 0
       ? `Neîncasat ${metrics.unpaidRon.toFixed(0)} RON`
@@ -360,6 +399,28 @@ function ClientCardNew({
       statusTone={statusTone}
       showChevron
       onClick={onEdit}
+      bottomSlot={
+        tipBadge || whatsappHref ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {tipBadge ? (
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tipBadge.className}`}>
+                {tipBadge.label}
+              </span>
+            ) : null}
+            {whatsappHref ? (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2 py-1 text-xs font-semibold text-white"
+              >
+                <MessageCircle className="h-3 w-3" />
+                WhatsApp
+              </a>
+            ) : null}
+          </div>
+        ) : null
+      }
     />
   )
 }
@@ -388,6 +449,11 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [showFailedRows, setShowFailedRows] = useState(false)
   const [bulkDeleteProgress, setBulkDeleteProgress] = useState<{ done: number; total: number } | null>(null)
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [waMessage, setWaMessage] = useState(DEFAULT_WA_MESSAGE)
+  const [editingWaMessage, setEditingWaMessage] = useState(false)
+  const [waMessageDraft, setWaMessageDraft] = useState(DEFAULT_WA_MESSAGE)
+  const [isSavingWaMessage, setIsSavingWaMessage] = useState(false)
   const [addClientInitialValues, setAddClientInitialValues] = useState<{
     nume_client: string
     telefon: string
@@ -428,6 +494,40 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     queryKey: queryKeys.vanzari,
     queryFn: getVanzari,
   })
+
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      try {
+        const supabase = getSupabase()
+        const resolvedTenantId = await getTenantId(supabase)
+        if (!active) return
+        setTenantId(resolvedTenantId)
+
+        const { data, error } = await supabase
+          .from('tenant_settings')
+          .select('whatsapp_b2b_message')
+          .eq('tenant_id', resolvedTenantId)
+          .maybeSingle()
+
+        if (error) throw error
+        if (!active) return
+
+        const nextMessage = data?.whatsapp_b2b_message?.trim() || DEFAULT_WA_MESSAGE
+        setWaMessage(nextMessage)
+        setWaMessageDraft(nextMessage)
+      } catch {
+        if (!active) return
+        setWaMessage(DEFAULT_WA_MESSAGE)
+        setWaMessageDraft(DEFAULT_WA_MESSAGE)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const createMutation = useMutation({
     mutationFn: ({
@@ -853,11 +953,58 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
     return rows
   }, [clienti, metricsByClient, searchTerm, showOnlyUnpaid])
 
+  const saveWaMessage = async () => {
+    if (!tenantId) {
+      toast.error('Nu am putut identifica ferma curentă.')
+      return
+    }
+
+    setIsSavingWaMessage(true)
+    try {
+      const supabase = getSupabase()
+      const message = waMessageDraft.trim() || DEFAULT_WA_MESSAGE
+      const { error } = await supabase
+        .from('tenant_settings')
+        .upsert(
+          {
+            tenant_id: tenantId,
+            whatsapp_b2b_message: message,
+          },
+          { onConflict: 'tenant_id' },
+        )
+
+      if (error) throw error
+
+      setWaMessage(message)
+      setWaMessageDraft(message)
+      setEditingWaMessage(false)
+      toast.success('Mesaj salvat.')
+    } catch (err: unknown) {
+      const message = (err as { message?: string })?.message ?? 'Nu am putut salva mesajul.'
+      toast.error(message)
+    } finally {
+      setIsSavingWaMessage(false)
+    }
+  }
+
   const desktopColumns = useMemo<ColumnDef<Client>[]>(() => [
     {
       accessorKey: 'nume_client',
       header: 'Nume',
-      cell: ({ row }) => <span className="font-medium">{row.original.nume_client}</span>,
+      cell: ({ row }) => {
+        const tipBadge = getClientTipBadge(row.original.tip)
+
+        return (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{row.original.nume_client}</span>
+            {tipBadge ? (
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tipBadge.className}`}>
+                {tipBadge.label}
+              </span>
+            ) : null}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'telefon',
@@ -883,43 +1030,62 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       id: 'actions',
       header: 'Acțiuni',
       enableSorting: false,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Editează clientul"
-            onClick={(event) => {
-              event.stopPropagation()
-              setEditingClient(row.original)
-              setEditOpen(true)
-            }}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Șterge clientul"
-            onClick={(event) => {
-              event.stopPropagation()
-              setDeletingClient(row.original)
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
-          </Button>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const whatsappHref =
+          isB2bClient(row.original.tip) && row.original.telefon
+            ? buildClientWhatsappHref(row.original.telefon, waMessage)
+            : null
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {whatsappHref ? (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2 py-1 text-xs font-semibold text-white"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MessageCircle className="h-3 w-3" />
+                WA
+              </a>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Editează clientul"
+              onClick={(event) => {
+                event.stopPropagation()
+                setEditingClient(row.original)
+                setEditOpen(true)
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Șterge clientul"
+              onClick={(event) => {
+                event.stopPropagation()
+                setDeletingClient(row.original)
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+            </Button>
+          </div>
+        )
+      },
       meta: {
         searchable: false,
         sticky: 'right',
-        headerClassName: 'w-[104px] text-right',
-        cellClassName: 'w-[104px] text-right',
+        headerClassName: 'w-[180px] text-right',
+        cellClassName: 'w-[180px] text-right',
       },
     },
-  ], [metricsByClient])
+  ], [metricsByClient, waMessage])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -930,7 +1096,21 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           title="Clienți"
           subtitle="Administrare clienți"
           contentVariant="centered"
-          rightSlot={<Users className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />}
+          rightSlot={
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setWaMessageDraft(waMessage)
+                  setEditingWaMessage(true)
+                }}
+                className="text-xs text-[var(--text-secondary)] underline underline-offset-2"
+              >
+                ✏️ Mesaj WA implicit
+              </button>
+              <Users className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />
+            </>
+          }
         />
       }
     >
@@ -1125,6 +1305,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
                     unpaidRon: metrics?.unpaidRon ?? 0,
                     comenziCount: metrics?.comenziCount ?? 0,
                   }}
+                  waMessage={waMessage}
                   onEdit={() => {
                     setEditingClient(client)
                     setEditOpen(true)
@@ -1148,6 +1329,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           await createMutation.mutateAsync({
             input: {
               nume_client: data.nume_client,
+              tip: normalizeClientTip(data.tip),
               telefon: data.telefon || null,
               email: data.email || null,
               adresa: data.adresa || null,
@@ -1173,6 +1355,7 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
             id,
             payload: {
               nume_client: data.nume_client,
+              tip: normalizeClientTip(data.tip),
               telefon: data.telefon || null,
               email: data.email || null,
               adresa: data.adresa || null,
@@ -1198,6 +1381,48 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           setDeletingClient(null)
         }}
       />
+
+      <AppDialog
+        open={editingWaMessage}
+        onOpenChange={(open) => {
+          setEditingWaMessage(open)
+          if (!open) setWaMessageDraft(waMessage)
+        }}
+        title="Mesaj WhatsApp implicit"
+        footer={
+          <div className="flex w-full gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setEditingWaMessage(false)}
+              disabled={isSavingWaMessage}
+            >
+              Anulează
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 bg-[var(--agri-primary)] text-white"
+              onClick={() => { void saveWaMessage() }}
+              disabled={isSavingWaMessage}
+            >
+              {isSavingWaMessage ? 'Se salvează...' : 'Salvează'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Mesajul este folosit pentru butonul WhatsApp afișat clienților de tip patiserie și magazin.
+          </p>
+          <Textarea
+            value={waMessageDraft}
+            onChange={(event) => setWaMessageDraft(event.target.value)}
+            rows={4}
+            className="w-full rounded-xl border border-[var(--divider)] bg-[var(--surface-card)] p-3 text-sm"
+          />
+        </div>
+      </AppDialog>
 
       <AppDialog
         open={importHelpOpen}
