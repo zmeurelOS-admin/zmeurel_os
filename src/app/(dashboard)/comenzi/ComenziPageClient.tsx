@@ -227,6 +227,43 @@ function formatKgOneDecimal(value: number): string {
   }).format(Number(value || 0))} kg`
 }
 
+function StocPills({
+  stocDisponibil,
+  inLivrare,
+  angajat,
+  livratAzi,
+}: {
+  stocDisponibil: number
+  inLivrare: number
+  angajat: number
+  livratAzi: number
+}) {
+  const stocOk = stocDisponibil > 0
+
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <span
+        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+          stocOk
+            ? 'bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+            : 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
+        }`}
+      >
+        📦 {stocDisponibil.toFixed(1)} kg stoc
+      </span>
+      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
+        🚚 {inLivrare.toFixed(1)} kg în drum
+      </span>
+      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]">
+        🔖 {angajat.toFixed(1)} kg angajat
+      </span>
+      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
+        ✅ {livratAzi.toFixed(1)} kg livrate azi
+      </span>
+    </div>
+  )
+}
+
 function getUnifiedOrderNeedKg(item: UnifiedOrderItem): number {
   return item.quantityUnit === 'kg' ? item.quantity : item.quantity * KG_PER_CASEROLĂ
 }
@@ -1620,7 +1657,10 @@ export function ComenziPageClient() {
   const manualComenzi = useMemo(
     () =>
       comenzi.filter(
-        (item) => !isMagazinPublicOrder(item) && item.status !== 'in_livrare',
+        (item) =>
+          !isMagazinPublicOrder(item) &&
+          item.status !== 'in_livrare' &&
+          item.data_origin !== 'shop_order_bridge',
       ),
     [comenzi],
   )
@@ -1717,6 +1757,53 @@ export function ComenziPageClient() {
   )
 
   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
+
+  const kgInLivrare = useMemo(() => {
+    const manuale = comenzi
+      .filter((c) => c.status === 'in_livrare' && c.data_origin !== 'shop_order_bridge')
+      .reduce((sum, c) => sum + Number(c.cantitate_kg ?? 0), 0)
+    const shop = shopOrders
+      .filter((o) => o.status === 'in_livrare')
+      .reduce((sum, o) => {
+        if (!Array.isArray(o.items)) return sum
+        return sum + (o.items as Array<{ qty?: number }>).reduce(
+          (s, item) => s + (item.qty ?? 0) * 0.5,
+          0,
+        )
+      }, 0)
+
+    return Math.round((manuale + shop) * 10) / 10
+  }, [comenzi, shopOrders])
+
+  const kgAngajat = useMemo(() => {
+    const statusAngajat = new Set(['noua', 'confirmata', 'programata'])
+    const manuale = comenzi
+      .filter((c) => statusAngajat.has(c.status) && c.data_origin !== 'shop_order_bridge')
+      .reduce((sum, c) => sum + Number(c.cantitate_kg ?? 0), 0)
+    const shop = shopOrders
+      .filter((o) => statusAngajat.has(o.status))
+      .reduce((sum, o) => {
+        if (!Array.isArray(o.items)) return sum
+        return sum + (o.items as Array<{ qty?: number }>).reduce(
+          (s, item) => s + (item.qty ?? 0) * 0.5,
+          0,
+        )
+      }, 0)
+
+    return Math.round((manuale + shop) * 10) / 10
+  }, [comenzi, shopOrders])
+
+  const kgLivratAzi = useMemo(() => {
+    const todayStr = todayIso()
+
+    return (
+      Math.round(
+        vanzari
+          .filter((v) => v.data === todayStr)
+          .reduce((sum, v) => sum + Number(v.cantitate_kg ?? 0), 0) * 10,
+      ) / 10
+    )
+  }, [vanzari])
 
   const unifiedAllOrders = useMemo(
     () => mergeUnifiedOrders(manualComenzi, preorderShopOrders, clientMap),
@@ -1950,6 +2037,15 @@ export function ComenziPageClient() {
               />
             ) : null}
           </div>
+        ) : null}
+
+        {section === 'comenzi' ? (
+          <StocPills
+            stocDisponibil={totalStocDisponibilKg}
+            inLivrare={kgInLivrare}
+            angajat={kgAngajat}
+            livratAzi={kgLivratAzi}
+          />
         ) : null}
 
         {section === 'comenzi' ? (
