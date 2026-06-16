@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
@@ -48,7 +48,12 @@ import {
   fetchShopOrdersScheduledToday,
 } from '@/lib/shop/shop-orders-queries'
 import { getClienți, type Client } from '@/lib/supabase/queries/clienti'
-import { fetchComenziManualInLivrare, type Comanda } from '@/lib/supabase/queries/comenzi'
+import {
+  deliverComanda,
+  deliverShopOrderPartial,
+  fetchComenziManualInLivrare,
+  type Comanda,
+} from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
 
 type EditTarget =
@@ -258,6 +263,69 @@ export function LivrariPageClient() {
     },
   })
 
+  const deliverPartialManualMutation = useMutation({
+    mutationFn: async ({ comanda, kgLivrat }: { comanda: Comanda; kgLivrat: number }) =>
+      deliverComanda({
+        comandaId: comanda.id,
+        cantitateLivrataKg: kgLivrat,
+        plata: 'integral',
+        dataLivrareRamasa: null,
+      }),
+    onSuccess: () => {
+      toast.success('Livrare parțială înregistrată')
+      setDeliverTarget(null)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const deliverPartialShopMutation = useMutation({
+    mutationFn: async ({
+      shopOrder,
+      kgLivrat,
+    }: {
+      shopOrder: ShopOrderRow
+      kgLivrat: number
+    }) =>
+      deliverShopOrderPartial({
+        shopOrderId: shopOrder.id,
+        deliveredKg: kgLivrat,
+        plata: 'platit',
+      }),
+    onSuccess: () => {
+      toast.success('Livrare parțială înregistrată')
+      setDeliverTarget(null)
+      refreshAll()
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const handleConfirmPartial = useCallback(
+    (kgLivrat: number) => {
+      if (!deliverTarget) return
+      if (deliverTarget._comanda) {
+        deliverPartialManualMutation.mutate({
+          comanda: deliverTarget._comanda,
+          kgLivrat,
+        })
+        return
+      }
+      if (deliverTarget._shopOrder) {
+        deliverPartialShopMutation.mutate({
+          shopOrder: deliverTarget._shopOrder,
+          kgLivrat,
+        })
+      }
+    },
+    [deliverPartialManualMutation, deliverPartialShopMutation, deliverTarget],
+  )
+
   const headerSubtitle =
     deliveryItems.length === 0
       ? deliveredInSession.length > 0
@@ -429,7 +497,11 @@ export function LivrariPageClient() {
                         ? () => setEditTarget({ type: 'manual', order: order._comanda! })
                         : undefined
                   }
-                  onMarkDelivered={order._shopOrder ? () => setDeliverTarget(order) : undefined}
+                  onMarkDelivered={
+                    order._shopOrder || order._comanda
+                      ? () => setDeliverTarget(order)
+                      : undefined
+                  }
                   onMoveDown={order._shopOrder ? () => moveOrder(order.id, 'down') : undefined}
                   onMoveUp={order._shopOrder ? () => moveOrder(order.id, 'up') : undefined}
                   onToggleExpand={() => {
@@ -471,15 +543,33 @@ export function LivrariPageClient() {
 
       <DeliveryConfirmationDialog
         order={deliverTarget}
-        pending={markDeliveredMutation.isPending}
+        pending={
+          markDeliveredMutation.isPending ||
+          (Boolean(deliverTarget?._comanda) && deliverPartialManualMutation.isPending)
+        }
+        pendingPartial={
+          deliverPartialManualMutation.isPending || deliverPartialShopMutation.isPending
+        }
         onOpenChange={(open) => {
-          if (!open && !markDeliveredMutation.isPending) setDeliverTarget(null)
+          if (
+            !open &&
+            !markDeliveredMutation.isPending &&
+            !deliverPartialManualMutation.isPending &&
+            !deliverPartialShopMutation.isPending
+          ) {
+            setDeliverTarget(null)
+          }
         }}
         onConfirm={() => {
           if (deliverTarget?._shopOrder) {
             markDeliveredMutation.mutate(deliverTarget._shopOrder)
+            return
+          }
+          if (deliverTarget?._comanda && deliverTarget.cantitate_kg) {
+            handleConfirmPartial(deliverTarget.cantitate_kg)
           }
         }}
+        onConfirmPartial={handleConfirmPartial}
       />
 
       {editTarget && editUnified ? (
@@ -725,14 +815,28 @@ function ActionLink({
 function DeliveryConfirmationDialog({
   order,
   pending,
+  pendingPartial,
   onConfirm,
+  onConfirmPartial,
   onOpenChange,
 }: {
   order: DeliveryItem | null
   pending: boolean
+  pendingPartial: boolean
   onConfirm: () => void
+  onConfirmPartial: (kgLivrat: number) => void
   onOpenChange: (open: boolean) => void
 }) {
+  const [partialMode, setPartialMode] = useState(false)
+  const [partialKg, setPartialKg] = useState('')
+
+  useEffect(() => {
+    if (!order) {
+      setPartialMode(false)
+      setPartialKg('')
+    }
+  }, [order])
+
   return (
     <AlertDialog open={order !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -766,6 +870,61 @@ function DeliveryConfirmationDialog({
             {pending ? 'Se salvează...' : 'Da, marchează livrat'}
           </AlertDialogAction>
         </AlertDialogFooter>
+        {order?.cantitate_kg != null ? (
+          !partialMode ? (
+            <div className="px-4 pb-4 text-center">
+              <button
+                type="button"
+                className="text-xs text-[var(--text-secondary)] underline underline-offset-2"
+                onClick={() => {
+                  setPartialMode(true)
+                  setPartialKg(String(order.cantitate_kg ?? ''))
+                }}
+              >
+                Livrat parțial →
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 border-t border-[var(--divider)] px-4 pb-4 pt-3">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Câți kg ai livrat din {order.cantitate_kg} kg?
+              </p>
+              <input
+                type="number"
+                min={0.1}
+                max={order.cantitate_kg}
+                step={0.1}
+                value={partialKg}
+                onChange={(event) => setPartialKg(event.target.value)}
+                className="w-full rounded-xl border border-[var(--divider)] bg-[var(--surface-input)] px-3 py-2 text-base tabular-nums"
+                autoFocus
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11 rounded-xl"
+                  onClick={() => setPartialMode(false)}
+                >
+                  Înapoi
+                </Button>
+                <Button
+                  type="button"
+                  className="min-h-11 rounded-xl bg-[var(--agri-primary)] text-white"
+                  disabled={
+                    !partialKg ||
+                    Number(partialKg) <= 0 ||
+                    Number(partialKg) > order.cantitate_kg ||
+                    pendingPartial
+                  }
+                  onClick={() => onConfirmPartial(Number(partialKg))}
+                >
+                  {pendingPartial ? 'Se salvează...' : 'Confirmă parțial'}
+                </Button>
+              </div>
+            </div>
+          )
+        ) : null}
       </AlertDialogContent>
     </AlertDialog>
   )

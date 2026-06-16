@@ -12,6 +12,7 @@ export type DeliveryItem = {
   delivery_address: string | null
   delivery_date: string | null
   delivery_position: number | null
+  cantitate_kg: number | null
   total_lei: number
   notes: string | null
   items: Json | null
@@ -31,6 +32,12 @@ export function normalizeShopOrder(o: ShopOrderRow): DeliveryItem {
     delivery_address: o.delivery_address ?? null,
     delivery_date: o.delivery_date ?? null,
     delivery_position: o.delivery_position ?? null,
+    cantitate_kg: Array.isArray(o.items)
+      ? (o.items as Array<{ qty?: number }>).reduce(
+          (sum, item) => sum + (item.qty ?? 0) * 0.5,
+          0,
+        )
+      : null,
     total_lei: o.total_lei,
     notes: o.notes ?? null,
     items: o.items,
@@ -50,6 +57,7 @@ export function normalizeComanda(c: Comanda): DeliveryItem {
     delivery_address: c.locatie_livrare ?? null,
     delivery_date: c.data_livrare ?? null,
     delivery_position: null,
+    cantitate_kg: c.cantitate_kg,
     total_lei: Number(c.total ?? 0),
     notes: c.observatii ?? null,
     items: null,
