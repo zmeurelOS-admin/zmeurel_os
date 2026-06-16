@@ -71,6 +71,13 @@ export interface DeliverComandaInput {
   dataLivrareRamasa?: string | null
 }
 
+export interface DeliverShopOrderPartialInput {
+  shopOrderId: string
+  deliveredKg: number
+  plata?: string
+  dataLivrareRamasa?: string | null
+}
+
 interface StockBucket {
   locatie_id: string | null
   produs: string | null
@@ -91,6 +98,10 @@ type DeliverOrderAtomicPayload = {
   vanzare: Vanzare | null
   remaining_order: Record<string, unknown> | null
   deducted_stock_kg: number | null
+}
+
+type DeliverShopOrderAtomicPartialPayload = {
+  remaining_order?: Record<string, unknown> | null
 }
 
 type ComandaRow = Tables<'comenzi'>
@@ -140,6 +151,18 @@ type ComenziRpcClient = ReturnType<typeof getSupabase> & {
       }
     ): Promise<{
       data: Record<string, unknown> | null
+      error: SupabaseLikeError | null
+    }>
+    (
+      fn: 'deliver_shop_order_atomic_partial',
+      args: {
+        p_shop_order_id: string
+        p_delivered_kg: number
+        p_payment_status: string
+        p_remaining_delivery_date: string | null
+      }
+    ): Promise<{
+      data: DeliverShopOrderAtomicPartialPayload | null
       error: SupabaseLikeError | null
     }>
   }
@@ -458,6 +481,34 @@ export async function deliverComanda(input: DeliverComandaInput): Promise<{
     vanzare: data.vanzare,
     remainingOrder: data.remaining_order ? mapComanda(data.remaining_order as ComandaQueryRow) : null,
     deductedStockKg: round2(Number(data.deducted_stock_kg ?? 0)),
+  }
+}
+
+export async function deliverShopOrderPartial(
+  input: DeliverShopOrderPartialInput
+): Promise<{
+  shopOrderId: string
+  deliveredKg: number
+  remainingOrder: Comanda | null
+}> {
+  const rpcClient = getSupabase() as ComenziRpcClient
+  const deliveredKg = round2(input.deliveredKg)
+  const { data, error } = await rpcClient.rpc(
+    'deliver_shop_order_atomic_partial',
+    {
+      p_shop_order_id: input.shopOrderId,
+      p_delivered_kg: deliveredKg,
+      p_payment_status: input.plata ?? 'platit',
+      p_remaining_delivery_date: input.dataLivrareRamasa ?? null,
+    }
+  )
+  if (error) throw toReadableError(error, 'Nu am putut finaliza livrarea parțială.')
+  return {
+    shopOrderId: input.shopOrderId,
+    deliveredKg,
+    remainingOrder: data?.remaining_order
+      ? mapComanda(data.remaining_order as ComandaQueryRow)
+      : null,
   }
 }
 
