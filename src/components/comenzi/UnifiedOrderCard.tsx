@@ -125,6 +125,10 @@ export function UnifiedOrderCard({
     item.quantityUnit === 'kg'
       ? `${quantityFormatted} kg`
       : `${quantityFormatted} ${item.quantity === 1 ? 'caserolă' : 'caserole'}`
+  const kgLabel =
+    item.quantityUnit === 'kg'
+      ? null
+      : `${(item.quantity * 0.5).toFixed(1)} kg`
   const phoneHref = item.phone ? `tel:${item.phone.replace(/\s/g, '')}` : undefined
   const fullAddress = isShop
     ? [shopOrder?.delivery_address?.trim(), shopOrder?.delivery_city?.trim()]
@@ -229,7 +233,8 @@ export function UnifiedOrderCard({
           </div>
           <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
             <span className="min-w-0 flex-1 truncate">
-              {quantityLabel} · {totalFormatted} lei · {item.localityLabel}
+              {quantityLabel}{kgLabel ? ` · ${kgLabel}` : ''} · {totalFormatted} lei ·{' '}
+              {item.localityLabel}
             </span>
             <span className="shrink-0">{mobileDateLabel}</span>
           </div>
@@ -422,7 +427,7 @@ export function UnifiedOrderCard({
             compact ? 'mt-1.5 pt-1.5 text-[11px]' : 'mt-2 pt-2 text-[13px]'
           }`}
         >
-          <span>{quantityLabel} · {totalFormatted} lei</span>
+          <span>{quantityLabel}{kgLabel ? ` · ${kgLabel}` : ''} · {totalFormatted} lei</span>
           <span className="text-[var(--text-tertiary)]"> · </span>
           <span className="font-medium text-[var(--text-secondary)]">{item.localityLabel}</span>
           {item.deliveryDate ? (

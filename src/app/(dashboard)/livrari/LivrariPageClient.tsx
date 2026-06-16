@@ -148,6 +148,7 @@ export function LivrariPageClient() {
     return [...fromOrder, ...deliveryItems.filter((order) => !seen.has(order.id))]
   }, [deliveryItems, orderedIds])
 
+  const totalKg = deliveryItems.reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
   const totalLei = deliveryItems.reduce((sum, order) => sum + order.total_lei, 0)
   const summary = buildDeliverySummary(shopOrders)
   const summaryBullets = formatSummaryBullets(summary.lines)
@@ -331,7 +332,7 @@ export function LivrariPageClient() {
       ? deliveredInSession.length > 0
         ? 'Traseul este gata'
         : 'Nicio comandă în drum'
-      : `${deliveryItems.length} ${deliveryItems.length === 1 ? 'comandă' : 'comenzi'} · Rămân ${formatLei(totalLei)} lei`
+      : `${deliveryItems.length} ${deliveryItems.length === 1 ? 'comandă' : 'comenzi'} · ${totalKg.toFixed(1)} kg · Rămân ${formatLei(totalLei)} lei`
 
   return (
     <AppShell
@@ -671,8 +672,15 @@ function DeliveryOrderCard({
             <span className="min-w-0 truncate text-[15px] text-[var(--brand-dark)] [font-weight:750]">
               {order.customer_name}
             </span>
-            <span className="shrink-0 text-[16px] tabular-nums text-[var(--brand-coral)] [font-weight:750]">
-              {formatLei(order.total_lei)} lei
+            <span className="shrink-0 text-right">
+              {order.cantitate_kg != null ? (
+                <span className="block text-xs text-[var(--text-secondary)]">
+                  {order.cantitate_kg.toFixed(1)} kg
+                </span>
+              ) : null}
+              <span className="text-[16px] tabular-nums text-[var(--brand-coral)] [font-weight:750]">
+                {formatLei(order.total_lei)} lei
+              </span>
             </span>
           </span>
           <span className="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-snug text-[var(--text-secondary)]">

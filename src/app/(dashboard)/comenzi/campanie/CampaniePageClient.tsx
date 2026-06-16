@@ -224,7 +224,9 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                 </Badge>
               </div>
               <p className="mt-2 text-sm font-semibold text-[var(--text-secondary)]">
-                {initialData.campaign.currentCount} / {initialData.campaign.targetQty} caserole · {progress}%
+                {initialData.campaign.currentCount} / {initialData.campaign.targetQty} caserole (
+                {(initialData.campaign.currentCount * 0.5).toFixed(1)} /{' '}
+                {(initialData.campaign.targetQty * 0.5).toFixed(1)} kg) · {progress}%
               </p>
             </div>
             <Button
@@ -257,7 +259,8 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
           </div>
           <div className="mt-4 rounded-xl bg-[var(--surface-card-muted)] px-4 py-3">
             <p className="text-sm font-extrabold text-[var(--text-primary)]">
-              Total comenzi active: {initialData.activeTotals.totalQty} caserole ·{' '}
+              Total comenzi active: {initialData.activeTotals.totalQty} caserole (
+              {(initialData.activeTotals.totalQty * 0.5).toFixed(1)} kg) ·{' '}
               {formatLei(initialData.activeTotals.totalLei)} ·{' '}
               {initialData.activeTotals.orderCount}{' '}
               {initialData.activeTotals.orderCount === 1 ? 'comandă' : 'comenzi'}
@@ -283,8 +286,9 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
                       <span className="font-bold text-[var(--text-primary)]">{formatDay(day.date)}</span>
                       <span className="text-[var(--text-secondary)]">
-                        {day.orderCount} {day.orderCount === 1 ? 'comandă' : 'comenzi'} · {day.totalQty}{' '}
-                        caserole · {formatLei(day.totalLei)}
+                        {day.orderCount} {day.orderCount === 1 ? 'comandă' : 'comenzi'} ·{' '}
+                        {day.totalQty} caserole ({(day.totalQty * 0.5).toFixed(1)} kg) ·{' '}
+                        {formatLei(day.totalLei)}
                       </span>
                     </div>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
@@ -319,7 +323,8 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                     {entry.totalQty}
                   </p>
                   <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    caserole · {entry.orderCount} {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
+                    caserole ({(entry.totalQty * 0.5).toFixed(1)} kg) · {entry.orderCount}{' '}
+                    {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
                   </p>
                   <p className="mt-2 text-sm font-bold text-[var(--text-secondary)]">
                     {formatLei(entry.totalLei)}
@@ -362,7 +367,9 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--text-secondary)]">
                   <span>{entry.orderCount} comenzi</span>
-                  <span>{entry.totalQty} caserole</span>
+                  <span>
+                    {entry.totalQty} caserole ({(entry.totalQty * 0.5).toFixed(1)} kg)
+                  </span>
                   <span className="text-right font-bold">{formatLei(entry.totalLei)}</span>
                 </div>
               </div>
@@ -426,7 +433,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                         : 'Neclasificat'}
                   </p>
                   <p className="mt-2 text-xl font-extrabold text-[var(--success-text)]">
-                    {entry.totalQty} caserole
+                    {entry.totalQty} caserole ({(entry.totalQty * 0.5).toFixed(1)} kg)
                   </p>
                   <p className="mt-1 text-xs text-[var(--text-tertiary)]">
                     {entry.orderCount} {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
