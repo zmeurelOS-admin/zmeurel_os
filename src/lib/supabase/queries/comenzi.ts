@@ -494,3 +494,41 @@ export async function getComenziStockSummaryAzi(): Promise<{
     totalStocDisponibilKg: round2(buckets.reduce((sum, bucket) => sum + bucket.availableKg, 0)),
   }
 }
+
+export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const { data, error } = await supabase
+    .from('comenzi')
+    .select(`
+      id,
+      tenant_id,
+      client_id,
+      client_nume_manual,
+      telefon,
+      locatie_livrare,
+      data_comanda,
+      data_livrare,
+      cantitate_kg,
+      pret_per_kg,
+      total,
+      status,
+      observatii,
+      linked_vanzare_id,
+      parent_comanda_id,
+      created_at,
+      updated_at,
+      data_origin,
+      clienti (
+        nume_client
+      )
+    `)
+    .eq('tenant_id', tenantId)
+    .eq('status', 'in_livrare')
+    .or('data_origin.is.null,data_origin.neq.magazin_asociatie')
+    .order('data_livrare', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+
+  if (error) throw toReadableError(error, 'Nu am putut încărca comenzile manuale în livrare.')
+  return ((data ?? []) as ComandaQueryRow[]).map(mapComanda)
+}

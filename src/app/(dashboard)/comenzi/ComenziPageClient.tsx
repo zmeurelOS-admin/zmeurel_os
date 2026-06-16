@@ -1338,6 +1338,7 @@ export function ComenziPageClient() {
     onSuccess: (_, variables) => {
       clearComandaFormQueryParams()
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       track('comanda_add', {
         cantitate: Number(variables.cantitate_kg || 0),
@@ -1384,6 +1385,7 @@ export function ComenziPageClient() {
     mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) => updateComanda(id, payload),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       track('comanda_edit', { id: variables.id })
       hapticSuccess()
@@ -1400,6 +1402,7 @@ export function ComenziPageClient() {
     mutationFn: deleteComanda,
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
@@ -1442,6 +1445,7 @@ export function ComenziPageClient() {
       deliverComanda({ comandaId, cantitateLivrataKg, plata, dataLivrareRamasa }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
@@ -1471,6 +1475,7 @@ export function ComenziPageClient() {
     mutationFn: reopenComanda,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })

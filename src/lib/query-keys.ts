@@ -45,6 +45,7 @@ export const queryKeys = {
   shopNotifyRequests: ['shop_notify_requests'] as const,
   shopOrdersInLivrare: ['shop_orders', 'in_livrare'] as const,
   shopOrdersInLivrareCount: ['shop_orders', 'in_livrare', 'count'] as const,
+  comenziManualInLivrare: ['comenzi', 'manual', 'in_livrare'] as const,
   shopOrdersScheduledToday: (tenantId: string | null) =>
     ['shop_orders', 'scheduled_today', tenantId] as const,
   produseFitosanitare: ['produse-fitosanitare'] as const,

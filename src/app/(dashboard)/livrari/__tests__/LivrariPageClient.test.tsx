@@ -6,8 +6,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LivrariPageClient } from '@/app/(dashboard)/livrari/LivrariPageClient'
 import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
+import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
-const { fetchOrdersMock, fetchScheduledMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
+const {
+  fetchManualOrdersMock,
+  fetchOrdersMock,
+  fetchScheduledMock,
+  toastErrorMock,
+  toastSuccessMock,
+} = vi.hoisted(() => ({
+  fetchManualOrdersMock: vi.fn<() => Promise<Comanda[]>>(),
   fetchOrdersMock: vi.fn<() => Promise<ShopOrderRow[]>>(),
   fetchScheduledMock: vi.fn<() => Promise<ShopOrderRow[]>>(),
   toastErrorMock: vi.fn(),
@@ -34,6 +42,10 @@ vi.mock('@/lib/shop/shop-orders-queries', () => ({
 
 vi.mock('@/lib/supabase/queries/clienti', () => ({
   getClienți: vi.fn().mockResolvedValue([]),
+}))
+
+vi.mock('@/lib/supabase/queries/comenzi', () => ({
+  fetchComenziManualInLivrare: fetchManualOrdersMock,
 }))
 
 vi.mock('@/lib/ui/toast', () => ({
@@ -88,6 +100,28 @@ const scheduledOrder: ShopOrderRow = {
   delivery_position: null,
 }
 
+const manualOrder: Comanda = {
+  id: '00000000-0000-4000-8000-000000000201',
+  tenant_id: '00000000-0000-4000-8000-000000000301',
+  client_id: null,
+  client_nume_manual: 'Client Manual',
+  telefon: '0722 000 111',
+  locatie_livrare: 'Sat Demo 1',
+  data_comanda: '2026-06-07',
+  data_livrare: '2026-06-07',
+  cantitate_kg: 3,
+  pret_per_kg: 12,
+  total: 36,
+  status: 'in_livrare',
+  observatii: '3 kg afine',
+  linked_vanzare_id: null,
+  parent_comanda_id: null,
+  created_at: '2026-06-07T07:00:00.000Z',
+  updated_at: '2026-06-07T07:00:00.000Z',
+  data_origin: null,
+  client_nume: null,
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -104,6 +138,8 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  fetchManualOrdersMock.mockReset()
+  fetchManualOrdersMock.mockResolvedValue([])
   fetchOrdersMock.mockReset()
   fetchOrdersMock.mockResolvedValue([order])
   fetchScheduledMock.mockReset()
@@ -269,5 +305,23 @@ describe('LivrariPageClient', () => {
 
     expect(screen.getByText('Ana Programată')).toBeInTheDocument()
     expect(screen.getAllByText('Caserolă 300 g × 2')).toHaveLength(2)
+  })
+
+  it('afișează comenzile manuale în listă fără acțiunile rezervate shop-ului', async () => {
+    const user = userEvent.setup()
+    fetchOrdersMock.mockResolvedValue([])
+    fetchManualOrdersMock.mockResolvedValue([manualOrder])
+    renderPage()
+
+    expect(await screen.findByText('Client Manual')).toBeInTheDocument()
+    expect(screen.getByText(/1 comandă · Rămân 36 lei/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reordonează livrarea 1' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Client Manual/ }))
+
+    expect(screen.getByText('3 kg afine')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Apel' })).toHaveAttribute('href', 'tel:0722000111')
+    expect(screen.queryByRole('button', { name: 'Editează' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Marchează livrat/ })).not.toBeInTheDocument()
   })
 })

@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { mapShopToUnified } from '@/lib/comenzi/unified-orders'
+import { normalizeComanda, normalizeShopOrder, type DeliveryItem } from '@/lib/livrari/types'
 import { queryKeys } from '@/lib/query-keys'
 import {
   buildDeliverySummary,
@@ -47,6 +48,7 @@ import {
   fetchShopOrdersScheduledToday,
 } from '@/lib/shop/shop-orders-queries'
 import { getClienți } from '@/lib/supabase/queries/clienti'
+import { fetchComenziManualInLivrare } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
 
 function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
@@ -71,9 +73,9 @@ export function LivrariPageClient() {
   const [reorderOriginalIds, setReorderOriginalIds] = useState<string[] | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reorderingId, setReorderingId] = useState<string | null>(null)
-  const [deliverTarget, setDeliverTarget] = useState<ShopOrderRow | null>(null)
+  const [deliverTarget, setDeliverTarget] = useState<DeliveryItem | null>(null)
   const [editTarget, setEditTarget] = useState<ShopOrderRow | null>(null)
-  const [deliveredInSession, setDeliveredInSession] = useState<ShopOrderRow[]>([])
+  const [deliveredInSession, setDeliveredInSession] = useState<DeliveryItem[]>([])
   const [scheduledTodayExpanded, setScheduledTodayExpanded] = useState(false)
 
   const ordersQuery = useQuery({
@@ -85,35 +87,54 @@ export function LivrariPageClient() {
     queryFn: () => fetchShopOrdersScheduledToday(tenantId!),
     enabled: Boolean(tenantId),
   })
+  const comenziManualQuery = useQuery({
+    queryKey: queryKeys.comenziManualInLivrare,
+    queryFn: fetchComenziManualInLivrare,
+  })
   const clientiQuery = useQuery({
     queryKey: queryKeys.clienti,
     queryFn: getClienți,
   })
 
-  const orders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
+  const shopOrders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
+  const manualOrders = useMemo(() => comenziManualQuery.data ?? [], [comenziManualQuery.data])
   const scheduledToday = useMemo(
     () => scheduledTodayQuery.data ?? [],
     [scheduledTodayQuery.data],
   )
+  const deliveryItems = useMemo(() => {
+    return [...shopOrders.map(normalizeShopOrder), ...manualOrders.map(normalizeComanda)].sort(
+      (a, b) => {
+        if (a.delivery_position !== null && b.delivery_position !== null) {
+          return a.delivery_position - b.delivery_position
+        }
+        if (a.delivery_position !== null) return -1
+        if (b.delivery_position !== null) return 1
+        return a.created_at < b.created_at ? 1 : -1
+      },
+    )
+  }, [manualOrders, shopOrders])
 
   const orderedOrders = useMemo(() => {
-    if (orderedIds.length === 0) return orders
-    const byId = new Map(orders.map((order) => [order.id, order]))
+    if (orderedIds.length === 0) return deliveryItems
+    const byId = new Map(deliveryItems.map((order) => [order.id, order]))
     const fromOrder = orderedIds
       .map((id) => byId.get(id))
-      .filter((row): row is ShopOrderRow => Boolean(row))
-    if (fromOrder.length === orders.length) return fromOrder
+      .filter((row): row is DeliveryItem => Boolean(row))
+    if (fromOrder.length === deliveryItems.length) return fromOrder
     const seen = new Set(fromOrder.map((order) => order.id))
-    return [...fromOrder, ...orders.filter((order) => !seen.has(order.id))]
-  }, [orders, orderedIds])
+    return [...fromOrder, ...deliveryItems.filter((order) => !seen.has(order.id))]
+  }, [deliveryItems, orderedIds])
 
-  const totalLei = orders.reduce((sum, order) => sum + order.total_lei, 0)
-  const summary = buildDeliverySummary(orders)
+  const totalLei = deliveryItems.reduce((sum, order) => sum + order.total_lei, 0)
+  const summary = buildDeliverySummary(shopOrders)
   const summaryBullets = formatSummaryBullets(summary.lines)
+  const isFetchingAny = ordersQuery.isFetching || comenziManualQuery.isFetching
 
   const refreshAll = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
     void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
     void queryClient.invalidateQueries({
       queryKey: queryKeys.shopOrdersScheduledToday(tenantId),
@@ -189,7 +210,7 @@ export function LivrariPageClient() {
       )
       setOrderedIds((current) => current.filter((id) => id !== order.id))
       setDeliveredInSession((current) => [
-        { ...order, status: 'livrata' },
+        { ...normalizeShopOrder(order), status: 'livrata' },
         ...current.filter((item) => item.id !== order.id),
       ])
       if (expandedId === order.id) setExpandedId(null)
@@ -221,11 +242,11 @@ export function LivrariPageClient() {
   })
 
   const headerSubtitle =
-    orders.length === 0
+    deliveryItems.length === 0
       ? deliveredInSession.length > 0
         ? 'Traseul este gata'
         : 'Nicio comandă în drum'
-      : `${orders.length} ${orders.length === 1 ? 'comandă' : 'comenzi'} · Rămân ${formatLei(totalLei)} lei`
+      : `${deliveryItems.length} ${deliveryItems.length === 1 ? 'comandă' : 'comenzi'} · Rămân ${formatLei(totalLei)} lei`
 
   return (
     <AppShell
@@ -243,25 +264,31 @@ export function LivrariPageClient() {
             size="icon"
             className="h-11 w-11 shrink-0"
             aria-label="Reîncarcă livrările"
-            disabled={ordersQuery.isFetching}
+            disabled={isFetchingAny}
             onClick={() => {
               refreshAll()
-              void ordersQuery.refetch()
+              void Promise.all([ordersQuery.refetch(), comenziManualQuery.refetch()])
             }}
           >
-            <RefreshCw className={ordersQuery.isFetching ? 'animate-spin' : ''} />
+            <RefreshCw className={isFetchingAny ? 'animate-spin' : ''} />
           </Button>
         </div>
       }
     >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-8">
-        {ordersQuery.isLoading ? <EntityListSkeleton count={3} /> : null}
+        {ordersQuery.isLoading || comenziManualQuery.isLoading ? (
+          <EntityListSkeleton count={3} />
+        ) : null}
 
-        {ordersQuery.isError ? (
+        {ordersQuery.isError || comenziManualQuery.isError ? (
           <ErrorState
             title="Eroare la încărcare"
-            message={(ordersQuery.error as Error)?.message ?? 'Nu am putut încărca livrările.'}
-            onRetry={() => void ordersQuery.refetch()}
+            message={
+              (ordersQuery.error as Error)?.message ??
+              (comenziManualQuery.error as Error)?.message ??
+              'Nu am putut încărca livrările.'
+            }
+            onRetry={() => void Promise.all([ordersQuery.refetch(), comenziManualQuery.refetch()])}
           />
         ) : null}
 
@@ -311,7 +338,11 @@ export function LivrariPageClient() {
           </section>
         ) : null}
 
-        {!ordersQuery.isLoading && !ordersQuery.isError && orders.length > 0 ? (
+        {!ordersQuery.isLoading &&
+        !comenziManualQuery.isLoading &&
+        !ordersQuery.isError &&
+        !comenziManualQuery.isError &&
+        deliveryItems.length > 0 ? (
           <section className="space-y-3">
             <header className="border-b border-[var(--divider)] pb-3">
               <div className="flex items-center justify-between gap-3">
@@ -329,7 +360,11 @@ export function LivrariPageClient() {
                     className="min-h-11 rounded-xl bg-[var(--status-warning-text)] px-4 text-white"
                     disabled={persistReorderMutation.isPending}
                     onClick={() =>
-                      persistReorderMutation.mutate(orderedOrders.map((order) => order.id))
+                      persistReorderMutation.mutate(
+                        orderedOrders
+                          .filter((order) => Boolean(order._shopOrder))
+                          .map((order) => order.id),
+                      )
                     }
                   >
                     <Check />
@@ -337,7 +372,7 @@ export function LivrariPageClient() {
                   </Button>
                 ) : (
                   <p className="shrink-0 text-base text-[var(--brand-coral)] [font-weight:750]">
-                    {formatLei(summary.totalLei)} lei
+                    {formatLei(totalLei)} lei
                   </p>
                 )}
               </div>
@@ -357,17 +392,23 @@ export function LivrariPageClient() {
                     markDeliveredMutation.isPending &&
                     markDeliveredMutation.variables?.id === order.id
                   }
-                  onActivateReorder={() => {
-                    const currentIds = orderedOrders.map((currentOrder) => currentOrder.id)
-                    setOrderedIds(currentIds)
-                    setReorderOriginalIds((current) => current ?? currentIds)
-                    setReorderingId(order.id)
-                    setExpandedId(null)
-                  }}
-                  onEdit={() => setEditTarget(order)}
-                  onMarkDelivered={() => setDeliverTarget(order)}
-                  onMoveDown={() => moveOrder(order.id, 'down')}
-                  onMoveUp={() => moveOrder(order.id, 'up')}
+                  onActivateReorder={
+                    order._shopOrder
+                      ? () => {
+                          const currentIds = orderedOrders
+                            .filter((currentOrder) => Boolean(currentOrder._shopOrder))
+                            .map((currentOrder) => currentOrder.id)
+                          setOrderedIds(currentIds)
+                          setReorderOriginalIds((current) => current ?? currentIds)
+                          setReorderingId(order.id)
+                          setExpandedId(null)
+                        }
+                      : undefined
+                  }
+                  onEdit={order._shopOrder ? () => setEditTarget(order._shopOrder ?? null) : undefined}
+                  onMarkDelivered={order._shopOrder ? () => setDeliverTarget(order) : undefined}
+                  onMoveDown={order._shopOrder ? () => moveOrder(order.id, 'down') : undefined}
+                  onMoveUp={order._shopOrder ? () => moveOrder(order.id, 'up') : undefined}
                   onToggleExpand={() => {
                     if (reorderingId) return
                     setExpandedId((current) => (current === order.id ? null : order.id))
@@ -379,8 +420,10 @@ export function LivrariPageClient() {
         ) : null}
 
         {!ordersQuery.isLoading &&
+        !comenziManualQuery.isLoading &&
         !ordersQuery.isError &&
-        orders.length === 0 &&
+        !comenziManualQuery.isError &&
+        deliveryItems.length === 0 &&
         deliveredInSession.length === 0 ? (
           <div className="flex flex-col items-center rounded-[22px] bg-[var(--surface-card)] px-6 py-12 text-center shadow-[var(--shadow-soft)]">
             <span
@@ -410,7 +453,9 @@ export function LivrariPageClient() {
           if (!open && !markDeliveredMutation.isPending) setDeliverTarget(null)
         }}
         onConfirm={() => {
-          if (deliverTarget) markDeliveredMutation.mutate(deliverTarget)
+          if (deliverTarget?._shopOrder) {
+            markDeliveredMutation.mutate(deliverTarget._shopOrder)
+          }
         }}
       />
 
@@ -446,23 +491,31 @@ function DeliveryOrderCard({
   onMoveUp,
   onToggleExpand,
 }: {
-  order: ShopOrderRow
+  order: DeliveryItem
   position: number
   isFirst: boolean
   isLast: boolean
   expanded: boolean
   reordering: boolean
   marking: boolean
-  onActivateReorder: () => void
-  onEdit: () => void
-  onMarkDelivered: () => void
-  onMoveDown: () => void
-  onMoveUp: () => void
+  onActivateReorder?: () => void
+  onEdit?: () => void
+  onMarkDelivered?: () => void
+  onMoveDown?: () => void
+  onMoveUp?: () => void
   onToggleExpand: () => void
 }) {
-  const whatsappHref = buildLivrareWaUrl(order)
+  const whatsappHref = order._shopOrder
+    ? buildLivrareWaUrl(order._shopOrder)
+    : order.customer_phone
+      ? `https://wa.me/4${order.customer_phone.replace(/\D/g, '').replace(/^0/, '')}`
+      : null
   const navigationHref = mapsHref(order.delivery_address)
   const address = order.delivery_address?.trim() || 'Adresă necompletată'
+  const itemLabel =
+    order.items != null
+      ? formatItemsHuman(order.items)
+      : order.notes?.trim() || 'Comandă manuală'
 
   return (
     <article
@@ -473,20 +526,26 @@ function DeliveryOrderCard({
       }`}
     >
       <div className="flex min-h-[82px]">
-        <button
-          type="button"
-          className={`flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 transition active:scale-[0.985] ${
-            reordering
-              ? 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
-              : 'bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]'
-          }`}
-          aria-label={`Reordonează livrarea ${position}`}
-          aria-pressed={reordering}
-          onClick={onActivateReorder}
-        >
-          <span className="text-lg tabular-nums [font-weight:750]">{position}</span>
-          <GripVertical className="h-5 w-5" aria-hidden />
-        </button>
+        {onActivateReorder ? (
+          <button
+            type="button"
+            className={`flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 transition active:scale-[0.985] ${
+              reordering
+                ? 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+                : 'bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]'
+            }`}
+            aria-label={`Reordonează livrarea ${position}`}
+            aria-pressed={reordering}
+            onClick={onActivateReorder}
+          >
+            <span className="text-lg tabular-nums [font-weight:750]">{position}</span>
+            <GripVertical className="h-5 w-5" aria-hidden />
+          </button>
+        ) : (
+          <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
+            <span className="text-lg tabular-nums [font-weight:750]">{position}</span>
+          </div>
+        )}
 
         <button
           type="button"
@@ -530,7 +589,7 @@ function DeliveryOrderCard({
         </div>
       ) : null}
 
-      {reordering ? (
+      {reordering && onMoveUp && onMoveDown ? (
         <div className="grid grid-cols-2 gap-2 border-t border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3">
           <Button
             type="button"
@@ -557,18 +616,13 @@ function DeliveryOrderCard({
 
       {expanded && !reordering ? (
         <div className="border-t border-[var(--divider)] px-3 pb-3 pt-3">
-          <p className="mb-3 text-xs leading-relaxed text-[var(--text-secondary)]">
-            {formatItemsHuman(order.items)}
-          </p>
+          <p className="mb-3 text-xs leading-relaxed text-[var(--text-secondary)]">{itemLabel}</p>
 
           <div className="grid grid-cols-2 gap-2">
-            <ActionLink href={phoneHref(order.customer_phone)} icon={Phone} label="Apel" />
-            <ActionLink
-              href={whatsappHref}
-              icon={MessageCircle}
-              label="WhatsApp"
-              external
-            />
+            {order.customer_phone ? (
+              <ActionLink href={phoneHref(order.customer_phone)} icon={Phone} label="Apel" />
+            ) : null}
+            <ActionLink href={whatsappHref} icon={MessageCircle} label="WhatsApp" external />
             <ActionLink
               href={navigationHref}
               icon={Navigation}
@@ -576,26 +630,30 @@ function DeliveryOrderCard({
               external
               disabled={!navigationHref}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-14 rounded-xl text-sm"
-              onClick={onEdit}
-            >
-              <Pencil className="h-5 w-5" />
-              Editează
-            </Button>
+            {onEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-14 rounded-xl text-sm"
+                onClick={onEdit}
+              >
+                <Pencil className="h-5 w-5" />
+                Editează
+              </Button>
+            ) : null}
           </div>
 
-          <Button
-            type="button"
-            className="mt-2 min-h-14 w-full rounded-xl bg-[var(--agri-primary)] text-base text-white"
-            disabled={marking}
-            onClick={onMarkDelivered}
-          >
-            <PackageCheck className="h-5 w-5" />
-            {marking ? 'Se marchează...' : 'Marchează livrat'}
-          </Button>
+          {onMarkDelivered ? (
+            <Button
+              type="button"
+              className="mt-2 min-h-14 w-full rounded-xl bg-[var(--agri-primary)] text-base text-white"
+              disabled={marking}
+              onClick={onMarkDelivered}
+            >
+              <PackageCheck className="h-5 w-5" />
+              {marking ? 'Se marchează...' : 'Marchează livrat'}
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </article>
@@ -646,7 +704,7 @@ function DeliveryConfirmationDialog({
   onConfirm,
   onOpenChange,
 }: {
-  order: ShopOrderRow | null
+  order: DeliveryItem | null
   pending: boolean
   onConfirm: () => void
   onOpenChange: (open: boolean) => void
@@ -688,9 +746,7 @@ function DeliveryConfirmationDialog({
     </AlertDialog>
   )
 }
-
-
-function DeliveredSection({ orders }: { orders: ShopOrderRow[] }) {
+function DeliveredSection({ orders }: { orders: DeliveryItem[] }) {
   const total = orders.reduce((sum, order) => sum + order.total_lei, 0)
 
   return (
