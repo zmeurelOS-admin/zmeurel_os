@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { normalizeClientTip } from '@/lib/supabase/queries/clienti'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { ClientPageClient } from './ClientPageClient'
 
@@ -13,7 +14,7 @@ export default async function ClientPage() {
 
   const { data: clienti, error } = await supabase
     .from('clienti')
-    .select('id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id')
+    .select('id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id,tip')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
 
@@ -21,5 +22,12 @@ export default async function ClientPage() {
     throw new Error(`Failed to load data: ${error.message}`)
   }
 
-  return <ClientPageClient initialClienți={clienti || []} />
+  return (
+    <ClientPageClient
+      initialClienți={(clienti || []).map((client) => ({
+        ...client,
+        tip: normalizeClientTip(client.tip),
+      }))}
+    />
+  )
 }

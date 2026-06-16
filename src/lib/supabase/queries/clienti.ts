@@ -1,6 +1,9 @@
 import { getSupabase } from "@/lib/supabase/client"
 import { generateBusinessId } from "@/lib/supabase/business-ids"
 import { getTenantId } from "@/lib/tenant/get-tenant"
+
+export type ClientTip = 'standard' | 'patiserie' | 'magazin'
+
 export interface Client {
   id: string
   id_client: string
@@ -13,6 +16,11 @@ export interface Client {
   created_at: string | null
   updated_at: string | null
   tenant_id: string
+  tip: ClientTip
+}
+
+type ClientRowLike = Omit<Client, 'tip'> & {
+  tip?: string | null
 }
 
 export interface CreateClientInput {
@@ -38,18 +46,29 @@ export interface UpdateClientInput {
   observatii?: string | null
 }
 
+export function normalizeClientTip(value: string | null | undefined): ClientTip {
+  return value === 'patiserie' || value === 'magazin' ? value : 'standard'
+}
+
+function mapClientRow(row: ClientRowLike): Client {
+  return {
+    ...row,
+    tip: normalizeClientTip(row.tip),
+  }
+}
+
 export async function getClienți(): Promise<Client[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from("clienti")
-    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id")
+    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id,tip")
     .eq("tenant_id", tenantId)
     .order("nume_client", { ascending: true })
 
   if (error) throw error
-  return (data ?? []) as Client[]
+  return (data ?? []).map((row) => mapClientRow(row as ClientRowLike))
 }
 
 function normalizeClientName(value: string): string {
@@ -106,7 +125,7 @@ export async function createClienți(
     .single()
 
   if (error) throw error
-  return data
+  return mapClientRow(data as ClientRowLike)
 }
 
 export async function updateClienți(
@@ -128,7 +147,7 @@ export async function updateClienți(
     .single()
 
   if (error) throw error
-  return data
+  return mapClientRow(data as ClientRowLike)
 }
 
 export async function deleteClienți(id: string): Promise<void> {

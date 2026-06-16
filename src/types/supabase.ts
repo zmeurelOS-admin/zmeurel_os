@@ -1014,6 +1014,7 @@ export type Database = {
           pret_negociat_lei_kg: number | null
           telefon: string | null
           tenant_id: string
+          tip: string
           updated_at: string
           updated_by: string | null
         }
@@ -1033,6 +1034,7 @@ export type Database = {
           pret_negociat_lei_kg?: number | null
           telefon?: string | null
           tenant_id?: string
+          tip?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -1052,6 +1054,7 @@ export type Database = {
           pret_negociat_lei_kg?: number | null
           telefon?: string | null
           tenant_id?: string
+          tip?: string
           updated_at?: string
           updated_by?: string | null
         }
