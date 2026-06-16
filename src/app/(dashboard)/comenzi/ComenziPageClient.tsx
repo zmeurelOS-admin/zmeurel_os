@@ -1756,7 +1756,7 @@ export function ComenziPageClient() {
     [activeComenzi, preorderShopOrders],
   )
 
-  const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0) + Number(stocGlobal.cal2 || 0)
+  const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0)
 
   const kgInLivrare = useMemo(() => {
     const manuale = comenzi
