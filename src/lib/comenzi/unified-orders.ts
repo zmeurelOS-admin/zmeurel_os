@@ -58,7 +58,7 @@ export const B2B_STATUS_LABELS: Record<ComandaStatus, string> = {
 export const SHOP_STATUS_TRANSITIONS: Record<ShopOrderStatus, ShopOrderStatus[]> = {
   noua: ['confirmata', 'anulata'],
   confirmata: ['in_livrare', 'anulata'],
-  in_livrare: ['livrata'],
+  in_livrare: ['confirmata', 'livrata'],
   livrata: [],
   anulata: [],
 }
@@ -67,7 +67,7 @@ export const B2B_STATUS_TRANSITIONS: Record<ComandaStatus, ComandaStatus[]> = {
   noua: ['confirmata', 'anulata'],
   confirmata: ['in_livrare', 'anulata'],
   programata: ['in_livrare', 'anulata'],
-  in_livrare: ['livrata'],
+  in_livrare: ['programata', 'livrata'],
   livrata: [],
   anulata: [],
 }
