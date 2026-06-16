@@ -1618,7 +1618,10 @@ export function ComenziPageClient() {
 
   const today = todayIso()
   const manualComenzi = useMemo(
-    () => comenzi.filter((item) => !isMagazinPublicOrder(item)),
+    () =>
+      comenzi.filter(
+        (item) => !isMagazinPublicOrder(item) && item.status !== 'in_livrare',
+      ),
     [comenzi],
   )
   const activeComenzi = useMemo(
@@ -1632,7 +1635,10 @@ export function ComenziPageClient() {
   const preorderShopOrders = useMemo(
     () =>
       shopOrders.filter(
-        (item) => item.order_kind === 'preorder' && item.status !== 'anulata',
+        (item) =>
+          item.order_kind === 'preorder' &&
+          item.status !== 'anulata' &&
+          item.status !== 'in_livrare',
       ),
     [shopOrders],
   )
