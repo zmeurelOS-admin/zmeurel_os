@@ -61,6 +61,8 @@ import {
   deleteComanda,
   deliverComanda,
   getComenzi,
+  getComenziStockSummaryAzi,
+  getKgAngajatInLivrare,
   reopenComanda,
   type Comanda,
   type ComandaPlata,
@@ -79,6 +81,7 @@ import {
 import {
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
+  mapShopToUnified,
   mergeUnifiedOrders,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
@@ -109,6 +112,27 @@ type ComenziOrderGroup = {
 }
 
 const KG_PER_CASEROLĂ = 0.5
+
+function round2(value: number): number {
+  return Math.round((Number(value) || 0) * 100) / 100
+}
+
+async function checkStocPentruInLivrare(kgNecesar: number): Promise<void> {
+  const [stoc, kgAngajat] = await Promise.all([
+    getComenziStockSummaryAzi(),
+    getKgAngajatInLivrare(),
+  ])
+  const stocNet = round2(stoc.totalStocDisponibilKg - kgAngajat)
+  if (stocNet < kgNecesar) {
+    throw new Error(
+      `Stoc insuficient pentru a pune în livrare. ` +
+        `Disponibil: ${stocNet.toFixed(1)} kg ` +
+        `(total ${stoc.totalStocDisponibilKg.toFixed(1)} kg, ` +
+        `deja în livrare: ${kgAngajat.toFixed(1)} kg), ` +
+        `necesar: ${kgNecesar.toFixed(1)} kg.`,
+    )
+  }
+}
 
 const ZONE_ORDER: Record<DeliveryZone, number> = {
   zona1: 1,
@@ -1792,6 +1816,40 @@ export function ComenziPageClient() {
     })
   }
 
+  const handleB2bStatusChange = async (id: string, status: ComandaStatus) => {
+    if (status === 'livrata') {
+      const comanda = comenzi.find((row) => row.id === id)
+      if (comanda) void handleConfirmDeliver(comanda)
+      return
+    }
+    if (status === 'in_livrare') {
+      const comanda = comenzi.find((row) => row.id === id)
+      const kgNecesar = Number(comanda?.cantitate_kg ?? 0)
+      try {
+        await checkStocPentruInLivrare(kgNecesar)
+      } catch (err) {
+        toast((err as Error).message, { duration: 5000 })
+        return
+      }
+    }
+    updateMutation.mutate({ id, payload: { status } })
+  }
+
+  const handleShopStatusChange = async (id: string, status: ShopOrderStatus) => {
+    if (status === 'in_livrare') {
+      const shopOrder = shopOrders.find((row) => row.id === id)
+      const unified = shopOrder ? mapShopToUnified(shopOrder) : null
+      const kgNecesar = unified ? getUnifiedOrderNeedKg(unified) : 0
+      try {
+        await checkStocPentruInLivrare(kgNecesar)
+      } catch (err) {
+        toast((err as Error).message, { duration: 5000 })
+        return
+      }
+    }
+    patchShopOrderMutation.mutate({ id, status })
+  }
+
   const magazinGroupForViewDialog = useMemo(() => {
     if (!viewing) return []
     return getMagazinGroupOrders(comenzi, viewing)
@@ -2008,20 +2066,11 @@ export function ComenziPageClient() {
                             const comanda = comenzi.find((row) => row.id === id)
                             if (comanda) setViewing(comanda)
                           }}
-                          onB2bStatusChange={(id, status) => {
-                            if (status === 'livrata') {
-                              const comanda = comenzi.find((row) => row.id === id)
-                              if (comanda) void handleConfirmDeliver(comanda)
-                              return
-                            }
-                            updateMutation.mutate({ id, payload: { status } })
-                          }}
+                          onB2bStatusChange={handleB2bStatusChange}
                           onB2bDeliveryDateChange={(id, data_livrare) => {
                             updateMutation.mutate({ id, payload: { data_livrare } })
                           }}
-                          onShopStatusChange={(id, status) => {
-                            patchShopOrderMutation.mutate({ id, status })
-                          }}
+                          onShopStatusChange={handleShopStatusChange}
                           onShopConfirmedChange={(id, confirmed) => {
                             patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
                           }}
@@ -2076,20 +2125,11 @@ export function ComenziPageClient() {
                             const comanda = comenzi.find((row) => row.id === id)
                             if (comanda) setViewing(comanda)
                           }}
-                          onB2bStatusChange={(id, status) => {
-                            if (status === 'livrata') {
-                              const comanda = comenzi.find((row) => row.id === id)
-                              if (comanda) void handleConfirmDeliver(comanda)
-                              return
-                            }
-                            updateMutation.mutate({ id, payload: { status } })
-                          }}
+                          onB2bStatusChange={handleB2bStatusChange}
                           onB2bDeliveryDateChange={(id, data_livrare) => {
                             updateMutation.mutate({ id, payload: { data_livrare } })
                           }}
-                          onShopStatusChange={(id, status) => {
-                            patchShopOrderMutation.mutate({ id, status })
-                          }}
+                          onShopStatusChange={handleShopStatusChange}
                           onShopConfirmedChange={(id, confirmed) => {
                             patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
                           }}
@@ -2163,6 +2203,15 @@ export function ComenziPageClient() {
             return
           }
 
+          if (values.status === 'in_livrare') {
+            try {
+              await checkStocPentruInLivrare(cantitate)
+            } catch (err) {
+              toast((err as Error).message, { duration: 5000 })
+              return
+            }
+          }
+
           await createMutation.mutateAsync({
             client_id: values.client_id || null,
             client_nume_manual: values.client_nume_manual || null,
@@ -2201,6 +2250,15 @@ export function ComenziPageClient() {
             hapticError()
             toast.error('Prețul trebuie să fie mai mare decât 0.')
             return
+          }
+
+          if (values.status === 'in_livrare') {
+            try {
+              await checkStocPentruInLivrare(cantitate)
+            } catch (err) {
+              toast((err as Error).message, { duration: 5000 })
+              return
+            }
           }
 
           await updateMutation.mutateAsync({

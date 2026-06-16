@@ -495,6 +495,48 @@ export async function getComenziStockSummaryAzi(): Promise<{
   }
 }
 
+export async function getKgAngajatInLivrare(): Promise<number> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+
+  const [comenziRes, shopRes] = await Promise.all([
+    supabase
+      .from('comenzi')
+      .select('cantitate_kg')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'in_livrare'),
+    supabase
+      .from('shop_orders')
+      .select('items')
+      .eq('tenant_id', tenantId)
+      .eq('status', 'in_livrare'),
+  ])
+
+  if (comenziRes.error) {
+    throw toReadableError(comenziRes.error, 'Nu am putut calcula comenzile deja în livrare.')
+  }
+  if (shopRes.error) {
+    throw toReadableError(shopRes.error, 'Nu am putut calcula comenzile Shop deja în livrare.')
+  }
+
+  const kgManuale = (comenziRes.data ?? []).reduce(
+    (sum, row) => sum + (Number(row.cantitate_kg) || 0),
+    0,
+  )
+
+  const kgShop = (shopRes.data ?? []).reduce<number>((sum, row) => {
+    if (!Array.isArray(row.items)) return sum
+    const rowKg = row.items.reduce<number>((itemSum, item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return itemSum
+        const qty = Number((item as { qty?: unknown }).qty)
+        return itemSum + (Number.isFinite(qty) && qty > 0 ? qty * 0.5 : 0)
+      }, 0)
+    return sum + rowKg
+  }, 0)
+
+  return round2(kgManuale + kgShop)
+}
+
 export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
