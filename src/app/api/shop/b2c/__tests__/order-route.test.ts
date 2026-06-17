@@ -288,17 +288,59 @@ describe('POST /api/shop/b2c/order', () => {
     expect(rpcSpy).not.toHaveBeenCalled()
   })
 
-  it('propagă doar eroarea RPC pentru cantitatea minimă de livrare', async () => {
+  it('reîncearcă precomanda fără p_in_suceava când RPC-ul vechi răspunde cu minimul de livrare', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const campaignId = '21d158e1-dfa3-4db3-894b-d64ecad29b45'
+    const orderId = '33333333-3333-4333-8333-333333333333'
+    let preorderAttempt = 0
     getSupabaseAdmin.mockReturnValue(
-      buildAdmin(
-        '33333333-3333-4333-8333-333333333333',
-        null,
-        {
-          message:
-            'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg). Ai selectat 1 caserole.',
+      {
+        rpc: (name: string, args: Record<string, unknown>) => {
+          rpcSpy(name, args)
+          if (name === 'place_preorder_atomic') {
+            preorderAttempt += 1
+            if (preorderAttempt === 1) {
+              return Promise.resolve({
+                data: null,
+                error: {
+                  message:
+                    'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg). Ai selectat 1 caserole.',
+                },
+              })
+            }
+
+            return Promise.resolve({
+              data: {
+                order_id: orderId,
+                current_count: 501,
+                hit_milestone: false,
+              },
+              error: null,
+            })
+          }
+
+          return Promise.resolve({ data: null, error: null })
         },
-      ),
+        from: (table: string) => {
+          if (table !== 'shop_orders') throw new Error(`unexpected table ${table}`)
+          return {
+            insert: (payload: Record<string, unknown>) => {
+              insertSpy(payload)
+              return {
+                select: () => ({
+                  single: async () => ({
+                    data: { id: orderId },
+                    error: null,
+                  }),
+                }),
+              }
+            },
+            update: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            }),
+          }
+        },
+      },
     )
 
     const response = await POST(
@@ -306,17 +348,33 @@ describe('POST /api/shop/b2c/order', () => {
         method: 'POST',
         json: {
           ...baseBody(),
-          campaign_id: '21d158e1-dfa3-4db3-894b-d64ecad29b45',
+          campaign_id: campaignId,
+          deliveryZone: 'zona1',
           items: [{ ...baseBody().items[0], qty: 1 }],
         },
       }),
     )
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      success: false,
-      error:
-        'Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg). Ai selectat 1 caserole.',
+      success: true,
+      order_id: orderId,
+      total_lei: 20,
+      current_count: 501,
+      hit_milestone: false,
+      milestone_threshold: null,
+      milestone_reward: null,
+    })
+    expect(
+      rpcSpy.mock.calls.filter(([name]) => name === 'place_preorder_atomic'),
+    ).toHaveLength(2)
+    expect(rpcSpy.mock.calls[0]?.[1]).toMatchObject({
+      p_campaign_id: campaignId,
+      p_in_suceava: true,
+    })
+    expect(rpcSpy.mock.calls[1]?.[1]).toMatchObject({
+      p_campaign_id: campaignId,
+      p_in_suceava: null,
     })
     expect(errorSpy).not.toHaveBeenCalled()
     errorSpy.mockRestore()

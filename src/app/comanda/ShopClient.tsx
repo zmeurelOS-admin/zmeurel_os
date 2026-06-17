@@ -39,9 +39,7 @@ import {
 } from '@/lib/shop/pricing'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import {
-  DELIVERY_ZONES,
   LOCALITIES,
-  getZoneMinimumMessage,
   type DeliveryZone,
   type LocalityConfig,
   type VillageConfig,
@@ -247,9 +245,10 @@ export function getDeliveryMinimumMessage(
   zone: DeliveryZone | null,
   totalQty: number,
 ): string | null {
-  if (deliveryMode === 'ridicare') return null
-  if (zone === null) return 'Selectează zona de livrare.'
-  return getZoneMinimumMessage(zone, totalQty)
+  void deliveryMode
+  void zone
+  void totalQty
+  return null
 }
 
 export function readCustomerSnapshotFromStorage(phone: string): CustomerSnapshot | null {
@@ -694,9 +693,6 @@ export function ShopClient({
     fieldErrors.phone ?? (phoneTouched && !normalizedOrderPhone ? ROMANIAN_PHONE_ERROR : undefined)
   const blockedVillage =
     deliveryMode === 'livrare' && selectedVillage?.blocked ? selectedVillage : null
-  const deliveryMinimumMessage = blockedVillage
-    ? null
-    : getDeliveryMinimumMessage(deliveryMode, deliveryZone, cartCount)
   const preferredDeliveryDateMin = useMemo(() => {
     const date = new Date()
     date.setDate(date.getDate() + 1)
@@ -895,7 +891,7 @@ export function ShopClient({
   }
 
   const submitOrder = async () => {
-    if (orderSubmitLockRef.current || deliveryMinimumMessage || blockedVillage) return
+    if (orderSubmitLockRef.current || blockedVillage) return
 
     const validationErrors = validateCheckoutForm({
       orderName,
@@ -1588,9 +1584,7 @@ export function ShopClient({
                       selectedLocality={selectedLocality}
                       selectedVillage={selectedVillage}
                       deliveryZone={deliveryZone}
-                      cartCount={cartCount}
                       blockedVillage={blockedVillage}
-                      deliveryMinimumMessage={deliveryMinimumMessage}
                       onSelectLocality={(locality) => {
                         setSelectedLocality(locality)
                         setSelectedVillage(null)
@@ -1726,7 +1720,7 @@ export function ShopClient({
 
               <button
                 type="button"
-                disabled={orderSubmitting || !hasValidIdentity || deliveryMinimumMessage !== null}
+                disabled={orderSubmitting || !hasValidIdentity}
                 onClick={submitOrder}
                 className="mt-4 min-h-[52px] w-full rounded-2xl bg-[#F16B6B] px-4 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(241,107,107,0.25)] transition active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45"
               >
@@ -2000,9 +1994,7 @@ function LocalityZoneSelector({
   selectedLocality,
   selectedVillage,
   deliveryZone,
-  cartCount,
   blockedVillage,
-  deliveryMinimumMessage,
   onSelectLocality,
   onSelectVillage,
   onSelectOtherLocality,
@@ -2010,9 +2002,7 @@ function LocalityZoneSelector({
   selectedLocality: LocalityConfig | null
   selectedVillage: VillageConfig | null
   deliveryZone: DeliveryZone | null
-  cartCount: number
   blockedVillage: VillageConfig | null
-  deliveryMinimumMessage: string | null
   onSelectLocality: (locality: LocalityConfig) => void
   onSelectVillage: (village: VillageConfig | null) => void
   onSelectOtherLocality: () => void
@@ -2067,19 +2057,6 @@ function LocalityZoneSelector({
         <p className="mt-2 rounded-xl bg-[#FFF8EC] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]">
           ℹ️ Livrăm și în {selectedName} — vom stabili împreună locul livrării după ce plasezi comanda.
         </p>
-      ) : deliveryZone && cartCount > 0 && !deliveryMinimumMessage ? (
-        <p className="mt-2 rounded-xl bg-[#EAF3DE] px-3 py-2 text-xs font-semibold leading-relaxed text-[#3B6D11]">
-          ✓ Livrăm în {selectedName} — minim {DELIVERY_ZONES[deliveryZone].minQty} caserole ({DELIVERY_ZONES[deliveryZone].minKg} kg)
-        </p>
-      ) : deliveryMinimumMessage ? (
-        <p
-          role="alert"
-          className="mt-2 rounded-xl bg-[#FFF4D8] px-3 py-2 text-xs font-semibold leading-relaxed text-[#6F4B00]"
-        >
-          {deliveryMinimumMessage}
-        </p>
-      ) : !selectedLocality && deliveryZone !== 'zona4' ? (
-        <p className="mt-2 text-xs text-[#9CA3AF]">Selectează localitatea pentru a vedea minimul de comandă.</p>
       ) : null}
     </div>
   )

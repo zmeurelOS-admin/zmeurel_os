@@ -10,6 +10,16 @@ import { toast } from '@/lib/ui/toast'
 import { AppDialog } from '@/components/app/AppDialog'
 import { ComandaFormSummary } from '@/components/comenzi/ComandaFormSummary'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import {
   DesktopFormGrid,
@@ -125,13 +135,12 @@ async function checkStocPentruInLivrare(kgNecesar: number): Promise<void> {
   ])
   const stocNet = round2(stoc.totalStocDisponibilKg - kgAngajat)
   if (stocNet < kgNecesar) {
-    throw new Error(
-      `Stoc insuficient pentru a pune în livrare. ` +
-        `Disponibil: ${stocNet.toFixed(1)} kg ` +
-        `(total ${stoc.totalStocDisponibilKg.toFixed(1)} kg, ` +
-        `deja în livrare: ${kgAngajat.toFixed(1)} kg), ` +
-        `necesar: ${kgNecesar.toFixed(1)} kg.`,
-    )
+    throw new StocInsuficientError({
+      disponibilKg: stocNet,
+      totalKg: round2(stoc.totalStocDisponibilKg),
+      inLivrareKg: round2(kgAngajat),
+      necesarKg: round2(kgNecesar),
+    })
   }
 }
 
@@ -146,6 +155,29 @@ const ZONE_ORDER: Record<DeliveryZone, number> = {
 type ContactPrompt = {
   name: string
   phone: string
+}
+
+type StocInsuficientSnapshot = {
+  disponibilKg: number
+  totalKg: number
+  inLivrareKg: number
+  necesarKg: number
+}
+
+class StocInsuficientError extends Error {
+  snapshot: StocInsuficientSnapshot
+
+  constructor(snapshot: StocInsuficientSnapshot) {
+    super(
+      `Stoc insuficient pentru a pune în livrare. ` +
+        `Disponibil: ${snapshot.disponibilKg.toFixed(1)} kg ` +
+        `(total ${snapshot.totalKg.toFixed(1)} kg, ` +
+        `deja în livrare: ${snapshot.inLivrareKg.toFixed(1)} kg), ` +
+        `necesar: ${snapshot.necesarKg.toFixed(1)} kg.`,
+    )
+    this.name = 'StocInsuficientError'
+    this.snapshot = snapshot
+  }
 }
 
 type CreateClientMutationVariables = {
@@ -1310,6 +1342,7 @@ export function ComenziPageClient() {
   const [contactPrompt, setContactPrompt] = useState<ContactPrompt | null>(null)
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
   const [addClientOpen, setAddClientOpen] = useState(false)
+  const [stocInsuficientModal, setStocInsuficientModal] = useState<StocInsuficientSnapshot | null>(null)
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = hasAiComandaOpenForm(searchParams)
   const queryCreatePrefill = useMemo(
@@ -1346,6 +1379,21 @@ export function ComenziPageClient() {
 
     router.replace(nextUrl, { scroll: false })
   }, [pathname, router, searchParams])
+
+  const guardStocPentruInLivrare = useCallback(async (kgNecesar: number) => {
+    try {
+      await checkStocPentruInLivrare(kgNecesar)
+      return true
+    } catch (err) {
+      if (err instanceof StocInsuficientError) {
+        hapticError()
+        setStocInsuficientModal(err.snapshot)
+        return false
+      }
+      toast.error(err instanceof Error ? err.message : 'Nu am putut verifica stocul disponibil.')
+      return false
+    }
+  }, [])
 
   const {
     data: comenzi = [],
@@ -1920,10 +1968,8 @@ export function ComenziPageClient() {
     if (status === 'in_livrare') {
       const comanda = comenzi.find((row) => row.id === id)
       const kgNecesar = Number(comanda?.cantitate_kg ?? 0)
-      try {
-        await checkStocPentruInLivrare(kgNecesar)
-      } catch (err) {
-        toast((err as Error).message, { duration: 5000 })
+      const canContinue = await guardStocPentruInLivrare(kgNecesar)
+      if (!canContinue) {
         return
       }
     }
@@ -1935,10 +1981,8 @@ export function ComenziPageClient() {
       const shopOrder = shopOrders.find((row) => row.id === id)
       const unified = shopOrder ? mapShopToUnified(shopOrder) : null
       const kgNecesar = unified ? getUnifiedOrderNeedKg(unified) : 0
-      try {
-        await checkStocPentruInLivrare(kgNecesar)
-      } catch (err) {
-        toast((err as Error).message, { duration: 5000 })
+      const canContinue = await guardStocPentruInLivrare(kgNecesar)
+      if (!canContinue) {
         return
       }
     }
@@ -2308,10 +2352,8 @@ export function ComenziPageClient() {
           }
 
           if (values.status === 'in_livrare') {
-            try {
-              await checkStocPentruInLivrare(cantitate)
-            } catch (err) {
-              toast((err as Error).message, { duration: 5000 })
+            const canContinue = await guardStocPentruInLivrare(cantitate)
+            if (!canContinue) {
               return
             }
           }
@@ -2357,10 +2399,8 @@ export function ComenziPageClient() {
           }
 
           if (values.status === 'in_livrare') {
-            try {
-              await checkStocPentruInLivrare(cantitate)
-            } catch (err) {
-              toast((err as Error).message, { duration: 5000 })
+            const canContinue = await guardStocPentruInLivrare(cantitate)
+            if (!canContinue) {
               return
             }
           }
@@ -2480,6 +2520,45 @@ export function ComenziPageClient() {
         confirmText="Redeschide"
         loading={reopenMutation.isPending}
       />
+
+      <AlertDialog
+        open={stocInsuficientModal !== null}
+        onOpenChange={(open) => {
+          if (!open) setStocInsuficientModal(null)
+        }}
+      >
+        <AlertDialogContent className="max-w-md sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Stoc insuficient</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm leading-relaxed text-[var(--agri-text-muted)]">
+                <p>
+                  Disponibil: {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)} (total{' '}
+                  {formatKgOneDecimal(stocInsuficientModal?.totalKg ?? 0)}, în livrare:{' '}
+                  {formatKgOneDecimal(stocInsuficientModal?.inLivrareKg ?? 0)})
+                </p>
+                <p>
+                  Necesar pentru această comandă:{' '}
+                  {formatKgOneDecimal(stocInsuficientModal?.necesarKg ?? 0)}
+                </p>
+                <p>Adaugă o recoltare sau reduce comenzile active înainte de a continua.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end">
+            <AlertDialogCancel className="w-full sm:w-auto">Închide</AlertDialogCancel>
+            <AlertDialogAction
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setStocInsuficientModal(null)
+                router.push('/recoltari')
+              }}
+            >
+              Mergi la Recoltări
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   )
 }

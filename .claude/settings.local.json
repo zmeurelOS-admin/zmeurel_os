@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "*",
       "Bash(xargs grep:*)",
       "Bash(head -3 grep -n \"^import { \" src/components/vanzari-butasi/AddVanzareButasiDialog.tsx)",
       "Bash(head -3 grep -n \"^import { \" src/components/investitii/AddInvestitieDialog.tsx)",
@@ -21,7 +20,12 @@
       "Bash(npx vitest *)",
       "Bash(npx next *)",
       "Bash(npm run *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(grep -E \"^C:\\\\\\\\\\\\\\\\.*recoltari|^C:\\\\\\\\\\\\\\\\.*culegatori|error|warning\")",
+      "mcp__claude_ai_Supabase__execute_sql"
     ],
     "deny": [],
     "ask": [],

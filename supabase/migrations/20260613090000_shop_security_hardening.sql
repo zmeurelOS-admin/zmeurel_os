@@ -16,13 +16,32 @@
 -- 2B — REVOKE
 -- ============================================================
 
-revoke execute on function public.upsert_shop_customer(
-  uuid, text, text, text, text, text, numeric
-) from public, anon, authenticated;
+do $$
+begin
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'upsert_shop_customer'
+  ) then
+    revoke execute on function public.upsert_shop_customer(
+      uuid, text, text, text, text, text
+    ) from public, anon, authenticated;
+  end if;
 
-revoke execute on function public.set_shop_customer_acquisition_source_once(
-  uuid, text, text
-) from anon, authenticated;
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'set_shop_customer_acquisition_source_once'
+  ) then
+    revoke execute on function public.set_shop_customer_acquisition_source_once(
+      uuid, text, text
+    ) from public, anon, authenticated;
+  end if;
+end $$;
 
 -- ============================================================
 -- 2A — place_preorder_atomic with input validation

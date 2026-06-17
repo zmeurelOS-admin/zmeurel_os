@@ -83,10 +83,10 @@ describe('ShopClient volume pricing', () => {
     await user.click(qtyInput)
     await user.clear(qtyInput)
     await user.type(qtyInput, '0')
-    expect(screen.getByRole('button', { name: 'Precomandă acum · 20 lei' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comandă acum · 20 lei' })).toBeInTheDocument()
     await user.tab()
     expect(qtyInput).toHaveValue(0)
-    expect(screen.getByRole('button', { name: 'Precomandă acum · 0 lei' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comandă acum · 0 lei' })).toBeInTheDocument()
 
     await user.click(qtyInput)
     await user.clear(qtyInput)
@@ -124,15 +124,15 @@ describe('ShopClient volume pricing', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
+    await user.click(screen.getByRole('button', { name: 'Comandă acum' }))
 
     expect(
       screen.getByText(
-        'Aceasta este o precomandă. Vei fi contactat telefonic pentru confirmare. Plata se face cash la livrare, nu în avans.',
+        'Vei fi contactat telefonic pentru confirmare. Plata se face cash la livrare, nu în avans.',
       ),
     ).toBeInTheDocument()
 
-    const submitButton = screen.getByRole('button', { name: 'Trimite precomanda' })
+    const submitButton = screen.getByRole('button', { name: 'Trimite comanda' })
     expect(submitButton).toBeDisabled()
 
     const phoneInput = screen.getByPlaceholderText('07xx xxx xxx')
@@ -146,8 +146,8 @@ describe('ShopClient volume pricing', () => {
 
     await user.clear(phoneInput)
     await user.type(phoneInput, '+40 722 123 456')
-    expect(screen.getByText('Selectează zona de livrare.')).toBeInTheDocument()
-    expect(submitButton).toBeDisabled()
+    expect(screen.queryByText(/Selectează zona de livrare/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Comanda minimă pentru livrare/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Ridicare' }))
     expect(submitButton).toBeEnabled()
@@ -221,11 +221,11 @@ describe('ShopClient volume pricing', () => {
 
     expect(await screen.findByText('498')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
-    await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
+    await user.click(screen.getByRole('button', { name: 'Comandă acum' }))
     await user.type(screen.getByRole('textbox', { name: 'Nume' }), 'Ion Popescu')
     await user.type(screen.getByPlaceholderText('07xx xxx xxx'), '0722123456')
     await user.click(screen.getByRole('button', { name: 'Ridicare' }))
-    await user.click(screen.getByRole('button', { name: 'Trimite precomanda' }))
+    await user.click(screen.getByRole('button', { name: 'Trimite comanda' }))
 
     expect(await screen.findByText('Felicitări!')).toBeInTheDocument()
     const checkoutSheet = screen.getByRole('dialog')
@@ -248,7 +248,7 @@ describe('ShopClient volume pricing', () => {
     expect(JSON.parse(String(orderCall?.[1]?.body))).not.toHaveProperty('inSuceava')
   })
 
-  it('aplică live minimul de cantitate pentru zona de livrare', async () => {
+  it('nu mai afișează sau blochează minimul de comandă pe localitate', async () => {
     const user = userEvent.setup()
 
     render(
@@ -269,26 +269,25 @@ describe('ShopClient volume pricing', () => {
     )
 
     await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
-    await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
+    await user.click(screen.getByRole('button', { name: 'Comandă acum' }))
     await user.type(screen.getByRole('textbox', { name: 'Nume' }), 'Ion Popescu')
     await user.type(screen.getByPlaceholderText('07xx xxx xxx'), '0722123456')
     await user.click(screen.getByRole('button', { name: 'Livrare' }))
 
-    const submitButton = screen.getByRole('button', { name: 'Trimite precomanda' })
-    expect(screen.getByText('Selectează zona de livrare.')).toBeInTheDocument()
-    expect(submitButton).toBeDisabled()
-
-    await user.click(screen.getByRole('button', { name: 'Suceava' }))
-    expect(
-      screen.queryByText('Comanda minimă pentru livrare în Suceava este de 2 caserole (1 kg).'),
-    ).not.toBeInTheDocument()
+    const submitButton = screen.getByRole('button', { name: 'Trimite comanda' })
     expect(submitButton).toBeEnabled()
 
-    await user.click(screen.getByRole('button', { name: 'În afara Sucevei' }))
-    expect(
-      screen.getByText('Comanda minimă pentru livrare în afara Sucevei este de 4 caserole (2 kg).'),
-    ).toBeInTheDocument()
-    expect(submitButton).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Dumbrăveni' }))
+    expect(screen.queryByText(/Comanda minimă pentru livrare/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Selectează zona de livrare/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/— minim /i)).not.toBeInTheDocument()
+    expect(submitButton).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Verești' }))
+    expect(screen.queryByText(/Comanda minimă pentru livrare/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Selectează zona de livrare/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/— minim /i)).not.toBeInTheDocument()
+    expect(submitButton).toBeEnabled()
   })
 
   it('cere confirmare pentru o comandă recentă și păstrează aceeași cheie idempotentă', async () => {
@@ -352,11 +351,11 @@ describe('ShopClient volume pricing', () => {
     )
 
     await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
-    await user.click(screen.getByRole('button', { name: 'Precomandă acum' }))
+    await user.click(screen.getByRole('button', { name: 'Comandă acum' }))
     await user.type(screen.getByRole('textbox', { name: 'Nume' }), 'Ion Popescu')
     await user.type(screen.getByPlaceholderText('07xx xxx xxx'), '0722123456')
     await user.click(screen.getByRole('button', { name: 'Ridicare' }))
-    await user.click(screen.getByRole('button', { name: 'Trimite precomanda' }))
+    await user.click(screen.getByRole('button', { name: 'Trimite comanda' }))
 
     expect(await screen.findByText('Ai mai plasat o comandă recent')).toBeInTheDocument()
     expect(
@@ -368,11 +367,11 @@ describe('ShopClient volume pricing', () => {
     expect(screen.queryByText('Ai mai plasat o comandă recent')).not.toBeInTheDocument()
     expect(fetchSpy.mock.calls.some(([input]) => String(input).endsWith('/api/shop/b2c/order'))).toBe(false)
 
-    await user.click(screen.getByRole('button', { name: 'Trimite precomanda' }))
+    await user.click(screen.getByRole('button', { name: 'Trimite comanda' }))
     expect(await screen.findByText('Ai mai plasat o comandă recent')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Da, trimite comandă nouă' }))
 
-    expect(await screen.findByText('Precomandă înregistrată')).toBeInTheDocument()
+    expect(await screen.findByText('Comandă înregistrată')).toBeInTheDocument()
     const orderCall = fetchSpy.mock.calls.find(([input]) => String(input).endsWith('/api/shop/b2c/order'))
     expect(JSON.parse(String(orderCall?.[1]?.body))).toEqual(
       expect.objectContaining({

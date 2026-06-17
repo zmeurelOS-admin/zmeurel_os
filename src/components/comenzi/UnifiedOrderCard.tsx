@@ -145,7 +145,11 @@ export function UnifiedOrderCard({
     ? '#E8A020'
     : isShop
       ? '#F16B6B'
-      : '#3B7DD8'
+      : item.clientTip === 'patiserie'
+        ? '#9333EA'
+        : item.clientTip === 'magazin'
+          ? '#059669'
+          : '#3B7DD8'
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
 
   const markShopNotified = () => {

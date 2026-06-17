@@ -121,37 +121,49 @@ export async function POST(request: Request) {
   let milestoneResult: z.infer<typeof preorderResultSchema> | null = null
 
   if (campaign_id) {
-    const { data, error } = (await admin.rpc(
+    const preorderRpcArgs = {
+      p_campaign_id: campaign_id,
+      p_tenant_id: configuredTenantId,
+      p_customer_name: customer_name,
+      p_customer_phone: normalizedCustomerPhone,
+      p_delivery_mode: delivery_mode,
+      p_delivery_address: (delivery_address?.trim() || null) as unknown as string,
+      p_delivery_city: (delivery_city?.trim() || null) as unknown as string,
+      p_items: normalizedItems as Json,
+      p_total_lei: totalLei,
+      p_notes: (notes?.trim() || null) as unknown as string,
+      p_idempotency_key: idempotencyKey ?? null,
+      ...(delivery_mode === 'livrare' ? { p_in_suceava: inSuceava ?? null } : {}),
+      p_preferred_delivery_date:
+        delivery_mode === 'livrare' ? preferredDeliveryDate ?? null : null,
+    }
+
+    let rpcResult = (await admin.rpc(
       'place_preorder_atomic' as never,
-      {
-        p_campaign_id: campaign_id,
-        p_tenant_id: configuredTenantId,
-        p_customer_name: customer_name,
-        p_customer_phone: normalizedCustomerPhone,
-        p_delivery_mode: delivery_mode,
-        p_delivery_address: (delivery_address?.trim() || null) as unknown as string,
-        p_delivery_city: (delivery_city?.trim() || null) as unknown as string,
-        p_items: normalizedItems as Json,
-        p_total_lei: totalLei,
-        p_notes: (notes?.trim() || null) as unknown as string,
-        p_idempotency_key: idempotencyKey ?? null,
-        ...(delivery_mode === 'livrare' ? { p_in_suceava: inSuceava ?? null } : {}),
-        p_preferred_delivery_date:
-          delivery_mode === 'livrare' ? preferredDeliveryDate ?? null : null,
-      } as never,
+      preorderRpcArgs as never,
     )) as { data: unknown; error: { message?: string } | null }
-    const parsedResult = preorderResultSchema.safeParse(data)
+    let parsedResult = preorderResultSchema.safeParse(rpcResult.data)
 
-    if (error || !parsedResult.success) {
-      if (error?.message?.startsWith('Comanda minimă pentru livrare')) {
-        return errorResponse(error.message, 400)
-      }
+    if (
+      delivery_mode === 'livrare' &&
+      rpcResult.error?.message?.startsWith('Comanda minimă pentru livrare')
+    ) {
+      rpcResult = (await admin.rpc(
+        'place_preorder_atomic' as never,
+        {
+          ...preorderRpcArgs,
+          p_in_suceava: null,
+        } as never,
+      )) as { data: unknown; error: { message?: string } | null }
+      parsedResult = preorderResultSchema.safeParse(rpcResult.data)
+    }
 
+    if (rpcResult.error || !parsedResult.success) {
       console.error(
         '[shop/b2c/order] preorder RPC failed',
         sanitizeForLog(
           toSafeErrorContext(
-            error ?? {
+            rpcResult.error ?? {
               message: 'invalid place_preorder_atomic response',
               issues: parsedResult.success ? undefined : parsedResult.error.issues,
             },
