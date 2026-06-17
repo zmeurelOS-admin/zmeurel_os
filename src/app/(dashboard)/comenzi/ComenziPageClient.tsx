@@ -112,6 +112,7 @@ type ComenziOrderGroup = {
 }
 
 const KG_PER_CASEROLĂ = 0.5
+const clientiComenziQueryKey = [...queryKeys.clienti, 'comenzi-dialog'] as const
 
 function round2(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100
@@ -1372,7 +1373,7 @@ export function ComenziPageClient() {
   })
 
   const { data: clienti = [] } = useQuery({
-    queryKey: queryKeys.clienti,
+    queryKey: clientiComenziQueryKey,
     queryFn: getClienți,
   })
 
@@ -1489,6 +1490,7 @@ export function ComenziPageClient() {
       createClienți(input, { onDuplicateWarning }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+      queryClient.invalidateQueries({ queryKey: clientiComenziQueryKey })
       hapticSuccess()
       toast.success('Client salvat')
       setAddClientOpen(false)
