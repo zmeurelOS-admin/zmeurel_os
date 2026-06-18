@@ -8,7 +8,9 @@ import { Check, ChevronDown, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
+import { ComenziDinMesajSheet, type ParsedOrder } from './ComenziDinMesajSheet'
 import { ComandaFormSummary } from '@/components/comenzi/ComandaFormSummary'
+import { ComenziSpeedDial } from './ComenziSpeedDial'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import {
   AlertDialog,
@@ -65,6 +67,7 @@ import { useAddAction } from '@/contexts/AddActionContext'
 import { track } from '@/lib/analytics/track'
 import { spacing } from '@/lib/design-tokens'
 import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
+import { getSupabase } from '@/lib/supabase/client'
 import {
   COMENZI_STATUSES,
   createComanda,
@@ -81,6 +84,7 @@ import {
 } from '@/lib/supabase/queries/comenzi'
 import { getStocGlobal } from '@/lib/supabase/queries/miscari-stoc'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
+import { getTenantId } from '@/lib/tenant/get-tenant'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
@@ -1333,6 +1337,9 @@ export function ComenziPageClient() {
   const [section, setSection] = useState<PageSection>(() =>
     searchParams.get('section') === 'waitlist' ? 'waitlist' : 'comenzi',
   )
+  const [speedDialOpen, setSpeedDialOpen] = useState(false)
+  const [dinMesajOpen, setDinMesajOpen] = useState(false)
+  const [pendingParsedClient, setPendingParsedClient] = useState<ParsedOrder | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [editingOrder, setEditingOrder] = useState<UnifiedOrderItem | null>(null)
@@ -1443,9 +1450,48 @@ export function ComenziPageClient() {
     return map
   }, [clienti])
 
+  const attachParsedClientToOrder = useCallback(async (comandaId: string, parsedClient: ParsedOrder) => {
+    const clientName = parsedClient.nume?.trim()
+    if (!clientName) {
+      toast.warning('Comanda salvată. Clientul nu a putut fi salvat automat.')
+      return
+    }
+
+    try {
+      const createdClient = await createClienți({
+        nume_client: clientName,
+        telefon: parsedClient.telefon ?? undefined,
+        adresa: parsedClient.localitate ?? undefined,
+        tip: parsedClient.tip_client,
+      })
+
+      const supabase = getSupabase()
+      const tenantId = await getTenantId(supabase)
+      const { error: updateError } = await supabase
+        .from('comenzi')
+        .update({ client_id: createdClient.id })
+        .eq('id', comandaId)
+        .eq('tenant_id', tenantId)
+
+      if (updateError) {
+        console.error('[comenzi] Clientul a fost creat, dar comanda nu a putut fi legată.', updateError)
+        toast.warning('Clientul a fost salvat, dar comanda nu a putut fi legată automat.')
+      } else {
+        toast('✓ Client salvat automat', { duration: 3000 })
+      }
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+      queryClient.invalidateQueries({ queryKey: clientiComenziQueryKey })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+    } catch (error) {
+      console.error('[comenzi] Clientul extras din mesaj nu a putut fi salvat.', error)
+      toast.warning('Comanda salvată. Clientul nu a putut fi salvat automat.')
+    }
+  }, [queryClient])
+
   const createMutation = useMutation({
     mutationFn: createComanda,
-    onSuccess: (_, variables) => {
+    onSuccess: async (createdComanda, variables) => {
       clearComandaFormQueryParams()
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
@@ -1469,6 +1515,11 @@ export function ComenziPageClient() {
           : undefined,
       })
       setAddOpen(false)
+      const parsedClient = pendingParsedClient
+      setPendingParsedClient(null)
+      if (parsedClient) {
+        await attachParsedClientToOrder(createdComanda.id, parsedClient)
+      }
     },
     onError: (err: Error) => {
       hapticError()
@@ -1675,7 +1726,7 @@ export function ComenziPageClient() {
   useEffect(() => {
     if (section !== 'comenzi') return
     const unregister = registerAddAction(() => {
-      setAddOpen(true)
+      setSpeedDialOpen(true)
     }, 'Adaugă comandă')
     return unregister
   }, [registerAddAction, section])
@@ -2300,6 +2351,24 @@ export function ComenziPageClient() {
         ) : null}
       </DashboardContentShell>
 
+      <ComenziSpeedDial
+        open={speedDialOpen}
+        onOpenChange={setSpeedDialOpen}
+        onNewOrder={() => {
+          setPendingParsedClient(null)
+          setAddOpen(true)
+        }}
+        onFromMessage={() => setDinMesajOpen(true)}
+      />
+
+      <ComenziDinMesajSheet
+        open={dinMesajOpen}
+        onOpenChange={setDinMesajOpen}
+        onComandaCreata={(_, clientNou) => {
+          setPendingParsedClient(clientNou)
+        }}
+      />
+
       {editingOrder ? (
         <EditOrderSheet
           open
@@ -2328,6 +2397,7 @@ export function ComenziPageClient() {
         onOpenChange={(open) => {
           if (!open) {
             setAddOpen(false)
+            setPendingParsedClient(null)
             clearComandaFormQueryParams()
             return
           }
