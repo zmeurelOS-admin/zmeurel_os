@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { buildLoginUrl } from '@/lib/auth/redirects'
+import {
+  firstAllowedRoute,
+  getAccessForPath,
+  isOperatorHardBlockedPath,
+  isPathAllowedForAccess,
+  normalizeFarmMemberAccess,
+} from '@/lib/farm-members/access'
+import { getSupabaseAdmin } from '@/lib/supabase/admin'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
@@ -40,24 +48,6 @@ function normalizeHost(host: string | null): string {
 
 function isPublicShopHost(request: NextRequest): boolean {
   return normalizeHost(request.headers.get('host')) === SHOP_DOMAIN
-}
-
-const OPERATOR_BLOCKED_ROUTE_PREFIXES = [
-  '/vanzari',
-  '/finante',
-  '/stocuri',
-  '/parcele',
-  '/rapoarte',
-  '/setari',
-  '/settings',
-  '/administrare',
-  '/admin',
-]
-
-function isOperatorBlockedRoute(pathname: string): boolean {
-  return OPERATOR_BLOCKED_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
 }
 
 /** Document routes with no session, tenant, or auth cookie handling in proxy. */
@@ -152,6 +142,7 @@ export async function proxy(request: NextRequest) {
     pathname === '/termeni' ||
     pathname === '/confidentialitate' ||
     pathname.startsWith('/auth/') ||
+    pathname.startsWith('/invite/') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/update-password') ||
     pathname === '/comanda' ||
@@ -160,6 +151,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/magazin') ||
     pathname.startsWith('/api/shop') ||
     pathname.startsWith('/api/livrator/') ||
+    pathname === '/api/invite/accept' ||
     pathname === '/api/auth/beta-signup' ||
     pathname === '/api/auth/beta-guest' ||
     pathname.startsWith('/api/cron/') ||
@@ -219,6 +211,15 @@ export async function proxy(request: NextRequest) {
   }
 
   let tenantId: string | null = null
+  let operatorMember:
+    | {
+        tenant_id: string
+        role: string
+        modules_access: unknown
+      }
+    | null = null
+  let operatorAccess = normalizeFarmMemberAccess(null)
+  let operatorFirstRoute = '/comenzi'
 
   try {
     tenantId = await getTenantIdByUserIdOrNull(supabase, user.id)
@@ -229,6 +230,47 @@ export async function proxy(request: NextRequest) {
       message: error instanceof Error ? error.message : 'unknown',
     })
     return supabaseResponse
+  }
+
+  try {
+    const admin = getSupabaseAdmin()
+    const [{ data: ownedTenant }, { data: member, error: memberError }] = await Promise.all([
+      admin
+        .from('tenants')
+        .select('id')
+        .eq('owner_user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .from('farm_members' as any)
+        .select('tenant_id, role, modules_access')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .eq('role', 'operator')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    const farmMember = member as unknown as { tenant_id?: string; role?: string; modules_access?: unknown } | null
+    if (!memberError && !ownedTenant?.id && farmMember?.tenant_id) {
+      operatorMember = {
+        tenant_id: farmMember.tenant_id,
+        role: farmMember.role ?? 'operator',
+        modules_access: farmMember.modules_access,
+      }
+      operatorAccess = normalizeFarmMemberAccess(operatorMember.modules_access, { legacyFallback: true })
+      operatorFirstRoute = firstAllowedRoute(operatorAccess)
+      tenantId = operatorMember.tenant_id
+    }
+  } catch (error) {
+    console.error('[proxy] farm member lookup failed', {
+      pathname,
+      userId: user.id,
+      message: error instanceof Error ? error.message : 'unknown',
+    })
   }
 
   requestHeaders.set('x-zmeurel-user-id', user.id)
@@ -245,44 +287,42 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === '/login' || pathname === '/register' || pathname === '/reset-password-request') {
-    return redirectTo(request, tenantId ? '/dashboard' : '/start')
+    return redirectTo(request, operatorMember ? operatorFirstRoute : tenantId ? '/dashboard' : '/start')
   }
 
   if (pathname === '/start') {
-    return supabaseResponse
+    return operatorMember ? redirectTo(request, operatorFirstRoute) : supabaseResponse
   }
 
   if (!tenantId && !isPublicRoute && !isApiRoute) {
     return redirectTo(request, '/start')
   }
 
-  if (tenantId) {
-    try {
-      // `farm_members` is newer than the generated Supabase types in this branch.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const farmMembersClient = supabase as any
-      const { data, error } = await farmMembersClient
-        .from('farm_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
+  if (operatorMember) {
+    requestHeaders.set('x-zmeurel-member-role', 'operator')
+    requestHeaders.set('x-zmeurel-member-modules', operatorAccess.map((item) => `${item.module}:${item.level}`).join(','))
 
-      if (!error && data?.role === 'operator') {
-        requestHeaders.set('x-zmeurel-member-role', 'operator')
-        if (isOperatorBlockedRoute(pathname)) {
-          return redirectTo(request, '/comenzi')
-        }
-      } else {
-        requestHeaders.delete('x-zmeurel-member-role')
-      }
-    } catch {
-      // Fail open: dacă verificarea rolului eșuează, păstrăm comportamentul existent.
-      requestHeaders.delete('x-zmeurel-member-role')
+    const pathAccess = getAccessForPath(pathname, operatorAccess)
+    if (pathAccess) {
+      requestHeaders.set('x-zmeurel-access-module', pathAccess.module)
+      requestHeaders.set('x-zmeurel-access-level', pathAccess.level)
+      requestHeaders.set(`x-zmeurel-access-level-${pathAccess.module}`, pathAccess.level)
+    } else {
+      requestHeaders.delete('x-zmeurel-access-module')
+      requestHeaders.delete('x-zmeurel-access-level')
+    }
+
+    if (
+      isOperatorHardBlockedPath(pathname) ||
+      (!isPublicRoute && !isApiRoute && !isPathAllowedForAccess(pathname, operatorAccess))
+    ) {
+      return redirectTo(request, operatorFirstRoute)
     }
   } else {
     requestHeaders.delete('x-zmeurel-member-role')
+    requestHeaders.delete('x-zmeurel-member-modules')
+    requestHeaders.delete('x-zmeurel-access-module')
+    requestHeaders.delete('x-zmeurel-access-level')
   }
 
   // User is authenticated, allow access to protected routes

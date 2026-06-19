@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { ensureTenantForUser, normalizeFarmName } from '@/lib/auth/ensure-tenant'
+import { acceptFarmInviteForUser } from '@/lib/farm-members/invite-accept'
 import { sanitizeForLog, toSafeErrorContext } from '@/lib/logging/redaction'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
@@ -107,6 +108,16 @@ function buildRedirect(baseUrl: string, path: string, query?: Record<string, str
   return target.toString()
 }
 
+function buildInviteDisplayName(user: CallbackUser): string {
+  const metadataName =
+    typeof user.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name
+      : typeof user.user_metadata?.name === 'string'
+        ? user.user_metadata.name
+        : null
+  return (metadataName?.trim() || user.email || 'Operator').slice(0, 120)
+}
+
 function toLoginErrorRedirect(baseUrl: string, errorValue: string) {
   return buildRedirect(baseUrl, '/login', { error: errorValue })
 }
@@ -205,6 +216,7 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const type = searchParams.get('type')
   const nextParam = searchParams.get('next')
+  const inviteToken = searchParams.get('invite_token')
   const oauthError = searchParams.get('error')
   const oauthErrorCode = searchParams.get('error_code')
   const oauthErrorDescription = searchParams.get('error_description')
@@ -275,6 +287,17 @@ export async function GET(request: NextRequest) {
 
       let resolvedTenantId: string | null = null
       if (user && (type === 'email' || type === 'signup')) {
+        if (inviteToken) {
+          const accepted = await acceptFarmInviteForUser({
+            token: inviteToken,
+            userId: user.id,
+            name: buildInviteDisplayName(user),
+          })
+          if (!accepted.ok) {
+            return NextResponse.redirect(buildRedirect(baseUrl, `/invite/${encodeURIComponent(inviteToken)}`))
+          }
+          return NextResponse.redirect(buildRedirect(baseUrl, accepted.redirectTo))
+        }
         const onboardingRedirect = await completeOnboardingForUser(supabase, user, baseUrl)
         if (onboardingRedirect) return onboardingRedirect
         resolvedTenantId = await getTenantIdByUserIdOrNull(asDbClient(supabase), user.id)
@@ -335,6 +358,23 @@ export async function GET(request: NextRequest) {
           hasUser: false,
         })
         return NextResponse.redirect(toLoginErrorRedirect(baseUrl, 'oauth_callback_failed'))
+      }
+
+      if (inviteToken) {
+        const accepted = await acceptFarmInviteForUser({
+          token: inviteToken,
+          userId: user.id,
+          name: buildInviteDisplayName(user),
+        })
+        if (!accepted.ok) {
+          return NextResponse.redirect(buildRedirect(baseUrl, `/invite/${encodeURIComponent(inviteToken)}`))
+        }
+        const inviteTarget = buildRedirect(baseUrl, accepted.redirectTo)
+        logInfo('redirect.final', {
+          target: inviteTarget,
+          reason: 'invite_oauth_code_flow',
+        })
+        return NextResponse.redirect(inviteTarget)
       }
 
       const onboardingRedirect = await completeOnboardingForUser(supabase, user, baseUrl)

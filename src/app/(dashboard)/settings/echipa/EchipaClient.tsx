@@ -1,11 +1,21 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Loader2, MessageCircle, MoreHorizontal, RefreshCw, UserPlus, UsersRound } from 'lucide-react'
+import { Copy, Loader2, MessageCircle, MoreHorizontal, RefreshCw, Settings2, UserPlus, UsersRound } from 'lucide-react'
 
+import { AppDrawer } from '@/components/app/AppDrawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  FARM_MEMBER_MODULE_LABELS,
+  FARM_MEMBER_MODULES,
+  normalizeFarmMemberAccess,
+  type FarmMemberAccessLevel,
+  type FarmMemberModule,
+  type FarmMemberModuleAccess,
+} from '@/lib/farm-members/access'
 import { toast } from '@/lib/ui/toast'
 
 type FarmMemberRole = 'operator' | 'livrator'
@@ -17,6 +27,7 @@ type FarmMember = {
   name: string
   phone: string | null
   invite_token: string | null
+  modules_access?: unknown
 }
 
 type GeneratedInvite = {
@@ -24,7 +35,10 @@ type GeneratedInvite = {
   phone?: string | null
   inviteUrl: string
   token: string
+  role: FarmMemberRole
 }
+
+type AccessDraft = Record<FarmMemberModule, { enabled: boolean; level: FarmMemberAccessLevel }>
 
 function roleLabel(role: FarmMemberRole): string {
   return role === 'operator' ? 'Operator' : 'Livrator'
@@ -59,6 +73,47 @@ Deschide-l pe telefon înainte de fiecare zi de livrări.
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
 }
 
+function buildOperatorWaUrl(invite: GeneratedInvite): string {
+  const text = `Salut!
+Ți-am pregătit acces de operator în Zmeurel OS:
+${invite.inviteUrl}
+
+Deschide linkul și creează-ți contul pentru a lucra în ferma mea.`
+  return `https://wa.me/?text=${encodeURIComponent(text)}`
+}
+
+function createAccessDraft(defaultEnabled = false): AccessDraft {
+  return FARM_MEMBER_MODULES.reduce((draft, module) => {
+    draft[module] = { enabled: defaultEnabled, level: 'write' }
+    return draft
+  }, {} as AccessDraft)
+}
+
+function createDefaultOperatorDraft(): AccessDraft {
+  const draft = createAccessDraft(false)
+  draft.comenzi.enabled = true
+  draft.livrari.enabled = true
+  return draft
+}
+
+function accessToDraft(value: unknown, legacyFallback = false): AccessDraft {
+  const draft = createAccessDraft(false)
+  for (const item of normalizeFarmMemberAccess(value, { legacyFallback })) {
+    draft[item.module] = { enabled: true, level: item.level }
+  }
+  return draft
+}
+
+function draftToModules(draft: AccessDraft): FarmMemberModuleAccess[] {
+  return FARM_MEMBER_MODULES.flatMap((module) =>
+    draft[module].enabled ? [{ module, level: draft[module].level }] : [],
+  )
+}
+
+function accessLevelLabel(level: FarmMemberAccessLevel): string {
+  return level === 'write' ? 'scriere' : 'citire'
+}
+
 function getApiErrorMessage(error: string | undefined, fallback: string): string {
   switch (error) {
     case 'no_account':
@@ -91,7 +146,7 @@ function RoleBadge({ role }: { role: FarmMemberRole }) {
 }
 
 function InviteResult({ invite }: { invite: GeneratedInvite }) {
-  const waUrl = buildLivratorWaUrl(invite)
+  const waUrl = invite.role === 'livrator' ? buildLivratorWaUrl(invite) : buildOperatorWaUrl(invite)
 
   return (
     <div className="rounded-2xl border border-[var(--success-border)] bg-[var(--success-bg)] p-3">
@@ -126,16 +181,249 @@ function InviteResult({ invite }: { invite: GeneratedInvite }) {
   )
 }
 
+function AccessPills({ access }: { access: unknown }) {
+  const modules = normalizeFarmMemberAccess(access, { legacyFallback: true })
+  if (modules.length === 0) {
+    return <p className="mt-3 text-xs font-medium text-[var(--text-tertiary)]">Fără module active.</p>
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5">
+      {modules.map((item) => (
+        <span
+          key={item.module}
+          className="rounded-full border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)]"
+        >
+          {FARM_MEMBER_MODULE_LABELS[item.module]} · {accessLevelLabel(item.level)}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ModuleAccessEditor({
+  draft,
+  onChange,
+  disabled,
+}: {
+  draft: AccessDraft
+  onChange: (draft: AccessDraft) => void
+  disabled?: boolean
+}) {
+  const updateModule = (
+    module: FarmMemberModule,
+    patch: Partial<{ enabled: boolean; level: FarmMemberAccessLevel }>,
+  ) => {
+    onChange({
+      ...draft,
+      [module]: {
+        ...draft[module],
+        ...patch,
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      {FARM_MEMBER_MODULES.map((module) => {
+        const value = draft[module]
+        return (
+          <div
+            key={module}
+            className="grid gap-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] p-3 sm:grid-cols-[1fr_150px]"
+          >
+            <label className="flex min-h-11 items-center gap-3">
+              <input
+                type="checkbox"
+                className="h-5 w-5 rounded border-[var(--border-default)]"
+                checked={value.enabled}
+                disabled={disabled}
+                onChange={(event) => updateModule(module, { enabled: event.target.checked })}
+              />
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                {FARM_MEMBER_MODULE_LABELS[module]}
+              </span>
+            </label>
+            <Select
+              value={value.level}
+              disabled={disabled || !value.enabled}
+              onValueChange={(level) => updateModule(module, { level: level as FarmMemberAccessLevel })}
+            >
+              <SelectTrigger className="min-h-11 bg-[var(--surface-card)]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="read">Citire</SelectItem>
+                <SelectItem value="write">Citire + scriere</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function OperatorInviteDrawer({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onCreated: (invite: GeneratedInvite) => void
+}) {
+  const [draft, setDraft] = useState<AccessDraft>(() => createDefaultOperatorDraft())
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    const modules = draftToModules(draft)
+    if (modules.length === 0) {
+      toast.error('Alege cel puțin un modul pentru operator.')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch('/api/farm-members/create-invite', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modules }),
+      })
+      const json = (await res.json().catch(() => null)) as { error?: string; invite_url?: string } | null
+      if (!res.ok || !json?.invite_url) {
+        throw new Error(getApiErrorMessage(json?.error, 'Nu am putut genera invitația.'))
+      }
+      onCreated({
+        name: 'operator',
+        role: 'operator',
+        token: '',
+        inviteUrl: json.invite_url,
+      })
+      setDraft(createDefaultOperatorDraft())
+      onOpenChange(false)
+      toast.success('Link de operator generat.')
+    } catch (error) {
+      toast.error((error as { message?: string })?.message ?? 'Nu am putut genera invitația.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <AppDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Invită operator"
+      description="Alege modulele vizibile și nivelul de acces pentru contul nou."
+      showCloseButton
+      desktopFormWide
+      footer={
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Renunță
+          </Button>
+          <Button type="button" disabled={busy} onClick={() => void submit()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+            Generează link
+          </Button>
+        </div>
+      }
+    >
+      <ModuleAccessEditor draft={draft} onChange={setDraft} disabled={busy} />
+    </AppDrawer>
+  )
+}
+
+function ManageAccessDrawer({
+  member,
+  open,
+  onOpenChange,
+  onSaved,
+}: {
+  member: FarmMember | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSaved: (memberId: string, modules: FarmMemberModuleAccess[]) => void
+}) {
+  const [draft, setDraft] = useState<AccessDraft>(() => createDefaultOperatorDraft())
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (member) {
+      setDraft(accessToDraft(member.modules_access, true))
+    }
+  }, [member])
+
+  const submit = async () => {
+    if (!member) return
+    const modules = draftToModules(draft)
+    if (modules.length === 0) {
+      toast.error('Alege cel puțin un modul pentru operator.')
+      return
+    }
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/farm-members/${member.id}/access`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modules }),
+      })
+      const json = (await res.json().catch(() => null)) as {
+        error?: string
+        modules?: FarmMemberModuleAccess[]
+      } | null
+      if (!res.ok || !json?.modules) {
+        throw new Error(getApiErrorMessage(json?.error, 'Nu am putut salva accesul.'))
+      }
+      onSaved(member.id, json.modules)
+      onOpenChange(false)
+      toast.success('Acces actualizat.')
+    } catch (error) {
+      toast.error((error as { message?: string })?.message ?? 'Nu am putut salva accesul.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <AppDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Gestionează acces"
+      description={member ? `Module pentru ${member.name}` : undefined}
+      showCloseButton
+      desktopFormWide
+      footer={
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Renunță
+          </Button>
+          <Button type="button" disabled={busy || !member} onClick={() => void submit()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+            Salvează accesul
+          </Button>
+        </div>
+      }
+    >
+      <ModuleAccessEditor draft={draft} onChange={setDraft} disabled={busy || !member} />
+    </AppDrawer>
+  )
+}
+
 function MemberCard({
   member,
   busy,
   onDeactivate,
   onRegenerate,
+  onManageAccess,
 }: {
   member: FarmMember
   busy: boolean
   onDeactivate: (member: FarmMember) => void
   onRegenerate: (member: FarmMember) => void
+  onManageAccess: (member: FarmMember) => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -148,6 +436,7 @@ function MemberCard({
             📞 {member.phone?.trim() || 'Telefon necompletat'}
           </p>
           <p className="mt-1 text-xs text-[var(--text-tertiary)]">Adăugat: {formatDate(member.created_at)}</p>
+          {member.role === 'operator' ? <AccessPills access={member.modules_access} /> : null}
         </div>
         <div className="flex shrink-0 items-start gap-2">
           <RoleBadge role={member.role} />
@@ -173,6 +462,20 @@ function MemberCard({
                     }}
                   >
                     Regenerează link
+                  </button>
+                ) : null}
+                {member.role === 'operator' ? (
+                  <button
+                    type="button"
+                    className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onManageAccess(member)
+                    }}
+                  >
+                    <Settings2 className="h-4 w-4" aria-hidden />
+                    Gestionează acces
                   </button>
                 ) : null}
                 <button
@@ -201,8 +504,8 @@ export function EchipaClient() {
   const [refreshing, setRefreshing] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  const [operatorEmail, setOperatorEmail] = useState('')
-  const [operatorBusy, setOperatorBusy] = useState(false)
+  const [operatorInviteOpen, setOperatorInviteOpen] = useState(false)
+  const [managingAccessMember, setManagingAccessMember] = useState<FarmMember | null>(null)
   const [livratorName, setLivratorName] = useState('')
   const [livratorPhone, setLivratorPhone] = useState('')
   const [livratorBusy, setLivratorBusy] = useState(false)
@@ -236,34 +539,6 @@ export function EchipaClient() {
     void loadMembers('initial')
   }, [])
 
-  const inviteOperator = async () => {
-    const email = operatorEmail.trim()
-    if (!email) {
-      toast.error('Introdu emailul operatorului.')
-      return
-    }
-    setOperatorBusy(true)
-    try {
-      const res = await fetch('/api/farm-members/invite-operator', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      const json = (await res.json().catch(() => null)) as { error?: string } | null
-      if (!res.ok) {
-        throw new Error(getApiErrorMessage(json?.error, 'Nu am putut adăuga operatorul.'))
-      }
-      toast.success('Operator adăugat. Se poate loga acum.')
-      setOperatorEmail('')
-      await loadMembers()
-    } catch (error) {
-      toast.error((error as { message?: string })?.message ?? 'Nu am putut adăuga operatorul.')
-    } finally {
-      setOperatorBusy(false)
-    }
-  }
-
   const inviteLivrator = async () => {
     const name = livratorName.trim()
     const phone = livratorPhone.trim()
@@ -288,7 +563,13 @@ export function EchipaClient() {
       if (!res.ok || !json?.token || !json.invite_url) {
         throw new Error(getApiErrorMessage(json?.error, 'Nu am putut genera linkul.'))
       }
-      const invite = { name, phone: phone || null, token: json.token, inviteUrl: json.invite_url }
+      const invite = {
+        name,
+        phone: phone || null,
+        token: json.token,
+        inviteUrl: json.invite_url,
+        role: 'livrator' as const,
+      }
       setGeneratedInvite(invite)
       setLivratorName('')
       setLivratorPhone('')
@@ -342,6 +623,7 @@ export function EchipaClient() {
         phone: member.phone,
         token: json.token,
         inviteUrl: json.invite_url,
+        role: 'livrator',
       })
       toast.success('Link regenerat.')
       await loadMembers()
@@ -350,6 +632,12 @@ export function EchipaClient() {
     } finally {
       setBusyId(null)
     }
+  }
+
+  const handleAccessSaved = (memberId: string, modules: FarmMemberModuleAccess[]) => {
+    setMembers((current) =>
+      current.map((item) => (item.id === memberId ? { ...item, modules_access: modules } : item)),
+    )
   }
 
   return (
@@ -394,6 +682,7 @@ export function EchipaClient() {
                 busy={busyId === member.id}
                 onDeactivate={deactivateMember}
                 onRegenerate={regenerateToken}
+                onManageAccess={setManagingAccessMember}
               />
             ))
           )}
@@ -406,36 +695,19 @@ export function EchipaClient() {
             <UserPlus className="h-5 w-5" aria-hidden />
           </span>
           <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)]">Operator — acces comenzi și livrări</h2>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Operator — acces pe module</h2>
             <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">
-              Persoana trebuie să aibă deja cont pe zmeurel.ro. Va putea adăuga și edita comenzi.
+              Generează un link de creare cont și alege exact modulele vizibile pentru operator.
             </p>
           </div>
         </div>
-        <div className="mt-4 space-y-2">
-          <Label htmlFor="operator-email">Email</Label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              id="operator-email"
-              type="email"
-              autoComplete="email"
-              className="min-h-11"
-              placeholder="nume@exemplu.ro"
-              value={operatorEmail}
-              onChange={(event) => setOperatorEmail(event.target.value)}
-            />
-            <Button
-              type="button"
-              className="min-h-11 shrink-0"
-              disabled={operatorBusy}
-              onClick={() => void inviteOperator()}
-            >
-              {operatorBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              Invită operator
-            </Button>
-          </div>
-        </div>
+        <Button type="button" className="mt-4 min-h-11 w-full" onClick={() => setOperatorInviteOpen(true)}>
+          <UserPlus className="h-4 w-4" aria-hidden />
+          Generează link operator
+        </Button>
       </section>
+
+      {generatedInvite ? <InviteResult invite={generatedInvite} /> : null}
 
       <section className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:p-6">
         <div className="flex items-start gap-3">
@@ -484,12 +756,21 @@ export function EchipaClient() {
           Generează link acces
         </Button>
 
-        {generatedInvite ? (
-          <div className="mt-4">
-            <InviteResult invite={generatedInvite} />
-          </div>
-        ) : null}
       </section>
+
+      <OperatorInviteDrawer
+        open={operatorInviteOpen}
+        onOpenChange={setOperatorInviteOpen}
+        onCreated={setGeneratedInvite}
+      />
+      <ManageAccessDrawer
+        member={managingAccessMember}
+        open={Boolean(managingAccessMember)}
+        onOpenChange={(open) => {
+          if (!open) setManagingAccessMember(null)
+        }}
+        onSaved={handleAccessSaved}
+      />
     </div>
   )
 }

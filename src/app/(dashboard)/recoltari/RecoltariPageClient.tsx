@@ -22,6 +22,7 @@ import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
 import { DesktopInspectorPanel, DesktopInspectorSection, DesktopSplitPane } from '@/components/ui/desktop'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
@@ -127,6 +128,7 @@ export function RecoltariPageClient({
   useTrackModuleView('recoltari')
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const { memberRole, accessLevel } = useDashboardAuth()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Recoltare; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
@@ -145,12 +147,15 @@ export function RecoltariPageClient({
   const searchParams = useSearchParams()
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = hasAiOpenForm(searchParams)
+  const isOperator = memberRole === 'operator'
+  const canWriteRecoltari = !isOperator || accessLevel === 'write'
+  const canDeleteRecoltari = !isOperator
   const queryAiPrefill = useMemo(
     () => (openFormFromQuery ? parseAiRecoltarePrefill(searchParams) : null),
     [openFormFromQuery, searchParams]
   )
   const resolvedAiPrefill = openFormFromQuery ? queryAiPrefill : aiPrefill
-  const isAddDialogOpen = addOpen || addFromQuery || openFormFromQuery
+  const isAddDialogOpen = canWriteRecoltari && (addOpen || addFromQuery || openFormFromQuery)
 
   const clearRecoltareFormQueryParams = useCallback(() => {
     const nextParams = new URLSearchParams(searchParams.toString())
@@ -310,9 +315,10 @@ export function RecoltariPageClient({
   }, [])
 
   useEffect(() => {
+    if (!canWriteRecoltari) return
     const unregister = registerAddAction(() => setAddOpen(true), 'Adauga recoltare')
     return unregister
-  }, [registerAddAction])
+  }, [canWriteRecoltari, registerAddAction])
 
   useEffect(() => {
     const query = searchTerm.trim()
@@ -326,6 +332,10 @@ export function RecoltariPageClient({
   }, [searchTerm])
 
   const scheduleDelete = (recoltare: Recoltare) => {
+    if (!canDeleteRecoltari) {
+      toast.error('Operatorii nu pot șterge recoltări.')
+      return
+    }
     const recoltareId = recoltare.id
     const currentItems = queryClient.getQueryData<Recoltare[]>(queryKeys.recoltari) ?? []
     const deleteIndex = currentItems.findIndex((item) => item.id === recoltareId)
@@ -729,9 +739,11 @@ export function RecoltariPageClient({
             title="Nicio recoltare încă"
             hint="Adaugă prima recoltare pentru a începe"
             action={
-              <Button type="button" className="agri-cta" onClick={() => setAddOpen(true)}>
-                Adaugă recoltare
-              </Button>
+              canWriteRecoltari ? (
+                <Button type="button" className="agri-cta" onClick={() => setAddOpen(true)}>
+                  Adaugă recoltare
+                </Button>
+              ) : undefined
             }
           />
         ) : null}
@@ -824,7 +836,7 @@ export function RecoltariPageClient({
                     : undefined
                 }
                 footer={
-                  desktopSelectedRecoltare ? (
+                  desktopSelectedRecoltare && canWriteRecoltari ? (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -834,14 +846,16 @@ export function RecoltariPageClient({
                       >
                         Editează
                       </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        className="agri-cta"
-                        onClick={() => setDeletingRecoltare(desktopSelectedRecoltare)}
-                      >
-                        Șterge
-                      </Button>
+                      {canDeleteRecoltari ? (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          className="agri-cta"
+                          onClick={() => setDeletingRecoltare(desktopSelectedRecoltare)}
+                        >
+                          Șterge
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null
                 }
@@ -974,18 +988,23 @@ export function RecoltariPageClient({
           viewingRecoltare?.culegator_id ? culegatorMap[viewingRecoltare.culegator_id]?.nume : undefined
         }
         onEdit={(recoltare) => {
+          if (!canWriteRecoltari) return
           setViewingRecoltare(null)
           setEditingRecoltare(recoltare)
         }}
         onDelete={(recoltare) => {
+          if (!canDeleteRecoltari) return
           setViewingRecoltare(null)
           setDeletingRecoltare(recoltare)
         }}
+        readOnlyActions={!canWriteRecoltari}
+        hideDelete={!canDeleteRecoltari}
       />
 
       <AddRecoltareDialog
-        open={isAddDialogOpen}
+        open={canWriteRecoltari && isAddDialogOpen}
         onOpenChange={(open) => {
+          if (!canWriteRecoltari) return
           if (!open) {
             closeAddDialog()
             return
@@ -999,14 +1018,15 @@ export function RecoltariPageClient({
 
       <EditRecoltareDialog
         recoltare={editingRecoltare}
-        open={!!editingRecoltare}
+        open={canWriteRecoltari && !!editingRecoltare}
         onOpenChange={(open) => {
+          if (!canWriteRecoltari) return
           if (!open) setEditingRecoltare(null)
         }}
       />
 
       <DeleteConfirmDialog
-        open={!!deletingRecoltare}
+        open={canDeleteRecoltari && !!deletingRecoltare}
         onOpenChange={(open) => {
           if (!open) setDeletingRecoltare(null)
         }}

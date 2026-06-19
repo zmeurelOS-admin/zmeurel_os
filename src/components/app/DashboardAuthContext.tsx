@@ -16,6 +16,12 @@ export interface DashboardAuthValue {
   associationRole: AssociationRole | null
   /** `nume_ferma` pentru tenantul curent (context switcher). */
   farmName: string | null
+  /** Rol limitat din `farm_members`, propagat de proxy. */
+  memberRole?: 'operator' | null
+  /** Modulul curent permis pentru operator, dacă ruta curentă este într-un modul accesibil. */
+  accessModule?: string | null
+  /** Nivelul de acces pentru modulul curent (`read` ascunde scrierile în UI). */
+  accessLevel?: 'read' | 'write' | null
 }
 
 const DashboardAuthContext = createContext<DashboardAuthValue>({
@@ -26,6 +32,9 @@ const DashboardAuthContext = createContext<DashboardAuthValue>({
   associationShopApproved: false,
   associationRole: null,
   farmName: null,
+  memberRole: null,
+  accessModule: null,
+  accessLevel: null,
 })
 
 export function DashboardAuthProvider({

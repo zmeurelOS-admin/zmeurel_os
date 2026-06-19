@@ -1076,6 +1076,7 @@ export type Database = {
           client_nume_manual: string | null
           cost_livrare: number
           created_at: string
+          created_by: string | null
           customer_snapshot: Json | null
           data_comanda: string
           data_livrare: string
@@ -1096,6 +1097,7 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          updated_by: string | null
           whatsapp_consent: boolean
         }
         Insert: {
@@ -1105,6 +1107,7 @@ export type Database = {
           client_nume_manual?: string | null
           cost_livrare?: number
           created_at?: string
+          created_by?: string | null
           customer_snapshot?: Json | null
           data_comanda?: string
           data_livrare: string
@@ -1125,6 +1128,7 @@ export type Database = {
           tenant_id: string
           total?: number
           updated_at?: string
+          updated_by?: string | null
           whatsapp_consent?: boolean
         }
         Update: {
@@ -1134,6 +1138,7 @@ export type Database = {
           client_nume_manual?: string | null
           cost_livrare?: number
           created_at?: string
+          created_by?: string | null
           customer_snapshot?: Json | null
           data_comanda?: string
           data_livrare?: string
@@ -1154,6 +1159,7 @@ export type Database = {
           tenant_id?: string
           total?: number
           updated_at?: string
+          updated_by?: string | null
           whatsapp_consent?: boolean
         }
         Relationships: [
@@ -1649,6 +1655,50 @@ export type Database = {
           },
         ]
       }
+      farm_invites: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          modules_access: Json
+          tenant_id: string
+          token: string
+          used_at: string | null
+          used_by_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          modules_access?: Json
+          tenant_id: string
+          token: string
+          used_at?: string | null
+          used_by_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          modules_access?: Json
+          tenant_id?: string
+          token?: string
+          used_at?: string | null
+          used_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "farm_invites_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       farm_members: {
         Row: {
           created_at: string
@@ -1657,6 +1707,7 @@ export type Database = {
           invite_token: string | null
           invite_used_at: string | null
           is_active: boolean
+          modules_access: Json
           name: string
           phone: string | null
           role: string
@@ -1670,6 +1721,7 @@ export type Database = {
           invite_token?: string | null
           invite_used_at?: string | null
           is_active?: boolean
+          modules_access?: Json
           name: string
           phone?: string | null
           role: string
@@ -1683,6 +1735,7 @@ export type Database = {
           invite_token?: string | null
           invite_used_at?: string | null
           is_active?: boolean
+          modules_access?: Json
           name?: string
           phone?: string | null
           role?: string

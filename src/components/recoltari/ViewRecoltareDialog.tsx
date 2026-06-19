@@ -17,6 +17,8 @@ interface ViewRecoltareDialogProps {
   culegatorNume?: string
   onEdit: (recoltare: Recoltare) => void
   onDelete: (recoltare: Recoltare) => void
+  readOnlyActions?: boolean
+  hideDelete?: boolean
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -43,6 +45,8 @@ export function ViewRecoltareDialog({
   culegatorNume,
   onEdit,
   onDelete,
+  readOnlyActions = false,
+  hideDelete = false,
 }: ViewRecoltareDialogProps) {
   if (!recoltare) return null
 
@@ -150,28 +154,38 @@ export function ViewRecoltareDialog({
         </div>
 
         <div className={DIALOG_DETAIL_FOOTER_CLASS}>
-          <Button
-            type="button"
-            variant="outline"
-            className="agri-cta lg:hover:opacity-95"
-            onClick={() => {
-              onOpenChange(false)
-              onEdit(recoltare)
-            }}
-          >
-            Editează
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            className="agri-cta lg:hover:opacity-95"
-            onClick={() => {
-              onOpenChange(false)
-              onDelete(recoltare)
-            }}
-          >
-            Șterge
-          </Button>
+          {readOnlyActions ? (
+            <Button type="button" variant="outline" className="agri-cta w-full" onClick={() => onOpenChange(false)}>
+              Închide
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className="agri-cta lg:hover:opacity-95"
+                onClick={() => {
+                  onOpenChange(false)
+                  onEdit(recoltare)
+                }}
+              >
+                Editează
+              </Button>
+              {hideDelete ? null : (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="agri-cta lg:hover:opacity-95"
+                  onClick={() => {
+                    onOpenChange(false)
+                    onDelete(recoltare)
+                  }}
+                >
+                  Șterge
+                </Button>
+              )}
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

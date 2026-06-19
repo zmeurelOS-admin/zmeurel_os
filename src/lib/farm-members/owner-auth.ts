@@ -46,3 +46,18 @@ export async function getFarmOwnerContext(): Promise<FarmOwnerContext | null> {
 export function farmMemberInviteUrl(token: string): string {
   return `https://zmeurel.ro/livrator/${encodeURIComponent(token)}`
 }
+
+export function farmOperatorInviteUrl(token: string): string {
+  const configured = process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://zmeurel.ro'
+  let origin = 'https://zmeurel.ro'
+  try {
+    origin = new URL(configured).origin
+  } catch {
+    try {
+      origin = new URL(`https://${configured.replace(/^\/+|\/+$/g, '')}`).origin
+    } catch {
+      origin = 'https://zmeurel.ro'
+    }
+  }
+  return `${origin}/invite/${encodeURIComponent(token)}`
+}

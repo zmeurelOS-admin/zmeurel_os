@@ -15,6 +15,7 @@ export type FarmMemberApiRow = {
   invite_used_at: string | null
   is_active: boolean
   created_by: string | null
+  modules_access: unknown
 }
 
 function errorResponse(error: string, status = 400) {
@@ -31,7 +32,7 @@ export async function GET() {
   const { data, error } = await admin
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .from('farm_members' as any)
-    .select('id, created_at, tenant_id, user_id, role, name, phone, invite_token, invite_used_at, is_active, created_by')
+    .select('id, created_at, tenant_id, user_id, role, name, phone, invite_token, invite_used_at, is_active, created_by, modules_access')
     .eq('tenant_id', owner.tenantId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })

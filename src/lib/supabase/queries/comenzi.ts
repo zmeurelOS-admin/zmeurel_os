@@ -33,6 +33,8 @@ export interface Comanda {
   parent_comanda_id: string | null
   created_at: string
   updated_at: string
+  created_by?: string | null
+  updated_by?: string | null
   /** Ex. `magazin_public` pentru comenzi din magazinul fermierului. */
   data_origin: string | null
   client_nume?: string | null
@@ -212,6 +214,8 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     parent_comanda_id: row.parent_comanda_id ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    created_by: row.created_by ?? null,
+    updated_by: row.updated_by ?? null,
     data_origin: row.data_origin ?? null,
     client_nume: row.clienti?.nume_client ?? null,
   }
@@ -291,6 +295,8 @@ export async function getComenzi(
       parent_comanda_id,
       created_at,
       updated_at,
+      created_by,
+      updated_by,
       data_origin,
       clienti (
         nume_client
@@ -315,6 +321,9 @@ export async function getComenzi(
 export async function createComanda(input: CreateComandaInput): Promise<Comanda> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const payload: ComandaInsertCompat = {
     tenant_id: tenantId,
     client_id: input.client_id ?? null,
@@ -328,6 +337,8 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     total: round2(input.cantitate_kg * input.pret_per_kg),
     status: input.status ?? 'noua',
     observatii: input.observatii?.trim() || null,
+    created_by: user?.id ?? null,
+    updated_by: user?.id ?? null,
   }
 
   const { data, error } = await supabase
@@ -351,6 +362,8 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
       parent_comanda_id,
       created_at,
       updated_at,
+      created_by,
+      updated_by,
       data_origin,
       clienti (
         nume_client
@@ -365,6 +378,9 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
 export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   const payload: ComandaUpdateCompat = {
     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
     ...(input.client_nume_manual !== undefined ? { client_nume_manual: input.client_nume_manual?.trim() || null } : {}),
@@ -377,6 +393,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     ...(input.status !== undefined ? { status: input.status } : {}),
     ...(input.observatii !== undefined ? { observatii: input.observatii?.trim() || null } : {}),
     updated_at: new Date().toISOString(),
+    updated_by: user?.id ?? null,
   }
 
   if (payload.cantitate_kg !== undefined || payload.pret_per_kg !== undefined) {
@@ -611,6 +628,8 @@ export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
       parent_comanda_id,
       created_at,
       updated_at,
+      created_by,
+      updated_by,
       data_origin,
       clienti (
         nume_client

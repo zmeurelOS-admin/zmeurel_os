@@ -23,6 +23,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const userIdFromProxy = headerStore.get('x-zmeurel-user-id')
   const emailFromProxy = headerStore.get('x-zmeurel-user-email')
   const tenantIdFromProxy = headerStore.get('x-zmeurel-tenant-id')
+  const memberRoleFromProxy: 'operator' | null =
+    headerStore.get('x-zmeurel-member-role') === 'operator' ? 'operator' : null
+  const accessLevelFromProxy = headerStore.get('x-zmeurel-access-level')
+  const accessLevel: 'read' | 'write' | null =
+    accessLevelFromProxy === 'read' || accessLevelFromProxy === 'write' ? accessLevelFromProxy : null
 
   const {
     data: { user },
@@ -61,6 +66,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     associationShopApproved,
     associationRole: await getAssociationRole(user.id),
     farmName,
+    memberRole: memberRoleFromProxy,
+    accessModule: headerStore.get('x-zmeurel-access-module'),
+    accessLevel,
   }
 
   return (

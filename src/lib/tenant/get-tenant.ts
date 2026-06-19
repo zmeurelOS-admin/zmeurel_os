@@ -21,23 +21,76 @@ async function getProfileTenantRow(
   return profile
 }
 
+async function getOwnedTenantIdOrNull(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<string | null> {
+  const { data: tenant, error } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('owner_user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return tenant?.id ?? null
+}
+
+async function getOperatorTenantIdOrNull(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<string | null> {
+  const farmMembersClient = supabase as SupabaseClient<Database> & {
+    from(table: 'farm_members'): ReturnType<SupabaseClient<Database>['from']>
+  }
+  const { data: member, error } = await farmMembersClient
+    .from('farm_members')
+    .select('tenant_id')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .eq('role', 'operator')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    throw error
+  }
+
+  return (member as { tenant_id?: string | null } | null)?.tenant_id ?? null
+}
+
 export async function getTenantIdByUserId(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<string> {
-  const profile = await getProfileTenantRow(supabase, userId)
+  const tenantId = await getTenantIdByUserIdOrNull(supabase, userId)
 
-  if (!profile?.tenant_id) {
+  if (!tenantId) {
     throw new Error('Tenant indisponibil pentru utilizatorul curent.')
   }
 
-  return profile.tenant_id
+  return tenantId
 }
 
 export async function getTenantIdByUserIdOrNull(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<string | null> {
+  const ownedTenantId = await getOwnedTenantIdOrNull(supabase, userId)
+  if (ownedTenantId) {
+    return ownedTenantId
+  }
+
+  const operatorTenantId = await getOperatorTenantIdOrNull(supabase, userId)
+  if (operatorTenantId) {
+    return operatorTenantId
+  }
+
   const profile = await getProfileTenantRow(supabase, userId)
   return profile?.tenant_id ?? null
 }

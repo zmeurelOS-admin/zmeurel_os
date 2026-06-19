@@ -29,6 +29,10 @@
 - A user belongs to a `profile`.
 - A profile points to one current `tenant`.
 - Most business rows belong to exactly one tenant.
+- Farm operators are represented by active `farm_members` rows with `role = operator`; invite-created operator accounts should not create their own farm tenant, and their effective tenant is the member row tenant after owner/profile resolution.
+- Operator route/module access is stored in `farm_members.modules_access` and `farm_invites.modules_access`; UI write actions must follow the injected dashboard access level, while database RLS and guarded `SECURITY DEFINER` RPCs enforce the same read/write split server-side.
+- Operator module permissions have two sources that must stay manually aligned: `src/lib/farm-members/access.ts` for TypeScript routing/UI and SQL helpers (`operator_can_write`, `operator_is_operator`) for RLS/RPC enforcement. Legacy operators with empty normalized access keep `comenzi` + `livrari` write access.
+- Farm owners bypass operator module restrictions. Operators can write only modules with `level = write` and can never delete module rows; `vanzari`, `cheltuieli_diverse`, stocuri, parcele, investiții and other owner-only modules remain inaccessible to operators through generic DB write paths.
 - A `parcela` can have many `recoltari` and many `activitati_agricole`.
 - A solar parcel can have multiple `culturi`.
 - A `recoltare` belongs to a parcel and a picker.
@@ -260,4 +264,4 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 - Business IDs should be generated through the `generate_business_id` RPC helper where that pattern already exists.
 - Because linked environments can lag the repaired RPC definition, client helpers may temporarily fall back to a locally generated business ID when the RPC repeats the same prefix/number pair.
 - RPCs that accept `tenant_id` or generic target-table inputs must validate ownership/allowlists in SQL; client arguments are not sufficient security boundaries.
-- The offline sync layer also keeps a client-side allowlist for RPC target tables, but SQL remains the final enforcement boundary.
+- The offline sync layer also keeps a client-side allowlist for RPC target tables, but SQL remains the final enforcement boundary; `upsert_with_idempotency` must keep per-table guards for operator modules and owner-only tables.

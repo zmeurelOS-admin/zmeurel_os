@@ -64,6 +64,7 @@ import {
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { track } from '@/lib/analytics/track'
 import { spacing } from '@/lib/design-tokens'
 import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
@@ -1311,6 +1312,7 @@ function ContactSavePromptDialog({
 export function ComenziPageClient() {
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const { memberRole, accessLevel } = useDashboardAuth()
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1350,13 +1352,16 @@ export function ComenziPageClient() {
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
   const [addClientOpen, setAddClientOpen] = useState(false)
   const [stocInsuficientModal, setStocInsuficientModal] = useState<StocInsuficientSnapshot | null>(null)
+  const isOperator = memberRole === 'operator'
+  const canWriteComenzi = !isOperator || accessLevel === 'write'
+  const canDeleteComenzi = !isOperator
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = hasAiComandaOpenForm(searchParams)
   const queryCreatePrefill = useMemo(
     () => (openFormFromQuery ? parseAiComandaPrefill(searchParams) : null),
     [openFormFromQuery, searchParams]
   )
-  const isCreateDialogOpen = addOpen || addFromQuery || openFormFromQuery
+  const isCreateDialogOpen = canWriteComenzi && (addOpen || addFromQuery || openFormFromQuery)
 
   const clearComandaFormQueryParams = useCallback(() => {
     const nextParams = new URLSearchParams(searchParams.toString())
@@ -1725,11 +1730,12 @@ export function ComenziPageClient() {
 
   useEffect(() => {
     if (section !== 'comenzi') return
+    if (!canWriteComenzi) return
     const unregister = registerAddAction(() => {
       setSpeedDialOpen(true)
     }, 'Adaugă comandă')
     return unregister
-  }, [registerAddAction, section])
+  }, [canWriteComenzi, registerAddAction, section])
 
   useEffect(() => {
     const query = search.trim()
@@ -1743,6 +1749,10 @@ export function ComenziPageClient() {
   }, [search])
 
   const scheduleDelete = (comanda: Comanda) => {
+    if (!canDeleteComenzi) {
+      toast.error('Operatorii nu pot șterge comenzi.')
+      return
+    }
     const comandaId = comanda.id
     const currentItems = queryClient.getQueryData<Comanda[]>(queryKeys.comenzi) ?? []
     const deleteIndex = currentItems.findIndex((item) => item.id === comandaId)
@@ -2002,6 +2012,10 @@ export function ComenziPageClient() {
   }
 
   const handleConfirmDeliver = async (comanda: Comanda) => {
+    if (!canWriteComenzi) {
+      toast.error('Ai acces doar pentru citire în Comenzi.')
+      return
+    }
     await deliverMutation.mutateAsync({
       comandaId: comanda.id,
       cantitateLivrataKg: Number(comanda.cantitate_kg || 0),
@@ -2011,6 +2025,10 @@ export function ComenziPageClient() {
   }
 
   const handleB2bStatusChange = async (id: string, status: ComandaStatus) => {
+    if (!canWriteComenzi) {
+      toast.error('Ai acces doar pentru citire în Comenzi.')
+      return
+    }
     if (status === 'livrata') {
       const comanda = comenzi.find((row) => row.id === id)
       if (comanda) void handleConfirmDeliver(comanda)
@@ -2028,6 +2046,10 @@ export function ComenziPageClient() {
   }
 
   const handleShopStatusChange = async (id: string, status: ShopOrderStatus) => {
+    if (!canWriteComenzi) {
+      toast.error('Ai acces doar pentru citire în Comenzi.')
+      return
+    }
     if (status === 'in_livrare') {
       const shopOrder = shopOrders.find((row) => row.id === id)
       const unified = shopOrder ? mapShopToUnified(shopOrder) : null
@@ -2267,19 +2289,41 @@ export function ComenziPageClient() {
                           }}
                           onB2bStatusChange={handleB2bStatusChange}
                           onB2bDeliveryDateChange={(id, data_livrare) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             updateMutation.mutate({ id, payload: { data_livrare } })
                           }}
                           onShopStatusChange={handleShopStatusChange}
                           onShopConfirmedChange={(id, confirmed) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
                           }}
                           onShopNotifiedChange={(id, notified) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             patchShopOrderMutation.mutate({ id, notified_wa: notified })
                           }}
                           onShopDeliveryDateChange={(id, delivery_date) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             patchShopOrderMutation.mutate({ id, delivery_date })
                           }}
-                          onEdit={() => setEditingOrder(item)}
+                          onEdit={() => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
+                            setEditingOrder(item)
+                          }}
                         />
                       ))}
                     </div>
@@ -2326,19 +2370,41 @@ export function ComenziPageClient() {
                           }}
                           onB2bStatusChange={handleB2bStatusChange}
                           onB2bDeliveryDateChange={(id, data_livrare) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             updateMutation.mutate({ id, payload: { data_livrare } })
                           }}
                           onShopStatusChange={handleShopStatusChange}
                           onShopConfirmedChange={(id, confirmed) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
                           }}
                           onShopNotifiedChange={(id, notified) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             patchShopOrderMutation.mutate({ id, notified_wa: notified })
                           }}
                           onShopDeliveryDateChange={(id, delivery_date) => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
                             patchShopOrderMutation.mutate({ id, delivery_date })
                           }}
-                          onEdit={() => setEditingOrder(item)}
+                          onEdit={() => {
+                            if (!canWriteComenzi) {
+                              toast.error('Ai acces doar pentru citire în Comenzi.')
+                              return
+                            }
+                            setEditingOrder(item)
+                          }}
                         />
                       ))}
                     </div>
@@ -2351,25 +2417,29 @@ export function ComenziPageClient() {
         ) : null}
       </DashboardContentShell>
 
-      <ComenziSpeedDial
-        open={speedDialOpen}
-        onOpenChange={setSpeedDialOpen}
-        onNewOrder={() => {
-          setPendingParsedClient(null)
-          setAddOpen(true)
-        }}
-        onFromMessage={() => setDinMesajOpen(true)}
-      />
+      {canWriteComenzi ? (
+        <ComenziSpeedDial
+          open={speedDialOpen}
+          onOpenChange={setSpeedDialOpen}
+          onNewOrder={() => {
+            setPendingParsedClient(null)
+            setAddOpen(true)
+          }}
+          onFromMessage={() => setDinMesajOpen(true)}
+        />
+      ) : null}
 
-      <ComenziDinMesajSheet
-        open={dinMesajOpen}
-        onOpenChange={setDinMesajOpen}
-        onComandaCreata={(_, clientNou) => {
-          setPendingParsedClient(clientNou)
-        }}
-      />
+      {canWriteComenzi ? (
+        <ComenziDinMesajSheet
+          open={dinMesajOpen}
+          onOpenChange={setDinMesajOpen}
+          onComandaCreata={(_, clientNou) => {
+            setPendingParsedClient(clientNou)
+          }}
+        />
+      ) : null}
 
-      {editingOrder ? (
+      {canWriteComenzi && editingOrder ? (
         <EditOrderSheet
           open
           order={editingOrder}
@@ -2393,8 +2463,9 @@ export function ComenziPageClient() {
 
       <ComandaDialog
         key={`create-${isCreateDialogOpen ? 'open' : 'closed'}`}
-        open={isCreateDialogOpen}
+        open={canWriteComenzi && isCreateDialogOpen}
         onOpenChange={(open) => {
+          if (!canWriteComenzi) return
           if (!open) {
             setAddOpen(false)
             setPendingParsedClient(null)
@@ -2445,8 +2516,9 @@ export function ComenziPageClient() {
 
       <ComandaDialog
         key={`edit-${editing?.id ?? 'none'}-${editing ? 'open' : 'closed'}`}
-        open={!!editing}
+        open={canWriteComenzi && !!editing}
         onOpenChange={(open) => {
+          if (!canWriteComenzi) return
           if (!open) setEditing(null)
         }}
         saving={updateMutation.isPending}
@@ -2509,17 +2581,22 @@ export function ComenziPageClient() {
         }
         canDeliver={Boolean(viewing) && canDeliverStatus(viewing!.status) && viewing!.status !== 'anulata'}
         onDeliver={(comanda) => {
+          if (!canWriteComenzi) return
           setViewing(null)
           void handleConfirmDeliver(comanda)
         }}
         onEdit={(comanda) => {
+          if (!canWriteComenzi) return
           setViewing(null)
           setEditing(comanda)
         }}
         onDelete={(comanda) => {
+          if (!canDeleteComenzi) return
           setViewing(null)
           setDeleting(comanda)
         }}
+        readOnlyActions={!canWriteComenzi}
+        hideDelete={!canDeleteComenzi}
       />
 
       <ContactSavePromptDialog
@@ -2559,7 +2636,7 @@ export function ComenziPageClient() {
       />
 
       <ConfirmDeleteDialog
-        open={!!deleting}
+        open={canDeleteComenzi && !!deleting}
         onOpenChange={(open) => {
           if (!open) setDeleting(null)
         }}

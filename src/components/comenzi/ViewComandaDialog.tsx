@@ -23,6 +23,8 @@ interface ViewComandaDialogProps {
   magazinGroupTotal?: number
   /** ERP asociație: doar detalii, fără livrare/editare/ștergere fermă. */
   associationReadOnly?: boolean
+  readOnlyActions?: boolean
+  hideDelete?: boolean
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -56,6 +58,8 @@ export function ViewComandaDialog({
   magazinGroupLines,
   magazinGroupTotal,
   associationReadOnly = false,
+  readOnlyActions = false,
+  hideDelete = false,
 }: ViewComandaDialogProps) {
   const total = Number(comanda?.total || 0)
   const cantitate = Number(comanda?.cantitate_kg || 0)
@@ -262,7 +266,7 @@ export function ViewComandaDialog({
         </div>
 
         <div className={DIALOG_DETAIL_FOOTER_CLASS}>
-          {associationReadOnly ? (
+          {associationReadOnly || readOnlyActions ? (
             <Button type="button" variant="outline" className="agri-cta w-full" onClick={() => onOpenChange(false)}>
               Închide
             </Button>
@@ -295,18 +299,20 @@ export function ViewComandaDialog({
                   Editează
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant="destructive"
-                className="agri-cta shrink-0 lg:hover:opacity-95"
-                onClick={() => {
-                  if (!comanda) return
-                  onOpenChange(false)
-                  onDelete(comanda)
-                }}
-              >
-                Șterge
-              </Button>
+              {hideDelete ? null : (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="agri-cta shrink-0 lg:hover:opacity-95"
+                  onClick={() => {
+                    if (!comanda) return
+                    onOpenChange(false)
+                    onDelete(comanda)
+                  }}
+                >
+                  Șterge
+                </Button>
+              )}
             </>
           )}
         </div>
