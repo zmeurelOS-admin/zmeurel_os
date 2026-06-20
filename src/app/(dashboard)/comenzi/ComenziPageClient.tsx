@@ -8,7 +8,7 @@ import { Check, ChevronDown, UserRoundPlus } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
-import { ComenziDinMesajSheet, type ParsedOrder } from './ComenziDinMesajSheet'
+import { ComenziDinMesajSheet } from './ComenziDinMesajSheet'
 import { ComandaFormSummary } from '@/components/comenzi/ComandaFormSummary'
 import { ComenziSpeedDial } from './ComenziSpeedDial'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
@@ -93,6 +93,11 @@ import {
   getMagazinGroupOrders,
   isMagazinPublicOrder,
 } from '@/lib/comenzi/magazin-groups'
+import {
+  planOrderClientPersistence,
+  resolveExistingClientByPhone,
+  type OrderClientPersistencePlan,
+} from '@/lib/comenzi/ai-order-client'
 import {
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
@@ -219,6 +224,7 @@ interface ComandaFormState {
   pret_per_kg: string
   status: ComandaStatus
   observatii: string
+  salveaza_client_in_lista: boolean
 }
 
 function todayIso(): string {
@@ -312,10 +318,6 @@ function normalize(value: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-}
-
-function normalizeForExactHintMatch(value: string): string {
-  return value.trim().toLowerCase()
 }
 
 function groupOrdersByCreatedDate(
@@ -480,6 +482,7 @@ function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
     pret_per_kg: '',
     status,
     observatii: '',
+    salveaza_client_in_lista: false,
   }
 }
 
@@ -487,9 +490,8 @@ function buildComandaDialogInitialFormState(params: {
   initial?: Comanda | null
   initialCreateValues?: Partial<ComandaFormState> | null
   clienti: Client[]
-  mode: 'create' | 'edit'
 }): ComandaFormState {
-  const { initial, initialCreateValues, clienti, mode } = params
+  const { initial, initialCreateValues, clienti } = params
   const baseForm: ComandaFormState = initial
     ? {
         client_id: initial.client_id ?? '',
@@ -502,17 +504,14 @@ function buildComandaDialogInitialFormState(params: {
         pret_per_kg: String(initial.pret_per_kg ?? ''),
         status: initial.status,
         observatii: initial.observatii ?? '',
+        salveaza_client_in_lista: false,
       }
     : {
         ...defaultFormState('confirmata'),
         ...(initialCreateValues ?? {}),
       }
 
-  let prefillClientId = baseForm.client_id
-  if (!prefillClientId && mode === 'create' && baseForm.client_nume_manual) {
-    prefillClientId = resolveClientIdFromHint(baseForm.client_nume_manual, clienti) ?? ''
-  }
-
+  const prefillClientId = baseForm.client_id
   const client = prefillClientId ? clienti.find((item) => item.id === prefillClientId) : undefined
 
   return {
@@ -559,15 +558,6 @@ export function parseAiComandaPrefill(searchParams: Pick<URLSearchParams, 'get'>
     observatii,
     status: 'confirmata',
   }
-}
-
-function resolveClientIdFromHint(hint: string, clienti: Client[]): string | null {
-  const normalizedHint = normalizeForExactHintMatch(hint)
-  if (!normalizedHint) return null
-
-  const exact = clienti.filter((client) => normalizeForExactHintMatch(client.nume_client ?? '') === normalizedHint)
-  if (exact.length === 1) return exact[0].id
-  return null
 }
 
 function getClientName(comanda: Comanda, clientMap: Record<string, Client>): string {
@@ -764,9 +754,8 @@ function ComandaDialog({
         initial,
         initialCreateValues,
         clienti,
-        mode,
       }),
-    [clienti, initial, initialCreateValues, mode]
+    [clienti, initial, initialCreateValues]
   )
   const initialComboInput = useMemo(
     () => buildComandaDialogInitialComboInput(initialFormState, clienti),
@@ -801,6 +790,7 @@ function ComandaDialog({
     form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
   const isNewClientFlow = !form.client_id && form.client_nume_manual.trim().length > 0
+  const showSaveClientToggle = mode === 'create' && !selectedClient
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
@@ -895,7 +885,7 @@ function ComandaDialog({
                   onClick={() => {
                     setComboInput('')
                     setComboOpen(true)
-                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '' }))
+                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '', salveaza_client_in_lista: false }))
                   }}
                 >
                   Schimbă
@@ -951,6 +941,7 @@ function ComandaDialog({
                               client_nume_manual: '',
                               telefon: client.telefon || prev.telefon,
                               locatie_livrare: client.adresa || prev.locatie_livrare,
+                              salveaza_client_in_lista: false,
                             }))
                           }}
                         >
@@ -1002,6 +993,25 @@ function ComandaDialog({
                 </div>
               ) : null}
             </div>
+
+            {showSaveClientToggle ? (
+              <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] shadow-[var(--shadow-soft)]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)]"
+                  checked={form.salveaza_client_in_lista}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, salveaza_client_in_lista: event.target.checked }))
+                  }
+                />
+                <span>
+                  <span className="block font-medium">Salvează și clientul în lista de clienți</span>
+                  <span className="block text-xs text-[var(--text-secondary)]">
+                    Creează client nou doar după confirmarea ta explicită.
+                  </span>
+                </span>
+              </label>
+            ) : null}
 
             <div className="space-y-2">
               <Label>Mod livrare</Label>
@@ -1341,7 +1351,6 @@ export function ComenziPageClient() {
   )
   const [speedDialOpen, setSpeedDialOpen] = useState(false)
   const [dinMesajOpen, setDinMesajOpen] = useState(false)
-  const [pendingParsedClient, setPendingParsedClient] = useState<ParsedOrder | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [editingOrder, setEditingOrder] = useState<UnifiedOrderItem | null>(null)
@@ -1455,60 +1464,47 @@ export function ComenziPageClient() {
     return map
   }, [clienti])
 
-  const attachParsedClientToOrder = useCallback(async (comandaId: string, parsedClient: ParsedOrder) => {
-    const clientName = parsedClient.nume?.trim()
-    if (!clientName) {
-      toast.warning('Comanda salvată. Clientul nu a putut fi salvat automat.')
-      return
+  const createAndAttachClientToOrder = useCallback(async (params: {
+    comandaId: string
+    input: Parameters<typeof createClienți>[0]
+  }) => {
+    const { comandaId, input } = params
+
+    const createdClient = await createClienți(input)
+
+    const supabase = getSupabase()
+    const tenantId = await getTenantId(supabase)
+    const { error: updateError } = await supabase
+      .from('comenzi')
+      .update({ client_id: createdClient.id })
+      .eq('id', comandaId)
+      .eq('tenant_id', tenantId)
+
+    if (updateError) {
+      throw updateError
     }
 
-    try {
-      const createdClient = await createClienți({
-        nume_client: clientName,
-        telefon: parsedClient.telefon ?? undefined,
-        adresa: parsedClient.localitate ?? undefined,
-        tip: parsedClient.tip_client,
-      })
-
-      const supabase = getSupabase()
-      const tenantId = await getTenantId(supabase)
-      const { error: updateError } = await supabase
-        .from('comenzi')
-        .update({ client_id: createdClient.id })
-        .eq('id', comandaId)
-        .eq('tenant_id', tenantId)
-
-      if (updateError) {
-        console.error('[comenzi] Clientul a fost creat, dar comanda nu a putut fi legată.', updateError)
-        toast.warning('Clientul a fost salvat, dar comanda nu a putut fi legată automat.')
-      } else {
-        toast('✓ Client salvat automat', { duration: 3000 })
-      }
-
-      queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
-      queryClient.invalidateQueries({ queryKey: clientiComenziQueryKey })
-      queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-    } catch (error) {
-      console.error('[comenzi] Clientul extras din mesaj nu a putut fi salvat.', error)
-      toast.warning('Comanda salvată. Clientul nu a putut fi salvat automat.')
-    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+    queryClient.invalidateQueries({ queryKey: clientiComenziQueryKey })
+    queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
   }, [queryClient])
 
   const createMutation = useMutation({
-    mutationFn: createComanda,
+    mutationFn: ({ payload }: { payload: Parameters<typeof createComanda>[0]; clientPersistencePlan: OrderClientPersistencePlan }) =>
+      createComanda(payload),
     onSuccess: async (createdComanda, variables) => {
       clearComandaFormQueryParams()
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
       track('comanda_add', {
-        cantitate: Number(variables.cantitate_kg || 0),
-        client_id: variables.client_id ?? null,
+        cantitate: Number(variables.payload.cantitate_kg || 0),
+        client_id: variables.payload.client_id ?? null,
       })
       hapticSuccess()
-      const matchedClientName = variables.client_id ? clientMap[variables.client_id]?.nume_client ?? '' : ''
-      const clientName = (variables.client_nume_manual || matchedClientName || '').trim()
-      const phone = (variables.telefon ?? '').trim()
+      const matchedClientName = variables.payload.client_id ? clientMap[variables.payload.client_id]?.nume_client ?? '' : ''
+      const clientName = (variables.payload.client_nume_manual || matchedClientName || '').trim()
+      const phone = (variables.payload.telefon ?? '').trim()
       const canSaveContactFromToast = clientName.length > 0 && phone.length > 0
 
       toast('Comanda a fost salvată', {
@@ -1520,10 +1516,18 @@ export function ComenziPageClient() {
           : undefined,
       })
       setAddOpen(false)
-      const parsedClient = pendingParsedClient
-      setPendingParsedClient(null)
-      if (parsedClient) {
-        await attachParsedClientToOrder(createdComanda.id, parsedClient)
+
+      if (variables.clientPersistencePlan.action === 'create-new') {
+        try {
+          await createAndAttachClientToOrder({
+            comandaId: createdComanda.id,
+            input: variables.clientPersistencePlan.input,
+          })
+          toast.success('Comanda și clientul au fost salvate.')
+        } catch (error) {
+          console.error('[comenzi] Clientul nu a putut fi creat după salvarea comenzii.', error)
+          toast.warning('Comanda a fost salvată, dar clientul nu a putut fi creat.')
+        }
       }
     },
     onError: (err: Error) => {
@@ -2422,7 +2426,6 @@ export function ComenziPageClient() {
           open={speedDialOpen}
           onOpenChange={setSpeedDialOpen}
           onNewOrder={() => {
-            setPendingParsedClient(null)
             setAddOpen(true)
           }}
           onFromMessage={() => setDinMesajOpen(true)}
@@ -2431,11 +2434,9 @@ export function ComenziPageClient() {
 
       {canWriteComenzi ? (
         <ComenziDinMesajSheet
+          clienti={clienti}
           open={dinMesajOpen}
           onOpenChange={setDinMesajOpen}
-          onComandaCreata={(_, clientNou) => {
-            setPendingParsedClient(clientNou)
-          }}
         />
       ) : null}
 
@@ -2468,7 +2469,6 @@ export function ComenziPageClient() {
           if (!canWriteComenzi) return
           if (!open) {
             setAddOpen(false)
-            setPendingParsedClient(null)
             clearComandaFormQueryParams()
             return
           }
@@ -2499,17 +2499,41 @@ export function ComenziPageClient() {
             }
           }
 
+          const safeClientMatch = values.client_id
+            ? null
+            : resolveExistingClientByPhone(clienti, values.telefon)
+          const resolvedClientId =
+            values.client_id ||
+            (safeClientMatch?.status === 'existing' ? safeClientMatch.client.id : '')
+          const clientPersistencePlan = planOrderClientPersistence({
+            clienti,
+            clientId: resolvedClientId || null,
+            clientName: values.client_nume_manual || '',
+            rawPhone: values.telefon || '',
+            address: values.locatie_livrare || '',
+            saveClientRequested: values.salveaza_client_in_lista,
+          })
+
+          if (clientPersistencePlan.action === 'invalid') {
+            hapticError()
+            toast.error(clientPersistencePlan.message)
+            return
+          }
+
           await createMutation.mutateAsync({
-            client_id: values.client_id || null,
-            client_nume_manual: values.client_nume_manual || null,
-            telefon: values.telefon || null,
-            locatie_livrare: values.locatie_livrare || null,
-            data_comanda: values.data_comanda || today,
-            data_livrare: values.data_livrare || null,
-            cantitate_kg: cantitate,
-            pret_per_kg: pret,
-            status: values.status,
-            observatii: values.observatii || null,
+            payload: {
+              client_id: resolvedClientId || null,
+              client_nume_manual: resolvedClientId ? null : values.client_nume_manual || null,
+              telefon: values.telefon || null,
+              locatie_livrare: values.locatie_livrare || null,
+              data_comanda: values.data_comanda || today,
+              data_livrare: values.data_livrare || null,
+              cantitate_kg: cantitate,
+              pret_per_kg: pret,
+              status: values.status,
+              observatii: values.observatii || null,
+            },
+            clientPersistencePlan,
           })
         }}
       />
