@@ -3,6 +3,7 @@ export const FARM_MEMBER_ACCESS_LEVELS = ['read', 'write'] as const
 export type FarmMemberAccessLevel = (typeof FARM_MEMBER_ACCESS_LEVELS)[number]
 
 export const FARM_MEMBER_MODULES = [
+  'parcele',
   'comenzi',
   'livrari',
   'recoltari',
@@ -21,6 +22,7 @@ export type FarmMemberModuleAccess = {
 }
 
 export const FARM_MEMBER_MODULE_LABELS: Record<FarmMemberModule, string> = {
+  parcele: 'Parcele',
   comenzi: 'Comenzi',
   livrari: 'Livrări',
   recoltari: 'Recoltări',
@@ -32,6 +34,7 @@ export const FARM_MEMBER_MODULE_LABELS: Record<FarmMemberModule, string> = {
 }
 
 export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
+  parcele: ['/parcele'],
   comenzi: ['/comenzi'],
   livrari: ['/livrari'],
   recoltari: ['/recoltari'],
@@ -43,6 +46,7 @@ export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
 }
 
 export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> = {
+  parcele: '/parcele',
   comenzi: '/comenzi',
   livrari: '/livrari',
   recoltari: '/recoltari',
@@ -85,15 +89,15 @@ export function normalizeFarmMemberAccess(
   const byModule = new Map<FarmMemberModule, FarmMemberAccessLevel>()
   for (const item of value) {
     if (!isRecord(item)) continue
-    const module = typeof item.module === 'string' ? item.module : ''
+    const moduleName = typeof item.module === 'string' ? item.module : ''
     const level = typeof item.level === 'string' ? item.level : ''
-    if (!MODULE_SET.has(module) || !LEVEL_SET.has(level)) continue
-    byModule.set(module as FarmMemberModule, level as FarmMemberAccessLevel)
+    if (!MODULE_SET.has(moduleName) || !LEVEL_SET.has(level)) continue
+    byModule.set(moduleName as FarmMemberModule, level as FarmMemberAccessLevel)
   }
 
-  const normalized = FARM_MEMBER_MODULES.flatMap((module) => {
-    const level = byModule.get(module)
-    return level ? [{ module, level }] : []
+  const normalized = FARM_MEMBER_MODULES.flatMap((moduleName) => {
+    const level = byModule.get(moduleName)
+    return level ? [{ module: moduleName, level }] : []
   })
 
   if (normalized.length === 0 && options.legacyFallback) {
@@ -101,6 +105,21 @@ export function normalizeFarmMemberAccess(
   }
 
   return normalized
+}
+
+export function parseFarmMemberAccessHeader(value: string | null | undefined): FarmMemberModuleAccess[] {
+  if (!value) return []
+
+  const entries = value
+    .split(',')
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const [moduleName, level] = chunk.split(':')
+      return { module: moduleName, level }
+    })
+
+  return normalizeFarmMemberAccess(entries)
 }
 
 export function firstAllowedRoute(access: FarmMemberModuleAccess[]): string {

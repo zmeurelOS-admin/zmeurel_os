@@ -95,6 +95,7 @@ import {
 } from '@/lib/comenzi/ai-order-client'
 import {
   getComenziOperationalSnapshot,
+  isManualOrderActiveForComenziTab,
   KG_PER_CASEROLĂ,
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
@@ -603,9 +604,9 @@ function PillTabs({
   livrateCount: number
 }) {
   const tabs = [
-    { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` (${activeCount})` : ''}` },
-    { key: 'programate' as const, label: `Programate${scheduledCount > 0 ? ` (${scheduledCount})` : ''}` },
-    { key: 'livrate' as const, label: `Livrate${livrateCount > 0 ? ` (${livrateCount})` : ''}` },
+    { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` ${activeCount}` : ''}` },
+    { key: 'programate' as const, label: `Progr.${scheduledCount > 0 ? ` ${scheduledCount}` : ''}` },
+    { key: 'livrate' as const, label: `Livr.${livrateCount > 0 ? ` ${livrateCount}` : ''}` },
     { key: 'toate' as const, label: 'Toate' },
   ]
   return (
@@ -620,7 +621,8 @@ function PillTabs({
         </ModulePillFilterButton>
       ))}
       <ModulePillFilterButton active={false} onClick={onOpenCampaign}>
-        Campanie 🎯
+        <span aria-hidden="true">🎯</span>
+        <span className="sr-only">Campanie</span>
       </ModulePillFilterButton>
     </ModulePillRow>
   )
@@ -1901,7 +1903,13 @@ export function ComenziPageClient() {
     const term = normalize(search)
 
     return unifiedAllOrders.filter((item) => {
-      if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
+      if (activeTab === 'de_livrat') {
+        if (item.source === 'b2b' && item.b2bComanda) {
+          if (!isManualOrderActiveForComenziTab(item.b2bComanda)) return false
+        } else if (!isUnifiedOpenStatus(item.status)) {
+          return false
+        }
+      }
       if (
         activeTab === 'programate' &&
         !(isUnifiedOpenStatus(item.status) && Boolean(item.deliveryDate))
@@ -1963,6 +1971,7 @@ export function ComenziPageClient() {
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
     if (tab === 'programate') setOrderSort('delivery_date')
+    if (tab === 'de_livrat') setOrderSort('created_at')
     setActiveFilter(filter)
   }
 
@@ -2124,6 +2133,7 @@ export function ComenziPageClient() {
           onChange={(value) => {
             setActiveTab(value)
             if (value === 'programate') setOrderSort('delivery_date')
+            if (value === 'de_livrat') setOrderSort('created_at')
             if (value === 'de_livrat' && activeFilter === 'neincasat') setActiveFilter('none')
             if (
               value === 'livrate' &&

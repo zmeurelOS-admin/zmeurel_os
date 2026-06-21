@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AssociationContextSwitcher } from "@/components/association/AssociationContextSwitcher"
 import { AssociationSidebar } from "@/components/association/AssociationSidebar"
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { type FarmMemberModuleAccess } from '@/lib/farm-members/access'
 import { useDemoBannerVisible } from "@/hooks/useDemoBannerVisible"
 import { useShopOrdersInLivrareCount, ShopOrdersInLivrareNavBadge } from "@/lib/shop/useShopOrdersInLivrareCount"
 import { cn } from "@/lib/utils"
@@ -147,6 +148,11 @@ function getGroupForPath(pathname: string): GroupKey | null {
     return "administrare"
   }
   return null
+}
+
+function canOperatorSeeParceleNav(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
+  if (memberRole !== 'operator') return true
+  return (access ?? []).some((item) => item.module === 'parcele')
 }
 
 type SidebarLinkProps = {
@@ -403,7 +409,12 @@ function AdminDesktopNav({
 export function Sidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { isSuperAdmin: isSuperAdminUser, associationRole } = useDashboardAuth()
+  const {
+    isSuperAdmin: isSuperAdminUser,
+    associationRole,
+    memberRole,
+    memberAccess,
+  } = useDashboardAuth()
   const bannerVisible = useDemoBannerVisible()
   const [collapsed, setCollapsed] = useState<boolean>(false)
   const [hash, setHash] = useState("")
@@ -424,6 +435,18 @@ export function Sidebar() {
           }
         : undefined,
     [shopInLivrareCount],
+  )
+  const canSeeParceleNav = useMemo(
+    () => canOperatorSeeParceleNav(memberRole, memberAccess),
+    [memberAccess, memberRole],
+  )
+  const visibleGroups = useMemo(
+    () =>
+      GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((item) => item.href !== '/parcele' || canSeeParceleNav),
+      })).filter((group) => group.items.length > 0),
+    [canSeeParceleNav],
   )
 
   useEffect(() => {
@@ -545,7 +568,7 @@ export function Sidebar() {
                   />
 
                   <div className="space-y-2 pt-1">
-                    {GROUPS.map((group) => (
+                    {visibleGroups.map((group) => (
                       <SidebarGroup
                         key={group.key}
                         group={group}

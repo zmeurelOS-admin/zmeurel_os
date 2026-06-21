@@ -3,6 +3,7 @@
 import { createContext, useContext } from 'react'
 
 import type { AssociationRole } from '@/lib/association/auth'
+import type { FarmMemberModuleAccess } from '@/lib/farm-members/access'
 
 export interface DashboardAuthValue {
   userId: string | null
@@ -18,6 +19,8 @@ export interface DashboardAuthValue {
   farmName: string | null
   /** Rol limitat din `farm_members`, propagat de proxy. */
   memberRole?: 'operator' | null
+  /** Toate modulele disponibile pentru operatorul curent, propagate de proxy. */
+  memberAccess?: FarmMemberModuleAccess[]
   /** Modulul curent permis pentru operator, dacă ruta curentă este într-un modul accesibil. */
   accessModule?: string | null
   /** Nivelul de acces pentru modulul curent (`read` ascunde scrierile în UI). */
@@ -33,6 +36,7 @@ const DashboardAuthContext = createContext<DashboardAuthValue>({
   associationRole: null,
   farmName: null,
   memberRole: null,
+  memberAccess: [],
   accessModule: null,
   accessLevel: null,
 })

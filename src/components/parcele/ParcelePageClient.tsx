@@ -7,6 +7,7 @@ import { CalendarDays, ChevronRight, Clock3, Droplets, ListChecks, Map as MapIco
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import { AppShell } from '@/components/app/AppShell'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
@@ -35,7 +36,6 @@ import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
 import {
-  buildStadiuAppSelectOptions,
   COHORTA_APP_SELECT_OPTIONS,
   formatStadiuOptionLabel,
 } from '@/lib/ui/app-select-maps'
@@ -535,7 +535,7 @@ function CulturaCard({
   parcelaCropCodHint: CropCod | null
   seasonConfig: ConfigurareParcelaSezon | null
   canonicalStages: ParcelaStadiuCanonic[]
-  onDesfiintaCultura: (c: Cultura) => void
+  onDesfiintaCultura?: (c: Cultura) => void
 }) {
   const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
@@ -910,7 +910,7 @@ function CulturaCard({
           ) : null}
 
           {/* Desființă button */}
-  {isActive ? (
+  {isActive && onDesfiintaCultura ? (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onDesfiintaCultura(cultura) }}
@@ -947,9 +947,9 @@ function SolarCulturiSection({
   parcela: Parcela
   solarId: string
   tipUnitate: string | null | undefined
-  onAddCultura: () => void
-  onAddMicroclimat: () => void
-  onDesfiintaCultura: (c: Cultura) => void
+  onAddCultura?: () => void
+  onAddMicroclimat?: () => void
+  onDesfiintaCultura?: (c: Cultura) => void
   withTopBorder?: boolean
 }) {
   const [showMicroHistory, setShowMicroHistory] = useState(false)
@@ -1014,40 +1014,46 @@ function SolarCulturiSection({
             </span>
           ) : null}
         </span>
-        <div style={{ display: 'flex', gap: 5 }}>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAddMicroclimat() }}
-            style={{
-              padding: '4px 10px',
-              fontSize: 10,
-              fontWeight: 600,
-              background: 'var(--status-info-bg)',
-              color: 'var(--status-info-text)',
-              border: '1px solid var(--status-info-border)',
-              borderRadius: 8,
-              cursor: 'pointer',
-            }}
-          >
-            + {conditiiLabel}
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onAddCultura() }}
-            style={{
-              padding: '4px 10px',
-              fontSize: 10,
-              fontWeight: 600,
-              background: 'var(--pill-active-bg)',
-              color: 'var(--pill-active-text)',
-              border: '1px solid var(--pill-active-border)',
-              borderRadius: 8,
-              cursor: 'pointer',
-            }}
-          >
-            + Cultură
-          </button>
-        </div>
+        {onAddMicroclimat || onAddCultura ? (
+          <div style={{ display: 'flex', gap: 5 }}>
+            {onAddMicroclimat ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAddMicroclimat() }}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  background: 'var(--status-info-bg)',
+                  color: 'var(--status-info-text)',
+                  border: '1px solid var(--status-info-border)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                + {conditiiLabel}
+              </button>
+            ) : null}
+            {onAddCultura ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAddCultura() }}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  background: 'var(--pill-active-bg)',
+                  color: 'var(--pill-active-text)',
+                  border: '1px solid var(--pill-active-border)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                + Cultură
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -1200,23 +1206,16 @@ function ParcelaTerenMobileSheet({
   hasManualMicroclimat: boolean
   /** Împiedică închiderea Sheet-ului (ex. dialog microclimat deschis deasupra). */
   closeBlocked?: boolean
-  onAddActivity: (id: string) => void
+  onAddActivity?: (id: string) => void
   onTratamente: (id: string) => void
-  onDelete: (p: Parcela) => void
-  onEdit: (p: Parcela) => void
-  onAddCultura: () => void
-  onAddMicroclimat: () => void
-  onDesfiintaCultura: (c: Cultura) => void
+  onDelete?: (p: Parcela) => void
+  onEdit?: (p: Parcela) => void
+  onAddCultura?: () => void
+  onAddMicroclimat?: () => void
+  onDesfiintaCultura?: (c: Cultura) => void
   onOpenManualMicroclimat: () => void
 }) {
   const [sheetTab, setSheetTab] = useState<ParcelMobileSheetTabId>('rezumat')
-
-  useEffect(() => {
-    if (!parcela) return
-    if (!isParcelMobileSheetTabVisible(sheetTab, parcela.tip_unitate)) {
-      setSheetTab('rezumat')
-    }
-  }, [parcela, sheetTab])
 
   if (!parcela) return null
 
@@ -1236,6 +1235,7 @@ function ParcelaTerenMobileSheet({
   const isSolar = isParcelSolar(parcela.tip_unitate)
   const showRezumatMicroclimat = shouldShowRezumatMicroclimatBlock(parcela.tip_unitate)
   const sheetTabs = getParcelMobileSheetTabs(parcela.tip_unitate)
+  const activeSheetTab = isParcelMobileSheetTabVisible(sheetTab, parcela.tip_unitate) ? sheetTab : 'rezumat'
 
   return (
     <Sheet
@@ -1255,7 +1255,7 @@ function ParcelaTerenMobileSheet({
         </SheetHeader>
 
         <Tabs
-          value={sheetTab}
+          value={activeSheetTab}
           onValueChange={(next) => setSheetTab(next as ParcelMobileSheetTabId)}
           className="flex min-h-0 flex-1 flex-col gap-0"
         >
@@ -1348,13 +1348,15 @@ function ParcelaTerenMobileSheet({
             ) : null}
 
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => onAddActivity(parcela.id)}
-                className="min-h-11 rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-xs font-semibold text-[var(--pill-active-text)]"
-              >
-                + Activitate
-              </button>
+              {onAddActivity ? (
+                <button
+                  type="button"
+                  onClick={() => onAddActivity(parcela.id)}
+                  className="min-h-11 rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-2 text-xs font-semibold text-[var(--pill-active-text)]"
+                >
+                  + Activitate
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onTratamente(parcela.id)}
@@ -1365,22 +1367,26 @@ function ParcelaTerenMobileSheet({
                   Tratamente
                 </span>
               </button>
-              <button
-                type="button"
-                onClick={() => onDelete(parcela)}
-                className="col-span-2 min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 text-xs font-semibold text-[var(--status-danger-text)]"
-              >
-                Șterge
-              </button>
+              {onDelete ? (
+                <button
+                  type="button"
+                  onClick={() => onDelete(parcela)}
+                  className="col-span-2 min-h-11 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 text-xs font-semibold text-[var(--status-danger-text)]"
+                >
+                  Șterge
+                </button>
+              ) : null}
             </div>
 
-            <button
-              type="button"
-              onClick={() => onEdit(parcela)}
-              className="mt-3 w-full rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] py-2 text-xs font-semibold text-[var(--agri-text)]"
-            >
-              Editează terenul
-            </button>
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(parcela)}
+                className="mt-3 w-full rounded-lg border border-[var(--surface-divider)] bg-[var(--agri-surface)] py-2 text-xs font-semibold text-[var(--agri-text)]"
+              >
+                Editează terenul
+              </button>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="activitate" className="mt-0 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-5">
@@ -1732,10 +1738,14 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const { memberRole, accessLevel } = useDashboardAuth()
   const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const pendingDeletedItems = useRef<Record<string, { item: Parcela; index: number }>>({})
   const deleteMutateRef = useRef<(id: string) => void>(() => {})
   const lastUrlSelectedRef = useRef<string | null>(null)
+  const isOperator = memberRole === 'operator'
+  const canWriteParcele = !isOperator || accessLevel === 'write'
+  const canDeleteParcele = !isOperator
 
   const [addOpen, setAddOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -1849,11 +1859,16 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
   }, [])
 
   useEffect(() => {
+    if (!canWriteParcele) return
     const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă teren')
     return unregister
-  }, [registerAddAction])
+  }, [canWriteParcele, registerAddAction])
 
   const scheduleDelete = (parcela: Parcela) => {
+    if (!canDeleteParcele) {
+      toast.error('Operatorii nu pot șterge terenuri.')
+      return
+    }
     const parcelaId = parcela.id
     const currentItems = queryClient.getQueryData<Parcela[]>(queryKeys.parcele) ?? []
     const deleteIndex = currentItems.findIndex((item) => item.id === parcelaId)
@@ -2354,13 +2369,15 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
               title="Niciun teren adăugat"
               hint="Adaugă primul teren cu butonul +"
             />
-            <button
-              type="button"
-              onClick={() => setAddOpen(true)}
-              className="rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-5 py-2.5 text-[13px] font-bold text-[var(--pill-active-text)] transition-opacity hover:opacity-95"
-            >
-              🌿 Adaugă primul teren
-            </button>
+            {canWriteParcele ? (
+              <button
+                type="button"
+                onClick={() => setAddOpen(true)}
+                className="rounded-xl border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] px-5 py-2.5 text-[13px] font-bold text-[var(--pill-active-text)] transition-opacity hover:opacity-95"
+              >
+                🌿 Adaugă primul teren
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -2638,16 +2655,18 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
 
                           <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--surface-divider)] pt-3">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAddActivityParcelaId(desktopSelectedParcela.id)
-                                  setAddActivityOpen(true)
-                                }}
-                                className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--agri-primary)] px-3 text-xs font-semibold text-[var(--agri-primary-contrast)] shadow-[var(--shadow-soft)] transition-opacity hover:opacity-95"
-                              >
-                                + Activitate
-                              </button>
+                              {canWriteParcele ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAddActivityParcelaId(desktopSelectedParcela.id)
+                                    setAddActivityOpen(true)
+                                  }}
+                                  className="inline-flex h-8 items-center justify-center rounded-lg bg-[var(--agri-primary)] px-3 text-xs font-semibold text-[var(--agri-primary-contrast)] shadow-[var(--shadow-soft)] transition-opacity hover:opacity-95"
+                                >
+                                  + Activitate
+                                </button>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => router.push(`/parcele/${desktopSelectedParcela.id}/tratamente`)}
@@ -2656,7 +2675,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 <SprayCan className="mr-1.5 h-3.5 w-3.5 text-[var(--agri-primary)]" aria-hidden />
                                 + Tratament
                               </button>
-                              {normalizeUnitateTip(desktopSelectedParcela.tip_unitate) === 'solar' ? (
+                              {canWriteParcele && normalizeUnitateTip(desktopSelectedParcela.tip_unitate) === 'solar' ? (
                                 <>
                                   <button
                                     type="button"
@@ -2675,28 +2694,34 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
                                 </>
                               ) : null}
                             </div>
-                            <div className="flex flex-wrap items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedParcela(desktopSelectedParcela)
-                                  setEditOpen(true)
-                                }}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
-                              >
-                                Editează
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedParcela(desktopSelectedParcela)
-                                  setDeleteOpen(true)
-                                }}
-                                className="inline-flex h-8 items-center justify-center rounded-lg border border-[color:color-mix(in_srgb,var(--destructive)_35%,var(--border-default))] bg-transparent px-3 text-xs font-semibold text-[var(--destructive)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--destructive)_08%,transparent)]"
-                              >
-                                Șterge
-                              </button>
-                            </div>
+                            {canWriteParcele || canDeleteParcele ? (
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                {canWriteParcele ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedParcela(desktopSelectedParcela)
+                                      setEditOpen(true)
+                                    }}
+                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-xs font-semibold text-[var(--agri-text)] shadow-[var(--shadow-soft)] transition-colors hover:bg-[var(--surface-card-muted)]"
+                                  >
+                                    Editează
+                                  </button>
+                                ) : null}
+                                {canDeleteParcele ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedParcela(desktopSelectedParcela)
+                                      setDeleteOpen(true)
+                                    }}
+                                    className="inline-flex h-8 items-center justify-center rounded-lg border border-[color:color-mix(in_srgb,var(--destructive)_35%,var(--border-default))] bg-transparent px-3 text-xs font-semibold text-[var(--destructive)] transition-colors hover:bg-[color:color-mix(in_srgb,var(--destructive)_08%,transparent)]"
+                                  >
+                                    Șterge
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
@@ -3137,33 +3162,33 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         today={today}
         hasManualMicroclimat={mobileTerenSheetHasManualMicro}
         closeBlocked={addMicroclimatParcelaId !== null}
-        onAddActivity={(id) => {
+        onAddActivity={canWriteParcele ? (id) => {
           setAddActivityParcelaId(id)
           setAddActivityOpen(true)
-        }}
+        } : undefined}
         onTratamente={(id) => {
           router.push(`/parcele/${id}/tratamente`)
         }}
-        onDelete={(p) => {
+        onDelete={canDeleteParcele ? (p) => {
           setSelectedParcela(p)
           setDeleteOpen(true)
-        }}
-        onEdit={(p) => {
+        } : undefined}
+        onEdit={canWriteParcele ? (p) => {
           setSelectedParcela(p)
           setEditOpen(true)
-        }}
-        onAddCultura={() => {
+        } : undefined}
+        onAddCultura={canWriteParcele ? () => {
           if (!mobileTerenSheetParcela) return
           setAddCulturaParcelaId(mobileTerenSheetParcela.id)
-        }}
-        onAddMicroclimat={() => {
+        } : undefined}
+        onAddMicroclimat={canWriteParcele ? () => {
           if (!mobileTerenSheetParcela) return
           setAddMicroclimatParcelaId(mobileTerenSheetParcela.id)
-        }}
-        onDesfiintaCultura={(c) => {
+        } : undefined}
+        onDesfiintaCultura={canWriteParcele ? (c) => {
           if (!mobileTerenSheetParcela) return
           setDesfiintaState({ cultura: c, parcelaId: mobileTerenSheetParcela.id })
-        }}
+        } : undefined}
         onOpenManualMicroclimat={() => {
           if (!mobileTerenSheetParcela) return
           router.push(`/parcele?selected=${encodeURIComponent(mobileTerenSheetParcela.id)}`)
@@ -3171,15 +3196,19 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       />
 
       <AddParcelDrawer
-        open={addOpen}
-        onOpenChange={setAddOpen}
+        open={canWriteParcele && addOpen}
+        onOpenChange={(open) => {
+          if (!canWriteParcele) return
+          setAddOpen(open)
+        }}
         soiuriDisponibile={SOIURI_DISPONIBILE}
         onCreated={() => queryClient.invalidateQueries({ queryKey: queryKeys.parcele, exact: true })}
       />
 
       <EditParcelDialog
-        open={editOpen}
+        open={canWriteParcele && editOpen}
         onOpenChange={(nextOpen) => {
+          if (!canWriteParcele) return
           setEditOpen(nextOpen)
           if (!nextOpen) setSelectedParcela(null)
         }}
@@ -3190,8 +3219,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       />
 
       <ConfirmDeleteDialog
-        open={deleteOpen}
+        open={canDeleteParcele && deleteOpen}
         onOpenChange={(nextOpen) => {
+          if (!canDeleteParcele) return
           setDeleteOpen(nextOpen)
           if (!nextOpen) setSelectedParcela(null)
         }}
@@ -3200,6 +3230,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
         description={`Ștergi terenul ${buildParcelaDeleteLabel(selectedParcela)}?`}
         loading={deleteMutation.isPending}
         onConfirm={() => {
+          if (!canDeleteParcele) return
           if (!selectedParcela) return
           setDeleteOpen(false)
           scheduleDelete(selectedParcela)
@@ -3208,8 +3239,9 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       />
 
       <AddActivitateAgricolaDialog
-        open={addActivityOpen}
+        open={canWriteParcele && addActivityOpen}
         onOpenChange={(open) => {
+          if (!canWriteParcele) return
           setAddActivityOpen(open)
           if (!open) setAddActivityParcelaId(undefined)
         }}
@@ -3219,7 +3251,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       />
 
       <AddCulturaDialog
-        open={addCulturaParcelaId !== null}
+        open={canWriteParcele && addCulturaParcelaId !== null}
         onOpenChange={(open) => { if (!open) setAddCulturaParcelaId(null) }}
         parcelaId={addCulturaParcelaId ?? ''}
         tipUnitate={addCulturaParcela?.tip_unitate}
@@ -3233,7 +3265,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       />
 
       <AddMicroclimatDialog
-        open={addMicroclimatParcelaId !== null}
+        open={canWriteParcele && addMicroclimatParcelaId !== null}
         onOpenChange={(open) => { if (!open) setAddMicroclimatParcelaId(null) }}
         parcelaId={addMicroclimatParcelaId}
         tipUnitate={addMicroclimatParcela?.tip_unitate}
@@ -3242,7 +3274,7 @@ export function ParcelePageClient({ initialError }: ParcelePageClientProps) {
       />
 
       <DesfiinteazaCulturaDialog
-        open={desfiintaState !== null}
+        open={canWriteParcele && desfiintaState !== null}
         onOpenChange={(open) => { if (!open) setDesfiintaState(null) }}
         cultura={desfiintaState?.cultura ?? null}
         onDesfiintat={() => {

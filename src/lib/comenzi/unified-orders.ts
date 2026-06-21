@@ -205,6 +205,17 @@ export function isUnifiedOpenStatus(status: string): boolean {
   return status !== 'livrata' && status !== 'anulata'
 }
 
+export function isManualOrderActiveForComenziTab(comanda: Comanda): boolean {
+  return (
+    comanda.data_origin !== MAGAZIN_DATA_ORIGIN &&
+    comanda.data_origin !== 'shop_order_bridge' &&
+    comanda.status !== 'programata' &&
+    comanda.status !== 'in_livrare' &&
+    comanda.status !== 'livrata' &&
+    comanda.status !== 'anulata'
+  )
+}
+
 function getShopOrderKg(order: ShopOrderRow): number {
   if (!Array.isArray(order.items)) return 0
 
@@ -219,14 +230,7 @@ export function getComenziOperationalSnapshot(
   comenzi: Comanda[],
   shopOrders: ShopOrderRow[],
 ): ComenziOperationalSnapshot {
-  const activeManualCount = comenzi.filter(
-    (item) =>
-      item.data_origin !== MAGAZIN_DATA_ORIGIN &&
-      item.data_origin !== 'shop_order_bridge' &&
-      item.status !== 'in_livrare' &&
-      item.status !== 'livrata' &&
-      item.status !== 'anulata',
-  ).length
+  const activeManualCount = comenzi.filter(isManualOrderActiveForComenziTab).length
 
   const shopActiveCount = shopOrders.filter(
     (item) =>

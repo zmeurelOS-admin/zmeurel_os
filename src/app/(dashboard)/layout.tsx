@@ -11,6 +11,7 @@ import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { getAssociationRole } from '@/lib/association/auth'
+import { parseFarmMemberAccessHeader } from '@/lib/farm-members/access'
 import { getTenantLegalDocs } from '@/lib/legal-docs/server'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
@@ -25,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const tenantIdFromProxy = headerStore.get('x-zmeurel-tenant-id')
   const memberRoleFromProxy: 'operator' | null =
     headerStore.get('x-zmeurel-member-role') === 'operator' ? 'operator' : null
+  const memberAccess = parseFarmMemberAccessHeader(headerStore.get('x-zmeurel-member-modules'))
   const accessLevelFromProxy = headerStore.get('x-zmeurel-access-level')
   const accessLevel: 'read' | 'write' | null =
     accessLevelFromProxy === 'read' || accessLevelFromProxy === 'write' ? accessLevelFromProxy : null
@@ -67,6 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     associationRole: await getAssociationRole(user.id),
     farmName,
     memberRole: memberRoleFromProxy,
+    memberAccess,
     accessModule: headerStore.get('x-zmeurel-access-module'),
     accessLevel,
   }

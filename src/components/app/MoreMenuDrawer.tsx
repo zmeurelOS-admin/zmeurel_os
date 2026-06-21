@@ -34,6 +34,7 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { usePushSubscription } from '@/components/notifications/usePushSubscription'
 import { Button } from '@/components/ui/button'
 import { prepareClientBeforeServerSignOut } from '@/lib/auth/server-sign-out-form'
+import { type FarmMemberModuleAccess } from '@/lib/farm-members/access'
 import {
   ShopOrdersInLivrareNavBadge,
   useShopOrdersInLivrareCount,
@@ -110,11 +111,16 @@ function isMoreMenuItemActive(pathname: string, href: string) {
 
 const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/livrari', '/recoltari', '/comenzi'])
 
+function canOperatorSeeParceleMenu(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
+  if (memberRole !== 'operator') return true
+  return (access ?? []).some((item) => item.module === 'parcele')
+}
+
 export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
   const pathname = usePathname()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { isSuperAdmin: isSuperAdminUser, associationRole } = useDashboardAuth()
+  const { isSuperAdmin: isSuperAdminUser, associationRole, memberRole, memberAccess } = useDashboardAuth()
   const { unsubscribe: unsubscribePush } = usePushSubscription()
   const ignoreCloseUntilRef = useRef(0)
   const prevOpenRef = useRef(false)
@@ -134,16 +140,19 @@ export function MoreMenuDrawer({ open, onOpenChange }: MoreMenuDrawerProps) {
 
   const inAssociationWorkspace = pathname.startsWith('/asociatie')
   const { data: shopInLivrareCount = 0 } = useShopOrdersInLivrareCount()
+  const canSeeParcele = canOperatorSeeParceleMenu(memberRole, memberAccess)
 
   const farmMenuSections = useMemo(() => {
     const cleanedGroups = groups.map((group) => ({
       ...group,
-      items: group.items.filter((item) => !MOBILE_NAV_PRIMARY.has(item.href)),
+      items: group.items.filter(
+        (item) => !MOBILE_NAV_PRIMARY.has(item.href) && (item.href !== '/parcele' || canSeeParcele),
+      ),
     }))
     const base = associationRole ? [associationGroup, ...cleanedGroups] : cleanedGroups
     if (!isSuperAdminUser) return base
     return [...base, adminGroup]
-  }, [isSuperAdminUser, associationRole])
+  }, [associationRole, canSeeParcele, isSuperAdminUser])
 
   const handleNavigate = (href: string) => {
     onOpenChange(false)
