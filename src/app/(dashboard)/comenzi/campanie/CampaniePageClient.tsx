@@ -24,9 +24,25 @@ import type {
   CampaignAdminMilestone,
   CampaignAdminPayload,
 } from '@/lib/shop/campaign-admin-queries'
+import { KG_PER_CASEROLĂ } from '@/lib/comenzi/unified-orders'
 
 function formatLei(value: number): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)} lei`
+}
+
+function formatCampaignKg(value: number): string {
+  return (value * KG_PER_CASEROLĂ).toFixed(1)
+}
+
+function formatRewardLabelForDisplay(value: string): string {
+  return value.replace(/([+-]?)\s*(\d+)\s*caserol(?:ă|e)\s*(\d+)\s*g/gi, (_, prefix: string, count: string, grams: string) => {
+    const totalKg = (Number(count) * Number(grams)) / 1000
+    const formatted = new Intl.NumberFormat('ro-RO', {
+      minimumFractionDigits: totalKg % 1 === 0 ? 0 : totalKg * 10 % 1 === 0 ? 1 : 2,
+      maximumFractionDigits: 2,
+    }).format(totalKg)
+    return `${prefix ?? ''}${formatted} kg`
+  })
 }
 
 function formatDate(value: string | null): string {
@@ -127,8 +143,10 @@ function LeaderboardCard({ entry }: { entry: CampaignAdminLeaderboardEntry }) {
           ) : null}
         </div>
         <div className="text-right">
-          <p className="text-2xl font-extrabold text-[var(--success-text)]">{entry.totalQty}</p>
-          <p className="text-xs font-semibold text-[var(--text-tertiary)]">caserole</p>
+          <p className="text-2xl font-extrabold text-[var(--success-text)]">
+            {formatCampaignKg(entry.totalQty)}
+          </p>
+          <p className="text-xs font-semibold text-[var(--text-tertiary)]">kg</p>
         </div>
       </div>
       {entry.finalPrize ? (
@@ -176,7 +194,8 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
       },
       {
         accessorKey: 'totalQty',
-        header: 'Caserole',
+        header: 'Kg',
+        cell: ({ row }) => `${formatCampaignKg(row.original.totalQty)} kg`,
         meta: { numeric: true },
       },
       {
@@ -224,9 +243,8 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                 </Badge>
               </div>
               <p className="mt-2 text-sm font-semibold text-[var(--text-secondary)]">
-                {initialData.campaign.currentCount} / {initialData.campaign.targetQty} caserole (
-                {(initialData.campaign.currentCount * 0.5).toFixed(1)} /{' '}
-                {(initialData.campaign.targetQty * 0.5).toFixed(1)} kg) · {progress}%
+                {formatCampaignKg(initialData.campaign.currentCount)} /{' '}
+                {formatCampaignKg(initialData.campaign.targetQty)} kg · {progress}%
               </p>
             </div>
             <Button
@@ -259,8 +277,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
           </div>
           <div className="mt-4 rounded-xl bg-[var(--surface-card-muted)] px-4 py-3">
             <p className="text-sm font-extrabold text-[var(--text-primary)]">
-              Total comenzi active: {initialData.activeTotals.totalQty} caserole (
-              {(initialData.activeTotals.totalQty * 0.5).toFixed(1)} kg) ·{' '}
+              Total comenzi active: {formatCampaignKg(initialData.activeTotals.totalQty)} kg ·{' '}
               {formatLei(initialData.activeTotals.totalLei)} ·{' '}
               {initialData.activeTotals.orderCount}{' '}
               {initialData.activeTotals.orderCount === 1 ? 'comandă' : 'comenzi'}
@@ -287,7 +304,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                       <span className="font-bold text-[var(--text-primary)]">{formatDay(day.date)}</span>
                       <span className="text-[var(--text-secondary)]">
                         {day.orderCount} {day.orderCount === 1 ? 'comandă' : 'comenzi'} ·{' '}
-                        {day.totalQty} caserole ({(day.totalQty * 0.5).toFixed(1)} kg) ·{' '}
+                        {formatCampaignKg(day.totalQty)} kg ·{' '}
                         {formatLei(day.totalLei)}
                       </span>
                     </div>
@@ -320,10 +337,10 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                     {entry.mode === 'livrare' ? 'Livrare' : 'Ridicare'}
                   </p>
                   <p className="mt-2 text-2xl font-extrabold text-[var(--success-text)]">
-                    {entry.totalQty}
+                    {formatCampaignKg(entry.totalQty)}
                   </p>
                   <p className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    caserole ({(entry.totalQty * 0.5).toFixed(1)} kg) · {entry.orderCount}{' '}
+                    kg · {entry.orderCount}{' '}
                     {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
                   </p>
                   <p className="mt-2 text-sm font-bold text-[var(--text-secondary)]">
@@ -368,7 +385,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                 <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-[var(--text-secondary)]">
                   <span>{entry.orderCount} comenzi</span>
                   <span>
-                    {entry.totalQty} caserole ({(entry.totalQty * 0.5).toFixed(1)} kg)
+                    {formatCampaignKg(entry.totalQty)} kg
                   </span>
                   <span className="text-right font-bold">{formatLei(entry.totalLei)}</span>
                 </div>
@@ -382,7 +399,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                 <tr>
                   <th className="px-3 py-2">Data</th>
                   <th className="px-3 py-2 text-right">Comenzi</th>
-                  <th className="px-3 py-2 text-right">Caserole</th>
+                  <th className="px-3 py-2 text-right">Kg</th>
                   <th className="px-3 py-2 text-right">Valoare</th>
                 </tr>
               </thead>
@@ -400,7 +417,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                   >
                     <td className="px-3 py-3 font-semibold">{entry.label}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{entry.orderCount}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{entry.totalQty}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">{formatCampaignKg(entry.totalQty)}</td>
                     <td className="px-3 py-3 text-right font-semibold tabular-nums">
                       {formatLei(entry.totalLei)}
                     </td>
@@ -433,7 +450,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                         : 'Neclasificat'}
                   </p>
                   <p className="mt-2 text-xl font-extrabold text-[var(--success-text)]">
-                    {entry.totalQty} caserole ({(entry.totalQty * 0.5).toFixed(1)} kg)
+                    {formatCampaignKg(entry.totalQty)} kg
                   </p>
                   <p className="mt-1 text-xs text-[var(--text-tertiary)]">
                     {entry.orderCount} {entry.orderCount === 1 ? 'comandă' : 'comenzi'}
@@ -525,7 +542,7 @@ export function CampaniePageClient({ initialData }: { initialData: CampaignAdmin
                     }
                   >
                     <TableCell className="font-bold">{milestone.threshold}</TableCell>
-                    <TableCell>{milestone.rewardLabel}</TableCell>
+                    <TableCell>{formatRewardLabelForDisplay(milestone.rewardLabel)}</TableCell>
                     <TableCell>
                       {milestone.winnerName && milestone.winnerPhone ? (
                         <span>

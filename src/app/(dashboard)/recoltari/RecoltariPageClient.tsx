@@ -103,6 +103,10 @@ function formatKg(value: number, digits = 2): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: digits }).format(value)} kg`
 }
 
+function formatKgValue(value: number, digits = 2): string {
+  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: digits }).format(value)
+}
+
 function formatLei(value: number): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(value)} lei`
 }
@@ -119,6 +123,12 @@ function relativeHarvestDateLabel(daysAgo: number | null): string {
   if (daysAgo === 0) return 'azi'
   if (daysAgo === 1) return 'ieri'
   return `acum ${daysAgo} zile`
+}
+
+function calculateCal1Pct(cal1: number, cal2: number): number {
+  const total = cal1 + cal2
+  if (total <= 0) return 0
+  return Math.round((cal1 / total) * 100)
 }
 
 export function RecoltariPageClient({
@@ -404,6 +414,33 @@ export function RecoltariPageClient({
     return map
   }, [culegatori])
 
+  const seasonParcelaChips = useMemo(() => {
+    const grouped = new Map<string, { displayName: string; kgCal1: number; kgCal2: number }>()
+
+    recoltari.forEach((recoltare) => {
+      const parcelaId = recoltare.parcela_id
+      const date = toDateOnly(recoltare.data)
+      if (!parcelaId || !date || date < seasonStartIso || date > todayIso) return
+
+      const parcelaMeta = parcelaMap[parcelaId]
+      const displayName = parcelaMeta?.displayName || parcelaMeta?.name || 'Parcelă'
+      const current = grouped.get(parcelaId) ?? { displayName, kgCal1: 0, kgCal2: 0 }
+
+      current.kgCal1 += Number(recoltare.kg_cal1 ?? 0)
+      current.kgCal2 += Number(recoltare.kg_cal2 ?? 0)
+      grouped.set(parcelaId, current)
+    })
+
+    return Array.from(grouped.entries())
+      .map(([parcelaId, item]) => ({
+        parcelaId,
+        displayName: item.displayName,
+        totalKg: item.kgCal1 + item.kgCal2,
+        cal1Pct: calculateCal1Pct(item.kgCal1, item.kgCal2),
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ro-RO'))
+  }, [parcelaMap, recoltari, seasonStartIso, todayIso])
+
   const searchFilteredRecoltari = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     if (!term) return recoltari
@@ -481,9 +518,11 @@ export function RecoltariPageClient({
       return { cal1Pct: 0, cal2Pct: 0 }
     }
 
+    const cal1Pct = calculateCal1Pct(cal1, cal2)
+
     return {
-      cal1Pct: Math.round((cal1 / total) * 100),
-      cal2Pct: Math.round((cal2 / total) * 100),
+      cal1Pct,
+      cal2Pct: 100 - cal1Pct,
     }
   }, [filteredRecoltari])
 
@@ -529,6 +568,9 @@ export function RecoltariPageClient({
     ]
   }, [recoltari.length, totalCantitateKg, kpiCal1Kg, kpiCal2Kg, kpiCulegatoriImplicati])
 
+  const compactDesktopHeaderClassName = 'py-2.5'
+  const compactDesktopCellClassName = 'py-2'
+
   const desktopColumns = useMemo<ColumnDef<Recoltare>[]>(() => {
     return [
       {
@@ -538,6 +580,8 @@ export function RecoltariPageClient({
         cell: ({ row }) => formatTableDate(row.original.data),
         meta: {
           searchValue: (row: Recoltare) => formatTableDate(row.data),
+          headerClassName: compactDesktopHeaderClassName,
+          cellClassName: compactDesktopCellClassName,
         },
       },
       {
@@ -556,6 +600,8 @@ export function RecoltariPageClient({
             const m = row.parcela_id ? parcelaMap[row.parcela_id] : undefined
             return [m?.displayName, m?.name, m?.soi, m?.tipLabel].filter(Boolean).join(' ')
           },
+          headerClassName: compactDesktopHeaderClassName,
+          cellClassName: compactDesktopCellClassName,
         },
       },
       {
@@ -567,6 +613,8 @@ export function RecoltariPageClient({
         meta: {
           searchValue: (row: Recoltare) =>
             row.culegator_id ? culegatorMap[row.culegator_id]?.nume ?? '' : '',
+          headerClassName: compactDesktopHeaderClassName,
+          cellClassName: compactDesktopCellClassName,
         },
       },
       {
@@ -579,6 +627,8 @@ export function RecoltariPageClient({
         meta: {
           searchValue: (row: Recoltare) => row.kg_cal1,
           numeric: true,
+          headerClassName: compactDesktopHeaderClassName,
+          cellClassName: compactDesktopCellClassName,
         },
       },
       {
@@ -591,6 +641,8 @@ export function RecoltariPageClient({
         meta: {
           searchValue: (row: Recoltare) => row.kg_cal2,
           numeric: true,
+          headerClassName: compactDesktopHeaderClassName,
+          cellClassName: compactDesktopCellClassName,
         },
       },
       {
@@ -608,10 +660,12 @@ export function RecoltariPageClient({
         meta: {
           searchValue: (row: Recoltare) => getRecoltareTotalKg(row),
           numeric: true,
+          headerClassName: compactDesktopHeaderClassName,
+          cellClassName: compactDesktopCellClassName,
         },
       },
     ]
-  }, [parcelaMap, culegatorMap])
+  }, [parcelaMap, culegatorMap, compactDesktopCellClassName, compactDesktopHeaderClassName])
 
   const timeFilterOptions: Array<{ key: TimeFilter; label: string }> = [
     { key: 'azi', label: 'Azi' },
@@ -672,6 +726,45 @@ export function RecoltariPageClient({
             ) : null}
 
             <DesktopKpiStrip items={recoltariDesktopKpiItems} />
+
+            {seasonParcelaChips.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">Sezon pe parcelă</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Atinge o parcelă pentru filtrare</p>
+                </div>
+                <div className="overflow-x-auto pb-1 [scrollbar-width:none]">
+                  <div className="flex min-w-max gap-2">
+                    {seasonParcelaChips.map((chip) => {
+                      const isActive = searchTerm.trim().toLowerCase() === chip.displayName.toLowerCase()
+
+                      return (
+                        <button
+                          key={chip.parcelaId}
+                          type="button"
+                          onClick={() => setSearchTerm(chip.displayName)}
+                          className={[
+                            'shrink-0 rounded-2xl border px-3 py-2 text-left shadow-[var(--shadow-soft)] transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out',
+                            'active:scale-[0.985]',
+                            isActive
+                              ? 'border-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--success-bg)_72%,var(--surface-card))]'
+                              : 'border-[var(--border-default)] bg-[var(--surface-card)]'
+                          ].join(' ')}
+                          aria-label={`Filtrează după ${chip.displayName}`}
+                        >
+                          <span className="block whitespace-nowrap text-[13px] leading-snug text-[var(--text-primary)] [font-weight:650]">
+                            {chip.displayName}
+                          </span>
+                          <span className="mt-1 block whitespace-nowrap text-[11px] leading-snug text-[var(--text-secondary)]">
+                            {formatKgValue(chip.totalKg, 2)} kg · Cal I {chip.cal1Pct}%
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-3 md:hidden">
               <ModulePillRow>
@@ -820,6 +913,7 @@ export function RecoltariPageClient({
                       meta={meta}
                       statusLabel={relativeHarvestDateLabel(daysAgo)}
                       statusTone={daysAgo === 0 ? 'success' : daysAgo === 1 ? 'warning' : 'neutral'}
+                      density="compact"
                       showChevron
                       onClick={() => setViewingRecoltare(recoltare)}
                     />

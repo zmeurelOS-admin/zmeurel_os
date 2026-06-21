@@ -1,6 +1,9 @@
 import { compareActivityRecency } from '@/lib/activitati/timeline'
 import { getPauseRemainingDays, getPauseUrgency, isPauseActive } from '@/lib/pause-helpers'
-import { STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG } from '@/lib/calculations/stock-audit-thresholds'
+import {
+  STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
+  STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
+} from '@/lib/calculations/stock-audit-thresholds'
 import type { DashboardWidgetId } from '@/lib/dashboard/layout'
 import type { DashboardTreatmentSuggestion } from '@/lib/dashboard/treatment-suggestions'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
@@ -166,6 +169,20 @@ function normalizeText(value: string | null | undefined): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+}
+
+function formatStockAttentionText(criticalCount: number, warningCount: number): string {
+  if (criticalCount > 0 && warningCount > 0) {
+    return `${criticalCount} ${criticalCount === 1 ? 'critic' : 'critice'} · ${warningCount} ${
+      warningCount === 1 ? 'în atenție' : 'în atenție'
+    }`
+  }
+
+  if (criticalCount > 0) {
+    return `${criticalCount} ${criticalCount === 1 ? 'produs critic' : 'produse critice'}`
+  }
+
+  return `${warningCount} ${warningCount === 1 ? 'produs în atenție' : 'produse în atenție'}`
 }
 
 export function buildParcelDashboardStates(raw: DashboardRawData): ParcelDashboardState[] {
@@ -399,10 +416,14 @@ export function buildDashboardTasks(
 
   const criticalStocks = raw.stocuri.filter((row) => row.total_kg <= STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG)
   if (criticalStocks.length > 0) {
+    const criticalCount = criticalStocks.filter(
+      (row) => row.total_kg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
+    ).length
+    const warningCount = criticalStocks.length - criticalCount
     tasks.push({
       id: 'stoc:critic',
       icon: '📉',
-      text: `${criticalStocks.length} ${criticalStocks.length === 1 ? 'produs cu stoc scăzut' : 'produse cu stoc scăzut'}`,
+      text: formatStockAttentionText(criticalCount, warningCount),
       tag: 'STOC',
       tone: 'info',
     })
@@ -453,11 +474,15 @@ export function buildDashboardAlerts(
 
   const criticalStocks = raw.stocuri.filter((row) => row.total_kg <= STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG)
   if (criticalStocks.length > 0) {
+    const criticalCount = criticalStocks.filter(
+      (row) => row.total_kg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
+    ).length
+    const warningCount = criticalStocks.length - criticalCount
     alerts.push({
       id: 'alert:stoc-critic',
       category: 'stoc',
-      severity: criticalStocks.some((row) => row.total_kg <= 5) ? 'critical' : 'warning',
-      message: `${criticalStocks.length} produse cu stoc la limită`,
+      severity: criticalCount > 0 ? 'critical' : 'warning',
+      message: formatStockAttentionText(criticalCount, warningCount),
     })
   }
 

@@ -7,7 +7,7 @@ import {
   ModulePillRow,
 } from '@/components/app/module-list-chrome'
 
-export type ComenziSection = 'comenzi' | 'waitlist'
+export type ComenziSection = 'comenzi'
 
 export function ComenziSectionPills({
   section = 'comenzi',
@@ -22,7 +22,7 @@ export function ComenziSectionPills({
 
   const openSection = (nextSection: ComenziSection) => {
     if (campaignActive || !onSectionChange) {
-      router.push(nextSection === 'waitlist' ? '/comenzi?section=waitlist' : '/comenzi')
+      router.push('/comenzi')
       return
     }
     onSectionChange(nextSection)
@@ -35,12 +35,6 @@ export function ComenziSectionPills({
         onClick={() => openSection('comenzi')}
       >
         Comenzi
-      </ModulePillFilterButton>
-      <ModulePillFilterButton
-        active={!campaignActive && section === 'waitlist'}
-        onClick={() => openSection('waitlist')}
-      >
-        Listă așteptare
       </ModulePillFilterButton>
       <ModulePillFilterButton
         active={campaignActive}

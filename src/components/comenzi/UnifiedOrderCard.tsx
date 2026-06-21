@@ -9,12 +9,34 @@ import {
   B2B_STATUS_TRANSITIONS,
   B2B_STATUS_LABELS,
   formatOrderDateTime,
+  KG_PER_CASEROLĂ,
   SHOP_STATUS_TRANSITIONS,
   SHOP_STATUS_LABELS,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
 import type { ComandaStatus } from '@/lib/supabase/queries/comenzi'
 import { waUrlForPhone, type ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
+
+function formatKgFromGrams(grams: number): string {
+  return `${new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: grams % 1000 === 0 ? 0 : grams % 500 === 0 ? 1 : 2,
+    maximumFractionDigits: 2,
+  }).format(grams / 1000)} kg`
+}
+
+function formatDisplayTextWithoutCaserole(value: string): string {
+  return value
+    .replace(/([+-]?)\s*(\d+)\s*caserol(?:ă|e)\s*(\d+)\s*g/gi, (_, prefix: string, count: string, grams: string) => {
+      const totalGrams = Number(count) * Number(grams)
+      return `${prefix ?? ''}${formatKgFromGrams(totalGrams)}`
+    })
+    .replace(/\bO caserolă bonus\b/gi, `${formatKgFromGrams(500)} bonus`)
+    .replace(/\bDouă caserole bonus\b/gi, `${formatKgFromGrams(1000)} bonus`)
+    .replace(/Caserolă\s*(\d+)\s*g\s*×\s*(\d+)/gi, (_, grams: string, qty: string) =>
+      formatKgFromGrams(Number(grams) * Number(qty)),
+    )
+    .replace(/Caserolă\s*(\d+)\s*g/gi, (_, grams: string) => formatKgFromGrams(Number(grams)))
+}
 
 function OriginBadge({ source }: { source: UnifiedOrderItem['source'] }) {
   const isShop = source === 'shop'
@@ -70,7 +92,7 @@ function MilestoneRewardBadge({
 }) {
   return (
     <div className="mt-2 inline-flex max-w-full flex-col rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2.5 py-1.5 text-[var(--status-warning-text)]">
-      <span className="truncate text-xs font-bold">{rewardLabel}</span>
+      <span className="truncate text-xs font-bold">{formatDisplayTextWithoutCaserole(rewardLabel)}</span>
       <span className="text-[10px] font-semibold opacity-80">
         {status === 'validated' ? 'Bonus validat' : 'Bonus la livrare'}
       </span>
@@ -128,7 +150,8 @@ export function UnifiedOrderCard({
   const kgLabel =
     item.quantityUnit === 'kg'
       ? null
-      : `${(item.quantity * 0.5).toFixed(1)} kg`
+      : `${(item.quantity * KG_PER_CASEROLĂ).toFixed(1)} kg`
+  const displayQuantityLabel = kgLabel ?? quantityLabel
   const phoneHref = item.phone ? `tel:${item.phone.replace(/\s/g, '')}` : undefined
   const fullAddress = isShop
     ? [shopOrder?.delivery_address?.trim(), shopOrder?.delivery_city?.trim()]
@@ -166,7 +189,7 @@ export function UnifiedOrderCard({
     const unitDescription =
       item.quantityUnit === 'kg'
         ? `${quantityFormatted} kg`
-        : `${quantityFormatted} ${item.quantity === 1 ? 'caserolă' : 'caserole'} de zmeură`
+        : `${displayQuantityLabel} de zmeură`
     const message =
       nextStatus === 'confirmata'
         ? `Bună ziua, ${firstName}! 🍓\n\nAm primit comanda dvs. din ${orderDateLong}: ${unitDescription} (${totalFormatted} lei).\n\nVă vom contacta cu detaliile livrării.\n\nMulțumim că ați ales Ferma Zmeurel! 🌿`
@@ -200,7 +223,7 @@ export function UnifiedOrderCard({
 
   const handleZona4WhatsApp = () => {
     const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
-    const message = `Bună ziua, ${firstName}!\n\nAm primit comanda dvs. de ${quantityLabel} (${totalFormatted} lei) cu livrare în ${item.localityLabel}.\n\nVă contactăm pentru a stabili locul și data livrării.\n\nMulțumim! — Ferma Zmeurel`
+    const message = `Bună ziua, ${firstName}!\n\nAm primit comanda dvs. de ${displayQuantityLabel} (${totalFormatted} lei) cu livrare în ${item.localityLabel}.\n\nVă contactăm pentru a stabili locul și data livrării.\n\nMulțumim! — Ferma Zmeurel`
     window.open(
       `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`,
       '_blank',
@@ -237,7 +260,7 @@ export function UnifiedOrderCard({
           </div>
           <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
             <span className="min-w-0 flex-1 truncate">
-              {quantityLabel}{kgLabel ? ` · ${kgLabel}` : ''} · {totalFormatted} lei ·{' '}
+              {displayQuantityLabel} · {totalFormatted} lei ·{' '}
               {item.localityLabel}
             </span>
             <span className="shrink-0">{mobileDateLabel}</span>
@@ -431,7 +454,7 @@ export function UnifiedOrderCard({
             compact ? 'mt-1.5 pt-1.5 text-[11px]' : 'mt-2 pt-2 text-[13px]'
           }`}
         >
-          <span>{quantityLabel}{kgLabel ? ` · ${kgLabel}` : ''} · {totalFormatted} lei</span>
+          <span>{displayQuantityLabel} · {totalFormatted} lei</span>
           <span className="text-[var(--text-tertiary)]"> · </span>
           <span className="font-medium text-[var(--text-secondary)]">{item.localityLabel}</span>
           {item.deliveryDate ? (
@@ -459,7 +482,9 @@ export function UnifiedOrderCard({
             </div>
             <div>
               <p className="text-xs font-semibold text-[var(--text-tertiary)]">Produse</p>
-              <p className="mt-0.5 text-[var(--text-secondary)]">{item.productsLabel}</p>
+              <p className="mt-0.5 text-[var(--text-secondary)]">
+                {formatDisplayTextWithoutCaserole(item.productsLabel)}
+              </p>
             </div>
             {shopOrder?.milestone_reward ? (
               <MilestoneRewardBadge

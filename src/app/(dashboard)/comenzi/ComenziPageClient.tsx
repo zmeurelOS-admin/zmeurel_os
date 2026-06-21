@@ -51,16 +51,11 @@ import { DesktopToolbar } from '@/components/ui/desktop'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ShopOrdersPanel } from '@/components/comenzi/ShopOrdersPanel'
 import {
   buildDeliveryLocation,
   deriveDeliverySelection,
   ErpLocalitySelector,
 } from '@/components/comenzi/ErpLocalitySelector'
-import {
-  ComenziSectionPills,
-  type ComenziSection,
-} from '@/components/comenzi/ComenziSectionPills'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -99,6 +94,8 @@ import {
   type OrderClientPersistencePlan,
 } from '@/lib/comenzi/ai-order-client'
 import {
+  getComenziOperationalSnapshot,
+  KG_PER_CASEROLĂ,
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
   mapShopToUnified,
@@ -116,7 +113,6 @@ import {
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'programate' | 'livrate' | 'toate'
-type PageSection = ComenziSection
 type ComenziOrderSort =
   | 'created_at'
   | 'created_at_desc'
@@ -131,7 +127,6 @@ type ComenziOrderGroup = {
   totalQty: number
 }
 
-const KG_PER_CASEROLĂ = 0.5
 const clientiComenziQueryKey = [...queryKeys.clienti, 'comenzi-dialog'] as const
 
 function round2(value: number): number {
@@ -595,12 +590,14 @@ function isPaidStatus(status: string | null | undefined): boolean {
 function PillTabs({
   value,
   onChange,
+  onOpenCampaign,
   activeCount,
   scheduledCount,
   livrateCount,
 }: {
   value: TabKey
   onChange: (value: TabKey) => void
+  onOpenCampaign: () => void
   activeCount: number
   scheduledCount: number
   livrateCount: number
@@ -612,7 +609,7 @@ function PillTabs({
     { key: 'toate' as const, label: 'Toate' },
   ]
   return (
-    <ModulePillRow>
+    <ModulePillRow className="flex-nowrap overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map((tab) => (
         <ModulePillFilterButton
           key={tab.key}
@@ -622,6 +619,9 @@ function PillTabs({
           {tab.label}
         </ModulePillFilterButton>
       ))}
+      <ModulePillFilterButton active={false} onClick={onOpenCampaign}>
+        Campanie 🎯
+      </ModulePillFilterButton>
     </ModulePillRow>
   )
 }
@@ -629,8 +629,7 @@ function PillTabs({
 function UnifiedOrderGroupSection({
   date,
   orderCount,
-  totalQty,
-  quantityLabel,
+  quantitySummary,
   necesarKg,
   showHeader = true,
   scheduledView = false,
@@ -639,8 +638,7 @@ function UnifiedOrderGroupSection({
 }: {
   date: string | null
   orderCount: number
-  totalQty: number
-  quantityLabel: string
+  quantitySummary: string
   necesarKg?: number
   showHeader?: boolean
   scheduledView?: boolean
@@ -677,7 +675,7 @@ function UnifiedOrderGroupSection({
           }`}
         >
           {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
-          {quantityLabel ? ` · ${totalQty.toLocaleString('ro-RO')} ${quantityLabel}` : ''}
+          {quantitySummary ? ` · ${quantitySummary}` : ''}
           {typeof necesarKg === 'number' && necesarKg > 0 ? ` · ${formatKgOneDecimal(necesarKg)} necesari` : ''}
         </div>
       ) : null}
@@ -1346,9 +1344,6 @@ export function ComenziPageClient() {
   const [orderSort, setOrderSort] = useState<ComenziOrderSort>(() =>
     initialTab === 'programate' ? 'delivery_date' : 'created_at',
   )
-  const [section, setSection] = useState<PageSection>(() =>
-    searchParams.get('section') === 'waitlist' ? 'waitlist' : 'comenzi',
-  )
   const [speedDialOpen, setSpeedDialOpen] = useState(false)
   const [dinMesajOpen, setDinMesajOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -1725,21 +1720,19 @@ export function ComenziPageClient() {
   )
 
   useEffect(() => {
-    if (section !== 'comenzi') return
     const interval = setInterval(() => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
     }, 30_000)
     return () => clearInterval(interval)
-  }, [queryClient, section])
+  }, [queryClient])
 
   useEffect(() => {
-    if (section !== 'comenzi') return
     if (!canWriteComenzi) return
     const unregister = registerAddAction(() => {
       setSpeedDialOpen(true)
     }, 'Adaugă comandă')
     return unregister
-  }, [canWriteComenzi, registerAddAction, section])
+  }, [canWriteComenzi, registerAddAction])
 
   useEffect(() => {
     const query = search.trim()
@@ -1797,13 +1790,13 @@ export function ComenziPageClient() {
       ),
     [shopOrders],
   )
-  const shopActiveCount = useMemo(
-    () => preorderShopOrders.filter((item) => isUnifiedOpenStatus(item.status)).length,
-    [preorderShopOrders],
-  )
   const shopLivrateCount = useMemo(
     () => preorderShopOrders.filter((item) => item.status === 'livrata').length,
     [preorderShopOrders],
+  )
+  const operationalSnapshot = useMemo(
+    () => getComenziOperationalSnapshot(comenzi, shopOrders),
+    [comenzi, shopOrders],
   )
 
   const vanzareById = useMemo(() => {
@@ -1873,40 +1866,8 @@ export function ComenziPageClient() {
 
   const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0)
 
-  const kgInLivrare = useMemo(() => {
-    const manuale = comenzi
-      .filter((c) => c.status === 'in_livrare' && c.data_origin !== 'shop_order_bridge')
-      .reduce((sum, c) => sum + Number(c.cantitate_kg ?? 0), 0)
-    const shop = shopOrders
-      .filter((o) => o.status === 'in_livrare')
-      .reduce((sum, o) => {
-        if (!Array.isArray(o.items)) return sum
-        return sum + (o.items as Array<{ qty?: number }>).reduce(
-          (s, item) => s + (item.qty ?? 0) * 0.5,
-          0,
-        )
-      }, 0)
-
-    return Math.round((manuale + shop) * 10) / 10
-  }, [comenzi, shopOrders])
-
-  const kgAngajat = useMemo(() => {
-    const statusAngajat = new Set(['noua', 'confirmata', 'programata'])
-    const manuale = comenzi
-      .filter((c) => statusAngajat.has(c.status) && c.data_origin !== 'shop_order_bridge')
-      .reduce((sum, c) => sum + Number(c.cantitate_kg ?? 0), 0)
-    const shop = shopOrders
-      .filter((o) => statusAngajat.has(o.status))
-      .reduce((sum, o) => {
-        if (!Array.isArray(o.items)) return sum
-        return sum + (o.items as Array<{ qty?: number }>).reduce(
-          (s, item) => s + (item.qty ?? 0) * 0.5,
-          0,
-        )
-      }, 0)
-
-    return Math.round((manuale + shop) * 10) / 10
-  }, [comenzi, shopOrders])
+  const kgInLivrare = operationalSnapshot.kgInLivrare
+  const kgAngajat = operationalSnapshot.kgAngajat
 
   const kgLivratAzi = useMemo(() => {
     const todayStr = todayIso()
@@ -2082,14 +2043,10 @@ export function ComenziPageClient() {
       bottomBar={null}
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
-        <ComenziSectionPills section={section} onSectionChange={setSection} />
-
-        {section === 'waitlist' ? <ShopOrdersPanel /> : null}
-
-        {section === 'comenzi' && (activeComenzi.length + shopActiveCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
+        {(operationalSnapshot.activeTotalCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
           <div className="space-y-2">
             <ModuleScoreboard className="gap-x-3.5 gap-y-2">
-              {activeComenzi.length + shopActiveCount > 0 ? (
+              {operationalSnapshot.activeTotalCount > 0 ? (
                 <span
                   role="button"
                   tabIndex={0}
@@ -2099,7 +2056,7 @@ export function ComenziPageClient() {
                     if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
                   }}
                 >
-                  <span className="text-lg font-extrabold text-[var(--agri-text)]">{activeComenzi.length + shopActiveCount}</span>
+                  <span className="text-lg font-extrabold text-[var(--agri-text)]">{operationalSnapshot.activeTotalCount}</span>
                   <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
                 </span>
               ) : null}
@@ -2162,16 +2119,6 @@ export function ComenziPageClient() {
           </div>
         ) : null}
 
-        {section === 'comenzi' ? (
-          <StocPills
-            stocDisponibil={totalStocDisponibilKg}
-            inLivrare={kgInLivrare}
-            angajat={kgAngajat}
-            livratAzi={kgLivratAzi}
-          />
-        ) : null}
-
-        {section === 'comenzi' ? (
         <PillTabs
           value={activeTab}
           onChange={(value) => {
@@ -2186,13 +2133,19 @@ export function ComenziPageClient() {
             }
             if (value === 'programate' && activeFilter === 'neincasat') setActiveFilter('none')
           }}
-          activeCount={activeComenzi.length + shopActiveCount}
+          onOpenCampaign={() => router.push('/comenzi/campanie')}
+          activeCount={operationalSnapshot.activeTotalCount}
           scheduledCount={programateCount}
           livrateCount={livrateComenzi.length + shopLivrateCount}
         />
-        ) : null}
 
-        {section === 'comenzi' ? (
+        <StocPills
+          stocDisponibil={totalStocDisponibilKg}
+          inLivrare={kgInLivrare}
+          angajat={kgAngajat}
+          livratAzi={kgLivratAzi}
+        />
+
         <SearchField
           containerClassName="md:hidden"
           placeholder="Caută după client sau telefon..."
@@ -2200,9 +2153,7 @@ export function ComenziPageClient() {
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Caută comenzi"
         />
-        ) : null}
 
-        {section === 'comenzi' ? (
         <DesktopToolbar className="hidden md:flex">
           <SearchField
             containerClassName="w-full max-w-md min-w-[200px]"
@@ -2212,41 +2163,38 @@ export function ComenziPageClient() {
             aria-label="Caută comenzi (desktop)"
           />
         </DesktopToolbar>
-        ) : null}
 
-        {section === 'comenzi' ? (
-          <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
-              Sortează:
-            </Label>
-            <Select
-              value={orderSort}
-              onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
-            >
-              <SelectTrigger id="comenzi-sort" className="h-9 w-full max-w-[15rem] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at">Dată plasare ↑</SelectItem>
-                <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
-                <SelectItem value="delivery_date">Dată livrare</SelectItem>
-                <SelectItem value="locality">Localitate / Zonă</SelectItem>
-                <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
-                <SelectItem value="total_desc">Total lei ↓</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        ) : null}
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
+            Sortează:
+          </Label>
+          <Select
+            value={orderSort}
+            onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
+          >
+            <SelectTrigger id="comenzi-sort" className="h-9 w-full max-w-[15rem] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at">Dată plasare ↑</SelectItem>
+              <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
+              <SelectItem value="delivery_date">Dată livrare</SelectItem>
+              <SelectItem value="locality">Localitate / Zonă</SelectItem>
+              <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
+              <SelectItem value="total_desc">Total lei ↓</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        {section === 'comenzi' && (isError || shopOrdersError) ? (
+        {(isError || shopOrdersError) ? (
           <ErrorState
             title="Eroare"
             message={((error ?? shopOrdersErrorObj) as Error)?.message ?? 'Nu am putut încărca comenzile.'}
           />
         ) : null}
-        {section === 'comenzi' && (isLoading || shopOrdersLoading) ? <EntityListSkeleton /> : null}
+        {(isLoading || shopOrdersLoading) ? <EntityListSkeleton /> : null}
 
-        {section === 'comenzi' && !isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length === 0 ? (
+        {!isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length === 0 ? (
           <ModuleEmptyCard
             emoji="📋"
             title="Nicio comandă încă"
@@ -2254,13 +2202,17 @@ export function ComenziPageClient() {
           />
         ) : null}
 
-        {section === 'comenzi' && !isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length > 0 ? (
+        {!isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length > 0 ? (
           <>
             <div className="space-y-5 md:hidden">
               {unifiedGroups.map((group) => {
                 const units = new Set(group.orders.map((order) => order.quantityUnit))
-                const quantityLabel =
-                  units.size === 1 ? (units.has('kg') ? 'kg' : 'caserole') : ''
+                const quantitySummary =
+                  units.size === 1
+                    ? units.has('kg')
+                      ? `${group.totalQty.toLocaleString('ro-RO')} kg`
+                      : formatKgOneDecimal(group.totalQty * KG_PER_CASEROLĂ)
+                    : ''
                 const necesarKg =
                   activeTab === 'programate'
                     ? group.orders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)
@@ -2270,8 +2222,7 @@ export function ComenziPageClient() {
                     key={group.date ?? 'unscheduled'}
                     date={group.date}
                     orderCount={group.orders.length}
-                    totalQty={group.totalQty}
-                    quantityLabel={quantityLabel}
+                    quantitySummary={quantitySummary}
                     necesarKg={necesarKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
@@ -2339,8 +2290,12 @@ export function ComenziPageClient() {
             <div className="hidden space-y-5 md:block">
               {unifiedGroups.map((group) => {
                 const units = new Set(group.orders.map((order) => order.quantityUnit))
-                const quantityLabel =
-                  units.size === 1 ? (units.has('kg') ? 'kg' : 'caserole') : ''
+                const quantitySummary =
+                  units.size === 1
+                    ? units.has('kg')
+                      ? `${group.totalQty.toLocaleString('ro-RO')} kg`
+                      : formatKgOneDecimal(group.totalQty * KG_PER_CASEROLĂ)
+                    : ''
                 const necesarKg =
                   activeTab === 'programate'
                     ? group.orders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)
@@ -2350,8 +2305,7 @@ export function ComenziPageClient() {
                     key={group.date ?? 'unscheduled'}
                     date={group.date}
                     orderCount={group.orders.length}
-                    totalQty={group.totalQty}
-                    quantityLabel={quantityLabel}
+                    quantitySummary={quantitySummary}
                     necesarKg={necesarKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}

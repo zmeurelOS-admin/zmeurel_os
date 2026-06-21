@@ -71,11 +71,13 @@ export type DashboardFeedItem = {
   meta?: string
   value?: string
   tone?: SectionTone
+  badge?: string
 }
 
 type DashboardFeedSection = {
   id: string
   title: string
+  caption?: string
   href?: string
   emptyLabel: string
   emptyCtaLabel?: string
@@ -721,7 +723,12 @@ export function DashboardFarmPulseCard({
             className={cn(idx > 0 && 'mt-4 border-t border-[var(--divider)] pt-4')}
           >
             <div className="mb-2.5 flex items-center justify-between gap-3">
-              <h3 className="text-[14px] leading-tight text-[var(--text-primary)] [font-weight:650]">{section.title}</h3>
+              <div className="min-w-0">
+                <h3 className="text-[14px] leading-tight text-[var(--text-primary)] [font-weight:650]">{section.title}</h3>
+                {section.caption ? (
+                  <p className="mt-0.5 text-[11px] leading-5 text-[var(--text-secondary)]">{section.caption}</p>
+                ) : null}
+              </div>
               {section.href ? (
                 <Link
                   href={section.href}
@@ -747,17 +754,22 @@ export function DashboardFarmPulseCard({
             ) : (
               <div className="space-y-2.5">
                 {section.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-start justify-between gap-3 py-0.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.title}</p>
-                      {item.meta ? (
-                        <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.meta}</p>
-                      ) : null}
-                    </div>
-                    {item.value ? (
+                    <div
+                      key={item.id}
+                      className="flex items-start justify-between gap-3 py-0.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.title}</p>
+                        {item.meta ? (
+                          <p className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.meta}</p>
+                        ) : null}
+                        {item.badge ? (
+                          <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+                            {item.badge}
+                          </p>
+                        ) : null}
+                      </div>
+                      {item.value ? (
                       <span
                         className={cn(
                           'shrink-0 text-right text-[13px] font-semibold tabular-nums',
@@ -790,12 +802,14 @@ export function DashboardComenziSnapshotCard({
   previewClient,
   previewMeta,
   setupHelper,
+  loading = false,
 }: {
   activeCount: number
   kgInCursLabel: string
   previewClient?: string
   previewMeta?: string
   setupHelper?: DashboardSetupHelperProps | null
+  loading?: boolean
 }) {
   return (
     <DashboardSectionCard
@@ -811,7 +825,13 @@ export function DashboardComenziSnapshotCard({
         </Link>
       }
     >
-      {setupHelper ? (
+      {loading ? (
+        <div className="space-y-3 animate-pulse">
+          <div className="h-6 rounded-lg bg-[var(--surface-card-muted)]" />
+          <div className="h-4 w-32 rounded-lg bg-[var(--surface-card-muted)]" />
+          <div className="h-16 rounded-xl bg-[var(--surface-card-muted)]" />
+        </div>
+      ) : setupHelper ? (
         <DashboardSetupHelper {...setupHelper} compact />
       ) : (
         <>

@@ -1,5 +1,6 @@
 import type { Comanda, ComandaStatus } from '@/lib/supabase/queries/comenzi'
 import type { Client } from '@/lib/supabase/queries/clienti'
+import { MAGAZIN_DATA_ORIGIN } from '@/lib/comenzi/magazin-groups'
 import {
   formatItemsHuman,
   type ShopOrderRow,
@@ -37,6 +38,18 @@ export type UnifiedOrderGroup = {
   date: string | null
   orders: UnifiedOrderItem[]
   totalQty: number
+}
+
+export const KG_PER_CASEROLĂ = 0.5
+
+export interface ComenziOperationalSnapshot {
+  activeTotalCount: number
+  kgInLivrare: number
+  /**
+   * Cantitate promisă pentru livrare, dar care nu a intrat încă în statusul `in_livrare`.
+   * Aceasta este definiția folosită pentru eticheta dashboard „kg în curs”.
+   */
+  kgAngajat: number
 }
 
 export const SHOP_STATUS_LABELS: Record<ShopOrderStatus, string> = {
@@ -190,6 +203,60 @@ export function mapShopToUnified(order: ShopOrderRow): UnifiedOrderItem {
 
 export function isUnifiedOpenStatus(status: string): boolean {
   return status !== 'livrata' && status !== 'anulata'
+}
+
+function getShopOrderKg(order: ShopOrderRow): number {
+  if (!Array.isArray(order.items)) return 0
+
+  return order.items.reduce<number>((total, raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return total
+    const qty = Number((raw as { qty?: unknown }).qty)
+    return Number.isFinite(qty) && qty > 0 ? total + qty * KG_PER_CASEROLĂ : total
+  }, 0)
+}
+
+export function getComenziOperationalSnapshot(
+  comenzi: Comanda[],
+  shopOrders: ShopOrderRow[],
+): ComenziOperationalSnapshot {
+  const activeManualCount = comenzi.filter(
+    (item) =>
+      item.data_origin !== MAGAZIN_DATA_ORIGIN &&
+      item.data_origin !== 'shop_order_bridge' &&
+      item.status !== 'in_livrare' &&
+      item.status !== 'livrata' &&
+      item.status !== 'anulata',
+  ).length
+
+  const shopActiveCount = shopOrders.filter(
+    (item) =>
+      item.order_kind === 'preorder' &&
+      item.status !== 'in_livrare' &&
+      isUnifiedOpenStatus(item.status),
+  ).length
+
+  const kgInLivrareManual = comenzi
+    .filter((item) => item.status === 'in_livrare' && item.data_origin !== 'shop_order_bridge')
+    .reduce((sum, item) => sum + Number(item.cantitate_kg ?? 0), 0)
+
+  const kgInLivrareShop = shopOrders
+    .filter((item) => item.status === 'in_livrare')
+    .reduce((sum, item) => sum + getShopOrderKg(item), 0)
+
+  const statusAngajat = new Set<ComandaStatus>(['noua', 'confirmata', 'programata'])
+  const kgAngajatManual = comenzi
+    .filter((item) => statusAngajat.has(item.status) && item.data_origin !== 'shop_order_bridge')
+    .reduce((sum, item) => sum + Number(item.cantitate_kg ?? 0), 0)
+
+  const kgAngajatShop = shopOrders
+    .filter((item) => statusAngajat.has(item.status as ComandaStatus))
+    .reduce((sum, item) => sum + getShopOrderKg(item), 0)
+
+  return {
+    activeTotalCount: activeManualCount + shopActiveCount,
+    kgInLivrare: Math.round((kgInLivrareManual + kgInLivrareShop) * 10) / 10,
+    kgAngajat: Math.round((kgAngajatManual + kgAngajatShop) * 10) / 10,
+  }
 }
 
 export function getShopOrderQuantity(order: ShopOrderRow): number {

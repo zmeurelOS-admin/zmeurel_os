@@ -290,6 +290,7 @@ export function RecoltariRecenteWidget({
   return (
     <WidgetFrame
       title="Recoltări Recente"
+      description="Doar parcele comerciale active"
       editMode={editMode}
       onDisable={onDisable}
       placeholder={empty}
@@ -322,6 +323,7 @@ type CriticalStockItem = {
   locatie: string
   quantity: string
   severity: 'warning' | 'critical'
+  statusLabel?: string
 }
 
 export function StocuriCriticeWidget({
@@ -337,7 +339,7 @@ export function StocuriCriticeWidget({
 }) {
   return (
     <WidgetFrame
-      title="Stocuri Critice"
+      title="Stocuri Sub Prag"
       editMode={editMode}
       onDisable={onDisable}
       placeholder={empty}
@@ -354,7 +356,10 @@ export function StocuriCriticeWidget({
             <div key={item.id} className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-[14px] leading-5 text-[var(--text-primary)] [font-weight:650]">{item.produs}</div>
-                <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">{item.locatie}</div>
+                <div className="mt-0.5 text-[12px] leading-5 text-[var(--text-secondary)]">
+                  {item.locatie}
+                  {item.statusLabel ? ` · ${item.statusLabel}` : ''}
+                </div>
               </div>
               <span
                 className={cn(

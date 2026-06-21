@@ -18,6 +18,10 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import StatusBadge from '@/components/ui/StatusBadge'
+import {
+  STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
+  STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
+} from '@/lib/calculations/stock-audit-thresholds'
 import { getStocuriPeLocatii, type StocFilters } from '@/lib/supabase/queries/miscari-stoc'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -30,22 +34,20 @@ interface StocuriPageClientProps {
   initialParcele: ParcelaOption[]
 }
 
-const LOW_STOCK_THRESHOLD = 20
-
 function formatKg(value: number): string {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(value)
 }
 
 function stocColor(kg: number): string {
-  if (kg > 20) return 'var(--status-success-text)'
-  if (kg >= 10) return 'var(--status-warning-text)'
+  if (kg > STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG) return 'var(--status-success-text)'
+  if (kg >= STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG) return 'var(--status-warning-text)'
   return 'var(--status-danger-text)'
 }
 
 function stockStatus(totalKg: number): { label: string; tone: 'success' | 'warning' | 'danger' } {
   if (totalKg <= 0) return { label: 'Gol', tone: 'danger' }
-  if (totalKg < 10) return { label: 'Critic', tone: 'danger' }
-  if (totalKg < LOW_STOCK_THRESHOLD) return { label: 'Atenție', tone: 'warning' }
+  if (totalKg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG) return { label: 'Critic', tone: 'danger' }
+  if (totalKg < STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG) return { label: 'Atenție', tone: 'warning' }
   return { label: 'OK', tone: 'success' }
 }
 
@@ -462,7 +464,7 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
 
   const totalKg = useMemo(() => stocuri.reduce((sum, item) => sum + Number(item.total_kg ?? 0), 0), [stocuri])
   const activeLocations = useMemo(() => stocuri.filter((item) => Number(item.total_kg || 0) > 0).length, [stocuri])
-  const isLowStock = totalKg > 0 && totalKg < LOW_STOCK_THRESHOLD
+  const isLowStock = totalKg > 0 && totalKg < STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG
   const desktopRows = useMemo<DesktopStocRow[]>(() => {
     const grouped = new Map<string, DesktopStocRow>()
 

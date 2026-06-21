@@ -65,12 +65,16 @@ import {
   type DashboardAlert,
   type DashboardRawData,
 } from '@/lib/dashboard/engine'
+import { getComenziOperationalSnapshot } from '@/lib/comenzi/unified-orders'
 import { buildAttentionNowItems } from '@/lib/dashboard/attention'
 import { detectFarmContext } from '@/lib/dashboard/context'
 import { buildDashboardRecommendations } from '@/lib/dashboard/recommendations'
 import type { DashboardTreatmentSuggestionsPayload } from '@/lib/dashboard/treatment-suggestions'
 import { trackEvent } from '@/lib/analytics/trackEvent'
-import { STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG } from '@/lib/calculations/stock-audit-thresholds'
+import {
+  STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
+  STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
+} from '@/lib/calculations/stock-audit-thresholds'
 import { useMeteo } from '@/hooks/useMeteo'
 import { queryKeys } from '@/lib/query-keys'
 import { getSupabase } from '@/lib/supabase/client'
@@ -82,6 +86,7 @@ import { getStocuriPeLocatii } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getProduse } from '@/lib/supabase/queries/produse'
 import { getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
+import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 import {
   dismissDashboardOnboarding,
   getDashboardProfilePreferences,
@@ -146,6 +151,10 @@ function formatNumber(value: number, fractionDigits = 1): string {
 
 function formatMoney(value: number): string {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(value))
+}
+
+function getDashboardStockLabel(valueKg: number): 'Critic' | 'Atenție' {
+  return valueKg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG ? 'Critic' : 'Atenție'
 }
 
 function formatCompactKpiMoney(value: number): string {
@@ -382,6 +391,12 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
   })
 
+  const shopOrdersQuery = useQuery({
+    queryKey: queryKeys.shopOrders,
+    queryFn: fetchShopOrders,
+    placeholderData: (previousData) => previousData,
+  })
+
   const stocuriQuery = useQuery({
     queryKey: queryKeys.stocuriLocatiiRoot,
     queryFn: () => getStocuriPeLocatii(),
@@ -546,6 +561,7 @@ export default function DashboardPage() {
   const vanzari = vanzariQuery.data ?? EMPTY_LIST
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
   const comenzi = comenziQuery.data ?? EMPTY_LIST
+  const shopOrders = shopOrdersQuery.data ?? EMPTY_LIST
   const stocuri = stocuriQuery.data ?? EMPTY_LIST
   const produse = produseQuery.data ?? EMPTY_LIST
   const solarClimateLogs = microclimateQuery.data ?? EMPTY_LIST
@@ -618,6 +634,15 @@ export default function DashboardPage() {
   )
   const totalKgAzi = recoltariAzi.reduce((sum, row) => sum + getRecoltareTotalKg(row), 0)
   const totalKgIeri = recoltariIeri.reduce((sum, row) => sum + getRecoltareTotalKg(row), 0)
+  const comenziSnapshotReady =
+    comenziQuery.data !== undefined && shopOrdersQuery.data !== undefined
+  const comenziSnapshot = useMemo(
+    () =>
+      comenziSnapshotReady
+        ? getComenziOperationalSnapshot(comenzi, shopOrders)
+        : null,
+    [comenzi, comenziSnapshotReady, shopOrders],
+  )
 
   // Date tenant-level: nu au o legătură curată cu o parcelă relevantă de dashboard.
   const comenziActive = useMemo(
@@ -761,7 +786,11 @@ export default function DashboardPage() {
           produs: row.produs,
           locatie: row.locatie_nume || 'Locație',
           quantity: `${formatNumber(row.total_kg)} kg`,
-          severity: row.total_kg <= 5 ? ('critical' as const) : ('warning' as const),
+          severity:
+            row.total_kg < STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG
+              ? ('critical' as const)
+              : ('warning' as const),
+          statusLabel: getDashboardStockLabel(row.total_kg),
         })),
     [stocuri]
   )
@@ -796,7 +825,10 @@ export default function DashboardPage() {
           id: 'recoltat-azi',
           label: 'Recoltat azi',
           value: `${formatNumber(totalKgAzi)} kg`,
-          meta: totalKgIeri > 0 ? `Ieri: ${formatNumber(totalKgIeri)} kg` : 'Fără referință ieri',
+          meta:
+            totalKgIeri > 0
+              ? `Ieri: ${formatNumber(totalKgIeri)} kg · Parcele comerciale active`
+              : 'Parcele comerciale active',
           tone: 'positive' as const,
           metricValue: totalKgAzi,
         },
@@ -1037,7 +1069,7 @@ export default function DashboardPage() {
       : null
 
   const ordersSetupHelper =
-    comenzi.length === 0
+    comenzi.length === 0 && shopOrders.length === 0
       ? {
           title: 'Ca să vezi activitate aici',
           bullets: [
@@ -1141,7 +1173,10 @@ export default function DashboardPage() {
         id: 'today-harvest',
         label: 'Recoltat',
         value: `${formatNumber(totalKgAzi)} kg`,
-        meta: recoltariAzi.length > 0 ? `${recoltariAzi.length} înregistrări azi` : 'Fără intrări azi',
+        meta:
+          recoltariAzi.length > 0
+            ? `${recoltariAzi.length} înregistrări azi · Doar parcele comerciale active`
+            : 'Doar parcele comerciale active',
       },
     ],
     [activitatiAziCount, ordersTodayCount, recoltariAzi.length, totalKgAzi],
@@ -1179,6 +1214,7 @@ export default function DashboardPage() {
       {
         id: 'harvests',
         title: 'Recoltări recente',
+        caption: 'Doar parcele comerciale active',
         href: '/recoltari',
         emptyLabel: 'Înregistrează o recoltare ca să apară aici.',
         emptyCtaLabel: 'Adaugă recoltare',
@@ -1193,7 +1229,7 @@ export default function DashboardPage() {
       },
       {
         id: 'stocks',
-        title: 'Stoc critic',
+        title: 'Stoc sub prag',
         href: '/stocuri',
         emptyLabel:
           stocuri.length === 0
@@ -1207,6 +1243,7 @@ export default function DashboardPage() {
           meta: item.locatie,
           value: item.quantity,
           tone: item.severity,
+          badge: item.statusLabel,
         })),
       },
     ],
@@ -1580,11 +1617,13 @@ export default function DashboardPage() {
               <div className="grid gap-4 lg:grid-cols-12">
                 <div className="lg:col-span-4">
                   <DashboardComenziSnapshotCard
-                    activeCount={comenziActive.length}
-                    kgInCursLabel={`${formatNumber(kgComenziActive)} kg în curs`}
+                    activeCount={comenziSnapshot?.activeTotalCount ?? 0}
+                    // „kg în curs” = kgAngajat: cantitatea promisă/confirmată care nu a intrat încă în livrare.
+                    kgInCursLabel={`${formatNumber(comenziSnapshot?.kgAngajat ?? 0)} kg în curs`}
                     previewClient={recentOrders[0]?.client}
                     previewMeta={recentOrders[0]?.deliveryDate}
                     setupHelper={ordersSetupHelper}
+                    loading={!comenziSnapshotReady}
                   />
                 </div>
                 <div className="lg:col-span-4">
@@ -1657,11 +1696,13 @@ export default function DashboardPage() {
                 <DashboardAttentionCard items={attentionNowItems} />
               ) : null}
               <DashboardComenziSnapshotCard
-                activeCount={comenziActive.length}
-                kgInCursLabel={`${formatNumber(kgComenziActive)} kg în curs`}
+                activeCount={comenziSnapshot?.activeTotalCount ?? 0}
+                // „kg în curs” = kgAngajat: cantitatea promisă/confirmată care nu a intrat încă în livrare.
+                kgInCursLabel={`${formatNumber(comenziSnapshot?.kgAngajat ?? 0)} kg în curs`}
                 previewClient={recentOrders[0]?.client}
                 previewMeta={recentOrders[0]?.deliveryDate}
                 setupHelper={ordersSetupHelper}
+                loading={!comenziSnapshotReady}
               />
               <DashboardCommercialSnapshotCard
                 mode={associationShopApproved ? 'association' : 'farmer'}
