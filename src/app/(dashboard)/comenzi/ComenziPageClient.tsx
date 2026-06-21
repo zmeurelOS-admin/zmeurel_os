@@ -316,22 +316,22 @@ function StocPills({
   return (
     <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <span
-        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none ${
           stocOk
             ? 'bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
             : 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
         }`}
       >
-        📦 {stocDisponibil.toFixed(1)} kg stoc
+        📦 {stocDisponibil.toFixed(1)} stoc
       </span>
-      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
-        🚚 {inLivrare.toFixed(1)} kg în drum
+      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
+        🚚 {inLivrare.toFixed(1)} drum
       </span>
-      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]">
-        🔖 {angajat.toFixed(1)} kg angajat
+      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]">
+        🔖 {angajat.toFixed(1)} ang.
       </span>
-      <span className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
-        ✅ {livratAzi.toFixed(1)} kg livrate azi
+      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
+        ✅ {livratAzi.toFixed(1)} livrate azi
       </span>
     </div>
   )
