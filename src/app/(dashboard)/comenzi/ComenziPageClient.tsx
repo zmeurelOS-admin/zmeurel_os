@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/form-dialog-layout'
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
+import { StickyActionBar } from '@/components/app/StickyActionBar'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -168,6 +169,7 @@ type StocInsuficientSnapshot = {
   totalKg: number
   inLivrareKg: number
   necesarKg: number
+  selectionCount?: number
 }
 
 class StocInsuficientError extends Error {
@@ -176,10 +178,10 @@ class StocInsuficientError extends Error {
   constructor(snapshot: StocInsuficientSnapshot) {
     super(
       `Stoc insuficient pentru a pune în livrare. ` +
+        `Ai nevoie de ${snapshot.necesarKg.toFixed(1)} kg. ` +
         `Disponibil: ${snapshot.disponibilKg.toFixed(1)} kg ` +
-        `(total ${snapshot.totalKg.toFixed(1)} kg, ` +
-        `deja în livrare: ${snapshot.inLivrareKg.toFixed(1)} kg), ` +
-        `necesar: ${snapshot.necesarKg.toFixed(1)} kg.`,
+        `(din ${snapshot.totalKg.toFixed(1)} kg stoc total, ` +
+        `${snapshot.inLivrareKg.toFixed(1)} kg deja angajate în livrare).`,
     )
     this.name = 'StocInsuficientError'
     this.snapshot = snapshot
@@ -189,6 +191,13 @@ class StocInsuficientError extends Error {
 type CreateClientMutationVariables = {
   input: Parameters<typeof createClienți>[0]
   onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
+}
+
+type PatchShopOrderInput = {
+  id: string
+  status?: ShopOrderStatus
+  notified_wa?: boolean
+  delivery_date?: string | null
 }
 
 const statusLabelMap: Record<ComandaStatus, string> = {
@@ -265,6 +274,30 @@ function formatKgOneDecimal(value: number): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(Number(value || 0))} kg`
+}
+
+function getUnifiedSelectionId(item: UnifiedOrderItem): string {
+  return `${item.source}-${item.id}`
+}
+
+function isOrderSelectableForBulkLivrare(item: UnifiedOrderItem): boolean {
+  return isUnifiedOpenStatus(item.status) && item.status !== 'in_livrare'
+}
+
+async function patchShopOrder(input: PatchShopOrderInput): Promise<void> {
+  const res = await fetch(`/api/shop/b2c/orders/${input.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.notified_wa !== undefined ? { notified_wa: input.notified_wa } : {}),
+      ...(input.delivery_date !== undefined ? { delivery_date: input.delivery_date } : {}),
+    }),
+  })
+  const json = (await res.json()) as { success?: boolean; error?: string }
+  if (!res.ok || !json.success) {
+    throw new Error(json.error ?? 'Actualizare eșuată')
+  }
 }
 
 function StocPills({
@@ -1358,6 +1391,8 @@ export function ComenziPageClient() {
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
   const [addClientOpen, setAddClientOpen] = useState(false)
   const [stocInsuficientModal, setStocInsuficientModal] = useState<StocInsuficientSnapshot | null>(null)
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
+  const [bulkLivrarePending, setBulkLivrarePending] = useState(false)
   const isOperator = memberRole === 'operator'
   const canWriteComenzi = !isOperator || accessLevel === 'write'
   const canDeleteComenzi = !isOperator
@@ -1398,14 +1433,17 @@ export function ComenziPageClient() {
     router.replace(nextUrl, { scroll: false })
   }, [pathname, router, searchParams])
 
-  const guardStocPentruInLivrare = useCallback(async (kgNecesar: number) => {
+  const guardStocPentruInLivrare = useCallback(async (kgNecesar: number, options?: { selectionCount?: number }) => {
     try {
       await checkStocPentruInLivrare(kgNecesar)
       return true
     } catch (err) {
       if (err instanceof StocInsuficientError) {
         hapticError()
-        setStocInsuficientModal(err.snapshot)
+        setStocInsuficientModal({
+          ...err.snapshot,
+          selectionCount: options?.selectionCount,
+        })
         return false
       }
       toast.error(err instanceof Error ? err.message : 'Nu am putut verifica stocul disponibil.')
@@ -1662,26 +1700,7 @@ export function ComenziPageClient() {
   })
 
   const patchShopOrderMutation = useMutation({
-    mutationFn: async (input: {
-      id: string
-      status?: ShopOrderStatus
-      notified_wa?: boolean
-      delivery_date?: string | null
-    }) => {
-      const res = await fetch(`/api/shop/b2c/orders/${input.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...(input.status !== undefined ? { status: input.status } : {}),
-          ...(input.notified_wa !== undefined ? { notified_wa: input.notified_wa } : {}),
-          ...(input.delivery_date !== undefined ? { delivery_date: input.delivery_date } : {}),
-        }),
-      })
-      const json = (await res.json()) as { success?: boolean; error?: string }
-      if (!res.ok || !json.success) {
-        throw new Error(json.error ?? 'Actualizare eșuată')
-      }
-    },
+    mutationFn: patchShopOrder,
     onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
@@ -1887,6 +1906,7 @@ export function ComenziPageClient() {
     () => mergeUnifiedOrders(manualComenzi, preorderShopOrders, clientMap),
     [clientMap, manualComenzi, preorderShopOrders],
   )
+  const canUseBulkSelection = canWriteComenzi && (activeTab === 'de_livrat' || activeTab === 'toate')
 
   const necesarKgTotal = useMemo(
     () =>
@@ -1965,8 +1985,44 @@ export function ComenziPageClient() {
         : buildComenziOrderGroups(unifiedFiltered, orderSort),
     [activeTab, orderSort, unifiedFiltered],
   )
+  const selectableVisibleOrders = useMemo(
+    () => (canUseBulkSelection ? unifiedFiltered.filter(isOrderSelectableForBulkLivrare) : []),
+    [canUseBulkSelection, unifiedFiltered],
+  )
+  const selectableVisibleIds = useMemo(
+    () => new Set(selectableVisibleOrders.map((item) => getUnifiedSelectionId(item))),
+    [selectableVisibleOrders],
+  )
+  const selectableVisibleMap = useMemo(
+    () => new Map(selectableVisibleOrders.map((item) => [getUnifiedSelectionId(item), item])),
+    [selectableVisibleOrders],
+  )
+  const selectedOrders = useMemo(
+    () =>
+      [...selectedOrderIds]
+        .map((selectionId) => selectableVisibleMap.get(selectionId))
+        .filter((item): item is UnifiedOrderItem => Boolean(item)),
+    [selectableVisibleMap, selectedOrderIds],
+  )
+  const selectedKgTotal = useMemo(
+    () => round2(selectedOrders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)),
+    [selectedOrders],
+  )
+  const selectedOrderCount = selectedOrders.length
   const showOrderGroupHeaders =
     activeTab === 'programate' || (orderSort !== 'qty_desc' && orderSort !== 'total_desc')
+
+  useEffect(() => {
+    setSelectedOrderIds(new Set())
+  }, [activeTab])
+
+  useEffect(() => {
+    setSelectedOrderIds((current) => {
+      if (current.size === 0) return current
+      const next = new Set([...current].filter((selectionId) => selectableVisibleIds.has(selectionId)))
+      return next.size === current.size ? current : next
+    })
+  }, [selectableVisibleIds])
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
@@ -1974,6 +2030,101 @@ export function ComenziPageClient() {
     if (tab === 'de_livrat') setOrderSort('created_at')
     setActiveFilter(filter)
   }
+
+  const toggleOrderSelection = useCallback((item: UnifiedOrderItem, selected: boolean) => {
+    const selectionId = getUnifiedSelectionId(item)
+    setSelectedOrderIds((current) => {
+      const next = new Set(current)
+      if (selected) {
+        next.add(selectionId)
+      } else {
+        next.delete(selectionId)
+      }
+      return next
+    })
+  }, [])
+
+  const clearSelectedOrders = useCallback(() => {
+    setSelectedOrderIds(new Set())
+  }, [])
+
+  const invalidateBulkOrderQueries = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenzi }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+    ])
+  }, [queryClient])
+
+  const handleBulkSendInLivrare = useCallback(async () => {
+    if (!canWriteComenzi) {
+      toast.error('Ai acces doar pentru citire în Comenzi.')
+      return
+    }
+    if (selectedOrders.length === 0) return
+
+    const kgNecesarTotal = round2(selectedOrders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0))
+    const canContinue = await guardStocPentruInLivrare(kgNecesarTotal, {
+      selectionCount: selectedOrders.length,
+    })
+    if (!canContinue) return
+
+    setBulkLivrarePending(true)
+    try {
+      const results = await Promise.allSettled(
+        selectedOrders.map(async (item) => {
+          if (item.source === 'shop') {
+            await patchShopOrder({ id: item.id, status: 'in_livrare' })
+            return
+          }
+          await updateComanda(item.id, { status: 'in_livrare' })
+        }),
+      )
+
+      const successCount = results.filter((result) => result.status === 'fulfilled').length
+      const failureCount = results.length - successCount
+
+      await invalidateBulkOrderQueries()
+      clearSelectedOrders()
+
+      if (successCount > 0) {
+        hapticSuccess()
+      } else {
+        hapticError()
+      }
+
+      if (successCount > 0 && failureCount === 0) {
+        toast.success(`Am trimis în livrare ${successCount} ${successCount === 1 ? 'comandă' : 'comenzi'}.`)
+        return
+      }
+
+      if (successCount > 0) {
+        toast.warning(
+          `${successCount} ${successCount === 1 ? 'comandă a fost trimisă' : 'comenzi au fost trimise'} în livrare, ` +
+            `${failureCount} ${failureCount === 1 ? 'a eșuat' : 'au eșuat'}.`,
+        )
+        return
+      }
+
+      const firstRejected = results.find((result) => result.status === 'rejected')
+      const message =
+        firstRejected?.status === 'rejected' && firstRejected.reason instanceof Error
+          ? firstRejected.reason.message
+          : 'Nu am putut trimite comenzile selectate în livrare.'
+      toast.error(message)
+    } finally {
+      setBulkLivrarePending(false)
+    }
+  }, [
+    canWriteComenzi,
+    clearSelectedOrders,
+    guardStocPentruInLivrare,
+    invalidateBulkOrderQueries,
+    selectedOrders,
+  ])
 
   const handleCopyContact = async () => {
     if (!contactPrompt?.phone) return
@@ -2049,7 +2200,42 @@ export function ComenziPageClient() {
   return (
     <AppShell
       header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" contentVariant="workspace" />}
-      bottomBar={null}
+      bottomBar={
+        canUseBulkSelection && selectedOrderCount > 0 ? (
+          <div className="md:hidden">
+            <StickyActionBar>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--agri-text)]">
+                      {selectedOrderCount} {selectedOrderCount === 1 ? 'comandă selectată' : 'comenzi selectate'}
+                    </p>
+                    <p className="text-xs text-[var(--agri-text-muted)]">
+                      Total de trimis: {formatKgOneDecimal(selectedKgTotal)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[var(--text-secondary)]"
+                    onClick={clearSelectedOrders}
+                    disabled={bulkLivrarePending}
+                  >
+                    Anulează selecția
+                  </button>
+                </div>
+                <Button
+                  type="button"
+                  className="h-11 w-full rounded-full"
+                  onClick={() => void handleBulkSendInLivrare()}
+                  disabled={bulkLivrarePending}
+                >
+                  {bulkLivrarePending ? 'Se trimit...' : `Trimite în livrare (${selectedOrderCount})`}
+                </Button>
+              </div>
+            </StickyActionBar>
+          </div>
+        ) : null
+      }
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
         {(operationalSnapshot.activeTotalCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
@@ -2196,6 +2382,39 @@ export function ComenziPageClient() {
           </Select>
         </div>
 
+        {canUseBulkSelection && selectedOrderCount > 0 ? (
+          <div className="hidden rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-3 shadow-[var(--shadow-soft)] md:block">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  {selectedOrderCount} {selectedOrderCount === 1 ? 'comandă selectată' : 'comenzi selectate'}
+                </p>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Total de trimis: {formatKgOneDecimal(selectedKgTotal)}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-[var(--text-secondary)]"
+                  onClick={clearSelectedOrders}
+                  disabled={bulkLivrarePending}
+                >
+                  Anulează selecția
+                </button>
+                <Button
+                  type="button"
+                  className="h-10 rounded-full px-5"
+                  onClick={() => void handleBulkSendInLivrare()}
+                  disabled={bulkLivrarePending}
+                >
+                  {bulkLivrarePending ? 'Se trimit...' : `Trimite în livrare (${selectedOrderCount})`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {(isError || shopOrdersError) ? (
           <ErrorState
             title="Eroare"
@@ -2241,13 +2460,17 @@ export function ComenziPageClient() {
                     <div className="space-y-3">
                       {group.orders.map((item) => (
                         <UnifiedOrderCard
-                          key={`${item.source}-${item.id}`}
+                          key={getUnifiedSelectionId(item)}
                           item={item}
                           disabled={
-                            item.source === 'shop'
+                            bulkLivrarePending ||
+                            (item.source === 'shop'
                               ? patchShopOrderMutation.isPending
-                              : updateMutation.isPending
+                              : updateMutation.isPending)
                           }
+                          selectable={canUseBulkSelection && isOrderSelectableForBulkLivrare(item)}
+                          selected={selectedOrderIds.has(getUnifiedSelectionId(item))}
+                          onToggleSelect={(selected) => toggleOrderSelection(item, selected)}
                           onOpenB2bDetails={(id) => {
                             const comanda = comenzi.find((row) => row.id === id)
                             if (comanda) setViewing(comanda)
@@ -2324,14 +2547,18 @@ export function ComenziPageClient() {
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                       {group.orders.map((item) => (
                         <UnifiedOrderCard
-                          key={`${item.source}-${item.id}`}
+                          key={getUnifiedSelectionId(item)}
                           item={item}
                           compact
                           disabled={
-                            item.source === 'shop'
+                            bulkLivrarePending ||
+                            (item.source === 'shop'
                               ? patchShopOrderMutation.isPending
-                              : updateMutation.isPending
+                              : updateMutation.isPending)
                           }
+                          selectable={canUseBulkSelection && isOrderSelectableForBulkLivrare(item)}
+                          selected={selectedOrderIds.has(getUnifiedSelectionId(item))}
+                          onToggleSelect={(selected) => toggleOrderSelection(item, selected)}
                           onOpenB2bDetails={(id) => {
                             const comanda = comenzi.find((row) => row.id === id)
                             if (comanda) setViewing(comanda)
@@ -2668,13 +2895,15 @@ export function ComenziPageClient() {
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm leading-relaxed text-[var(--agri-text-muted)]">
                 <p>
-                  Disponibil: {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)} (total{' '}
-                  {formatKgOneDecimal(stocInsuficientModal?.totalKg ?? 0)}, în livrare:{' '}
-                  {formatKgOneDecimal(stocInsuficientModal?.inLivrareKg ?? 0)})
+                  Ai nevoie de {formatKgOneDecimal(stocInsuficientModal?.necesarKg ?? 0)}
+                  {stocInsuficientModal?.selectionCount && stocInsuficientModal.selectionCount > 1
+                    ? ` pentru cele ${stocInsuficientModal.selectionCount} comenzi selectate.`
+                    : '.'}
                 </p>
                 <p>
-                  Necesar pentru această comandă:{' '}
-                  {formatKgOneDecimal(stocInsuficientModal?.necesarKg ?? 0)}
+                  Disponibil: {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)} (din{' '}
+                  {formatKgOneDecimal(stocInsuficientModal?.totalKg ?? 0)} stoc total,{' '}
+                  {formatKgOneDecimal(stocInsuficientModal?.inLivrareKg ?? 0)} deja angajate în livrare).
                 </p>
                 <p>Adaugă o recoltare sau reduce comenzile active înainte de a continua.</p>
               </div>

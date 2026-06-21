@@ -100,10 +100,45 @@ function MilestoneRewardBadge({
   )
 }
 
+function SelectionCheckbox({
+  checked,
+  disabled,
+  customerName,
+  onCheckedChange,
+}: {
+  checked: boolean
+  disabled?: boolean
+  customerName: string
+  onCheckedChange: (checked: boolean) => void
+}) {
+  return (
+    <label
+      className={`mt-0.5 inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-xl border bg-[var(--surface-card)] shadow-sm ${
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      }`}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <span className="sr-only">{`Selectează comanda pentru ${customerName}`}</span>
+      <input
+        type="checkbox"
+        className="h-4 w-4 rounded border-[var(--border-default)]"
+        checked={checked}
+        disabled={disabled}
+        aria-label={`Selectează comanda pentru ${customerName}`}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => onCheckedChange(event.target.checked)}
+      />
+    </label>
+  )
+}
+
 export function UnifiedOrderCard({
   item,
   disabled,
   compact,
+  selectable,
+  selected,
+  onToggleSelect,
   onOpenB2bDetails,
   onB2bStatusChange,
   onB2bDeliveryDateChange,
@@ -116,6 +151,9 @@ export function UnifiedOrderCard({
   item: UnifiedOrderItem
   disabled?: boolean
   compact?: boolean
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (selected: boolean) => void
   onOpenB2bDetails?: (id: string) => void
   onB2bStatusChange?: (id: string, status: ComandaStatus) => void
   onB2bDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
@@ -237,35 +275,45 @@ export function UnifiedOrderCard({
       <article
         className={`overflow-hidden rounded-xl border bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
           item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
-        }`}
+        } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
         style={{
           borderColor: '#E0DEE8',
           borderLeftWidth: '3px',
           borderLeftColor: leftBorderColor,
         }}
       >
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
-          onClick={() => setExpanded((current) => !current)}
-          className="flex w-full flex-col gap-1 px-3 py-2.5 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-        >
-          <div className="flex items-center gap-1.5">
-            <p className="min-w-0 flex-1 truncate text-[14px] font-bold leading-tight text-[var(--text-primary)]">
-              {item.customerName}
-            </p>
-            <OriginBadge source={item.source} />
-            <StatusPill item={item} />
-          </div>
-          <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
-            <span className="min-w-0 flex-1 truncate">
-              {displayQuantityLabel} · {totalFormatted} lei ·{' '}
-              {item.localityLabel}
-            </span>
-            <span className="shrink-0">{mobileDateLabel}</span>
-          </div>
-        </button>
+        <div className="flex items-start gap-2 px-3 py-2.5">
+          {selectable ? (
+            <SelectionCheckbox
+              checked={Boolean(selected)}
+              disabled={disabled}
+              customerName={item.customerName}
+              onCheckedChange={(checked) => onToggleSelect?.(checked)}
+            />
+          ) : null}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
+            onClick={() => setExpanded((current) => !current)}
+            className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          >
+            <div className="flex items-center gap-1.5">
+              <p className="min-w-0 flex-1 truncate text-[14px] font-bold leading-tight text-[var(--text-primary)]">
+                {item.customerName}
+              </p>
+              <OriginBadge source={item.source} />
+              <StatusPill item={item} />
+            </div>
+            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
+              <span className="min-w-0 flex-1 truncate">
+                {displayQuantityLabel} · {totalFormatted} lei ·{' '}
+                {item.localityLabel}
+              </span>
+              <span className="shrink-0">{mobileDateLabel}</span>
+            </div>
+          </button>
+        </div>
 
         <div
           aria-hidden={!expanded}
@@ -396,7 +444,7 @@ export function UnifiedOrderCard({
     <article
       className={`overflow-hidden rounded-2xl border-[1.5px] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
         item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
-      }`}
+      } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
       style={{
         borderColor: '#E0DEE8',
         borderLeftWidth: '4px',
@@ -404,68 +452,80 @@ export function UnifiedOrderCard({
       }}
     >
       <div className={compact ? 'px-3 py-2' : 'px-3 py-3'}>
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
-          onClick={() => setExpanded((current) => !current)}
-          className={`flex w-full items-start justify-between rounded-lg text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
-            compact ? 'gap-1' : 'gap-2'
-          }`}
-        >
-          <p
-            className={`min-w-0 flex-1 truncate leading-tight text-[var(--text-primary)] ${
-              compact ? 'text-[12px] font-medium' : 'text-[15px] font-bold'
-            }`}
-          >
-            {item.customerName}
-          </p>
-          <div className={`flex shrink-0 items-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
-            <OriginBadge source={item.source} />
-            {needsConfirmation ? <ConfirmationBadge /> : null}
-            <span className="whitespace-nowrap text-[11px] font-medium text-[var(--text-tertiary)]">
-              {formatOrderDateTime(item.createdAt)}
-            </span>
-          </div>
-        </button>
-
-        <div className={`flex items-center justify-between gap-2 ${compact ? 'mt-0.5' : 'mt-1'}`}>
-          {phoneHref ? (
-            <a
-              href={phoneHref}
-              className={`inline-flex min-w-0 items-center gap-1 font-medium text-[var(--info-text)] ${
-                compact ? 'min-h-6 text-[12px]' : 'min-h-8 gap-1.5 text-[13px]'
+        <div className={`flex items-start ${compact ? 'gap-2' : 'gap-2.5'}`}>
+          {selectable ? (
+            <SelectionCheckbox
+              checked={Boolean(selected)}
+              disabled={disabled}
+              customerName={item.customerName}
+              onCheckedChange={(checked) => onToggleSelect?.(checked)}
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
+              onClick={() => setExpanded((current) => !current)}
+              className={`flex w-full items-start justify-between rounded-lg text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
+                compact ? 'gap-1' : 'gap-2'
               }`}
             >
-              <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span className="truncate">{item.phone}</span>
-            </a>
-          ) : (
-            <span />
-          )}
-          <StatusPill item={item} />
-        </div>
+              <p
+                className={`min-w-0 flex-1 truncate leading-tight text-[var(--text-primary)] ${
+                  compact ? 'text-[12px] font-medium' : 'text-[15px] font-bold'
+                }`}
+              >
+                {item.customerName}
+              </p>
+              <div className={`flex shrink-0 items-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
+                <OriginBadge source={item.source} />
+                {needsConfirmation ? <ConfirmationBadge /> : null}
+                <span className="whitespace-nowrap text-[11px] font-medium text-[var(--text-tertiary)]">
+                  {formatOrderDateTime(item.createdAt)}
+                </span>
+              </div>
+            </button>
 
-        <button
-          type="button"
-          aria-label={`${expanded ? 'Ascunde' : 'Arată'} rezumatul comenzii pentru ${item.customerName}`}
-          onClick={() => setExpanded((current) => !current)}
-          className={`w-full border-t border-[var(--divider)] text-left font-semibold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
-            compact ? 'mt-1.5 pt-1.5 text-[11px]' : 'mt-2 pt-2 text-[13px]'
-          }`}
-        >
-          <span>{displayQuantityLabel} · {totalFormatted} lei</span>
-          <span className="text-[var(--text-tertiary)]"> · </span>
-          <span className="font-medium text-[var(--text-secondary)]">{item.localityLabel}</span>
-          {item.deliveryDate ? (
-            <>
+            <div className={`flex items-center justify-between gap-2 ${compact ? 'mt-0.5' : 'mt-1'}`}>
+              {phoneHref ? (
+                <a
+                  href={phoneHref}
+                  className={`inline-flex min-w-0 items-center gap-1 font-medium text-[var(--info-text)] ${
+                    compact ? 'min-h-6 text-[12px]' : 'min-h-8 gap-1.5 text-[13px]'
+                  }`}
+                >
+                  <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{item.phone}</span>
+                </a>
+              ) : (
+                <span />
+              )}
+              <StatusPill item={item} />
+            </div>
+
+            <button
+              type="button"
+              aria-label={`${expanded ? 'Ascunde' : 'Arată'} rezumatul comenzii pentru ${item.customerName}`}
+              onClick={() => setExpanded((current) => !current)}
+              className={`w-full border-t border-[var(--divider)] text-left font-semibold text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${
+                compact ? 'mt-1.5 pt-1.5 text-[11px]' : 'mt-2 pt-2 text-[13px]'
+              }`}
+            >
+              <span>{displayQuantityLabel} · {totalFormatted} lei</span>
               <span className="text-[var(--text-tertiary)]"> · </span>
-              <span className="font-medium text-[var(--text-secondary)]">
-                {formatDeliveryDate(item.deliveryDate)}
-              </span>
-            </>
-          ) : null}
-        </button>
+              <span className="font-medium text-[var(--text-secondary)]">{item.localityLabel}</span>
+              {item.deliveryDate ? (
+                <>
+                  <span className="text-[var(--text-tertiary)]"> · </span>
+                  <span className="font-medium text-[var(--text-secondary)]">
+                    {formatDeliveryDate(item.deliveryDate)}
+                  </span>
+                </>
+              ) : null}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div

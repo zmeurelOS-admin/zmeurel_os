@@ -1,3 +1,4 @@
+import { KG_PER_CASEROLĂ } from '@/lib/comenzi/unified-orders'
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
@@ -597,7 +598,7 @@ export async function getKgAngajatInLivrare(): Promise<number> {
     const rowKg = row.items.reduce<number>((itemSum, item) => {
         if (!item || typeof item !== 'object' || Array.isArray(item)) return itemSum
         const qty = Number((item as { qty?: unknown }).qty)
-        return itemSum + (Number.isFinite(qty) && qty > 0 ? qty * 0.5 : 0)
+        return itemSum + (Number.isFinite(qty) && qty > 0 ? qty * KG_PER_CASEROLĂ : 0)
       }, 0)
     return sum + rowKg
   }, 0)
