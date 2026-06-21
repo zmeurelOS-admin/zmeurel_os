@@ -2200,6 +2200,7 @@ export function ComenziPageClient() {
   return (
     <AppShell
       header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" contentVariant="workspace" />}
+      bottomBarFixed
       bottomBar={
         canUseBulkSelection && selectedOrderCount > 0 ? (
           <div className="md:hidden">

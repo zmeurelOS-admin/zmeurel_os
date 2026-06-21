@@ -11,7 +11,7 @@ export function StickyActionBar({ children, className }: StickyActionBarProps) {
   return (
     <div
       className={cn(
-        'sticky bottom-[calc(var(--app-nav-clearance)+12px)] border-t border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 pt-3 pb-[calc(var(--app-nav-clearance)+12px)] shadow-[0_-6px_18px_rgba(120,100,70,0.08)] backdrop-blur',
+        'border-t border-[var(--agri-border)] bg-[var(--agri-surface)] px-4 pt-3 pb-[calc(var(--app-nav-clearance)+12px)] shadow-[0_-6px_18px_rgba(120,100,70,0.08)] backdrop-blur',
         className
       )}
     >

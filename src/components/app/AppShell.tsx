@@ -6,6 +6,7 @@ interface AppShellProps {
   children: React.ReactNode
   fab?: React.ReactNode
   bottomBar?: React.ReactNode
+  bottomBarFixed?: boolean
   bottomInset?: string
 }
 
@@ -14,6 +15,7 @@ export function AppShell({
   children,
   fab,
   bottomBar,
+  bottomBarFixed = false,
   bottomInset = 'var(--app-nav-clearance)',
 }: AppShellProps) {
   return (
@@ -27,7 +29,18 @@ export function AppShell({
         <div className="mx-auto w-full max-w-md pb-28 pt-0.5 sm:max-w-full sm:pb-32 md:pt-1">{children}</div>
       </div>
 
-      {bottomBar ? <div className="relative z-30">{bottomBar}</div> : null}
+      {bottomBar ? (
+        bottomBarFixed ? (
+          <div
+            className="fixed inset-x-0 z-40 md:hidden"
+            style={{ bottom: 'calc(var(--app-nav-clearance) + 12px)' }}
+          >
+            {bottomBar}
+          </div>
+        ) : (
+          <div className="relative z-30">{bottomBar}</div>
+        )
+      ) : null}
       {fab}
     </div>
   )
