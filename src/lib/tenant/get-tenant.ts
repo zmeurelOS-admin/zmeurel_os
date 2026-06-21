@@ -81,14 +81,14 @@ export async function getTenantIdByUserIdOrNull(
   supabase: SupabaseClient<Database>,
   userId: string
 ): Promise<string | null> {
-  const ownedTenantId = await getOwnedTenantIdOrNull(supabase, userId)
-  if (ownedTenantId) {
-    return ownedTenantId
-  }
-
   const operatorTenantId = await getOperatorTenantIdOrNull(supabase, userId)
   if (operatorTenantId) {
     return operatorTenantId
+  }
+
+  const ownedTenantId = await getOwnedTenantIdOrNull(supabase, userId)
+  if (ownedTenantId) {
+    return ownedTenantId
   }
 
   const profile = await getProfileTenantRow(supabase, userId)

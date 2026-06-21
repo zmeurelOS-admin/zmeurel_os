@@ -234,28 +234,19 @@ export async function proxy(request: NextRequest) {
 
   try {
     const admin = getSupabaseAdmin()
-    const [{ data: ownedTenant }, { data: member, error: memberError }] = await Promise.all([
-      admin
-        .from('tenants')
-        .select('id')
-        .eq('owner_user_id', user.id)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-      admin
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .from('farm_members' as any)
-        .select('tenant_id, role, modules_access')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .eq('role', 'operator')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-    ])
+    const { data: member, error: memberError } = await admin
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from('farm_members' as any)
+      .select('tenant_id, role, modules_access')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .eq('role', 'operator')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
     const farmMember = member as unknown as { tenant_id?: string; role?: string; modules_access?: unknown } | null
-    if (!memberError && !ownedTenant?.id && farmMember?.tenant_id) {
+    if (!memberError && farmMember?.tenant_id) {
       operatorMember = {
         tenant_id: farmMember.tenant_id,
         role: farmMember.role ?? 'operator',
@@ -263,7 +254,6 @@ export async function proxy(request: NextRequest) {
       }
       operatorAccess = normalizeFarmMemberAccess(operatorMember.modules_access, { legacyFallback: true })
       operatorFirstRoute = firstAllowedRoute(operatorAccess)
-      tenantId = operatorMember.tenant_id
     }
   } catch (error) {
     console.error('[proxy] farm member lookup failed', {

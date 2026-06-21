@@ -4,6 +4,7 @@ import {
   type FarmMemberModuleAccess,
 } from '@/lib/farm-members/access'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import type { Database } from '@/types/supabase'
 
 export type FarmInviteValidation =
   | {
@@ -62,6 +63,99 @@ export async function validateFarmInviteToken(token: string): Promise<FarmInvite
       ...invite,
       modules_access: modulesAccess,
     },
+  }
+}
+
+type TenantCoreDataTable = 'comenzi' | 'recoltari' | 'clienti' | 'parcele'
+
+async function countTenantRows(
+  tenantId: string,
+  table: TenantCoreDataTable
+): Promise<number> {
+  const admin = getSupabaseAdmin()
+  const { count, error } = await admin
+    .from(table)
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+
+  if (error) {
+    throw error
+  }
+
+  return count ?? 0
+}
+
+async function cleanupInviteOrphanTenants(params: {
+  inviteTenantId: string
+  userId: string
+}) {
+  const admin = getSupabaseAdmin()
+  const { data: orphanTenants, error: orphanTenantsError } = await admin
+    .from('tenants')
+    .select('id, owner_user_id, expires_at')
+    .eq('owner_user_id', params.userId)
+    .neq('id', params.inviteTenantId)
+    .order('created_at', { ascending: true })
+
+  if (orphanTenantsError) {
+    console.warn('[farm-invite] orphan tenant lookup failed', {
+      userId: params.userId,
+      inviteTenantId: params.inviteTenantId,
+      message: orphanTenantsError.message,
+    })
+    return
+  }
+
+  const tenants = (orphanTenants ?? []) as Array<
+    Pick<Database['public']['Tables']['tenants']['Row'], 'id' | 'owner_user_id' | 'expires_at'>
+  >
+
+  for (const tenant of tenants) {
+    try {
+      const [comenziCount, recoltariCount, clientiCount, parceleCount] = await Promise.all([
+        countTenantRows(tenant.id, 'comenzi'),
+        countTenantRows(tenant.id, 'recoltari'),
+        countTenantRows(tenant.id, 'clienti'),
+        countTenantRows(tenant.id, 'parcele'),
+      ])
+
+      const hasCoreData =
+        comenziCount > 0 || recoltariCount > 0 || clientiCount > 0 || parceleCount > 0
+
+      if (hasCoreData) {
+        console.warn('[farm-invite] orphan tenant cleanup skipped because tenant has core data', {
+          tenantId: tenant.id,
+          userId: params.userId,
+          counts: {
+            comenzi: comenziCount,
+            recoltari: recoltariCount,
+            clienti: clientiCount,
+            parcele: parceleCount,
+          },
+        })
+        continue
+      }
+
+      const { error: expireTenantError } = await admin
+        .from('tenants')
+        .update({ expires_at: new Date().toISOString() })
+        .eq('id', tenant.id)
+        .eq('owner_user_id', params.userId)
+
+      if (expireTenantError) {
+        console.warn('[farm-invite] orphan tenant soft cleanup failed', {
+          tenantId: tenant.id,
+          userId: params.userId,
+          message: expireTenantError.message,
+        })
+      }
+    } catch (error) {
+      console.warn('[farm-invite] orphan tenant cleanup failed', {
+        tenantId: tenant.id,
+        userId: params.userId,
+        message: error instanceof Error ? error.message : 'unknown',
+      })
+    }
   }
 }
 
@@ -131,6 +225,11 @@ export async function acceptFarmInviteForUser(params: {
       return { ok: false, error: 'member_insert_failed' }
     }
   }
+
+  await cleanupInviteOrphanTenants({
+    inviteTenantId: invite.tenant_id,
+    userId: params.userId,
+  })
 
   const { error: inviteUpdateError } = await admin
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
