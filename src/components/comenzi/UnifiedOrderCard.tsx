@@ -38,17 +38,21 @@ function formatDisplayTextWithoutCaserole(value: string): string {
     .replace(/Caserolă\s*(\d+)\s*g/gi, (_, grams: string) => formatKgFromGrams(Number(grams)))
 }
 
-function OriginBadge({ source }: { source: UnifiedOrderItem['source'] }) {
-  const isShop = source === 'shop'
+function OriginBadge({ item }: { item: UnifiedOrderItem }) {
+  const isShop = item.source === 'shop'
+  const badgeProps = isShop
+    ? { className: 'bg-[#FFF0F0] text-[#C85151]', label: 'Shop' }
+    : item.orderKind === 'cadou'
+      ? { className: 'bg-green-100 text-green-700', label: '🎁 Cadou' }
+      : item.orderKind === 'consum_propriu'
+        ? { className: 'bg-blue-100 text-blue-700', label: '🏠 Consum' }
+        : { className: 'bg-[#EEF4FF] text-[#3B7DD8]', label: 'Manual' }
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none"
-      style={{
-        background: isShop ? '#FFF0F0' : '#EEF4FF',
-        color: isShop ? '#C85151' : '#3B7DD8',
-      }}
+      className={`inline-flex max-w-full shrink-0 items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none ${badgeProps.className}`}
+      title={badgeProps.label}
     >
-      {isShop ? 'Shop' : 'Manual'}
+      <span className="truncate">{badgeProps.label}</span>
     </span>
   )
 }
@@ -212,6 +216,9 @@ export function UnifiedOrderCard({
           ? '#059669'
           : '#3B7DD8'
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
+  const blocksStatusWhatsApp =
+    !isShop &&
+    (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
 
   const markShopNotified = () => {
     if (shopOrder && !shopOrder.notified_wa) {
@@ -220,6 +227,7 @@ export function UnifiedOrderCard({
   }
 
   const openStatusWhatsApp = (nextStatus: ShopOrderStatus | ComandaStatus) => {
+    if (blocksStatusWhatsApp) return
     if (!item.phone || (nextStatus !== 'confirmata' && nextStatus !== 'in_livrare')) return
 
     const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
@@ -298,11 +306,11 @@ export function UnifiedOrderCard({
             onClick={() => setExpanded((current) => !current)}
             className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <p className="min-w-0 flex-1 truncate text-[14px] font-bold leading-tight text-[var(--text-primary)]">
                 {item.customerName}
               </p>
-              <OriginBadge source={item.source} />
+              <OriginBadge item={item} />
               <StatusPill item={item} />
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
@@ -478,8 +486,8 @@ export function UnifiedOrderCard({
               >
                 {item.customerName}
               </p>
-              <div className={`flex shrink-0 items-center ${compact ? 'gap-1' : 'gap-1.5'}`}>
-                <OriginBadge source={item.source} />
+              <div className={`flex max-w-[48%] shrink-0 flex-wrap items-center justify-end ${compact ? 'gap-1' : 'gap-1.5'}`}>
+                <OriginBadge item={item} />
                 {needsConfirmation ? <ConfirmationBadge /> : null}
                 <span className="whitespace-nowrap text-[11px] font-medium text-[var(--text-tertiary)]">
                   {formatOrderDateTime(item.createdAt)}

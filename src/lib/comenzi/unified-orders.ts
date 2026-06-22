@@ -14,6 +14,7 @@ export type UnifiedOrderSort = 'created_at' | 'delivery_date' | 'locality'
 export type UnifiedOrderItem = {
   id: string
   source: UnifiedOrderSource
+  orderKind: string | null
   clientTip?: 'standard' | 'patiserie' | 'magazin'
   createdAt: string
   deliveryDate: string | null
@@ -148,6 +149,7 @@ export function mapB2bToUnified(comanda: Comanda, clientMap: Record<string, Clie
   return {
     id: comanda.id,
     source: 'b2b',
+    orderKind: comanda.order_kind ?? null,
     clientTip: clientMap[comanda.client_id ?? '']?.tip ?? 'standard',
     createdAt: comanda.created_at,
     deliveryDate: comanda.data_livrare,
@@ -175,6 +177,7 @@ export function mapShopToUnified(order: ShopOrderRow): UnifiedOrderItem {
   return {
     id: order.id,
     source: 'shop',
+    orderKind: order.order_kind ?? null,
     clientTip: 'standard',
     createdAt: order.created_at,
     deliveryDate: order.delivery_date,

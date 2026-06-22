@@ -40,7 +40,11 @@ import {
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import type { LocalityConfig, VillageConfig } from '@/lib/shop/delivery-zones'
 import type { Client } from '@/lib/supabase/queries/clienti'
-import { updateComanda, type ComandaStatus } from '@/lib/supabase/queries/comenzi'
+import {
+  updateComanda,
+  type ComandaOrderKind,
+  type ComandaStatus,
+} from '@/lib/supabase/queries/comenzi'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { toast } from '@/lib/ui/toast'
 
@@ -67,6 +71,12 @@ export type EditOrderSheetProps = {
   order: UnifiedOrderItem
   clienti: Client[]
   onSaved: () => void
+}
+
+const ORDER_KIND_LABELS: Record<ComandaOrderKind, string> = {
+  manual: 'Manual',
+  cadou: '🎁 Cadou',
+  consum_propriu: '🏠 Consum propriu',
 }
 
 function normalizeSearch(value: string): string {
@@ -152,7 +162,10 @@ function formFromOrder(order: UnifiedOrderItem): EditOrderForm {
     village: deliverySelection.village,
     street: deliverySelection.street,
     quantity: String(manual?.cantitate_kg ?? order.quantity),
-    price: String(manual?.pret_per_kg ?? (order.quantity ? order.totalLei / order.quantity : 0)),
+    price:
+      manual?.order_kind === 'cadou' || manual?.order_kind === 'consum_propriu'
+        ? '0'
+        : String(manual?.pret_per_kg ?? (order.quantity ? order.totalLei / order.quantity : 0)),
     deliveryDate: manual?.data_livrare ?? '',
     status: manual?.status ?? order.status,
     notes: manual?.observatii ?? '',
@@ -175,6 +188,9 @@ export function EditOrderSheet({
   const [saving, setSaving] = useState(false)
   const clientMenuRef = useRef<HTMLDivElement>(null)
   const isShop = order.source === 'shop'
+  const manualOrderKind = (order.b2bComanda?.order_kind ?? 'manual') as ComandaOrderKind
+  const isZeroPriceKind =
+    !isShop && (manualOrderKind === 'cadou' || manualOrderKind === 'consum_propriu')
 
   useEffect(() => {
     if (!open) return
@@ -256,7 +272,7 @@ export function EditOrderSheet({
       toast.error(isShop ? 'Prețul trebuie să fie un număr întreg pozitiv sau zero.' : 'Prețul nu poate fi negativ.')
       return
     }
-    if (total <= 0) {
+    if (!isZeroPriceKind && total <= 0) {
       toast.error('Totalul comenzii trebuie să fie mai mare decât 0.')
       return
     }
@@ -466,6 +482,17 @@ export function EditOrderSheet({
         />
       ) : null}
 
+      {!isShop ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`edit-order-kind-${order.id}`}>Tip comandă</Label>
+          <Input
+            id={`edit-order-kind-${order.id}`}
+            readOnly
+            value={ORDER_KIND_LABELS[manualOrderKind] ?? ORDER_KIND_LABELS.manual}
+          />
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor={`edit-order-quantity-${order.id}`}>
@@ -494,6 +521,8 @@ export function EditOrderSheet({
             step={isShop ? '1' : '0.01'}
             inputMode="decimal"
             value={form.price}
+            readOnly={isZeroPriceKind}
+            disabled={isZeroPriceKind}
             onChange={(event) =>
               setForm((current) => ({ ...current, price: event.target.value }))
             }

@@ -15,6 +15,8 @@ export const COMENZI_STATUSES = [
 
 export type ComandaStatus = (typeof COMENZI_STATUSES)[number]
 export type ComandaPlata = 'integral' | 'avans' | 'restanta'
+export const COMANDA_ORDER_KINDS = ['manual', 'cadou', 'consum_propriu'] as const
+export type ComandaOrderKind = (typeof COMANDA_ORDER_KINDS)[number]
 
 export interface Comanda {
   id: string
@@ -28,6 +30,7 @@ export interface Comanda {
   cantitate_kg: number
   pret_per_kg: number
   total: number
+  order_kind?: ComandaOrderKind
   status: ComandaStatus
   observatii: string | null
   linked_vanzare_id: string | null
@@ -50,6 +53,7 @@ export interface CreateComandaInput {
   data_livrare?: string | null
   cantitate_kg: number
   pret_per_kg: number
+  order_kind?: ComandaOrderKind
   status?: ComandaStatus
   observatii?: string | null
 }
@@ -63,6 +67,7 @@ export interface UpdateComandaInput {
   data_livrare?: string | null
   cantitate_kg?: number
   pret_per_kg?: number
+  order_kind?: ComandaOrderKind
   status?: ComandaStatus
   observatii?: string | null
 }
@@ -109,6 +114,7 @@ type DeliverShopOrderAtomicPartialPayload = {
 
 type ComandaRow = Tables<'comenzi'>
 type ComandaQueryRow = ComandaRow & {
+  order_kind?: string | null
   clienti?: Pick<Tables<'clienti'>, 'nume_client'> | null
 }
 type StockBucketRow = Pick<
@@ -117,10 +123,39 @@ type StockBucketRow = Pick<
 >
 type ComandaInsertCompat = Omit<TablesInsert<'comenzi'>, 'data_livrare'> & {
   data_livrare: string | null
+  order_kind?: string
 }
 type ComandaUpdateCompat = Omit<TablesUpdate<'comenzi'>, 'data_livrare'> & {
   data_livrare?: string | null
+  order_kind?: string
 }
+
+const COMANDA_SELECT_FIELDS: string = `
+  id,
+  tenant_id,
+  client_id,
+  client_nume_manual,
+  telefon,
+  locatie_livrare,
+  data_comanda,
+  data_livrare,
+  cantitate_kg,
+  pret_per_kg,
+  total,
+  order_kind,
+  status,
+  observatii,
+  linked_vanzare_id,
+  parent_comanda_id,
+  created_at,
+  updated_at,
+  created_by,
+  updated_by,
+  data_origin,
+  clienti (
+    nume_client
+  )
+`
 
 type ComenziRpcClient = ReturnType<typeof getSupabase> & {
   rpc: {
@@ -196,6 +231,14 @@ function ensureStatus(status: string): ComandaStatus {
   return normalized as ComandaStatus
 }
 
+function ensureOrderKind(orderKind: string | null | undefined): ComandaOrderKind {
+  const normalized = String(orderKind || '').trim().toLowerCase()
+  if (COMANDA_ORDER_KINDS.includes(normalized as ComandaOrderKind)) {
+    return normalized as ComandaOrderKind
+  }
+  return 'manual'
+}
+
 function mapComanda(row: ComandaQueryRow): Comanda {
   return {
     id: row.id,
@@ -209,6 +252,7 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     cantitate_kg: Number(row.cantitate_kg ?? 0),
     pret_per_kg: Number(row.pret_per_kg ?? 0),
     total: Number(row.total ?? 0),
+    order_kind: ensureOrderKind(row.order_kind),
     status: ensureStatus(row.status),
     observatii: row.observatii ?? null,
     linked_vanzare_id: row.linked_vanzare_id ?? null,
@@ -278,31 +322,7 @@ export async function getComenzi(
     typeof includeAssociationOrContext === 'boolean' ? includeAssociationOrContext : false
   let query = supabase
     .from('comenzi')
-    .select(`
-      id,
-      tenant_id,
-      client_id,
-      client_nume_manual,
-      telefon,
-      locatie_livrare,
-      data_comanda,
-      data_livrare,
-      cantitate_kg,
-      pret_per_kg,
-      total,
-      status,
-      observatii,
-      linked_vanzare_id,
-      parent_comanda_id,
-      created_at,
-      updated_at,
-      created_by,
-      updated_by,
-      data_origin,
-      clienti (
-        nume_client
-      )
-    `)
+    .select(COMANDA_SELECT_FIELDS)
     .eq('tenant_id', tenantId)
 
   // Păstrăm comenzile legacy/manuale fără `data_origin`, dar ascundem cele venite
@@ -316,7 +336,7 @@ export async function getComenzi(
     .order('created_at', { ascending: false })
 
   if (error) throw toReadableError(error, 'Nu am putut incarca comenzile.')
-  return ((data ?? []) as ComandaQueryRow[]).map(mapComanda)
+  return ((data ?? []) as unknown as ComandaQueryRow[]).map(mapComanda)
 }
 
 export async function createComanda(input: CreateComandaInput): Promise<Comanda> {
@@ -336,6 +356,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     cantitate_kg: round2(input.cantitate_kg),
     pret_per_kg: round2(input.pret_per_kg),
     total: round2(input.cantitate_kg * input.pret_per_kg),
+    order_kind: input.order_kind ?? 'manual',
     status: input.status ?? 'noua',
     observatii: input.observatii?.trim() || null,
     created_by: user?.id ?? null,
@@ -345,35 +366,11 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
   const { data, error } = await supabase
     .from('comenzi')
     .insert(payload as TablesInsert<'comenzi'>)
-    .select(`
-      id,
-      tenant_id,
-      client_id,
-      client_nume_manual,
-      telefon,
-      locatie_livrare,
-      data_comanda,
-      data_livrare,
-      cantitate_kg,
-      pret_per_kg,
-      total,
-      status,
-      observatii,
-      linked_vanzare_id,
-      parent_comanda_id,
-      created_at,
-      updated_at,
-      created_by,
-      updated_by,
-      data_origin,
-      clienti (
-        nume_client
-      )
-    `)
+    .select(COMANDA_SELECT_FIELDS)
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
-  return mapComanda(data as ComandaQueryRow)
+  return mapComanda(data as unknown as ComandaQueryRow)
 }
 
 export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
@@ -391,6 +388,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     ...(input.data_livrare !== undefined ? { data_livrare: input.data_livrare ?? null } : {}),
     ...(input.cantitate_kg !== undefined ? { cantitate_kg: round2(input.cantitate_kg) } : {}),
     ...(input.pret_per_kg !== undefined ? { pret_per_kg: round2(input.pret_per_kg) } : {}),
+    ...(input.order_kind !== undefined ? { order_kind: input.order_kind } : {}),
     ...(input.status !== undefined ? { status: input.status } : {}),
     ...(input.observatii !== undefined ? { observatii: input.observatii?.trim() || null } : {}),
     updated_at: new Date().toISOString(),
@@ -416,33 +414,11 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     .update(payload as TablesUpdate<'comenzi'>)
     .eq('id', id)
     .eq('tenant_id', tenantId)
-    .select(`
-      id,
-      tenant_id,
-      client_id,
-      client_nume_manual,
-      telefon,
-      locatie_livrare,
-      data_comanda,
-      data_livrare,
-      cantitate_kg,
-      pret_per_kg,
-      total,
-      status,
-      observatii,
-      linked_vanzare_id,
-      parent_comanda_id,
-      created_at,
-      updated_at,
-      data_origin,
-      clienti (
-        nume_client
-      )
-    `)
+    .select(COMANDA_SELECT_FIELDS)
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut actualiza comanda.')
-  return mapComanda(data as ComandaQueryRow)
+  return mapComanda(data as unknown as ComandaQueryRow)
 }
 
 export async function deleteComanda(id: string): Promise<void> {
@@ -611,31 +587,7 @@ export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
   const tenantId = await getTenantId(supabase)
   const { data, error } = await supabase
     .from('comenzi')
-    .select(`
-      id,
-      tenant_id,
-      client_id,
-      client_nume_manual,
-      telefon,
-      locatie_livrare,
-      data_comanda,
-      data_livrare,
-      cantitate_kg,
-      pret_per_kg,
-      total,
-      status,
-      observatii,
-      linked_vanzare_id,
-      parent_comanda_id,
-      created_at,
-      updated_at,
-      created_by,
-      updated_by,
-      data_origin,
-      clienti (
-        nume_client
-      )
-    `)
+    .select(COMANDA_SELECT_FIELDS)
     .eq('tenant_id', tenantId)
     .eq('status', 'in_livrare')
     .or('data_origin.is.null,data_origin.neq.magazin_asociatie')
@@ -643,5 +595,5 @@ export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
     .order('created_at', { ascending: false })
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comenzile manuale în livrare.')
-  return ((data ?? []) as ComandaQueryRow[]).map(mapComanda)
+  return ((data ?? []) as unknown as ComandaQueryRow[]).map(mapComanda)
 }

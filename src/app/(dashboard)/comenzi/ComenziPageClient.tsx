@@ -66,6 +66,7 @@ import { spacing } from '@/lib/design-tokens'
 import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
 import { getSupabase } from '@/lib/supabase/client'
 import {
+  COMANDA_ORDER_KINDS,
   COMENZI_STATUSES,
   createComanda,
   deleteComanda,
@@ -75,6 +76,7 @@ import {
   getKgAngajatInLivrare,
   reopenComanda,
   type Comanda,
+  type ComandaOrderKind,
   type ComandaPlata,
   type ComandaStatus,
   updateComanda,
@@ -218,6 +220,12 @@ const statusVariantMap: Record<ComandaStatus, 'success' | 'warning' | 'danger' |
   anulata: 'danger',
 }
 
+const orderKindLabelMap: Record<ComandaOrderKind, string> = {
+  manual: 'Manual',
+  cadou: '🎁 Cadou',
+  consum_propriu: '🏠 Consum propriu',
+}
+
 interface ComandaFormState {
   client_id: string
   client_nume_manual: string
@@ -227,6 +235,7 @@ interface ComandaFormState {
   data_livrare: string
   cantitate_kg: string
   pret_per_kg: string
+  order_kind: ComandaOrderKind
   status: ComandaStatus
   observatii: string
   salveaza_client_in_lista: boolean
@@ -509,6 +518,7 @@ function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
     data_livrare: todayIso(),
     cantitate_kg: '',
     pret_per_kg: '',
+    order_kind: 'manual',
     status,
     observatii: '',
     salveaza_client_in_lista: false,
@@ -531,6 +541,7 @@ function buildComandaDialogInitialFormState(params: {
         data_livrare: initial.data_livrare ?? todayIso(),
         cantitate_kg: String(initial.cantitate_kg ?? ''),
         pret_per_kg: String(initial.pret_per_kg ?? ''),
+        order_kind: initial.order_kind ?? 'manual',
         status: initial.status,
         observatii: initial.observatii ?? '',
         salveaza_client_in_lista: false,
@@ -584,6 +595,7 @@ export function parseAiComandaPrefill(searchParams: Pick<URLSearchParams, 'get'>
     data_livrare: dataLivrare || todayIso(),
     cantitate_kg: cantitateKg,
     pret_per_kg: pretPerKg,
+    order_kind: 'manual',
     observatii,
     status: 'confirmata',
   }
@@ -824,6 +836,8 @@ function ComandaDialog({
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
   const isNewClientFlow = !form.client_id && form.client_nume_manual.trim().length > 0
   const showSaveClientToggle = mode === 'create' && !selectedClient
+  const isZeroPriceOrderKind =
+    form.order_kind === 'cadou' || form.order_kind === 'consum_propriu'
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
@@ -841,6 +855,12 @@ function ComandaDialog({
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
+
+  useEffect(() => {
+    if (isZeroPriceOrderKind && form.pret_per_kg !== '0') {
+      setForm((prev) => ({ ...prev, pret_per_kg: '0' }))
+    }
+  }, [form.pret_per_kg, isZeroPriceOrderKind])
 
   const comboFiltered = useMemo(() => {
     const term = normalize(comboInput)
@@ -1212,6 +1232,40 @@ function ComandaDialog({
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label>Tip comandă</Label>
+              {mode === 'create' ? (
+                <Select
+                  value={form.order_kind}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      order_kind: value as ComandaOrderKind,
+                      pret_per_kg:
+                        value === 'cadou' || value === 'consum_propriu'
+                          ? '0'
+                          : prev.pret_per_kg,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="agri-control h-11 md:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMANDA_ORDER_KINDS.map((orderKind) => (
+                      <SelectItem key={orderKind} value={orderKind}>
+                        {orderKindLabelMap[orderKind]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-sm font-medium text-[var(--text-primary)] md:min-h-10">
+                  {orderKindLabelMap[form.order_kind]}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-2.5 md:gap-x-3 md:gap-y-2.5">
               <div className="space-y-1.5">
                 <Label>Cantitate (kg)</Label>
@@ -1234,6 +1288,8 @@ function ComandaDialog({
                   step="0.01"
                   className="agri-control h-11 md:h-10"
                   value={form.pret_per_kg}
+                  readOnly={isZeroPriceOrderKind}
+                  disabled={isZeroPriceOrderKind}
                   onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
                 />
               </div>
@@ -2672,15 +2728,17 @@ export function ComenziPageClient() {
         initialCreateValues={queryCreatePrefill}
         onSave={async (values) => {
           const cantitate = Number(values.cantitate_kg)
-          const pret = Number(values.pret_per_kg)
+          const zeroPriceOrder =
+            values.order_kind === 'cadou' || values.order_kind === 'consum_propriu'
+          const pret = zeroPriceOrder ? 0 : Number(values.pret_per_kg)
           if (!Number.isFinite(cantitate) || cantitate <= 0) {
             hapticError()
             toast.error('Cantitatea trebuie să fie mai mare decât 0.')
             return
           }
-          if (!Number.isFinite(pret) || pret <= 0) {
+          if (!Number.isFinite(pret) || pret < 0 || (!zeroPriceOrder && pret <= 0)) {
             hapticError()
-            toast.error('Prețul trebuie să fie mai mare decât 0.')
+            toast.error(zeroPriceOrder ? 'Prețul nu poate fi negativ.' : 'Prețul trebuie să fie mai mare decât 0.')
             return
           }
 
@@ -2722,6 +2780,7 @@ export function ComenziPageClient() {
               data_livrare: values.data_livrare || null,
               cantitate_kg: cantitate,
               pret_per_kg: pret,
+              order_kind: values.order_kind,
               status: values.status,
               observatii: values.observatii || null,
             },
@@ -2744,15 +2803,17 @@ export function ComenziPageClient() {
         onSave={async (values) => {
           if (!editing) return
           const cantitate = Number(values.cantitate_kg)
-          const pret = Number(values.pret_per_kg)
+          const zeroPriceOrder =
+            values.order_kind === 'cadou' || values.order_kind === 'consum_propriu'
+          const pret = zeroPriceOrder ? 0 : Number(values.pret_per_kg)
           if (!Number.isFinite(cantitate) || cantitate <= 0) {
             hapticError()
             toast.error('Cantitatea trebuie să fie mai mare decât 0.')
             return
           }
-          if (!Number.isFinite(pret) || pret <= 0) {
+          if (!Number.isFinite(pret) || pret < 0 || (!zeroPriceOrder && pret <= 0)) {
             hapticError()
-            toast.error('Prețul trebuie să fie mai mare decât 0.')
+            toast.error(zeroPriceOrder ? 'Prețul nu poate fi negativ.' : 'Prețul trebuie să fie mai mare decât 0.')
             return
           }
 
@@ -2774,6 +2835,7 @@ export function ComenziPageClient() {
               data_livrare: values.data_livrare || null,
               cantitate_kg: cantitate,
               pret_per_kg: pret,
+              order_kind: values.order_kind,
               status: values.status,
               observatii: values.observatii || null,
             },
