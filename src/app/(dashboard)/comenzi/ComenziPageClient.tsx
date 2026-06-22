@@ -73,7 +73,6 @@ import {
   deliverComanda,
   getComenzi,
   getComenziStockSummaryAzi,
-  getKgAngajatInLivrare,
   reopenComanda,
   type Comanda,
   type ComandaOrderKind,
@@ -81,7 +80,6 @@ import {
   type ComandaStatus,
   updateComanda,
 } from '@/lib/supabase/queries/comenzi'
-import { getStocGlobal } from '@/lib/supabase/queries/miscari-stoc'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
@@ -138,16 +136,12 @@ function round2(value: number): number {
 }
 
 async function checkStocPentruInLivrare(kgNecesar: number): Promise<void> {
-  const [stoc, kgAngajat] = await Promise.all([
-    getComenziStockSummaryAzi(),
-    getKgAngajatInLivrare(),
-  ])
-  const stocNet = round2(stoc.totalStocDisponibilKg - kgAngajat)
-  if (stocNet < kgNecesar) {
+  const stoc = await getComenziStockSummaryAzi()
+  if (stoc.totalStocDisponibilKg < kgNecesar) {
     throw new StocInsuficientError({
-      disponibilKg: stocNet,
-      totalKg: round2(stoc.totalStocDisponibilKg),
-      inLivrareKg: round2(kgAngajat),
+      disponibilKg: round2(stoc.totalStocDisponibilKg),
+      totalKg: round2(stoc.totalStocCal1Kg),
+      inLivrareKg: round2(stoc.rezervatActivKg + stoc.legacyInLivrareKg),
       necesarKg: round2(kgNecesar),
     })
   }
@@ -179,11 +173,8 @@ class StocInsuficientError extends Error {
 
   constructor(snapshot: StocInsuficientSnapshot) {
     super(
-      `Stoc insuficient pentru a pune în livrare. ` +
-        `Ai nevoie de ${snapshot.necesarKg.toFixed(1)} kg. ` +
-        `Disponibil: ${snapshot.disponibilKg.toFixed(1)} kg ` +
-        `(din ${snapshot.totalKg.toFixed(1)} kg stoc total, ` +
-        `${snapshot.inLivrareKg.toFixed(1)} kg deja angajate în livrare).`,
+      `Stoc insuficient: ai doar ${snapshot.disponibilKg.toFixed(1)} kg cal1 disponibili. ` +
+        `Comanda cere ${snapshot.necesarKg.toFixed(1)} kg.`,
     )
     this.name = 'StocInsuficientError'
     this.snapshot = snapshot
@@ -331,7 +322,7 @@ function StocPills({
             : 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
         }`}
       >
-        📦 {stocDisponibil.toFixed(1)} stoc
+        📦 {stocDisponibil.toFixed(1)} cal1 disp.
       </span>
       <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
         🚚 {inLivrare.toFixed(1)} drum
@@ -757,7 +748,7 @@ function StocNecesarCard({
             Necesar livrări: {formatKgOneDecimal(necesarKg)}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">
-            Stoc disponibil: {formatKgOneDecimal(stocDisponibilKg)}
+            Stoc cal1 disponibil: {formatKgOneDecimal(stocDisponibilKg)}
           </p>
         </div>
         <span
@@ -1542,9 +1533,16 @@ export function ComenziPageClient() {
     queryFn: getVanzari,
   })
 
-  const { data: stocGlobal = { cal1: 0, cal2: 0 } } = useQuery({
-    queryKey: queryKeys.stocGlobal,
-    queryFn: getStocGlobal,
+  const {
+    data: stocSummary = {
+      totalStocDisponibilKg: 0,
+      totalStocCal1Kg: 0,
+      rezervatActivKg: 0,
+      legacyInLivrareKg: 0,
+    },
+  } = useQuery({
+    queryKey: queryKeys.stocGlobalCal1,
+    queryFn: getComenziStockSummaryAzi,
   })
 
   const clientMap = useMemo(() => {
@@ -1588,6 +1586,10 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       track('comanda_add', {
         cantitate: Number(variables.payload.cantitate_kg || 0),
         client_id: variables.payload.client_id ?? null,
@@ -1648,6 +1650,10 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       track('comanda_edit', { id: variables.id })
       hapticSuccess()
       toast.success('Comanda actualizată')
@@ -1761,6 +1767,11 @@ export function ComenziPageClient() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
 
       if (variables.delivery_date !== undefined) {
         toast.success(
@@ -1941,10 +1952,12 @@ export function ComenziPageClient() {
     [activeComenzi, preorderShopOrders],
   )
 
-  const totalStocDisponibilKg = Number(stocGlobal.cal1 || 0)
+  const totalStocDisponibilKg = Number(stocSummary.totalStocDisponibilKg || 0)
 
   const kgInLivrare = operationalSnapshot.kgInLivrare
-  const kgAngajat = operationalSnapshot.kgAngajat
+  const kgAngajat = round2(
+    Number(stocSummary.rezervatActivKg || 0) + Number(stocSummary.legacyInLivrareKg || 0),
+  )
 
   const kgLivratAzi = useMemo(() => {
     const todayStr = todayIso()
@@ -2112,6 +2125,10 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare }),
       queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount }),
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc }),
     ])
   }, [queryClient])
 
@@ -2964,9 +2981,11 @@ export function ComenziPageClient() {
                     : '.'}
                 </p>
                 <p>
-                  Disponibil: {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)} (din{' '}
-                  {formatKgOneDecimal(stocInsuficientModal?.totalKg ?? 0)} stoc total,{' '}
-                  {formatKgOneDecimal(stocInsuficientModal?.inLivrareKg ?? 0)} deja angajate în livrare).
+                  Ai doar {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)} cal1 disponibili.
+                </p>
+                <p>
+                  Total comercial cal1: {formatKgOneDecimal(stocInsuficientModal?.totalKg ?? 0)}.
+                  Rezervat sau deja în livrare legacy: {formatKgOneDecimal(stocInsuficientModal?.inLivrareKg ?? 0)}.
                 </p>
                 <p>Adaugă o recoltare sau reduce comenzile active înainte de a continua.</p>
               </div>

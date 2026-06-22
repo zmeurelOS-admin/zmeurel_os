@@ -76,6 +76,13 @@ function errorResponse(message: string, status: number) {
 }
 
 type RouteContext = { params: Promise<{ id: string }> }
+type UpdatedShopOrderContactRow = {
+  id: string
+  customer_name?: string | null
+  customer_phone?: string | null
+  delivery_address?: string | null
+  delivery_city?: string | null
+}
 
 export async function PATCH(request: Request, context: RouteContext) {
   const originCheck = validateSameOriginMutation(request, { statusKey: 'success' })
@@ -134,7 +141,6 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const updates: {
-    status?: string
     notified_wa?: boolean
     delivery_date?: string | null
     delivery_address?: string | null
@@ -146,7 +152,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     items?: Json
     total_lei?: number
   } = {}
-  if (parsed.data.status !== undefined) updates.status = parsed.data.status
+  const statusUpdate = parsed.data.status
   if (parsed.data.notified_wa !== undefined) updates.notified_wa = parsed.data.notified_wa
   if (parsed.data.delivery_date !== undefined) updates.delivery_date = parsed.data.delivery_date
   if (parsed.data.delivery_address !== undefined) {
@@ -191,10 +197,17 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const admin = getSupabaseAdmin()
-  if (parsed.data.status === 'in_livrare' && parsed.data.delivery_date === undefined) {
+  let currentOrderForStatus:
+    | {
+        status: string
+        delivery_date: string | null
+      }
+    | null = null
+
+  if (parsed.data.status !== undefined || parsed.data.delivery_date === undefined) {
     const { data: currentOrder, error: currentOrderError } = await admin
       .from('shop_orders')
-      .select('delivery_date')
+      .select('status,delivery_date')
       .eq('id', id)
       .eq('tenant_id', tenantId)
       .maybeSingle()
@@ -211,7 +224,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       return errorResponse('Comanda nu a fost găsită.', 404)
     }
 
-    updates.delivery_date = currentOrder.delivery_date ?? todayBucharestDate()
+    currentOrderForStatus = currentOrder
+  }
+
+  if (parsed.data.status === 'in_livrare' && parsed.data.delivery_date === undefined) {
+    updates.delivery_date = currentOrderForStatus?.delivery_date ?? todayBucharestDate()
   }
 
   const hasAddressUpdate =
@@ -221,36 +238,94 @@ export async function PATCH(request: Request, context: RouteContext) {
     parsed.data.customer_name !== undefined ||
     parsed.data.customer_phone !== undefined
 
-  const { data, error } = await admin
-    .from('shop_orders')
-    .update(updates)
-    .eq('id', id)
-    .eq('tenant_id', tenantId)
-    .select(
-      hasClientSyncUpdate
-        ? 'id, customer_name, customer_phone, delivery_address, delivery_city'
-        : 'id',
-    )
+  const hasDirectUpdates = Object.keys(updates).length > 0
 
-  if (error) {
-    console.error(
-      '[shop/b2c/orders] patch failed',
-      sanitizeForLog(toSafeErrorContext({ id, ...error })),
-    )
-    return errorResponse('Nu am putut actualiza comanda.', 500)
+  let data: UpdatedShopOrderContactRow[] | null = null
+
+  if (hasDirectUpdates) {
+    const result = await admin
+      .from('shop_orders')
+      .update(updates)
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .select(
+        hasClientSyncUpdate
+          ? 'id, customer_name, customer_phone, delivery_address, delivery_city'
+          : 'id',
+      )
+
+    if (result.error) {
+      console.error(
+        '[shop/b2c/orders] patch failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...result.error })),
+      )
+      return errorResponse('Nu am putut actualiza comanda.', 500)
+    }
+
+    if (!result.data?.length) {
+      return errorResponse('Comanda nu a fost găsită.', 404)
+    }
+
+    data = result.data as unknown as UpdatedShopOrderContactRow[]
   }
 
-  if (!data?.length) {
-    return errorResponse('Comanda nu a fost găsită.', 404)
+  if (statusUpdate === 'in_livrare') {
+    const { error } = await supabase.rpc('set_shop_order_in_delivery_with_reservation', {
+      p_shop_order_id: id,
+      p_delivery_date: updates.delivery_date ?? null,
+    })
+
+    if (error) {
+      console.error(
+        '[shop/b2c/orders] reserve delivery failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...error })),
+      )
+      return errorResponse(error.message || 'Nu am putut rezerva stocul pentru comandă.', 409)
+    }
+  } else if (
+    statusUpdate !== undefined &&
+    currentOrderForStatus?.status === 'in_livrare' &&
+    (statusUpdate === 'confirmata' || statusUpdate === 'anulata')
+  ) {
+    const { error } = await supabase.rpc('release_shop_order_delivery_reservation', {
+      p_shop_order_id: id,
+      p_next_status: statusUpdate,
+    })
+
+    if (error) {
+      console.error(
+        '[shop/b2c/orders] release delivery failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...error })),
+      )
+      return errorResponse(error.message || 'Nu am putut elibera rezervarea comenzii.', 409)
+    }
+  } else if (statusUpdate !== undefined) {
+    const { data: statusOnlyData, error: statusOnlyError } = await admin
+      .from('shop_orders')
+      .update({ status: statusUpdate })
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .select('id')
+
+    if (statusOnlyError) {
+      console.error(
+        '[shop/b2c/orders] status patch failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...statusOnlyError })),
+      )
+      return errorResponse('Nu am putut actualiza comanda.', 500)
+    }
+
+    if (!statusOnlyData?.length) {
+      return errorResponse('Comanda nu a fost găsită.', 404)
+    }
   }
 
   if (hasClientSyncUpdate) {
-    const updatedOrder = data[0] as {
-      customer_name?: string | null
-      customer_phone?: string | null
-      delivery_address?: string | null
-      delivery_city?: string | null
+    if (!data?.length) {
+      return NextResponse.json({ success: true })
     }
+
+    const updatedOrder = data[0]
 
     try {
       await upsertClientFromShopOrder({

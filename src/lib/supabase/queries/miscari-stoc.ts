@@ -59,6 +59,15 @@ export interface StocGlobal {
   cal2: number
 }
 
+export interface SellableCal1StockSummary {
+  recoltatCal1Kg: number
+  consumatDefinitivCal1Kg: number
+  rezervatActivCal1Kg: number
+  legacyInLivrareFaraRezervareKg: number
+  stocCal1LedgerKg: number
+  disponibilCal1Kg: number
+}
+
 export interface RecoltareDeleteImpact {
   hasStock: boolean
   stockToRemoveKg: number
@@ -81,6 +90,25 @@ interface MiscareStocWithParcela {
 type SupabaseLikeError = {
   code?: string
   message?: string
+}
+
+type SellableCal1StockSummaryRpcRow = {
+  recoltat_cal1_kg?: number | null
+  consumat_definitiv_cal1_kg?: number | null
+  rezervat_activ_cal1_kg?: number | null
+  legacy_in_livrare_fara_rezervare_kg?: number | null
+  stoc_cal1_ledger_kg?: number | null
+  disponibil_cal1_kg?: number | null
+}
+
+type SellableCal1StockSummaryRpcClient = ReturnType<typeof getSupabase> & {
+  rpc: (
+    fn: 'get_sellable_cal1_stock_summary',
+    args: { p_tenant_id: string },
+  ) => Promise<{
+    data: SellableCal1StockSummaryRpcRow[] | SellableCal1StockSummaryRpcRow | null
+    error: SupabaseLikeError | null
+  }>
 }
 
 function round2(value: number): number {
@@ -327,6 +355,39 @@ export async function getStocGlobal(): Promise<StocGlobal> {
     },
     { cal1: 0, cal2: 0 },
   )
+}
+
+export async function getSellableCal1StockSummary(): Promise<SellableCal1StockSummary> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+  const rpcClient = supabase as SellableCal1StockSummaryRpcClient
+  const { data, error } = await rpcClient.rpc('get_sellable_cal1_stock_summary', {
+    p_tenant_id: tenantId,
+  })
+
+  if (error) {
+    if (isMissingInventoryTableError(error)) {
+      return {
+        recoltatCal1Kg: 0,
+        consumatDefinitivCal1Kg: 0,
+        rezervatActivCal1Kg: 0,
+        legacyInLivrareFaraRezervareKg: 0,
+        stocCal1LedgerKg: 0,
+        disponibilCal1Kg: 0,
+      }
+    }
+    throw error
+  }
+
+  const row = Array.isArray(data) ? data[0] : data
+  return {
+    recoltatCal1Kg: round2(Number(row?.recoltat_cal1_kg ?? 0)),
+    consumatDefinitivCal1Kg: round2(Number(row?.consumat_definitiv_cal1_kg ?? 0)),
+    rezervatActivCal1Kg: round2(Number(row?.rezervat_activ_cal1_kg ?? 0)),
+    legacyInLivrareFaraRezervareKg: round2(Number(row?.legacy_in_livrare_fara_rezervare_kg ?? 0)),
+    stocCal1LedgerKg: round2(Number(row?.stoc_cal1_ledger_kg ?? 0)),
+    disponibilCal1Kg: round2(Number(row?.disponibil_cal1_kg ?? 0)),
+  }
 }
 
 export async function getRecoltareDeleteImpact(recoltareId: string): Promise<RecoltareDeleteImpact> {

@@ -1,6 +1,6 @@
-import { KG_PER_CASEROLĂ } from '@/lib/comenzi/unified-orders'
 import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import { getSellableCal1StockSummary } from './miscari-stoc'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/supabase'
 import { type Vanzare } from './vanzari'
 
@@ -86,14 +86,6 @@ export interface DeliverShopOrderPartialInput {
   dataLivrareRamasa?: string | null
 }
 
-interface StockBucket {
-  locatie_id: string | null
-  produs: string | null
-  calitate: string | null
-  depozit: string | null
-  availableKg: number
-}
-
 type SupabaseLikeError = {
   message?: string
   code?: string
@@ -117,10 +109,6 @@ type ComandaQueryRow = ComandaRow & {
   order_kind?: string | null
   clienti?: Pick<Tables<'clienti'>, 'nume_client'> | null
 }
-type StockBucketRow = Pick<
-  Tables<'miscari_stoc'>,
-  'locatie_id' | 'produs' | 'calitate' | 'depozit' | 'tip_miscare' | 'cantitate_kg'
->
 type ComandaInsertCompat = Omit<TablesInsert<'comenzi'>, 'data_livrare'> & {
   data_livrare: string | null
   order_kind?: string
@@ -203,6 +191,25 @@ type ComenziRpcClient = ReturnType<typeof getSupabase> & {
       data: DeliverShopOrderAtomicPartialPayload | null
       error: SupabaseLikeError | null
     }>
+    (
+      fn: 'set_comanda_in_delivery_with_reservation',
+      args: {
+        p_comanda_id: string
+      }
+    ): Promise<{
+      data: ComandaQueryRow | null
+      error: SupabaseLikeError | null
+    }>
+    (
+      fn: 'release_comanda_delivery_reservation',
+      args: {
+        p_comanda_id: string
+        p_next_status: ComandaStatus
+      }
+    ): Promise<{
+      data: ComandaQueryRow | null
+      error: SupabaseLikeError | null
+    }>
   }
 }
 
@@ -266,39 +273,25 @@ function mapComanda(row: ComandaQueryRow): Comanda {
   }
 }
 
-function signedQuantity(tipMiscare: string, cantitateKg: number): number {
-  const outflowTypes = new Set(['vanzare', 'consum', 'oferit_gratuit', 'pierdere'])
-  return outflowTypes.has(tipMiscare) ? -cantitateKg : cantitateKg
+function getDefaultActiveStatus(dataLivrare?: string | null): ComandaStatus {
+  const today = new Date().toISOString().split('T')[0]
+  return dataLivrare && dataLivrare > today ? 'programata' : 'confirmata'
 }
 
-async function getStockBuckets(): Promise<StockBucket[]> {
-  const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
+async function selectComandaRowById(
+  supabase: ReturnType<typeof getSupabase>,
+  id: string,
+  tenantId: string,
+): Promise<ComandaQueryRow> {
   const { data, error } = await supabase
-    .from('miscari_stoc')
-    .select('locatie_id,produs,calitate,depozit,tip_miscare,cantitate_kg')
+    .from('comenzi')
+    .select(COMANDA_SELECT_FIELDS)
+    .eq('id', id)
     .eq('tenant_id', tenantId)
+    .single()
 
-  if (error) throw toReadableError(error, 'Nu am putut incarca stocul disponibil.')
-
-  const grouped = new Map<string, StockBucket>()
-  for (const row of (data ?? []) as StockBucketRow[]) {
-    const key = `${row.locatie_id}|${row.produs}|${row.calitate}|${row.depozit}`
-    const existing = grouped.get(key) ?? {
-      locatie_id: row.locatie_id,
-      produs: row.produs,
-      calitate: row.calitate,
-      depozit: row.depozit,
-      availableKg: 0,
-    }
-    const qty = signedQuantity(String(row.tip_miscare), Number(row.cantitate_kg ?? 0))
-    existing.availableKg = round2(existing.availableKg + qty)
-    grouped.set(key, existing)
-  }
-
-  return Array.from(grouped.values())
-    .filter((bucket) => bucket.availableKg > 0)
-    .sort((a, b) => b.availableKg - a.availableKg)
+  if (error) throw toReadableError(error, 'Nu am putut încărca comanda.')
+  return data as unknown as ComandaQueryRow
 }
 
 function mapPlataToStatus(plata: ComandaPlata): string {
@@ -342,6 +335,7 @@ export async function getComenzi(
 export async function createComanda(input: CreateComandaInput): Promise<Comanda> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
+  const requestedStatus = input.status ?? 'noua'
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -357,7 +351,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     pret_per_kg: round2(input.pret_per_kg),
     total: round2(input.cantitate_kg * input.pret_per_kg),
     order_kind: input.order_kind ?? 'manual',
-    status: input.status ?? 'noua',
+    status: requestedStatus === 'in_livrare' ? getDefaultActiveStatus(input.data_livrare ?? null) : requestedStatus,
     observatii: input.observatii?.trim() || null,
     created_by: user?.id ?? null,
     updated_by: user?.id ?? null,
@@ -370,7 +364,35 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     .single()
 
   if (error) throw toReadableError(error, 'Nu am putut salva comanda.')
-  return mapComanda(data as unknown as ComandaQueryRow)
+
+  const inserted = data as unknown as ComandaQueryRow
+
+  if (requestedStatus !== 'in_livrare') {
+    return mapComanda(inserted)
+  }
+
+  const rpcClient = supabase as ComenziRpcClient
+
+  try {
+    const { data: reservedData, error: reservedError } = await rpcClient.rpc(
+      'set_comanda_in_delivery_with_reservation',
+      {
+        p_comanda_id: inserted.id,
+      },
+    )
+    if (reservedError) {
+      throw toReadableError(reservedError, 'Nu am putut rezerva stocul pentru comandă.')
+    }
+
+    if (!reservedData) {
+      throw new Error('Nu am primit comanda rezervată de la baza de date.')
+    }
+
+    return mapComanda(reservedData)
+  } catch (reservationError) {
+    await supabase.from('comenzi').delete().eq('id', inserted.id).eq('tenant_id', tenantId)
+    throw reservationError
+  }
 }
 
 export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
@@ -379,6 +401,16 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const current = await selectComandaRowById(supabase, id, tenantId)
+  const currentStatus = ensureStatus(current.status)
+  const shouldReserveForDelivery = input.status === 'in_livrare'
+  const shouldReleaseReservation =
+    currentStatus === 'in_livrare' &&
+    input.status !== undefined &&
+    input.status !== 'in_livrare' &&
+    input.status !== 'livrata'
+
   const payload: ComandaUpdateCompat = {
     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
     ...(input.client_nume_manual !== undefined ? { client_nume_manual: input.client_nume_manual?.trim() || null } : {}),
@@ -389,36 +421,71 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     ...(input.cantitate_kg !== undefined ? { cantitate_kg: round2(input.cantitate_kg) } : {}),
     ...(input.pret_per_kg !== undefined ? { pret_per_kg: round2(input.pret_per_kg) } : {}),
     ...(input.order_kind !== undefined ? { order_kind: input.order_kind } : {}),
-    ...(input.status !== undefined ? { status: input.status } : {}),
+    ...(!shouldReserveForDelivery && !shouldReleaseReservation && input.status !== undefined ? { status: input.status } : {}),
     ...(input.observatii !== undefined ? { observatii: input.observatii?.trim() || null } : {}),
     updated_at: new Date().toISOString(),
     updated_by: user?.id ?? null,
   }
 
   if (payload.cantitate_kg !== undefined || payload.pret_per_kg !== undefined) {
-    const { data: current, error: currentError } = await supabase
-      .from('comenzi')
-      .select('cantitate_kg,pret_per_kg')
-      .eq('id', id)
-      .eq('tenant_id', tenantId)
-      .single()
-    if (currentError) throw toReadableError(currentError, 'Nu am putut incarca comanda pentru editare.')
-
     const cantitate = round2(payload.cantitate_kg ?? Number(current.cantitate_kg ?? 0))
     const pret = round2(payload.pret_per_kg ?? Number(current.pret_per_kg ?? 0))
     payload.total = round2(cantitate * pret)
   }
 
-  const { data, error } = await supabase
-    .from('comenzi')
-    .update(payload as TablesUpdate<'comenzi'>)
-    .eq('id', id)
-    .eq('tenant_id', tenantId)
-    .select(COMANDA_SELECT_FIELDS)
-    .single()
+  const hasNonTransitionUpdate =
+    Object.keys(payload).some((key) => key !== 'updated_at' && key !== 'updated_by')
 
-  if (error) throw toReadableError(error, 'Nu am putut actualiza comanda.')
-  return mapComanda(data as unknown as ComandaQueryRow)
+  if (hasNonTransitionUpdate) {
+    const { error } = await supabase
+      .from('comenzi')
+      .update(payload as TablesUpdate<'comenzi'>)
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+
+    if (error) throw toReadableError(error, 'Nu am putut actualiza comanda.')
+  }
+
+  const rpcClient = supabase as ComenziRpcClient
+
+  if (shouldReserveForDelivery) {
+    const { data, error } = await rpcClient.rpc('set_comanda_in_delivery_with_reservation', {
+      p_comanda_id: id,
+    })
+
+    if (error) {
+      throw toReadableError(error, 'Nu am putut trimite comanda în livrare.')
+    }
+
+    if (!data) {
+      throw new Error('Nu am primit comanda actualizată de la baza de date.')
+    }
+
+    return mapComanda(data)
+  }
+
+  if (shouldReleaseReservation) {
+    const { data, error } = await rpcClient.rpc('release_comanda_delivery_reservation', {
+      p_comanda_id: id,
+      p_next_status: input.status!,
+    })
+
+    if (error) {
+      throw toReadableError(error, 'Nu am putut elibera rezervarea de stoc.')
+    }
+
+    if (!data) {
+      throw new Error('Nu am primit comanda actualizată de la baza de date.')
+    }
+
+    return mapComanda(data)
+  }
+
+  if (!hasNonTransitionUpdate) {
+    return mapComanda(current)
+  }
+
+  return mapComanda(await selectComandaRowById(supabase, id, tenantId))
 }
 
 export async function deleteComanda(id: string): Promise<void> {
@@ -533,53 +600,22 @@ export async function reopenComanda(id: string): Promise<Comanda> {
 
 export async function getComenziStockSummaryAzi(): Promise<{
   totalStocDisponibilKg: number
+  totalStocCal1Kg: number
+  rezervatActivKg: number
+  legacyInLivrareKg: number
 }> {
-  const buckets = await getStockBuckets()
+  const summary = await getSellableCal1StockSummary()
   return {
-    totalStocDisponibilKg: round2(buckets.reduce((sum, bucket) => sum + bucket.availableKg, 0)),
+    totalStocDisponibilKg: summary.disponibilCal1Kg,
+    totalStocCal1Kg: summary.stocCal1LedgerKg,
+    rezervatActivKg: summary.rezervatActivCal1Kg,
+    legacyInLivrareKg: summary.legacyInLivrareFaraRezervareKg,
   }
 }
 
 export async function getKgAngajatInLivrare(): Promise<number> {
-  const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
-
-  const [comenziRes, shopRes] = await Promise.all([
-    supabase
-      .from('comenzi')
-      .select('cantitate_kg')
-      .eq('tenant_id', tenantId)
-      .eq('status', 'in_livrare'),
-    supabase
-      .from('shop_orders')
-      .select('items')
-      .eq('tenant_id', tenantId)
-      .eq('status', 'in_livrare'),
-  ])
-
-  if (comenziRes.error) {
-    throw toReadableError(comenziRes.error, 'Nu am putut calcula comenzile deja în livrare.')
-  }
-  if (shopRes.error) {
-    throw toReadableError(shopRes.error, 'Nu am putut calcula comenzile Shop deja în livrare.')
-  }
-
-  const kgManuale = (comenziRes.data ?? []).reduce(
-    (sum, row) => sum + (Number(row.cantitate_kg) || 0),
-    0,
-  )
-
-  const kgShop = (shopRes.data ?? []).reduce<number>((sum, row) => {
-    if (!Array.isArray(row.items)) return sum
-    const rowKg = row.items.reduce<number>((itemSum, item) => {
-        if (!item || typeof item !== 'object' || Array.isArray(item)) return itemSum
-        const qty = Number((item as { qty?: unknown }).qty)
-        return itemSum + (Number.isFinite(qty) && qty > 0 ? qty * KG_PER_CASEROLĂ : 0)
-      }, 0)
-    return sum + rowKg
-  }, 0)
-
-  return round2(kgManuale + kgShop)
+  const summary = await getSellableCal1StockSummary()
+  return round2(summary.rezervatActivCal1Kg + summary.legacyInLivrareFaraRezervareKg)
 }
 
 export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
