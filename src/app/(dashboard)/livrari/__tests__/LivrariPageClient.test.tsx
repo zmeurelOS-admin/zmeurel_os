@@ -229,7 +229,7 @@ describe('LivrariPageClient', () => {
       expect(toastErrorMock).toHaveBeenCalledWith('Stoc insuficient pentru livrare.'),
     )
     expect(screen.getByText('Maria Popescu')).toBeInTheDocument()
-    expect(screen.getByText(/1 comandă · Rămân 20 lei/)).toBeInTheDocument()
+    expect(screen.getByText('1.0 kg shop · 20 lei')).toBeInTheDocument()
     expect(screen.queryByText('Livrate (1)')).not.toBeInTheDocument()
   })
 
@@ -314,14 +314,14 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     expect(await screen.findByText('Client Manual')).toBeInTheDocument()
-    expect(screen.getByText(/1 comandă · Rămân 36 lei/)).toBeInTheDocument()
+    expect(screen.getByText('3.0 kg clienți · 36 lei')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reordonează livrarea 1' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Client Manual/ }))
 
     expect(screen.getByText('3 kg afine')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Apel' })).toHaveAttribute('href', 'tel:0722000111')
-    expect(screen.queryByRole('button', { name: 'Editează' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Marchează livrat/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editează' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Marchează livrat/ })).toBeInTheDocument()
   })
 })

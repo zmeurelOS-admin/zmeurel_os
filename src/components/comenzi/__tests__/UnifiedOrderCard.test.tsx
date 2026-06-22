@@ -35,10 +35,17 @@ const order: ShopOrderRow = {
 }
 
 describe('UnifiedOrderCard', () => {
-  it('afișează reward-ul shop ca badge read-only', () => {
-    render(<UnifiedOrderCard item={mapShopToUnified(order)} />)
+  it('afișează reward-ul shop ca badge read-only', async () => {
+    const user = userEvent.setup()
+    render(<UnifiedOrderCard item={mapShopToUnified(order)} compact />)
 
-    expect(screen.getByText('O caserolă bonus')).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Arată detaliile comenzii pentru Maria Popescu',
+      }),
+    )
+
+    expect(screen.getByText('0,5 kg bonus')).toBeInTheDocument()
     expect(screen.getByText('Bonus la livrare')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /bonus/i })).not.toBeInTheDocument()
   })
@@ -56,14 +63,20 @@ describe('UnifiedOrderCard', () => {
       name: 'Arată detaliile comenzii pentru Maria Popescu',
     })
     expect(header).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByText('Adresă').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('0740 123 456').closest('[aria-hidden]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
 
     await user.click(header)
 
     expect(
       screen.getByRole('button', { name: 'Ascunde detaliile comenzii pentru Maria Popescu' }),
     ).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('Adresă').closest('[aria-hidden]')).toHaveAttribute('aria-hidden', 'false')
+    expect(screen.getByText('0740 123 456').closest('[aria-hidden]')).toHaveAttribute(
+      'aria-hidden',
+      'false',
+    )
   })
 
   it('expune acțiunea de editare pentru comenzile shop', async () => {
@@ -80,7 +93,7 @@ describe('UnifiedOrderCard', () => {
   it.each([
     ['noua', ['Confirmată', 'Anulată'], ['În livrare', 'Livrată']],
     ['confirmata', ['În livrare', 'Anulată'], ['Confirmată', 'Livrată']],
-    ['in_livrare', ['Livrată'], ['Confirmată', 'Anulată']],
+    ['in_livrare', ['Confirmată', 'Livrată'], ['Anulată']],
   ] as const)(
     'afișează doar tranzițiile valide pentru statusul %s',
     async (status, expected, absent) => {
@@ -93,6 +106,11 @@ describe('UnifiedOrderCard', () => {
         />,
       )
 
+      await user.click(
+        screen.getByRole('button', {
+          name: `Arată detaliile comenzii pentru ${order.customer_name}`,
+        }),
+      )
       await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
 
       for (const label of expected) {
@@ -130,13 +148,19 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
-    expect(screen.queryByText('✓ Anunțat WA')).not.toBeInTheDocument()
+    expect(screen.getByText('✓ Anunțat WA').closest('[aria-hidden]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    )
     await user.click(
       screen.getByRole('button', {
         name: 'Arată detaliile comenzii pentru Maria Popescu',
       }),
     )
-    expect(screen.getByText('✓ Anunțat WA')).toBeInTheDocument()
+    expect(screen.getByText('✓ Anunțat WA').closest('[aria-hidden]')).toHaveAttribute(
+      'aria-hidden',
+      'false',
+    )
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
   })
@@ -178,6 +202,11 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
+    await user.click(
+      screen.getByRole('button', {
+        name: `Arată detaliile comenzii pentru ${order.customer_name}`,
+      }),
+    )
     await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
     await user.click(screen.getByRole('button', { name: 'În livrare' }))
 
@@ -218,7 +247,7 @@ describe('UnifiedOrderCard', () => {
 
     render(<UnifiedOrderCard item={mapB2bToUnified(manualOrder, {})} />)
 
-    expect(screen.getByText('35 kg · 3,50 lei/kg · Total 122,50 lei')).toBeInTheDocument()
+    expect(screen.getByText('35 kg · 123 lei · Suceava')).toBeInTheDocument()
     expect(screen.getByText('Manual')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
   })
@@ -256,6 +285,11 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
+    await user.click(
+      screen.getByRole('button', {
+        name: `Arată detaliile comenzii pentru ${manualOrder.client_nume_manual}`,
+      }),
+    )
     await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
     await user.click(screen.getByRole('button', { name: 'În livrare' }))
 
