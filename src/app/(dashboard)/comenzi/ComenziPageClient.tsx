@@ -1057,6 +1057,40 @@ function ComandaDialog({
               </label>
             ) : null}
 
+            <div className="space-y-1.5">
+              <Label>Tip comandă</Label>
+              {mode === 'create' ? (
+                <Select
+                  value={form.order_kind}
+                  onValueChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      order_kind: value as ComandaOrderKind,
+                      pret_per_kg:
+                        value === 'cadou' || value === 'consum_propriu'
+                          ? '0'
+                          : prev.pret_per_kg,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="agri-control h-11 md:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMANDA_ORDER_KINDS.map((orderKind) => (
+                      <SelectItem key={orderKind} value={orderKind}>
+                        {orderKindLabelMap[orderKind]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-sm font-medium text-[var(--text-primary)] md:min-h-10">
+                  {orderKindLabelMap[form.order_kind]}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Mod livrare</Label>
               <div className="flex gap-2">
@@ -1221,40 +1255,6 @@ function ComandaDialog({
                 triggerClassName="h-11 md:h-10"
                 onChange={(nextValue) => setForm((prev) => ({ ...prev, data_livrare: nextValue }))}
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Tip comandă</Label>
-              {mode === 'create' ? (
-                <Select
-                  value={form.order_kind}
-                  onValueChange={(value) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      order_kind: value as ComandaOrderKind,
-                      pret_per_kg:
-                        value === 'cadou' || value === 'consum_propriu'
-                          ? '0'
-                          : prev.pret_per_kg,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="agri-control h-11 md:h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMANDA_ORDER_KINDS.map((orderKind) => (
-                      <SelectItem key={orderKind} value={orderKind}>
-                        {orderKindLabelMap[orderKind]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <div className="flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-sm font-medium text-[var(--text-primary)] md:min-h-10">
-                  {orderKindLabelMap[form.order_kind]}
-                </div>
-              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 md:gap-x-3 md:gap-y-2.5">
