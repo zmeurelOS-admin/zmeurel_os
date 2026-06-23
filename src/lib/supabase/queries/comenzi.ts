@@ -626,9 +626,10 @@ export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
     .select(COMANDA_SELECT_FIELDS)
     .eq('tenant_id', tenantId)
     .eq('status', 'in_livrare')
+    .not('data_origin', 'eq', 'shop_order_bridge')
     .or('data_origin.is.null,data_origin.neq.magazin_asociatie')
     .order('data_livrare', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comenzile manuale în livrare.')
   return ((data ?? []) as unknown as ComandaQueryRow[]).map(mapComanda)

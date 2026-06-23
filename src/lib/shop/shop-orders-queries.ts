@@ -52,7 +52,12 @@ export async function fetchShopOrders(): Promise<ShopOrderRow[]> {
 
 export async function fetchShopOrdersInLivrare(): Promise<ShopOrderRow[]> {
   const supabase = getSupabase()
-  const { data, error } = await supabase.rpc('list_shop_orders_in_delivery_today')
+  const { data, error } = await supabase
+    .from('shop_orders')
+    .select('*')
+    .eq('status', 'in_livrare')
+    .order('delivery_date', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return attachMilestoneRewards((data ?? []) as ShopOrderRow[])

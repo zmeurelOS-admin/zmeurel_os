@@ -22,6 +22,7 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
+import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,14 +34,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { mapB2bToUnified, mapShopToUnified } from '@/lib/comenzi/unified-orders'
-import { normalizeComanda, normalizeShopOrder, type DeliveryItem } from '@/lib/livrari/types'
+import { KG_PER_CASEROLĂ, mapB2bToUnified, mapShopToUnified, type UnifiedOrderItem } from '@/lib/comenzi/unified-orders'
+import type { DeliveryItem } from '@/lib/livrari/types'
 import { queryKeys } from '@/lib/query-keys'
 import {
-  buildDeliverySummary,
   buildLivrareWaUrl,
   formatItemsHuman,
   formatLei,
+  type ShopOrderStatus,
   type ShopOrderRow,
 } from '@/lib/shop/b2c-order-helpers'
 import {
@@ -52,6 +53,7 @@ import {
   deliverComanda,
   deliverShopOrderPartial,
   fetchComenziManualInLivrare,
+  updateComanda,
   type Comanda,
 } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
@@ -60,6 +62,15 @@ type EditTarget =
   | { type: 'shop'; order: ShopOrderRow }
   | { type: 'manual'; order: Comanda }
   | null
+
+type DeliveryTarget = UnifiedOrderItem & {
+  total_lei: number
+  cantitate_kg: number
+  customer_name: string
+  delivery_address: string | null
+  _shopOrder?: ShopOrderRow
+  _comanda?: Comanda
+}
 
 function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
   return lines.map((line) => `${line.label} × ${line.qty}`).join(' · ')
@@ -76,22 +87,66 @@ function mapsHref(address: string | null): string | null {
     : null
 }
 
-function getDeliveryPriority(item: DeliveryItem): number {
-  if (item.clientTip === 'patiserie' || item.clientTip === 'magazin') return 0
-  if (item.source === 'comanda_manuala') return 1
-  return 2
+function getDeliverableKg(order: UnifiedOrderItem): number {
+  if (order.source === 'shop') {
+    return Math.round(order.quantity * KG_PER_CASEROLĂ * 100) / 100
+  }
+  return Math.round(order.quantity * 100) / 100
+}
+
+function compareUnifiedDeliveryFifo(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
+  const aDate = a.deliveryDate ? Date.parse(`${a.deliveryDate}T12:00:00.000Z`) : Number.POSITIVE_INFINITY
+  const bDate = b.deliveryDate ? Date.parse(`${b.deliveryDate}T12:00:00.000Z`) : Number.POSITIVE_INFINITY
+  if (aDate !== bDate) return aDate - bDate
+
+  const createdDiff = Date.parse(a.createdAt) - Date.parse(b.createdAt)
+  if (createdDiff !== 0) return createdDiff
+
+  return a.id.localeCompare(b.id)
+}
+
+async function patchShopOrder(input: {
+  id: string
+  status?: ShopOrderStatus
+  delivery_date?: string | null
+  notified_wa?: boolean
+}): Promise<void> {
+  const response = await fetch(`/api/shop/b2c/orders/${input.id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const json = (await response.json()) as { success?: boolean; error?: string }
+  if (!response.ok || !json.success) {
+    throw new Error(json.error ?? 'Nu am putut actualiza comanda din shop.')
+  }
+}
+
+function toDeliveryTarget(order: UnifiedOrderItem): DeliveryTarget {
+  const deliveryAddress =
+    order.source === 'shop'
+      ? [order.shopOrder?.delivery_address?.trim(), order.shopOrder?.delivery_city?.trim()]
+          .filter(Boolean)
+          .join(', ') || null
+      : order.b2bComanda?.locatie_livrare?.trim() || null
+
+  return {
+    ...order,
+    total_lei: order.totalLei,
+    cantitate_kg: getDeliverableKg(order),
+    customer_name: order.customerName,
+    delivery_address: deliveryAddress,
+    _shopOrder: order.shopOrder,
+    _comanda: order.b2bComanda,
+  }
 }
 
 export function LivrariPageClient() {
   const queryClient = useQueryClient()
   const { tenantId } = useDashboardAuth()
-  const [orderedIds, setOrderedIds] = useState<string[]>([])
-  const [reorderOriginalIds, setReorderOriginalIds] = useState<string[] | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [reorderingId, setReorderingId] = useState<string | null>(null)
-  const [deliverTarget, setDeliverTarget] = useState<DeliveryItem | null>(null)
+  const [deliverTarget, setDeliverTarget] = useState<DeliveryTarget | null>(null)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
-  const [deliveredInSession, setDeliveredInSession] = useState<DeliveryItem[]>([])
+  const [deliveredInSession, setDeliveredInSession] = useState<DeliveryTarget[]>([])
   const [scheduledTodayExpanded, setScheduledTodayExpanded] = useState(false)
 
   const ordersQuery = useQuery({
@@ -125,54 +180,38 @@ export function LivrariPageClient() {
     }
     return map
   }, [clientiQuery.data])
-  const deliveryItems = useMemo(() => {
-    return [
-      ...shopOrders.map(normalizeShopOrder),
-      ...manualOrders.map((c) =>
-        normalizeComanda(c, clientMap[c.client_id ?? '']?.tip ?? 'standard'),
-      ),
-    ].sort((a, b) => {
-      const priorityDiff = getDeliveryPriority(a) - getDeliveryPriority(b)
-      if (priorityDiff !== 0) return priorityDiff
-      if (a.delivery_position !== null && b.delivery_position !== null)
-        return a.delivery_position - b.delivery_position
-      if (a.delivery_position !== null) return -1
-      if (b.delivery_position !== null) return 1
-      return a.created_at < b.created_at ? 1 : -1
-    })
-  }, [manualOrders, shopOrders, clientMap])
+  const deliveryItems = useMemo(
+    () =>
+      [
+        ...manualOrders.map((comanda) => mapB2bToUnified(comanda, clientMap)),
+        ...shopOrders.map(mapShopToUnified),
+      ].sort(compareUnifiedDeliveryFifo),
+    [clientMap, manualOrders, shopOrders],
+  )
   const editUnified = useMemo(() => {
     if (!editTarget) return null
     if (editTarget.type === 'shop') return mapShopToUnified(editTarget.order)
     return mapB2bToUnified(editTarget.order, clientMap)
   }, [clientMap, editTarget])
-
-  const orderedOrders = useMemo(() => {
-    if (orderedIds.length === 0) return deliveryItems
-    const byId = new Map(deliveryItems.map((order) => [order.id, order]))
-    const fromOrder = orderedIds
-      .map((id) => byId.get(id))
-      .filter((row): row is DeliveryItem => Boolean(row))
-    if (fromOrder.length === deliveryItems.length) return fromOrder
-    const seen = new Set(fromOrder.map((order) => order.id))
-    return [...fromOrder, ...deliveryItems.filter((order) => !seen.has(order.id))]
-  }, [deliveryItems, orderedIds])
-
-  const totalKg = deliveryItems.reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
+  const totalLei = deliveryItems.reduce((sum, order) => sum + order.totalLei, 0)
+  const manualCount = deliveryItems.filter((item) => item.source === 'b2b').length
+  const shopCount = deliveryItems.filter((item) => item.source === 'shop').length
   const kgB2b = deliveryItems
-    .filter((item) => item.clientTip === 'patiserie' || item.clientTip === 'magazin')
-    .reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
+    .filter((item) => item.source === 'b2b' && (item.clientTip === 'patiserie' || item.clientTip === 'magazin'))
+    .reduce((sum, item) => sum + getDeliverableKg(item), 0)
   const kgClienti = deliveryItems
-    .filter(
-      (item) => item.source === 'comanda_manuala' && item.clientTip === 'standard',
-    )
-    .reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
+    .filter((item) => item.source === 'b2b' && item.clientTip === 'standard')
+    .reduce((sum, item) => sum + getDeliverableKg(item), 0)
   const kgShop = deliveryItems
-    .filter((item) => item.source === 'shop_order')
-    .reduce((sum, item) => sum + (item.cantitate_kg ?? 0), 0)
-  const totalLei = deliveryItems.reduce((sum, order) => sum + order.total_lei, 0)
-  const summary = buildDeliverySummary(shopOrders)
-  const summaryBullets = formatSummaryBullets(summary.lines)
+    .filter((item) => item.source === 'shop')
+    .reduce((sum, item) => sum + getDeliverableKg(item), 0)
+  const orderedOrders = deliveryItems.map(toDeliveryTarget)
+  const reorderingId: string | null = null
+  const summaryBullets = 'Toate comenzile în livrare, indiferent de sursă.'
+  const persistReorderMutation = {
+    isPending: false,
+    mutate: (_orderIds: string[]) => undefined,
+  }
   const isFetchingAny = ordersQuery.isFetching || comenziManualQuery.isFetching
 
   const refreshAll = useCallback(() => {
@@ -185,42 +224,37 @@ export function LivrariPageClient() {
     })
   }, [queryClient, tenantId])
 
-  const moveOrder = useCallback((id: string, direction: 'up' | 'down') => {
-    setOrderedIds((current) => {
-      const index = current.indexOf(id)
-      if (index === -1) return current
-      const target = direction === 'up' ? index - 1 : index + 1
-      if (target < 0 || target >= current.length) return current
-      const next = [...current]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
-    })
-  }, [])
-
-  const persistReorderMutation = useMutation({
-    mutationFn: async (orderIds: string[]) => {
-      const response = await fetch('/api/shop/b2c/orders/reorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_ids: orderIds }),
-      })
-      const json = (await response.json()) as { success?: boolean; error?: string }
-      if (!response.ok || !json.success) {
-        throw new Error(json.error ?? 'Nu am putut salva ordinea livrărilor.')
+  const patchShopOrderMutation = useMutation({
+    mutationFn: patchShopOrder,
+    onSuccess: (_, variables) => {
+      if (variables.delivery_date !== undefined) {
+        toast.success(
+          variables.delivery_date
+            ? 'Data livrării a fost actualizată.'
+            : 'Data livrării a fost ștearsă.',
+        )
       }
-      return orderIds
-    },
-    onSuccess: (orderIds) => {
-      setOrderedIds(orderIds)
-      setReorderOriginalIds(null)
-      setReorderingId(null)
-      toast.success('Ordinea livrărilor a fost salvată')
       refreshAll()
     },
     onError: (error: Error) => {
-      setOrderedIds(reorderOriginalIds ?? [])
-      setReorderOriginalIds(null)
-      setReorderingId(null)
+      toast.error(error.message)
+    },
+  })
+
+  const updateManualOrderMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) =>
+      updateComanda(id, payload),
+    onSuccess: (_, variables) => {
+      if (variables.payload.data_livrare !== undefined) {
+        toast.success(
+          variables.payload.data_livrare
+            ? 'Data livrării a fost actualizată.'
+            : 'Data livrării a fost ștearsă.',
+        )
+      }
+      refreshAll()
+    },
+    onError: (error: Error) => {
       toast.error(error.message)
     },
   })
@@ -244,7 +278,6 @@ export function LivrariPageClient() {
       const previousCount = queryClient.getQueryData<number>(
         queryKeys.shopOrdersInLivrareCount,
       )
-      const previousOrderedIds = orderedIds
       queryClient.setQueryData<ShopOrderRow[]>(
         queryKeys.shopOrdersInLivrare,
         (current) => current?.filter((item) => item.id !== order.id) ?? [],
@@ -252,15 +285,12 @@ export function LivrariPageClient() {
       queryClient.setQueryData<number>(queryKeys.shopOrdersInLivrareCount, (current) =>
         Math.max(0, (current ?? 1) - 1),
       )
-      setOrderedIds((current) => current.filter((id) => id !== order.id))
       setDeliveredInSession((current) => [
-        { ...normalizeShopOrder(order), status: 'livrata' },
+        toDeliveryTarget(mapShopToUnified({ ...order, status: 'livrata' })),
         ...current.filter((item) => item.id !== order.id),
       ])
-      if (expandedId === order.id) setExpandedId(null)
-      if (reorderingId === order.id) setReorderingId(null)
       setDeliverTarget(null)
-      return { previous, previousCount, previousOrderedIds, order }
+      return { previous, previousCount, order }
     },
     onSuccess: () => {
       toast.success('Comandă livrată')
@@ -272,9 +302,6 @@ export function LivrariPageClient() {
       }
       if (context?.previousCount !== undefined) {
         queryClient.setQueryData(queryKeys.shopOrdersInLivrareCount, context.previousCount)
-      }
-      if (context?.previousOrderedIds) {
-        setOrderedIds(context.previousOrderedIds)
       }
       if (context?.order) {
         setDeliveredInSession((current) =>
@@ -296,12 +323,9 @@ export function LivrariPageClient() {
     onSuccess: (result) => {
       toast.success('Livrare parțială înregistrată')
       setDeliveredInSession((current) => [
-        { ...normalizeComanda(result.deliveredOrder), status: 'livrata' },
+        toDeliveryTarget(mapB2bToUnified(result.deliveredOrder, clientMap)),
         ...current.filter((item) => item.id !== result.deliveredOrder.id),
       ])
-      if (expandedId === result.deliveredOrder.id) {
-        setExpandedId(null)
-      }
       setDeliverTarget(null)
       void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
@@ -338,21 +362,47 @@ export function LivrariPageClient() {
   const handleConfirmPartial = useCallback(
     (kgLivrat: number) => {
       if (!deliverTarget) return
-      if (deliverTarget._comanda) {
+      if (deliverTarget.b2bComanda) {
         deliverPartialManualMutation.mutate({
-          comanda: deliverTarget._comanda,
+          comanda: deliverTarget.b2bComanda,
           kgLivrat,
         })
         return
       }
-      if (deliverTarget._shopOrder) {
+      if (deliverTarget.shopOrder) {
         deliverPartialShopMutation.mutate({
-          shopOrder: deliverTarget._shopOrder,
+          shopOrder: deliverTarget.shopOrder,
           kgLivrat,
         })
       }
     },
     [deliverPartialManualMutation, deliverPartialShopMutation, deliverTarget],
+  )
+
+  const handleManualStatusChange = useCallback(
+    (id: string, status: Parameters<typeof updateComanda>[1]['status']) => {
+      const order = deliveryItems.find((item) => item.id === id && item.source === 'b2b')
+      if (!order?.b2bComanda || !status) return
+      if (status === 'livrata') {
+        setDeliverTarget(toDeliveryTarget(order))
+        return
+      }
+      updateManualOrderMutation.mutate({ id, payload: { status } })
+    },
+    [deliveryItems, updateManualOrderMutation],
+  )
+
+  const handleShopStatusChange = useCallback(
+    (id: string, status: ShopOrderStatus) => {
+      const order = deliveryItems.find((item) => item.id === id && item.source === 'shop')
+      if (!order?.shopOrder) return
+      if (status === 'livrata') {
+        setDeliverTarget(toDeliveryTarget(order))
+        return
+      }
+      patchShopOrderMutation.mutate({ id, status })
+    },
+    [deliveryItems, patchShopOrderMutation],
   )
 
   const headerSubtitle =
@@ -497,49 +547,39 @@ export function LivrariPageClient() {
             </header>
 
             <div className="space-y-2.5">
-              {orderedOrders.map((order, index) => (
-                <DeliveryOrderCard
-                  key={order.id}
-                  order={order}
-                  position={index + 1}
-                  isFirst={index === 0}
-                  isLast={index === orderedOrders.length - 1}
-                  expanded={expandedId === order.id}
-                  reordering={reorderingId === order.id}
-                  marking={
-                    markDeliveredMutation.isPending &&
-                    markDeliveredMutation.variables?.id === order.id
+              {orderedOrders.map((order) => (
+                <UnifiedOrderCard
+                  key={`${order.source}-${order.id}`}
+                  item={order}
+                  disabled={
+                    markDeliveredMutation.isPending ||
+                    deliverPartialManualMutation.isPending ||
+                    deliverPartialShopMutation.isPending ||
+                    patchShopOrderMutation.isPending ||
+                    updateManualOrderMutation.isPending
                   }
-                  onActivateReorder={
-                    order._shopOrder
-                      ? () => {
-                          const currentIds = orderedOrders
-                            .filter((currentOrder) => Boolean(currentOrder._shopOrder))
-                            .map((currentOrder) => currentOrder.id)
-                          setOrderedIds(currentIds)
-                          setReorderOriginalIds((current) => current ?? currentIds)
-                          setReorderingId(order.id)
-                          setExpandedId(null)
-                        }
-                      : undefined
-                  }
-                  onEdit={
-                    order._shopOrder
-                      ? () => setEditTarget({ type: 'shop', order: order._shopOrder! })
-                      : order._comanda
-                        ? () => setEditTarget({ type: 'manual', order: order._comanda! })
-                        : undefined
-                  }
-                  onMarkDelivered={
-                    order._shopOrder || order._comanda
-                      ? () => setDeliverTarget(order)
-                      : undefined
-                  }
-                  onMoveDown={order._shopOrder ? () => moveOrder(order.id, 'down') : undefined}
-                  onMoveUp={order._shopOrder ? () => moveOrder(order.id, 'up') : undefined}
-                  onToggleExpand={() => {
-                    if (reorderingId) return
-                    setExpandedId((current) => (current === order.id ? null : order.id))
+                  onB2bStatusChange={handleManualStatusChange}
+                  onB2bDeliveryDateChange={(id, data_livrare) => {
+                    updateManualOrderMutation.mutate({ id, payload: { data_livrare } })
+                  }}
+                  onShopStatusChange={handleShopStatusChange}
+                  onShopConfirmedChange={(id, confirmed) => {
+                    patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                  }}
+                  onShopNotifiedChange={(id, notified) => {
+                    patchShopOrderMutation.mutate({ id, notified_wa: notified })
+                  }}
+                  onShopDeliveryDateChange={(id, delivery_date) => {
+                    patchShopOrderMutation.mutate({ id, delivery_date })
+                  }}
+                  onEdit={(_, source) => {
+                    if (source === 'shop' && order.shopOrder) {
+                      setEditTarget({ type: 'shop', order: order.shopOrder })
+                      return
+                    }
+                    if (source === 'manual' && order.b2bComanda) {
+                      setEditTarget({ type: 'manual', order: order.b2bComanda })
+                    }
                   }}
                 />
               ))}
@@ -578,7 +618,7 @@ export function LivrariPageClient() {
         order={deliverTarget}
         pending={
           markDeliveredMutation.isPending ||
-          (Boolean(deliverTarget?._comanda) && deliverPartialManualMutation.isPending)
+          (Boolean(deliverTarget?.b2bComanda) && deliverPartialManualMutation.isPending)
         }
         pendingPartial={
           deliverPartialManualMutation.isPending || deliverPartialShopMutation.isPending
@@ -594,12 +634,12 @@ export function LivrariPageClient() {
           }
         }}
         onConfirm={() => {
-          if (deliverTarget?._shopOrder) {
-            markDeliveredMutation.mutate(deliverTarget._shopOrder)
+          if (deliverTarget?.shopOrder) {
+            markDeliveredMutation.mutate(deliverTarget.shopOrder)
             return
           }
-          if (deliverTarget?._comanda) {
-            const kg = deliverTarget.cantitate_kg ?? 0
+          if (deliverTarget?.b2bComanda) {
+            const kg = getDeliverableKg(deliverTarget)
             if (kg > 0) {
               handleConfirmPartial(kg)
             } else {
@@ -865,7 +905,7 @@ function DeliveryConfirmationDialog({
   onConfirmPartial,
   onOpenChange,
 }: {
-  order: DeliveryItem | null
+  order: DeliveryTarget | null
   pending: boolean
   pendingPartial: boolean
   onConfirm: () => void
@@ -974,7 +1014,7 @@ function DeliveryConfirmationDialog({
     </AlertDialog>
   )
 }
-function DeliveredSection({ orders }: { orders: DeliveryItem[] }) {
+function DeliveredSection({ orders }: { orders: DeliveryTarget[] }) {
   const total = orders.reduce((sum, order) => sum + order.total_lei, 0)
 
   return (
