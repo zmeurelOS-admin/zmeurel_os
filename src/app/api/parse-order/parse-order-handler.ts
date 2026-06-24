@@ -14,6 +14,12 @@ const MAX_MESSAGE_CHARS = 4_000
 const PARSE_ORDER_USER_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 } as const
 const PARSE_ORDER_TENANT_RATE_LIMIT = { limit: 100, windowMs: 60 * 60_000 } as const
 
+type AiUsageRpcRow = {
+  allowed: boolean
+  reason?: string
+  retry_after_seconds?: number
+}
+
 const PARSE_ORDER_MISSING_FIELDS = [
   'nume_client',
   'telefon',
@@ -50,6 +56,7 @@ const ParseOrderModelSchema = z
     adresa: nullableTrimmedString(220),
     cantitate: z.union([z.number().positive().max(100_000), z.null()]),
     unitate: z.union([z.enum(['kg', 'caserole']), z.null()]),
+    pret_per_kg: z.union([z.number().positive().max(10_000), z.null()]),
     data_livrare: z
       .union([z.string().regex(ISO_DATE_RE), z.null()])
       .transform((value) => (typeof value === 'string' ? value : null)),
@@ -111,6 +118,7 @@ export function buildParseOrderSystemPrompt(now: BucharestNowContext): string {
     '  "adresa": string | null,',
     '  "cantitate": number | null,',
     '  "unitate": "kg" | "caserole" | null,',
+    '  "pret_per_kg": number | null,',
     '  "data_livrare": "YYYY-MM-DD" | null,',
     '  "observatii": string | null,',
     '  "incredere": "mare" | "medie" | "mica",',
@@ -125,6 +133,7 @@ export function buildParseOrderSystemPrompt(now: BucharestNowContext): string {
     '- Interpretezi expresiile de timp relativ la data locală curentă din Europe/Bucharest.',
     '- Dacă mesajul spune "4 caserole de 500g", întorci cantitate=4 și unitate="caserole". Nu convertești în kg.',
     '- Dacă unitatea nu este clară, pui unitate=null.',
+    '- Extrage prețul per kg doar dacă e menționat explicit în mesaj (ex: "15 lei/kg", "15 ron kilogramul", "15 lei pe kg"). Dacă nu e menționat, returnezi pret_per_kg: null.',
     '- Păstrezi observatii doar pentru detalii reale care nu încap natural în celelalte câmpuri.',
   ].join('\n')
 }
@@ -167,6 +176,7 @@ export function normalizeParseOrderModelOutput(raw: ParseOrderResult): ParseOrde
     adresa: raw.adresa,
     cantitate: raw.cantitate,
     unitate: raw.unitate,
+    pret_per_kg: raw.pret_per_kg,
     data_livrare: dataLivrare,
     observatii: raw.observatii,
     incredere: hasMinimumPrefillData ? raw.incredere : 'mica',
@@ -184,7 +194,10 @@ async function tenantAllowedForParseOrderAi(params: {
   allowedOwnerEmail: string | null
 }): Promise<boolean> {
   const { admin, tenantId, allowedOwnerEmail } = params
-  if (!allowedOwnerEmail) return false
+  // Dacă variabila nu e setată, feature-ul e deschis tuturor tenantilor.
+  // Setează AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL pentru a restricționa
+  // la un singur email de owner.
+  if (!allowedOwnerEmail) return true
 
   const { data: tenantRow, error: tenantError } = await admin
     .from('tenants')
@@ -218,16 +231,18 @@ export function createParseOrderHandler(depsOverride: Partial<ParseOrderRouteDep
       buildSystemPrompt: buildParseOrderSystemPrompt,
       buildUserMessage: buildParseOrderUserMessage,
       normalize: normalizeParseOrderModelOutput,
-      userRateLimit: PARSE_ORDER_USER_RATE_LIMIT,
-      tenantRateLimit: PARSE_ORDER_TENANT_RATE_LIMIT,
+      // Rate limiting persistent (Supabase RPC) se face în ensureTenantAllowed.
+      // Setăm limite in-memory la valori mari pentru a dezactiva efectiv
+      // limiterul bazat pe Map (care nu funcționează pe Vercel serverless).
+      userRateLimit: { limit: 1_000_000, windowMs: 60_000 },
+      tenantRateLimit: { limit: 1_000_000, windowMs: 60_000 },
       maxMessageChars: MAX_MESSAGE_CHARS,
       moduleWriteLabel: 'Comenzi',
       logNamespace: 'parse-order',
       requestFailedCode: 'PARSE_ORDER_FAILED',
       requestFailedMessage: 'Nu am putut extrage datele din mesaj.',
-      buildUserRateLimitKey: ({ userId }) => `parse-order:user:${userId}`,
-      buildTenantRateLimitKey: ({ tenantId }) => `parse-order:tenant:${tenantId}`,
-      async ensureTenantAllowed({ admin, tenantId }) {
+      async ensureTenantAllowed({ admin, tenantId, userId }) {
+        // 1. Verificare email owner (allowlist opțional)
         const allowedOwnerEmail = normalizeEmail(process.env.AI_PARSE_ORDER_ALLOWED_OWNER_EMAIL)
         const aiAllowedForTenant = await tenantAllowedForParseOrderAi({
           admin: admin as ParseOrderAdminClient,
@@ -235,16 +250,49 @@ export function createParseOrderHandler(depsOverride: Partial<ParseOrderRouteDep
           allowedOwnerEmail,
         })
 
-        if (aiAllowedForTenant) {
-          return { allowed: true }
+        if (!aiAllowedForTenant) {
+          return {
+            allowed: false,
+            code: 'AI_NOT_ENABLED_FOR_TENANT',
+            message: 'AI parse order nu este activ pentru tenantul curent.',
+            status: 403,
+          }
         }
 
-        return {
-          allowed: false,
-          code: 'AI_NOT_ENABLED_FOR_TENANT',
-          message: 'AI parse order nu este activ pentru tenantul curent.',
-          status: 403,
+        // 2. Rate limiting persistent via Supabase RPC (înlocuiește Map in-memory)
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data, error } = await (admin as any).rpc('check_and_log_ai_usage', {
+            p_user_id: userId,
+            p_tenant_id: tenantId,
+            p_feature: 'parse_order',
+            p_user_limit: PARSE_ORDER_USER_RATE_LIMIT.limit,
+            p_user_window_minutes: PARSE_ORDER_USER_RATE_LIMIT.windowMs / 60_000,
+            p_tenant_limit: PARSE_ORDER_TENANT_RATE_LIMIT.limit,
+            p_tenant_window_minutes: PARSE_ORDER_TENANT_RATE_LIMIT.windowMs / 60_000,
+          })
+
+          if (error) {
+            console.error('[parse-order] check_and_log_ai_usage RPC error', error)
+            // Failopen: erori la RPC nu blochează utilizatorul.
+            return { allowed: true }
+          }
+
+          const row = data as AiUsageRpcRow | null
+          if (!row?.allowed) {
+            return {
+              allowed: false,
+              code: 'RATE_LIMITED',
+              message: 'Ai făcut prea multe încercări. Așteaptă puțin și încearcă din nou.',
+              status: 429,
+            }
+          }
+        } catch (err) {
+          console.error('[parse-order] Eroare la apelul RPC rate limit', err)
+          // Failopen: nu blocăm utilizatorul dacă RPC-ul pică.
         }
+
+        return { allowed: true }
       },
     },
     {

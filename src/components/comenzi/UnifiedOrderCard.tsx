@@ -161,7 +161,7 @@ export function UnifiedOrderCard({
   onOpenB2bDetails?: (id: string) => void
   onB2bStatusChange?: (id: string, status: ComandaStatus) => void
   onB2bDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
-  onShopStatusChange?: (id: string, status: ShopOrderStatus) => void
+  onShopStatusChange?: (id: string, status: ShopOrderStatus) => void | Promise<void>
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
   onShopNotifiedChange?: (id: string, notified: boolean) => void
@@ -249,13 +249,19 @@ export function UnifiedOrderCard({
     markShopNotified()
   }
 
-  const handleStatusChange = (nextStatus: ShopOrderStatus | ComandaStatus) => {
+  const handleStatusChange = async (nextStatus: ShopOrderStatus | ComandaStatus) => {
     setStatusMenuOpen(false)
-    openStatusWhatsApp(nextStatus)
     if (isShop) {
-      onShopStatusChange?.(item.id, nextStatus as ShopOrderStatus)
+      try {
+        await onShopStatusChange?.(item.id, nextStatus as ShopOrderStatus)
+        // WB se deschide doar după confirmarea serverului
+        openStatusWhatsApp(nextStatus)
+      } catch {
+        // eroarea e gestionată în parent via toast; nu deschidem WB
+      }
     } else {
       onB2bStatusChange?.(item.id, nextStatus as ComandaStatus)
+      openStatusWhatsApp(nextStatus)
     }
   }
 

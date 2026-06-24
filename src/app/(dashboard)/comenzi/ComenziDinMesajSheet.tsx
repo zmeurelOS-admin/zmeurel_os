@@ -36,6 +36,7 @@ export type ParsedOrder = {
   adresa: string | null
   cantitate: number | null
   unitate: 'kg' | 'caserole' | null
+  pret_per_kg: number | null
   tip_client: ClientTip
   data_livrare: string | null
   observatii: string | null
@@ -228,6 +229,14 @@ function buildDraftFromParsed(
 ): AiOrderDraft {
   const quantityKg = getQuantityKgForPrefill(parsed)
 
+  const clientNegotiatedPrice =
+    clientMatch.status === 'existing' && typeof clientMatch.client.pret_negociat_lei_kg === 'number'
+      ? clientMatch.client.pret_negociat_lei_kg
+      : null
+
+  // Prețul din profilul clientului câștigă față de ce a extras AI-ul.
+  const resolvedPrice = clientNegotiatedPrice ?? parsed.pret_per_kg
+
   return {
     clientId: clientMatch.status === 'existing' ? clientMatch.client.id : '',
     clientName:
@@ -236,10 +245,7 @@ function buildDraftFromParsed(
         : parsed.nume_client?.trim() ?? '',
     phone: parsed.telefon?.trim() ?? '',
     quantityKg: typeof quantityKg === 'number' ? String(quantityKg) : '',
-    pricePerKg:
-      clientMatch.status === 'existing' && typeof clientMatch.client.pret_negociat_lei_kg === 'number'
-        ? String(clientMatch.client.pret_negociat_lei_kg)
-        : '',
+    pricePerKg: typeof resolvedPrice === 'number' ? String(resolvedPrice) : '',
     locality: parsed.localitate?.trim() ?? '',
     addressDetails: parsed.adresa?.trim() ?? '',
     deliveryDate: parsed.data_livrare?.trim() ?? '',
@@ -282,6 +288,14 @@ export function ComenziDinMesajSheet({
     () => (clientMatch ? getClientMatchUi(clientMatch) : null),
     [clientMatch],
   )
+  // Prețul vine din AI dacă există în extragere și clientul nu are preț negociat în profil.
+  const priceFromAi = useMemo(() => {
+    if (!parsed?.pret_per_kg) return false
+    const clientHasNegotiatedPrice =
+      clientMatch?.status === 'existing' &&
+      typeof clientMatch.client.pret_negociat_lei_kg === 'number'
+    return !clientHasNegotiatedPrice
+  }, [parsed, clientMatch])
 
   const resetSheetState = () => {
     setMesaj('')
@@ -465,6 +479,7 @@ export function ComenziDinMesajSheet({
         adresa: typeof json.adresa === 'string' ? json.adresa : null,
         cantitate: typeof json.cantitate === 'number' ? json.cantitate : null,
         unitate: json.unitate === 'kg' || json.unitate === 'caserole' ? json.unitate : null,
+        pret_per_kg: typeof json.pret_per_kg === 'number' && json.pret_per_kg > 0 ? json.pret_per_kg : null,
         tip_client: 'standard',
         data_livrare: typeof json.data_livrare === 'string' ? json.data_livrare : null,
         observatii: typeof json.observatii === 'string' ? json.observatii : null,
@@ -708,6 +723,9 @@ export function ComenziDinMesajSheet({
                         setDraft((current) => ({ ...current, pricePerKg: event.target.value }))
                       }
                     />
+                    {priceFromAi ? (
+                      <p className="text-xs text-[var(--text-secondary)]">(extras din mesaj)</p>
+                    ) : null}
                   </div>
 
                   <div className="space-y-2">

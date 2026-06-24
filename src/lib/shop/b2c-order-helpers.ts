@@ -2,6 +2,7 @@ import type { Json } from '@/types/supabase'
 import type { DeliveryZone } from '@/lib/shop/delivery-zones'
 
 export type ShopOrderStatus = 'noua' | 'confirmata' | 'in_livrare' | 'livrata' | 'anulata'
+export type ShopOrderKind = 'standard' | 'preorder' | 'manual' | 'cadou' | 'consum_propriu'
 
 export type ShopOrderMilestoneReward = {
   reward_label: string
@@ -21,7 +22,7 @@ export type ShopOrderRow = {
   needs_confirmation?: boolean | null
   delivery_date: string | null
   delivery_position: number | null
-  order_kind?: string
+  order_kind?: ShopOrderKind
   items: Json
   total_lei: number
   notes: string | null

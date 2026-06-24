@@ -213,7 +213,6 @@ export function isManualOrderActiveForComenziTab(comanda: Comanda): boolean {
     comanda.data_origin !== MAGAZIN_DATA_ORIGIN &&
     comanda.data_origin !== 'shop_order_bridge' &&
     comanda.status !== 'programata' &&
-    comanda.status !== 'in_livrare' &&
     comanda.status !== 'livrata' &&
     comanda.status !== 'anulata'
   )
@@ -237,7 +236,6 @@ export function getComenziOperationalSnapshot(
 
   const shopActiveCount = shopOrders.filter(
     (item) =>
-      item.order_kind === 'preorder' &&
       item.status !== 'in_livrare' &&
       isUnifiedOpenStatus(item.status),
   ).length
@@ -280,7 +278,7 @@ export function groupShopOrdersByDeliveryDate(
   orders: ShopOrderRow[],
 ): Array<{ date: string | null; orders: ShopOrderRow[]; totalQty: number }> {
   const eligible = orders
-    .filter((order) => order.order_kind === 'preorder' && order.status !== 'anulata')
+    .filter((order) => order.status !== 'anulata')
     .sort((a, b) => a.created_at.localeCompare(b.created_at))
   const byDate = new Map<string, ShopOrderRow[]>()
   const unscheduled: ShopOrderRow[] = []

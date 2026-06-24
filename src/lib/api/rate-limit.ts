@@ -23,6 +23,11 @@ function cleanupExpired(now: number) {
   }
 }
 
+/**
+ * @deprecated Rate limiting in-memory — nu funcționează pe Vercel serverless
+ * (procesele sunt izolate, limitele se resetează la rece).
+ * Folosește check_and_log_ai_usage RPC pentru rate limiting persistent.
+ */
 export function consumeFixedWindowRateLimit(
   key: string,
   config: FixedWindowRateLimitConfig,

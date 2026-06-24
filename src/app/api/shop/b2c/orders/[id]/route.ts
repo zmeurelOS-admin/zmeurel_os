@@ -227,8 +227,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     currentOrderForStatus = currentOrder
   }
 
-  if (parsed.data.status === 'in_livrare' && parsed.data.delivery_date === undefined) {
-    updates.delivery_date = currentOrderForStatus?.delivery_date ?? todayBucharestDate()
+  // delivery_date pentru tranziția in_livrare se pasează direct la RPC (nu prin UPDATE prematur).
+  // RPC-ul set_shop_order_in_delivery_with_reservation scrie el delivery_date atomic,
+  // deci nu trebuie să o scriem înainte de validarea stocului.
+  let pendingDeliveryDate: string | null | undefined = undefined
+  if (statusUpdate === 'in_livrare') {
+    if (parsed.data.delivery_date !== undefined) {
+      pendingDeliveryDate = parsed.data.delivery_date
+      delete updates.delivery_date
+    } else {
+      pendingDeliveryDate = currentOrderForStatus?.delivery_date ?? todayBucharestDate()
+    }
   }
 
   const hasAddressUpdate =
@@ -270,9 +279,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (statusUpdate === 'in_livrare') {
+    // RPC validează stocul, face rezervarea și scrie status + delivery_date atomic.
+    // delivery_date nu se mai scrie prematur — dacă RPC eșuează, DB rămâne nemodificat.
     const { error } = await supabase.rpc('set_shop_order_in_delivery_with_reservation', {
       p_shop_order_id: id,
-      p_delivery_date: updates.delivery_date ?? null,
+      p_delivery_date: pendingDeliveryDate ?? null,
     })
 
     if (error) {

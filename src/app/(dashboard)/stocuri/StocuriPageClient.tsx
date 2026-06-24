@@ -22,7 +22,11 @@ import {
   STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
   STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
 } from '@/lib/calculations/stock-audit-thresholds'
-import { getStocuriPeLocatii, type StocFilters } from '@/lib/supabase/queries/miscari-stoc'
+import {
+  getStocuriPeLocatii,
+  getSellableCal1StockSummary,
+  type StocFilters,
+} from '@/lib/supabase/queries/miscari-stoc'
 import { queryKeys } from '@/lib/query-keys'
 
 interface ParcelaOption {
@@ -412,6 +416,11 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
   const [desktopSearch, setDesktopSearch] = useState('')
   const [desktopSelectedProductId, setDesktopSelectedProductId] = useState<string | null>(null)
 
+  const { data: cal1Summary } = useQuery({
+    queryKey: queryKeys.stocGlobalCal1,
+    queryFn: getSellableCal1StockSummary,
+  })
+
   const locationOnlyFilters = useMemo<StocFilters>(
     () => ({
       locatieId: locatieId === 'all' ? undefined : locatieId,
@@ -595,37 +604,35 @@ export function StocuriPageClient({ initialParcele }: StocuriPageClientProps) {
     >
       <DashboardContentShell variant="workspace" className="mt-2 py-3 sm:mt-0 sm:py-3">
 
-        {/* SCOREBOARD */}
-        {totalKg > 0 ? (
-          <div style={{
-            background: 'var(--agri-surface)', borderRadius: 12, padding: '10px 14px',
-            border: '1px solid var(--agri-border)', marginBottom: 8,
-            display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
-          }}>
-            <span>
-              <span style={{ fontSize: 22, fontWeight: 800, color: stocColor(totalKg), letterSpacing: '-0.03em' }}>
-                {formatKg(totalKg)}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-hint)', marginLeft: 4 }}>kg disponibil</span>
-            </span>
-            {activeLocations > 0 ? (
+        {/* SCOREBOARD agregat cal1 */}
+        {cal1Summary !== undefined ? (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{
+              background: 'var(--agri-surface)', borderRadius: 14, padding: '12px 16px',
+              border: `1.5px solid ${cal1Summary.disponibilCal1Kg > 5 ? 'var(--status-success-border)' : cal1Summary.disponibilCal1Kg >= 1 ? 'var(--status-warning-border)' : 'var(--status-danger-border)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8,
+            }}>
               <span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--agri-text)' }}>{activeLocations}</span>
-                <span style={{ fontSize: 11, color: 'var(--agri-text-muted)', marginLeft: 2 }}>locații</span>
+                <span style={{
+                  fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em',
+                  color: cal1Summary.disponibilCal1Kg > 5 ? 'var(--status-success-text)' : cal1Summary.disponibilCal1Kg >= 1 ? 'var(--status-warning-text)' : 'var(--status-danger-text)',
+                }}>
+                  {formatKg(cal1Summary.disponibilCal1Kg)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginLeft: 5 }}>kg disponibil cal1</span>
               </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* LOW STOCK ALERT */}
-        {isLowStock ? (
-          <div style={{
-            background: 'var(--status-danger-bg)', borderRadius: 12, padding: '10px 14px',
-            borderLeft: '3px solid var(--status-danger-text)', marginBottom: 8,
-          }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--status-danger-text)' }}>
-              ⚠️ Stoc scăzut — reaprovizionează
-            </span>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatKg(cal1Summary.recoltatCal1Kg)}</span> kg recoltat
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatKg(cal1Summary.consumatDefinitivCal1Kg)}</span> kg consumat
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--status-warning-text)' }}>{formatKg(cal1Summary.rezervatActivCal1Kg)}</span> kg rezervat
+                </span>
+              </div>
+            </div>
           </div>
         ) : null}
 

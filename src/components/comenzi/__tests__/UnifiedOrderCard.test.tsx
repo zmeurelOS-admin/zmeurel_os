@@ -193,7 +193,7 @@ describe('UnifiedOrderCard', () => {
       calls.push('whatsapp')
       return null
     })
-    const onShopStatusChange = vi.fn(() => calls.push('status'))
+    const onShopStatusChange = vi.fn(() => { calls.push('status') })
 
     render(
       <UnifiedOrderCard
