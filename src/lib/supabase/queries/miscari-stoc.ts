@@ -326,6 +326,8 @@ export async function getStocuriPeLocatii(filters: StocFilters = {}): Promise<St
   return Array.from(grouped.values()).sort((a, b) => a.locatie_nume.localeCompare(b.locatie_nume, 'ro'))
 }
 
+// @deprecated Nefolosită. Folosește getSellableCal1StockSummary()
+// care include rezervările active și agregă corect per tenant.
 export async function getStocGlobal(): Promise<StocGlobal> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)

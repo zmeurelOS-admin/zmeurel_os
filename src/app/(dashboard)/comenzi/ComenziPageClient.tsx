@@ -2521,12 +2521,19 @@ export function ComenziPageClient() {
 
           // Flux instant consum_propriu: livrare imediată după creare
           if (values.order_kind === 'consum_propriu' && createdComanda) {
-            await deliverMutation.mutateAsync({
-              comandaId: createdComanda.id,
-              cantitateLivrataKg: cantitate,
-              plata: 'integral',
-              dataLivrareRamasa: null,
-            })
+            try {
+              await deliverMutation.mutateAsync({
+                comandaId: createdComanda.id,
+                cantitateLivrataKg: cantitate,
+                plata: 'integral',
+                dataLivrareRamasa: null,
+              })
+            } catch {
+              toast.error(
+                'Comanda a fost creată dar livrarea a eșuat. Găsești comanda în lista de active și o poți livra manual.',
+                { duration: 6000 },
+              )
+            }
           }
         }}
       />
