@@ -51,11 +51,6 @@ import { DesktopToolbar } from '@/components/ui/desktop'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  buildDeliveryLocation,
-  deriveDeliverySelection,
-  ErpLocalitySelector,
-} from '@/components/comenzi/ErpLocalitySelector'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -108,8 +103,6 @@ import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 import {
   DELIVERY_ZONES,
   type DeliveryZone,
-  type LocalityConfig,
-  type VillageConfig,
 } from '@/lib/shop/delivery-zones'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
@@ -792,26 +785,20 @@ function ComandaDialog({
     () => buildComandaDialogInitialComboInput(initialFormState, clienti),
     [clienti, initialFormState]
   )
-  const initialDeliverySelection = useMemo(
-    () => deriveDeliverySelection(initialFormState.locatie_livrare),
-    [initialFormState.locatie_livrare],
-  )
   const [form, setForm] = useState<ComandaFormState>(initialFormState)
   const [comboInput, setComboInput] = useState(initialComboInput)
   const [comboOpen, setComboOpen] = useState(false)
   const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
-  const [deliveryModeSel, setDeliveryModeSel] = useState<'livrare' | 'ridicare'>(
-    initialDeliverySelection.mode,
-  )
-  const [localitySel, setLocalitySel] = useState<LocalityConfig | null>(
-    initialDeliverySelection.locality,
-  )
-  const [villageSel, setVillageSel] = useState<VillageConfig | null>(
-    initialDeliverySelection.village,
-  )
-  const [streetSel, setStreetSel] = useState(initialDeliverySelection.street)
-  const [blockedDeliveryMessage, setBlockedDeliveryMessage] = useState('')
   const comboRef = useRef<HTMLDivElement>(null)
+
+  // Logica vizibilitate câmpuri per tip comandă
+  const isConsumPropriu = form.order_kind === 'consum_propriu'
+  const isCadou = form.order_kind === 'cadou'
+  const isManual = form.order_kind === 'manual'
+  const isZeroPriceOrderKind = isCadou || isConsumPropriu
+  const showClientFields = isManual || isCadou
+  const showDeliveryFields = isManual
+  const showPriceField = isManual
 
   const selectedClient = clienti.find((client) => client.id === form.client_id)
   const displayedComboInput = comboInput || (form.client_id ? selectedClient?.nume_client ?? '' : '')
@@ -821,9 +808,7 @@ function ComandaDialog({
     form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
   const isNewClientFlow = !form.client_id && form.client_nume_manual.trim().length > 0
-  const showSaveClientToggle = mode === 'create' && !selectedClient
-  const isZeroPriceOrderKind =
-    form.order_kind === 'cadou' || form.order_kind === 'consum_propriu'
+  const showSaveClientToggle = mode === 'create' && !selectedClient && isManual
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
@@ -907,151 +892,8 @@ function ComandaDialog({
       >
         <FormDialogSection>
           <DesktopFormPanel className="space-y-2.5">
-            {selectedClient ? (
-              <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 md:hidden">
-                <span className="flex min-w-0 items-center gap-2 text-sm">
-                  <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
-                  <span className="truncate font-semibold text-[var(--text-primary)]">
-                    {selectedClient.nume_client}
-                    {resolvedPhone ? (
-                      <span className="font-normal text-[var(--text-secondary)]"> · {resolvedPhone}</span>
-                    ) : null}
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
-                  onClick={() => {
-                    setComboInput('')
-                    setComboOpen(true)
-                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '', salveaza_client_in_lista: false }))
-                  }}
-                >
-                  Schimbă
-                </button>
-              </div>
-            ) : null}
 
-            <div
-              ref={comboRef}
-              className={`space-y-1.5 ${selectedClient ? 'hidden md:block' : ''}`}
-            >
-              <Label htmlFor="comanda_client_combo">Client</Label>
-              <div className="relative">
-                <Input
-                  id="comanda_client_combo"
-                  className="agri-control h-11 md:h-10"
-                  placeholder="Caută după nume sau telefon..."
-                  autoComplete="off"
-                  value={displayedComboInput}
-                  onFocus={() => setComboOpen(true)}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setComboInput(val)
-                    setComboOpen(true)
-                    setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: val }))
-                  }}
-                />
-                {comboOpen && (
-                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
-                    {comboFiltered.length === 0 ? (
-                      <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">
-                        Niciun client găsit — completează manual
-                      </p>
-                    ) : (
-                      comboFiltered.map((client) => (
-                        <button
-                          key={client.id}
-                          type="button"
-                          className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            setComboInput(client.nume_client)
-                            setComboOpen(false)
-                            const deliverySelection = deriveDeliverySelection(client.adresa ?? '')
-                            setDeliveryModeSel(deliverySelection.mode)
-                            setLocalitySel(deliverySelection.locality)
-                            setVillageSel(deliverySelection.village)
-                            setStreetSel(deliverySelection.street)
-                            setBlockedDeliveryMessage('')
-                            setForm((prev) => ({
-                              ...prev,
-                              client_id: client.id,
-                              client_nume_manual: '',
-                              telefon: client.telefon || prev.telefon,
-                              locatie_livrare: client.adresa || prev.locatie_livrare,
-                              salveaza_client_in_lista: false,
-                            }))
-                          }}
-                        >
-                          <span className="font-medium text-[var(--text-primary)]">{client.nume_client}</span>
-                          {client.telefon ? (
-                            <span className="text-[var(--text-secondary)]">— {client.telefon}</span>
-                          ) : null}
-                        </button>
-                      ))
-                    )}
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-1.5 border-t border-[var(--divider)] px-3 py-2.5 text-left text-sm font-medium text-[var(--success-text)] hover:bg-[var(--success-bg)]"
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        setComboOpen(false)
-                        setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: comboInput }))
-                      }}
-                    >
-                      ➕ Client nou — completează manual
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5">
-              <div className="space-y-1.5">
-                <Label>Telefon</Label>
-                <Input
-                  className="agri-control h-11 md:h-10"
-                  value={resolvedPhone}
-                  onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
-                />
-              </div>
-              {isNewClientFlow ? (
-                <div className="space-y-1.5 md:min-w-[148px]">
-                  <Label className="opacity-0">Contact</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-10"
-                    disabled={!canSaveContact}
-                    onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
-                  >
-                    <UserRoundPlus className="h-4 w-4" />
-                    Salvează contact
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-
-            {showSaveClientToggle ? (
-              <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] shadow-[var(--shadow-soft)]">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)]"
-                  checked={form.salveaza_client_in_lista}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, salveaza_client_in_lista: event.target.checked }))
-                  }
-                />
-                <span>
-                  <span className="block font-medium">Salvează și clientul în lista de clienți</span>
-                  <span className="block text-xs text-[var(--text-secondary)]">
-                    Creează client nou doar după confirmarea ta explicită.
-                  </span>
-                </span>
-              </label>
-            ) : null}
-
+            {/* ── 1. Tip comandă — primul câmp ── */}
             <div className="space-y-1.5">
               <Label>Tip comandă</Label>
               {mode === 'create' ? (
@@ -1062,9 +904,13 @@ function ComandaDialog({
                       ...prev,
                       order_kind: value as ComandaOrderKind,
                       pret_per_kg:
-                        value === 'cadou' || value === 'consum_propriu'
-                          ? '0'
-                          : prev.pret_per_kg,
+                        value === 'cadou' || value === 'consum_propriu' ? '0' : prev.pret_per_kg,
+                      status:
+                        value === 'consum_propriu'
+                          ? 'livrata'
+                          : prev.status === 'livrata'
+                          ? 'confirmata'
+                          : prev.status,
                     }))
                   }
                 >
@@ -1086,173 +932,157 @@ function ComandaDialog({
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Mod livrare</Label>
-              <div className="flex gap-2">
-                {(['livrare', 'ridicare'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      setDeliveryModeSel(mode)
-                      setLocalitySel(null)
-                      setVillageSel(null)
-                      setStreetSel('')
-                      setBlockedDeliveryMessage('')
-                      const loc = mode === 'ridicare' ? 'Ridicare la fermă (Văratec)' : ''
-                      setForm((prev) => ({ ...prev, locatie_livrare: loc }))
-                    }}
-                    className={`min-h-9 flex-1 rounded-xl border px-3 text-sm font-semibold transition ${
-                      deliveryModeSel === mode
-                        ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
-                        : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    {mode === 'livrare' ? 'Livrare la domiciliu' : 'Ridicare la fermă (Văratec)'}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ── 2. Câmpuri client (Manual + Cadou) ── */}
+            {showClientFields ? (
+              <>
+                {selectedClient ? (
+                  <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 md:hidden">
+                    <span className="flex min-w-0 items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
+                      <span className="truncate font-semibold text-[var(--text-primary)]">
+                        {selectedClient.nume_client}
+                        {resolvedPhone ? (
+                          <span className="font-normal text-[var(--text-secondary)]"> · {resolvedPhone}</span>
+                        ) : null}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
+                      onClick={() => {
+                        setComboInput('')
+                        setComboOpen(true)
+                        setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '', salveaza_client_in_lista: false }))
+                      }}
+                    >
+                      Schimbă
+                    </button>
+                  </div>
+                ) : null}
 
-            {deliveryModeSel === 'livrare' ? (
-              <ErpLocalitySelector
-                selectedLocality={localitySel}
-                selectedVillage={villageSel}
-                street={streetSel}
-                onSelectLocality={(locality) => {
-                  setLocalitySel(locality)
-                  setVillageSel(null)
-                  setBlockedDeliveryMessage('')
-                  const loc = buildDeliveryLocation(locality, null, streetSel)
-                  setForm((prev) => ({ ...prev, locatie_livrare: loc }))
-                }}
-                onSelectVillage={(village) => {
-                  setVillageSel(village)
-                  setBlockedDeliveryMessage('')
-                  const loc = buildDeliveryLocation(localitySel, village, streetSel)
-                  setForm((prev) => ({ ...prev, locatie_livrare: loc }))
-                }}
-                onBlockedVillage={(village) => {
-                  setBlockedDeliveryMessage(
-                    village.blockedMessage ?? `Nu livrăm în ${village.name}.`,
-                  )
-                }}
-                onStreetChange={(street) => {
-                  setStreetSel(street)
-                  const loc = buildDeliveryLocation(localitySel, villageSel, street)
-                  setForm((prev) => ({ ...prev, locatie_livrare: loc }))
-                }}
-                blockedMessage={blockedDeliveryMessage}
-              />
+                <div
+                  ref={comboRef}
+                  className={`space-y-1.5 ${selectedClient ? 'hidden md:block' : ''}`}
+                >
+                  <Label htmlFor="comanda_client_combo">
+                    Client{isCadou ? ' (opțional)' : ''}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="comanda_client_combo"
+                      className="agri-control h-11 md:h-10"
+                      placeholder={isCadou ? 'Nume beneficiar (opțional)...' : 'Caută după nume sau telefon...'}
+                      autoComplete="off"
+                      value={displayedComboInput}
+                      onFocus={() => setComboOpen(true)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setComboInput(val)
+                        setComboOpen(true)
+                        setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: val }))
+                      }}
+                    />
+                    {comboOpen && (
+                      <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
+                        {comboFiltered.length === 0 ? (
+                          <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                            Niciun client găsit — completează manual
+                          </p>
+                        ) : (
+                          comboFiltered.map((client) => (
+                            <button
+                              key={client.id}
+                              type="button"
+                              className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                setComboInput(client.nume_client)
+                                setComboOpen(false)
+                                setForm((prev) => ({
+                                  ...prev,
+                                  client_id: client.id,
+                                  client_nume_manual: '',
+                                  telefon: client.telefon || prev.telefon,
+                                  locatie_livrare: client.adresa || prev.locatie_livrare,
+                                  salveaza_client_in_lista: false,
+                                }))
+                              }}
+                            >
+                              <span className="font-medium text-[var(--text-primary)]">{client.nume_client}</span>
+                              {client.telefon ? (
+                                <span className="text-[var(--text-secondary)]">— {client.telefon}</span>
+                              ) : null}
+                            </button>
+                          ))
+                        )}
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-1.5 border-t border-[var(--divider)] px-3 py-2.5 text-left text-sm font-medium text-[var(--success-text)] hover:bg-[var(--success-bg)]"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            setComboOpen(false)
+                            setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: comboInput }))
+                          }}
+                        >
+                          ➕ Client nou — completează manual
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Telefon + buton vCard — doar Manual */}
+                {showDeliveryFields ? (
+                  <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5">
+                    <div className="space-y-1.5">
+                      <Label>Telefon</Label>
+                      <Input
+                        className="agri-control h-11 md:h-10"
+                        value={resolvedPhone}
+                        onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
+                      />
+                    </div>
+                    {isNewClientFlow ? (
+                      <div className="space-y-1.5 md:min-w-[148px]">
+                        <Label className="opacity-0">Contact</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-10"
+                          disabled={!canSaveContact}
+                          onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
+                        >
+                          <UserRoundPlus className="h-4 w-4" />
+                          Salvează contact
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {showSaveClientToggle ? (
+                  <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] shadow-[var(--shadow-soft)]">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)]"
+                      checked={form.salveaza_client_in_lista}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, salveaza_client_in_lista: event.target.checked }))
+                      }
+                    />
+                    <span>
+                      <span className="block font-medium">Salvează și clientul în lista de clienți</span>
+                      <span className="block text-xs text-[var(--text-secondary)]">
+                        Creează client nou doar după confirmarea ta explicită.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
+              </>
             ) : null}
 
-            <div className="space-y-2.5 md:hidden">
-              <div className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3">
-                <span className="text-sm font-medium text-[var(--text-primary)]">
-                  {formatCompactDateLabel(form.data_comanda)}
-                </span>
-                <button
-                  type="button"
-                  className="min-h-11 shrink-0 text-sm font-semibold text-[var(--primary)]"
-                  onClick={() => document.getElementById('comanda-data-mobile')?.click()}
-                >
-                  Schimbă
-                </button>
-              </div>
-              <div className="absolute h-px w-px overflow-hidden">
-                <AppDatePicker
-                  id="comanda-data-mobile"
-                  value={form.data_comanda}
-                  onChange={(nextValue) =>
-                    setForm((prev) => ({ ...prev, data_comanda: nextValue }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Data livrare</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: 'Azi', value: todayIso() },
-                    { label: 'Mâine', value: tomorrowIso() },
-                  ].map((option) => {
-                    const selected = form.data_livrare === option.value
-                    return (
-                      <button
-                        key={option.label}
-                        type="button"
-                        aria-pressed={selected}
-                        onClick={() =>
-                          setForm((prev) => ({ ...prev, data_livrare: option.value }))
-                        }
-                        className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
-                          selected
-                            ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
-                            : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    )
-                  })}
-                  <button
-                    type="button"
-                    aria-pressed={
-                      Boolean(form.data_livrare) &&
-                      form.data_livrare !== todayIso() &&
-                      form.data_livrare !== tomorrowIso()
-                    }
-                    onClick={() => document.getElementById('comanda-data-livrare-mobile')?.click()}
-                    className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
-                      Boolean(form.data_livrare) &&
-                      form.data_livrare !== todayIso() &&
-                      form.data_livrare !== tomorrowIso()
-                        ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
-                        : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
-                    }`}
-                  >
-                    Altă dată
-                  </button>
-                </div>
-                {form.data_livrare &&
-                form.data_livrare !== todayIso() &&
-                form.data_livrare !== tomorrowIso() ? (
-                  <p className="text-xs font-medium text-[var(--text-secondary)]">
-                    Selectat: {formatDate(form.data_livrare)}
-                  </p>
-                ) : null}
-                <div className="absolute h-px w-px overflow-hidden">
-                  <AppDatePicker
-                    id="comanda-data-livrare-mobile"
-                    value={form.data_livrare}
-                    onChange={(nextValue) =>
-                      setForm((prev) => ({ ...prev, data_livrare: nextValue }))
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="hidden grid-cols-2 gap-2.5 md:grid md:gap-x-3 md:gap-y-2.5">
-              <AppDatePicker
-                id="comanda-data"
-                label="Data comandă"
-                placeholder="Selectează data"
-                value={form.data_comanda}
-                triggerClassName="h-11 md:h-10"
-                onChange={(nextValue) => setForm((prev) => ({ ...prev, data_comanda: nextValue }))}
-              />
-              <AppDatePicker
-                id="comanda-data-livrare"
-                label="Data livrare"
-                placeholder="Selectează data"
-                value={form.data_livrare}
-                triggerClassName="h-11 md:h-10"
-                onChange={(nextValue) => setForm((prev) => ({ ...prev, data_livrare: nextValue }))}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5 md:gap-x-3 md:gap-y-2.5">
+            {/* ── 3. Cantitate (mereu) + Preț (doar Manual) ── */}
+            <div className={`grid gap-2.5 md:gap-x-3 md:gap-y-2.5 ${showPriceField ? 'grid-cols-2' : 'grid-cols-1'}`}>
               <div className="space-y-1.5">
                 <Label>Cantitate (kg)</Label>
                 <Input
@@ -1265,32 +1095,128 @@ function ComandaDialog({
                   onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))}
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Preț per kg</Label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  className="agri-control h-11 md:h-10"
-                  value={form.pret_per_kg}
-                  readOnly={isZeroPriceOrderKind}
-                  disabled={isZeroPriceOrderKind}
-                  onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
-                />
+              {showPriceField ? (
+                <div className="space-y-1.5">
+                  <Label>Preț per kg</Label>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    className="agri-control h-11 md:h-10"
+                    value={form.pret_per_kg}
+                    onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {/* Preview total — doar Manual, mobil */}
+            {showPriceField ? (
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5 text-sm md:hidden">
+                <span className="text-[var(--text-secondary)]">
+                  {formatKg(previewKg)} × {formatLei(previewPret)}/kg
+                </span>
+                <span className="font-semibold tabular-nums text-[var(--text-primary)]">
+                  Total: {formatLei(previewTotal)}
+                </span>
               </div>
-            </div>
+            ) : null}
 
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 py-2.5 text-sm md:hidden">
-              <span className="text-[var(--text-secondary)]">
-                {formatKg(previewKg)} × {formatLei(previewPret)}/kg
-              </span>
-              <span className="font-semibold tabular-nums text-[var(--text-primary)]">
-                Total: {formatLei(previewTotal)}
-              </span>
-            </div>
+            {/* ── 4. Câmpuri livrare (doar Manual) ── */}
+            {showDeliveryFields ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="comanda_locatie">Localitate / Adresă</Label>
+                  <Input
+                    id="comanda_locatie"
+                    className="agri-control h-11 md:h-10"
+                    placeholder="ex: Suceava, str. Unirii 12"
+                    value={form.locatie_livrare}
+                    onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
+                  />
+                </div>
 
-            <div className="grid gap-2.5 md:grid-cols-[minmax(0,11.5rem)_minmax(0,1fr)] md:gap-x-3">
+                {/* Data livrare — mobil */}
+                <div className="space-y-1.5 md:hidden">
+                  <Label>Data livrare</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Azi', value: todayIso() },
+                      { label: 'Mâine', value: tomorrowIso() },
+                    ].map((option) => {
+                      const selected = form.data_livrare === option.value
+                      return (
+                        <button
+                          key={option.label}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            setForm((prev) => ({ ...prev, data_livrare: option.value }))
+                          }
+                          className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                            selected
+                              ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                              : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      aria-pressed={
+                        Boolean(form.data_livrare) &&
+                        form.data_livrare !== todayIso() &&
+                        form.data_livrare !== tomorrowIso()
+                      }
+                      onClick={() => document.getElementById('comanda-data-livrare-mobile')?.click()}
+                      className={`min-h-11 rounded-xl border px-2 text-sm font-semibold ${
+                        Boolean(form.data_livrare) &&
+                        form.data_livrare !== todayIso() &&
+                        form.data_livrare !== tomorrowIso()
+                          ? 'border-[var(--primary)] bg-[color:color-mix(in_srgb,var(--primary)_10%,transparent)] text-[var(--primary)]'
+                          : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      Altă dată
+                    </button>
+                  </div>
+                  {form.data_livrare &&
+                  form.data_livrare !== todayIso() &&
+                  form.data_livrare !== tomorrowIso() ? (
+                    <p className="text-xs font-medium text-[var(--text-secondary)]">
+                      Selectat: {formatDate(form.data_livrare)}
+                    </p>
+                  ) : null}
+                  <div className="absolute h-px w-px overflow-hidden">
+                    <AppDatePicker
+                      id="comanda-data-livrare-mobile"
+                      value={form.data_livrare}
+                      onChange={(nextValue) =>
+                        setForm((prev) => ({ ...prev, data_livrare: nextValue }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Data livrare — desktop */}
+                <div className="hidden md:block">
+                  <AppDatePicker
+                    id="comanda-data-livrare"
+                    label="Data livrare"
+                    placeholder="Selectează data"
+                    value={form.data_livrare}
+                    triggerClassName="h-11 md:h-10"
+                    onChange={(nextValue) => setForm((prev) => ({ ...prev, data_livrare: nextValue }))}
+                  />
+                </div>
+              </>
+            ) : null}
+
+            {/* ── 5. Status — Manual: create + edit; Cadou: doar edit ── */}
+            {isManual && mode === 'create' ? (
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select
@@ -1301,10 +1227,7 @@ function ComandaDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {(mode === 'create'
-                      ? COMENZI_STATUSES.filter((s) => s === 'noua' || s === 'confirmata' || s === 'in_livrare')
-                      : COMENZI_STATUSES
-                    ).map((status) => (
+                    {COMENZI_STATUSES.filter((s) => s === 'noua' || s === 'confirmata' || s === 'in_livrare').map((status) => (
                       <SelectItem key={status} value={status}>
                         {statusLabelMap[status]}
                       </SelectItem>
@@ -1312,14 +1235,35 @@ function ComandaDialog({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="hidden space-y-1.5 md:block">
-                <Label>Observații</Label>
-                <Textarea
-                  className="agri-control min-h-[3.75rem] md:min-h-[4.25rem]"
-                  value={form.observatii}
-                  onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
-                />
+            ) : mode === 'edit' ? (
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
+                >
+                  <SelectTrigger className="agri-control h-11 md:h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMENZI_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {statusLabelMap[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            ) : null}
+
+            {/* ── 6. Observații — mereu vizibil ── */}
+            <div className="hidden space-y-1.5 md:block">
+              <Label>Observații</Label>
+              <Textarea
+                className="agri-control min-h-[3.75rem] md:min-h-[4.25rem]"
+                value={form.observatii}
+                onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
+              />
             </div>
 
             <Collapsible
@@ -2530,7 +2474,7 @@ export function ComenziPageClient() {
             return
           }
 
-          if (values.status === 'in_livrare') {
+          if (values.status === 'in_livrare' || values.order_kind === 'consum_propriu') {
             const canContinue = await guardStocPentruInLivrare(cantitate)
             if (!canContinue) {
               return
@@ -2558,7 +2502,7 @@ export function ComenziPageClient() {
             return
           }
 
-          await createMutation.mutateAsync({
+          const createdComanda = await createMutation.mutateAsync({
             payload: {
               client_id: resolvedClientId || null,
               client_nume_manual: resolvedClientId ? null : values.client_nume_manual || null,
@@ -2569,11 +2513,21 @@ export function ComenziPageClient() {
               cantitate_kg: cantitate,
               pret_per_kg: pret,
               order_kind: values.order_kind,
-              status: values.status,
+              status: values.order_kind === 'consum_propriu' ? 'confirmata' : values.status,
               observatii: values.observatii || null,
             },
             clientPersistencePlan,
           })
+
+          // Flux instant consum_propriu: livrare imediată după creare
+          if (values.order_kind === 'consum_propriu' && createdComanda) {
+            await deliverMutation.mutateAsync({
+              comandaId: createdComanda.id,
+              cantitateLivrataKg: cantitate,
+              plata: 'integral',
+              dataLivrareRamasa: null,
+            })
+          }
         }}
       />
 
@@ -2742,37 +2696,25 @@ export function ComenziPageClient() {
       >
         <AlertDialogContent className="max-w-md sm:max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle>⚠️ Stoc insuficient</AlertDialogTitle>
+            <AlertDialogTitle>Stoc insuficient</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-3 text-sm leading-relaxed text-[var(--agri-text-muted)]">
+              <div className="space-y-2 text-sm leading-relaxed text-[var(--agri-text-muted)]">
                 <p>
-                  Ai nevoie de {formatKgOneDecimal(stocInsuficientModal?.necesarKg ?? 0)}
+                  Ai nevoie de{' '}
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {formatKgOneDecimal(stocInsuficientModal?.necesarKg ?? 0)}
+                  </span>
                   {stocInsuficientModal?.selectionCount && stocInsuficientModal.selectionCount > 1
-                    ? ` pentru cele ${stocInsuficientModal.selectionCount} comenzi selectate.`
-                    : '.'}
+                    ? ` pentru cele ${stocInsuficientModal.selectionCount} comenzi selectate,`
+                    : ','}{' '}
+                  dar momentan nu ai această cantitate disponibilă.
                 </p>
-                <p>
-                  Ai doar {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)} cal1 disponibili.
-                </p>
-                <p>
-                  Total comercial cal1: {formatKgOneDecimal(stocInsuficientModal?.totalKg ?? 0)}.
-                  Rezervat sau deja în livrare legacy: {formatKgOneDecimal(stocInsuficientModal?.inLivrareKg ?? 0)}.
-                </p>
-                <p>Adaugă o recoltare sau reduce comenzile active înainte de a continua.</p>
+                <p>Adaugă o recoltare și încearcă din nou.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-end">
-            <AlertDialogCancel className="w-full sm:w-auto">Închide</AlertDialogCancel>
-            <AlertDialogAction
-              className="w-full sm:w-auto"
-              onClick={() => {
-                setStocInsuficientModal(null)
-                router.push('/recoltari')
-              }}
-            >
-              Mergi la Recoltări
-            </AlertDialogAction>
+            <AlertDialogCancel className="w-full sm:w-auto">Am înțeles</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
