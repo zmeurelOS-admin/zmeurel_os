@@ -857,10 +857,10 @@ export function createChatPostHandler(depsOverride: Partial<ChatPostRouteDeps> =
     })
 
     // --- Rate limit (atomic check + increment) ---
+    // Limita e calculată intern de RPC (20 normal, 60 superadmin) — p_limit eliminat din semnătură.
     const { data: rlResult, error: rlError } = await supabase.rpc('check_and_increment_ai_usage', {
       p_user_id: userId,
       p_today: today,
-      p_limit: effectiveDailyLimit,
     })
 
     if (rlError) {

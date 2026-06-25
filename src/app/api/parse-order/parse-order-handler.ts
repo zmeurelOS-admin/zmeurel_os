@@ -261,15 +261,12 @@ export function createParseOrderHandler(depsOverride: Partial<ParseOrderRouteDep
 
         // 2. Rate limiting persistent via Supabase RPC (înlocuiește Map in-memory)
         try {
+          // Limitele sunt hardcodate în RPC (20 user/10min, 100 tenant/60min) — parametrii eliminați.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const { data, error } = await (admin as any).rpc('check_and_log_ai_usage', {
             p_user_id: userId,
             p_tenant_id: tenantId,
             p_feature: 'parse_order',
-            p_user_limit: PARSE_ORDER_USER_RATE_LIMIT.limit,
-            p_user_window_minutes: PARSE_ORDER_USER_RATE_LIMIT.windowMs / 60_000,
-            p_tenant_limit: PARSE_ORDER_TENANT_RATE_LIMIT.limit,
-            p_tenant_window_minutes: PARSE_ORDER_TENANT_RATE_LIMIT.windowMs / 60_000,
           })
 
           if (error) {

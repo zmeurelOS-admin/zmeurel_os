@@ -4787,7 +4787,7 @@ export type Database = {
       }
       bucharest_today: { Args: never; Returns: string }
       check_and_increment_ai_usage: {
-        Args: { p_limit: number; p_today: string; p_user_id: string }
+        Args: { p_today: string; p_user_id: string }
         Returns: Json
       }
       create_notification: {

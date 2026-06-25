@@ -173,6 +173,7 @@ export async function updateActivitateAgricola(
   input: UpdateActivitateAgricolaInput
 ): Promise<ActivitateAgricola> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('activitati_agricole')
@@ -181,11 +182,12 @@ export async function updateActivitateAgricola(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select()
     .single()
 
   if (error) {
-    
+
     throw error
   }
 
@@ -194,14 +196,16 @@ export async function updateActivitateAgricola(
 
 export async function deleteActivitateAgricola(id: string): Promise<void> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { error } = await supabase
     .from('activitati_agricole')
     .delete()
     .eq('id', id)
+    .eq('tenant_id', tenantId)
 
   if (error) {
-    
+
     throw error
   }
 }

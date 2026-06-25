@@ -267,6 +267,7 @@ export async function updateCheltuiala(
   input: UpdateCheltuialaInput
 ): Promise<Cheltuiala> {
   const supabase = getSupabase();
+  const tenantId = await getTenantId(supabase);
 
   const { data, error } = await supabase
     .from('cheltuieli_diverse')
@@ -278,11 +279,12 @@ export async function updateCheltuiala(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select()
     .single();
 
   if (error) {
-    
+
     throw error;
   }
 
@@ -291,14 +293,16 @@ export async function updateCheltuiala(
 
 export async function deleteCheltuiala(id: string): Promise<void> {
   const supabase = getSupabase();
+  const tenantId = await getTenantId(supabase);
 
   const { error } = await supabase
     .from('cheltuieli_diverse')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('tenant_id', tenantId);
 
   if (error) {
-    
+
     throw error;
   }
 }

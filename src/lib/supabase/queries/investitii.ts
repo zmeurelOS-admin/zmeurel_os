@@ -162,6 +162,7 @@ export async function updateInvestitie(
   input: UpdateInvestitieInput
 ): Promise<Investitie> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from('investitii')
@@ -173,6 +174,7 @@ export async function updateInvestitie(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
+    .eq('tenant_id', tenantId)
     .select()
     .single()
 
@@ -183,11 +185,13 @@ export async function updateInvestitie(
 
 export async function deleteInvestitie(id: string): Promise<void> {
   const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
 
   const { error } = await supabase
     .from('investitii')
     .delete()
     .eq('id', id)
+    .eq('tenant_id', tenantId)
 
   if (error) throw error
 }

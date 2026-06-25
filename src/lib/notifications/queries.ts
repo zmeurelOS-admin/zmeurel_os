@@ -46,12 +46,16 @@ export async function markAsRead(
 }
 
 export async function markAllAsRead(supabase: SupabaseClient<Database>): Promise<void> {
-  await supabase.from('notifications').update({ read: true }).eq('read', false)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
 }
 
 export async function deleteNotification(
   supabase: SupabaseClient<Database>,
   notificationId: string,
 ): Promise<void> {
-  await supabase.from('notifications').delete().eq('id', notificationId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  await supabase.from('notifications').delete().eq('id', notificationId).eq('user_id', user.id)
 }
