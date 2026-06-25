@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 
+import { planificaInterventieRelevantaAction } from '@/app/(dashboard)/parcele/[id]/tratamente/actions'
+import { markAplicataAction } from '@/app/(dashboard)/parcele/[id]/tratamente/aplicari-actions'
 import {
   addLinieAction,
   deleteLinieAction,
@@ -15,10 +17,12 @@ import {
 import { IntervenieEditorSheet, type IntervenieEditorValue } from '@/components/tratamente/IntervenieEditorSheet'
 import { LinieDeleteDialog } from '@/components/tratamente/LinieDeleteDialog'
 import { LinieRow } from '@/components/tratamente/LinieRow'
+import { MarkAplicataSheet, type MarkAplicataFormValues } from '@/components/tratamente/MarkAplicataSheet'
 import { AppCard } from '@/components/ui/app-card'
 import { Button } from '@/components/ui/button'
+import type { ConfigurareSezon } from '@/lib/tratamente/configurare-sezon'
 import type { PlanTratamentLinieCuProdus, ProdusFitosanitar } from '@/lib/supabase/queries/tratamente'
-import { normalizeMetodaAplicare, type MetodaAplicare } from '@/types/tratamente-metode'
+import { normalizeMetodaAplicare } from '@/types/tratamente-metode'
 import { toast } from '@/lib/ui/toast'
 
 import {
@@ -50,9 +54,13 @@ function normalizeRegulaRepetare(value: string | null | undefined): IntervenieEd
 
 interface PlanLiniiListProps {
   allowCohortTrigger?: boolean
+  configurareSezon?: ConfigurareSezon | null
   culturaTip: string
+  isRubusMixt?: boolean
   linii: PlanTratamentLinieCuProdus[]
   onMarkAplicata?: (linieId: string) => void
+  parcelaAplicareId?: string | null
+  parcelaAplicareLabel?: string | null
   planId: string
   produse: ProdusFitosanitar[]
 }
@@ -347,9 +355,13 @@ function toEditValue(linie?: PlanTratamentLinieCuProdus | null): IntervenieEdito
 
 export function PlanLiniiList({
   allowCohortTrigger = false,
+  configurareSezon = null,
   culturaTip,
+  isRubusMixt = false,
   linii,
   onMarkAplicata,
+  parcelaAplicareId = null,
+  parcelaAplicareLabel = null,
   planId,
   produse,
 }: PlanLiniiListProps) {
@@ -360,6 +372,9 @@ export function PlanLiniiList({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editingLinie, setEditingLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
   const [pendingDeleteLinie, setPendingDeleteLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
+  const [pendingApplyLinie, setPendingApplyLinie] = useState<PlanTratamentLinieCuProdus | null>(null)
+  const [pendingAplicareId, setPendingAplicareId] = useState<string | null>(null)
+  const [markOpen, setMarkOpen] = useState(false)
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const [isPending, startTransition] = useTransition()
   const grupBiologic = useMemo(() => getGrupBiologicDinCultura(culturaTip), [culturaTip])
@@ -641,8 +656,38 @@ export function PlanLiniiList({
                         index={index}
                         linie={linie}
                         total={orderedLinii.length}
-                        // --- FIX 2: propagare callback mark aplicată când există în părinte ---
-                        onMarkAplicata={onMarkAplicata}
+                        onMarkAplicata={
+                          onMarkAplicata ??
+                          (parcelaAplicareId
+                            ? (linieId) => {
+                                const selectedLinie = orderedLinii.find((item) => item.id === linieId) ?? null
+                                if (!selectedLinie) return
+
+                                setPendingApplyLinie(selectedLinie)
+                                setPendingAplicareId(null)
+                                startTransition(async () => {
+                                  const formData = new FormData()
+                                  formData.set('parcelaId', parcelaAplicareId)
+                                  formData.set('planLinieId', selectedLinie.id)
+                                  formData.set('dataPlanificata', new Date().toISOString().slice(0, 10))
+                                  const cohort = normalizeCohorta(selectedLinie.cohort_trigger)
+                                  if (cohort) {
+                                    formData.set('cohortLaAplicare', cohort)
+                                  }
+
+                                  const result = await planificaInterventieRelevantaAction(formData)
+                                  if (!result.ok) {
+                                    toast.error(result.error)
+                                    setPendingApplyLinie(null)
+                                    return
+                                  }
+
+                                  setPendingAplicareId(result.aplicareId)
+                                  setMarkOpen(true)
+                                })
+                              }
+                            : undefined)
+                        }
                         onMoveUp={() => handleReorder(index, index - 1)}
                         onMoveDown={() => handleReorder(index, index + 1)}
                         onEdit={() => {
@@ -692,6 +737,68 @@ export function PlanLiniiList({
         onConfirm={handleDeleteLinie}
         pending={isPending}
         stadiuLabel={pendingDeleteLinie ? getStadiuMeta(pendingDeleteLinie.stadiu_trigger, grupBiologic, pendingDeleteLinie.cohort_trigger).label : 'selectat'}
+      />
+
+      <MarkAplicataSheet
+        mode="din_plan"
+        cohortLaAplicareBlocata={normalizeCohorta(pendingApplyLinie?.cohort_trigger) ?? null}
+        configurareSezon={configurareSezon}
+        defaultCantitateMl={null}
+        defaultCohortLaAplicare={normalizeCohorta(pendingApplyLinie?.cohort_trigger) ?? null}
+        defaultManualParcelaLabel={parcelaAplicareLabel}
+        defaultOperator=""
+        defaultStadiu={pendingApplyLinie?.stadiu_trigger ?? null}
+        grupBiologic={grupBiologic}
+        isRubusMixt={isRubusMixt}
+        meteoSnapshot={null}
+        onOpenChange={(nextOpen) => {
+          setMarkOpen(nextOpen)
+          if (!nextOpen) {
+            setPendingApplyLinie(null)
+            setPendingAplicareId(null)
+          }
+        }}
+        onSubmit={async (values: MarkAplicataFormValues) => {
+          if (!pendingAplicareId || !parcelaAplicareId) return
+
+          startTransition(async () => {
+            const formData = new FormData()
+            formData.set('parcelaId', parcelaAplicareId)
+            formData.set('aplicareId', pendingAplicareId)
+            formData.set('data_aplicata', values.data_aplicata)
+            formData.set('cantitate_totala_ml', values.cantitate_totala_ml ?? '')
+            formData.set('operator', values.operator ?? '')
+            formData.set('stadiu_la_aplicare', values.stadiu_la_aplicare ?? '')
+            if (values.cohort_la_aplicare) {
+              formData.set('cohort_la_aplicare', values.cohort_la_aplicare)
+            }
+            formData.set('observatii', values.observatii ?? '')
+            if (values.meteoSnapshot) {
+              formData.set('meteo_snapshot', JSON.stringify(values.meteoSnapshot))
+            }
+            formData.set('produse', JSON.stringify(values.produse))
+            if (values.diferenteFataDePlan) {
+              formData.set('diferente_fata_de_plan', JSON.stringify(values.diferenteFataDePlan))
+            }
+
+            const result = await markAplicataAction(formData)
+            if (!result.ok) {
+              toast.error(result.error)
+              return
+            }
+
+            toast.success('Aplicarea a fost marcată ca efectuată.')
+            setMarkOpen(false)
+            setPendingApplyLinie(null)
+            setPendingAplicareId(null)
+            router.refresh()
+          })
+        }}
+        open={markOpen}
+        pending={isPending}
+        produseEfective={[]}
+        produseFitosanitare={produse}
+        produsePlanificate={pendingApplyLinie?.produse ?? []}
       />
     </section>
   )

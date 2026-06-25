@@ -14,7 +14,7 @@ import {
   listProduseFitosanitare,
 } from '@/lib/supabase/queries/tratamente'
 import { getConfigurareSezon } from '@/lib/supabase/queries/configurari-sezon'
-import { needsCohortSelection } from '@/lib/tratamente/configurare-sezon'
+import { isRubusMixt, needsCohortSelection } from '@/lib/tratamente/configurare-sezon'
 import { getGrupBiologicDinCultura } from '@/components/tratamente/plan-wizard/helpers'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 
@@ -64,7 +64,11 @@ export default async function TratamentePlanDetailPage({ params }: PageProps) {
     : null
   const grupBiologic = getGrupBiologicDinCultura(plan.cultura_tip)
   const allowCohortTrigger = needsCohortSelection(grupBiologic, configurareSezon)
-  // TODO: conectează markAplicataAction când va fi disponibilă în actions.ts.
+  const parcelaAplicareId = plan.parcele_asociate[0]?.parcela_id ?? null
+  const parcelaAplicareLabel =
+    plan.parcele_asociate[0]?.parcela_nume ??
+    plan.parcele_asociate[0]?.parcela_cod ??
+    null
 
   return (
     <AppShell
@@ -123,8 +127,12 @@ export default async function TratamentePlanDetailPage({ params }: PageProps) {
 
         <PlanLiniiList
           allowCohortTrigger={allowCohortTrigger}
+          configurareSezon={configurareSezon}
           culturaTip={plan.cultura_tip}
+          isRubusMixt={isRubusMixt(configurareSezon)}
           linii={plan.linii}
+          parcelaAplicareId={parcelaAplicareId}
+          parcelaAplicareLabel={parcelaAplicareLabel}
           planId={plan.id}
           produse={produse}
         />
