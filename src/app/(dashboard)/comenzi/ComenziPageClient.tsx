@@ -90,6 +90,7 @@ import {
   type OrderClientPersistencePlan,
 } from '@/lib/comenzi/ai-order-client'
 import {
+  getUnifiedOrderEffectiveDate,
   getComenziOperationalSnapshot,
   isManualOrderActiveForComenziTab,
   KG_PER_CASEROLĂ,
@@ -442,7 +443,11 @@ function compareOrdersForSort(
     case 'created_at_desc':
       return b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id)
     case 'delivery_date':
-      return a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
+      return (
+        getUnifiedOrderEffectiveDate(a).localeCompare(getUnifiedOrderEffectiveDate(b)) ||
+        a.createdAt.localeCompare(b.createdAt) ||
+        a.id.localeCompare(b.id)
+      )
     case 'locality':
       return (
         ZONE_ORDER[a.deliveryZone] - ZONE_ORDER[b.deliveryZone] ||
@@ -473,10 +478,10 @@ function buildProgramateGroups(
   const byDate = new Map<string, UnifiedOrderItem[]>()
 
   for (const order of orders) {
-    if (!order.deliveryDate) continue
-    const current = byDate.get(order.deliveryDate) ?? []
+    const effectiveDate = getUnifiedOrderEffectiveDate(order)
+    const current = byDate.get(effectiveDate) ?? []
     current.push(order)
-    byDate.set(order.deliveryDate, current)
+    byDate.set(effectiveDate, current)
   }
 
   return [...byDate.entries()]
@@ -801,7 +806,7 @@ function UnifiedOrderGroupSection({
           month: 'long',
           timeZone: 'UTC',
         }).format(new Date(`${date}T12:00:00.000Z`))
-      : 'Neprogramate'
+      : 'Comenzi'
   const relativeLabel =
     scheduledView && date
       ? getRelativeScheduledLabel(date, referenceDate)
@@ -1806,6 +1811,11 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       hapticSuccess()
       toast('Comandă livrată! Vânzare creată.')
+      if (result.remainingOrder) {
+        toast(
+          `Comandă parțială: a rămas ${result.remainingOrder.cantitate_kg} kg — comandă nouă creată.`,
+        )
+      }
       setDeliveryTarget(null)
 
       const delivered = result.deliveredOrder
@@ -2031,35 +2041,37 @@ export function ComenziPageClient() {
     [livrateNeincasate],
   )
   const neincasatRon = useMemo(() => livrateNeincasate.reduce((sum, item) => sum + item.amount, 0), [livrateNeincasate])
+  const unifiedAllOrders = useMemo(
+    () => mergeUnifiedOrders(manualComenzi, activeShopOrders, clientMap, shopBridgeByOrderId),
+    [clientMap, manualComenzi, activeShopOrders, shopBridgeByOrderId],
+  )
 
   const comenziAziCount = useMemo(
     () =>
-      activeComenzi.filter((item) => item.data_livrare === today).length +
-      activeShopOrders.filter(
-        (item) => isUnifiedOpenStatus(item.status) && item.delivery_date === today,
+      unifiedAllOrders.filter(
+        (item) =>
+          isUnifiedOpenStatus(item.status) &&
+          getUnifiedOrderEffectiveDate(item) === today,
       ).length,
-    [activeComenzi, activeShopOrders, today],
+    [today, unifiedAllOrders],
   )
   const comenziRestanteCount = useMemo(
     () =>
-      activeComenzi.filter(
-        (item) => Boolean(item.data_livrare) && item.data_livrare! < today,
-      ).length +
-      activeShopOrders.filter(
+      unifiedAllOrders.filter(
         (item) =>
           isUnifiedOpenStatus(item.status) &&
-          Boolean(item.delivery_date) &&
-          item.delivery_date! < today,
+          getUnifiedOrderEffectiveDate(item) < today,
       ).length,
-    [activeComenzi, activeShopOrders, today],
+    [today, unifiedAllOrders],
   )
   const programateCount = useMemo(
     () =>
-      activeComenzi.filter((item) => Boolean(item.data_livrare)).length +
-      activeShopOrders.filter(
-        (item) => isUnifiedOpenStatus(item.status) && Boolean(item.delivery_date),
+      unifiedAllOrders.filter(
+        (item) =>
+          isUnifiedOpenStatus(item.status) &&
+          Boolean(getUnifiedOrderEffectiveDate(item)),
       ).length,
-    [activeComenzi, activeShopOrders],
+    [unifiedAllOrders],
   )
 
   const totalStocDisponibilKg = Number(stocSummary.totalStocDisponibilKg || 0)
@@ -2080,11 +2092,6 @@ export function ComenziPageClient() {
       ) / 10
     )
   }, [vanzari])
-
-  const unifiedAllOrders = useMemo(
-    () => mergeUnifiedOrders(manualComenzi, activeShopOrders, clientMap, shopBridgeByOrderId),
-    [clientMap, manualComenzi, activeShopOrders, shopBridgeByOrderId],
-  )
   const necesarKgTotal = useMemo(
     () =>
       unifiedAllOrders.reduce((sum, item) => {
@@ -2109,14 +2116,17 @@ export function ComenziPageClient() {
       }
       if (
         activeTab === 'programate' &&
-        !(isUnifiedOpenStatus(item.status) && Boolean(item.deliveryDate))
+        !(isUnifiedOpenStatus(item.status) && Boolean(getUnifiedOrderEffectiveDate(item)))
       ) {
         return false
       }
       if (activeTab === 'livrate' && item.status !== 'livrata') return false
       if (
         activeFilter === 'azi' &&
-        !(isUnifiedOpenStatus(item.status) && item.deliveryDate === today)
+        !(
+          isUnifiedOpenStatus(item.status) &&
+          getUnifiedOrderEffectiveDate(item) === today
+        )
       ) {
         return false
       }
@@ -2125,8 +2135,7 @@ export function ComenziPageClient() {
         activeFilter === 'restante' &&
         !(
           isUnifiedOpenStatus(item.status) &&
-          Boolean(item.deliveryDate) &&
-          item.deliveryDate! < today
+          getUnifiedOrderEffectiveDate(item) < today
         )
       ) {
         return false
@@ -2135,8 +2144,7 @@ export function ComenziPageClient() {
         activeFilter === 'viitoare' &&
         !(
           isUnifiedOpenStatus(item.status) &&
-          Boolean(item.deliveryDate) &&
-          item.deliveryDate! > today
+          getUnifiedOrderEffectiveDate(item) > today
         )
       ) {
         return false

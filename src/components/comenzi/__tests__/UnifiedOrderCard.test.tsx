@@ -91,24 +91,44 @@ describe('UnifiedOrderCard', () => {
   })
 
   it.each([
-    ['noua', ['Confirmată', 'Anulată'], ['În livrare', 'Livrată']],
-    ['confirmata', ['În livrare', 'Anulată'], ['Confirmată', 'Livrată']],
-    ['in_livrare', ['Confirmată', 'Livrată'], ['Anulată']],
+    ['noua', ['Confirmată', 'Anulată', 'Livrată'], ['În livrare']],
+    ['confirmata', ['În livrare', 'Anulată', 'Livrată'], ['Confirmată']],
+    ['in_livrare', ['Programată', 'Livrată'], ['Anulată']],
   ] as const)(
     'afișează doar tranzițiile valide pentru statusul %s',
     async (status, expected, absent) => {
       const user = userEvent.setup()
+      const manualOrder: Comanda = {
+        id: `manual-${status}`,
+        tenant_id: 'tenant',
+        client_id: null,
+        client_nume_manual: 'Ion Popescu',
+        telefon: '0712 345 678',
+        locatie_livrare: 'Suceava',
+        data_comanda: '2026-06-10',
+        data_livrare: '2026-06-12',
+        cantitate_kg: 5,
+        pret_per_kg: 40,
+        total: 200,
+        status,
+        observatii: null,
+        linked_vanzare_id: null,
+        parent_comanda_id: null,
+        created_at: '2026-06-10T08:00:00.000Z',
+        updated_at: '2026-06-10T08:00:00.000Z',
+        data_origin: null,
+      }
       render(
         <UnifiedOrderCard
-          item={mapShopToUnified({ ...order, status })}
-          onShopStatusChange={() => undefined}
-          onShopDeliveryDateChange={() => undefined}
+          item={mapB2bToUnified(manualOrder, {})}
+          onB2bStatusChange={() => undefined}
+          onB2bDeliveryDateChange={() => undefined}
         />,
       )
 
       await user.click(
         screen.getByRole('button', {
-          name: `Arată detaliile comenzii pentru ${order.customer_name}`,
+          name: `Arată detaliile comenzii pentru ${manualOrder.client_nume_manual}`,
         }),
       )
       await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))

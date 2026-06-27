@@ -35,7 +35,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { KG_PER_CASEROLĂ, mapB2bToUnified, mapShopToUnified, type UnifiedOrderItem } from '@/lib/comenzi/unified-orders'
+import {
+  getUnifiedOrderEffectiveDate,
+  KG_PER_CASEROLĂ,
+  mapB2bToUnified,
+  mapShopToUnified,
+  type UnifiedOrderItem,
+} from '@/lib/comenzi/unified-orders'
 import type { DeliveryItem } from '@/lib/livrari/types'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -97,8 +103,8 @@ function getDeliverableKg(order: UnifiedOrderItem): number {
 }
 
 function compareUnifiedDeliveryFifo(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
-  const aDate = a.deliveryDate ? Date.parse(`${a.deliveryDate}T12:00:00.000Z`) : Number.POSITIVE_INFINITY
-  const bDate = b.deliveryDate ? Date.parse(`${b.deliveryDate}T12:00:00.000Z`) : Number.POSITIVE_INFINITY
+  const aDate = Date.parse(`${getUnifiedOrderEffectiveDate(a)}T12:00:00.000Z`)
+  const bDate = Date.parse(`${getUnifiedOrderEffectiveDate(b)}T12:00:00.000Z`)
   if (aDate !== bDate) return aDate - bDate
 
   const createdDiff = Date.parse(a.createdAt) - Date.parse(b.createdAt)
