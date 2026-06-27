@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
@@ -22,6 +22,7 @@ import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
+import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import {
   AlertDialog,
@@ -55,6 +56,7 @@ import {
   fetchComenziManualInLivrare,
   updateComanda,
   type Comanda,
+  type ComandaPaymentStatus,
 } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
 
@@ -110,6 +112,7 @@ async function patchShopOrder(input: {
   status?: ShopOrderStatus
   delivery_date?: string | null
   notified_wa?: boolean
+  status_plata?: ComandaPaymentStatus
 }): Promise<void> {
   const response = await fetch(`/api/shop/b2c/orders/${input.id}`, {
     method: 'PATCH',
@@ -184,7 +187,7 @@ export function LivrariPageClient() {
     () =>
       [
         ...manualOrders.map((comanda) => mapB2bToUnified(comanda, clientMap)),
-        ...shopOrders.map(mapShopToUnified),
+        ...shopOrders.map((order) => mapShopToUnified(order)),
       ].sort(compareUnifiedDeliveryFifo),
     [clientMap, manualOrders, shopOrders],
   )
@@ -260,11 +263,17 @@ export function LivrariPageClient() {
   })
 
   const markDeliveredMutation = useMutation({
-    mutationFn: async (order: ShopOrderRow) => {
+    mutationFn: async ({
+      order,
+      statusPlata,
+    }: {
+      order: ShopOrderRow
+      statusPlata: ComandaPaymentStatus
+    }) => {
       const response = await fetch(`/api/shop/b2c/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'livrata' }),
+        body: JSON.stringify({ status: 'livrata', status_plata: statusPlata }),
       })
       const json = (await response.json()) as { success?: boolean; error?: string }
       if (!response.ok || !json.success) {
@@ -272,7 +281,7 @@ export function LivrariPageClient() {
       }
       return order
     },
-    onMutate: async (order) => {
+    onMutate: async ({ order }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.shopOrdersInLivrare })
       const previous = queryClient.getQueryData<ShopOrderRow[]>(queryKeys.shopOrdersInLivrare)
       const previousCount = queryClient.getQueryData<number>(
@@ -296,7 +305,7 @@ export function LivrariPageClient() {
       toast.success('Comandă livrată')
       refreshAll()
     },
-    onError: (error: Error, _order, context) => {
+    onError: (error: Error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.shopOrdersInLivrare, context.previous)
       }
@@ -313,11 +322,19 @@ export function LivrariPageClient() {
   })
 
   const deliverPartialManualMutation = useMutation({
-    mutationFn: async ({ comanda, kgLivrat }: { comanda: Comanda; kgLivrat: number }) =>
+    mutationFn: async ({
+      comanda,
+      kgLivrat,
+      statusPlata,
+    }: {
+      comanda: Comanda
+      kgLivrat: number
+      statusPlata: ComandaPaymentStatus
+    }) =>
       deliverComanda({
         comandaId: comanda.id,
         cantitateLivrataKg: kgLivrat,
-        plata: 'integral',
+        statusPlata,
         dataLivrareRamasa: null,
       }),
     onSuccess: (result) => {
@@ -340,14 +357,16 @@ export function LivrariPageClient() {
     mutationFn: async ({
       shopOrder,
       kgLivrat,
+      statusPlata,
     }: {
       shopOrder: ShopOrderRow
       kgLivrat: number
+      statusPlata: ComandaPaymentStatus
     }) =>
       deliverShopOrderPartial({
         shopOrderId: shopOrder.id,
         deliveredKg: kgLivrat,
-        plata: 'platit',
+        statusPlata,
       }),
     onSuccess: () => {
       toast.success('Livrare parțială înregistrată')
@@ -360,12 +379,13 @@ export function LivrariPageClient() {
   })
 
   const handleConfirmPartial = useCallback(
-    (kgLivrat: number) => {
+    (kgLivrat: number, statusPlata: ComandaPaymentStatus) => {
       if (!deliverTarget) return
       if (deliverTarget.b2bComanda) {
         deliverPartialManualMutation.mutate({
           comanda: deliverTarget.b2bComanda,
           kgLivrat,
+          statusPlata,
         })
         return
       }
@@ -373,6 +393,7 @@ export function LivrariPageClient() {
         deliverPartialShopMutation.mutate({
           shopOrder: deliverTarget.shopOrder,
           kgLivrat,
+          statusPlata,
         })
       }
     },
@@ -615,6 +636,7 @@ export function LivrariPageClient() {
       </div>
 
       <DeliveryConfirmationDialog
+        key={deliverTarget ? `${deliverTarget.source}-${deliverTarget.id}` : 'closed'}
         order={deliverTarget}
         pending={
           markDeliveredMutation.isPending ||
@@ -633,15 +655,18 @@ export function LivrariPageClient() {
             setDeliverTarget(null)
           }
         }}
-        onConfirm={() => {
+        onConfirm={(statusPlata) => {
           if (deliverTarget?.shopOrder) {
-            markDeliveredMutation.mutate(deliverTarget.shopOrder)
+            markDeliveredMutation.mutate({
+              order: deliverTarget.shopOrder,
+              statusPlata,
+            })
             return
           }
           if (deliverTarget?.b2bComanda) {
             const kg = getDeliverableKg(deliverTarget)
             if (kg > 0) {
-              handleConfirmPartial(kg)
+              handleConfirmPartial(kg, statusPlata)
             } else {
               toast.error('Comanda nu are cantitate configurată. Editează comanda înainte de livrare.')
             }
@@ -908,23 +933,17 @@ function DeliveryConfirmationDialog({
   order: DeliveryTarget | null
   pending: boolean
   pendingPartial: boolean
-  onConfirm: () => void
-  onConfirmPartial: (kgLivrat: number) => void
+  onConfirm: (statusPlata: ComandaPaymentStatus) => void
+  onConfirmPartial: (kgLivrat: number, statusPlata: ComandaPaymentStatus) => void
   onOpenChange: (open: boolean) => void
 }) {
   const [partialMode, setPartialMode] = useState(false)
   const [partialKg, setPartialKg] = useState('')
-
-  useEffect(() => {
-    if (!order) {
-      setPartialMode(false)
-      setPartialKg('')
-    }
-  }, [order])
+  const [statusPlata, setStatusPlata] = useState<ComandaPaymentStatus>('platit')
 
   return (
     <AlertDialog open={order !== null} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="pb-[max(1rem,env(safe-area-inset-bottom))]">
         <AlertDialogHeader>
           <AlertDialogTitle>Marchezi comanda ca livrată?</AlertDialogTitle>
           <AlertDialogDescription asChild>
@@ -934,7 +953,15 @@ function DeliveryConfirmationDialog({
                 <p className="mt-1 text-2xl tabular-nums text-[var(--agri-primary)] [font-weight:750]">
                   {order ? `${formatLei(order.total_lei)} lei` : '—'}
                 </p>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                  Cantitate livrată: {order ? `${order.cantitate_kg} kg` : '—'}
+                </p>
               </div>
+              <PaymentStatusToggle
+                value={statusPlata}
+                onChange={setStatusPlata}
+                disabled={pending || pendingPartial}
+              />
               <p>
                 Confirmarea creează venitul în Vânzări și scade din stoc greutatea produselor
                 livrate. Dacă stocul este insuficient, comanda rămâne nelivrată.
@@ -949,7 +976,7 @@ function DeliveryConfirmationDialog({
             disabled={pending}
             onClick={(event) => {
               event.preventDefault()
-              onConfirm()
+              onConfirm(statusPlata)
             }}
           >
             {pending ? 'Se salvează...' : 'Da, marchează livrat'}
@@ -1002,7 +1029,7 @@ function DeliveryConfirmationDialog({
                     Number(partialKg) > order.cantitate_kg ||
                     pendingPartial
                   }
-                  onClick={() => onConfirmPartial(Number(partialKg))}
+                  onClick={() => onConfirmPartial(Number(partialKg), statusPlata)}
                 >
                   {pendingPartial ? 'Se salvează...' : 'Confirmă parțial'}
                 </Button>

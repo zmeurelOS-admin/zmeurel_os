@@ -51,11 +51,11 @@ vi.mock('@/lib/shop/clienti-sync', () => ({
 const orderId = '00000000-0000-4000-8000-000000000101'
 const tenantId = '00000000-0000-4000-8000-000000000301'
 
-function deliverRequest() {
+function deliverRequest(statusPlata: 'platit' | 'neplatit' = 'platit') {
   return PATCH(
     createSameOriginRequest(`/api/shop/b2c/orders/${orderId}`, {
       method: 'PATCH',
-      json: { status: 'livrata' },
+      json: { status: 'livrata', status_plata: statusPlata },
     }),
     { params: Promise.resolve({ id: orderId }) },
   )
@@ -72,6 +72,7 @@ function patchRequest(body: {
   notes?: string | null
   delivery_mode?: 'livrare' | 'ridicare'
   items?: Array<{ vid: string; label: string; qty: number; price_lei: number }>
+  status_plata?: 'platit' | 'neplatit'
 }) {
   return PATCH(
     createSameOriginRequest(`/api/shop/b2c/orders/${orderId}`, {
@@ -134,13 +135,24 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     await expect(response.json()).resolves.toMatchObject({
       success: true,
       delivery: {
-        already_delivered: false,
         shop_order_id: orderId,
       },
     })
-    expect(rpcMock).toHaveBeenCalledWith('deliver_shop_order_atomic', {
+    expect(rpcMock).toHaveBeenCalledWith('set_shop_order_delivered', {
       p_shop_order_id: orderId,
-      p_payment_status: 'platit',
+      p_delivered_qty: null,
+      p_status_plata: 'platit',
+    })
+  })
+
+  it('pasează plata neîncasată către bridge-ul ERP', async () => {
+    const response = await deliverRequest('neplatit')
+
+    expect(response.status).toBe(200)
+    expect(rpcMock).toHaveBeenCalledWith('set_shop_order_delivered', {
+      p_shop_order_id: orderId,
+      p_delivered_qty: null,
+      p_status_plata: 'neplatit',
     })
   })
 
@@ -167,7 +179,11 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
   it('propagă eroarea exactă atunci când stocul este insuficient', async () => {
     rpcMock.mockResolvedValue({
       data: null,
-      error: { message: 'Stoc insuficient pentru livrare.' },
+      error: {
+        message: 'STOC_INSUFICIENT',
+        code: 'P0001',
+        details: 'necesar=50;disponibil=37.5',
+      },
     })
 
     const response = await deliverRequest()
@@ -175,7 +191,9 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     expect(response.status).toBe(409)
     await expect(response.json()).resolves.toEqual({
       success: false,
-      error: 'Stoc insuficient pentru livrare.',
+      error: 'STOC_INSUFICIENT',
+      code: 'P0001',
+      details: 'necesar=50;disponibil=37.5',
     })
   })
 
@@ -319,9 +337,9 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     expect(response.status).toBe(200)
     expect(selectEqMock).toHaveBeenNthCalledWith(1, 'id', orderId)
     expect(selectEqMock).toHaveBeenNthCalledWith(2, 'tenant_id', tenantId)
-    expect(updateMock).toHaveBeenCalledWith({
-      status: 'in_livrare',
-      delivery_date: '2026-06-10',
+    expect(rpcMock).toHaveBeenCalledWith('set_shop_order_in_delivery', {
+      p_shop_order_id: orderId,
+      p_delivery_date: '2026-06-10',
     })
 
     vi.useRealTimers()
@@ -336,9 +354,9 @@ describe('PATCH /api/shop/b2c/orders/[id]', () => {
     const response = await patchRequest({ status: 'in_livrare' })
 
     expect(response.status).toBe(200)
-    expect(updateMock).toHaveBeenCalledWith({
-      status: 'in_livrare',
-      delivery_date: '2026-06-15',
+    expect(rpcMock).toHaveBeenCalledWith('set_shop_order_in_delivery', {
+      p_shop_order_id: orderId,
+      p_delivery_date: '2026-06-15',
     })
   })
 

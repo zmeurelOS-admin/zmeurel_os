@@ -186,7 +186,7 @@ describe('UnifiedOrderCard', () => {
     expect(screen.queryByText('✓ Anunțat WA')).not.toBeInTheDocument()
   })
 
-  it('deschide WhatsApp înainte de schimbarea statusului în livrare', async () => {
+  it('deschide WhatsApp numai după schimbarea cu succes a statusului shop', async () => {
     const user = userEvent.setup()
     const calls: string[] = []
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {
@@ -210,7 +210,7 @@ describe('UnifiedOrderCard', () => {
     await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
     await user.click(screen.getByRole('button', { name: 'În livrare' }))
 
-    expect(calls).toEqual(['whatsapp', 'status'])
+    expect(calls).toEqual(['status', 'whatsapp'])
     expect(openSpy).toHaveBeenCalledWith(
       expect.stringContaining('https://wa.me/40740123456?text='),
       '_blank',
@@ -252,10 +252,56 @@ describe('UnifiedOrderCard', () => {
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
   })
 
+  it('afișează plata neîncasată și permite marcarea ei ca încasată', async () => {
+    const user = userEvent.setup()
+    const onMarkPaid = vi.fn().mockResolvedValue(undefined)
+    const manualOrder: Comanda = {
+      id: 'manual-unpaid',
+      tenant_id: 'tenant',
+      client_id: null,
+      client_nume_manual: 'Client neîncasat',
+      telefon: '0712 345 678',
+      locatie_livrare: 'Suceava',
+      data_comanda: '2026-06-10',
+      data_livrare: '2026-06-12',
+      cantitate_kg: 5,
+      pret_per_kg: 40,
+      total: 200,
+      status: 'livrata',
+      observatii: null,
+      linked_vanzare_id: 'sale-unpaid',
+      linked_vanzare: {
+        status_plata: 'neplatit',
+        data_incasare: null,
+      },
+      parent_comanda_id: null,
+      created_at: '2026-06-10T08:00:00.000Z',
+      updated_at: '2026-06-10T08:00:00.000Z',
+      data_origin: null,
+    }
+
+    render(
+      <UnifiedOrderCard
+        item={mapB2bToUnified(manualOrder, {})}
+        onMarkPaid={onMarkPaid}
+      />,
+    )
+
+    expect(screen.getByText('Neplătit')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Marchează încasat' }))
+    expect(onMarkPaid).toHaveBeenCalledWith(manualOrder.id)
+  })
+
   it('folosește aceleași tranziții și WhatsApp pentru comanda manuală', async () => {
     const user = userEvent.setup()
-    const onB2bStatusChange = vi.fn()
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const calls: string[] = []
+    const onB2bStatusChange = vi.fn(async () => {
+      calls.push('status')
+    })
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {
+      calls.push('whatsapp')
+      return null
+    })
     const manualOrder: Comanda = {
       id: 'manual-wa',
       tenant_id: 'tenant',
@@ -300,6 +346,50 @@ describe('UnifiedOrderCard', () => {
     )
     expect(decodeURIComponent(String(openSpy.mock.calls[0][0]))).toContain('5 kg')
     expect(onB2bStatusChange).toHaveBeenCalledWith('manual-wa', 'in_livrare')
+    expect(calls).toEqual(['status', 'whatsapp'])
+    openSpy.mockRestore()
+  })
+
+  it('nu deschide WhatsApp când schimbarea statusului manual eșuează', async () => {
+    const user = userEvent.setup()
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+    const manualOrder: Comanda = {
+      id: 'manual-stock-error',
+      tenant_id: 'tenant',
+      client_id: null,
+      client_nume_manual: 'Ion Popescu',
+      telefon: '0712 345 678',
+      locatie_livrare: 'Suceava',
+      data_comanda: '2026-06-10',
+      data_livrare: '2026-06-12',
+      cantitate_kg: 50,
+      pret_per_kg: 40,
+      total: 2000,
+      status: 'confirmata',
+      observatii: null,
+      linked_vanzare_id: null,
+      parent_comanda_id: null,
+      created_at: '2026-06-10T08:00:00.000Z',
+      updated_at: '2026-06-10T08:00:00.000Z',
+      data_origin: null,
+    }
+
+    render(
+      <UnifiedOrderCard
+        item={mapB2bToUnified(manualOrder, {})}
+        onB2bStatusChange={vi.fn().mockRejectedValue(new Error('STOC_INSUFICIENT'))}
+      />,
+    )
+
+    await user.click(
+      screen.getByRole('button', {
+        name: `Arată detaliile comenzii pentru ${manualOrder.client_nume_manual}`,
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+    await user.click(screen.getByRole('button', { name: 'În livrare' }))
+
+    expect(openSpy).not.toHaveBeenCalled()
     openSpy.mockRestore()
   })
 

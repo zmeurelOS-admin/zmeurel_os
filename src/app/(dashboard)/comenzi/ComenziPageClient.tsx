@@ -14,7 +14,6 @@ import { ComenziSpeedDial } from './ComenziSpeedDial'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -52,6 +51,7 @@ import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
+import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -67,10 +67,11 @@ import {
   deliverComanda,
   getComenzi,
   getComenziStockSummaryAzi,
+  markComandaIncasata,
   reopenComanda,
   type Comanda,
   type ComandaOrderKind,
-  type ComandaPlata,
+  type ComandaPaymentStatus,
   type ComandaStatus,
   updateComanda,
 } from '@/lib/supabase/queries/comenzi'
@@ -94,6 +95,7 @@ import {
   KG_PER_CASEROLĂ,
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
+  mapB2bToUnified,
   mapShopToUnified,
   mergeUnifiedOrders,
   type UnifiedOrderItem,
@@ -173,6 +175,24 @@ class StocInsuficientError extends Error {
   }
 }
 
+function parseStocInsuficientError(error: unknown): StocInsuficientSnapshot | null {
+  const err = error as { message?: string; details?: string; code?: string }
+  const details = err.details ?? ''
+  const message = err.message ?? ''
+  if (err.code !== 'P0001' && !message.includes('STOC_INSUFICIENT') && !details.includes('necesar=')) {
+    return null
+  }
+
+  const necesar = details.match(/necesar=([0-9]+(?:\.[0-9]+)?)/)
+  const disponibil = details.match(/disponibil=([0-9]+(?:\.[0-9]+)?)/)
+  return {
+    necesarKg: round2(Number(necesar?.[1] ?? 0)),
+    disponibilKg: round2(Number(disponibil?.[1] ?? 0)),
+    totalKg: 0,
+    inLivrareKg: 0,
+  }
+}
+
 type CreateClientMutationVariables = {
   input: Parameters<typeof createClienți>[0]
   onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
@@ -183,6 +203,8 @@ type PatchShopOrderInput = {
   status?: ShopOrderStatus
   notified_wa?: boolean
   delivery_date?: string | null
+  delivered_kg?: number
+  status_plata?: ComandaPaymentStatus
 }
 
 const statusLabelMap: Record<ComandaStatus, string> = {
@@ -280,11 +302,21 @@ async function patchShopOrder(input: PatchShopOrderInput): Promise<void> {
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.notified_wa !== undefined ? { notified_wa: input.notified_wa } : {}),
       ...(input.delivery_date !== undefined ? { delivery_date: input.delivery_date } : {}),
+      ...(input.delivered_kg !== undefined ? { delivered_kg: input.delivered_kg } : {}),
+      ...(input.status_plata !== undefined ? { status_plata: input.status_plata } : {}),
     }),
   })
-  const json = (await res.json()) as { success?: boolean; error?: string }
+  const json = (await res.json()) as {
+    success?: boolean
+    error?: string
+    code?: string
+    details?: string
+  }
   if (!res.ok || !json.success) {
-    throw new Error(json.error ?? 'Actualizare eșuată')
+    throw Object.assign(new Error(json.error ?? 'Actualizare eșuată'), {
+      code: json.code,
+      details: json.details,
+    })
   }
 }
 
@@ -607,11 +639,6 @@ function saveContactAsVCard(name: string, phone: string) {
   downloadVCard(trimmedName, trimmedPhone)
 }
 
-function isPaidStatus(status: string | null | undefined): boolean {
-  const value = normalize(String(status ?? ''))
-  return value.includes('platit') || value.includes('incasat') || value.includes('achitat')
-}
-
 function PillTabs({
   value,
   onChange,
@@ -619,6 +646,10 @@ function PillTabs({
   activeCount,
   scheduledCount,
   livrateCount,
+  receivableCount,
+  receivableTotal,
+  receivablesActive,
+  onOpenReceivables,
 }: {
   value: TabKey
   onChange: (value: TabKey) => void
@@ -626,6 +657,10 @@ function PillTabs({
   activeCount: number
   scheduledCount: number
   livrateCount: number
+  receivableCount: number
+  receivableTotal: number
+  receivablesActive: boolean
+  onOpenReceivables: () => void
 }) {
   const tabs = [
     { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` ${activeCount}` : ''}` },
@@ -644,11 +679,97 @@ function PillTabs({
           {tab.label}
         </ModulePillFilterButton>
       ))}
+      <ModulePillFilterButton
+        active={receivablesActive}
+        onClick={onOpenReceivables}
+      >
+        De încasat
+        {receivableCount > 0
+          ? ` ${receivableCount} · ${formatLeiCompact(receivableTotal)} lei`
+          : ''}
+      </ModulePillFilterButton>
       <ModulePillFilterButton active={false} onClick={onOpenCampaign}>
         <span aria-hidden="true">🎯</span>
         <span className="sr-only">Campanie</span>
       </ModulePillFilterButton>
     </ModulePillRow>
+  )
+}
+
+function ComandaDeliveryDialog({
+  order,
+  pending,
+  onConfirm,
+  onOpenChange,
+}: {
+  order: UnifiedOrderItem | null
+  pending: boolean
+  onConfirm: (quantityKg: number, statusPlata: ComandaPaymentStatus) => void
+  onOpenChange: (open: boolean) => void
+}) {
+  const totalKg = order ? round2(getUnifiedOrderNeedKg(order)) : 0
+  const [quantity, setQuantity] = useState(() => String(totalKg || ''))
+  const [statusPlata, setStatusPlata] = useState<ComandaPaymentStatus>('platit')
+  const deliveredKg = round2(Number(quantity))
+  const validQuantity =
+    Number.isFinite(deliveredKg) &&
+    deliveredKg > 0 &&
+    deliveredKg <= totalKg
+  const estimatedTotal =
+    totalKg > 0 ? round2((Number(order?.totalLei || 0) * deliveredKg) / totalKg) : 0
+
+  return (
+    <AlertDialog open={order !== null} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="max-w-md pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmă livrarea</AlertDialogTitle>
+          <AlertDialogDescription>
+            Livrarea creează o singură vânzare pentru cantitatea confirmată. Restul rămâne într-o comandă separată.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="comanda-delivered-quantity">Cantitate livrată</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="comanda-delivered-quantity"
+                type="number"
+                min={0.1}
+                max={totalKg}
+                step={0.1}
+                value={quantity}
+                disabled={pending}
+                onChange={(event) => setQuantity(event.target.value)}
+                className="h-12 tabular-nums"
+              />
+              <span className="shrink-0 text-sm font-semibold text-[var(--text-secondary)]">kg</span>
+            </div>
+            <p className="text-xs text-[var(--text-tertiary)]">
+              Din {formatKg(totalKg)} · {formatLei(estimatedTotal)}
+            </p>
+          </div>
+
+          <PaymentStatusToggle
+            value={statusPlata}
+            onChange={setStatusPlata}
+            disabled={pending}
+          />
+        </div>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={pending}>Anulează</AlertDialogCancel>
+          <Button
+            type="button"
+            disabled={!validQuantity || pending}
+            className="min-h-11 bg-[var(--agri-primary)] text-white"
+            onClick={() => onConfirm(deliveredKg, statusPlata)}
+          >
+            {pending ? 'Se salvează...' : 'Marchează livrată'}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -1370,6 +1491,7 @@ export function ComenziPageClient() {
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [editingOrder, setEditingOrder] = useState<UnifiedOrderItem | null>(null)
+  const [deliveryTarget, setDeliveryTarget] = useState<UnifiedOrderItem | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
   const [viewing, setViewing] = useState<Comanda | null>(null)
@@ -1562,6 +1684,11 @@ export function ComenziPageClient() {
     },
     onError: (err: Error) => {
       hapticError()
+      const stockSnapshot = parseStocInsuficientError(err)
+      if (stockSnapshot) {
+        setStocInsuficientModal(stockSnapshot)
+        return
+      }
       toast.error(err.message)
     },
   })
@@ -1598,6 +1725,11 @@ export function ComenziPageClient() {
     },
     onError: (err: Error) => {
       hapticError()
+      const stockSnapshot = parseStocInsuficientError(err)
+      if (stockSnapshot) {
+        setStocInsuficientModal(stockSnapshot)
+        return
+      }
       toast.error(err.message)
     },
   })
@@ -1641,13 +1773,28 @@ export function ComenziPageClient() {
     },
     onError: (err: Error) => {
       hapticError()
+      const stockSnapshot = parseStocInsuficientError(err)
+      if (stockSnapshot) {
+        setStocInsuficientModal(stockSnapshot)
+        return
+      }
       toast.error(err.message)
     },
   })
 
   const deliverMutation = useMutation({
-    mutationFn: ({ comandaId, cantitateLivrataKg, plata, dataLivrareRamasa }: { comandaId: string; cantitateLivrataKg: number; plata: ComandaPlata; dataLivrareRamasa: string | null }) =>
-      deliverComanda({ comandaId, cantitateLivrataKg, plata, dataLivrareRamasa }),
+    mutationFn: ({
+      comandaId,
+      cantitateLivrataKg,
+      statusPlata,
+      dataLivrareRamasa,
+    }: {
+      comandaId: string
+      cantitateLivrataKg: number
+      statusPlata: ComandaPaymentStatus
+      dataLivrareRamasa: string | null
+    }) =>
+      deliverComanda({ comandaId, cantitateLivrataKg, statusPlata, dataLivrareRamasa }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
@@ -1659,6 +1806,7 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       hapticSuccess()
       toast('Comandă livrată! Vânzare creată.')
+      setDeliveryTarget(null)
 
       const delivered = result.deliveredOrder
       const deliveredName = getClientName(delivered, clientMap)
@@ -1669,6 +1817,26 @@ export function ComenziPageClient() {
 
       setActiveTab('livrate')
       setActiveFilter('none')
+    },
+    onError: (err: Error) => {
+      hapticError()
+      const stockSnapshot = parseStocInsuficientError(err)
+      if (stockSnapshot) {
+        setStocInsuficientModal(stockSnapshot)
+        return
+      }
+      toast.error(err.message)
+    },
+  })
+
+  const markPaidMutation = useMutation({
+    mutationFn: markComandaIncasata,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      hapticSuccess()
+      toast.success('Plata a fost marcată ca încasată.')
     },
     onError: (err: Error) => {
       hapticError()
@@ -1701,6 +1869,8 @@ export function ComenziPageClient() {
   const patchShopOrderMutation = useMutation({
     mutationFn: patchShopOrder,
     onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
       void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
@@ -1728,9 +1898,19 @@ export function ComenziPageClient() {
           shopDeliveryRedirectTimer.current = null
         }, 1200)
       }
+
+      if (variables.status === 'livrata') {
+        setDeliveryTarget(null)
+        toast.success('Comanda a fost marcată ca livrată.')
+      }
     },
     onError: (err: Error) => {
       hapticError()
+      const stockSnapshot = parseStocInsuficientError(err)
+      if (stockSnapshot) {
+        setStocInsuficientModal(stockSnapshot)
+        return
+      }
       toast.error(err.message)
     },
   })
@@ -1817,39 +1997,39 @@ export function ComenziPageClient() {
     [comenzi, shopOrders],
   )
 
-  const vanzareById = useMemo(() => {
-    const map = new Map<string, (typeof vanzari)[number]>()
-    vanzari.forEach((item) => {
-      map.set(item.id, item)
+  const shopBridgeByOrderId = useMemo(() => {
+    const map = new Map<string, Comanda>()
+    comenzi.forEach((comanda) => {
+      if (comanda.data_origin === 'shop_order_bridge' && comanda.shop_order_id) {
+        map.set(comanda.shop_order_id, comanda)
+      }
     })
     return map
-  }, [vanzari])
-
-  const vanzareByComandaId = useMemo(() => {
-    const map = new Map<string, (typeof vanzari)[number]>()
-    vanzari.forEach((item) => {
-      if (item.comanda_id) map.set(item.comanda_id, item)
-    })
-    return map
-  }, [vanzari])
+  }, [comenzi])
 
   const livrateNeincasate = useMemo(() => {
-    return livrateComenzi
-      .map((comanda) => {
-        const sale =
-          (comanda.linked_vanzare_id ? vanzareById.get(comanda.linked_vanzare_id) : undefined) ??
-          vanzareByComandaId.get(comanda.id)
-        if (!sale) return null
-        if (isPaidStatus(sale.status_plata)) return null
-        return {
-          comanda,
-          amount: Number(sale.cantitate_kg || 0) * Number(sale.pret_lei_kg || 0),
-        }
-      })
-      .filter((item): item is { comanda: Comanda; amount: number } => Boolean(item))
-  }, [livrateComenzi, vanzareByComandaId, vanzareById])
+    return comenzi
+      .filter(
+        (comanda) =>
+          comanda.status === 'livrata' &&
+          comanda.linked_vanzare?.status_plata === 'neplatit',
+      )
+      .map((comanda) => ({
+        comanda,
+        amount: Number(comanda.total || 0),
+      }))
+  }, [comenzi])
 
   const neincasatComandaIds = useMemo(() => new Set(livrateNeincasate.map((item) => item.comanda.id)), [livrateNeincasate])
+  const neincasatShopOrderIds = useMemo(
+    () =>
+      new Set(
+        livrateNeincasate
+          .map((item) => item.comanda.shop_order_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    [livrateNeincasate],
+  )
   const neincasatRon = useMemo(() => livrateNeincasate.reduce((sum, item) => sum + item.amount, 0), [livrateNeincasate])
 
   const comenziAziCount = useMemo(
@@ -1902,8 +2082,8 @@ export function ComenziPageClient() {
   }, [vanzari])
 
   const unifiedAllOrders = useMemo(
-    () => mergeUnifiedOrders(manualComenzi, activeShopOrders, clientMap),
-    [clientMap, manualComenzi, activeShopOrders],
+    () => mergeUnifiedOrders(manualComenzi, activeShopOrders, clientMap, shopBridgeByOrderId),
+    [clientMap, manualComenzi, activeShopOrders, shopBridgeByOrderId],
   )
   const necesarKgTotal = useMemo(
     () =>
@@ -1965,7 +2145,10 @@ export function ComenziPageClient() {
       if (item.source === 'b2b' && item.b2bComanda) {
         const b2b = item.b2bComanda
         if (activeFilter === 'neincasat' && !(b2b.status === 'livrata' && neincasatComandaIds.has(b2b.id))) return false
-      } else if (activeFilter === 'neincasat') {
+      } else if (
+        activeFilter === 'neincasat' &&
+        !(item.status === 'livrata' && neincasatShopOrderIds.has(item.id))
+      ) {
         return false
       }
 
@@ -1974,7 +2157,7 @@ export function ComenziPageClient() {
       const phone = normalize(item.phone)
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, activeTab, neincasatComandaIds, search, today, unifiedAllOrders])
+  }, [activeFilter, activeTab, neincasatComandaIds, neincasatShopOrderIds, search, today, unifiedAllOrders])
   const unifiedGroups = useMemo(
     () =>
       activeTab === 'programate'
@@ -2002,27 +2185,56 @@ export function ComenziPageClient() {
     }
   }
 
-  const handleConfirmDeliver = async (comanda: Comanda) => {
+  const handleConfirmDeliver = (comanda: Comanda) => {
     if (!canWriteComenzi) {
       toast.error('Ai acces doar pentru citire în Comenzi.')
       return
     }
-    await deliverMutation.mutateAsync({
-      comandaId: comanda.id,
-      cantitateLivrataKg: Number(comanda.cantitate_kg || 0),
-      plata: 'integral',
-      dataLivrareRamasa: null,
-    })
+    setDeliveryTarget(mapB2bToUnified(comanda, clientMap))
+  }
+
+  const handleDeliveryDialogConfirm = (
+    cantitateLivrataKg: number,
+    statusPlata: ComandaPaymentStatus,
+  ) => {
+    if (!deliveryTarget) return
+
+    if (deliveryTarget.source === 'b2b' && deliveryTarget.b2bComanda) {
+      deliverMutation.mutate({
+        comandaId: deliveryTarget.b2bComanda.id,
+        cantitateLivrataKg,
+        statusPlata,
+        dataLivrareRamasa: null,
+      })
+      return
+    }
+
+    if (deliveryTarget.source === 'shop' && deliveryTarget.shopOrder) {
+      patchShopOrderMutation.mutate({
+        id: deliveryTarget.shopOrder.id,
+        status: 'livrata',
+        delivered_kg: cantitateLivrataKg,
+        status_plata: statusPlata,
+      })
+    }
+  }
+
+  const handleMarkPaid = async (comandaId: string) => {
+    if (!canWriteComenzi) {
+      toast.error('Ai acces doar pentru citire în Comenzi.')
+      throw new Error('Acces read-only')
+    }
+    await markPaidMutation.mutateAsync(comandaId)
   }
 
   const handleB2bStatusChange = async (id: string, status: ComandaStatus) => {
     if (!canWriteComenzi) {
       toast.error('Ai acces doar pentru citire în Comenzi.')
-      return
+      throw new Error('Acces read-only')
     }
     if (status === 'livrata') {
       const comanda = comenzi.find((row) => row.id === id)
-      if (comanda) void handleConfirmDeliver(comanda)
+      if (comanda) handleConfirmDeliver(comanda)
       return
     }
     if (status === 'in_livrare') {
@@ -2030,10 +2242,10 @@ export function ComenziPageClient() {
       const kgNecesar = Number(comanda?.cantitate_kg ?? 0)
       const canContinue = await guardStocPentruInLivrare(kgNecesar)
       if (!canContinue) {
-        return
+        throw new Error('Stoc insuficient')
       }
     }
-    updateMutation.mutate({ id, payload: { status } })
+    await updateMutation.mutateAsync({ id, payload: { status } })
   }
 
   const handleShopStatusChange = async (id: string, status: ShopOrderStatus): Promise<void> => {
@@ -2049,6 +2261,13 @@ export function ComenziPageClient() {
       if (!canContinue) {
         throw new Error('Stoc insuficient')
       }
+    }
+    if (status === 'livrata') {
+      const shopOrder = shopOrders.find((row) => row.id === id)
+      if (shopOrder) {
+        setDeliveryTarget(mapShopToUnified(shopOrder, shopBridgeByOrderId.get(shopOrder.id)))
+      }
+      return
     }
     await patchShopOrderMutation.mutateAsync({ id, status })
   }
@@ -2163,6 +2382,10 @@ export function ComenziPageClient() {
           activeCount={operationalSnapshot.activeTotalCount}
           scheduledCount={programateCount}
           livrateCount={livrateComenzi.length + shopLivrateCount}
+          receivableCount={livrateNeincasate.length}
+          receivableTotal={neincasatRon}
+          receivablesActive={activeTab === 'livrate' && activeFilter === 'neincasat'}
+          onOpenReceivables={() => setFilterAndTab('livrate', 'neincasat')}
         />
 
         <StocPills
@@ -2269,6 +2492,7 @@ export function ComenziPageClient() {
                             if (comanda) setViewing(comanda)
                           }}
                           onB2bStatusChange={handleB2bStatusChange}
+                          onMarkPaid={canWriteComenzi ? handleMarkPaid : undefined}
                           onB2bDeliveryDateChange={(id, data_livrare) => {
                             if (!canWriteComenzi) {
                               toast.error('Ai acces doar pentru citire în Comenzi.')
@@ -2353,6 +2577,7 @@ export function ComenziPageClient() {
                             if (comanda) setViewing(comanda)
                           }}
                           onB2bStatusChange={handleB2bStatusChange}
+                          onMarkPaid={canWriteComenzi ? handleMarkPaid : undefined}
                           onB2bDeliveryDateChange={(id, data_livrare) => {
                             if (!canWriteComenzi) {
                               toast.error('Ai acces doar pentru citire în Comenzi.')
@@ -2525,7 +2750,7 @@ export function ComenziPageClient() {
               await deliverMutation.mutateAsync({
                 comandaId: createdComanda.id,
                 cantitateLivrataKg: cantitate,
-                plata: 'integral',
+                statusPlata: 'platit',
                 dataLivrareRamasa: null,
               })
             } catch {
@@ -2592,6 +2817,18 @@ export function ComenziPageClient() {
         }}
       />
 
+      <ComandaDeliveryDialog
+        key={deliveryTarget ? `${deliveryTarget.source}-${deliveryTarget.id}` : 'closed'}
+        order={deliveryTarget}
+        pending={deliverMutation.isPending || patchShopOrderMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open && !deliverMutation.isPending && !patchShopOrderMutation.isPending) {
+            setDeliveryTarget(null)
+          }
+        }}
+        onConfirm={handleDeliveryDialogConfirm}
+      />
+
       <ViewComandaDialog
         open={!!viewing}
         onOpenChange={(open) => {
@@ -2610,7 +2847,7 @@ export function ComenziPageClient() {
         onDeliver={(comanda) => {
           if (!canWriteComenzi) return
           setViewing(null)
-          void handleConfirmDeliver(comanda)
+          handleConfirmDeliver(comanda)
         }}
         onEdit={(comanda) => {
           if (!canWriteComenzi) return
@@ -2716,6 +2953,13 @@ export function ComenziPageClient() {
                     : ','}{' '}
                   dar momentan nu ai această cantitate disponibilă.
                 </p>
+                <p>
+                  Disponibil acum:{' '}
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)}
+                  </span>
+                  .
+                </p>
                 <p>Adaugă o recoltare și încearcă din nou.</p>
               </div>
             </AlertDialogDescription>
@@ -2728,4 +2972,3 @@ export function ComenziPageClient() {
     </AppShell>
   )
 }
-

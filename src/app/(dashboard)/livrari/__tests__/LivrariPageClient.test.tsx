@@ -209,8 +209,33 @@ describe('LivrariPageClient', () => {
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(String(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body))).toEqual({
+      status: 'livrata',
+      status_plata: 'platit',
+    })
     expect(await screen.findByText('Livrate (1)')).toBeInTheDocument()
     expect(toastSuccessMock).toHaveBeenCalledWith('Comandă livrată')
+  })
+
+  it('trimite plata neîncasată la livrarea din shop', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Arată detaliile comenzii pentru Maria Popescu',
+      }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+    await user.click(screen.getByRole('button', { name: 'Livrată' }))
+    await user.click(screen.getByRole('radio', { name: 'Neplătit' }))
+    await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(String(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body))).toEqual({
+      status: 'livrata',
+      status_plata: 'neplatit',
+    })
   })
 
   it('restaurează comanda și totalul când livrarea atomică eșuează', async () => {

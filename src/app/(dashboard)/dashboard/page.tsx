@@ -82,7 +82,10 @@ import { resolveDashboardMicroclimate } from '@/lib/dashboard/microclimate'
 import { getActivitatiAgricole } from '@/lib/supabase/queries/activitati-agricole'
 import { getCheltuieli } from '@/lib/supabase/queries/cheltuieli'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
-import { getStocuriPeLocatii } from '@/lib/supabase/queries/miscari-stoc'
+import {
+  getSellableCal1StockSummary,
+  type StocLocationRow,
+} from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getProduse } from '@/lib/supabase/queries/produse'
 import { getSolarClimateLogsForUnitati } from '@/lib/supabase/queries/solar-tracking'
@@ -398,8 +401,8 @@ export default function DashboardPage() {
   })
 
   const stocuriQuery = useQuery({
-    queryKey: queryKeys.stocuriLocatiiRoot,
-    queryFn: () => getStocuriPeLocatii(),
+    queryKey: queryKeys.stocGlobalCal1,
+    queryFn: getSellableCal1StockSummary,
     placeholderData: (previousData) => previousData,
   })
 
@@ -562,7 +565,25 @@ export default function DashboardPage() {
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
   const comenzi = comenziQuery.data ?? EMPTY_LIST
   const shopOrders = shopOrdersQuery.data ?? EMPTY_LIST
-  const stocuri = stocuriQuery.data ?? EMPTY_LIST
+  const stocuri = useMemo<StocLocationRow[]>(
+    () =>
+      stocuriQuery.data
+        ? [
+            {
+              locatie_id: 'tenant-cal1-pool',
+              locatie_nume: 'Total fermă',
+              produs: 'Zmeură cal. I',
+              stoc_fresh_cal1: stocuriQuery.data.disponibilCal1Kg,
+              stoc_fresh_cal2: 0,
+              stoc_congelat: 0,
+              stoc_procesat: 0,
+              total_kg: stocuriQuery.data.disponibilCal1Kg,
+              last_updated: null,
+            },
+          ]
+        : [],
+    [stocuriQuery.data],
+  )
   const produse = produseQuery.data ?? EMPTY_LIST
   const solarClimateLogs = microclimateQuery.data ?? EMPTY_LIST
 

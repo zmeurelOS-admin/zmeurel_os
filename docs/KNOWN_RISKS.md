@@ -51,16 +51,17 @@
   - `create_vanzare_with_stock`
   - `update_vanzare_with_stock`
   - `delete_vanzare_with_stock`
-  - `deliver_order_atomic`
-  - `deliver_shop_order_atomic`
+  - `set_comanda_in_delivery`
+  - `set_comanda_delivered`
+  - `promote_shop_order_to_comanda`
+  - `set_shop_order_in_delivery`
+  - `set_shop_order_delivered`
   - `delete_comanda_atomic`
   - `reopen_comanda_atomic`
-- Changing client logic around these flows can cause stock inconsistencies.
+- Changing client logic around these flows can cause stock, order, or financial-sale inconsistencies.
 - B2C delivery is blocked when any ordered `shop_products` row lacks a positive `unit_weight_kg`. Do not infer weight from `unit_label` or product labels, and do not bypass the bridge with a direct `shop_orders.status = livrata` update.
-- `deliver_shop_order_atomic` currently aggregates all shop lines into one ERP order and relies on the accepted global stock allocation behavior of `deliver_order_atomic`; product-specific stock allocation is not represented by this bridge.
-- The automated stock audit in `Rapoarte` is advisory and depends on the integrity of both:
-  - domain tables (`recoltari`, `vanzari`)
-  - ledger data (`miscari_stoc`)
+- The shop bridge currently aggregates all shop lines into one ERP order and relies on the accepted global cal1 stock pool; product-specific stock allocation is not represented by this bridge.
+- The automated stock audit in `Rapoarte` is advisory and depends on the integrity of domain tables (`recoltari`, `comenzi`, `vanzari`) and explicit stock adjustments.
 - If a migration gap or RPC regression breaks stock synchronization, the audit will surface discrepancies but is not itself the source of truth.
 - The audit now marks degraded mode when `miscari_stoc` is missing/unavailable, but operators still need manual reconciliation because degraded output is intentionally non-blocking.
 - Multi-granular stock reporting is intentionally conservative: variety and location detail are shown only when the underlying source rows support them explicitly.

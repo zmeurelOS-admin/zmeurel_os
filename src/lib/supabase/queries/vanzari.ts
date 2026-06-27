@@ -3,7 +3,7 @@ import { getSupabase } from '../client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import type { CalitateStoc } from './miscari-stoc'
 
-export const STATUS_PLATA = ['platit', 'restanta', 'avans'] as const
+export const STATUS_PLATA = ['platit', 'neplatit', 'restanta', 'avans'] as const
 export const CALITATI_VANZARE: CalitateStoc[] = ['cal1', 'cal2']
 
 export interface Vanzare {
@@ -11,6 +11,7 @@ export interface Vanzare {
   id_vanzare: string
   client_sync_id: string
   data: string
+  data_incasare: string | null
   client_id: string | null
   comanda_id?: string | null
   cantitate_kg: number
@@ -121,9 +122,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const normalizeClientSyncId = (value?: string) => (value && UUID_RE.test(value) ? value : crypto.randomUUID())
 
 const selectWithComanda =
-  'id,id_vanzare,data,client_id,comanda_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
+  'id,id_vanzare,data,data_incasare,client_id,comanda_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
 const selectLegacy =
-  'id,id_vanzare,data,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
+  'id,id_vanzare,data,data_incasare,client_id,cantitate_kg,pret_lei_kg,status_plata,observatii_ladite,created_at,updated_at,tenant_id'
 
 export async function getVanzari(): Promise<Vanzare[]> {
   const supabase = getSupabase()

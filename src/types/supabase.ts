@@ -4025,6 +4025,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data: string
+          data_incasare: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -4047,6 +4048,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data: string
+          data_incasare?: string | null
           data_origin?: string | null
           demo_seed_id?: string | null
           id?: string
@@ -4069,6 +4071,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data?: string
+          data_incasare?: string | null
           data_origin?: string | null
           demo_seed_id?: string | null
           id?: string

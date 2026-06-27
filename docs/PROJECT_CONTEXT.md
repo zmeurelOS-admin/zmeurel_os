@@ -50,8 +50,8 @@ The product also includes:
 ### 5. Orders, Sales, And Seedling Sales
 
 - `comenzi` represent client delivery orders.
-- Delivering an order can atomically create a linked sale and deduct stock.
-- Delivering a B2C `shop_order` uses `deliver_shop_order_atomic`: package quantities are converted to kg from explicit `shop_products.unit_weight_kg`, then the existing ERP `deliver_order_atomic` creates the sale and stock movement. `shop_order_erp_links` makes this bridge traceable and idempotent.
+- Delivering an order can atomically create a linked sale; commercial stock is now derived from harvests, delivered/in-delivery orders, and explicit stock adjustments.
+- Moving a B2C `shop_order` to delivery promotes it idempotently into `comenzi` via `shop_order_erp_links`, validates derived stock, and mirrors status back to `shop_orders`. Final delivery uses the linked ERP order and creates the financial `vanzari` row without writing legacy stock ledgers.
 - `vanzari` represent sales, also backed by stock-safe RPCs.
 - `vanzari_butasi` is a separate workflow for seedling orders with line items.
 
@@ -60,7 +60,7 @@ The product also includes:
 - agricultural activities and treatment pause logic
 - expenses (OPEX) and investments (CAPEX)
 - clients and pickers
-- stock visibility by location/quality/storage
+- derived sellable cal1 stock visibility as one tenant-level pool
 - reports, export flows, and an automated stock audit with anomaly/recommendation output
 - multi-granular stock reporting that degrades gracefully between product, variety, and location detail based on the real source data available
 - settings, farm management, demo controls, and GDPR actions

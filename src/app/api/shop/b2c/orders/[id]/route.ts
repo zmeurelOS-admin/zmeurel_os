@@ -33,6 +33,8 @@ const patchBodySchema = z
     notes: z.string().trim().max(1000).nullable().optional(),
     delivery_mode: z.enum(['livrare', 'ridicare']).optional(),
     items: z.array(orderItemSchema).min(1).optional(),
+    delivered_kg: z.number().positive().optional(),
+    status_plata: z.enum(['platit', 'neplatit']).optional(),
   })
   .refine(
     (body) =>
@@ -45,7 +47,9 @@ const patchBodySchema = z
       body.customer_phone !== undefined ||
       body.notes !== undefined ||
       body.delivery_mode !== undefined ||
-      body.items !== undefined,
+      body.items !== undefined ||
+      body.delivered_kg !== undefined ||
+      body.status_plata !== undefined,
     {
       message: 'Trimite cel puțin un câmp pentru actualizare.',
     },
@@ -55,6 +59,12 @@ const patchBodySchema = z
   })
   .refine((body) => body.status !== 'livrata' || body.delivery_date === undefined, {
     message: 'Livrarea și data programată se actualizează separat.',
+  })
+  .refine((body) => body.delivered_kg === undefined || body.status === 'livrata', {
+    message: 'Cantitatea livrată se trimite doar la marcarea livrării.',
+  })
+  .refine((body) => body.status_plata === undefined || body.status === 'livrata', {
+    message: 'Statusul plății se trimite doar la marcarea livrării.',
   })
   .refine(
     (body) =>
@@ -71,8 +81,20 @@ const patchBodySchema = z
     },
   )
 
-function errorResponse(message: string, status: number) {
-  return NextResponse.json({ success: false, error: message }, { status })
+function errorResponse(
+  message: string,
+  status: number,
+  metadata: { code?: string; details?: string } = {},
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: message,
+      ...(metadata.code ? { code: metadata.code } : {}),
+      ...(metadata.details ? { details: metadata.details } : {}),
+    },
+    { status },
+  )
 }
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -82,6 +104,32 @@ type UpdatedShopOrderContactRow = {
   customer_phone?: string | null
   delivery_address?: string | null
   delivery_city?: string | null
+}
+
+type ShopOrderRpcClient = Awaited<ReturnType<typeof createClient>> & {
+  rpc: {
+    (
+      fn: 'set_shop_order_delivered',
+      args: {
+        p_shop_order_id: string
+        p_delivered_qty: number | null
+        p_status_plata: 'platit' | 'neplatit'
+      },
+    ): Promise<{
+      data: unknown
+      error: { message?: string; code?: string; details?: string } | null
+    }>
+    (
+      fn: 'set_shop_order_in_delivery',
+      args: {
+        p_shop_order_id: string
+        p_delivery_date: string | null
+      },
+    ): Promise<{
+      data: unknown
+      error: { message?: string; code?: string; details?: string } | null
+    }>
+  }
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -124,9 +172,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (parsed.data.status === 'livrata') {
-    const { data, error } = await supabase.rpc('deliver_shop_order_atomic', {
+    const rpcClient = supabase as ShopOrderRpcClient
+    const { data, error } = await rpcClient.rpc('set_shop_order_delivered', {
       p_shop_order_id: id,
-      p_payment_status: 'platit',
+      p_delivered_qty: parsed.data.delivered_kg ?? null,
+      p_status_plata: parsed.data.status_plata ?? 'platit',
     })
 
     if (error) {
@@ -134,7 +184,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         '[shop/b2c/orders] atomic delivery failed',
         sanitizeForLog(toSafeErrorContext({ id, ...error })),
       )
-      return errorResponse(error.message || 'Nu am putut marca livrarea.', 409)
+      return errorResponse(error.message || 'Nu am putut marca livrarea.', 409, error)
     }
 
     return NextResponse.json({ success: true, delivery: data })
@@ -228,8 +278,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   // delivery_date pentru tranziția in_livrare se pasează direct la RPC (nu prin UPDATE prematur).
-  // RPC-ul set_shop_order_in_delivery_with_reservation scrie el delivery_date atomic,
-  // deci nu trebuie să o scriem înainte de validarea stocului.
+  // RPC-ul promovează comanda și scrie status + delivery_date atomic după validarea stocului.
   let pendingDeliveryDate: string | null | undefined = undefined
   if (statusUpdate === 'in_livrare') {
     if (parsed.data.delivery_date !== undefined) {
@@ -279,9 +328,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   if (statusUpdate === 'in_livrare') {
-    // RPC validează stocul, face rezervarea și scrie status + delivery_date atomic.
-    // delivery_date nu se mai scrie prematur — dacă RPC eșuează, DB rămâne nemodificat.
-    const { error } = await supabase.rpc('set_shop_order_in_delivery_with_reservation', {
+    // RPC-ul promovează shop order-ul în comenzi, validează stocul derivat
+    // și oglindește status + delivery_date atomic.
+    const rpcClient = supabase as ShopOrderRpcClient
+    const { error } = await rpcClient.rpc('set_shop_order_in_delivery', {
       p_shop_order_id: id,
       p_delivery_date: pendingDeliveryDate ?? null,
     })
@@ -291,24 +341,34 @@ export async function PATCH(request: Request, context: RouteContext) {
         '[shop/b2c/orders] reserve delivery failed',
         sanitizeForLog(toSafeErrorContext({ id, ...error })),
       )
-      return errorResponse(error.message || 'Nu am putut rezerva stocul pentru comandă.', 409)
+      return errorResponse(
+        error.message || 'Nu am putut rezerva stocul pentru comandă.',
+        409,
+        error,
+      )
     }
   } else if (
     statusUpdate !== undefined &&
     currentOrderForStatus?.status === 'in_livrare' &&
     (statusUpdate === 'confirmata' || statusUpdate === 'anulata')
   ) {
-    const { error } = await supabase.rpc('release_shop_order_delivery_reservation', {
-      p_shop_order_id: id,
-      p_next_status: statusUpdate,
-    })
+    const { data: statusOnlyData, error } = await admin
+      .from('shop_orders')
+      .update({ status: statusUpdate })
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .select('id')
 
     if (error) {
       console.error(
-        '[shop/b2c/orders] release delivery failed',
+        '[shop/b2c/orders] status patch failed',
         sanitizeForLog(toSafeErrorContext({ id, ...error })),
       )
-      return errorResponse(error.message || 'Nu am putut elibera rezervarea comenzii.', 409)
+      return errorResponse('Nu am putut actualiza comanda.', 500)
+    }
+
+    if (!statusOnlyData?.length) {
+      return errorResponse('Comanda nu a fost găsită.', 404)
     }
   } else if (statusUpdate !== undefined) {
     const { data: statusOnlyData, error: statusOnlyError } = await admin

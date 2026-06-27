@@ -30,6 +30,8 @@ export type UnifiedOrderItem = {
   deliveryZone: DeliveryZone
   status: string
   statusLabel: string
+  paymentStatus: string | null
+  paymentComandaId: string | null
   confirmed: boolean
   b2bComanda?: Comanda
   shopOrder?: ShopOrderRow
@@ -165,12 +167,17 @@ export function mapB2bToUnified(comanda: Comanda, clientMap: Record<string, Clie
     deliveryZone: location.deliveryZone,
     status: comanda.status,
     statusLabel: B2B_STATUS_LABELS[comanda.status] ?? comanda.status,
+    paymentStatus: comanda.linked_vanzare?.status_plata ?? null,
+    paymentComandaId: comanda.linked_vanzare_id ? comanda.id : null,
     confirmed: false,
     b2bComanda: comanda,
   }
 }
 
-export function mapShopToUnified(order: ShopOrderRow): UnifiedOrderItem {
+export function mapShopToUnified(
+  order: ShopOrderRow,
+  bridgeComanda?: Comanda,
+): UnifiedOrderItem {
   const deliveryLabel = order.delivery_mode === 'livrare' ? 'Livrare' : 'Ridicare'
   const quantity = getShopOrderQuantity(order)
   const fallbackLocation = inferLocation(order.delivery_city || order.delivery_address)
@@ -199,6 +206,8 @@ export function mapShopToUnified(order: ShopOrderRow): UnifiedOrderItem {
         : order.delivery_zone ?? fallbackLocation.deliveryZone,
     status: order.status,
     statusLabel: SHOP_STATUS_LABELS[order.status] ?? order.status,
+    paymentStatus: bridgeComanda?.linked_vanzare?.status_plata ?? null,
+    paymentComandaId: bridgeComanda?.linked_vanzare_id ? bridgeComanda.id : null,
     confirmed: order.notified_wa,
     shopOrder: order,
   }
@@ -393,10 +402,11 @@ export function mergeUnifiedOrders(
   comenzi: Comanda[],
   shopOrders: ShopOrderRow[],
   clientMap: Record<string, Client>,
+  shopBridgeByOrderId?: ReadonlyMap<string, Comanda>,
 ): UnifiedOrderItem[] {
   const merged = [
     ...comenzi.map((item) => mapB2bToUnified(item, clientMap)),
-    ...shopOrders.map(mapShopToUnified),
+    ...shopOrders.map((order) => mapShopToUnified(order, shopBridgeByOrderId?.get(order.id))),
   ]
   return merged.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

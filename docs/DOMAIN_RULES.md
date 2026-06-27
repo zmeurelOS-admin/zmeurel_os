@@ -11,7 +11,8 @@
 - `clienti`: buyers/contacts
 - `activitati_agricole`: treatments, fertilization, irrigation, pruning, misc activities
 - `recoltari`: harvest records
-- `miscari_stoc`: stock ledger
+- `miscari_stoc`: historical stock ledger
+- `ajustari_stoc`: tenant-scoped manual deltas for derived sellable stock
 - `comenzi`: delivery orders
 - `vanzari`: sales
 - `vanzari_butasi` and `vanzari_butasi_items`: seedling order workflow
@@ -37,7 +38,7 @@
 - A solar parcel can have multiple `culturi`.
 - A `recoltare` belongs to a parcel and a picker.
 - A `comanda` may create or link to a `vanzare`.
-- `miscari_stoc` reflect stock deltas caused by harvests, sales, orders, corrections, and transformations.
+- Sellable raspberry cal. I stock is derived from `recoltari`, `comenzi`, and `ajustari_stoc`; `miscari_stoc` is no longer the source of truth for order availability.
 - `vanzari_butasi` has many `vanzari_butasi_items`.
 - `tenants` now also stores optional public-marketplace profile fields: `descriere_publica`, `specialitate`, `localitate`, `poze_ferma`.
 
@@ -68,15 +69,11 @@
 
 ## Stock Rules
 
-- `miscari_stoc` acts as the stock ledger, not a simple snapshot table.
-- Available stock is calculated by signed movement aggregation.
-- Outflows include sales, free giveaways, losses, and consumption.
-- Stock is segmented by:
-  - location/parcela
-  - product
-  - quality (`cal1`, `cal2`)
-  - storage (`fresh`, `congelat`, `procesat`)
-- Order delivery and sales updates use atomic stock-safe RPCs.
+- `public.get_sellable_cal1_stock_summary()` is the source of truth for sellable cal. I availability.
+- The current availability formula is derived from harvested cal. I, delivered orders, orders in delivery, manual `ajustari_stoc`, and legacy unpromoted `shop_orders` without ERP links.
+- Order delivery and in-delivery transitions use atomic derived-stock RPCs: `set_comanda_in_delivery`, `set_comanda_delivered`, `promote_shop_order_to_comanda`, `set_shop_order_in_delivery`, and `set_shop_order_delivered`.
+- Delivery payment state is financial-only: `vanzari.status_plata` is `platit` or `neplatit`, `data_incasare` records collection, and `mark_comanda_incasata` is idempotent. Payment state never participates in sellable-stock calculations.
+- `miscari_stoc` and `stock_reservations` remain historical archives for the order flow and must not receive new writes from order delivery.
 - The reports module now includes an automated stock audit that compares:
   - `recoltari` totals
   - `vanzari` totals
@@ -98,20 +95,9 @@
   - negative stock bucket = critical
 - If `miscari_stoc` is missing/unavailable (or empty while operational records exist), audit output is marked as degraded/partial.
 
-## Sistem Dual de Stoc (`miscari_stoc`)
+## Stoc derivat cal. I
 
-Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
-
-1. `Global` prin `cantitate_cal1` și `cantitate_cal2`, folosit de `getStocGlobal()`.
-2. `Per-locație` prin `cantitate_kg`, `locatie_id`, `calitate` și `depozit`, folosit de fluxurile operaționale precum `deliver_order_atomic()`.
-
-**Regula de bază:** orice `INSERT` în `miscari_stoc` trebuie să populeze ambele sisteme, nu doar unul singur.
-
-- RPC-urile critice (`sync_recoltare_stock_movements`, `deliver_order_atomic`, update/delete stock-safe flows) sunt sursa preferată și populează corect datele pentru ambele perspective.
-- Helper-ul TypeScript `insertMiscareStoc()` din `src/lib/supabase/queries/miscari-stoc.ts` trebuie să păstreze aceeași regulă pentru ajustările manuale.
-- Dacă inserarea reprezintă o singură calitate (`cal1` sau `cal2`), valorile globale și `cantitate_kg` trebuie să fie coerente între ele.
-- Dacă un flux scrie doar `cantitate_cal1` / `cantitate_cal2` fără `cantitate_kg`, rapoartele globale și verificările per-locație pot diverge.
-- Dacă un flux scrie doar `cantitate_kg` fără `cantitate_cal1` / `cantitate_cal2`, `getStocGlobal()` devine incomplet chiar dacă bucket-urile pe locație par corecte.
+`miscari_stoc` nu mai este sursa operațională pentru disponibilul vandabil al comenzilor. Ajustările curente se fac prin `ajustari_stoc`, iar pagina `/stocuri` afișează doar totalul pe fermă pentru `Zmeură cal1`, nu bucket-uri per parcelă.
 
 ## Orders And Sales Rules
 
@@ -126,15 +112,12 @@ Tabelul `miscari_stoc` ține în paralel două moduri de contabilizare:
 - The checkout congratulations state must come from `place_preorder_atomic.hit_milestone`; the browser must not infer milestone winners from a cached meter. Orders without `campaign_id` remain on the standard insert path and must not be associated with a campaign.
 - Before a campaign preorder is written, the public checkout calls the rate-limited server endpoint `POST /api/shop/b2c/check-recent-order`. That endpoint resolves the tenant from `SHOP_TENANT_ID` and calls `check_recent_shop_order` for the normalized customer phone and current campaign with a 10-minute window; a match requires explicit user confirmation, while lookup failure is best-effort and does not replace RPC idempotency.
 - Reordering a B2C delivery route must update the complete current-day tenant route in one transaction. It may set missing `delivery_date`, but must not change status, item, total, stock, sale, or revenue fields. A separate tenant-scoped read may surface orders scheduled today with status `noua`/`confirmata`; it must not alter the active-route RPC or status automatically.
-- Delivering a B2C `shop_order` must use `deliver_shop_order_atomic`, never a direct status update. The RPC locks the tenant-scoped shop order, requires a positive `shop_products.unit_weight_kg` for every item, snapshots the weights in `shop_order_erp_links`, creates one aggregated ERP `comenzi` row, and delegates sale/stock mutation to the unchanged `deliver_order_atomic`.
+- Moving a B2C `shop_order` to `in_livrare` must promote it with `promote_shop_order_to_comanda`, then validate derived stock through `set_shop_order_in_delivery`. Delivering it must use `set_shop_order_delivered`, never the legacy `deliver_shop_order_atomic` path.
 - `shop_order_erp_links.shop_order_id` is unique and is the idempotency boundary: retries return the existing ERP link and must not create another sale or deduct stock again.
 - Product package weights are configuration, not inferred from labels. Schema migrations must not backfill `shop_products.unit_weight_kg`; delivery remains blocked with a clear error until each ordered product has an explicit weight.
 - B2C raspberry pricing is canonical in `src/lib/shop/pricing.ts`: `floor(qty / 2) * 35 + (qty % 2) * 18`, where each unit is one 500 g package. The public order API must recalculate this total server-side and must accept only a positive integer quantity for product ID `zmeura`; client totals and line prices are not trusted.
 - Order statuses include `noua`, `confirmata`, `programata`, `in_livrare`, `livrata`, `anulata`.
-- Delivering an order can:
-  - deduct stock
-  - create a linked sale
-  - optionally split remaining quantity into a follow-up order
+- Delivering an order creates a linked sale, marks the order delivered with `linked_vanzare_id` in the same update, and may split remaining quantity into a follow-up order. It does not write order outflows into `miscari_stoc`.
 - `vanzari` create/update/delete flows also use stock-aware RPCs.
 - Payments are normalized around statuses like `platit`, `avans`, `restanta`.
 

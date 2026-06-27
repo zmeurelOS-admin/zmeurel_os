@@ -14,9 +14,14 @@ export const COMENZI_STATUSES = [
 ] as const
 
 export type ComandaStatus = (typeof COMENZI_STATUSES)[number]
-export type ComandaPlata = 'integral' | 'avans' | 'restanta'
+export type ComandaPaymentStatus = 'platit' | 'neplatit'
 export const COMANDA_ORDER_KINDS = ['manual', 'cadou', 'consum_propriu'] as const
 export type ComandaOrderKind = (typeof COMANDA_ORDER_KINDS)[number]
+
+export interface ComandaLinkedVanzare {
+  status_plata: string | null
+  data_incasare: string | null
+}
 
 export interface Comanda {
   id: string
@@ -34,6 +39,8 @@ export interface Comanda {
   status: ComandaStatus
   observatii: string | null
   linked_vanzare_id: string | null
+  linked_vanzare?: ComandaLinkedVanzare | null
+  shop_order_id?: string | null
   parent_comanda_id: string | null
   created_at: string
   updated_at: string
@@ -75,14 +82,14 @@ export interface UpdateComandaInput {
 export interface DeliverComandaInput {
   comandaId: string
   cantitateLivrataKg: number
-  plata: ComandaPlata
+  statusPlata: ComandaPaymentStatus
   dataLivrareRamasa?: string | null
 }
 
 export interface DeliverShopOrderPartialInput {
   shopOrderId: string
   deliveredKg: number
-  plata?: string
+  statusPlata?: ComandaPaymentStatus
   dataLivrareRamasa?: string | null
 }
 
@@ -94,13 +101,15 @@ type SupabaseLikeError = {
 }
 
 type DeliverOrderAtomicPayload = {
+  already_delivered?: boolean
   delivered_order: Record<string, unknown> | null
   vanzare: Vanzare | null
   remaining_order: Record<string, unknown> | null
   deducted_stock_kg: number | null
 }
 
-type DeliverShopOrderAtomicPartialPayload = {
+type DeliverShopOrderPayload = {
+  delivery?: DeliverOrderAtomicPayload | null
   remaining_order?: Record<string, unknown> | null
 }
 
@@ -108,6 +117,13 @@ type ComandaRow = Tables<'comenzi'>
 type ComandaQueryRow = ComandaRow & {
   order_kind?: string | null
   clienti?: Pick<Tables<'clienti'>, 'nume_client'> | null
+  vanzare?: {
+    status_plata?: string | null
+    data_incasare?: string | null
+  } | null
+  shop_order_link?: {
+    shop_order_id?: string | null
+  } | null
 }
 type ComandaInsertCompat = Omit<TablesInsert<'comenzi'>, 'data_livrare'> & {
   data_livrare: string | null
@@ -142,18 +158,24 @@ const COMANDA_SELECT_FIELDS: string = `
   data_origin,
   clienti (
     nume_client
+  ),
+  vanzare:vanzari!comenzi_linked_vanzare_id_fkey (
+    status_plata,
+    data_incasare
+  ),
+  shop_order_link:shop_order_erp_links!shop_order_erp_links_comanda_id_fkey (
+    shop_order_id
   )
 `
 
 type ComenziRpcClient = ReturnType<typeof getSupabase> & {
   rpc: {
     (
-      fn: 'deliver_order_atomic',
+      fn: 'set_comanda_delivered',
       args: {
-        p_order_id: string
-        p_delivered_qty: number
-        p_payment_status: string
-        p_remaining_delivery_date: string | null
+        p_comanda_id: string
+        p_delivered_qty: number | null
+        p_status_plata: ComandaPaymentStatus
       }
     ): Promise<{
       data: DeliverOrderAtomicPayload | null
@@ -180,19 +202,18 @@ type ComenziRpcClient = ReturnType<typeof getSupabase> & {
       error: SupabaseLikeError | null
     }>
     (
-      fn: 'deliver_shop_order_atomic_partial',
+      fn: 'set_shop_order_delivered',
       args: {
         p_shop_order_id: string
-        p_delivered_kg: number
-        p_payment_status: string
-        p_remaining_delivery_date: string | null
+        p_delivered_qty: number | null
+        p_status_plata: ComandaPaymentStatus
       }
     ): Promise<{
-      data: DeliverShopOrderAtomicPartialPayload | null
+      data: DeliverShopOrderPayload | null
       error: SupabaseLikeError | null
     }>
     (
-      fn: 'set_comanda_in_delivery_with_reservation',
+      fn: 'set_comanda_in_delivery',
       args: {
         p_comanda_id: string
       }
@@ -201,13 +222,12 @@ type ComenziRpcClient = ReturnType<typeof getSupabase> & {
       error: SupabaseLikeError | null
     }>
     (
-      fn: 'release_comanda_delivery_reservation',
+      fn: 'mark_comanda_incasata',
       args: {
         p_comanda_id: string
-        p_next_status: ComandaStatus
       }
     ): Promise<{
-      data: ComandaQueryRow | null
+      data: Vanzare | null
       error: SupabaseLikeError | null
     }>
   }
@@ -263,6 +283,13 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     status: ensureStatus(row.status),
     observatii: row.observatii ?? null,
     linked_vanzare_id: row.linked_vanzare_id ?? null,
+    linked_vanzare: row.vanzare
+      ? {
+          status_plata: row.vanzare.status_plata ?? null,
+          data_incasare: row.vanzare.data_incasare ?? null,
+        }
+      : null,
+    shop_order_id: row.shop_order_link?.shop_order_id ?? null,
     parent_comanda_id: row.parent_comanda_id ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -292,12 +319,6 @@ async function selectComandaRowById(
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comanda.')
   return data as unknown as ComandaQueryRow
-}
-
-function mapPlataToStatus(plata: ComandaPlata): string {
-  if (plata === 'integral') return 'platit'
-  if (plata === 'avans') return 'avans'
-  return 'restanta'
 }
 
 type ComenziQueryContextLike = {
@@ -373,26 +394,21 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
 
   const rpcClient = supabase as ComenziRpcClient
 
-  try {
-    const { data: reservedData, error: reservedError } = await rpcClient.rpc(
-      'set_comanda_in_delivery_with_reservation',
-      {
-        p_comanda_id: inserted.id,
-      },
-    )
-    if (reservedError) {
-      throw toReadableError(reservedError, 'Nu am putut rezerva stocul pentru comandă.')
-    }
-
-    if (!reservedData) {
-      throw new Error('Nu am primit comanda rezervată de la baza de date.')
-    }
-
-    return mapComanda(reservedData)
-  } catch (reservationError) {
-    await supabase.from('comenzi').delete().eq('id', inserted.id).eq('tenant_id', tenantId)
-    throw reservationError
+  const { data: inDeliveryData, error: inDeliveryError } = await rpcClient.rpc(
+    'set_comanda_in_delivery',
+    {
+      p_comanda_id: inserted.id,
+    },
+  )
+  if (inDeliveryError) {
+    throw toReadableError(inDeliveryError, 'Nu am putut trimite comanda în livrare.')
   }
+
+  if (!inDeliveryData) {
+    throw new Error('Nu am primit comanda actualizată de la baza de date.')
+  }
+
+  return mapComanda(inDeliveryData)
 }
 
 export async function updateComanda(id: string, input: UpdateComandaInput): Promise<Comanda> {
@@ -403,13 +419,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
   } = await supabase.auth.getUser()
 
   const current = await selectComandaRowById(supabase, id, tenantId)
-  const currentStatus = ensureStatus(current.status)
-  const shouldReserveForDelivery = input.status === 'in_livrare'
-  const shouldReleaseReservation =
-    currentStatus === 'in_livrare' &&
-    input.status !== undefined &&
-    input.status !== 'in_livrare' &&
-    input.status !== 'livrata'
+  const shouldSetInDelivery = input.status === 'in_livrare'
 
   const payload: ComandaUpdateCompat = {
     ...(input.client_id !== undefined ? { client_id: input.client_id ?? null } : {}),
@@ -421,7 +431,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     ...(input.cantitate_kg !== undefined ? { cantitate_kg: round2(input.cantitate_kg) } : {}),
     ...(input.pret_per_kg !== undefined ? { pret_per_kg: round2(input.pret_per_kg) } : {}),
     ...(input.order_kind !== undefined ? { order_kind: input.order_kind } : {}),
-    ...(!shouldReserveForDelivery && !shouldReleaseReservation && input.status !== undefined ? { status: input.status } : {}),
+    ...(!shouldSetInDelivery && input.status !== undefined ? { status: input.status } : {}),
     ...(input.observatii !== undefined ? { observatii: input.observatii?.trim() || null } : {}),
     updated_at: new Date().toISOString(),
     updated_by: user?.id ?? null,
@@ -448,30 +458,13 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
 
   const rpcClient = supabase as ComenziRpcClient
 
-  if (shouldReserveForDelivery) {
-    const { data, error } = await rpcClient.rpc('set_comanda_in_delivery_with_reservation', {
+  if (shouldSetInDelivery) {
+    const { data, error } = await rpcClient.rpc('set_comanda_in_delivery', {
       p_comanda_id: id,
     })
 
     if (error) {
       throw toReadableError(error, 'Nu am putut trimite comanda în livrare.')
-    }
-
-    if (!data) {
-      throw new Error('Nu am primit comanda actualizată de la baza de date.')
-    }
-
-    return mapComanda(data)
-  }
-
-  if (shouldReleaseReservation) {
-    const { data, error } = await rpcClient.rpc('release_comanda_delivery_reservation', {
-      p_comanda_id: id,
-      p_next_status: input.status!,
-    })
-
-    if (error) {
-      throw toReadableError(error, 'Nu am putut elibera rezervarea de stoc.')
     }
 
     if (!data) {
@@ -522,11 +515,10 @@ export async function deliverComanda(input: DeliverComandaInput): Promise<{
   }
 
   const rpcClient = getSupabase() as ComenziRpcClient
-  const { data, error } = await rpcClient.rpc('deliver_order_atomic', {
-    p_order_id: input.comandaId,
+  const { data, error } = await rpcClient.rpc('set_comanda_delivered', {
+    p_comanda_id: input.comandaId,
     p_delivered_qty: deliveredQty,
-    p_payment_status: mapPlataToStatus(input.plata),
-    p_remaining_delivery_date: input.dataLivrareRamasa ?? null,
+    p_status_plata: input.statusPlata,
   })
 
   if (error) {
@@ -555,22 +547,39 @@ export async function deliverShopOrderPartial(
   const rpcClient = getSupabase() as ComenziRpcClient
   const deliveredKg = round2(input.deliveredKg)
   const { data, error } = await rpcClient.rpc(
-    'deliver_shop_order_atomic_partial',
+    'set_shop_order_delivered',
     {
       p_shop_order_id: input.shopOrderId,
-      p_delivered_kg: deliveredKg,
-      p_payment_status: input.plata ?? 'platit',
-      p_remaining_delivery_date: input.dataLivrareRamasa ?? null,
+      p_delivered_qty: deliveredKg,
+      p_status_plata: input.statusPlata ?? 'platit',
     }
   )
   if (error) throw toReadableError(error, 'Nu am putut finaliza livrarea parțială.')
+  const delivery = data?.delivery ?? null
   return {
     shopOrderId: input.shopOrderId,
     deliveredKg,
-    remainingOrder: data?.remaining_order
-      ? mapComanda(data.remaining_order as ComandaQueryRow)
+    remainingOrder: delivery?.remaining_order
+      ? mapComanda(delivery.remaining_order as ComandaQueryRow)
       : null,
   }
+}
+
+export async function markComandaIncasata(comandaId: string): Promise<Vanzare> {
+  const rpcClient = getSupabase() as ComenziRpcClient
+  const { data, error } = await rpcClient.rpc('mark_comanda_incasata', {
+    p_comanda_id: comandaId,
+  })
+
+  if (error) {
+    throw toReadableError(error, 'Nu am putut marca plata ca încasată.')
+  }
+
+  if (!data) {
+    throw new Error('Nu am primit vânzarea actualizată de la baza de date.')
+  }
+
+  return data
 }
 
 export async function reopenComanda(id: string): Promise<Comanda> {
@@ -615,7 +624,7 @@ export async function getComenziStockSummaryAzi(): Promise<{
 
 export async function getKgAngajatInLivrare(): Promise<number> {
   const summary = await getSellableCal1StockSummary()
-  return round2(summary.rezervatActivCal1Kg + summary.legacyInLivrareFaraRezervareKg)
+  return round2(summary.rezervatActivCal1Kg)
 }
 
 export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {

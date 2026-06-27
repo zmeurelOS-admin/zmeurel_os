@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, Phone } from 'lucide-react'
+import { CircleDollarSign, ChevronDown, Phone } from 'lucide-react'
 
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -72,6 +72,14 @@ function StatusPill({ item }: { item: UnifiedOrderItem }) {
       className={`inline-flex shrink-0 rounded-full border px-2 py-[3px] text-[11px] font-semibold leading-none ${toneClass}`}
     >
       {item.statusLabel}
+    </span>
+  )
+}
+
+function UnpaidBadge() {
+  return (
+    <span className="inline-flex shrink-0 rounded-full border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-[3px] text-[11px] font-semibold leading-none text-[var(--status-danger-text)]">
+      Neplătit
     </span>
   )
 }
@@ -150,6 +158,7 @@ export function UnifiedOrderCard({
   onShopConfirmedChange,
   onShopDeliveryDateChange,
   onShopNotifiedChange,
+  onMarkPaid,
   onEdit,
 }: {
   item: UnifiedOrderItem
@@ -159,12 +168,13 @@ export function UnifiedOrderCard({
   selected?: boolean
   onToggleSelect?: (selected: boolean) => void
   onOpenB2bDetails?: (id: string) => void
-  onB2bStatusChange?: (id: string, status: ComandaStatus) => void
+  onB2bStatusChange?: (id: string, status: ComandaStatus) => void | Promise<void>
   onB2bDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void | Promise<void>
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
   onShopNotifiedChange?: (id: string, notified: boolean) => void
+  onMarkPaid?: (comandaId: string) => void | Promise<void>
   onEdit?: (id: string, source: 'shop' | 'manual') => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -173,6 +183,10 @@ export function UnifiedOrderCard({
   const shopOrder = item.shopOrder
   const b2bOrder = item.b2bComanda
   const isTerminal = item.status === 'livrata' || item.status === 'anulata'
+  const isUnpaid =
+    item.status === 'livrata' &&
+    item.paymentStatus === 'neplatit' &&
+    Boolean(item.paymentComandaId)
   const needsConfirmation =
     Boolean(shopOrder?.needs_confirmation ?? shopOrder?.delivery_zone === 'zona4') &&
     item.status === 'noua'
@@ -260,8 +274,12 @@ export function UnifiedOrderCard({
         // eroarea e gestionată în parent via toast; nu deschidem WB
       }
     } else {
-      onB2bStatusChange?.(item.id, nextStatus as ComandaStatus)
-      openStatusWhatsApp(nextStatus)
+      try {
+        await onB2bStatusChange?.(item.id, nextStatus as ComandaStatus)
+        openStatusWhatsApp(nextStatus)
+      } catch {
+        // Eroarea este afișată în parent; WhatsApp se deschide doar după succes.
+      }
     }
   }
 
@@ -318,6 +336,7 @@ export function UnifiedOrderCard({
               </p>
               <OriginBadge item={item} />
               <StatusPill item={item} />
+              {isUnpaid ? <UnpaidBadge /> : null}
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
               <span className="min-w-0 flex-1 truncate">
@@ -450,6 +469,24 @@ export function UnifiedOrderCard({
             </div>
           </div>
         </div>
+
+        {isUnpaid && onMarkPaid ? (
+          <div className="border-t border-[var(--divider)] px-3 py-2.5">
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                if (item.paymentComandaId) {
+                  void Promise.resolve(onMarkPaid(item.paymentComandaId)).catch(() => undefined)
+                }
+              }}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--status-danger-bg)] px-3 text-sm font-bold text-[var(--status-danger-text)] transition active:scale-[0.985] disabled:opacity-50"
+            >
+              <CircleDollarSign className="h-4 w-4" aria-hidden />
+              Marchează încasat
+            </button>
+          </div>
+        ) : null}
       </article>
     )
   }
@@ -516,6 +553,7 @@ export function UnifiedOrderCard({
                 <span />
               )}
               <StatusPill item={item} />
+              {isUnpaid ? <UnpaidBadge /> : null}
             </div>
 
             <button
@@ -691,6 +729,26 @@ export function UnifiedOrderCard({
             }`}
           >
             Stabilește livrare pe WhatsApp
+          </button>
+        </div>
+      ) : null}
+
+      {isUnpaid && onMarkPaid ? (
+        <div className={`border-t border-[var(--divider)] px-3 ${compact ? 'py-1.5' : 'py-2.5'}`}>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              if (item.paymentComandaId) {
+                void Promise.resolve(onMarkPaid(item.paymentComandaId)).catch(() => undefined)
+              }
+            }}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--status-danger-bg)] px-3 font-bold text-[var(--status-danger-text)] transition active:scale-[0.985] disabled:opacity-50 ${
+              compact ? 'min-h-9 text-xs' : 'min-h-11 text-sm'
+            }`}
+          >
+            <CircleDollarSign className="h-4 w-4" aria-hidden />
+            Marchează încasat
           </button>
         </div>
       ) : null}
