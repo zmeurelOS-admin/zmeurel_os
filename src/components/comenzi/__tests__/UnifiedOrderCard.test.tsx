@@ -393,7 +393,7 @@ describe('UnifiedOrderCard', () => {
     openSpy.mockRestore()
   })
 
-  it('grupează precomenzile cu neprogramatele primele și zilele cronologic', () => {
+  it('grupează shop orders cronologic folosind delivery_date sau fallback pe created_at', () => {
     const groups = groupShopOrdersByDeliveryDate([
       { ...order, id: 'scheduled-late', delivery_date: '2026-06-20', created_at: '2026-06-11T08:00:00Z' },
       { ...order, id: 'unscheduled', delivery_date: null, created_at: '2026-06-12T08:00:00Z' },
@@ -403,12 +403,17 @@ describe('UnifiedOrderCard', () => {
       { ...order, id: 'standard', order_kind: 'standard' },
     ])
 
-    expect(groups.map((group) => group.date)).toEqual([null, '2026-06-15', '2026-06-20'])
-    expect(groups[1].orders.map((entry) => entry.id)).toEqual([
+    expect(groups.map((group) => group.date)).toEqual([
+      '2026-06-10',
+      '2026-06-12',
+      '2026-06-15',
+      '2026-06-20',
+    ])
+    expect(groups[2].orders.map((entry) => entry.id)).toEqual([
       'scheduled-early-old',
       'scheduled-early-new',
     ])
-    expect(groups[1].totalQty).toBe(4)
+    expect(groups[2].totalQty).toBe(4)
   })
 
   it('grupează împreună shop și manual și sortează localitățile pe zone', () => {
@@ -453,7 +458,7 @@ describe('UnifiedOrderCard', () => {
     ])
   })
 
-  it('pune comenzile neprogramate la final când sortarea este după data livrării', () => {
+  it('grupează comenzile fără data livrării după fallback-ul de dată efectivă', () => {
     const groups = groupAllOrdersByDeliveryDate(
       [
         mapShopToUnified({ ...order, id: 'unscheduled', delivery_date: null }),
@@ -462,7 +467,7 @@ describe('UnifiedOrderCard', () => {
       'delivery_date',
     )
 
-    expect(groups.map((group) => group.date)).toEqual(['2026-06-15', null])
+    expect(groups.map((group) => group.date)).toEqual(['2026-06-10', '2026-06-15'])
   })
 
   it('formatează data completă din header în fusul Europe/Bucharest', () => {

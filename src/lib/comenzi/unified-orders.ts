@@ -17,6 +17,7 @@ export type UnifiedOrderItem = {
   orderKind: string | null
   clientTip?: 'standard' | 'patiserie' | 'magazin'
   createdAt: string
+  orderDate: string
   deliveryDate: string | null
   customerName: string
   phone: string
@@ -154,6 +155,7 @@ export function mapB2bToUnified(comanda: Comanda, clientMap: Record<string, Clie
     orderKind: comanda.order_kind ?? null,
     clientTip: clientMap[comanda.client_id ?? '']?.tip ?? 'standard',
     createdAt: comanda.created_at,
+    orderDate: comanda.data_comanda ?? comanda.created_at.slice(0, 10),
     deliveryDate: comanda.data_livrare,
     customerName: getB2bClientName(comanda, clientMap),
     phone: (comanda.telefon ?? '').trim(),
@@ -187,6 +189,7 @@ export function mapShopToUnified(
     orderKind: order.order_kind ?? null,
     clientTip: 'standard',
     createdAt: order.created_at,
+    orderDate: order.created_at.slice(0, 10),
     deliveryDate: order.delivery_date,
     customerName: order.customer_name,
     phone: order.customer_phone.trim(),
@@ -288,18 +291,18 @@ export function groupShopOrdersByDeliveryDate(
 ): Array<{ date: string | null; orders: ShopOrderRow[]; totalQty: number }> {
   const eligible = orders
     .filter((order) => order.status !== 'anulata')
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .sort((a, b) => {
+      const aDate = getShopOrderEffectiveDate(a)
+      const bDate = getShopOrderEffectiveDate(b)
+      return aDate.localeCompare(bDate) || a.created_at.localeCompare(b.created_at)
+    })
   const byDate = new Map<string, ShopOrderRow[]>()
-  const unscheduled: ShopOrderRow[] = []
 
   for (const order of eligible) {
-    if (!order.delivery_date) {
-      unscheduled.push(order)
-      continue
-    }
-    const current = byDate.get(order.delivery_date) ?? []
+    const effectiveDate = getShopOrderEffectiveDate(order)
+    const current = byDate.get(effectiveDate) ?? []
     current.push(order)
-    byDate.set(order.delivery_date, current)
+    byDate.set(effectiveDate, current)
   }
 
   const toGroup = (date: string | null, groupedOrders: ShopOrderRow[]) => ({
@@ -308,12 +311,9 @@ export function groupShopOrdersByDeliveryDate(
     totalQty: groupedOrders.reduce((total, order) => total + getShopOrderQuantity(order), 0),
   })
 
-  return [
-    ...(unscheduled.length > 0 ? [toGroup(null, unscheduled)] : []),
-    ...[...byDate.entries()]
-      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-      .map(([date, groupedOrders]) => toGroup(date, groupedOrders)),
-  ]
+  return [...byDate.entries()]
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([date, groupedOrders]) => toGroup(date, groupedOrders))
 }
 
 const ZONE_ORDER: Record<DeliveryZone, number> = {
@@ -328,11 +328,19 @@ function compareCreatedAt(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
   return a.createdAt.localeCompare(b.createdAt)
 }
 
+export function getUnifiedOrderEffectiveDate(order: UnifiedOrderItem): string {
+  return order.deliveryDate ?? order.orderDate ?? order.createdAt.slice(0, 10)
+}
+
+function getShopOrderEffectiveDate(order: ShopOrderRow): string {
+  return order.delivery_date ?? order.created_at.slice(0, 10)
+}
+
 function compareDeliveryDate(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
-  if (!a.deliveryDate && !b.deliveryDate) return compareCreatedAt(a, b)
-  if (!a.deliveryDate) return 1
-  if (!b.deliveryDate) return -1
-  return a.deliveryDate.localeCompare(b.deliveryDate) || compareCreatedAt(a, b)
+  return (
+    getUnifiedOrderEffectiveDate(a).localeCompare(getUnifiedOrderEffectiveDate(b)) ||
+    compareCreatedAt(a, b)
+  )
 }
 
 function compareLocality(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
@@ -366,36 +374,21 @@ export function groupAllOrdersByDeliveryDate(
 
   const comparator = sort === 'delivery_date' ? compareDeliveryDate : compareCreatedAt
   const byDate = new Map<string, UnifiedOrderItem[]>()
-  const unscheduled: UnifiedOrderItem[] = []
 
   for (const order of [...orders].sort(comparator)) {
-    if (!order.deliveryDate) {
-      unscheduled.push(order)
-      continue
-    }
-    const current = byDate.get(order.deliveryDate) ?? []
+    const effectiveDate = getUnifiedOrderEffectiveDate(order)
+    const current = byDate.get(effectiveDate) ?? []
     current.push(order)
-    byDate.set(order.deliveryDate, current)
+    byDate.set(effectiveDate, current)
   }
 
-  const scheduled = [...byDate.entries()]
+  return [...byDate.entries()]
     .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
     .map(([date, groupedOrders]) => ({
       date,
       orders: groupedOrders,
       totalQty: groupedOrders.reduce((total, order) => total + order.quantity, 0),
     }))
-  const unscheduledGroup = unscheduled.length
-    ? [{
-        date: null,
-        orders: unscheduled,
-        totalQty: unscheduled.reduce((total, order) => total + order.quantity, 0),
-      }]
-    : []
-
-  return sort === 'delivery_date'
-    ? [...scheduled, ...unscheduledGroup]
-    : [...unscheduledGroup, ...scheduled]
 }
 
 export function mergeUnifiedOrders(

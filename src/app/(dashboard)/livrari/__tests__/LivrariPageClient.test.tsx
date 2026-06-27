@@ -156,42 +156,17 @@ beforeEach(() => {
 })
 
 describe('LivrariPageClient', () => {
-  it('afișează adresa, reorder-ul mare și acțiunile de teren', async () => {
+  it('afișează adresa și acțiunile de teren pentru o comandă din shop', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    expect(await screen.findByText('Strada Florilor 10, Suceava')).toBeInTheDocument()
-    expect(screen.getByText('⚠️ Include bonus: O caserolă bonus')).toBeInTheDocument()
+    await user.click(
+      await screen.findByRole('button', { name: /Maria Popescu/ }),
+    )
 
-    await user.click(screen.getByRole('button', { name: 'Reordonează livrarea 1' }))
-    expect(screen.getByRole('button', { name: /Sus/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Jos/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Gata/ })).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /Gata/ }))
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/shop/b2c/orders/reorder',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ order_ids: [order.id] }),
-        }),
-      ),
-    )
-    await waitFor(() =>
-      expect(toastSuccessMock).toHaveBeenCalledWith('Ordinea livrărilor a fost salvată'),
-    )
-    await user.click(screen.getByRole('button', { name: /Maria Popescu/ }))
-
-    expect(screen.getByRole('link', { name: 'Apel' })).toHaveAttribute('href', 'tel:0740123456')
-    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
-      'href',
-      expect.stringContaining('https://wa.me/40740123456?text='),
-    )
-    expect(screen.getByRole('link', { name: 'Navigare' })).toHaveAttribute(
-      'href',
-      'https://www.google.com/maps/dir/?api=1&destination=Strada%20Florilor%2010%2C%20Suceava',
-    )
+    expect(screen.getByRole('link', { name: '0740 123 456' })).toHaveAttribute('href', 'tel:0740123456')
+    expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Schimbă statusul comenzii' })).toBeInTheDocument()
   })
 
   it('confirmă statusul livrat și mută cardul în secțiunea Livrate', async () => {
@@ -199,7 +174,8 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getByRole('button', { name: /Marchează livrat/ }))
+    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+    await user.click(screen.getByRole('button', { name: 'Livrată' }))
 
     expect(screen.getByRole('heading', { name: 'Marchezi comanda ca livrată?' })).toBeInTheDocument()
     expect(
@@ -247,7 +223,8 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getByRole('button', { name: /Marchează livrat/ }))
+    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
+    await user.click(screen.getByRole('button', { name: 'Livrată' }))
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
     await waitFor(() =>
@@ -263,7 +240,7 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getByRole('button', { name: 'Editează' }))
+    await user.click(screen.getByRole('button', { name: /Editează/ }))
 
     expect(screen.getByRole('heading', { name: 'Editează comanda' })).toBeInTheDocument()
     const editDialog = screen.getByRole('dialog')
@@ -295,25 +272,18 @@ describe('LivrariPageClient', () => {
     expect(toastSuccessMock).toHaveBeenCalledWith('Comanda a fost actualizată.')
   })
 
-  it('revine la ordinea anterioară când persistarea reorder-ului eșuează', async () => {
-    const user = userEvent.setup()
-    fetchOrdersMock.mockResolvedValue([order, secondOrder])
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ success: false, error: 'Ordinea nu a putut fi salvată.' }),
-    } as Response)
+  it('ordonează FIFO și folosește fallback-ul de dată pentru comenzile fără delivery_date', async () => {
+    fetchOrdersMock.mockResolvedValue([
+      { ...order, id: 'fallback-early', customer_name: 'Ion Ionescu', delivery_date: null, created_at: '2026-06-06T08:00:00.000Z' },
+      { ...secondOrder, id: 'scheduled-later', customer_name: 'Maria Popescu', delivery_date: '2026-06-07', created_at: '2026-06-05T08:00:00.000Z' },
+    ])
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: 'Reordonează livrarea 2' }))
-    await user.click(screen.getByRole('button', { name: /Sus/ }))
-    expect(screen.getByText('Ion Ionescu').closest('article')).toHaveTextContent('1')
-
-    await user.click(screen.getByRole('button', { name: /Gata/ }))
-
-    await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith('Ordinea nu a putut fi salvată.'),
-    )
-    expect(screen.getByText('Ion Ionescu').closest('article')).toHaveTextContent('2')
+    const cards = await screen.findAllByRole('button', {
+      name: /Arată detaliile comenzii pentru|Ascunde detaliile comenzii pentru/,
+    })
+    expect(cards[0]).toHaveAccessibleName('Arată detaliile comenzii pentru Ion Ionescu')
+    expect(cards[1]).toHaveAccessibleName('Arată detaliile comenzii pentru Maria Popescu')
   })
 
   it('afișează și extinde comenzile programate azi care nu sunt încă în livrare', async () => {
@@ -329,7 +299,7 @@ describe('LivrariPageClient', () => {
     await user.click(banner)
 
     expect(screen.getByText('Ana Programată')).toBeInTheDocument()
-    expect(screen.getAllByText('Caserolă 300 g × 2')).toHaveLength(2)
+    expect(screen.getAllByText('Caserolă 300 g × 2')).toHaveLength(1)
   })
 
   it('afișează comenzile manuale în listă fără acțiunile rezervate shop-ului', async () => {
@@ -344,9 +314,9 @@ describe('LivrariPageClient', () => {
 
     await user.click(screen.getByRole('button', { name: /Client Manual/ }))
 
-    expect(screen.getByText('3 kg afine')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Apel' })).toHaveAttribute('href', 'tel:0722000111')
-    expect(screen.getByRole('button', { name: 'Editează' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Marchează livrat/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '0722 000 111' })).toHaveAttribute('href', 'tel:0722000111')
+    expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Schimbă statusul comenzii' })).toBeInTheDocument()
+    expect(screen.queryByText(/WhatsApp trimis/i)).not.toBeInTheDocument()
   })
 })
