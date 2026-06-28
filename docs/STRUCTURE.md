@@ -122,6 +122,7 @@ _Last updated: 2026-03-20 (session 4)_
 | `src/app/api/chat/count/route.ts` | Endpoint count usage pentru widget-ul AI |
 | `src/app/api/chat/usage/route.ts` | Endpoint usage AI/telemetrie |
 | `src/app/api/cron/sync-google-contacts/route.ts` | Cron zilnic 06:00 UTC — sync incremental Google Contacts pentru tenantul configurat |
+| `src/app/api/integrations/google/push-client/route.ts` | Push autentificat și tenant-scoped al unui client manual către Google Contacts |
 | `src/app/api/cron/admin-metrics-daily/route.ts` | Cron zilnic 03:00 UTC — agregare metrici tenant |
 | `src/app/api/cron/demo-tenant-cleanup/route.ts` ⭐ | Cron zilnic 04:00 UTC — ștergere tenants demo >24h |
 | `src/app/api/demo/seed/route.ts` | Generare date demo |

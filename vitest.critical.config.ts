@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        'server-only': path.resolve(__dirname, './src/test/server-only.ts'),
       },
     },
     test: {
@@ -27,6 +28,7 @@ export default defineConfig(({ mode }) => {
         'src/app/api/farm/__tests__/*.test.ts',
         'src/app/api/chat/__tests__/*.test.ts',
         'src/app/api/cron/__tests__/*.test.ts',
+        'src/app/api/integrations/google/__tests__/*.test.ts',
         'src/lib/auth/__tests__/*.test.ts',
         'src/lib/integrations/__tests__/*.test.ts',
         'src/lib/logging/__tests__/*.test.ts',

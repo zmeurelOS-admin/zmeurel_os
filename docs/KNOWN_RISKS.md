@@ -140,8 +140,10 @@ These routes can delete significant amounts of data and use privileged access. T
 
 ### Google Contacts Integration
 
-- Rutele interactive `/api/integrations/google/*` rămân dezactivate; sincronizarea activă rulează exclusiv prin cron-ul `/api/cron/sync-google-contacts`.
+- Ruta `POST /api/integrations/google/push-client` este activă pentru push best-effort după create/update manual; validează sesiunea și tenantul. Celelalte rute interactive Google legacy rămân dezactivate.
 - Cron-ul este intenționat single-tenant și depinde de ID-ul operațional configurat în handler; extinderea multi-tenant necesită eliminarea acestei presupuneri.
+- Push-ul pornește din browser fără `await`, deci o navigare/închidere imediată poate împiedica requestul; odată primit, handlerul așteaptă complet People API. Eșecul extern este logat și nu anulează mutația locală.
+- Scope-ul necesar este `https://www.googleapis.com/auth/contacts`; tokenurile emise anterior doar cu `contacts.readonly` trebuie reautorizate.
 - OAuth token payloads sunt decriptate cu `GOOGLE_TOKENS_ENCRYPTION_KEY` (AES-GCM, payload versionat), iar tokenurile plaintext legacy sunt re-criptate după o sincronizare reușită când cheia este configurată.
 - Dacă `GOOGLE_TOKENS_ENCRYPTION_KEY` lipsește, rândurile deja criptate nu pot fi citite și sincronizarea eșuează închis.
 - Indexul unic pe `google_resource_name` este parțial; Supabase/PostgREST nu poate exprima direct `ON CONFLICT` cu predicatul său. Handlerul reconciliază explicit fiecare batch înainte de insert/update, iar indexul rămâne protecția de concurență.

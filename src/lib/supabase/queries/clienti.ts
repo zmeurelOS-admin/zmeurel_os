@@ -17,6 +17,9 @@ export interface Client {
   updated_at: string | null
   tenant_id: string
   tip: ClientTip
+  google_resource_name?: string | null
+  google_etag?: string | null
+  data_origin?: string | null
 }
 
 type ClientRowLike = Omit<Client, 'tip'> & {
@@ -59,13 +62,34 @@ function mapClientRow(row: ClientRowLike): Client {
   }
 }
 
+function triggerGoogleContactPush(client: Pick<Client, 'id' | 'tenant_id'>): void {
+  if (typeof window === 'undefined') return
+
+  void fetch('/api/integrations/google/push-client', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      clientId: client.id,
+      tenantId: client.tenant_id,
+    }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        console.error('[google-push] request failed', { status: response.status })
+      }
+    })
+    .catch(() => {
+      console.error('[google-push] fetch failed')
+    })
+}
+
 export async function getClienți(): Promise<Client[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
   const { data, error } = await supabase
     .from("clienti")
-    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id,tip")
+    .select("id,id_client,nume_client,telefon,email,adresa,pret_negociat_lei_kg,observatii,created_at,updated_at,tenant_id,tip,google_resource_name,google_etag,data_origin")
     .eq("tenant_id", tenantId)
     .order("nume_client", { ascending: true })
 
@@ -123,12 +147,15 @@ export async function createClienți(
       pret_negociat_lei_kg: input.pret_negociat_lei_kg ?? null,
       observatii: input.observatii ?? null,
       tip: normalizeClientTip(input.tip),
+      data_origin: 'manual',
     })
     .select()
     .single()
 
   if (error) throw error
-  return mapClientRow(data as ClientRowLike)
+  const client = mapClientRow(data as ClientRowLike)
+  triggerGoogleContactPush(client)
+  return client
 }
 
 export async function updateClienți(
@@ -150,7 +177,9 @@ export async function updateClienți(
     .single()
 
   if (error) throw error
-  return mapClientRow(data as ClientRowLike)
+  const client = mapClientRow(data as ClientRowLike)
+  triggerGoogleContactPush(client)
+  return client
 }
 
 export async function deleteClienți(id: string): Promise<void> {

@@ -8,7 +8,8 @@ import { OAuth2Client } from 'google-auth-library'
 
 config({ path: '.env.local' })
 
-const CONTACTS_READONLY_SCOPE = 'https://www.googleapis.com/auth/contacts.readonly'
+// Scope write include și read — înlocuiește readonly
+const CONTACTS_READONLY_SCOPE = 'https://www.googleapis.com/auth/contacts'
 const LOOPBACK_HOST = '127.0.0.1'
 
 function extractAuthorizationCode(value) {

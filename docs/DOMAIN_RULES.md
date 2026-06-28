@@ -161,6 +161,8 @@
 
 - Clients are tenant-scoped.
 - Google Contacts cron sync este limitat la tenantul operațional configurat în cod și procesează doar integrarea cu `sync_enabled = true`.
+- Crearea și editarea manuală a clienților declanșează best-effort un push Google prin ruta autentificată și tenant-scoped `/api/integrations/google/push-client`; importul CSV nu declanșează push.
+- Un client cu `google_resource_name` este actualizat, iar unul fără este creat în Google; răspunsul Google actualizează `google_etag` și, la creare, `google_resource_name`.
 - Contactele fără `resourceName` sau telefon sunt omise.
 - Identitatea de sincronizare este `google_resource_name`; emailul și telefonul sunt câmpuri sincronizate, nu chei de matching în acest flux.
 - `id_client` pentru un contact Google are forma `google_{resourceName_last_segment}`, iar `data_origin` este `google_contacts`.
