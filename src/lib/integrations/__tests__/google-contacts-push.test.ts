@@ -60,14 +60,58 @@ function createAdminMock(options?: { syncEnabled?: boolean }) {
     google_resource_name: null,
     google_etag: null,
   }
-  const clientUpdate = vi.fn((values: Partial<ClientState>) => ({
-    eq: () => ({
-      eq: async () => {
-        Object.assign(clientState, values)
-        return { error: null }
+  const clientUpdate = vi.fn((values: Partial<ClientState>) => {
+    let requiresNullResourceName = false
+    let expectedResourceName: string | undefined
+
+    const execute = async () => {
+      if (
+        requiresNullResourceName &&
+        clientState.google_resource_name !== null
+      ) {
+        return { data: null, error: null }
+      }
+
+      if (
+        expectedResourceName !== undefined &&
+        clientState.google_resource_name !== expectedResourceName
+      ) {
+        return { data: null, error: null }
+      }
+
+      Object.assign(clientState, values)
+      return { data: { ...clientState }, error: null }
+    }
+
+    const chain = {
+      eq(column: string, value: unknown) {
+        if (column === 'google_resource_name') {
+          expectedResourceName = String(value)
+        }
+        return chain
       },
-    }),
-  }))
+      is(column: string, value: unknown) {
+        if (column === 'google_resource_name' && value === null) {
+          requiresNullResourceName = true
+        }
+        return chain
+      },
+      select() {
+        return chain
+      },
+      maybeSingle: execute,
+      then<TResult1 = unknown, TResult2 = never>(
+        onfulfilled?:
+          | ((value: Awaited<ReturnType<typeof execute>>) => TResult1 | PromiseLike<TResult1>)
+          | null,
+        onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+      ) {
+        return execute().then(onfulfilled, onrejected)
+      },
+    }
+
+    return chain
+  })
 
   const admin = {
     from: vi.fn((table: string) => {
@@ -141,8 +185,8 @@ describe('pushClientToGoogle', () => {
     else process.env.GOOGLE_CLIENT_SECRET = originalClientSecret
   })
 
-  it('creează o singură dată, apoi actualizează contactul existent', async () => {
-    const { admin, clientState, clientUpdate } = createAdminMock()
+  it('serializează două create concurente, apoi actualizează contactul existent', async () => {
+    const { admin, clientState } = createAdminMock()
     mocks.createServiceRoleClient.mockReturnValue(admin)
     mocks.createContact.mockResolvedValue({
       data: { resourceName: 'people/c123', etag: 'etag-created' },
@@ -158,8 +202,11 @@ describe('pushClientToGoogle', () => {
     })
 
     const { pushClientToGoogle } = await loadPushModule()
-    await pushClientToGoogle(clientState.id, '22222222-2222-4222-8222-222222222222')
-    await pushClientToGoogle(clientState.id, '22222222-2222-4222-8222-222222222222')
+    const tenantId = '22222222-2222-4222-8222-222222222222'
+    await Promise.all([
+      pushClientToGoogle(clientState.id, tenantId),
+      pushClientToGoogle(clientState.id, tenantId),
+    ])
 
     expect(mocks.createContact).toHaveBeenCalledTimes(1)
     expect(mocks.createContact).toHaveBeenCalledWith(
@@ -169,8 +216,15 @@ describe('pushClientToGoogle', () => {
           phoneNumbers: [{ value: '0722123456', type: 'mobile' }],
         }),
       }),
-      { timeout: 9_000 },
+      {
+        timeout: 8_000,
+        signal: expect.any(AbortSignal),
+      },
     )
+    expect(mocks.updateContact).not.toHaveBeenCalled()
+
+    await pushClientToGoogle(clientState.id, tenantId)
+
     expect(mocks.updateContact).toHaveBeenCalledTimes(1)
     expect(mocks.updateContact).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -182,13 +236,15 @@ describe('pushClientToGoogle', () => {
           }),
         }),
       }),
-      { timeout: 9_000 },
+      {
+        timeout: 8_000,
+        signal: expect.any(AbortSignal),
+      },
     )
     expect(clientState).toMatchObject({
       google_resource_name: 'people/c123',
       google_etag: 'etag-updated',
     })
-    expect(clientUpdate).toHaveBeenCalledTimes(2)
   })
 
   it('iese silențios când sincronizarea este dezactivată', async () => {
@@ -201,5 +257,31 @@ describe('pushClientToGoogle', () => {
     expect(mocks.getAccessToken).not.toHaveBeenCalled()
     expect(mocks.createContact).not.toHaveBeenCalled()
     expect(mocks.updateContact).not.toHaveBeenCalled()
+  })
+
+  it('oprește silențios push-ul după timeoutul end-to-end de 8 secunde', async () => {
+    vi.useFakeTimers()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { admin, clientState } = createAdminMock()
+    mocks.createServiceRoleClient.mockReturnValue(admin)
+    mocks.getAccessToken.mockReturnValue(new Promise(() => {}))
+
+    try {
+      const { pushClientToGoogle } = await loadPushModule()
+      const push = pushClientToGoogle(
+        clientState.id,
+        '22222222-2222-4222-8222-222222222222',
+      )
+
+      await vi.advanceTimersByTimeAsync(8_000)
+      await push
+
+      expect(consoleError).toHaveBeenCalledWith('[google-push] timeout')
+      expect(mocks.createContact).not.toHaveBeenCalled()
+      expect(mocks.updateContact).not.toHaveBeenCalled()
+    } finally {
+      consoleError.mockRestore()
+      vi.useRealTimers()
+    }
   })
 })

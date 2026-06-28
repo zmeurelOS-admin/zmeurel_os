@@ -72,6 +72,7 @@ function triggerGoogleContactPush(client: Pick<Client, 'id' | 'tenant_id'>): voi
       clientId: client.id,
       tenantId: client.tenant_id,
     }),
+    keepalive: true,
   })
     .then((response) => {
       if (!response.ok) {
