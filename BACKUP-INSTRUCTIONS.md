@@ -291,7 +291,7 @@ Surse recomandate pentru stocare:
 
 Cron jobs active în repo:
 
-- `/api/cron/google-contacts-sync`
+- `/api/cron/sync-google-contacts`
 - `/api/cron/admin-metrics-daily`
 - `/api/cron/demo-tenant-cleanup`
 - `/api/cron/farmer-weekly-summary`

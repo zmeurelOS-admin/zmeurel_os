@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
         'src/app/api/gdpr/__tests__/*.test.ts',
         'src/app/api/farm/__tests__/*.test.ts',
         'src/app/api/chat/__tests__/*.test.ts',
-        'src/app/api/cron/__tests__/demo-tenant-cleanup.route.test.ts',
+        'src/app/api/cron/__tests__/*.test.ts',
         'src/lib/auth/__tests__/*.test.ts',
         'src/lib/integrations/__tests__/*.test.ts',
         'src/lib/logging/__tests__/*.test.ts',

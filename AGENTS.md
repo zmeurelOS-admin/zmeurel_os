@@ -22,6 +22,7 @@ Runtime app code lives under `src/`, especially `src/app` for routes and `src/li
 - **Web Push (VAPID)**: `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (generate with `npx web-push generate-vapid-keys`; never commit secrets) + opțional `VAPID_SUBJECT` (`mailto:...`, fallback sigur dacă lipsește). Subscriptions in `push_subscriptions` (migrare `20260405006_push_subscriptions.sql`). Server: `src/lib/notifications/send-push.ts` (`web-push`, best-effort, sender în Next/Vercel, nu în Supabase Edge Functions). next-pwa include handler-ele push prin `importScripts: ['/push-handlers.js']` în `next.config.js` (generat în `public/sw.js` la build, nu injecție post-build). API: `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `POST /api/push/test` (autentificat, intern, pentru verificare end-to-end). UI: `PushPermissionBanner`, `usePushSubscription`, setări la `/settings` → Notificări push. Salvarea subscription folosește doar coloanele de bază (`user_id`, `endpoint`, `keys_p256dh`, `keys_auth`) ca să rămână compatibilă și cu medii unde coloanele opționale nu sunt aliniate.
   - **Izolare cross-user pe device partajat**: `POST /api/push/subscribe` rulează un cleanup via service role (`delete from push_subscriptions where endpoint = ? and user_id <> current`) ÎNAINTE de upsert-ul propriu. Asta acoperă cazul în care un device era abonat pentru user A și aceeași `PushSubscription` ajunge să fie postată de user B (același browser, alt cont) — la final rămâne exact un rând per endpoint. Fără policy DB cross-user (ar fi exploatabilă: un user ar putea șterge subscripțiile altuia trimițând endpoint-ul). Cleanup-ul la sign-out completează izolarea pe partea client (vezi `prepareClientBeforeServerSignOut`).
   - **Politică unificată**: orice apel real către `webpush.sendNotification` din `sendPushToUser` este gate-uit de `shouldSendWebPushForType(type, notificationData)` (definit în `src/lib/notifications/config.ts`). Tipuri cu `pushEnabled: true` curent: `order_new`, `offer_new`, `offer_approved`, `offer_rejected`, `tratament_reminder`; excepție business: `order_new` + `data.channel = association_shop` nu trimite web push (in-app rămâne). Schedulerul de tratamente (`src/lib/tratamente/scheduler/notifier.ts`) folosește `tratament_reminder`, nu mai ocolește gate-ul. Singurul caller server-side care setează `bypassPolicy: true` este `/api/push/test` pentru fluxul diagnostic — flag-ul nu este expus în vreun zod schema, deci nu poate veni din JSON-ul unui request.
+- **Google Contacts (cron dedicat unui singur tenant)**: `GET /api/cron/sync-google-contacts`, autentificat exclusiv cu `Authorization: Bearer ${CRON_SECRET}`, rulează zilnic la `06:00 UTC`. Configurarea activă și `sync_token` sunt citite din `integrations_google_contacts`, iar `refresh_token` poate fi criptat cu `GOOGLE_TOKENS_ENCRYPTION_KEY`; `GOOGLE_CLIENT_ID` și `GOOGLE_CLIENT_SECRET` rămân server-only. Sincronizarea incrementală folosește Google People API, face fallback imediat la full sync pentru token expirat (`410`) și scrie în `clienti` prin `service_role`, în batch-uri de 50, folosind `google_resource_name` ca identitate. Scriptul local one-time este `node scripts/google-oauth-init.mjs`. Rutele legacy `/api/integrations/google/*` rămân dezactivate (`410`).
 
 Core runtime pattern:
 
@@ -505,7 +506,7 @@ Actualizată:
 - Demo tenant seeding/reload/cleanup
 - Offline sync queue and idempotent create flows
 - Stock-affecting RPCs for harvests, orders, and sales
-- Google Contacts integration code and encrypted OAuth tokens (`GOOGLE_TOKENS_ENCRYPTION_KEY`, server-only)
+- Google Contacts cron sync and encrypted OAuth tokens (`GOOGLE_TOKENS_ENCRYPTION_KEY`, server-only)
 - Admin plan management and superadmin gating
 
 ## Practical Guidance For AI Agents
@@ -595,7 +596,7 @@ Update them incrementally. Do not rewrite them from scratch unless the repositor
 - Demo tenant seeding/reload/cleanup
 - Offline sync queue and idempotent create flows
 - Stock-affecting RPCs for harvests, orders, and sales
-- Google Contacts integration code and encrypted OAuth tokens (`GOOGLE_TOKENS_ENCRYPTION_KEY`, server-only)
+- Google Contacts cron sync and encrypted OAuth tokens (`GOOGLE_TOKENS_ENCRYPTION_KEY`, server-only)
 - Admin plan management and superadmin gating
 
 ## Practical Guidance For AI Agents

@@ -160,10 +160,10 @@
 ## Client Rules
 
 - Clients are tenant-scoped.
-- Google Contacts sync can create or update clients by matching:
-  - `google_resource_name`
-  - email
-  - phone
+- Google Contacts cron sync este limitat la tenantul operațional configurat în cod și procesează doar integrarea cu `sync_enabled = true`.
+- Contactele fără `resourceName` sau telefon sunt omise.
+- Identitatea de sincronizare este `google_resource_name`; emailul și telefonul sunt câmpuri sincronizate, nu chei de matching în acest flux.
+- `id_client` pentru un contact Google are forma `google_{resourceName_last_segment}`, iar `data_origin` este `google_contacts`.
 - Client deletion is blocked when linked sales, orders, or seedling sales exist.
 
 ## Agricultural Activity Rules

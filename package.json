@@ -61,6 +61,8 @@
     "exceljs": "^4.4.0",
     "framer-motion": "^12.35.2",
     "fuse.js": "^7.3.0",
+    "google-auth-library": "^10.5.0",
+    "googleapis": "^173.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.563.0",
     "next": "16.2.3",

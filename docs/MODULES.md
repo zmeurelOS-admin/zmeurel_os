@@ -264,7 +264,8 @@ _Last updated: 2026-05-02_
 **Funcționalități:**
 - Resetare date fermă
 - Ștergere cont (GDPR)
-- Integrare Google Contacts
+
+Sincronizarea Google Contacts este operațională prin cron server-only și nu mai are configurare interactivă în Settings.
 
 ---
 
