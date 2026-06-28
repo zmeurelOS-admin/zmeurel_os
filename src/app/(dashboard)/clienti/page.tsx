@@ -1,7 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/admin'
 import { normalizeClientTip } from '@/lib/supabase/queries/clienti'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { ClientPageClient } from './ClientPageClient'
+
+const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
 
 export const metadata = {
   title: 'Clienți | Zmeurel OS',
@@ -22,12 +25,40 @@ export default async function ClientPage() {
     throw new Error(`Failed to load data: ${error.message}`)
   }
 
+  let googleSync: {
+    enabled: boolean
+    lastSyncAt: string | null
+  } | null = null
+
+  if (tenantId === GOOGLE_CONTACTS_TENANT_ID) {
+    try {
+      const admin = createServiceRoleClient()
+      const { data: integration, error: integrationError } = await admin
+        .from('integrations_google_contacts')
+        .select('sync_enabled,last_sync_at')
+        .eq('tenant_id', tenantId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (!integrationError && integration) {
+        googleSync = {
+          enabled: integration.sync_enabled,
+          lastSyncAt: integration.last_sync_at,
+        }
+      }
+    } catch {
+      googleSync = null
+    }
+  }
+
   return (
     <ClientPageClient
       initialClienți={(clienti || []).map((client) => ({
         ...client,
         tip: normalizeClientTip(client.tip),
       }))}
+      googleSync={googleSync}
     />
   )
 }

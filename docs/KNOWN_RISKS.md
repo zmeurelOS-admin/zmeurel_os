@@ -140,7 +140,8 @@ These routes can delete significant amounts of data and use privileged access. T
 
 ### Google Contacts Integration
 
-- Ruta `POST /api/integrations/google/push-client` este activă pentru push best-effort după create/update manual; validează sesiunea și tenantul. Celelalte rute interactive Google legacy rămân dezactivate.
+- Ruta `POST /api/integrations/google/push-client` este activă pentru push best-effort după create/update manual; validează sesiunea și tenantul. Rutele Google legacy își păstrează comportamentul existent.
+- Ruta `POST /api/integrations/google/sync-now` invocă prin HTTP cronul existent și este limitată la tenantul operațional fix; URL-ul intern depinde de `NEXT_PUBLIC_APP_URL` sau `SITE_URL`, cu fallback la domeniul de producție.
 - Cron-ul este intenționat single-tenant și depinde de ID-ul operațional configurat în handler; extinderea multi-tenant necesită eliminarea acestei presupuneri.
 - Push-ul pornește din browser fără `await`, deci o navigare/închidere imediată poate împiedica requestul; odată primit, handlerul așteaptă complet People API. Eșecul extern este logat și nu anulează mutația locală.
 - Scope-ul necesar este `https://www.googleapis.com/auth/contacts`; tokenurile emise anterior doar cu `contacts.readonly` trebuie reautorizate.

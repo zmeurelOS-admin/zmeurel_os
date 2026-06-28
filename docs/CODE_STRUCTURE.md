@@ -64,7 +64,7 @@ Notable subfolders:
 - `calculations` profit calculations
 - `config` beta config
 - `demo` demo seed/reset/reload support
-- `integrations` Google Contacts cron pull, push pentru clienți manuali și criptarea tokenurilor OAuth
+- `integrations` Google Contacts cron pull, trigger manual autentificat, push pentru clienți manuali și criptarea tokenurilor OAuth
 - `monitoring` Sentry helpers
 - `offline` IndexedDB queue and sync engine
 - `onboarding` tenant routing helpers
@@ -179,7 +179,7 @@ Main groups:
 - `gdpr` account/farm export-destructive flows
 - `admin` tenant plan management
 - `cron` admin metrics, demo cleanup, Google Contacts sync
-- `integrations/google` push autentificat în `push-client`; celelalte rute legacy sunt dezactivate, iar pull-ul activ este în `cron/sync-google-contacts`
+- `integrations/google` trigger pull autentificat în `sync-now`, push autentificat în `push-client`; rutele legacy își păstrează comportamentul existent, iar pull-ul efectiv este în `cron/sync-google-contacts`
 
 ## Data Access Structure
 

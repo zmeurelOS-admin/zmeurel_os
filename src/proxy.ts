@@ -154,6 +154,7 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/invite/accept' ||
     pathname === '/api/auth/beta-signup' ||
     pathname === '/api/auth/beta-guest' ||
+    pathname === '/api/integrations/google/sync-now' ||
     pathname.startsWith('/api/cron/') ||
     isPublicAssetRoute
 

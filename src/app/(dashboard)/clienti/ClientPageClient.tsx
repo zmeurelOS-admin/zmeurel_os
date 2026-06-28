@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { MessageCircle, Pencil, Trash2, Users } from 'lucide-react'
+import { Loader2, MessageCircle, Pencil, RefreshCw, Trash2, Users } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -52,6 +52,10 @@ type CreateClientMutationVariables = {
 
 interface ClientPageClientProps {
   initialClienți: Client[]
+  googleSync: {
+    enabled: boolean
+    lastSyncAt: string | null
+  } | null
 }
 
 export function hasAiClientOpenForm(searchParams: Pick<URLSearchParams, 'get'>): boolean {
@@ -427,7 +431,35 @@ function ClientCardNew({
 
 // ─── Page component ───────────────────────────────────────────────────────────
 
-export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
+type GoogleSyncResponse = {
+  synced: number
+  skipped: number
+  errors: number
+  mode: 'full' | 'incremental'
+  lastSyncAt: string
+}
+
+function formatGoogleSyncTitle(lastSyncAt: string | null): string {
+  if (!lastSyncAt) return 'Niciodată sincronizat'
+
+  const date = new Date(lastSyncAt)
+  if (Number.isNaN(date.getTime())) return 'Niciodată sincronizat'
+
+  const formatted = new Intl.DateTimeFormat('ro-RO', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
+  }).format(date)
+
+  return `Ultima sincronizare: ${formatted}`
+}
+
+export function ClientPageClient({
+  initialClienți,
+  googleSync,
+}: ClientPageClientProps) {
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
   const pathname = usePathname()
@@ -454,6 +486,10 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
   const [editingWaMessage, setEditingWaMessage] = useState(false)
   const [waMessageDraft, setWaMessageDraft] = useState(DEFAULT_WA_MESSAGE)
   const [isSavingWaMessage, setIsSavingWaMessage] = useState(false)
+  const [lastSyncAt, setLastSyncAt] = useState(
+    googleSync?.lastSyncAt ?? null,
+  )
+  const [isSyncing, setIsSyncing] = useState(false)
   const [addClientInitialValues, setAddClientInitialValues] = useState<{
     nume_client: string
     telefon: string
@@ -528,6 +564,35 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
       active = false
     }
   }, [])
+
+  const handleSyncGoogle = async () => {
+    setIsSyncing(true)
+
+    try {
+      const response = await fetch('/api/integrations/google/sync-now', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (!response.ok) throw new Error('sync failed')
+
+      const result = (await response.json()) as GoogleSyncResponse
+      setLastSyncAt(result.lastSyncAt)
+      toast.success(
+        result.synced > 0
+          ? `Sincronizare completă — ${result.synced} contacte actualizate`
+          : 'Sincronizare completă — nicio modificare nouă',
+      )
+      void queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+    } catch {
+      toast.error('Sincronizarea a eșuat, încearcă din nou')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: ({
@@ -1096,19 +1161,47 @@ export function ClientPageClient({ initialClienți }: ClientPageClientProps) {
           title="Clienți"
           subtitle="Administrare clienți"
           contentVariant="centered"
+          expandRightSlotOnMobile={Boolean(googleSync?.enabled)}
           rightSlot={
             <>
+              {googleSync?.enabled ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 min-w-9 px-2 sm:px-3"
+                  onClick={() => {
+                    void handleSyncGoogle()
+                  }}
+                  disabled={isSyncing}
+                  title={formatGoogleSyncTitle(lastSyncAt)}
+                  aria-label={
+                    isSyncing
+                      ? 'Se sincronizează contactele Google'
+                      : 'Sincronizează contactele Google'
+                  }
+                >
+                  {isSyncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" aria-hidden />
+                  )}
+                  <span className="ml-2 hidden sm:inline">
+                    {isSyncing ? 'Se sincronizează...' : 'Sincronizează'}
+                  </span>
+                </Button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
                   setWaMessageDraft(waMessage)
                   setEditingWaMessage(true)
                 }}
-                className="text-xs text-[var(--text-secondary)] underline underline-offset-2"
+                className="hidden text-xs text-[var(--text-secondary)] underline underline-offset-2 md:inline"
               >
                 ✏️ Mesaj WA implicit
               </button>
-              <Users className="h-5 w-5 shrink-0 text-[var(--agri-text-muted)]" aria-hidden />
+              <Users className="hidden h-5 w-5 shrink-0 text-[var(--agri-text-muted)] md:block" aria-hidden />
             </>
           }
         />
