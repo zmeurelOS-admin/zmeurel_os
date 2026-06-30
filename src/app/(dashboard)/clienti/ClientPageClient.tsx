@@ -161,13 +161,13 @@ function getClientTipBadge(tip: ClientTip): { label: string; className: string }
   if (tip === 'patiserie') {
     return {
       label: '🥐 Patiserie',
-      className: 'bg-purple-100 text-purple-700',
+      className: 'bg-[var(--badge-tip-bg)] text-[var(--badge-tip-text)] border border-[var(--badge-tip-border)]',
     }
   }
   if (tip === 'magazin') {
     return {
       label: '🏪 Magazin',
-      className: 'bg-emerald-100 text-emerald-700',
+      className: 'bg-[var(--status-success-bg)] text-[var(--status-success-text)] border border-[var(--status-success-border)]',
     }
   }
   return null
@@ -416,7 +416,7 @@ function ClientCardNew({
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2 py-1 text-xs font-semibold text-white"
+                className="inline-flex items-center gap-1 rounded-lg bg-[var(--whatsapp-green)] px-2 py-1 text-xs font-semibold text-white"
               >
                 <MessageCircle className="h-3 w-3" />
                 WhatsApp
@@ -1108,7 +1108,7 @@ export function ClientPageClient({
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2 py-1 text-xs font-semibold text-white"
+                className="inline-flex items-center gap-1 rounded-lg bg-[var(--whatsapp-green)] px-2 py-1 text-xs font-semibold text-white"
                 onClick={(event) => event.stopPropagation()}
               >
                 <MessageCircle className="h-3 w-3" />
@@ -1269,7 +1269,7 @@ export function ClientPageClient({
           <Button
             type="button"
             variant="outline"
-            className="col-span-2 h-11 border-red-200 text-red-700 hover:bg-red-50 sm:col-span-1"
+            className="col-span-2 h-11 border-[var(--status-danger-border)] text-[var(--status-danger-text)] hover:bg-[var(--status-danger-bg)] sm:col-span-1"
             disabled={clienti.length === 0 || isDeletingAll || importingCsv}
             onClick={() => setBulkDeleteOpen(true)}
           >
@@ -1322,8 +1322,8 @@ export function ClientPageClient({
             )}
             {importPreview.unmappedColumns.length > 0 && (
               <div className="space-y-0.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-zinc-400">Coloane nerecunoscute (ignorate)</p>
-                <p className="text-xs text-gray-400 dark:text-zinc-400">{importPreview.unmappedColumns.join(', ')}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-tertiary)]">Coloane nerecunoscute (ignorate)</p>
+                <p className="text-xs text-[var(--text-tertiary)]">{importPreview.unmappedColumns.join(', ')}</p>
               </div>
             )}
             <div className="space-y-1.5">
@@ -1344,7 +1344,7 @@ export function ClientPageClient({
               <Button
                 type="button"
                 size="sm"
-                className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-green-700 dark:text-white dark:hover:bg-green-600"
+                className="bg-[var(--cta-recoltare-bg)] text-white hover:opacity-90"
                 onClick={handleConfirmImport}
                 disabled={importingCsv || !importPreview.rows.length}
               >
@@ -1608,24 +1608,24 @@ export function ClientPageClient({
         {importResult && (
           <div className="space-y-3 text-sm">
             <div className="space-y-2">
-              <p className="flex items-center gap-2 text-emerald-700">
+              <p className="flex items-center gap-2 text-[var(--status-success-text)]">
                 <span className="text-base">✅</span>
                 <span><strong>{importResult.imported}</strong> clienți importați</span>
               </p>
               {importResult.skippedNoName > 0 && (
-                <p className="flex items-center gap-2 text-gray-500 dark:text-zinc-400">
+                <p className="flex items-center gap-2 text-[var(--text-secondary)]">
                   <span className="text-base">⏭️</span>
                   <span><strong>{importResult.skippedNoName}</strong> fără nume — săriți</span>
                 </p>
               )}
               {importResult.skippedDuplicate > 0 && (
-                <p className="flex items-center gap-2 text-gray-500 dark:text-zinc-400">
+                <p className="flex items-center gap-2 text-[var(--text-secondary)]">
                   <span className="text-base">⏭️</span>
                   <span><strong>{importResult.skippedDuplicate}</strong> {importResult.skippedDuplicate === 1 ? 'duplicat' : 'duplicate'} — sărite</span>
                 </p>
               )}
               {importResult.failed > 0 && (
-                <p className="flex items-center gap-2 text-red-600">
+                <p className="flex items-center gap-2 text-[var(--status-danger-text)]">
                   <span className="text-base">❌</span>
                   <span><strong>{importResult.failed}</strong> erori</span>
                 </p>
@@ -1641,7 +1641,7 @@ export function ClientPageClient({
                   {showFailedRows ? 'Ascunde detalii' : 'Vezi detalii erori'}
                 </button>
                 {showFailedRows && (
-                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-red-50 p-3 text-xs text-red-700">
+                  <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-[var(--status-danger-bg)] p-3 text-xs text-[var(--status-danger-text)]">
                     {importResult.failedRows.map((r, i) => (
                       <p key={i}><strong>{r.name}</strong>: {r.error}</p>
                     ))}

@@ -16,7 +16,7 @@ export function DemoBanner() {
   if (!isVisible) return null
 
   return (
-    <div className="z-50 w-full bg-emerald-600 px-4 py-3">
+    <div className="z-50 w-full bg-[var(--agri-primary)] px-4 py-3">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-medium text-white">
           🌱 Ești în modul demo. Datele vor fi șterse. Când ești gata, creează-ți ferma ta.
@@ -36,7 +36,7 @@ export function DemoBanner() {
               type="submit"
               data-testid="demo-banner-create-farm"
               size="sm"
-              className="h-8 rounded-full bg-[var(--agri-surface)] px-4 text-sm font-semibold text-emerald-700 hover:bg-[var(--soft-success-bg)]"
+              className="h-8 rounded-full bg-[var(--agri-surface)] px-4 text-sm font-semibold text-[var(--agri-primary)] hover:opacity-90"
             >
               Creează-ți ferma →
             </Button>

@@ -91,18 +91,18 @@ type StageBucket =
 type StageTheme = { bucket: StageBucket; accent: string; bg: string; emoji: string; order: number }
 
 const STAGE_THEME: Record<Exclude<StageBucket, 'fallback'>, StageTheme> = {
-  vegetativ: { bucket: 'vegetativ', accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌿', order: 0 },
+  vegetativ: { bucket: 'vegetativ', accent: 'var(--agri-primary)', bg: 'var(--agri-primary-muted)', emoji: '🌿', order: 0 },
   inflorire: { bucket: 'inflorire', accent: '#BE185D', bg: '#FCE7F3', emoji: '🌸', order: 1 },
   fructificare: { bucket: 'fructificare', accent: '#7C3AED', bg: '#EDE9FE', emoji: '🫐', order: 2 },
   recoltare: { bucket: 'recoltare', accent: '#B45309', bg: '#FEF3C7', emoji: '🍓', order: 3 },
   post_recolta: { bucket: 'post_recolta', accent: '#0369A1', bg: '#E0F2FE', emoji: '🍂', order: 4 },
-  repaus: { bucket: 'repaus', accent: '#6B7280', bg: '#F3F4F6', emoji: '❄️', order: 5 },
+  repaus: { bucket: 'repaus', accent: 'var(--text-secondary)', bg: 'var(--surface-card-muted)', emoji: '❄️', order: 5 },
 }
 
 const STAGE_FALLBACK: StageTheme = {
   bucket: 'fallback',
-  accent: '#3D7A5F',
-  bg: '#E8F3EE',
+  accent: 'var(--agri-primary)',
+  bg: 'var(--agri-primary-muted)',
   emoji: '🌱',
   order: 6,
 }
@@ -569,8 +569,8 @@ export function PlanLiniiList({
           onClick={() => setStageFilter('all')}
           className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
             activeStageFilter === 'all'
-              ? 'bg-[#3D7A5F] text-white'
-              : 'bg-[#F3F4F6] text-[#374151]'
+              ? 'bg-[var(--agri-primary)] text-white'
+              : 'bg-[var(--surface-card-muted)] text-[var(--text-primary)]'
           }`}
         >
           Toate
@@ -582,8 +582,8 @@ export function PlanLiniiList({
             onClick={() => setStageFilter(option.value)}
             className={`rounded-full px-3 py-2 text-xs font-semibold transition ${
               activeStageFilter === option.value
-                ? 'bg-[#3D7A5F] text-white'
-                : 'bg-[#F3F4F6] text-[#374151]'
+                ? 'bg-[var(--agri-primary)] text-white'
+                : 'bg-[var(--surface-card-muted)] text-[var(--text-primary)]'
             }`}
           >
             {option.theme.emoji} {option.label}
@@ -637,10 +637,10 @@ export function PlanLiniiList({
                   <p className="text-xs font-bold uppercase tracking-widest" style={{ color: group.theme.accent }}>
                     {group.label}
                   </p>
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <p className="text-xs text-gray-400">{done}/{total}</p>
+                  <div className="h-px flex-1 bg-[var(--border-default)]" />
+                  <p className="text-xs text-[var(--text-tertiary)]">{done}/{total}</p>
                 </button>
-                <div className="h-[3px] w-full overflow-hidden rounded-full bg-gray-100">
+                <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
                   <div
                     className="h-full rounded-full transition-all duration-200"
                     style={{ width: `${percent}%`, backgroundColor: group.theme.accent }}

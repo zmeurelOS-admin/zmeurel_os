@@ -64,17 +64,17 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <Link href="/test" className="flex items-center gap-2">
               <span className="text-2xl">🫐</span>
-              <span className="text-xl font-bold text-[#312E3F]">Zmeurel OS</span>
+              <span className="text-xl font-bold text-[var(--text-primary)]">Zmeurel OS</span>
             </Link>
             {farmName && (
-              <span className="text-sm text-gray-500 hidden sm:block">| {farmName}</span>
+              <span className="text-sm text-[var(--text-secondary)] hidden sm:block">| {farmName}</span>
             )}
           </div>
 
           {/* User Info + Logout */}
           <div className="flex items-center gap-4">
             {user.email && (
-              <span className="text-sm text-gray-600 hidden md:block">👤 {user.email}</span>
+              <span className="text-sm text-[var(--text-secondary)] hidden md:block">👤 {user.email}</span>
             )}
             <LogoutButton />
           </div>

@@ -14,8 +14,8 @@ interface StatRowProps {
 }
 
 const trendMap: Record<StatTrend, { Icon: typeof ArrowUpRight; className: string }> = {
-  up: { Icon: ArrowUpRight, className: 'text-emerald-600' },
-  down: { Icon: ArrowDownRight, className: 'text-red-600' },
+  up: { Icon: ArrowUpRight, className: 'text-[var(--agri-primary)]' },
+  down: { Icon: ArrowDownRight, className: 'text-[var(--status-danger-text)]' },
   neutral: { Icon: ArrowRight, className: 'text-[var(--agri-text-muted)]' },
 }
 

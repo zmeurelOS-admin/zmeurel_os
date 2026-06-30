@@ -271,7 +271,7 @@ export function AppSelect({
         />
       </div>
       {customValueMessage ? (
-        <div className="mt-2 flex items-start gap-2 text-sm text-amber-700">
+        <div className="mt-2 flex items-start gap-2 text-sm text-[var(--status-warning-text)]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <p>{customValueMessage}</p>
         </div>
@@ -392,7 +392,7 @@ export function AppSelect({
         </Popover>
       )}
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-[var(--status-danger-text)]">{error}</p> : null}
     </div>
   )
 }

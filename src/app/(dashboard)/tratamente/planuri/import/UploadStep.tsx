@@ -107,7 +107,7 @@ export function UploadStep({ onBack, onParsed }: UploadStepProps) {
   return (
     <div className="space-y-4">
       {/* --- SECTION: upload --- */}
-      <AppCard className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <AppCard className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Upload</h2>
           <p className="text-sm text-[var(--text-secondary)]">
@@ -116,7 +116,7 @@ export function UploadStep({ onBack, onParsed }: UploadStepProps) {
           </p>
         </div>
 
-        <div className="rounded-xl border-2 border-dashed border-[#3D7A5F]/40 p-1 transition-colors hover:border-[#3D7A5F] hover:bg-[#E8F3EE]/30">
+        <div className="rounded-xl border-2 border-dashed border-[var(--agri-primary)]/40 p-1 transition-colors hover:border-[var(--agri-primary)] hover:bg-[var(--agri-primary-muted)]/30">
           <UploadDropzone disabled={isPending} onFileSelected={handleFileSelected} />
         </div>
 
@@ -142,7 +142,7 @@ export function UploadStep({ onBack, onParsed }: UploadStepProps) {
           <Button
             type="button"
             variant="outline"
-            className="rounded-xl border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
+            className="rounded-xl border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-primary)]"
             // --- FIX 4: revenire prin state machine, fără reload ---
             onClick={onBack}
           >
@@ -153,7 +153,7 @@ export function UploadStep({ onBack, onParsed }: UploadStepProps) {
       </AppCard>
 
       {/* --- SECTION: hints --- */}
-      <AppCard className="space-y-3 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <AppCard className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
         <h3 className="text-sm font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
           Ce urmează după upload
         </h3>

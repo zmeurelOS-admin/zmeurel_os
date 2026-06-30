@@ -2018,9 +2018,9 @@ export function MarkAplicataSheet({
                         />
                       </div>
                       {produsDraft.produs_id ? (
-                        <div className="hidden md:flex md:items-center md:gap-2 md:px-3 md:py-1.5 md:border md:border-[#3D7A5F] md:rounded-lg md:bg-[#f0f8f4]">
+                        <div className="hidden md:flex md:items-center md:gap-2 md:px-3 md:py-1.5 md:border md:border-[var(--agri-primary)] md:rounded-lg md:bg-[var(--agri-primary-muted)]">
                           <div className="min-w-0 flex-1 flex flex-col">
-                            <span className="truncate text-[13px] font-medium text-[#0f6e56]">
+                            <span className="truncate text-[13px] font-medium text-[var(--agri-primary)]">
                               {(produsDraft.produs_nume_snapshot || selectedProduct?.nume_comercial || '').trim() || 'Produs din bibliotecă'}
                             </span>
                             {(() => {
@@ -2029,7 +2029,7 @@ export function MarkAplicataSheet({
                                 productTypeLabel,
                               ].filter(Boolean) as string[]
                               return subtitleParts.length > 0 ? (
-                                <span className="truncate text-[11px] text-[#3D7A5F] opacity-70">
+                                <span className="truncate text-[11px] text-[var(--agri-primary)] opacity-70">
                                   {subtitleParts.join(' · ')}
                                 </span>
                               ) : null
@@ -2038,7 +2038,7 @@ export function MarkAplicataSheet({
                           <button
                             type="button"
                             aria-label="Elimină produsul selectat"
-                            className="shrink-0 cursor-pointer text-[#3D7A5F] bg-transparent border-none p-1"
+                            className="shrink-0 cursor-pointer text-[var(--agri-primary)] bg-transparent border-none p-1"
                             onClick={() =>
                               updateProduct(produsDraft.id, (current) => {
                                 const fallbackName = current.produs_nume_snapshot || current.produs_nume_manual || ''

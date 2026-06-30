@@ -22,7 +22,7 @@ export function CulturiBara({ suprafataTotala, culturi }: CulturiBaraProps) {
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2 text-xs">
         <span className="font-semibold text-[var(--agri-text)]">Suprafață ocupată</span>
-        <span className={`font-semibold ${isOverflow ? 'text-red-600' : 'text-[var(--agri-text-muted)]'}`}>
+        <span className={`font-semibold ${isOverflow ? 'text-[var(--status-danger-text)]' : 'text-[var(--agri-text-muted)]'}`}>
           {ocupata.toFixed(0)} / {suprafataTotala.toFixed(0)} mp
         </span>
       </div>
@@ -49,7 +49,7 @@ export function CulturiBara({ suprafataTotala, culturi }: CulturiBaraProps) {
             Liber: {libera.toFixed(0)} mp
           </span>
         ) : (
-          <span className="font-semibold text-red-600">⚠️ Depășit cu {(ocupata - suprafataTotala).toFixed(0)} mp</span>
+          <span className="font-semibold text-[var(--status-danger-text)]">⚠️ Depășit cu {(ocupata - suprafataTotala).toFixed(0)} mp</span>
         )}
       </div>
     </div>

@@ -123,7 +123,7 @@ export function ParceleList({
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <div className="text-lg font-bold text-emerald-700">{productionKg.toFixed(1)}</div>
+                  <div className="text-lg font-bold text-[var(--agri-primary)]">{productionKg.toFixed(1)}</div>
                   <div className="text-[10px] text-[var(--agri-text-muted)]">kg</div>
                   <div className="text-[10px] text-[var(--agri-text-muted)]">{density.toFixed(2)} plante/mp</div>
                 </div>

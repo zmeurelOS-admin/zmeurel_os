@@ -102,7 +102,7 @@ function DistributionList({ rows, emptyMessage }: { rows: DistributionEntry[]; e
           <div className="flex flex-1 items-center gap-2">
             <div className="flex-1 overflow-hidden rounded-full bg-[var(--agri-surface-muted)]">
               <div
-                className="h-4 rounded-full bg-emerald-500"
+                className="h-4 rounded-full bg-[var(--agri-primary)]"
                 style={{ width: `${Math.max(4, Math.round((row.count / maxCount) * 100))}%` }}
               />
             </div>

@@ -107,7 +107,7 @@ export function ViewCheltuialaDialog({
                 href={cheltuiala.document_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium text-emerald-700 hover:underline"
+                className="text-sm font-medium text-[var(--agri-primary)] hover:underline"
               >
                 Vezi atașament
               </a>

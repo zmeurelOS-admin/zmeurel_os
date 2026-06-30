@@ -1138,14 +1138,14 @@ export function ReviewStep({
       (product.actiune === 'use_suggestion' && product.selectedSuggestionIndex != null)
     const isApproximate = product.produs_match.tip === 'fuzzy' && !isMatched
     const statusBadgeClass = isApproximate
-      ? 'border-transparent bg-[#FEF3C7] text-[#B45309]'
-      : 'border-transparent bg-[#E8F3EE] text-[#3D7A5F]'
+      ? 'border-transparent bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+      : 'border-transparent bg-[var(--agri-primary-muted)] text-[var(--agri-primary)]'
 
     return (
       // --- SECTION: product review card ---
       <div
         key={`${product.ordine_produs}-${product.produs_input}-${productIndex}`}
-        className="relative mb-2 space-y-3 rounded-xl bg-[#F8FAF9] p-3"
+        className="relative mb-2 space-y-3 rounded-xl bg-[var(--surface-card-muted)] p-3"
       >
         <Button
           type="button"
@@ -1170,12 +1170,12 @@ export function ReviewStep({
               <p
                 className={cn(
                   'break-words text-sm',
-                  isMatched ? 'font-semibold text-[#3D7A5F]' : 'font-semibold text-[#B45309]'
+                  isMatched ? 'font-semibold text-[var(--agri-primary)]' : 'font-semibold text-[var(--status-warning-text)]'
                 )}
               >
                 {product.produs_input || 'Fără produs în fișier'}
               </p>
-              <Badge variant="secondary" className="border-transparent bg-gray-100 text-gray-600">
+              <Badge variant="secondary" className="border-transparent bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
                 {formatProductDose(product)}
               </Badge>
             </div>
@@ -1307,7 +1307,7 @@ export function ReviewStep({
     <div className="space-y-4">
       {/* --- SECTION: review header --- */}
       <div className="sticky top-2 z-20">
-        <AppCard className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <AppCard className="space-y-4 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-1">
               <h2 className="text-lg font-bold text-[var(--text-primary)]">Review & confirmare</h2>
@@ -1329,7 +1329,7 @@ export function ReviewStep({
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
+                className="rounded-xl border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-primary)]"
                 onClick={applyAllFuzzySuggestions}
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -1338,7 +1338,7 @@ export function ReviewStep({
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-700"
+                className="rounded-xl border-[var(--border-default)] text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-primary)]"
                 onClick={onReset}
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -1346,7 +1346,7 @@ export function ReviewStep({
               </Button>
               <Button
                 type="button"
-                className="w-full rounded-xl bg-[#3D7A5F] font-semibold text-white hover:bg-[#2D5F47] sm:w-auto"
+                className="w-full rounded-xl bg-[var(--agri-primary)] font-semibold text-white hover:opacity-90 sm:w-auto"
                 disabled={hasBlockingIssues || isSaving || produseLoading}
                 onClick={handleSave}
               >

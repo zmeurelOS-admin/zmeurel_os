@@ -65,18 +65,18 @@ type StageBucket =
 type StageTheme = { bucket: StageBucket; accent: string; bg: string; emoji: string }
 
 const STAGE_THEME: Record<Exclude<StageBucket, 'fallback'>, StageTheme> = {
-  vegetativ: { bucket: 'vegetativ', accent: '#3D7A5F', bg: '#E8F3EE', emoji: '🌿' },
+  vegetativ: { bucket: 'vegetativ', accent: 'var(--agri-primary)', bg: 'var(--agri-primary-muted)', emoji: '🌿' },
   inflorire: { bucket: 'inflorire', accent: '#BE185D', bg: '#FCE7F3', emoji: '🌸' },
   fructificare: { bucket: 'fructificare', accent: '#7C3AED', bg: '#EDE9FE', emoji: '🫐' },
   recoltare: { bucket: 'recoltare', accent: '#B45309', bg: '#FEF3C7', emoji: '🍓' },
   post_recolta: { bucket: 'post_recolta', accent: '#0369A1', bg: '#E0F2FE', emoji: '🍂' },
-  repaus: { bucket: 'repaus', accent: '#6B7280', bg: '#F3F4F6', emoji: '❄️' },
+  repaus: { bucket: 'repaus', accent: 'var(--text-secondary)', bg: 'var(--surface-card-muted)', emoji: '❄️' },
 }
 
 const STAGE_FALLBACK: StageTheme = {
   bucket: 'fallback',
-  accent: '#3D7A5F',
-  bg: '#E8F3EE',
+  accent: 'var(--agri-primary)',
+  bg: 'var(--agri-primary-muted)',
   emoji: '🌱',
 }
 
@@ -258,7 +258,7 @@ export function LinieRow({
       <div className="flex w-full items-start gap-3 px-3 py-3">
         <button
           type="button"
-          className="mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] border-2 border-gray-300 bg-white transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-0.5 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] border-2 border-[var(--border-default)] bg-[var(--surface-card)] transition hover:bg-[var(--surface-card-muted)] disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!onMarkAplicata}
           onClick={(event) => {
             event.stopPropagation()
@@ -315,7 +315,7 @@ export function LinieRow({
         }`}
       >
         <div className="px-3 pb-3">
-          <div className="rounded-lg bg-[#F8FAF9] p-3">
+          <div className="rounded-lg bg-[var(--surface-card-muted)] p-3">
             {produse.length > 0 ? (
               <div className="space-y-2">
                 {produse.map((produs) => (
@@ -359,7 +359,7 @@ export function LinieRow({
               type="button"
               variant="ghost"
               size="sm"
-              className="text-red-500 hover:bg-red-50 hover:text-red-600"
+              className="text-[var(--status-danger-text)] hover:bg-[var(--status-danger-bg)]"
               onClick={onDelete}
             >
               <Trash2 className="h-4 w-4" />

@@ -135,8 +135,8 @@ async function copyText(value: string) {
 function RoleBadge({ role }: { role: FarmMemberRole }) {
   const classes =
     role === 'operator'
-      ? 'border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8]'
-      : 'border-[#BBF7D0] bg-[#F0FDF4] text-[#15803D]'
+      ? 'border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]'
+      : 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
 
   return (
     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${classes}`}>
@@ -169,7 +169,7 @@ function InviteResult({ invite }: { invite: GeneratedInvite }) {
         {waUrl ? (
           <Button
             type="button"
-            className="min-h-11 flex-1 gap-2 bg-[#25D366] text-white hover:bg-[#20BD5A]"
+            className="min-h-11 flex-1 gap-2 bg-[var(--whatsapp-green)] text-white hover:opacity-90"
             onClick={() => window.open(waUrl, '_blank', 'noopener,noreferrer')}
           >
             <MessageCircle className="h-4 w-4" aria-hidden />
@@ -691,7 +691,7 @@ export function EchipaClient() {
 
       <section className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:p-6">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EFF6FF] text-[#1D4ED8]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--status-info-bg)] text-[var(--status-info-text)]">
             <UserPlus className="h-5 w-5" aria-hidden />
           </span>
           <div>
@@ -711,7 +711,7 @@ export function EchipaClient() {
 
       <section className="rounded-3xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:p-6">
         <div className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F0FDF4] text-[#15803D]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--status-success-bg)] text-[var(--status-success-text)]">
             🚚
           </span>
           <div>

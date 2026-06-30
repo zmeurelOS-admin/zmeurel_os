@@ -207,7 +207,7 @@ export function ViewComandaDialog({
                   window.open(whatsappCallUrl, '_blank', 'noopener,noreferrer')
                 }}
               >
-                <MessageCircle className="h-4 w-4 text-green-600" />
+                <MessageCircle className="h-4 w-4 text-[var(--whatsapp-green)]" />
                 WhatsApp Apel
               </Button>
               <Button
@@ -220,7 +220,7 @@ export function ViewComandaDialog({
                   window.open(whatsappMessageUrl, '_blank', 'noopener,noreferrer')
                 }}
               >
-                <MessageCircle className="h-4 w-4 text-green-600" />
+                <MessageCircle className="h-4 w-4 text-[var(--whatsapp-green)]" />
                 WhatsApp Mesaj
               </Button>
               <Button

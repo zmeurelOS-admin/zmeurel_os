@@ -493,7 +493,7 @@ export function EditOrderSheet({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor={`edit-order-quantity-${order.id}`}>
             Cantitate ({isShop ? 'caserole' : 'kg'})
@@ -528,6 +528,13 @@ export function EditOrderSheet({
             }
           />
         </div>
+
+        <AppDatePicker
+          id={`edit-order-delivery-date-${order.id}`}
+          label="Data livrare"
+          value={form.deliveryDate}
+          onChange={(value) => setForm((current) => ({ ...current, deliveryDate: value }))}
+        />
       </div>
 
       {isShop && price !== 20 ? (
@@ -542,13 +549,6 @@ export function EditOrderSheet({
           {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(total)} lei
         </strong>
       </div>
-
-      <AppDatePicker
-        id={`edit-order-delivery-date-${order.id}`}
-        label="Data livrare"
-        value={form.deliveryDate}
-        onChange={(value) => setForm((current) => ({ ...current, deliveryDate: value }))}
-      />
 
       <div className="space-y-1.5">
         <Label>Status</Label>
@@ -576,6 +576,7 @@ export function EditOrderSheet({
         <Label htmlFor={`edit-order-notes-${order.id}`}>Observații</Label>
         <Textarea
           id={`edit-order-notes-${order.id}`}
+          className="min-h-[2.75rem] md:min-h-[3rem]"
           maxLength={1000}
           value={form.notes}
           onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}

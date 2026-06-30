@@ -97,8 +97,8 @@ function CohortMiniCard(props: {
   const { active, cohort, configurareSezon, grupBiologic, onClick, onRecordCohort, stage } = props
   const isFloricane = cohort === 'floricane'
   const emoji = isFloricane ? '🌸' : '🌱'
-  const labelColor = isFloricane ? '#3D7A5F' : '#2563EB'
-  const barColor = isFloricane ? '#3D7A5F' : '#2563EB'
+  const labelColor = isFloricane ? 'var(--agri-primary)' : 'var(--status-info-text)'
+  const barColor = isFloricane ? 'var(--agri-primary)' : 'var(--status-info-text)'
   const stadiuCod = stage.stadiuCurent?.stadiu ?? null
   const codNorm = stadiuCod ? normalizeStadiu(stadiuCod) : null
   const numeFaza = codNorm ? getLabelStadiuContextual(codNorm, configurareSezon, { grupBiologic, cohort }) : '—'
@@ -122,8 +122,8 @@ function CohortMiniCard(props: {
         'min-w-0 flex-1 cursor-pointer rounded-xl border-2 p-2.5 text-left transition active:scale-[0.99]',
         active
           ? isFloricane
-            ? 'border-[#3D7A5F] bg-[color:color-mix(in_srgb,#3D7A5F_10%,var(--surface-card))]'
-            : 'border-[#2563EB] bg-[color:color-mix(in_srgb,#2563EB_10%,var(--surface-card))]'
+            ? 'border-[var(--agri-primary)] bg-[color:color-mix(in_srgb,var(--agri-primary)_10%,var(--surface-card))]'
+            : 'border-[var(--status-info-text)] bg-[color:color-mix(in_srgb,var(--status-info-text)_10%,var(--surface-card))]'
           : 'border-[var(--border-default)] bg-[var(--surface-card)]',
       )}
     >
@@ -136,7 +136,7 @@ function CohortMiniCard(props: {
             {getCohortaLabel(cohort)}
           </p>
           <p className="mt-0.5 line-clamp-2 text-sm font-bold text-[var(--text-primary)]">{numeFaza}</p>
-          <p className="mt-0.5 text-[10px] text-gray-400">{bbchDisplay ? `BBCH ${bbchDisplay} · ${dataObs}` : dataObs}</p>
+          <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{bbchDisplay ? `BBCH ${bbchDisplay} · ${dataObs}` : dataObs}</p>
           <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
             <div className="h-full rounded-full transition-all" style={{ width: `${stage.stadiuProgress}%`, background: barColor }} />
           </div>
@@ -194,13 +194,13 @@ function SingleStageMiniCard(props: {
 
   return (
     <div className="w-full rounded-xl border-2 border-[var(--border-default)] bg-[var(--surface-card)] p-2.5">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[#3D7A5F]">Fenofază curentă</p>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--agri-primary)]">Fenofază curentă</p>
       <p className="mt-0.5 text-sm font-bold text-[var(--text-primary)]">{numeFaza}</p>
-      <p className="mt-0.5 text-[10px] text-gray-400">{bbchDisplay ? `BBCH ${bbchDisplay} · ${dataObs}` : dataObs}</p>
+      <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">{bbchDisplay ? `BBCH ${bbchDisplay} · ${dataObs}` : dataObs}</p>
       <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
         <div
           className="h-full rounded-full transition-all"
-          style={{ width: `${stage.stadiuProgress}%`, background: '#3D7A5F' }}
+          style={{ width: `${stage.stadiuProgress}%`, background: 'var(--agri-primary)' }}
         />
       </div>
       <p className="mt-1 text-[10px] text-[var(--text-secondary)]">
@@ -372,12 +372,12 @@ function ParcelaTratamentePlansCollapsedBody({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#fcebeb] px-3 py-1 text-xs font-medium text-[#a32d2d]">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#a32d2d]" />
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--status-danger-bg)] px-3 py-1 text-xs font-medium text-[var(--status-danger-text)]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--status-danger-text)]" />
           {summary.intarziate} întârziate
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#faeeda] px-3 py-1 text-xs font-medium text-[#854f0b]">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#854f0b]" />
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--status-warning-bg)] px-3 py-1 text-xs font-medium text-[var(--status-warning-text)]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--status-warning-text)]" />
           {summary.azi} azi
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-card-muted)] px-3 py-1 text-xs font-medium text-[var(--text-secondary)]">
@@ -433,7 +433,7 @@ function ParcelaTratamentePlansCollapsedBody({
           type="button"
           variant="secondary"
           size="sm"
-          className="w-full flex-1 rounded-[10px] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+          className="w-full flex-1 rounded-[10px] bg-[var(--surface-card-muted)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-card-elevated)]"
           onClick={() => onRecordStadiu(undefined)}
         >
           Actualizează fenofaza
@@ -445,8 +445,8 @@ function ParcelaTratamentePlansCollapsedBody({
           className={cn(
             'w-full flex-1 rounded-[10px] px-4 py-2 text-sm font-medium',
             hasAssociatedPlan
-              ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              : 'bg-[color:color-mix(in_srgb,var(--agri-primary)_12%,white)] text-[var(--agri-primary)] hover:bg-[color:color-mix(in_srgb,var(--agri-primary)_18%,white)]',
+              ? 'bg-[var(--surface-card-muted)] text-[var(--text-primary)] hover:bg-[var(--surface-card-elevated)]'
+              : 'bg-[color:color-mix(in_srgb,var(--agri-primary)_12%,var(--surface-card))] text-[var(--agri-primary)] hover:opacity-90',
           )}
           onClick={onAssignPlan}
         >
@@ -475,33 +475,33 @@ function ParcelaTratamentePlansCollapsedBody({
                 : '—'
               const leftBorder =
                 status === 'intarziata'
-                  ? "before:bg-red-500"
+                  ? "before:bg-[var(--status-danger-text)]"
                   : status === 'de_facut_azi'
-                    ? "before:bg-amber-500"
+                    ? "before:bg-[var(--status-warning-text)]"
                     : "before:bg-transparent"
 
               const statusBadge =
                 status === 'intarziata' ? (
-                  <span className="inline-flex rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-600">
+                  <span className="inline-flex rounded-full bg-[var(--status-danger-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-danger-text)]">
                     ⚠ Întârziată
                   </span>
                 ) : status === 'de_facut_azi' ? (
-                  <span className="inline-flex rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                  <span className="inline-flex rounded-full bg-[var(--status-warning-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-warning-text)]">
                     ● Azi
                   </span>
                 ) : (
-                  <span className="inline-flex rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+                  <span className="inline-flex rounded-full bg-[var(--surface-card-muted)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--text-secondary)]">
                     Urmează
                   </span>
                 )
 
               const cohortBadge =
                 cohort === 'floricane' ? (
-                  <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold text-green-700">
+                  <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-success-text)]">
                     🌸 floricane
                   </span>
                 ) : cohort === 'primocane' ? (
-                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">
+                  <span className="inline-flex items-center rounded-full border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--status-info-text)]">
                     🌱 primocane
                   </span>
                 ) : null
@@ -532,7 +532,7 @@ function ParcelaTratamentePlansCollapsedBody({
                           <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                             {statusBadge}
                             {cohortBadge}
-                            <span className="inline-flex rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                            <span className="inline-flex rounded-full bg-[var(--surface-card-muted)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
                               {tipMeta.emoji} {tipMeta.label}
                             </span>
                           </div>
@@ -542,7 +542,7 @@ function ParcelaTratamentePlansCollapsedBody({
                           <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                             📦 {getProductLine(inv)}
                           </p>
-                          <p className="text-[10px] text-gray-400">
+                          <p className="text-[10px] text-[var(--text-tertiary)]">
                             Scadență {due} · {inv.aplicari_efectuate_count} aplicări
                           </p>
                         </div>
@@ -565,7 +565,7 @@ function ParcelaTratamentePlansCollapsedBody({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="bg-gray-100 text-[var(--text-primary)] hover:bg-gray-200"
+                          className="bg-[var(--surface-card-muted)] text-[var(--text-primary)] hover:bg-[var(--surface-card-elevated)]"
                           disabled={isAmanaPending || !canQuickApply(inv)}
                           onClick={(e) => {
                             e.stopPropagation()
@@ -631,33 +631,33 @@ function ParcelaTratamentePlansCollapsedBody({
               <div className="grid grid-cols-2 gap-2">
                 <Link
                   href="/tratamente/produse-fitosanitare"
-                  className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                  className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-center text-xs font-medium text-[var(--text-primary)]"
                 >
                   Bibliotecă produse
                 </Link>
                 <Link
                   href="/tratamente/planuri"
-                  className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                  className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-center text-xs font-medium text-[var(--text-primary)]"
                 >
                   Toate planurile
                 </Link>
                 <Link
                   href="/tratamente"
-                  className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                  className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-center text-xs font-medium text-[var(--text-primary)]"
                 >
                   Hub tratamente
                 </Link>
                 {detailsHref ? (
                   <Link
                     href={detailsHref}
-                    className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-700"
+                    className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-center text-xs font-medium text-[var(--text-primary)]"
                   >
                     Vezi detalii
                   </Link>
                 ) : (
                   <button
                     type="button"
-                    className="rounded-lg bg-gray-100 p-2 text-center text-xs font-medium text-gray-400"
+                    className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-center text-xs font-medium text-[var(--text-tertiary)]"
                     disabled
                   >
                     Vezi detalii
@@ -669,7 +669,7 @@ function ParcelaTratamentePlansCollapsedBody({
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="w-full rounded-[10px] bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+                className="w-full rounded-[10px] bg-[var(--surface-card-muted)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-card-elevated)]"
                 onClick={onAssignPlan}
               >
                 Schimbă plan
@@ -694,11 +694,11 @@ function ParcelaTratamentePlansCollapsedBody({
                 Asociază plan
               </Button>
               {createPlanHref ? (
-                <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-700" asChild>
+                <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-[var(--surface-card-muted)] text-[var(--text-primary)]" asChild>
                   <Link href={createPlanHref}>Creează plan</Link>
                 </Button>
               ) : (
-                <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-gray-100 text-gray-400" disabled>
+                <Button type="button" size="sm" variant="secondary" className="w-full rounded-[10px] bg-[var(--surface-card-muted)] text-[var(--text-tertiary)]" disabled>
                   Creează plan
                 </Button>
               )}
@@ -748,14 +748,14 @@ function ParcelaTratamentePlansCollapsedBody({
                   <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] p-3 shadow-[var(--shadow-soft)]">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-[var(--text-primary)]">{dateText}</p>
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+                      <span className="inline-flex rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-secondary)]">
                         {headerBadge}
                       </span>
                     </div>
                     <div className="mt-2">
                       <p className="line-clamp-1 text-sm text-[var(--text-primary)] [font-weight:700]">{produs}</p>
                       {tipInterventie ? (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{tipInterventie}</p>
+                        <p className="mt-0.5 line-clamp-1 text-xs text-[var(--text-secondary)]">{tipInterventie}</p>
                       ) : null}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -783,7 +783,7 @@ function ParcelaTratamentePlansCollapsedBody({
           </div>
         )}
         {aplicateCount > 0 ? (
-          <p className="mt-2.5 text-[12px] font-medium text-[#3D7A5F]">
+          <p className="mt-2.5 text-[12px] font-medium text-[var(--agri-primary)]">
             <Link
               href={`/parcele/${parcelaId}/tratamente/toate`}
               className="cursor-pointer underline-offset-2 hover:underline"

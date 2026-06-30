@@ -123,7 +123,7 @@ export function PlanCard({
               <Button
                 type="button"
                 size="sm"
-                className="w-auto rounded-xl bg-[#3D7A5F] px-4 py-2 text-sm font-semibold text-white hover:bg-[#356b53]"
+                className="w-auto rounded-xl bg-[var(--agri-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
                 onClick={onClick}
               >
                 Vezi plan
@@ -148,7 +148,7 @@ export function PlanCard({
             <Button
               type="button"
               variant="outline"
-              className="justify-start text-red-500 hover:text-red-500"
+              className="justify-start text-[var(--status-danger-text)]"
               onClick={onSterge}
             >
               <Trash2 className="h-4 w-4" />

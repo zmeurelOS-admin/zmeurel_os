@@ -90,9 +90,9 @@ export function ClientForm({ form, mode, showSaveToPhone = false }: ClientFormPr
                     className={`flex-1 rounded-xl border py-2 text-xs font-semibold transition ${
                       watched.tip === t
                         ? t === 'patiserie'
-                          ? 'border-purple-500 bg-purple-50 text-purple-700'
+                          ? 'border-[var(--badge-tip-border)] bg-[var(--badge-tip-bg)] text-[var(--badge-tip-text)]'
                           : t === 'magazin'
-                            ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                            ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
                             : 'border-[var(--brand-coral)] bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]'
                         : 'border-[var(--divider)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
                     }`}

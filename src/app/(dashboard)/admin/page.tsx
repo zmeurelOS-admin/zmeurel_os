@@ -83,8 +83,8 @@ export default async function AdminPage() {
         </section>
 
         {error ? (
-          <Card className="rounded-2xl border-red-200 bg-red-50">
-            <CardContent className="p-4 text-sm text-red-800">
+          <Card className="rounded-2xl border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]">
+            <CardContent className="p-4 text-sm text-[var(--status-danger-text)]">
               Eroare la încărcare tenanți: {error.message}
             </CardContent>
           </Card>

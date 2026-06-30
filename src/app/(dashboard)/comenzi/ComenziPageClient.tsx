@@ -108,6 +108,7 @@ import {
   DELIVERY_ZONES,
   type DeliveryZone,
 } from '@/lib/shop/delivery-zones'
+import { cn } from '@/lib/utils'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'programate' | 'livrate' | 'toate'
@@ -231,6 +232,21 @@ const orderKindLabelMap: Record<ComandaOrderKind, string> = {
   manual: 'Manual',
   cadou: '🎁 Cadou',
   consum_propriu: '🏠 Consum propriu',
+}
+
+const PRET_IMPLICIT_LEI_PER_KG = 40
+const CREATE_COMANDA_STATUS_OPTIONS = COMENZI_STATUSES.filter(
+  (status): status is ComandaStatus =>
+    status === 'noua' || status === 'confirmata' || status === 'in_livrare',
+)
+
+function getComandaPillClassName(active: boolean) {
+  return cn(
+    'inline-flex min-h-10 items-center justify-center rounded-full border px-3 text-sm font-medium transition md:min-h-9',
+    active
+      ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success-text)]'
+      : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]',
+  )
 }
 
 interface ComandaFormState {
@@ -916,7 +932,13 @@ function ComandaDialog({
   const [comboInput, setComboInput] = useState(initialComboInput)
   const [comboOpen, setComboOpen] = useState(false)
   const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
+  const [hasEditedManualPrice, setHasEditedManualPrice] = useState(false)
   const comboRef = useRef<HTMLDivElement>(null)
+  const lastManualPriceRef = useRef(
+    initialFormState.pret_per_kg && initialFormState.pret_per_kg !== '0'
+      ? initialFormState.pret_per_kg
+      : String(PRET_IMPLICIT_LEI_PER_KG),
+  )
 
   // Logica vizibilitate câmpuri per tip comandă
   const isConsumPropriu = form.order_kind === 'consum_propriu'
@@ -959,6 +981,43 @@ function ComandaDialog({
       setForm((prev) => ({ ...prev, pret_per_kg: '0' }))
     }
   }, [form.pret_per_kg, isZeroPriceOrderKind])
+
+  useEffect(() => {
+    if (mode !== 'create' || !isManual || isZeroPriceOrderKind || hasEditedManualPrice) return
+    if (form.pret_per_kg.trim().length > 0) return
+    setForm((prev) => ({ ...prev, pret_per_kg: String(PRET_IMPLICIT_LEI_PER_KG) }))
+  }, [form.pret_per_kg, hasEditedManualPrice, isManual, isZeroPriceOrderKind, mode])
+
+  const handleCreateOrderKindChange = useCallback(
+    (nextOrderKind: ComandaOrderKind) => {
+      setForm((prev) => {
+        const currentPrice = prev.pret_per_kg.trim()
+        if (prev.order_kind === 'manual' && currentPrice && currentPrice !== '0') {
+          lastManualPriceRef.current = currentPrice
+        }
+
+        const nextIsZeroPrice =
+          nextOrderKind === 'cadou' || nextOrderKind === 'consum_propriu'
+        const nextManualPrice = nextIsZeroPrice
+          ? '0'
+          : lastManualPriceRef.current ||
+            (!hasEditedManualPrice ? String(PRET_IMPLICIT_LEI_PER_KG) : prev.pret_per_kg)
+
+        return {
+          ...prev,
+          order_kind: nextOrderKind,
+          pret_per_kg: nextManualPrice,
+          status:
+            nextOrderKind === 'consum_propriu'
+              ? 'livrata'
+              : prev.status === 'livrata'
+              ? 'confirmata'
+              : prev.status,
+        }
+      })
+    },
+    [hasEditedManualPrice],
+  )
 
   const comboFiltered = useMemo(() => {
     const term = normalize(comboInput)
@@ -1024,40 +1083,84 @@ function ComandaDialog({
             <div className="space-y-1.5">
               <Label>Tip comandă</Label>
               {mode === 'create' ? (
-                <Select
-                  value={form.order_kind}
-                  onValueChange={(value) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      order_kind: value as ComandaOrderKind,
-                      pret_per_kg:
-                        value === 'cadou' || value === 'consum_propriu' ? '0' : prev.pret_per_kg,
-                      status:
-                        value === 'consum_propriu'
-                          ? 'livrata'
-                          : prev.status === 'livrata'
-                          ? 'confirmata'
-                          : prev.status,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="agri-control h-11 md:h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+                <>
+                  <div className="hidden flex-wrap gap-2 md:flex">
                     {COMANDA_ORDER_KINDS.map((orderKind) => (
-                      <SelectItem key={orderKind} value={orderKind}>
+                      <button
+                        key={orderKind}
+                        type="button"
+                        aria-pressed={form.order_kind === orderKind}
+                        className={getComandaPillClassName(form.order_kind === orderKind)}
+                        onClick={() => handleCreateOrderKindChange(orderKind)}
+                      >
                         {orderKindLabelMap[orderKind]}
-                      </SelectItem>
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+
+                  <div className="md:hidden">
+                    <Select
+                      value={form.order_kind}
+                      onValueChange={(value) => handleCreateOrderKindChange(value as ComandaOrderKind)}
+                    >
+                      <SelectTrigger className="agri-control h-11 md:h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COMANDA_ORDER_KINDS.map((orderKind) => (
+                          <SelectItem key={orderKind} value={orderKind}>
+                            {orderKindLabelMap[orderKind]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               ) : (
                 <div className="flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-sm font-medium text-[var(--text-primary)] md:min-h-10">
                   {orderKindLabelMap[form.order_kind]}
                 </div>
               )}
             </div>
+
+            {isManual && mode === 'create' ? (
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <div className="hidden flex-wrap gap-2 md:flex">
+                  {CREATE_COMANDA_STATUS_OPTIONS.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      aria-pressed={form.status === status}
+                      className={getComandaPillClassName(form.status === status)}
+                      onClick={() =>
+                        setForm((prev) => ({ ...prev, status }))
+                      }
+                    >
+                      {statusLabelMap[status]}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="md:hidden">
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
+                  >
+                    <SelectTrigger className="agri-control h-11 md:h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CREATE_COMANDA_STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {statusLabelMap[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : null}
 
             {/* ── 2. Câmpuri client (Manual + Cadou) ── */}
             {showClientFields ? (
@@ -1209,7 +1312,16 @@ function ComandaDialog({
             ) : null}
 
             {/* ── 3. Cantitate (mereu) + Preț (doar Manual) ── */}
-            <div className={`grid gap-2.5 md:gap-x-3 md:gap-y-2.5 ${showPriceField ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <div
+              className={cn(
+                'grid grid-cols-1 gap-2.5 md:gap-x-3 md:gap-y-2.5',
+                showPriceField && showDeliveryFields
+                  ? 'md:grid-cols-3'
+                  : showPriceField
+                  ? 'md:grid-cols-2'
+                  : 'md:grid-cols-1',
+              )}
+            >
               <div className="space-y-1.5">
                 <Label>Cantitate (kg)</Label>
                 <Input
@@ -1230,9 +1342,43 @@ function ComandaDialog({
                     inputMode="decimal"
                     min="0"
                     step="0.01"
-                    className="agri-control h-11 md:h-10"
+                    className={cn(
+                      'agri-control h-11 md:h-10',
+                      mode === 'create' && isManual
+                        ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)] placeholder:text-[var(--status-danger-text)]'
+                        : '',
+                    )}
                     value={form.pret_per_kg}
-                    onChange={(e) => setForm((prev) => ({ ...prev, pret_per_kg: e.target.value }))}
+                    onChange={(e) => {
+                      const nextValue = e.target.value
+                      if (mode === 'create') {
+                        setHasEditedManualPrice(true)
+                        if (nextValue.trim() && nextValue.trim() !== '0') {
+                          lastManualPriceRef.current = nextValue
+                        }
+                      }
+                      setForm((prev) => ({ ...prev, pret_per_kg: nextValue }))
+                    }}
+                  />
+                  {mode === 'create' && isManual ? (
+                    <p className="text-xs font-medium text-[var(--status-danger-text)]">
+                      Implicit {PRET_IMPLICIT_LEI_PER_KG} lei — ajustează dacă e altul.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {showDeliveryFields ? (
+                <div className="hidden md:block">
+                  <AppDatePicker
+                    id="comanda-data-livrare"
+                    label="Data livrare"
+                    placeholder="Selectează data"
+                    value={form.data_livrare}
+                    triggerClassName="h-11 md:h-10"
+                    onChange={(nextValue) =>
+                      setForm((prev) => ({ ...prev, data_livrare: nextValue }))
+                    }
                   />
                 </div>
               ) : null}
@@ -1254,7 +1400,12 @@ function ComandaDialog({
             {showDeliveryFields ? (
               <>
                 <div className="space-y-1.5">
-                  <Label htmlFor="comanda_locatie">Localitate / Adresă</Label>
+                  <Label htmlFor="comanda_locatie">
+                    <span>Localitate / Adresă</span>{' '}
+                    <span className="text-xs font-normal text-[var(--text-secondary)]">
+                      (opțional — știi deja unde livrezi)
+                    </span>
+                  </Label>
                   <Input
                     id="comanda_locatie"
                     className="agri-control h-11 md:h-10"
@@ -1327,42 +1478,11 @@ function ComandaDialog({
                     />
                   </div>
                 </div>
-
-                {/* Data livrare — desktop */}
-                <div className="hidden md:block">
-                  <AppDatePicker
-                    id="comanda-data-livrare"
-                    label="Data livrare"
-                    placeholder="Selectează data"
-                    value={form.data_livrare}
-                    triggerClassName="h-11 md:h-10"
-                    onChange={(nextValue) => setForm((prev) => ({ ...prev, data_livrare: nextValue }))}
-                  />
-                </div>
               </>
             ) : null}
 
             {/* ── 5. Status — Manual: create + edit; Cadou: doar edit ── */}
-            {isManual && mode === 'create' ? (
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
-                >
-                  <SelectTrigger className="agri-control h-11 md:h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMENZI_STATUSES.filter((s) => s === 'noua' || s === 'confirmata' || s === 'in_livrare').map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {statusLabelMap[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : mode === 'edit' ? (
+            {mode === 'edit' ? (
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select
@@ -1387,7 +1507,7 @@ function ComandaDialog({
             <div className="hidden space-y-1.5 md:block">
               <Label>Observații</Label>
               <Textarea
-                className="agri-control min-h-[3.75rem] md:min-h-[4.25rem]"
+                className="agri-control min-h-[2.75rem] md:min-h-[3rem]"
                 value={form.observatii}
                 onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
               />
@@ -1412,7 +1532,7 @@ function ComandaDialog({
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
                 <Textarea
-                  className="agri-control min-h-[4.25rem]"
+                  className="agri-control min-h-[3rem]"
                   value={form.observatii}
                   onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
                 />

@@ -11,21 +11,21 @@ const quickActions = [
     label: 'Adaugă recoltare',
     icon: ShoppingBasket,
     className:
-      'bg-emerald-700 text-white border-emerald-800 hover:bg-emerald-800 focus-visible:ring-emerald-300',
+      'bg-[var(--cta-recoltare-bg)] text-white border-[var(--cta-recoltare-border)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--cta-recoltare-bg)]/50',
   },
   {
     href: '/activitati-agricole',
     label: 'Adaugă activitate',
     icon: ClipboardPlus,
     className:
-      'bg-blue-700 text-white border-blue-800 hover:bg-blue-800 focus-visible:ring-blue-300',
+      'bg-[var(--cta-activitate-bg)] text-white border-[var(--cta-activitate-border)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--cta-activitate-bg)]/50',
   },
   {
     href: '/vanzari',
     label: 'Înregistrează vânzare',
     icon: WalletCards,
     className:
-      'bg-amber-500 text-slate-950 border-amber-600 hover:bg-amber-400 focus-visible:ring-amber-300',
+      'bg-[var(--cta-vanzare-bg)] text-[var(--cta-vanzare-text)] border-[var(--cta-vanzare-border)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--cta-vanzare-ring)]/50',
   },
 ] as const
 

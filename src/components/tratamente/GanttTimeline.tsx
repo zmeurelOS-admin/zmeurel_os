@@ -146,16 +146,16 @@ export function GanttTimeline({ labelsById, onSelect, rows }: GanttTimelineProps
           const todayX = (today.getDate() - 1) * CELL_WIDTH + CELL_WIDTH / 2
 
           return (
-            <div key={row.luna} className={compatibilityMode ? 'rounded-[18px] border border-gray-200 bg-white p-4 shadow-[0_8px_24px_rgba(120,100,70,0.08)]' : 'space-y-2'}>
+            <div key={row.luna} className={compatibilityMode ? 'rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[0_8px_24px_rgba(120,100,70,0.08)]' : 'space-y-2'}>
               {compatibilityMode ? (
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">{MONTH_LABELS[row.luna - 1] ?? `Luna ${row.luna}`}</h3>
-                  <span className="text-xs text-gray-400">{row.aplicari.length} aplicări</span>
+                  <span className="text-xs text-[var(--text-tertiary)]">{row.aplicari.length} aplicări</span>
                 </div>
               ) : null}
 
               {/* --- SECTION: day scale --- */}
-              <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-gray-400">
+              <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--text-tertiary)]">
                 <span>1</span>
                 <span>6</span>
                 <span>12</span>
@@ -165,14 +165,14 @@ export function GanttTimeline({ labelsById, onSelect, rows }: GanttTimelineProps
               </div>
 
               {/* --- SECTION: gantt lane --- */}
-              <div className="relative min-h-[48px] overflow-hidden rounded-xl border border-gray-200 bg-[#F8FAF9] px-2 py-2">
+              <div className="relative min-h-[48px] overflow-hidden rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2 py-2">
                 <svg
                   className="block h-full w-full"
                   viewBox={`0 0 ${VIEWBOX_WIDTH} ${height}`}
                   preserveAspectRatio="none"
                   aria-hidden
                 >
-                  <rect x="0" y="0" width={VIEWBOX_WIDTH} height={height} fill="#F8FAF9" rx="10" />
+                  <rect x="0" y="0" width={VIEWBOX_WIDTH} height={height} fill="var(--surface-card-muted)" rx="10" />
 
                   {Array.from({ length: 31 }, (_, index) => {
                     const x = index * CELL_WIDTH
@@ -183,7 +183,7 @@ export function GanttTimeline({ labelsById, onSelect, rows }: GanttTimelineProps
                         x2={x}
                         y1="0"
                         y2={String(height)}
-                        stroke="#E5E7EB"
+                        stroke="var(--border-default)"
                         strokeWidth="0.8"
                       />
                     )
@@ -260,7 +260,7 @@ export function GanttTimeline({ labelsById, onSelect, rows }: GanttTimelineProps
                       title={label}
                       aria-label={label}
                       data-testid="gantt-pill"
-                      className={`absolute rounded-md focus:outline-none focus:ring-2 focus:ring-[#3D7A5F]/35 ${
+                      className={`absolute rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--agri-primary)]/35 ${
                         compatibilityMode ? resolveLegacyButtonClass(item.tipCuloare, item.status) : ''
                       } ${compatibilityMode ? 'opacity-0' : ''}`}
                       style={{
@@ -296,18 +296,18 @@ export function GanttTimeline({ labelsById, onSelect, rows }: GanttTimelineProps
           </SheetHeader>
 
           <div className="space-y-3 px-4 pb-5 sm:px-5">
-            <div className="rounded-xl bg-[#F8FAF9] p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Produs</p>
+            <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Produs</p>
               <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">{activeMeta?.produs ?? 'Negăsit'}</p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl bg-[#F8FAF9] p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Doză</p>
+              <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Doză</p>
                 <p className="mt-1 text-sm text-[var(--text-primary)]">{activeMeta?.doza ?? 'Indisponibilă'}</p>
               </div>
-              <div className="rounded-xl bg-[#F8FAF9] p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Stadiu</p>
+              <div className="rounded-xl bg-[var(--surface-card-muted)] p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-tertiary)]">Stadiu</p>
                 <p className="mt-1 text-sm text-[var(--text-primary)]">
                   {activeMeta?.stadiu ?? activeMeta?.tipInterventie ?? activeMeta?.tip_interventie ?? 'Indisponibil'}
                 </p>
@@ -317,7 +317,7 @@ export function GanttTimeline({ labelsById, onSelect, rows }: GanttTimelineProps
             {activeAplicareId && onSelect ? (
               <button
                 type="button"
-                className="min-h-11 w-full rounded-xl bg-[#3D7A5F] px-4 text-sm font-semibold text-white transition hover:bg-[#2D5F47]"
+                className="min-h-11 w-full rounded-xl bg-[var(--agri-primary)] px-4 text-sm font-semibold text-white transition hover:opacity-90"
                 onClick={() => {
                   const targetId = activeAplicareId
                   setActiveAplicareId(null)

@@ -22,7 +22,7 @@ export function NumericField({ label, error, className, id, ...props }: NumericF
         className={cn('agri-control h-12 px-3 text-base', className)}
         {...props}
       />
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-[var(--status-danger-text)]">{error}</p> : null}
     </div>
   )
 }

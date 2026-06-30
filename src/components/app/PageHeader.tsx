@@ -1,5 +1,8 @@
 'use client'
 
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
 import { type DashboardContentShellVariant } from '@/components/app/DashboardContentShell'
 import { CompactPageHeader } from '@/components/layout/CompactPageHeader'
 import { UserProfileMenu } from '@/components/app/UserProfileMenu'
@@ -21,6 +24,17 @@ interface PageHeaderProps {
   contentVariant?: DashboardContentShellVariant
 }
 
+const QUICK_NAV_ITEMS = [
+  { href: '/comenzi', label: 'Comenzi' },
+  { href: '/livrari', label: 'Livrări' },
+  { href: '/recoltari', label: 'Recoltări' },
+  { href: '/clienti', label: 'Clienți' },
+] as const
+
+function isQuickNavActive(pathname: string, href: (typeof QUICK_NAV_ITEMS)[number]['href']) {
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
 export function PageHeader({
   title,
   subtitle,
@@ -32,6 +46,7 @@ export function PageHeader({
   contentVariant,
 }: PageHeaderProps) {
   const { triggerAddAction, currentLabel, hasAction } = useAddAction()
+  const pathname = usePathname()
 
   return (
     <CompactPageHeader
@@ -44,6 +59,30 @@ export function PageHeader({
       contentVariant={contentVariant}
       rightSlot={
         <div className="flex flex-wrap items-center justify-end gap-1.5 text-[var(--text-primary)] sm:gap-2 lg:gap-2.5 lg:text-[var(--text-on-accent)]">
+          <nav
+            aria-label="Navigare rapidă"
+            className="hidden items-center gap-1 lg:flex"
+          >
+            {QUICK_NAV_ITEMS.map((item) => {
+              const isActive = isQuickNavActive(pathname, item.href)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'h-7 items-center rounded-full border px-2.5 text-xs font-medium transition lg:inline-flex',
+                    isActive
+                      ? 'border-white/45 bg-white/22 text-[var(--text-on-accent)]'
+                      : 'border-white/24 bg-white/10 text-[color:color-mix(in_srgb,var(--text-on-accent)_88%,transparent)] hover:bg-white/18 hover:text-[var(--text-on-accent)]'
+                  )}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+          </nav>
           <NotificationBell />
           {hasAction ? (
             <button

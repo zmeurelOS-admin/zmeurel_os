@@ -41,8 +41,8 @@ export function ParcelaTratamenteFenologieBar({
               className={cn(
                 'inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold',
                 isFloricane
-                  ? 'border-[color:color-mix(in_srgb,#3D7A5F_25%,transparent)] bg-[color:color-mix(in_srgb,#3D7A5F_8%,var(--surface-card))] text-[#3D7A5F]'
-                  : 'border-[color:color-mix(in_srgb,#2563EB_25%,transparent)] bg-[color:color-mix(in_srgb,#2563EB_8%,var(--surface-card))] text-[#2563EB]'
+                  ? 'border-[color:color-mix(in_srgb,var(--agri-primary)_25%,transparent)] bg-[color:color-mix(in_srgb,var(--agri-primary)_8%,var(--surface-card))] text-[var(--agri-primary)]'
+                  : 'border-[color:color-mix(in_srgb,var(--status-info-text)_25%,transparent)] bg-[color:color-mix(in_srgb,var(--status-info-text)_8%,var(--surface-card))] text-[var(--status-info-text)]'
               )}
             >
               <span aria-hidden>{isFloricane ? '🌸' : '🌱'}</span>

@@ -156,7 +156,7 @@ export function ActivityDetailDialog({ activitate, parcelaName, open, onOpenChan
               <Button
                 type="button"
                 variant="outline"
-                className="agri-cta bg-amber-500 text-white hover:bg-amber-600 border-amber-600 dark:border-amber-500"
+                className="agri-cta bg-[var(--cta-vanzare-bg)] text-[var(--cta-vanzare-text)] hover:opacity-90 border-[var(--cta-vanzare-border)] dark:border-amber-500"
                 onClick={() => setEditOpen(true)}
               >
                 ✏️ Editează

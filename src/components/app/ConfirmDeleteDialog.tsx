@@ -44,7 +44,7 @@ export function ConfirmDeleteDialog({
           </Button>
           <Button
             type="button"
-            className="agri-cta min-h-11 shrink-0 bg-red-600 text-white hover:opacity-95 dark:bg-red-700 dark:hover:opacity-95"
+            className="agri-cta min-h-11 shrink-0 bg-[var(--status-danger-text)] text-white hover:opacity-90"
             onClick={() => {
               hapticConfirm()
               onConfirm()

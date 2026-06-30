@@ -325,7 +325,7 @@ export function EditCulturaDialog({
               {...form.register('distanta_intre_randuri')}
             />
             {form.formState.errors.distanta_intre_randuri ? (
-              <p className="text-xs text-red-600">
+              <p className="text-xs text-[var(--status-danger-text)]">
                 {form.formState.errors.distanta_intre_randuri.message}
               </p>
             ) : null}

@@ -243,13 +243,13 @@ export function EditVanzareDialog({ vanzare, open, onOpenChange, tenantVanzari }
                 <div className="space-y-2">
                   <Label htmlFor="ev_qty">Cantitate (kg)</Label>
                   <Input id="ev_qty" type="number" inputMode="decimal" step="0.01" min="0.01" className="agri-control h-12 md:h-11" {...form.register('cantitate_kg')} />
-                  {form.formState.errors.cantitate_kg ? <p className="text-xs text-red-600">{form.formState.errors.cantitate_kg.message}</p> : null}
+                  {form.formState.errors.cantitate_kg ? <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.cantitate_kg.message}</p> : null}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="ev_price">Preț (lei/kg)</Label>
                   <Input id="ev_price" type="number" inputMode="decimal" step="0.01" min="0.01" className="agri-control h-12 md:h-11" {...form.register('pret_lei_kg')} />
-                  {form.formState.errors.pret_lei_kg ? <p className="text-xs text-red-600">{form.formState.errors.pret_lei_kg.message}</p> : null}
+                  {form.formState.errors.pret_lei_kg ? <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.pret_lei_kg.message}</p> : null}
                 </div>
               </div>
             </FormDialogSection>

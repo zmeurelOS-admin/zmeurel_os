@@ -19,9 +19,9 @@ export function ClientImportPreviewPanel({
   onCancel,
 }: ClientImportPreviewPanelProps) {
   return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+    <div className="rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 space-y-3">
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-emerald-800">
+        <p className="text-sm font-semibold text-[var(--status-success-text)]">
           {importPreview.totalParsed} contacte găsite
           {importPreview.skippedNoName > 0
             ? `, ${importPreview.rows.length} cu nume valid, ${importPreview.skippedNoName} fără nume (vor fi sărite)`
@@ -31,7 +31,7 @@ export function ClientImportPreviewPanel({
           <p className="text-xs font-medium text-amber-700">⚠️ Nu s-a detectat coloana de telefon</p>
         ) : null}
         {importPreview.formulaFixCount > 0 ? (
-          <p className="text-xs font-medium text-blue-700">
+          <p className="text-xs font-medium text-[var(--status-info-text)]">
             ℹ️ {importPreview.formulaFixCount} {importPreview.formulaFixCount === 1 ? 'contact are' : 'contacte au'} nume
             din formulă Excel — s-a folosit coloana &quot;First Name&quot;
           </p>
@@ -40,9 +40,9 @@ export function ClientImportPreviewPanel({
 
       {importPreview.mappingSummary.length > 0 ? (
         <div className="space-y-0.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Coloane detectate</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--status-success-text)]">Coloane detectate</p>
           {importPreview.mappingSummary.map((line) => (
-            <p key={line} className="text-xs text-emerald-700">
+            <p key={line} className="text-xs text-[var(--status-success-text)]">
               {line}
             </p>
           ))}
@@ -51,23 +51,23 @@ export function ClientImportPreviewPanel({
 
       {importPreview.unmappedColumns.length > 0 ? (
         <div className="space-y-0.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-zinc-400">Coloane nerecunoscute (ignorate)</p>
-          <p className="text-xs text-gray-400 dark:text-zinc-400">{importPreview.unmappedColumns.join(', ')}</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-tertiary)]">Coloane nerecunoscute (ignorate)</p>
+          <p className="text-xs text-[var(--text-tertiary)]">{importPreview.unmappedColumns.join(', ')}</p>
         </div>
       ) : null}
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Primele rânduri</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-[var(--status-success-text)]">Primele rânduri</p>
         {importPreview.rows.slice(0, 5).map((row, i) => (
-          <div key={i} className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-emerald-800">
+          <div key={i} className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[var(--status-success-text)]">
             <span className="font-semibold">{row.nume_client}</span>
-            {row.telefon ? <span className="text-emerald-600">{row.telefon}</span> : null}
-            {row.email ? <span className="text-emerald-600">{row.email}</span> : null}
-            {row.adresa ? <span className="text-emerald-600">{row.adresa}</span> : null}
+            {row.telefon ? <span className="text-[var(--status-success-text)]">{row.telefon}</span> : null}
+            {row.email ? <span className="text-[var(--status-success-text)]">{row.email}</span> : null}
+            {row.adresa ? <span className="text-[var(--status-success-text)]">{row.adresa}</span> : null}
           </div>
         ))}
         {importPreview.rows.length > 5 ? (
-          <p className="text-xs text-emerald-600">...și încă {importPreview.rows.length - 5} contacte</p>
+          <p className="text-xs text-[var(--status-success-text)]">...și încă {importPreview.rows.length - 5} contacte</p>
         ) : null}
       </div>
 
@@ -75,7 +75,7 @@ export function ClientImportPreviewPanel({
         <Button
           type="button"
           size="sm"
-          className="bg-emerald-600 text-white hover:bg-emerald-700"
+          className="bg-[var(--cta-recoltare-bg)] text-white hover:opacity-90"
           onClick={onConfirmImport}
           disabled={importingCsv || !importPreview.rows.length}
         >

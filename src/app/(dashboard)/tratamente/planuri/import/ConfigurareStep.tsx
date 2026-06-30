@@ -118,7 +118,7 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
   return (
     <div className="space-y-4">
       {/* --- SECTION: configurare --- */}
-      <AppCard className="space-y-5 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <AppCard className="space-y-5 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-sm">
         <div className="space-y-1">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Configurare</h2>
           <p className="text-sm text-[var(--text-secondary)]">
@@ -129,7 +129,7 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="import-parcela" className="mb-1 text-sm font-semibold text-gray-700">
+            <Label htmlFor="import-parcela" className="mb-1 text-sm font-semibold text-[var(--text-primary)]">
               Parcelă
             </Label>
             <Select
@@ -139,7 +139,7 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
             >
               <SelectTrigger
                 id="import-parcela"
-                className="min-h-11 rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
+                className="min-h-11 rounded-xl border-[var(--agri-primary)]/30 focus:border-[var(--agri-primary)]"
               >
                 <SelectValue
                   placeholder={
@@ -164,13 +164,13 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="import-an" className="mb-1 text-sm font-semibold text-gray-700">
+            <Label htmlFor="import-an" className="mb-1 text-sm font-semibold text-[var(--text-primary)]">
               Anul planului
             </Label>
             <Select value={String(selectedYear)} onValueChange={(value) => setSelectedYear(Number(value))}>
               <SelectTrigger
                 id="import-an"
-                className="min-h-11 rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
+                className="min-h-11 rounded-xl border-[var(--agri-primary)]/30 focus:border-[var(--agri-primary)]"
               >
                 <SelectValue placeholder="Alege anul" />
               </SelectTrigger>
@@ -216,7 +216,7 @@ export function ConfigurareStep({ onConfigurate }: ConfigurareStepProps) {
         <div className="flex justify-end">
           <Button
             type="button"
-            className="min-h-11 rounded-xl bg-[#3D7A5F] px-4 font-semibold text-white hover:bg-[#2D5F47] disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 rounded-xl bg-[var(--agri-primary)] px-4 font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={!selectedParcelaId || isLoadingParcele || Boolean(loadError)}
             onClick={() =>
               onConfigurate({

@@ -21,7 +21,7 @@ export default function LogoutButton({ className, label, variant = 'solid' }: Lo
   const defaultClassName =
     variant === 'ghost'
       ? 'inline-flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--agri-text)] transition-colors hover:bg-[var(--agri-surface-muted)] disabled:cursor-not-allowed disabled:opacity-50'
-      : 'inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50'
+      : 'inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--status-danger-text)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <form

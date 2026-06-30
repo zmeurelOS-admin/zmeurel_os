@@ -171,8 +171,8 @@ function getPhiLabel(produs: ProdusFitosanitar): string | null {
 
 function getPhiTone(produs: ProdusFitosanitar): string {
   return produs.phi_zile === 0
-    ? 'bg-[#E8F3EE] text-[#3D7A5F]'
-    : 'bg-[#FEF3C7] text-[#B45309]'
+    ? 'bg-[var(--agri-primary-muted)] text-[var(--agri-primary)]'
+    : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
 }
 
 function PillChipButton({
@@ -191,7 +191,7 @@ function PillChipButton({
       type={type}
       onClick={onClick}
       className={`h-8 rounded-full px-3 text-xs font-semibold transition ${
-        active ? 'bg-[#3D7A5F] text-white' : 'bg-[#F3F4F6] text-[#374151]'
+        active ? 'bg-[var(--agri-primary)] text-white' : 'bg-[var(--surface-card-muted)] text-[var(--text-primary)]'
       }`}
     >
       {children}
@@ -215,12 +215,12 @@ function ProdusFitosanitarFormFields({ form, showActiv = false }: ProdusFitosani
         <div className="space-y-2">
           <Label htmlFor="pf_nume">Nume comercial *</Label>
           <Input id="pf_nume" className="agri-control h-11" placeholder="Ex: Thiovit Jet" {...register('nume_comercial')} />
-          {errors.nume_comercial ? <p className="text-xs text-red-600">{errors.nume_comercial.message}</p> : null}
+          {errors.nume_comercial ? <p className="text-xs text-[var(--status-danger-text)]">{errors.nume_comercial.message}</p> : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="pf_substanta">Substanță activă *</Label>
           <Input id="pf_substanta" className="agri-control h-11" placeholder="Ex: sulf micronizat" {...register('substanta_activa')} />
-          {errors.substanta_activa ? <p className="text-xs text-red-600">{errors.substanta_activa.message}</p> : null}
+          {errors.substanta_activa ? <p className="text-xs text-[var(--status-danger-text)]">{errors.substanta_activa.message}</p> : null}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -466,7 +466,7 @@ function ViewProdusFitosanitarDialog({ produs, open, onOpenChange, onDuplica, du
           </Button>
           <Button
             type="button"
-            className="min-h-11 rounded-xl bg-[#3D7A5F] text-white transition hover:bg-[#2D5F47] active:scale-[0.985]"
+            className="min-h-11 rounded-xl bg-[var(--agri-primary)] text-white transition hover:opacity-90 active:scale-[0.985]"
             onClick={() => onDuplica(produs)}
             disabled={duplicating}
           >
@@ -824,7 +824,7 @@ export function ProduseFitosanitarePageClient() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Caută produse fitosanitare"
-              className="rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
+              className="rounded-xl border-[var(--agri-primary)]/30 focus:border-[var(--agri-primary)]"
             />
           </div>
         ) : null}
@@ -880,7 +880,7 @@ export function ProduseFitosanitarePageClient() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Caută produse fitosanitare"
-              className="rounded-xl border-[#3D7A5F]/30 focus:border-[#3D7A5F]"
+              className="rounded-xl border-[var(--agri-primary)]/30 focus:border-[var(--agri-primary)]"
             />
             <div className="flex flex-wrap items-center gap-2">
               <PillChipButton active={filterTip === 'toate'} onClick={() => setFilterTip('toate')}>
@@ -1155,7 +1155,7 @@ function ProdusFitosanitarCard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 flex-1 rounded-xl border-[#3D7A5F]/30 text-sm font-semibold text-[#3D7A5F]"
+                  className="h-9 flex-1 rounded-xl border-[var(--agri-primary)]/30 text-sm font-semibold text-[var(--agri-primary)]"
                   onClick={(event) => {
                     event.stopPropagation()
                     onView()
@@ -1168,7 +1168,7 @@ function ProdusFitosanitarCard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 flex-1 rounded-xl border-[#3D7A5F]/30 text-sm font-semibold text-[#3D7A5F]"
+                  className="h-9 flex-1 rounded-xl border-[var(--agri-primary)]/30 text-sm font-semibold text-[var(--agri-primary)]"
                   onClick={(event) => {
                     event.stopPropagation()
                     onEdit()
@@ -1182,7 +1182,7 @@ function ProdusFitosanitarCard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 flex-1 rounded-xl border-[#3D7A5F]/30 text-sm font-semibold text-[#3D7A5F]"
+                  className="h-9 flex-1 rounded-xl border-[var(--agri-primary)]/30 text-sm font-semibold text-[var(--agri-primary)]"
                   onClick={(event) => {
                     event.stopPropagation()
                     onDuplica()
@@ -1196,7 +1196,7 @@ function ProdusFitosanitarCard({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 flex-1 rounded-xl border-transparent text-sm font-semibold text-red-500 hover:bg-red-50 hover:text-red-600"
+                  className="h-9 flex-1 rounded-xl border-transparent text-sm font-semibold text-[var(--status-danger-text)] hover:bg-[var(--status-danger-bg)]"
                   onClick={(event) => {
                     event.stopPropagation()
                     onDelete()

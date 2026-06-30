@@ -70,7 +70,7 @@ export function CalendarTratamenteClient({
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 py-3 pb-32 md:py-4 md:pb-12">
       {/* --- SECTION: header --- */}
-      <section className="rounded-[24px] bg-[#3D7A5F] px-[18px] py-[18px] text-white shadow-[0_16px_40px_rgba(61,122,95,0.18)]">
+      <section className="rounded-[24px] bg-[var(--agri-hero-bg)] px-[18px] py-[18px] text-white shadow-[var(--agri-hero-shadow)]">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
@@ -93,7 +93,7 @@ export function CalendarTratamenteClient({
 
             <Button
               type="button"
-              className="min-h-11 rounded-xl bg-white px-4 text-[#3D7A5F] hover:bg-white/90 md:w-auto"
+              className="min-h-11 rounded-xl bg-[var(--surface-card)] px-4 text-[var(--agri-primary)] hover:opacity-90 md:w-auto"
               asChild
             >
               <a href={exportHref}>{isPending ? 'Se actualizează...' : 'Exportă fișă ANSVSA (PDF)'}</a>
@@ -133,16 +133,16 @@ export function CalendarTratamenteClient({
         {ganttRows.map((row) => (
           <article
             key={row.luna}
-            className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-[0_8px_24px_rgba(120,100,70,0.08)]"
+            className="rounded-[18px] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[0_8px_24px_rgba(120,100,70,0.08)]"
           >
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">{MONTH_LABELS[row.luna - 1] ?? `Luna ${row.luna}`}</h3>
-              <span className="text-xs text-gray-400">{row.aplicari.length} aplicări</span>
+              <span className="text-xs text-[var(--text-tertiary)]">{row.aplicari.length} aplicări</span>
             </div>
-            <div className="mt-3 h-px w-full bg-gray-200" />
+            <div className="mt-3 h-px w-full bg-[var(--border-default)]" />
 
             {row.aplicari.length === 0 ? (
-              <p className="pt-3 text-xs italic text-gray-300">Nicio aplicare înregistrată</p>
+              <p className="pt-3 text-xs italic text-[var(--text-tertiary)]">Nicio aplicare înregistrată</p>
             ) : (
               <div className="pt-3">
                 <GanttTimeline
@@ -173,7 +173,7 @@ export function CalendarTratamenteClient({
 
       {/* --- SECTION: mobile export --- */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--divider)] bg-[color:color-mix(in_srgb,var(--surface-page)_92%,transparent)] px-4 py-3 backdrop-blur-sm md:hidden">
-        <Button type="button" className="w-full rounded-xl bg-[#3D7A5F] text-white hover:bg-[#2D5F47]" asChild>
+        <Button type="button" className="w-full rounded-xl bg-[var(--agri-primary)] text-white hover:opacity-90" asChild>
           <a href={exportHref}>Exportă fișă ANSVSA (PDF)</a>
         </Button>
       </div>

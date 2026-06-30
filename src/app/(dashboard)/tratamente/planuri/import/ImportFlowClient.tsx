@@ -25,7 +25,7 @@ export function ImportFlowClient() {
   return (
     <AppShell
       header={
-        <div className="rounded-b-[24px] bg-[#3D7A5F] px-[18px] py-[18px] text-white shadow-[0_16px_40px_rgba(61,122,95,0.18)]">
+        <div className="rounded-b-[24px] bg-[var(--agri-hero-bg)] px-[18px] py-[18px] text-white shadow-[var(--agri-hero-shadow)]">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="space-y-1">
@@ -36,7 +36,7 @@ export function ImportFlowClient() {
               <Button
                 type="button"
                 asChild
-                className="min-h-10 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-[#3D7A5F] hover:bg-white/90"
+                className="min-h-10 rounded-xl bg-[var(--surface-card)] px-3 py-1.5 text-xs font-semibold text-[var(--agri-primary)] hover:opacity-90"
               >
                 <a href="/api/tratamente/template-download">
                   <FileSpreadsheet className="h-4 w-4" aria-hidden />
@@ -50,26 +50,26 @@ export function ImportFlowClient() {
     >
       <div className="mx-auto w-full max-w-6xl space-y-4 py-3">
         {/* --- SECTION: breadcrumb --- */}
-        <nav aria-label="Breadcrumb" className="text-xs text-gray-400">
+        <nav aria-label="Breadcrumb" className="text-xs text-[var(--text-tertiary)]">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
-              <Link href="/tratamente" className="hover:text-gray-600">
+              <Link href="/tratamente" className="hover:text-[var(--text-secondary)]">
                 Tratamente
               </Link>
             </li>
             <li>/</li>
             <li>
-              <Link href="/tratamente/planuri" className="hover:text-gray-600">
+              <Link href="/tratamente/planuri" className="hover:text-[var(--text-secondary)]">
                 Planuri
               </Link>
             </li>
             <li>/</li>
-            <li className="font-medium text-gray-600">Import</li>
+            <li className="font-medium text-[var(--text-secondary)]">Import</li>
           </ol>
         </nav>
 
         {/* --- SECTION: stepper --- */}
-        <div className="rounded-2xl border border-gray-100 bg-white px-4 py-4 shadow-sm">
+        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-4 py-4 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             {STEPS.map((step, index) => {
               const isActive = index === activeStep
@@ -82,15 +82,15 @@ export function ImportFlowClient() {
                     <span
                       className={`flex h-8 w-8 items-center justify-center rounded-full border text-sm font-semibold transition ${
                         isCompleted || isActive
-                          ? 'border-[#3D7A5F] bg-[#3D7A5F] text-white'
-                          : 'border-gray-300 bg-white text-gray-400'
+                          ? 'border-[var(--agri-primary)] bg-[var(--agri-primary)] text-white'
+                          : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-tertiary)]'
                       }`}
                     >
                       {isCompleted ? <Check className="h-4 w-4" aria-hidden /> : index + 1}
                     </span>
                     <span
                       className={`text-sm transition ${
-                        isActive ? 'font-bold text-[#3D7A5F]' : isCompleted ? 'font-semibold text-[#3D7A5F]' : 'text-gray-400'
+                        isActive ? 'font-bold text-[var(--agri-primary)]' : isCompleted ? 'font-semibold text-[var(--agri-primary)]' : 'text-[var(--text-tertiary)]'
                       }`}
                       >
                         {step}
@@ -99,7 +99,7 @@ export function ImportFlowClient() {
                   {!isLast ? (
                     <div
                       className={`hidden h-px flex-1 md:block ${
-                        index < activeStep ? 'bg-[#3D7A5F]' : 'bg-gray-200'
+                        index < activeStep ? 'bg-[var(--agri-primary)]' : 'bg-[var(--border-default)]'
                       }`}
                     />
                   ) : null}

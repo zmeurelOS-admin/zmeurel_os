@@ -120,7 +120,7 @@ export function AddMicroclimatDialog({
             {...form.register('temperatura')}
           />
           {form.formState.errors.temperatura ? (
-            <p className="text-xs text-red-600">{form.formState.errors.temperatura.message}</p>
+            <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.temperatura.message}</p>
           ) : null}
         </div>
 
@@ -138,7 +138,7 @@ export function AddMicroclimatDialog({
             {...form.register('umiditate')}
           />
           {form.formState.errors.umiditate ? (
-            <p className="text-xs text-red-600">{form.formState.errors.umiditate.message}</p>
+            <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.umiditate.message}</p>
           ) : null}
         </div>
 

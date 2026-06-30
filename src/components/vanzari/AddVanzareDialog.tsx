@@ -308,7 +308,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tena
                       {...form.register('cantitate_kg')}
                     />
                     {form.formState.errors.cantitate_kg ? (
-                      <p className="text-xs text-red-600">{form.formState.errors.cantitate_kg.message}</p>
+                      <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.cantitate_kg.message}</p>
                     ) : null}
                   </div>
 
@@ -324,7 +324,7 @@ export function AddVanzareDialog({ open, onOpenChange, hideTrigger = false, tena
                       {...form.register('pret_lei_kg')}
                     />
                     {form.formState.errors.pret_lei_kg ? (
-                      <p className="text-xs text-red-600">{form.formState.errors.pret_lei_kg.message}</p>
+                      <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.pret_lei_kg.message}</p>
                     ) : null}
                   </div>
                 </div>

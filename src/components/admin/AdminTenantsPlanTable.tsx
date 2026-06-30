@@ -55,9 +55,9 @@ function normalizePlan(value: string | null | undefined): SubscriptionPlan {
 }
 
 function planBadgeClass(plan: SubscriptionPlan): string {
-  if (plan === 'pro') return 'border-emerald-300 bg-emerald-50 text-emerald-800'
+  if (plan === 'pro') return 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
   if (plan === 'enterprise') return 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100'
-  return 'border-amber-300 bg-amber-50 text-amber-800'
+  return 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
 }
 
 export function AdminTenantsPlanTable({ initialRows }: AdminTenantsPlanTableProps) {

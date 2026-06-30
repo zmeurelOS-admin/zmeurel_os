@@ -35,14 +35,14 @@ export function ClientImportResultDialog({
       {result ? (
         <div className="space-y-3 text-sm">
           <div className="space-y-2">
-            <p className="flex items-center gap-2 text-emerald-700">
+            <p className="flex items-center gap-2 text-[var(--status-success-text)]">
               <span className="text-base">✅</span>
               <span>
                 <strong>{result.imported}</strong> clienți importați
               </span>
             </p>
             {result.skippedNoName > 0 ? (
-              <p className="flex items-center gap-2 text-gray-500 dark:text-zinc-400">
+              <p className="flex items-center gap-2 text-[var(--text-secondary)]">
                 <span className="text-base">⏭️</span>
                 <span>
                   <strong>{result.skippedNoName}</strong> fără nume — săriți
@@ -50,7 +50,7 @@ export function ClientImportResultDialog({
               </p>
             ) : null}
             {result.skippedDuplicate > 0 ? (
-              <p className="flex items-center gap-2 text-gray-500 dark:text-zinc-400">
+              <p className="flex items-center gap-2 text-[var(--text-secondary)]">
                 <span className="text-base">⏭️</span>
                 <span>
                   <strong>{result.skippedDuplicate}</strong> {result.skippedDuplicate === 1 ? 'duplicat' : 'duplicate'} — sărite
@@ -58,7 +58,7 @@ export function ClientImportResultDialog({
               </p>
             ) : null}
             {result.failed > 0 ? (
-              <p className="flex items-center gap-2 text-red-600">
+              <p className="flex items-center gap-2 text-[var(--status-danger-text)]">
                 <span className="text-base">❌</span>
                 <span>
                   <strong>{result.failed}</strong> erori
@@ -76,7 +76,7 @@ export function ClientImportResultDialog({
                 {showFailedRows ? 'Ascunde detalii' : 'Vezi detalii erori'}
               </button>
               {showFailedRows ? (
-                <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg bg-[var(--status-danger-bg)] p-3 text-xs text-[var(--status-danger-text)]">
                   {result.failedRows.map((row, index) => (
                     <p key={index}>
                       <strong>{row.name}</strong>: {row.error}

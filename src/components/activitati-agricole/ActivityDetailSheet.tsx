@@ -157,7 +157,7 @@ export function ActivityDetailSheet({
             </Button>
             {!activitate.tip_deprecat ? (
               <Button
-                className="agri-cta min-w-0 flex-1 bg-amber-500 text-white hover:bg-amber-600 sm:flex-none"
+                className="agri-cta min-w-0 flex-1 bg-[var(--cta-vanzare-bg)] text-[var(--cta-vanzare-text)] hover:opacity-90 sm:flex-none"
                 onClick={() => {
                   setEditOpen(true)
                 }}

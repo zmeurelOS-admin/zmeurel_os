@@ -154,10 +154,10 @@ export function ProdusFitosanitarPicker({
   }
 
   const getTypeBadgeClassName = (tip: ProdusFitosanitar['tip']) => {
-    if (tip === 'fungicid') return 'bg-[#FFF3E0] text-[#E65100]'
-    if (tip === 'insecticid') return 'bg-[#FCE4EC] text-[#C62828]'
-    if (tip === 'ingrasamant' || tip === 'foliar') return 'bg-[#E3F2FD] text-[#1565C0]'
-    if (tip === 'bioregulator') return 'bg-[#E8F5EE] text-[#2A6B47]'
+    if (tip === 'fungicid') return 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+    if (tip === 'insecticid') return 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
+    if (tip === 'ingrasamant' || tip === 'foliar') return 'bg-[var(--status-info-bg)] text-[var(--status-info-text)]'
+    if (tip === 'bioregulator') return 'bg-[var(--agri-primary-muted)] text-[var(--agri-primary)]'
     return 'bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
   }
 
@@ -170,7 +170,7 @@ export function ProdusFitosanitarPicker({
           className={cn(
             'h-10 rounded-full text-sm',
             entryMode === 'library'
-              ? 'border-[#3D7A5F] bg-[#3D7A5F] text-white hover:bg-[#3D7A5F] hover:text-white'
+              ? 'border-[var(--agri-primary)] bg-[var(--agri-primary)] text-white hover:opacity-90 hover:text-white'
               : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
           )}
           onClick={() => setEntryMode('library')}
@@ -183,7 +183,7 @@ export function ProdusFitosanitarPicker({
           className={cn(
             'h-10 rounded-full text-sm',
             entryMode === 'manual'
-              ? 'border-[#3D7A5F] bg-[#3D7A5F] text-white hover:bg-[#3D7A5F] hover:text-white'
+              ? 'border-[var(--agri-primary)] bg-[var(--agri-primary)] text-white hover:opacity-90 hover:text-white'
               : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)]'
           )}
           onClick={() => {
@@ -226,7 +226,7 @@ export function ProdusFitosanitarPicker({
                       className={cn(
                         'w-full rounded-xl border px-3 py-2 text-left',
                         isSelected
-                          ? 'border-[#3D7A5F] bg-[#F0F7F4]'
+                          ? 'border-[var(--agri-primary)] bg-[var(--agri-primary-muted)]'
                           : 'border-[var(--border-default)] bg-[var(--surface-card)]'
                       )}
                     >
@@ -250,7 +250,7 @@ export function ProdusFitosanitarPicker({
                             {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
                           </p>
                         </div>
-                        {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#3D7A5F]" /> : null}
+                        {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--agri-primary)]" /> : null}
                       </div>
                     </button>
                   )
@@ -273,7 +273,7 @@ export function ProdusFitosanitarPicker({
                       className={cn(
                         'w-full rounded-xl border px-3 py-2 text-left',
                         isSelected
-                          ? 'border-[#3D7A5F] bg-[#F0F7F4]'
+                          ? 'border-[var(--agri-primary)] bg-[var(--agri-primary-muted)]'
                           : 'border-[var(--border-default)] bg-[var(--surface-card)]'
                       )}
                     >
@@ -292,7 +292,7 @@ export function ProdusFitosanitarPicker({
                             {produs.frac_irac ? ` · ${produs.frac_irac}` : ''}
                           </p>
                         </div>
-                        {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#3D7A5F]" /> : null}
+                        {isSelected ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--agri-primary)]" /> : null}
                       </div>
                     </button>
                   )

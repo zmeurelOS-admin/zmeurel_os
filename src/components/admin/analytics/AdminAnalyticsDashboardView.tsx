@@ -383,8 +383,8 @@ export function AdminAnalyticsDashboardView({
                 key={`${ins.title}-${idx}`}
                 className={cn(
                   'rounded-xl border p-4 shadow-sm',
-                  ins.severity === 'critical' && 'border-red-200 bg-red-50/80',
-                  ins.severity === 'warning' && 'border-amber-200 bg-amber-50/80',
+                  ins.severity === 'critical' && 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
+                  ins.severity === 'warning' && 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]',
                   ins.severity === 'info' && 'border-[var(--agri-border)] bg-[var(--agri-surface)]'
                 )}
               >
@@ -419,7 +419,7 @@ export function AdminAnalyticsDashboardView({
                         <TableRow key={r.module}>
                           <TableCell className="font-medium">{r.module}</TableCell>
                           <TableCell className="text-right tabular-nums">{r.opened}</TableCell>
-                          <TableCell className="text-right tabular-nums text-amber-600">{r.abandoned}</TableCell>
+                          <TableCell className="text-right tabular-nums text-[var(--status-warning-text)]">{r.abandoned}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -474,8 +474,8 @@ export function AdminAnalyticsDashboardView({
             description="„Tenanți activi (zi)” = tenanți cu activitate operațională în acea zi. „Total parcele” din snapshot este cumulativ (toate timpurile), nu pe zi — nu îl comparăm cu celelalte coloane."
           />
           {data.metricsError ? (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4 text-sm text-red-800">{data.metricsError}</CardContent>
+            <Card className="border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]">
+              <CardContent className="p-4 text-sm text-[var(--status-danger-text)]">{data.metricsError}</CardContent>
             </Card>
           ) : data.operational.latestDaily ? (
             <div className="grid gap-4 lg:grid-cols-5">
@@ -567,7 +567,7 @@ export function AdminAnalyticsDashboardView({
                       <TableCell className="font-medium">{row.module}</TableCell>
                       <TableCell className="text-muted-foreground">{row.eventName}</TableCell>
                       <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">{row.errorMessage}</TableCell>
-                      <TableCell className="text-right font-semibold text-red-600 tabular-nums">{row.count}</TableCell>
+                      <TableCell className="text-right font-semibold text-[var(--status-danger-text)] tabular-nums">{row.count}</TableCell>
                     </TableRow>
                   ))
                 )}

@@ -344,7 +344,7 @@ export function AddCulturaDialog({
                 {...form.register('distanta_intre_randuri')}
               />
               {form.formState.errors.distanta_intre_randuri ? (
-                <p className="text-xs text-red-600">
+                <p className="text-xs text-[var(--status-danger-text)]">
                   {form.formState.errors.distanta_intre_randuri.message}
                 </p>
               ) : null}
@@ -376,7 +376,7 @@ export function AddCulturaDialog({
               {...form.register('interval_tratament_zile')}
             />
             {form.formState.errors.interval_tratament_zile ? (
-              <p className="text-xs text-red-600">{form.formState.errors.interval_tratament_zile.message}</p>
+              <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.interval_tratament_zile.message}</p>
             ) : null}
           </div>
 

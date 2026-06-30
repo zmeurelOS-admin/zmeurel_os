@@ -41,12 +41,24 @@ function formatDisplayTextWithoutCaserole(value: string): string {
 function OriginBadge({ item }: { item: UnifiedOrderItem }) {
   const isShop = item.source === 'shop'
   const badgeProps = isShop
-    ? { className: 'bg-[#FFF0F0] text-[#C85151]', label: 'Shop' }
+    ? {
+        className: 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
+        label: 'Shop',
+      }
     : item.orderKind === 'cadou'
-      ? { className: 'bg-green-100 text-green-700', label: '🎁 Cadou' }
+      ? {
+          className: 'bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
+          label: '🎁 Cadou',
+        }
       : item.orderKind === 'consum_propriu'
-        ? { className: 'bg-blue-100 text-blue-700', label: '🏠 Consum' }
-        : { className: 'bg-[#EEF4FF] text-[#3B7DD8]', label: 'Manual' }
+        ? {
+            className: 'bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]',
+            label: '🏠 Consum',
+          }
+        : {
+            className: 'bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
+            label: 'Manual',
+          }
   return (
     <span
       className={`inline-flex max-w-full shrink-0 items-center rounded-full px-2 py-[3px] text-[11px] font-semibold leading-none ${badgeProps.className}`}
@@ -87,8 +99,7 @@ function UnpaidBadge() {
 function ConfirmationBadge() {
   return (
     <span
-      className="inline-flex shrink-0 items-center rounded-full border px-2 py-[3px] text-[11px] font-semibold leading-none"
-      style={{ background: '#FFF8EC', color: '#854F0B', borderColor: '#FAC775' }}
+      className="inline-flex shrink-0 items-center rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-[3px] text-[11px] font-semibold leading-none text-[var(--status-warning-text)]"
     >
       Necesită confirmare
     </span>
@@ -221,14 +232,14 @@ export function UnifiedOrderCard({
     timeZone: 'Europe/Bucharest',
   }).format(new Date(item.createdAt))
   const leftBorderColor = needsConfirmation
-    ? '#E8A020'
+    ? 'var(--indicator-confirmation)'
     : isShop
-      ? '#F16B6B'
+      ? 'var(--indicator-shop)'
       : item.clientTip === 'patiserie'
-        ? '#9333EA'
+        ? 'var(--indicator-patiserie)'
         : item.clientTip === 'magazin'
-          ? '#059669'
-          : '#3B7DD8'
+          ? 'var(--indicator-magazin)'
+          : 'var(--indicator-manual)'
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
   const blocksStatusWhatsApp =
     !isShop &&
@@ -309,7 +320,7 @@ export function UnifiedOrderCard({
           item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
         } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
         style={{
-          borderColor: '#E0DEE8',
+          borderColor: 'var(--card-border-default)',
           borderLeftWidth: '3px',
           borderLeftColor: leftBorderColor,
         }}
@@ -461,7 +472,7 @@ export function UnifiedOrderCard({
                   type="button"
                   disabled={disabled || !item.phone}
                   onClick={handleZona4WhatsApp}
-                  className="flex min-h-10 w-full items-center justify-center rounded-full bg-[#25D366] px-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                  className="flex min-h-10 w-full items-center justify-center rounded-full bg-[var(--whatsapp-green)] px-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
                 >
                   Stabilește livrare pe WhatsApp
                 </button>
@@ -497,7 +508,7 @@ export function UnifiedOrderCard({
         item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
       } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
       style={{
-        borderColor: '#E0DEE8',
+        borderColor: 'var(--card-border-default)',
         borderLeftWidth: '4px',
         borderLeftColor: leftBorderColor,
       }}
@@ -724,7 +735,7 @@ export function UnifiedOrderCard({
             type="button"
             disabled={disabled || !item.phone}
             onClick={handleZona4WhatsApp}
-            className={`flex w-full items-center justify-center rounded-full bg-[#25D366] px-4 font-bold text-white transition active:scale-[0.98] disabled:opacity-50 ${
+            className={`flex w-full items-center justify-center rounded-full bg-[var(--whatsapp-green)] px-4 font-bold text-white transition active:scale-[0.98] disabled:opacity-50 ${
               compact ? 'min-h-8 text-xs' : 'min-h-10 text-[13px]'
             }`}
           >

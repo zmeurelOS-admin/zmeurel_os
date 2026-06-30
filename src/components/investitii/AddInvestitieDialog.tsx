@@ -464,7 +464,7 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                     {...form.register('suma_lei')}
                   />
                   {form.formState.errors.suma_lei ? (
-                    <p className="text-xs text-red-600">{form.formState.errors.suma_lei.message}</p>
+                    <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.suma_lei.message}</p>
                   ) : null}
                 </div>
 

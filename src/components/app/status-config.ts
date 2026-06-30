@@ -20,34 +20,34 @@ export const STATUS_CONFIG: Record<StandardStatus, StatusConfigItem> = {
   urgent: {
     label: 'Urgent',
     icon: AlertTriangle,
-    className: 'bg-red-700 text-white border-red-800',
+    className: 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)] border-[var(--status-danger-border)]',
   },
   in_lucru: {
     label: 'In lucru',
     icon: Clock3,
-    className: 'bg-amber-500 text-slate-950 border-amber-600',
+    className: 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border-[var(--status-warning-border)]',
   },
   programat: {
     label: 'Programat',
     icon: CalendarClock,
-    className: 'bg-blue-700 text-white border-blue-800',
+    className: 'bg-[var(--status-info-bg)] text-[var(--status-info-text)] border-[var(--status-info-border)]',
   },
   finalizat: {
     label: 'Finalizat',
     icon: CircleCheckBig,
-    className: 'bg-emerald-700 text-white border-emerald-800',
+    className: 'bg-[var(--status-success-bg)] text-[var(--status-success-text)] border-[var(--status-success-border)]',
   },
   anulat: {
     label: 'Anulat',
     icon: CircleX,
-    className: 'bg-slate-700 text-white border-slate-800',
+    className: 'bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)] border-[var(--status-neutral-border)]',
   },
 }
 
 export const CUSTOM_STATUS_FALLBACK: StatusConfigItem = {
   label: 'Status',
   icon: HelpCircle,
-  className: 'bg-indigo-700 text-white border-indigo-800',
+  className: 'bg-[var(--status-info-bg)] text-[var(--status-info-text)] border-[var(--status-info-border)]',
 }
 
 const NORMALIZE_MAP: Record<string, StandardStatus> = {

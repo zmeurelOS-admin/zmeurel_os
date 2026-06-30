@@ -106,7 +106,7 @@ export function PushNotificationsSettings() {
     <div className="space-y-3">
       <p className="text-sm text-[var(--text-secondary)]">{statusLabel}</p>
       {subscribeError ? (
-        <p className="text-xs font-medium text-[#b42318]" role="alert">
+        <p className="text-xs font-medium text-[var(--status-danger-text)]" role="alert">
           {subscribeError}
         </p>
       ) : null}

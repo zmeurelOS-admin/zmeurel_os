@@ -209,7 +209,7 @@ export function AddProdusDialog({ open, onOpenChange, onSuccess }: AddProdusDial
             <div className="space-y-2">
               <Label htmlFor="add_produs_nume">Nume produs</Label>
               <Input id="add_produs_nume" className="agri-control h-12 md:h-11" placeholder="Ex: Zmeură cal. 1" {...form.register('nume')} />
-              {form.formState.errors.nume ? <p className="text-xs text-red-600">{form.formState.errors.nume.message}</p> : null}
+              {form.formState.errors.nume ? <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.nume.message}</p> : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="add_produs_cat">Categorie</Label>

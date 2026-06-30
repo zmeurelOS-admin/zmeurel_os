@@ -1151,8 +1151,9 @@ function SolarCulturiSection({
 function terenActivityFreshnessStyle(tipDeprecat: boolean | undefined, days: number | null): { dotClass: string; badgeClass: string } {
   if (tipDeprecat) {
     return {
-      dotClass: 'bg-[#D97706]',
-      badgeClass: 'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-amber-200 bg-amber-50 text-[#D97706]',
+      dotClass: 'bg-[var(--status-warning-text)]',
+      badgeClass:
+        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
     }
   }
   if (days === null) {
@@ -1164,14 +1165,15 @@ function terenActivityFreshnessStyle(tipDeprecat: boolean | undefined, days: num
   }
   if (days < 14) {
     return {
-      dotClass: 'bg-[#3D7A5F]',
+      dotClass: 'bg-[var(--agri-primary)]',
       badgeClass:
-        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-emerald-200 bg-emerald-50 text-[#3D7A5F]',
+        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums border border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--agri-primary)]',
     }
   }
   return {
-    dotClass: 'bg-amber-500',
-    badgeClass: 'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums bg-amber-100 text-amber-800',
+    dotClass: 'bg-[var(--status-warning-text)]',
+    badgeClass:
+      'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]',
   }
 }
 
@@ -1307,7 +1309,7 @@ function ParcelaTerenMobileSheet({
                 <span className={cn('shrink-0 tabular-nums', freshness.badgeClass)}>{daysBadgeLabel}</span>
               </div>
               {archivedActivityLabel ? (
-                <p className="mt-1.5 text-xs text-amber-700" title="Acest tip se înregistrează acum în modulul Protecție & Nutriție">
+                <p className="mt-1.5 text-xs text-[var(--status-warning-text)]" title="Acest tip se înregistrează acum în modulul Protecție & Nutriție">
                   {archivedActivityLabel}
                 </p>
               ) : null}
@@ -1708,7 +1710,7 @@ function TerenCard({
             </span>
           </div>
           {terenSecondLine ? (
-            <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{terenSecondLine}</p>
+            <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">{terenSecondLine}</p>
           ) : null}
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-[var(--agri-text)]">
             <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', freshness.dotClass)} aria-hidden />

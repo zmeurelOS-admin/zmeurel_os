@@ -102,7 +102,7 @@ export function PlanDetailHeader({
   return (
     <>
       {/* --- SECTION: header --- */}
-      <div className="rounded-[24px] bg-[#3D7A5F] px-[18px] pt-[18px] pb-0 text-white shadow-[0_16px_40px_rgba(61,122,95,0.18)]">
+      <div className="rounded-[24px] bg-[var(--agri-hero-bg)] px-[18px] pt-[18px] pb-0 text-white shadow-[var(--agri-hero-shadow)]">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
@@ -206,11 +206,11 @@ export function PlanDetailHeader({
         </div>
       </div>
       <div className="flex items-center px-5 py-3">
-        <span className="rounded-full bg-[#E8F3EE] px-3 py-1 text-sm font-semibold text-[#3D7A5F]">
+        <span className="rounded-full bg-[var(--agri-primary-muted)] px-3 py-1 text-sm font-semibold text-[var(--agri-primary)]">
           {isArchived ? 'Arhivat' : 'Activ'}
         </span>
-        <span className="mx-2 text-gray-300">·</span>
-        <span className="text-sm text-gray-500">{countAplicari} aplicări asociate</span>
+        <span className="mx-2 text-[var(--text-tertiary)]">·</span>
+        <span className="text-sm text-[var(--text-secondary)]">{countAplicari} aplicări asociate</span>
       </div>
 
       {/* --- SECTION: dialogs --- */}

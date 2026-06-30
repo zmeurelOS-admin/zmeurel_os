@@ -260,7 +260,7 @@ export function EditInvestitieDialog({
                     {...register('suma_lei')}
                   />
                   {errors.suma_lei ? (
-                    <p className="text-xs text-red-600">{errors.suma_lei.message}</p>
+                    <p className="text-xs text-[var(--status-danger-text)]">{errors.suma_lei.message}</p>
                   ) : null}
                 </div>
 

@@ -957,26 +957,26 @@ export function AplicareDetaliuClient({
         aplicatSuccess && aplicatSuccessMeta ? (
           <div className="mx-auto flex min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center gap-4 px-6 py-3 pb-40 text-center md:py-4 md:pb-10">
             <div
-              className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border-[3px] border-[#C8E6D9] bg-[#EBF4EF] text-[32px] leading-none text-[#3D7A5F]"
+              className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full border-[3px] border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[32px] leading-none text-[var(--agri-primary)]"
               aria-hidden
             >
               ✓
             </div>
-            <h2 className="text-xl font-extrabold text-[#111827]">Aplicare înregistrată!</h2>
-            <p className="max-w-md text-sm leading-[1.6] text-[#6B7280]">
+            <h2 className="text-xl font-extrabold text-[var(--text-primary)]">Aplicare înregistrată!</h2>
+            <p className="max-w-md text-sm leading-[1.6] text-[var(--text-secondary)]">
               {aplicatSuccessMeta.produsPrincipal} a fost marcat ca aplicat pe {aplicatSuccessMeta.parcela} ·{' '}
               {aplicatSuccessMeta.dataFormatata}
             </p>
             <Button
               type="button"
-              className="rounded-[14px] bg-[#3D7A5F] px-8 py-3 font-bold text-white hover:bg-[color:color-mix(in_srgb,#3D7A5F_90%,black)]"
+              className="rounded-[14px] bg-[var(--agri-primary)] px-8 py-3 font-bold text-white hover:opacity-90"
               onClick={handleNavigateToTratamenteHub}
             >
               Înapoi la hub
             </Button>
             <button
               type="button"
-              className="mt-2 cursor-pointer border-0 bg-transparent p-0 text-sm text-[#9CA3AF] underline-offset-2 hover:underline"
+              className="mt-2 cursor-pointer border-0 bg-transparent p-0 text-sm text-[var(--text-tertiary)] underline-offset-2 hover:underline"
               onClick={handleNavigateToTratamenteHub}
             >
               + Aplică altă intervenție
@@ -993,11 +993,11 @@ export function AplicareDetaliuClient({
               const phiTone = verificari.phi.tone
               const phiBadge =
                 phiTone === 'success' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--status-success-text)]">
                     ✓ PHI OK
                   </span>
                 ) : phiTone === 'danger' ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--status-danger-text)]">
                     ⚠ PHI
                   </span>
                 ) : (
@@ -1154,7 +1154,7 @@ export function AplicareDetaliuClient({
 
               return (
                 <div className="space-y-3">
-                  <AppCard className="rounded-[14px] bg-gray-50">
+                  <AppCard className="rounded-[14px] bg-[var(--surface-card-muted)]">
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[var(--text-secondary)]">Produs</span>

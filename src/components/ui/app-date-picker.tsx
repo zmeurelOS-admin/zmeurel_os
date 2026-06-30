@@ -418,7 +418,7 @@ export function AppDatePicker({
         </Popover>
       )}
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-[var(--status-danger-text)]">{error}</p> : null}
     </div>
   )
 }

@@ -61,8 +61,8 @@ export default async function AdminAuditPage({
     >
       <div className="mx-auto mt-3 w-full max-w-6xl space-y-3 py-3 sm:mt-0">
         {(logsError || countError) ? (
-          <Card className="rounded-2xl border-red-200 bg-red-50">
-            <CardContent className="p-4 text-sm text-red-800">
+          <Card className="rounded-2xl border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]">
+            <CardContent className="p-4 text-sm text-[var(--status-danger-text)]">
               Eroare la încărcare audit logs: {logsError?.message ?? countError?.message}
             </CardContent>
           </Card>
@@ -73,7 +73,7 @@ export default async function AdminAuditPage({
                 <p className="text-sm text-[var(--agri-text-muted)]">
                   Total înregistrări: <strong className="text-[var(--agri-text)]">{total}</strong>
                 </p>
-                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800">
+                <Badge variant="outline" className="border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]">
                   Read-only
                 </Badge>
               </div>

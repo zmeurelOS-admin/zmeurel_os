@@ -416,7 +416,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                   <div className="space-y-1.5">
                     <Label htmlFor="edit_vb_data_comanda">Data comandă</Label>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
                       <AppDatePicker
                         id="edit_vb_data_comanda"
                         placeholder="Selectează data"
@@ -432,7 +432,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                   <div className="space-y-1.5">
                     <Label htmlFor="edit_vb_data_livrare">Data preconizată livrare</Label>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
                       <AppDatePicker
                         id="edit_vb_data_livrare"
                         placeholder="Selectează data"

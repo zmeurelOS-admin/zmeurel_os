@@ -246,7 +246,7 @@ export function EditProdusDialog({ produs, open, onOpenChange, onSuccess }: Edit
             <div className="space-y-2">
               <Label htmlFor="edit_produs_nume">Nume produs</Label>
               <Input id="edit_produs_nume" className="agri-control h-12 md:h-11" {...form.register('nume')} />
-              {form.formState.errors.nume ? <p className="text-xs text-red-600">{form.formState.errors.nume.message}</p> : null}
+              {form.formState.errors.nume ? <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.nume.message}</p> : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_produs_cat">Categorie</Label>

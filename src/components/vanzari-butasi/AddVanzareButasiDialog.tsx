@@ -486,7 +486,7 @@ export function AddVanzareButasiDialog({
                         {...form.register('client_nume_manual')}
                       />
                       {form.formState.errors.client_nume_manual ? (
-                        <p className="text-xs text-red-600">{form.formState.errors.client_nume_manual.message}</p>
+                        <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.client_nume_manual.message}</p>
                       ) : null}
                     </div>
                     <div className="space-y-1.5">
@@ -530,7 +530,7 @@ export function AddVanzareButasiDialog({
                           onClick={() => form.setValue('status', status, { shouldDirty: true })}
                           className={cn(
                             'h-8 rounded-full border px-2 text-[11px] font-semibold',
-                            isActive && status !== 'anulata' && 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
+                            isActive && status !== 'anulata' && 'border-[var(--cta-recoltare-bg)] bg-[var(--cta-recoltare-bg)] text-white hover:opacity-90',
                             isActive && status === 'anulata' && 'border-red-300 bg-red-100 text-red-700 hover:bg-red-200 dark:border-red-700 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60',
                             !isActive && 'bg-white text-slate-600 dark:bg-zinc-900 dark:text-zinc-300',
                           )}
@@ -546,7 +546,7 @@ export function AddVanzareButasiDialog({
                   <div className="space-y-1.5">
                     <Label htmlFor="vb_data_comanda">Data comandă</Label>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
                       <AppDatePicker
                         id="vb_data_comanda"
                         placeholder="Selectează data"
@@ -562,7 +562,7 @@ export function AddVanzareButasiDialog({
                   <div className="space-y-1.5">
                     <Label htmlFor="vb_data_livrare">Data preconizată livrare</Label>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-tertiary)]" />
                       <AppDatePicker
                         id="vb_data_livrare"
                         placeholder="Selectează data"

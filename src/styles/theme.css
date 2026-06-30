@@ -82,58 +82,80 @@
   --agri-border: var(--border-strong);
   --agri-primary-contrast: var(--text-on-accent);
   --agri-focus-ring: 0 0 0 3px rgba(31, 143, 74, 0.35);
+  --card-border-default: #E0DEE8;
+  --whatsapp-green: #25D366;
+  --indicator-shop: #F16B6B;
+  --indicator-manual: #3B7DD8;
+  --indicator-patiserie: #9333EA;
+  --indicator-magazin: #059669;
+  --indicator-confirmation: #E8A020;
+  --badge-tip-bg: #f3e8ff;
+  --badge-tip-text: #7e22ce;
+  --badge-tip-border: #d8b4fe;
+  --cta-recoltare-bg: #15803d;
+  --cta-recoltare-border: #166534;
+  --cta-activitate-bg: #1d4ed8;
+  --cta-activitate-border: #1e40af;
+  --cta-vanzare-bg: #f59e0b;
+  --cta-vanzare-text: #0c0a09;
+  --cta-vanzare-border: #d97706;
+  --cta-vanzare-ring: #fde68a;
+  --agri-primary: #3D7A5F;
+  --agri-primary-muted: #E8F3EE;
+  --agri-hero-bg: #3D7A5F;
+  --agri-hero-shadow: 0 16px 40px rgba(61, 122, 95, 0.18);
 }
 
 .dark {
   color-scheme: dark;
 
   /* Semantic surfaces */
-  --surface-page: #0f172a;
-  --surface-card: #1e293b;
-  --surface-card-muted: #24324a;
-  --surface-card-elevated: #334155;
+  --surface-page: #0b0e13;
+  --surface-card: #12161d;
+  --surface-card-muted: #171c23;
+  --surface-card-elevated: #1d232c;
 
   /* Semantic text */
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-on-accent: #052e16;
+  --text-primary: #f5f6f7;
+  --text-secondary: #949ba4;
+  --text-tertiary: #6c737d;
+  --text-on-accent: #08140e;
 
   /* Semantic borders/dividers */
-  --border-default: #334155;
-  --border-strong: #475569;
-  --divider: rgba(51, 65, 85, 0.65);
+  --border-default: #20262f;
+  --border-strong: #2d343e;
+  --divider: rgba(148, 155, 164, 0.12);
 
   /* Semantic input/focus */
-  --input-bg: #334155;
-  --input-border: #475569;
-  --input-placeholder: #64748b;
-  --focus-ring: #4ade80;
+  --input-bg: #151a21;
+  --input-border: #2a313a;
+  --input-placeholder: #6c737d;
+  --focus-ring: #5ca882;
 
   /* Semantic status tones */
-  --success-bg: rgba(22, 101, 52, 0.5);
-  --success-text: #4ade80;
-  --success-border: #15803d;
-  --warning-bg: rgba(120, 53, 15, 0.5);
-  --warning-text: #fbbf24;
-  --warning-border: #b45309;
-  --danger-bg: rgba(127, 29, 29, 0.5);
-  --danger-text: #f87171;
-  --danger-border: #b91c1c;
-  --info-bg: rgba(30, 58, 138, 0.5);
-  --info-text: #60a5fa;
-  --info-border: #1d4ed8;
-  --neutral-bg: #334155;
-  --neutral-text: #cbd5e1;
-  --neutral-border: #475569;
+  --success-bg: #0f1d16;
+  --success-text: #6fbe95;
+  --success-border: #1d4a36;
+  --warning-bg: #1d1812;
+  --warning-text: #c9a154;
+  --warning-border: #4a3a1f;
+  --danger-bg: #1f1416;
+  --danger-text: #e0796a;
+  --danger-border: #4a2620;
+  --info-bg: #131a26;
+  --info-text: #6fa3e0;
+  --info-border: #24344a;
+  --neutral-bg: #171b22;
+  --neutral-text: #c5cad1;
+  --neutral-border: #2d343e;
 
   /* Semantic shadows */
-  --shadow-soft: 0 1px 3px rgba(2, 6, 23, 0.3);
-  --shadow-elevated: 0 8px 20px rgba(2, 6, 23, 0.35);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 8px 20px rgba(0, 0, 0, 0.5);
 
   /* Compatibility aliases (Step 1) */
   --bg-primary: var(--surface-page);
-  --bg-secondary: #1e293b;
+  --bg-secondary: var(--surface-card-muted);
   --bg-card: var(--surface-card);
 
   --status-success-bg: var(--success-bg);
@@ -153,17 +175,39 @@
   --status-neutral-border: var(--neutral-border);
 
   --surface-elevated: var(--surface-card-elevated);
-  --surface-elevated-hover: #475569;
+  --surface-elevated-hover: #242b35;
   --surface-divider: var(--divider);
   --shadow-card-soft: var(--shadow-soft);
   --shadow-card-raised: var(--shadow-elevated);
 
-  --agri-bg: #0f172a;
-  --agri-surface: #1a2538;
+  --agri-bg: var(--surface-page);
+  --agri-surface: var(--surface-card);
   --agri-surface-muted: var(--surface-card-muted);
   --agri-text: var(--text-primary);
   --agri-text-muted: var(--text-secondary);
   --agri-border: var(--border-default);
   --agri-primary-contrast: var(--text-on-accent);
-  --agri-focus-ring: 0 0 0 3px rgba(74, 222, 128, 0.35);
+  --agri-focus-ring: 0 0 0 3px rgba(92, 168, 130, 0.32);
+  --card-border-default: rgba(200, 208, 222, 0.2);
+  --whatsapp-green: #25D366;
+  --indicator-shop: #D46A6A;
+  --indicator-manual: #6C9BFF;
+  --indicator-patiserie: #B78CFF;
+  --indicator-magazin: #44BE8D;
+  --indicator-confirmation: #D1A248;
+  --badge-tip-bg: #2d1f42;
+  --badge-tip-text: #c084fc;
+  --badge-tip-border: #5b3a8a;
+  --cta-recoltare-bg: #16a34a;
+  --cta-recoltare-border: #15803d;
+  --cta-activitate-bg: #2563eb;
+  --cta-activitate-border: #1d4ed8;
+  --cta-vanzare-bg: #d97706;
+  --cta-vanzare-text: #fef9c3;
+  --cta-vanzare-border: #b45309;
+  --cta-vanzare-ring: #92400e;
+  --agri-primary: #5ca882;
+  --agri-primary-muted: #0f2218;
+  --agri-hero-bg: #0d2318;
+  --agri-hero-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
