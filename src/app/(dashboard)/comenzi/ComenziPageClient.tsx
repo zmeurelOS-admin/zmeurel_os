@@ -1082,39 +1082,19 @@ function ComandaDialog({
             <div className="space-y-1">
               <Label>Tip comandă</Label>
               {mode === 'create' ? (
-                <>
-                  <div className="hidden flex-wrap gap-2 md:flex">
-                    {COMANDA_ORDER_KINDS.map((orderKind) => (
-                      <button
-                        key={orderKind}
-                        type="button"
-                        aria-pressed={form.order_kind === orderKind}
-                        className={getComandaPillClassName(form.order_kind === orderKind)}
-                        onClick={() => handleCreateOrderKindChange(orderKind)}
-                      >
-                        {orderKindLabelMap[orderKind]}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="md:hidden">
-                    <Select
-                      value={form.order_kind}
-                      onValueChange={(value) => handleCreateOrderKindChange(value as ComandaOrderKind)}
+                <div className="flex flex-wrap gap-1.5">
+                  {COMANDA_ORDER_KINDS.map((orderKind) => (
+                    <button
+                      key={orderKind}
+                      type="button"
+                      aria-pressed={form.order_kind === orderKind}
+                      className={getComandaPillClassName(form.order_kind === orderKind)}
+                      onClick={() => handleCreateOrderKindChange(orderKind)}
                     >
-                      <SelectTrigger className="agri-control h-11 md:h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COMANDA_ORDER_KINDS.map((orderKind) => (
-                          <SelectItem key={orderKind} value={orderKind}>
-                            {orderKindLabelMap[orderKind]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
+                      {orderKindLabelMap[orderKind]}
+                    </button>
+                  ))}
+                </div>
               ) : (
                 <div className="flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-sm font-medium text-[var(--text-primary)] md:min-h-10">
                   {orderKindLabelMap[form.order_kind]}
@@ -1125,38 +1105,18 @@ function ComandaDialog({
             {isManual && mode === 'create' ? (
               <div className="space-y-1">
                 <Label>Status</Label>
-                <div className="hidden flex-wrap gap-2 md:flex">
+                <div className="flex flex-wrap gap-1.5">
                   {CREATE_COMANDA_STATUS_OPTIONS.map((status) => (
                     <button
                       key={status}
                       type="button"
                       aria-pressed={form.status === status}
                       className={getComandaPillClassName(form.status === status)}
-                      onClick={() =>
-                        setForm((prev) => ({ ...prev, status }))
-                      }
+                      onClick={() => setForm((prev) => ({ ...prev, status }))}
                     >
                       {statusLabelMap[status]}
                     </button>
                   ))}
-                </div>
-
-                <div className="md:hidden">
-                  <Select
-                    value={form.status}
-                    onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
-                  >
-                    <SelectTrigger className="agri-control h-11 md:h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CREATE_COMANDA_STATUS_OPTIONS.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {statusLabelMap[status]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
             ) : null}

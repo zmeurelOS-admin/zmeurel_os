@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import {
   Sheet,
   SheetContent,
@@ -552,24 +552,32 @@ export function EditOrderSheet({
 
       <div className="space-y-1.5">
         <Label>Status</Label>
-        <Select
-          value={form.status}
-          disabled={statusOptions.length <= 1}
-          onValueChange={(status) => setForm((current) => ({ ...current, status }))}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((status) => (
-              <SelectItem key={status} value={status}>
+        <div className="flex flex-wrap gap-1.5">
+          {statusOptions.map((status) => {
+            const isActive = form.status === status
+            const isDisabled = statusOptions.length <= 1
+            return (
+              <button
+                key={status}
+                type="button"
+                aria-pressed={isActive}
+                disabled={isDisabled}
+                onClick={() => setForm((current) => ({ ...current, status }))}
+                className={cn(
+                  'inline-flex min-h-8 items-center justify-center rounded-full border px-3 text-sm font-medium transition',
+                  isActive
+                    ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success-text)]'
+                    : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]',
+                  isDisabled && 'cursor-default opacity-60',
+                )}
+              >
                 {isShop
                   ? SHOP_STATUS_LABELS[status as ShopOrderStatus]
                   : B2B_STATUS_LABELS[status as ComandaStatus]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="space-y-1.5">
