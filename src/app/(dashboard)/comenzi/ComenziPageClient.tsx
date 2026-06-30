@@ -242,7 +242,7 @@ const CREATE_COMANDA_STATUS_OPTIONS = COMENZI_STATUSES.filter(
 
 function getComandaPillClassName(active: boolean) {
   return cn(
-    'inline-flex min-h-10 items-center justify-center rounded-full border px-3 text-sm font-medium transition md:min-h-9',
+    'inline-flex min-h-9 items-center justify-center rounded-full border px-3 text-sm font-medium transition md:min-h-8',
     active
       ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success-text)]'
       : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]',
@@ -1039,9 +1039,8 @@ function ComandaDialog({
           : 'Actualizezi datele comenzii fără să schimbi fluxul existent de client și livrare.'
       }
       desktopFormWide
-      desktopFormCompact
       showCloseButton
-      contentClassName="md:w-[min(96vw,76rem)] md:max-w-none lg:w-[min(94vw,78rem)]"
+      contentClassName="md:w-[min(96vw,76rem)] md:max-w-none md:max-h-[min(92dvh,54rem)] lg:w-[min(94vw,78rem)]"
       footer={
         <DialogFormActions
           className="w-full"
@@ -1077,10 +1076,10 @@ function ComandaDialog({
         }
       >
         <FormDialogSection>
-          <DesktopFormPanel className="space-y-2.5">
+          <DesktopFormPanel className="space-y-2 md:space-y-2">
 
             {/* ── 1. Tip comandă — primul câmp ── */}
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Label>Tip comandă</Label>
               {mode === 'create' ? (
                 <>
@@ -1124,7 +1123,7 @@ function ComandaDialog({
             </div>
 
             {isManual && mode === 'create' ? (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label>Status</Label>
                 <div className="hidden flex-wrap gap-2 md:flex">
                   {CREATE_COMANDA_STATUS_OPTIONS.map((status) => (
@@ -1192,7 +1191,7 @@ function ComandaDialog({
 
                 <div
                   ref={comboRef}
-                  className={`space-y-1.5 ${selectedClient ? 'hidden md:block' : ''}`}
+                  className={`space-y-1 ${selectedClient ? 'hidden md:block' : ''}`}
                 >
                   <Label htmlFor="comanda_client_combo">
                     Client{isCadou ? ' (opțional)' : ''}
@@ -1200,7 +1199,7 @@ function ComandaDialog({
                   <div className="relative">
                     <Input
                       id="comanda_client_combo"
-                      className="agri-control h-11 md:h-10"
+                      className="agri-control h-10 md:h-9"
                       placeholder={isCadou ? 'Nume beneficiar (opțional)...' : 'Caută după nume sau telefon...'}
                       autoComplete="off"
                       value={displayedComboInput}
@@ -1263,22 +1262,22 @@ function ComandaDialog({
 
                 {/* Telefon + buton vCard — doar Manual */}
                 {showDeliveryFields ? (
-                  <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2.5">
-                    <div className="space-y-1.5">
+                  <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-3 md:gap-y-2">
+                    <div className="space-y-1">
                       <Label>Telefon</Label>
                       <Input
-                        className="agri-control h-11 md:h-10"
+                        className="agri-control h-10 md:h-9"
                         value={resolvedPhone}
                         onChange={(e) => setForm((prev) => ({ ...prev, telefon: e.target.value }))}
                       />
                     </div>
                     {isNewClientFlow ? (
-                      <div className="space-y-1.5 md:min-w-[148px]">
+                      <div className="space-y-1 md:min-w-[148px]">
                         <Label className="opacity-0">Contact</Label>
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-11 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-10"
+                          className="h-10 w-full whitespace-nowrap rounded-xl px-3 text-xs sm:text-sm md:h-9"
                           disabled={!canSaveContact}
                           onClick={() => saveContactAsVCard(suggestedClientName, resolvedPhone)}
                         >
@@ -1291,7 +1290,7 @@ function ComandaDialog({
                 ) : null}
 
                 {showSaveClientToggle ? (
-                  <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] shadow-[var(--shadow-soft)]">
+                  <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-1.5 text-sm text-[var(--text-primary)] shadow-[var(--shadow-soft)]">
                     <input
                       type="checkbox"
                       className="mt-0.5 h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)]"
@@ -1314,7 +1313,7 @@ function ComandaDialog({
             {/* ── 3. Cantitate (mereu) + Preț (doar Manual) ── */}
             <div
               className={cn(
-                'grid grid-cols-1 gap-2.5 md:gap-x-3 md:gap-y-2.5',
+                'grid grid-cols-1 gap-2 md:gap-x-3 md:gap-y-2',
                 showPriceField && showDeliveryFields
                   ? 'md:grid-cols-3'
                   : showPriceField
@@ -1322,20 +1321,20 @@ function ComandaDialog({
                   : 'md:grid-cols-1',
               )}
             >
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label>Cantitate (kg)</Label>
                 <Input
                   type="number"
                   inputMode="decimal"
                   min="0"
                   step="0.01"
-                  className="agri-control h-11 md:h-10"
+                  className="agri-control h-10 md:h-9"
                   value={form.cantitate_kg}
                   onChange={(e) => setForm((prev) => ({ ...prev, cantitate_kg: e.target.value }))}
                 />
               </div>
               {showPriceField ? (
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label>Preț per kg</Label>
                   <Input
                     type="number"
@@ -1343,7 +1342,7 @@ function ComandaDialog({
                     min="0"
                     step="0.01"
                     className={cn(
-                      'agri-control h-11 md:h-10',
+                      'agri-control h-10 md:h-9',
                       mode === 'create' && isManual
                         ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)] placeholder:text-[var(--status-danger-text)]'
                         : '',
@@ -1375,7 +1374,7 @@ function ComandaDialog({
                     label="Data livrare"
                     placeholder="Selectează data"
                     value={form.data_livrare}
-                    triggerClassName="h-11 md:h-10"
+                    triggerClassName="h-10 md:h-9"
                     onChange={(nextValue) =>
                       setForm((prev) => ({ ...prev, data_livrare: nextValue }))
                     }
@@ -1399,7 +1398,7 @@ function ComandaDialog({
             {/* ── 4. Câmpuri livrare (doar Manual) ── */}
             {showDeliveryFields ? (
               <>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label htmlFor="comanda_locatie">
                     <span>Localitate / Adresă</span>{' '}
                     <span className="text-xs font-normal text-[var(--text-secondary)]">
@@ -1408,7 +1407,7 @@ function ComandaDialog({
                   </Label>
                   <Input
                     id="comanda_locatie"
-                    className="agri-control h-11 md:h-10"
+                    className="agri-control h-10 md:h-9"
                     placeholder="ex: Suceava, str. Unirii 12"
                     value={form.locatie_livrare}
                     onChange={(e) => setForm((prev) => ({ ...prev, locatie_livrare: e.target.value }))}
@@ -1483,13 +1482,13 @@ function ComandaDialog({
 
             {/* ── 5. Status — Manual: create + edit; Cadou: doar edit ── */}
             {mode === 'edit' ? (
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <Label>Status</Label>
                 <Select
                   value={form.status}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as ComandaStatus }))}
                 >
-                  <SelectTrigger className="agri-control h-11 md:h-10">
+                  <SelectTrigger className="agri-control h-10 md:h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1504,10 +1503,10 @@ function ComandaDialog({
             ) : null}
 
             {/* ── 6. Observații — mereu vizibil ── */}
-            <div className="hidden space-y-1.5 md:block">
+            <div className="hidden space-y-1 md:block">
               <Label>Observații</Label>
               <Textarea
-                className="agri-control min-h-[2.75rem] md:min-h-[3rem]"
+                className="agri-control min-h-[2.75rem] md:min-h-[2.25rem]"
                 value={form.observatii}
                 onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
               />
