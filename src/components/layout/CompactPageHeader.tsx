@@ -96,7 +96,7 @@ export function CompactPageHeader({
       )}
     >
       <div className="absolute inset-0 bg-[color:color-mix(in_srgb,var(--surface-page)_95%,transparent)] lg:hidden" />
-      <div className="absolute inset-0 hidden bg-[color:color-mix(in_srgb,var(--primary)_92%,black_8%)] lg:block" />
+      <div className="absolute inset-0 hidden bg-[var(--agri-hero-bg)] lg:block" />
 
       {contentVariant ? (
         <div className={cn('relative', getDashboardHeaderBleedClassName())}>
