@@ -41,6 +41,7 @@ import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { AddClientDialog } from '@/components/clienti/AddClientDialog'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Button } from '@/components/ui/button'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -1468,6 +1469,7 @@ export function ComenziPageClient() {
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
   const { memberRole, accessLevel } = useDashboardAuth()
+  const isDesktop = useMediaQuery('(min-width: 768px)')
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1944,10 +1946,15 @@ export function ComenziPageClient() {
   useEffect(() => {
     if (!canWriteComenzi) return
     const unregister = registerAddAction(() => {
+      if (isDesktop) {
+        setSpeedDialOpen(false)
+        setAddOpen(true)
+        return
+      }
       setSpeedDialOpen(true)
     }, 'Adaugă comandă')
     return unregister
-  }, [canWriteComenzi, registerAddAction])
+  }, [canWriteComenzi, isDesktop, registerAddAction])
 
   useEffect(() => {
     const query = search.trim()
@@ -2292,7 +2299,27 @@ export function ComenziPageClient() {
 
   return (
     <AppShell
-      header={<PageHeader title="Comenzi" subtitle="Livrări, statusuri și încasări" contentVariant="workspace" />}
+      header={(
+        <PageHeader
+          title="Comenzi"
+          subtitle="Livrări, statusuri și încasări"
+          contentVariant="workspace"
+          rightSlot={
+            canWriteComenzi ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSpeedDialOpen(false)
+                  setDinMesajOpen(true)
+                }}
+                className="hidden h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm [font-weight:650] text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] md:inline-flex lg:border-white/30 lg:bg-white/14 lg:text-[var(--text-on-accent)] lg:hover:bg-white/24"
+              >
+                Din mesaj
+              </button>
+            ) : null
+          }
+        />
+      )}
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
         {(operationalSnapshot.activeTotalCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
