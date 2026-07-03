@@ -635,8 +635,7 @@ export async function fetchComenziManualInLivrare(): Promise<Comanda[]> {
     .select(COMANDA_SELECT_FIELDS)
     .eq('tenant_id', tenantId)
     .eq('status', 'in_livrare')
-    .not('data_origin', 'eq', 'shop_order_bridge')
-    .or('data_origin.is.null,data_origin.neq.magazin_asociatie')
+    .or('data_origin.is.null,data_origin.not.in.(shop_order_bridge,magazin_asociatie)')
     .order('data_livrare', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
 
