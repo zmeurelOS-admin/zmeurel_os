@@ -2,20 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Check, GripVertical, RefreshCw } from 'lucide-react'
 import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ChevronDown,
-  GripVertical,
-  MapPin,
-  MessageCircle,
-  Navigation,
-  PackageCheck,
-  Pencil,
-  Phone,
-  RefreshCw,
-} from 'lucide-react'
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -42,10 +46,8 @@ import {
   mapShopToUnified,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
-import type { DeliveryItem } from '@/lib/livrari/types'
 import { queryKeys } from '@/lib/query-keys'
 import {
-  buildLivrareWaUrl,
   formatItemsHuman,
   formatLei,
   type ShopOrderStatus,
@@ -78,21 +80,6 @@ type DeliveryTarget = UnifiedOrderItem & {
   delivery_address: string | null
   _shopOrder?: ShopOrderRow
   _comanda?: Comanda
-}
-
-function formatSummaryBullets(lines: { label: string; qty: number }[]): string {
-  return lines.map((line) => `${line.label} × ${line.qty}`).join(' · ')
-}
-
-function phoneHref(phone: string): string {
-  return `tel:${phone.replace(/[^\d+]/g, '')}`
-}
-
-function mapsHref(address: string | null): string | null {
-  const destination = address?.trim()
-  return destination
-    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
-    : null
 }
 
 function getDeliverableKg(order: UnifiedOrderItem): number {
@@ -203,8 +190,6 @@ export function LivrariPageClient() {
     return mapB2bToUnified(editTarget.order, clientMap)
   }, [clientMap, editTarget])
   const totalLei = deliveryItems.reduce((sum, order) => sum + order.totalLei, 0)
-  const manualCount = deliveryItems.filter((item) => item.source === 'b2b').length
-  const shopCount = deliveryItems.filter((item) => item.source === 'shop').length
   const kgB2b = deliveryItems
     .filter((item) => item.source === 'b2b' && (item.clientTip === 'patiserie' || item.clientTip === 'magazin'))
     .reduce((sum, item) => sum + getDeliverableKg(item), 0)
@@ -253,15 +238,22 @@ export function LivrariPageClient() {
     return result
   }, [customOrderIds, deliveryItems])
 
-  const moveItem = useCallback(
-    (index: number, direction: -1 | 1) => {
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
       const ids = orderedDeliveryItems.map((i) => i.id)
-      const target = index + direction
-      if (target < 0 || target >= ids.length) return
-      ;[ids[index], ids[target]] = [ids[target], ids[index]]
-      saveOrder(ids)
+      const from = ids.indexOf(active.id as string)
+      const to = ids.indexOf(over.id as string)
+      if (from === -1 || to === -1) return
+      saveOrder(arrayMove(ids, from, to))
     },
     [orderedDeliveryItems, saveOrder],
+  )
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
   const orderedOrders = useMemo(
@@ -620,18 +612,42 @@ export function LivrariPageClient() {
               </div>
             </header>
 
-            <div className={`space-y-2.5 ${isReorderMode ? 'space-y-3' : ''}`}>
-              {orderedOrders.map((order, index) => (
-                <div key={`${order.source}-${order.id}`} className="relative">
-                  {isReorderMode ? (
-                    <div className="absolute -left-1 -top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--agri-primary)] text-xs tabular-nums text-white shadow [font-weight:700]">
-                      {index + 1}
-                    </div>
-                  ) : null}
+            {isReorderMode ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={orderedOrders.map((o) => o.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {orderedOrders.map((order, index) => (
+                      <SortableDeliveryCard key={order.id} id={order.id} position={index + 1}>
+                        <UnifiedOrderCard
+                          item={order}
+                          disabled
+                          onB2bStatusChange={handleManualStatusChange}
+                          onB2bDeliveryDateChange={() => undefined}
+                          onShopStatusChange={handleShopStatusChange}
+                          onShopConfirmedChange={() => undefined}
+                          onShopNotifiedChange={() => undefined}
+                          onShopDeliveryDateChange={() => undefined}
+                          onEdit={() => undefined}
+                        />
+                      </SortableDeliveryCard>
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            ) : (
+              <div className="space-y-2.5">
+                {orderedOrders.map((order) => (
                   <UnifiedOrderCard
+                    key={`${order.source}-${order.id}`}
                     item={order}
                     disabled={
-                      isReorderMode ||
                       markDeliveredMutation.isPending ||
                       deliverPartialManualMutation.isPending ||
                       deliverPartialShopMutation.isPending ||
@@ -662,33 +678,9 @@ export function LivrariPageClient() {
                       }
                     }}
                   />
-                  {isReorderMode ? (
-                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="min-h-14 rounded-xl border-[var(--border-default)] text-base text-[var(--text-primary)]"
-                        disabled={index === 0}
-                        onClick={() => moveItem(index, -1)}
-                      >
-                        <ArrowUp className="h-5 w-5" />
-                        Sus
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="min-h-14 rounded-xl border-[var(--border-default)] text-base text-[var(--text-primary)]"
-                        disabled={index === orderedOrders.length - 1}
-                        onClick={() => moveItem(index, 1)}
-                      >
-                        <ArrowDown className="h-5 w-5" />
-                        Jos
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         ) : null}
 
@@ -777,232 +769,36 @@ export function LivrariPageClient() {
   )
 }
 
-function DeliveryOrderCard({
-  order,
+function SortableDeliveryCard({
+  id,
   position,
-  isFirst,
-  isLast,
-  expanded,
-  reordering,
-  marking,
-  onActivateReorder,
-  onEdit,
-  onMarkDelivered,
-  onMoveDown,
-  onMoveUp,
-  onToggleExpand,
+  children,
 }: {
-  order: DeliveryItem
+  id: string
   position: number
-  isFirst: boolean
-  isLast: boolean
-  expanded: boolean
-  reordering: boolean
-  marking: boolean
-  onActivateReorder?: () => void
-  onEdit?: () => void
-  onMarkDelivered?: () => void
-  onMoveDown?: () => void
-  onMoveUp?: () => void
-  onToggleExpand: () => void
+  children: React.ReactNode
 }) {
-  const whatsappHref = order._shopOrder
-    ? buildLivrareWaUrl(order._shopOrder)
-    : order.customer_phone
-      ? `https://wa.me/4${order.customer_phone.replace(/\D/g, '').replace(/^0/, '')}`
-      : null
-  const navigationHref = mapsHref(order.delivery_address)
-  const address = order.delivery_address?.trim() || 'Adresă necompletată'
-  const itemLabel =
-    order.items != null
-      ? formatItemsHuman(order.items)
-      : order.notes?.trim() || 'Comandă manuală'
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  })
 
   return (
-    <article
-      className={`overflow-hidden rounded-[20px] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] transition ${
-        reordering
-          ? 'ring-2 ring-[var(--status-warning-text)] ring-offset-2 ring-offset-[var(--surface-page)]'
-          : ''
-      }`}
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`rounded-xl ${isDragging ? 'z-50 opacity-80 shadow-2xl' : ''}`}
     >
-      <div className="flex min-h-[82px]">
-        {onActivateReorder ? (
-          <button
-            type="button"
-            className={`flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 transition active:scale-[0.985] ${
-              reordering
-                ? 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
-                : 'bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]'
-            }`}
-            aria-label={`Reordonează livrarea ${position}`}
-            aria-pressed={reordering}
-            onClick={onActivateReorder}
-          >
-            <span className="text-lg tabular-nums [font-weight:750]">{position}</span>
-            <GripVertical className="h-5 w-5" aria-hidden />
-          </button>
-        ) : (
-          <div className="flex w-14 shrink-0 flex-col items-center justify-center gap-0.5 bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
-            <span className="text-lg tabular-nums [font-weight:750]">{position}</span>
-          </div>
-        )}
-
-        <button
-          type="button"
-          className="min-w-0 flex-1 px-3 py-3 text-left transition active:scale-[0.99]"
-          aria-expanded={expanded}
-          onClick={onToggleExpand}
-        >
-          <span className="flex items-start justify-between gap-3">
-            <span className="min-w-0 truncate text-[15px] text-[var(--brand-dark)] [font-weight:750]">
-              {order.customer_name}
-            </span>
-            <span className="shrink-0 text-right">
-              {order.cantitate_kg != null ? (
-                <span className="block text-xs text-[var(--text-secondary)]">
-                  {order.cantitate_kg.toFixed(1)} kg
-                </span>
-              ) : null}
-              <span className="text-[16px] tabular-nums text-[var(--brand-coral)] [font-weight:750]">
-                {formatLei(order.total_lei)} lei
-              </span>
-            </span>
-          </span>
-          <span className="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs leading-snug text-[var(--text-secondary)]">
-            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--brand-coral)]" aria-hidden />
-            <span className="line-clamp-2">{address}</span>
-          </span>
-        </button>
-
-        {!reordering ? (
-          <button
-            type="button"
-            className="flex w-11 shrink-0 items-center justify-center text-[var(--text-tertiary)]"
-            aria-label={expanded ? 'Restrânge detaliile' : 'Arată detaliile'}
-            aria-expanded={expanded}
-            onClick={onToggleExpand}
-          >
-            <ChevronDown
-              className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
-              aria-hidden
-            />
-          </button>
-        ) : null}
-      </div>
-
-      {order.milestone_reward ? (
-        <div className="border-t border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-sm font-bold text-[var(--status-warning-text)]">
-          ⚠️ Include bonus: {order.milestone_reward.reward_label}
-        </div>
-      ) : null}
-
-      {reordering && onMoveUp && onMoveDown ? (
-        <div className="grid grid-cols-2 gap-2 border-t border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] p-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-14 rounded-xl border-[var(--status-warning-border)] bg-[var(--surface-card)] text-base text-[var(--brand-dark)]"
-            disabled={isFirst}
-            onClick={onMoveUp}
-          >
-            <ArrowUp className="h-5 w-5" />
-            Sus
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-14 rounded-xl border-[var(--status-warning-border)] bg-[var(--surface-card)] text-base text-[var(--brand-dark)]"
-            disabled={isLast}
-            onClick={onMoveDown}
-          >
-            <ArrowDown className="h-5 w-5" />
-            Jos
-          </Button>
-        </div>
-      ) : null}
-
-      {expanded && !reordering ? (
-        <div className="border-t border-[var(--divider)] px-3 pb-3 pt-3">
-          <p className="mb-3 text-xs leading-relaxed text-[var(--text-secondary)]">{itemLabel}</p>
-
-          <div className="grid grid-cols-2 gap-2">
-            {order.customer_phone ? (
-              <ActionLink href={phoneHref(order.customer_phone)} icon={Phone} label="Apel" />
-            ) : null}
-            <ActionLink href={whatsappHref} icon={MessageCircle} label="WhatsApp" external />
-            <ActionLink
-              href={navigationHref}
-              icon={Navigation}
-              label="Navigare"
-              external
-              disabled={!navigationHref}
-            />
-            {onEdit ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-14 rounded-xl text-sm"
-                onClick={onEdit}
-              >
-                <Pencil className="h-5 w-5" />
-                Editează
-              </Button>
-            ) : null}
-          </div>
-
-          {onMarkDelivered ? (
-            <Button
-              type="button"
-              className="mt-2 min-h-14 w-full rounded-xl bg-[var(--agri-primary)] text-base text-white"
-              disabled={marking}
-              onClick={onMarkDelivered}
-            >
-              <PackageCheck className="h-5 w-5" />
-              {marking ? 'Se marchează...' : 'Marchează livrat'}
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-    </article>
-  )
-}
-
-function ActionLink({
-  href,
-  icon: Icon,
-  label,
-  external = false,
-  disabled = false,
-}: {
-  href: string | null
-  icon: typeof Phone
-  label: string
-  external?: boolean
-  disabled?: boolean
-}) {
-  if (!href || disabled) {
-    return (
-      <span
-        className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] text-sm text-[var(--text-tertiary)] opacity-60"
-        aria-disabled="true"
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex h-11 touch-none cursor-grab items-center justify-between rounded-t-xl bg-[var(--agri-primary)] px-4 active:cursor-grabbing"
+        aria-label={`Poziția ${position} — trage pentru a reordona`}
       >
-        <Icon className="h-5 w-5" />
-        {label}
-      </span>
-    )
-  }
-
-  return (
-    <a
-      href={href}
-      target={external ? '_blank' : undefined}
-      rel={external ? 'noopener noreferrer' : undefined}
-      className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] text-sm text-[var(--brand-dark)] transition active:scale-[0.985] [font-weight:650]"
-    >
-      <Icon className="h-5 w-5 text-[var(--agri-primary)]" />
-      {label}
-    </a>
+        <span className="text-sm text-white [font-weight:700]">#{position}</span>
+        <GripVertical className="h-5 w-5 text-white/80" />
+      </div>
+      <div className="[&>article]:rounded-t-none">{children}</div>
+    </div>
   )
 }
 
