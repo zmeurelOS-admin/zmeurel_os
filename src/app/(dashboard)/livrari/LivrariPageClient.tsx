@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowDown,
@@ -214,13 +214,60 @@ export function LivrariPageClient() {
   const kgShop = deliveryItems
     .filter((item) => item.source === 'shop')
     .reduce((sum, item) => sum + getDeliverableKg(item), 0)
-  const orderedOrders = deliveryItems.map(toDeliveryTarget)
-  const reorderingId: string | null = null
-  const summaryBullets = 'Toate comenzile în livrare, indiferent de sursă.'
-  const persistReorderMutation = {
-    isPending: false,
-    mutate: (_orderIds: string[]) => undefined,
-  }
+  const [isReorderMode, setIsReorderMode] = useState(false)
+  const [customOrderIds, setCustomOrderIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!tenantId) return
+    const today = new Date().toISOString().slice(0, 10)
+    const stored = localStorage.getItem(`livrari-order-${tenantId}-${today}`)
+    if (stored) {
+      try {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCustomOrderIds(JSON.parse(stored) as string[])
+      } catch {}
+    }
+  }, [tenantId])
+
+  const saveOrder = useCallback(
+    (ids: string[]) => {
+      if (!tenantId) return
+      const today = new Date().toISOString().slice(0, 10)
+      localStorage.setItem(`livrari-order-${tenantId}-${today}`, JSON.stringify(ids))
+      setCustomOrderIds(ids)
+    },
+    [tenantId],
+  )
+
+  const orderedDeliveryItems = useMemo(() => {
+    if (customOrderIds.length === 0) return deliveryItems
+    const idMap = new Map(deliveryItems.map((item) => [item.id, item]))
+    const result: typeof deliveryItems = []
+    for (const id of customOrderIds) {
+      const item = idMap.get(id)
+      if (item) result.push(item)
+    }
+    for (const item of deliveryItems) {
+      if (!customOrderIds.includes(item.id)) result.push(item)
+    }
+    return result
+  }, [customOrderIds, deliveryItems])
+
+  const moveItem = useCallback(
+    (index: number, direction: -1 | 1) => {
+      const ids = orderedDeliveryItems.map((i) => i.id)
+      const target = index + direction
+      if (target < 0 || target >= ids.length) return
+      ;[ids[index], ids[target]] = [ids[target], ids[index]]
+      saveOrder(ids)
+    },
+    [orderedDeliveryItems, saveOrder],
+  )
+
+  const orderedOrders = useMemo(
+    () => orderedDeliveryItems.map(toDeliveryTarget),
+    [orderedDeliveryItems],
+  )
   const isFetchingAny = ordersQuery.isFetching || comenziManualQuery.isFetching
 
   const refreshAll = useCallback(() => {
@@ -546,69 +593,100 @@ export function LivrariPageClient() {
                     🚚 De livrat
                   </p>
                   <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                    {summaryBullets || 'Comenzi pregătite pentru traseu'}
+                    {deliveryItems.length}{' '}
+                    {deliveryItems.length === 1 ? 'comandă' : 'comenzi'} · {formatLei(totalLei)} lei
                   </p>
                 </div>
-                {reorderingId ? (
+                {isReorderMode ? (
                   <Button
                     type="button"
-                    className="min-h-11 rounded-xl bg-[var(--status-warning-text)] px-4 text-white"
-                    disabled={persistReorderMutation.isPending}
-                    onClick={() =>
-                      persistReorderMutation.mutate(
-                        orderedOrders
-                          .filter((order) => Boolean(order._shopOrder))
-                          .map((order) => order.id),
-                      )
-                    }
+                    className="min-h-11 rounded-xl bg-[var(--agri-primary)] px-4 text-white"
+                    onClick={() => setIsReorderMode(false)}
                   >
                     <Check />
-                    {persistReorderMutation.isPending ? 'Se salvează...' : 'Gata'}
+                    Gata
                   </Button>
                 ) : (
-                  <p className="shrink-0 text-base text-[var(--brand-coral)] [font-weight:750]">
-                    {formatLei(totalLei)} lei
-                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 rounded-xl px-4"
+                    onClick={() => setIsReorderMode(true)}
+                  >
+                    <GripVertical className="h-4 w-4" />
+                    Reordonează
+                  </Button>
                 )}
               </div>
             </header>
 
-            <div className="space-y-2.5">
-              {orderedOrders.map((order) => (
-                <UnifiedOrderCard
-                  key={`${order.source}-${order.id}`}
-                  item={order}
-                  disabled={
-                    markDeliveredMutation.isPending ||
-                    deliverPartialManualMutation.isPending ||
-                    deliverPartialShopMutation.isPending ||
-                    patchShopOrderMutation.isPending ||
-                    updateManualOrderMutation.isPending
-                  }
-                  onB2bStatusChange={handleManualStatusChange}
-                  onB2bDeliveryDateChange={(id, data_livrare) => {
-                    updateManualOrderMutation.mutate({ id, payload: { data_livrare } })
-                  }}
-                  onShopStatusChange={handleShopStatusChange}
-                  onShopConfirmedChange={(id, confirmed) => {
-                    patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                  }}
-                  onShopNotifiedChange={(id, notified) => {
-                    patchShopOrderMutation.mutate({ id, notified_wa: notified })
-                  }}
-                  onShopDeliveryDateChange={(id, delivery_date) => {
-                    patchShopOrderMutation.mutate({ id, delivery_date })
-                  }}
-                  onEdit={(_, source) => {
-                    if (source === 'shop' && order.shopOrder) {
-                      setEditTarget({ type: 'shop', order: order.shopOrder })
-                      return
+            <div className={`space-y-2.5 ${isReorderMode ? 'space-y-3' : ''}`}>
+              {orderedOrders.map((order, index) => (
+                <div key={`${order.source}-${order.id}`} className="relative">
+                  {isReorderMode ? (
+                    <div className="absolute -left-1 -top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--agri-primary)] text-xs tabular-nums text-white shadow [font-weight:700]">
+                      {index + 1}
+                    </div>
+                  ) : null}
+                  <UnifiedOrderCard
+                    item={order}
+                    disabled={
+                      isReorderMode ||
+                      markDeliveredMutation.isPending ||
+                      deliverPartialManualMutation.isPending ||
+                      deliverPartialShopMutation.isPending ||
+                      patchShopOrderMutation.isPending ||
+                      updateManualOrderMutation.isPending
                     }
-                    if (source === 'manual' && order.b2bComanda) {
-                      setEditTarget({ type: 'manual', order: order.b2bComanda })
-                    }
-                  }}
-                />
+                    onB2bStatusChange={handleManualStatusChange}
+                    onB2bDeliveryDateChange={(id, data_livrare) => {
+                      updateManualOrderMutation.mutate({ id, payload: { data_livrare } })
+                    }}
+                    onShopStatusChange={handleShopStatusChange}
+                    onShopConfirmedChange={(id, confirmed) => {
+                      patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
+                    }}
+                    onShopNotifiedChange={(id, notified) => {
+                      patchShopOrderMutation.mutate({ id, notified_wa: notified })
+                    }}
+                    onShopDeliveryDateChange={(id, delivery_date) => {
+                      patchShopOrderMutation.mutate({ id, delivery_date })
+                    }}
+                    onEdit={(_, source) => {
+                      if (source === 'shop' && order.shopOrder) {
+                        setEditTarget({ type: 'shop', order: order.shopOrder })
+                        return
+                      }
+                      if (source === 'manual' && order.b2bComanda) {
+                        setEditTarget({ type: 'manual', order: order.b2bComanda })
+                      }
+                    }}
+                  />
+                  {isReorderMode ? (
+                    <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-14 rounded-xl border-[var(--border-default)] text-base text-[var(--text-primary)]"
+                        disabled={index === 0}
+                        onClick={() => moveItem(index, -1)}
+                      >
+                        <ArrowUp className="h-5 w-5" />
+                        Sus
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-14 rounded-xl border-[var(--border-default)] text-base text-[var(--text-primary)]"
+                        disabled={index === orderedOrders.length - 1}
+                        onClick={() => moveItem(index, 1)}
+                      >
+                        <ArrowDown className="h-5 w-5" />
+                        Jos
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
               ))}
             </div>
           </section>
