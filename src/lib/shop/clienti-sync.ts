@@ -1,5 +1,5 @@
-import { normalizeShopCustomerPhone } from '@/lib/shop/b2c-customers'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
+import { normalizePhoneNumber } from '@/lib/utils/normalize-phone'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyAdmin = any
@@ -43,14 +43,14 @@ export async function upsertClientFromShopOrder(input: {
   deliveryCity?: string | null
   explicitAddressOverride?: boolean
 }): Promise<void> {
-  const phone = normalizeShopCustomerPhone(input.phone)
+  const phone = normalizePhoneNumber(input.phone)
   const normalizedName = input.name.trim()
   const address = buildClientAddressFromShopOrder({
     deliveryAddress: input.deliveryAddress,
     deliveryCity: input.deliveryCity,
   })
 
-  if (!input.tenantId || phone.length < 9 || !normalizedName) return
+  if (!input.tenantId || phone.replace(/\D/g, '').length < 9 || !normalizedName) return
 
   const admin = getSupabaseAdmin() as AnyAdmin
   const insertPayload = {

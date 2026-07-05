@@ -178,7 +178,7 @@ describe('syncGoogleContacts', () => {
     expect(clientInsert).toHaveBeenCalledWith(
       expect.objectContaining({
         google_resource_name: 'people/c123',
-        telefon: '0722123456',
+        telefon: '+40722123456',
       }),
     )
     expect(integrationUpdate).toHaveBeenLastCalledWith(

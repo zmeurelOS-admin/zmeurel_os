@@ -8,6 +8,7 @@ import {
 } from '@/lib/integrations/token-secret-crypto'
 import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
+import { normalizePhoneNumber } from '@/lib/utils/normalize-phone'
 import type { Database } from '@/types/supabase'
 
 export const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
@@ -53,8 +54,13 @@ function getRequiredEnv(name: 'GOOGLE_CLIENT_ID' | 'GOOGLE_CLIENT_SECRET') {
   return value
 }
 
+/**
+ * @deprecated Delegă la `normalizePhoneNumber` (canonicalizare completă,
+ * inclusiv codul de țară) — păstrat doar pentru compatibilitate cu apelurile
+ * existente/testele care importă acest nume.
+ */
 export function normalizeGooglePhone(value: string): string {
-  return value.replace(/[\s\-()]/g, '')
+  return normalizePhoneNumber(value)
 }
 
 export function mapGooglePersonToClient(
@@ -67,7 +73,7 @@ export function mapGooglePersonToClient(
   if (!resourceSegment) return null
 
   const rawPhone = person.phoneNumbers?.[0]?.value?.trim()
-  const phone = rawPhone ? normalizeGooglePhone(rawPhone) : ''
+  const phone = rawPhone ? normalizePhoneNumber(rawPhone) : ''
   if (!phone) return null
 
   const displayName = person.names?.[0]?.displayName?.trim()

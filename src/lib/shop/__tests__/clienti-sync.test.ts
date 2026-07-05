@@ -103,7 +103,7 @@ describe('upsertClientFromShopOrder', () => {
         tenant_id: 'tenant-1',
         id_client: expect.stringMatching(/^SHOP-/),
         nume_client: 'Ion Popescu',
-        telefon: '722123456',
+        telefon: '+40722123456',
         adresa: 'Str. Eminescu 19B, Suceava',
         data_origin: 'shop',
       }),

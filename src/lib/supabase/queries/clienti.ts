@@ -1,6 +1,7 @@
 import { getSupabase } from "@/lib/supabase/client"
 import { generateBusinessId } from "@/lib/supabase/business-ids"
 import { getTenantId } from "@/lib/tenant/get-tenant"
+import { normalizePhoneNumber } from "@/lib/utils/normalize-phone"
 
 export type ClientTip = 'standard' | 'patiserie' | 'magazin'
 
@@ -142,7 +143,7 @@ export async function createClienți(
       tenant_id: tenantId,
       id_client,
       nume_client: input.nume_client.trim(),
-      telefon: input.telefon ?? null,
+      telefon: input.telefon ? normalizePhoneNumber(input.telefon) : null,
       email: input.email ?? null,
       adresa: input.adresa ?? null,
       pret_negociat_lei_kg: input.pret_negociat_lei_kg ?? null,
@@ -170,6 +171,9 @@ export async function updateClienți(
     .from("clienti")
     .update({
       ...input,
+      telefon: input.telefon !== undefined
+        ? (input.telefon ? normalizePhoneNumber(input.telefon) : null)
+        : input.telefon,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

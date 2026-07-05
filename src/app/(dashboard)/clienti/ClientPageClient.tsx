@@ -44,6 +44,7 @@ import {
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
+import { normalizePhoneNumber } from '@/lib/utils/normalize-phone'
 import { toast } from '@/lib/ui/toast'
 type CreateClientMutationVariables = {
   input: Parameters<typeof createClienti>[0]
@@ -780,7 +781,7 @@ export function ClientPageClient({
         .eq('tenant_id', tenantId)
       const existingSet = new Set(
         (existingData ?? []).map(
-          (c) => `${normalizeText(c.nume_client)}|${normalizeText(c.telefon ?? '')}`
+          (c) => `${normalizeText(c.nume_client)}|${normalizeText(c.telefon ? normalizePhoneNumber(c.telefon) : '')}`
         )
       )
 
@@ -810,7 +811,8 @@ export function ClientPageClient({
 
       for (let i = 0; i < validRows.length; i++) {
         const row = validRows[i]
-        const dupKey = `${normalizeText(row.nume_client)}|${normalizeText(row.telefon ?? '')}`
+        const normalizedRowPhone = row.telefon ? normalizePhoneNumber(row.telefon) : ''
+        const dupKey = `${normalizeText(row.nume_client)}|${normalizeText(normalizedRowPhone)}`
         if (existingSet.has(dupKey)) {
           duplicateCount++
           setImportProgress({ done: i + 1, total: validRows.length, phase: 'ids' })
@@ -821,7 +823,7 @@ export function ClientPageClient({
             tenant_id: tenantId,
             id_client: makeClientId(),
             nume_client: row.nume_client.trim(),
-            telefon: row.telefon || null,
+            telefon: normalizedRowPhone || null,
             email: row.email || null,
             adresa: row.adresa || null,
             observatii: row.observatii || null,

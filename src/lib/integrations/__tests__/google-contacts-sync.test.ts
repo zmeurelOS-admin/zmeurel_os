@@ -13,6 +13,11 @@ describe('Google Contacts sync helpers', () => {
     expect(normalizeGooglePhone('+40 (722) 123-456')).toBe('+40722123456')
   })
 
+  it('canonicalizează un telefon local RO la același format ca varianta internațională (fix dedup)', () => {
+    expect(normalizeGooglePhone('0722123456')).toBe(normalizeGooglePhone('+40722123456'))
+    expect(normalizeGooglePhone('0722123456')).toBe('+40722123456')
+  })
+
   it('mapează contactul Google pe schema clienti', () => {
     expect(
       mapGooglePersonToClient({
