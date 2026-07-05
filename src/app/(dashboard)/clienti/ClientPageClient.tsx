@@ -439,6 +439,22 @@ type GoogleSyncResponse = {
   lastSyncAt: string
 }
 
+const GOOGLE_CONTACTS_STATUS_MESSAGES: Record<
+  string,
+  { type: 'success' | 'error'; text: string }
+> = {
+  connected: { type: 'success', text: 'Google Contacts a fost conectat cu succes.' },
+  error: { type: 'error', text: 'Conectarea la Google Contacts a eșuat.' },
+  error_denied: { type: 'error', text: 'Autorizarea Google a fost refuzată.' },
+  error_state: { type: 'error', text: 'Sesiune de autorizare invalidă, încearcă din nou.' },
+  error_missing_code: { type: 'error', text: 'Răspuns invalid de la Google, încearcă din nou.' },
+  error_forbidden: { type: 'error', text: 'Nu ai permisiunea să conectezi Google Contacts.' },
+  error_no_refresh_token: {
+    type: 'error',
+    text: 'Google nu a oferit un token de reîmprospătare. Revocă accesul aplicației din contul Google (Security → Third-party access) și încearcă din nou.',
+  },
+}
+
 function formatGoogleSyncTitle(lastSyncAt: string | null): string {
   if (!lastSyncAt) return 'Niciodată sincronizat'
 
@@ -685,6 +701,22 @@ export function ClientPageClient({
     const query = nextParams.toString()
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }, [openFormFromQuery, pathname, router, searchParams])
+
+  useEffect(() => {
+    const googleContactsStatus = searchParams.get('google_contacts')
+    if (!googleContactsStatus) return
+
+    const message = GOOGLE_CONTACTS_STATUS_MESSAGES[googleContactsStatus]
+    if (message) {
+      if (message.type === 'success') toast.success(message.text)
+      else toast.error(message.text)
+    }
+
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('google_contacts')
+    const query = nextParams.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
 
   const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -1161,7 +1193,7 @@ export function ClientPageClient({
           title="Clienți"
           subtitle="Administrare clienți"
           contentVariant="centered"
-          expandRightSlotOnMobile={Boolean(googleSync?.enabled)}
+          expandRightSlotOnMobile={Boolean(googleSync)}
           rightSlot={
             <>
               {googleSync?.enabled ? (
@@ -1189,6 +1221,21 @@ export function ClientPageClient({
                   <span className="ml-2 hidden sm:inline">
                     {isSyncing ? 'Se sincronizează...' : 'Sincronizează'}
                   </span>
+                </Button>
+              ) : null}
+              {googleSync && !googleSync.enabled ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 min-w-9 border-[var(--soft-danger-border)] px-2 text-[var(--soft-danger-text)] sm:px-3"
+                  asChild
+                  title="Sincronizarea Google Contacts necesită reconectare"
+                >
+                  <a href="/api/integrations/google/connect">
+                    <RefreshCw className="h-4 w-4" aria-hidden />
+                    <span className="ml-2 hidden sm:inline">Reconectează Google</span>
+                  </a>
                 </Button>
               ) : null}
               <button

@@ -37,6 +37,7 @@ type ContactsPage = {
 
 export type GoogleContactsSyncResult =
   | { status: 'sync disabled' }
+  | { status: 'needs_reauth' }
   | {
       synced: number
       skipped: number
@@ -121,6 +122,23 @@ export function isExpiredGoogleSyncTokenError(error: unknown): boolean {
   )
 }
 
+export function isInvalidGrantGoogleAuthError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+
+  const candidate = error as {
+    message?: string
+    response?: { data?: { error?: string } }
+  }
+
+  const message = typeof candidate.message === 'string' ? candidate.message.toLowerCase() : ''
+  const nestedMessage =
+    typeof candidate.response?.data?.error === 'string'
+      ? candidate.response.data.error.toLowerCase()
+      : ''
+
+  return message.includes('invalid_grant') || nestedMessage.includes('invalid_grant')
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
   for (let index = 0; index < items.length; index += size) {
@@ -191,6 +209,20 @@ async function resetExpiredSyncToken(
 
   if (error) {
     throw new Error(`Nu am putut reseta sync_token expirat: ${error.code}`)
+  }
+}
+
+async function disableIntegrationForReauth(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  integrationId: string,
+) {
+  const { error } = await admin
+    .from('integrations_google_contacts')
+    .update({ sync_enabled: false })
+    .eq('id', integrationId)
+
+  if (error) {
+    throw new Error(`Nu am putut dezactiva integrarea Google Contacts: ${error.code}`)
   }
 }
 
@@ -307,7 +339,23 @@ export async function syncGoogleContacts(): Promise<GoogleContactsSyncResult> {
   )
   oauth2Client.setCredentials({ refresh_token: decodedRefreshToken.value })
 
-  const accessToken = await oauth2Client.getAccessToken()
+  let accessToken: { token?: string | null }
+  try {
+    accessToken = await oauth2Client.getAccessToken()
+  } catch (error) {
+    if (!isInvalidGrantGoogleAuthError(error)) {
+      throw error
+    }
+
+    await disableIntegrationForReauth(admin, integration.id)
+    captureApiError(error, {
+      route: 'google-contacts-sync',
+      tenantId: GOOGLE_CONTACTS_TENANT_ID,
+      tags: { stage: 'refresh_token_invalid_grant' },
+    })
+    return { status: 'needs_reauth' }
+  }
+
   if (!accessToken.token) {
     throw new Error('Google OAuth nu a returnat access_token.')
   }

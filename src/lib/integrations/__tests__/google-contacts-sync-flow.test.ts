@@ -270,4 +270,33 @@ describe('syncGoogleContacts', () => {
       expect.objectContaining({ sync_token: 'fresh-sync-token-400' }),
     )
   })
+
+  it('dezactivează integrarea și nu aruncă eroare la invalid_grant pe refresh token', async () => {
+    const { admin, integrationUpdate, integrationUpdateEq } = createAdminMock({
+      id: 'integration-4',
+      refresh_token: 'revoked-refresh-token',
+      sync_token: 'some-sync-token',
+    })
+    mocks.createServiceRoleClient.mockReturnValue(admin)
+    mocks.getAccessToken.mockReset()
+    mocks.getAccessToken.mockRejectedValueOnce({
+      code: '400',
+      status: 400,
+      message: 'invalid_grant',
+    })
+
+    const { syncGoogleContacts } = await loadSyncModule()
+    const result = await syncGoogleContacts()
+
+    expect(result).toEqual({ status: 'needs_reauth' })
+    expect(mocks.peopleList).not.toHaveBeenCalled()
+    expect(integrationUpdate).toHaveBeenCalledWith({ sync_enabled: false })
+    expect(integrationUpdateEq).toHaveBeenCalledWith('id', 'integration-4')
+    expect(mocks.captureApiError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'invalid_grant' }),
+      expect.objectContaining({
+        tags: expect.objectContaining({ stage: 'refresh_token_invalid_grant' }),
+      }),
+    )
+  })
 })

@@ -41,14 +41,12 @@ export default async function ClientPage() {
         .limit(1)
         .maybeSingle()
 
-      if (!integrationError && integration) {
-        googleSync = {
-          enabled: integration.sync_enabled,
-          lastSyncAt: integration.last_sync_at,
-        }
+      googleSync = {
+        enabled: !integrationError && Boolean(integration?.sync_enabled),
+        lastSyncAt: integrationError ? null : integration?.last_sync_at ?? null,
       }
     } catch {
-      googleSync = null
+      googleSync = { enabled: false, lastSyncAt: null }
     }
   }
 
