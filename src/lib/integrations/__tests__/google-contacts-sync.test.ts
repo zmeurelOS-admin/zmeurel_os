@@ -51,6 +51,12 @@ describe('Google Contacts sync helpers', () => {
   it('detectează răspunsul 410 pentru sync token expirat', () => {
     expect(isExpiredGoogleSyncTokenError({ response: { status: 410 } })).toBe(true)
     expect(isExpiredGoogleSyncTokenError({ code: 410 })).toBe(true)
+    expect(
+      isExpiredGoogleSyncTokenError({
+        code: '400',
+        message: 'Sync token is expired. Clear local cache and retry call without the sync token.',
+      }),
+    ).toBe(true)
     expect(isExpiredGoogleSyncTokenError({ response: { status: 500 } })).toBe(false)
   })
 })

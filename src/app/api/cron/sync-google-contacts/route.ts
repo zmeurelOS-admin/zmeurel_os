@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 
-import { syncGoogleContacts } from '@/lib/integrations/google-contacts-sync'
+import {
+  GOOGLE_CONTACTS_TENANT_ID,
+  syncGoogleContacts,
+} from '@/lib/integrations/google-contacts-sync'
 import { captureApiError } from '@/lib/monitoring/report-error'
 
 export const runtime = 'nodejs'
@@ -22,7 +25,10 @@ export async function GET(request: Request) {
     const result = await syncGoogleContacts()
     return NextResponse.json(result)
   } catch (error) {
-    captureApiError(error, { route: '/api/cron/sync-google-contacts' })
+    captureApiError(error, {
+      route: '/api/cron/sync-google-contacts',
+      tenantId: GOOGLE_CONTACTS_TENANT_ID,
+    })
     return NextResponse.json(
       { error: 'Google Contacts sync failed' },
       { status: 500 },

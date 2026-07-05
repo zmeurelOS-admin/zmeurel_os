@@ -227,4 +227,47 @@ describe('syncGoogleContacts', () => {
       expect.objectContaining({ sync_token: 'fresh-sync-token' }),
     )
   })
+
+  it('face fallback la full sync și pentru 400 cu mesaj de sync token expirat', async () => {
+    const { admin, integrationUpdate } = createAdminMock({
+      id: 'integration-3',
+      refresh_token: 'refresh-token',
+      sync_token: 'expired-sync-token',
+    })
+    mocks.createServiceRoleClient.mockReturnValue(admin)
+    mocks.peopleList
+      .mockRejectedValueOnce({
+        code: '400',
+        message:
+          'Sync token is expired. Clear local cache and retry call without the sync token.',
+      })
+      .mockResolvedValueOnce({
+        data: {
+          connections: [],
+          nextSyncToken: 'fresh-sync-token-400',
+        },
+      })
+
+    const { syncGoogleContacts } = await loadSyncModule()
+    const result = await syncGoogleContacts()
+
+    expect(result).toEqual({
+      synced: 0,
+      skipped: 0,
+      errors: 0,
+      mode: 'full',
+    })
+    expect(mocks.peopleList).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ syncToken: 'expired-sync-token' }),
+    )
+    expect(mocks.peopleList).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ requestSyncToken: true }),
+    )
+    expect(integrationUpdate).toHaveBeenNthCalledWith(1, { sync_token: null })
+    expect(integrationUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sync_token: 'fresh-sync-token-400' }),
+    )
+  })
 })

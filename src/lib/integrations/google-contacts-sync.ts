@@ -10,7 +10,7 @@ import { captureApiError } from '@/lib/monitoring/report-error'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 import type { Database } from '@/types/supabase'
 
-const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
+export const GOOGLE_CONTACTS_TENANT_ID = '99485d6b-f186-49db-a379-bb9a12d34968'
 const GOOGLE_CONTACTS_ORIGIN = 'google_contacts'
 const GOOGLE_CONTACTS_BATCH_SIZE = 50
 const GOOGLE_CONTACTS_PAGE_SIZE = 1000
@@ -90,13 +90,34 @@ export function isExpiredGoogleSyncTokenError(error: unknown): boolean {
   const candidate = error as {
     code?: number | string
     status?: number
+    message?: string
     response?: { status?: number }
+    errors?: Array<{ message?: string; reason?: string }>
   }
+
+  const message = typeof candidate.message === 'string' ? candidate.message.toLowerCase() : ''
+  const nestedMessages = Array.isArray(candidate.errors)
+    ? candidate.errors
+        .map((entry) => {
+          if (typeof entry?.message === 'string') return entry.message
+          if (typeof entry?.reason === 'string') return entry.reason
+          return ''
+        })
+        .join(' ')
+        .toLowerCase()
+    : ''
+
+  const mentionsExpiredSyncToken =
+    message.includes('sync token is expired') ||
+    nestedMessages.includes('sync token is expired') ||
+    nestedMessages.includes('expired sync token')
 
   return (
     Number(candidate.code) === 410 ||
+    Number(candidate.code) === 400 && mentionsExpiredSyncToken ||
     candidate.status === 410 ||
-    candidate.response?.status === 410
+    candidate.response?.status === 410 ||
+    candidate.response?.status === 400 && mentionsExpiredSyncToken
   )
 }
 
@@ -190,6 +211,7 @@ async function syncClientBatch(
   if (existingError) {
     captureApiError(existingError, {
       route: '/api/cron/sync-google-contacts',
+      tenantId: GOOGLE_CONTACTS_TENANT_ID,
       tags: { stage: 'load_existing_clients', batch_size: rows.length },
     })
     return { synced: 0, errors: rows.length }
@@ -224,6 +246,7 @@ async function syncClientBatch(
       if (error) {
         captureApiError(error, {
           route: '/api/cron/sync-google-contacts',
+          tenantId: GOOGLE_CONTACTS_TENANT_ID,
           tags: { stage: existingId ? 'update_client' : 'insert_client' },
         })
         return false

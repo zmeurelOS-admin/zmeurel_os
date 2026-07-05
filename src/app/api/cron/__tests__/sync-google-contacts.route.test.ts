@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/lib/integrations/google-contacts-sync', () => ({
+  GOOGLE_CONTACTS_TENANT_ID: '99485d6b-f186-49db-a379-bb9a12d34968',
   syncGoogleContacts: () => mocks.syncGoogleContacts(),
 }))
 
@@ -81,6 +82,23 @@ describe('GET /api/cron/sync-google-contacts', () => {
       skipped: 3,
       errors: 0,
       mode: 'incremental',
+    })
+  })
+
+  it('loghează cu tenant context dacă sincronizarea eșuează', async () => {
+    const error = new Error('boom')
+    mocks.syncGoogleContacts.mockRejectedValue(error)
+    const { GET } = await loadRouteModule()
+
+    const response = await GET(createRequest('cron-secret'))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Google Contacts sync failed',
+    })
+    expect(mocks.captureApiError).toHaveBeenCalledWith(error, {
+      route: '/api/cron/sync-google-contacts',
+      tenantId: '99485d6b-f186-49db-a379-bb9a12d34968',
     })
   })
 })
