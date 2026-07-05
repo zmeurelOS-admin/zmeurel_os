@@ -38,6 +38,7 @@ vi.mock('@/components/app/DashboardAuthContext', () => ({
 vi.mock('@/lib/shop/shop-orders-queries', () => ({
   fetchShopOrdersInLivrare: fetchOrdersMock,
   fetchShopOrdersScheduledToday: fetchScheduledMock,
+  reorderShopDeliveriesToday: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('@/lib/supabase/queries/clienti', () => ({

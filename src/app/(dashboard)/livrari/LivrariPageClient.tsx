@@ -50,12 +50,14 @@ import { queryKeys } from '@/lib/query-keys'
 import {
   formatItemsHuman,
   formatLei,
+  todayBucharestDate,
   type ShopOrderStatus,
   type ShopOrderRow,
 } from '@/lib/shop/b2c-order-helpers'
 import {
   fetchShopOrdersInLivrare,
   fetchShopOrdersScheduledToday,
+  reorderShopDeliveriesToday,
 } from '@/lib/shop/shop-orders-queries'
 import { getClienți, type Client } from '@/lib/supabase/queries/clienti'
 import {
@@ -238,6 +240,17 @@ export function LivrariPageClient() {
     return result
   }, [customOrderIds, deliveryItems])
 
+  const reorderShopDeliveriesMutation = useMutation({
+    mutationFn: reorderShopDeliveriesToday,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Nu am putut salva ordinea livrărilor pentru livrator.')
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+    },
+  })
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
@@ -246,9 +259,20 @@ export function LivrariPageClient() {
       const from = ids.indexOf(active.id as string)
       const to = ids.indexOf(over.id as string)
       if (from === -1 || to === -1) return
-      saveOrder(arrayMove(ids, from, to))
+      const newIds = arrayMove(ids, from, to)
+      saveOrder(newIds)
+
+      const today = todayBucharestDate()
+      const itemById = new Map(orderedDeliveryItems.map((item) => [item.id, item]))
+      const shopOrderIdsToday = newIds.filter((id) => {
+        const item = itemById.get(id)
+        return item?.source === 'shop' && getUnifiedOrderEffectiveDate(item) === today
+      })
+      if (shopOrderIdsToday.length > 0) {
+        reorderShopDeliveriesMutation.mutate(shopOrderIdsToday)
+      }
     },
-    [orderedDeliveryItems, saveOrder],
+    [orderedDeliveryItems, saveOrder, reorderShopDeliveriesMutation],
   )
 
   const sensors = useSensors(

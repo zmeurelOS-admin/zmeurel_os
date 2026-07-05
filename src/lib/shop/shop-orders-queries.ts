@@ -57,10 +57,21 @@ export async function fetchShopOrdersInLivrare(): Promise<ShopOrderRow[]> {
     .select('*')
     .eq('status', 'in_livrare')
     .order('delivery_date', { ascending: true, nullsFirst: false })
+    .order('delivery_position', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
 
   if (error) throw error
   return attachMilestoneRewards((data ?? []) as ShopOrderRow[])
+}
+
+export async function reorderShopDeliveriesToday(orderIds: string[]): Promise<void> {
+  if (orderIds.length === 0) return
+  const supabase = getSupabase()
+  const { error } = await supabase.rpc('reorder_shop_deliveries_today', {
+    p_order_ids: orderIds,
+  })
+
+  if (error) throw error
 }
 
 export async function fetchShopOrdersScheduledToday(
