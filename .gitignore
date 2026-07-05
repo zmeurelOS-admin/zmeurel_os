@@ -90,6 +90,9 @@ test*.json
 .playwright-mcp/
 scripts/tmp-*.mjs
 supabase/.temp/
+
+# Rapoarte generate de scripturi de mentenanță (pot conține date reale de clienți)
+scripts/output/
 docs/dashboard-qa-screenshots/
 docs/final-browser-qa/
 docs/mobile-modules-qa/
