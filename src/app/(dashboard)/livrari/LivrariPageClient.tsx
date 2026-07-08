@@ -7,6 +7,8 @@ import {
   closestCenter,
   DndContext,
   DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -251,8 +253,15 @@ export function LivrariPageClient() {
     },
   })
 
+  const [activeDragId, setActiveDragId] = useState<string | null>(null)
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id))
+  }, [])
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      setActiveDragId(null)
       const { active, over } = event
       if (!over || active.id === over.id) return
       const ids = orderedDeliveryItems.map((i) => i.id)
@@ -276,7 +285,7 @@ export function LivrariPageClient() {
   )
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
@@ -640,7 +649,9 @@ export function LivrariPageClient() {
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onDragCancel={() => setActiveDragId(null)}
               >
                 <SortableContext
                   items={orderedOrders.map((o) => o.id)}
@@ -664,6 +675,29 @@ export function LivrariPageClient() {
                     ))}
                   </div>
                 </SortableContext>
+                <DragOverlay>
+                  {activeDragId
+                    ? (() => {
+                        const activeOrder = orderedOrders.find((o) => o.id === activeDragId)
+                        if (!activeOrder) return null
+                        return (
+                          <div className="rounded-xl shadow-2xl">
+                            <UnifiedOrderCard
+                              item={activeOrder}
+                              disabled
+                              onB2bStatusChange={() => undefined}
+                              onB2bDeliveryDateChange={() => undefined}
+                              onShopStatusChange={() => undefined}
+                              onShopConfirmedChange={() => undefined}
+                              onShopNotifiedChange={() => undefined}
+                              onShopDeliveryDateChange={() => undefined}
+                              onEdit={() => undefined}
+                            />
+                          </div>
+                        )
+                      })()
+                    : null}
+                </DragOverlay>
               </DndContext>
             ) : (
               <div className="space-y-2.5">
@@ -810,7 +844,7 @@ function SortableDeliveryCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-xl ${isDragging ? 'z-50 opacity-80 shadow-2xl' : ''}`}
+      className={`rounded-xl ${isDragging ? 'opacity-0' : ''}`}
     >
       <div
         {...attributes}
