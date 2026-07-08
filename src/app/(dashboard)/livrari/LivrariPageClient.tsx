@@ -10,6 +10,7 @@ import {
   DragOverlay,
   DragStartEvent,
   KeyboardSensor,
+  MeasuringStrategy,
   PointerSensor,
   useSensor,
   useSensors,
@@ -285,8 +286,13 @@ export function LivrariPageClient() {
   )
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const measuring = useMemo(
+    () => ({ droppable: { strategy: MeasuringStrategy.Always } }),
+    [],
   )
 
   const orderedOrders = useMemo(
@@ -649,6 +655,7 @@ export function LivrariPageClient() {
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                measuring={measuring}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
                 onDragCancel={() => setActiveDragId(null)}
