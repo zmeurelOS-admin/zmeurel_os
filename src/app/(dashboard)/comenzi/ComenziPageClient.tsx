@@ -60,6 +60,7 @@ import { track } from '@/lib/analytics/track'
 import { spacing } from '@/lib/design-tokens'
 import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
 import { getSupabase } from '@/lib/supabase/client'
+import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
 import {
   COMANDA_ORDER_KINDS,
   COMENZI_STATUSES,
@@ -1688,14 +1689,16 @@ export function ComenziPageClient() {
 
   const {
     data: stocSummary = {
-      totalStocDisponibilKg: 0,
-      totalStocCal1Kg: 0,
-      rezervatActivKg: 0,
-      legacyInLivrareKg: 0,
+      recoltatCal1Kg: 0,
+      consumatDefinitivCal1Kg: 0,
+      rezervatActivCal1Kg: 0,
+      legacyInLivrareFaraRezervareKg: 0,
+      stocCal1LedgerKg: 0,
+      disponibilCal1Kg: 0,
     },
   } = useQuery({
     queryKey: queryKeys.stocGlobalCal1,
-    queryFn: getComenziStockSummaryAzi,
+    queryFn: getSellableCal1StockSummary,
   })
 
   const clientMap = useMemo(() => {
@@ -2158,11 +2161,12 @@ export function ComenziPageClient() {
     [unifiedAllOrders],
   )
 
-  const totalStocDisponibilKg = Number(stocSummary.totalStocDisponibilKg || 0)
+  const totalStocDisponibilKg = Number(stocSummary.disponibilCal1Kg || 0)
 
   const kgInLivrare = operationalSnapshot.kgInLivrare
   const kgAngajat = round2(
-    Number(stocSummary.rezervatActivKg || 0) + Number(stocSummary.legacyInLivrareKg || 0),
+    Number(stocSummary.rezervatActivCal1Kg || 0) +
+      Number(stocSummary.legacyInLivrareFaraRezervareKg || 0),
   )
 
   const kgLivratAzi = useMemo(() => {
