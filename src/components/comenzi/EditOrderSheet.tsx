@@ -392,7 +392,7 @@ export function EditOrderSheet({
           }}
         />
         {clientMenuOpen ? (
-          <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
+          <div className="absolute inset-x-0 bottom-full z-50 mb-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
             {filteredClients.map((client) => (
               <button
                 key={client.id}

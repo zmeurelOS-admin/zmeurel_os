@@ -116,6 +116,7 @@ type ComenziOrderSort =
   | 'created_at'
   | 'created_at_desc'
   | 'delivery_date'
+  | 'delivery_date_desc'
   | 'locality'
   | 'qty_desc'
   | 'total_desc'
@@ -465,6 +466,12 @@ function compareOrdersForSort(
         a.createdAt.localeCompare(b.createdAt) ||
         a.id.localeCompare(b.id)
       )
+    case 'delivery_date_desc':
+      return (
+        getUnifiedOrderEffectiveDate(b).localeCompare(getUnifiedOrderEffectiveDate(a)) ||
+        b.createdAt.localeCompare(a.createdAt) ||
+        a.id.localeCompare(b.id)
+      )
     case 'locality':
       return (
         ZONE_ORDER[a.deliveryZone] - ZONE_ORDER[b.deliveryZone] ||
@@ -501,8 +508,10 @@ function buildProgramateGroups(
     byDate.set(effectiveDate, current)
   }
 
+  const groupDirection = sort === 'delivery_date_desc' ? -1 : 1
+
   return [...byDate.entries()]
-    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .sort(([dateA], [dateB]) => groupDirection * dateA.localeCompare(dateB))
     .map(([date, groupedOrders]) => {
       const sortedOrders = [...groupedOrders].sort((a, b) =>
         compareOrdersForSort(a, b, sort),
@@ -1172,7 +1181,7 @@ function ComandaDialog({
                       }}
                     />
                     {comboOpen && (
-                      <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
+                      <div className="absolute left-0 right-0 bottom-full z-50 mb-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
                         {comboFiltered.length === 0 ? (
                           <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">
                             Niciun client găsit — completează manual
@@ -1553,7 +1562,6 @@ export function ComenziPageClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pendingDeletedItems = useRef<Record<string, { item: Comanda; index: number }>>({})
-  const shopDeliveryRedirectTimer = useRef<number | null>(null)
 
   const [search, setSearch] = useState('')
   const initialFilter = useMemo<DashboardFilter>(() => {
@@ -1806,7 +1814,12 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       track('comanda_edit', { id: variables.id })
       hapticSuccess()
-      toast.success('Comanda actualizată')
+      if (variables.payload.status === 'in_livrare') {
+        toast('Comanda mutată în livrări 🚚')
+        router.push('/livrari')
+      } else {
+        toast.success('Comanda actualizată')
+      }
       setEditing(null)
     },
     onError: (err: Error) => {
@@ -1980,14 +1993,8 @@ export function ComenziPageClient() {
       }
 
       if (variables.status === 'in_livrare') {
-        toast('Comanda mutată în livrări 🚚', { duration: 1200 })
-        if (shopDeliveryRedirectTimer.current) {
-          window.clearTimeout(shopDeliveryRedirectTimer.current)
-        }
-        shopDeliveryRedirectTimer.current = window.setTimeout(() => {
-          router.push('/livrari')
-          shopDeliveryRedirectTimer.current = null
-        }, 1200)
+        toast('Comanda mutată în livrări 🚚')
+        router.push('/livrari')
       }
 
       if (variables.status === 'livrata') {
@@ -2005,15 +2012,6 @@ export function ComenziPageClient() {
       toast.error(err.message)
     },
   })
-
-  useEffect(
-    () => () => {
-      if (shopDeliveryRedirectTimer.current) {
-        window.clearTimeout(shopDeliveryRedirectTimer.current)
-      }
-    },
-    [],
-  )
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -2265,6 +2263,9 @@ export function ComenziPageClient() {
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
     if (tab === 'programate') setOrderSort('delivery_date')
+    if (tab !== 'programate' && orderSort === 'delivery_date_desc') {
+      setOrderSort('created_at')
+    }
     if (tab === 'de_livrat') setOrderSort('created_at')
     setActiveFilter(filter)
   }
@@ -2482,6 +2483,9 @@ export function ComenziPageClient() {
           onChange={(value) => {
             setActiveTab(value)
             if (value === 'programate') setOrderSort('delivery_date')
+            if (value !== 'programate' && orderSort === 'delivery_date_desc') {
+              setOrderSort('created_at')
+            }
             if (value === 'de_livrat') setOrderSort('created_at')
             if (value === 'de_livrat' && activeFilter === 'neincasat') setActiveFilter('none')
             if (
@@ -2541,7 +2545,10 @@ export function ComenziPageClient() {
             <SelectContent>
               <SelectItem value="created_at">Dată plasare ↑</SelectItem>
               <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
-              <SelectItem value="delivery_date">Dată livrare</SelectItem>
+              <SelectItem value="delivery_date">Dată livrare ↑</SelectItem>
+              {activeTab === 'programate' ? (
+                <SelectItem value="delivery_date_desc">Dată livrare (azi primul) ↓</SelectItem>
+              ) : null}
               <SelectItem value="locality">Localitate / Zonă</SelectItem>
               <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
               <SelectItem value="total_desc">Total lei ↓</SelectItem>

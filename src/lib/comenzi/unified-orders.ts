@@ -224,7 +224,6 @@ export function isManualOrderActiveForComenziTab(comanda: Comanda): boolean {
   return (
     comanda.data_origin !== MAGAZIN_DATA_ORIGIN &&
     comanda.data_origin !== 'shop_order_bridge' &&
-    comanda.status !== 'programata' &&
     comanda.status !== 'livrata' &&
     comanda.status !== 'anulata'
   )
