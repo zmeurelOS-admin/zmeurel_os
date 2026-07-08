@@ -225,9 +225,12 @@ export function LivrariPageClient() {
       const today = new Date().toISOString().slice(0, 10)
       localStorage.setItem(`livrari-order-${tenantId}-${today}`, JSON.stringify(ids))
       setCustomOrderIds(ids)
+      console.log('[reorder] saveOrder called, wrote to localStorage + setCustomOrderIds', ids)
     },
     [tenantId],
   )
+
+  console.log('[reorder] render, customOrderIds =', customOrderIds)
 
   const orderedDeliveryItems = useMemo(() => {
     if (customOrderIds.length === 0) return deliveryItems
@@ -264,12 +267,20 @@ export function LivrariPageClient() {
     (event: DragEndEvent) => {
       setActiveDragId(null)
       const { active, over } = event
-      if (!over || active.id === over.id) return
       const ids = orderedDeliveryItems.map((i) => i.id)
       const from = ids.indexOf(active.id as string)
-      const to = ids.indexOf(over.id as string)
+      const to = over ? ids.indexOf(over.id as string) : -1
+      console.log('[reorder] dragEnd', {
+        activeId: active.id,
+        overId: over?.id ?? null,
+        from,
+        to,
+        idsBeforeDrag: ids,
+      })
+      if (!over || active.id === over.id) return
       if (from === -1 || to === -1) return
       const newIds = arrayMove(ids, from, to)
+      console.log('[reorder] newIds after arrayMove', newIds)
       saveOrder(newIds)
 
       const today = todayBucharestDate()
