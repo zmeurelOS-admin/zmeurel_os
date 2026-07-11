@@ -21,6 +21,7 @@ import { buildCategoryCheltuieliOptions, CHELTUIELI_CATEGORY_EMOJI } from '@/lib
 import { Textarea } from '@/components/ui/textarea'
 import { generateClientId } from '@/lib/offline/generateClientId'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { getFinancialMutationError, logFinancialMutationError } from '@/lib/financial/save-errors'
 import { hapticError } from '@/lib/utils/haptic'
 import { CATEGORII_CHELTUIELI, resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { queryKeys } from '@/lib/query-keys'
@@ -139,19 +140,16 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
       form.reset(defaultValues())
       onOpenChange(false)
     } catch (error: unknown) {
-      const maybeError = error as { status?: number; code?: string }
-      const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
-      if (conflict) {
-        submittedRef.current = true
-        toast.info('Inregistrarea era deja sincronizat?.')
-        onOpenChange(false)
-        return
-      }
-
       trackEvent({ eventName: 'create_failed', moduleName: 'cheltuieli', status: 'failed' })
-      console.error('Error creating cheltuiala:', error)
+      const resolvedError = getFinancialMutationError(error, {
+        fallbackMessage: 'Nu am putut salva cheltuiala.',
+        module: 'cheltuieli',
+        operation: 'upsert',
+        tableOrRpc: 'public.cheltuieli_diverse',
+      })
+      logFinancialMutationError(resolvedError)
       hapticError()
-      toast.error('Eroare la salvare.')
+      toast.error(resolvedError.userMessage)
     } finally {
       setIsSubmitting(false)
     }

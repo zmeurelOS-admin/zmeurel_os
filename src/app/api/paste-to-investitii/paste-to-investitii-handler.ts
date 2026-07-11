@@ -13,6 +13,7 @@ import {
   type PasteToXRouteDeps,
 } from '@/lib/ai/paste-to-x-handler-factory'
 import { apiError } from '@/lib/api/route-security'
+import { ensureOwnerAccessToTenant } from '@/lib/financial/owner-access'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
@@ -66,6 +67,17 @@ export function createPasteToInvestitiiHandler(
       logNamespace: 'paste-to-investitii',
       requestFailedCode: 'PASTE_TO_INVESTITII_FAILED',
       requestFailedMessage: 'Nu am putut extrage investiția din mesaj.',
+      ensureTenantAllowed: async ({ admin, tenantId, userId }) => {
+        const allowed = await ensureOwnerAccessToTenant(admin, tenantId, userId)
+        return allowed
+          ? { allowed: true }
+          : {
+              allowed: false,
+              code: 'FORBIDDEN_OWNER_ONLY',
+              message: 'Doar ownerul fermei poate salva investiții.',
+              status: 403,
+            }
+      },
     },
     {
       getNowContext: () => getBucharestNowContext(),

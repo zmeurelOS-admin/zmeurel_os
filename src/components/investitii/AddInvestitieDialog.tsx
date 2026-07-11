@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildCategoryInvestitiiOptions, INVESTITII_CATEGORY_EMOJI } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
+import { getFinancialMutationError, logFinancialMutationError } from '@/lib/financial/save-errors'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { createInvestitie, CATEGORII_INVESTITII } from '@/lib/supabase/queries/investitii'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -128,16 +129,15 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
       setDialogOpen(false)
     },
     onError: (error: unknown) => {
-      const maybeError = error as { status?: number; code?: string }
-      const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
-      if (conflict) {
-        toast.info('Inregistrarea era deja sincronizat?.')
-        setDialogOpen(false)
-        return
-      }
-      
+      const resolvedError = getFinancialMutationError(error, {
+        fallbackMessage: 'Nu am putut salva investiția.',
+        module: 'investitii',
+        operation: 'insert',
+        tableOrRpc: 'public.investitii',
+      })
+      logFinancialMutationError(resolvedError)
       hapticError()
-      toast.error('Eroare la adaugarea investitiei')
+      toast.error(resolvedError.userMessage)
     },
   })
 

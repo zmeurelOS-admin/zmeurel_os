@@ -8,6 +8,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
@@ -152,12 +153,22 @@ function formatRon(value: number): string {
 interface CheltuialaCardNewProps {
   cheltuiala: Cheltuiala
   isExpanded: boolean
+  canEdit: boolean
+  canDelete: boolean
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
 }
 
-function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete }: CheltuialaCardNewProps) {
+function CheltuialaCardNew({
+  cheltuiala,
+  isExpanded,
+  canEdit,
+  canDelete,
+  onToggle,
+  onEdit,
+  onDelete,
+}: CheltuialaCardNewProps) {
   const suma = Number(cheltuiala.suma_lei || 0)
   const emoji = cheltuialaCategoryEmoji(cheltuiala.categorie)
   const isAuto = isAutoManoperaCheltuiala(cheltuiala)
@@ -224,28 +235,34 @@ function CheltuialaCardNew({ cheltuiala, isExpanded, onToggle, onEdit, onDelete 
             ) : null}
           </div>
 
-          <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-              className="min-h-8 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-            >
-              Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className="min-h-8 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-            >
-              Șterge
-            </button>
-          </div>
+          {canEdit || canDelete ? (
+            <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-2">
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onEdit()
+                  }}
+                  className="min-h-8 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+                >
+                  Editează
+                </button>
+              ) : null}
+              {canDelete ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete()
+                  }}
+                  className="min-h-8 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+                >
+                  Șterge
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </>
       }
     />
@@ -256,6 +273,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   useTrackModuleView('cheltuieli')
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const { memberRole } = useDashboardAuth()
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -272,10 +290,11 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   const [deleting, setDeleting] = useState<Cheltuiala | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [desktopSelectedCheltuialaId, setDesktopSelectedCheltuialaId] = useState<string | null>(null)
+  const canManageCheltuieli = memberRole !== 'operator'
 
   const addFromQuery = searchParams.get('add') === '1'
   const openFormFromQuery = searchParams.get('openForm') === '1'
-  const isAddDialogOpen = addOpen || addFromQuery || openFormFromQuery
+  const isAddDialogOpen = canManageCheltuieli && (addOpen || addFromQuery || openFormFromQuery)
   const prefillSuma = searchParams.get('suma') ?? undefined
   const prefillData = searchParams.get('data') ?? undefined
   const prefillDescriereRaw = searchParams.get('descriere') ?? undefined
@@ -339,14 +358,6 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       hapticSuccess()
       toast.success('Cheltuială adăugată')
     },
-    onError: (err: Error & { status?: number; code?: string }) => {
-      const conflict = err?.status === 409 || err?.code === '23505'
-      if (conflict) {
-        toast.info('Înregistrarea era deja sincronizată.')
-        return
-      }
-      handleCheltuialaError(err, 'Nu am putut salva cheltuiala.')
-    },
   })
 
   const updateMutation = useMutation({
@@ -363,9 +374,6 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       track('cheltuiala_edit', { id: variables.id })
       hapticSuccess()
       toast.success('Cheltuială actualizată')
-    },
-    onError: (err: Error) => {
-      handleCheltuialaError(err, 'Nu am putut actualiza cheltuiala.')
     },
   })
 
@@ -403,9 +411,10 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   }, [])
 
   useEffect(() => {
+    if (!canManageCheltuieli) return
     const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă cheltuială')
     return unregister
-  }, [registerAddAction])
+  }, [canManageCheltuieli, registerAddAction])
 
   useEffect(() => {
     const query = search.trim()
@@ -417,6 +426,11 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
   }, [search])
 
   const scheduleDelete = (cheltuiala: Cheltuiala) => {
+    if (!canManageCheltuieli) {
+      toast.error('Doar ownerul fermei poate șterge cheltuieli.')
+      return
+    }
+
     const cheltuialaId = cheltuiala.id
     const currentItems = queryClient.getQueryData<Cheltuiala[]>(queryKeys.cheltuieli) ?? []
     const deleteIndex = currentItems.findIndex((item) => item.id === cheltuialaId)
@@ -539,8 +553,9 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
     { key: 'sapt', label: 'Săpt.' },
     { key: 'toate', label: 'Toate' },
   ]
-  const desktopColumns = useMemo<ColumnDef<Cheltuiala>[]>(() => [
-    {
+  const desktopColumns = useMemo<ColumnDef<Cheltuiala>[]>(() => {
+    const columns: ColumnDef<Cheltuiala>[] = [
+      {
       accessorKey: 'data',
       header: 'Data',
       cell: ({ row }) => formatData(row.original.data),
@@ -548,7 +563,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         searchValue: (row: Cheltuiala) => row.data,
       },
     },
-    {
+      {
       accessorKey: 'categorie',
       header: 'Categorie',
       cell: ({ row }) => (
@@ -558,7 +573,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         </span>
       ),
     },
-    {
+      {
       accessorKey: 'descriere',
       header: 'Descriere',
       cell: ({ row }) => row.original.descriere || '-',
@@ -566,7 +581,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         searchValue: (row: Cheltuiala) => row.descriere,
       },
     },
-    {
+      {
       accessorKey: 'suma_lei',
       header: 'Cost',
       cell: ({ row }) => `${formatRon(Number(row.original.suma_lei || 0))} RON`,
@@ -575,12 +590,15 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         numeric: true,
       },
     },
-    {
+      {
       accessorKey: 'furnizor',
       header: 'Furnizor',
       cell: ({ row }) => row.original.furnizor || '-',
-    },
-    {
+      },
+    ]
+
+    if (canManageCheltuieli) {
+      columns.push({
       id: 'actions',
       header: 'Acțiuni',
       enableSorting: false,
@@ -619,8 +637,11 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
         headerClassName: 'w-[104px] text-right',
         cellClassName: 'w-[104px] text-right',
       },
-    },
-  ], [])
+      })
+    }
+
+    return columns
+  }, [canManageCheltuieli])
 
   return (
     <AppShell
@@ -733,6 +754,8 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
                   <CheltuialaCardNew
                     cheltuiala={cheltuiala}
                     isExpanded={expandedId === cheltuiala.id}
+                    canEdit={canManageCheltuieli}
+                    canDelete={canManageCheltuieli}
                     onToggle={() => setExpandedId(expandedId === cheltuiala.id ? null : cheltuiala.id)}
                     onEdit={() => {
                       setEditing(cheltuiala)
@@ -752,7 +775,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
                     : undefined
                 }
                 footer={
-                  desktopSelectedCheltuiala ? (
+                  desktopSelectedCheltuiala && canManageCheltuieli ? (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
@@ -871,6 +894,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       <AddCheltuialaDialog
         open={isAddDialogOpen}
         onOpenChange={(open) => {
+          if (!canManageCheltuieli) return
           if (!open) {
             setAddOpen(false)
             clearCheltuialaFormQueryParams()
@@ -898,8 +922,9 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
 
       <EditCheltuialaDialog
         cheltuiala={editing}
-        open={editOpen}
+        open={canManageCheltuieli && editOpen}
         onOpenChange={(open) => {
+          if (!canManageCheltuieli) return
           setEditOpen(open)
           if (!open) setEditing(null)
         }}
@@ -918,7 +943,7 @@ export function CheltuialaPageClient({ initialCheltuieli }: CheltuialaPageClient
       />
 
       <ConfirmDeleteDialog
-        open={!!deleting}
+        open={canManageCheltuieli && !!deleting}
         onOpenChange={(open) => {
           if (!open) setDeleting(null)
         }}
