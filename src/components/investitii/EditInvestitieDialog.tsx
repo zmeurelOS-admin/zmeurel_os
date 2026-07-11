@@ -19,12 +19,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildCategoryInvestitiiOptions } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
+import { getFinancialMutationError, logFinancialMutationError } from '@/lib/financial/save-errors'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 
 import {
   Investitie,
   updateInvestitie,
-  CATEGORII_INVESTITII,
 } from '@/lib/supabase/queries/investitii'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 
@@ -133,10 +133,16 @@ export function EditInvestitieDialog({
       toast.success('Investiție actualizată cu succes!')
       onOpenChange(false)
     },
-    onError: () => {
-      
+    onError: (error: unknown) => {
+      const resolvedError = getFinancialMutationError(error, {
+        fallbackMessage: 'Nu am putut actualiza investiția.',
+        module: 'investitii',
+        operation: 'update',
+        tableOrRpc: 'public.investitii',
+      })
+      logFinancialMutationError(resolvedError)
       hapticError()
-      toast.error('Eroare la actualizarea investiției')
+      toast.error(resolvedError.userMessage)
     },
   })
 

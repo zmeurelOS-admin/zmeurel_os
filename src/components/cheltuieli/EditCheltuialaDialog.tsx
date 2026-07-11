@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
+import { toast } from '@/lib/ui/toast'
 import * as z from 'zod'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -15,8 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildCategoryCheltuieliOptions } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
+import { getFinancialMutationError, logFinancialMutationError } from '@/lib/financial/save-errors'
 import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
-import { CATEGORII_CHELTUIELI, resolveCheltuialaCategorie } from '@/lib/financial/categories'
+import { resolveCheltuialaCategorie } from '@/lib/financial/categories'
 
 const cheltuialaSchema = z.object({
   data: z.string().min(1, 'Data este obligatorie'),
@@ -83,7 +85,14 @@ export function EditCheltuialaDialog({ cheltuiala, open, onOpenChange, onSubmit 
       })
       onOpenChange(false)
     } catch (error) {
-      console.error('Error updating cheltuiala:', error)
+      const resolvedError = getFinancialMutationError(error, {
+        fallbackMessage: 'Nu am putut actualiza cheltuiala.',
+        module: 'cheltuieli',
+        operation: 'update',
+        tableOrRpc: 'public.cheltuieli_diverse',
+      })
+      logFinancialMutationError(resolvedError)
+      toast.error(resolvedError.userMessage)
     } finally {
       setIsSubmitting(false)
     }

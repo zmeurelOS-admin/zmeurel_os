@@ -121,6 +121,20 @@ function createSupabaseMock(
   }
 }
 
+function createAdminMock(ownerTenantId: string | null) {
+  return {
+    from(table: string) {
+      if (table !== 'tenants') {
+        throw new Error(`Unexpected admin table: ${table}`)
+      }
+
+      return buildMaybeSingleQuery({
+        data: ownerTenantId ? { id: ownerTenantId } : null,
+      })
+    },
+  }
+}
+
 const originalAnthropicKey = process.env.ANTHROPIC_API_KEY
 
 afterEach(() => {
@@ -139,7 +153,7 @@ describe('POST /api/paste-to-investitii', () => {
         return supabase as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock('tenant-1') as never
       },
       async invokeAnthropic() {
         return {
@@ -200,7 +214,7 @@ describe('POST /api/paste-to-investitii', () => {
         return supabase as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock('tenant-1') as never
       },
       async invokeAnthropic() {
         return {
@@ -252,7 +266,7 @@ describe('POST /api/paste-to-investitii', () => {
         return supabase as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock('tenant-1') as never
       },
       async invokeAnthropic() {
         return {
@@ -304,7 +318,7 @@ describe('POST /api/paste-to-investitii', () => {
         return supabase as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock('tenant-1') as never
       },
       async invokeAnthropic() {
         return {
@@ -354,7 +368,7 @@ describe('POST /api/paste-to-investitii', () => {
         return createSupabaseMock({ userId: null }) as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock(null) as never
       },
       async invokeAnthropic() {
         throw new Error('should not call anthropic when unauthenticated')
@@ -386,10 +400,47 @@ describe('POST /api/paste-to-investitii', () => {
         }) as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock(null) as never
       },
       async invokeAnthropic() {
         throw new Error('should not call anthropic when access is denied')
+      },
+    })
+
+    const response = await handler(
+      createSameOriginRequest('/api/paste-to-investitii', {
+        method: 'POST',
+        json: { text: 'Am investit 500 lei într-un utilaj.' },
+      }),
+    )
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: 'FORBIDDEN',
+      },
+    })
+  })
+
+  it('refuză controlat și operatorul care declară write pe modulul investitii', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    const handler = createPasteToInvestitiiHandler({
+      async createClient() {
+        return createSupabaseMock({
+          ownerTenantId: null,
+          farmMember: {
+            tenant_id: 'tenant-1',
+            role: 'operator',
+            is_active: true,
+            modules_access: [{ module: 'investitii', level: 'write' }],
+          },
+        }) as never
+      },
+      getSupabaseAdmin() {
+        return createAdminMock(null) as never
+      },
+      async invokeAnthropic() {
+        throw new Error('should not call anthropic when generic financial access is denied')
       },
     })
 
@@ -415,7 +466,7 @@ describe('POST /api/paste-to-investitii', () => {
         return createSupabaseMock({ ownerTenantId: 'tenant-1' }) as never
       },
       getSupabaseAdmin() {
-        return {} as never
+        return createAdminMock('tenant-1') as never
       },
       async invokeAnthropic() {
         return {
