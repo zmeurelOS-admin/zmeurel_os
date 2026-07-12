@@ -356,7 +356,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                     pattern="[0-9]+([.,][0-9]+)?"
                     className="agri-control h-12 border-[var(--primary)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
                     placeholder="Ex: 1500,00"
-                    {...form.register('suma_lei')}
+                    name="suma_lei"
+                    value={watchedSuma ?? ''}
+                    onChange={(event) =>
+                      form.setValue('suma_lei', event.target.value, { shouldDirty: true, shouldValidate: true })
+                    }
                   />
                   {form.formState.errors.suma_lei ? (
                     <p className="text-xs text-[var(--danger-text)]">
@@ -460,7 +464,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                     pattern="[0-9]+([.,][0-9]+)?"
                     className="agri-control h-12 md:h-11"
                     placeholder="Ex: 1500,00"
-                    {...form.register('suma_lei')}
+                    name="suma_lei"
+                    value={watchedSuma ?? ''}
+                    onChange={(event) =>
+                      form.setValue('suma_lei', event.target.value, { shouldDirty: true, shouldValidate: true })
+                    }
                   />
                   {form.formState.errors.suma_lei ? (
                     <p className="text-xs text-[var(--status-danger-text)]">{form.formState.errors.suma_lei.message}</p>
