@@ -88,6 +88,7 @@ export function mockAssociationOrder(overrides?: Partial<ComandaRow>): ComandaRo
     note_interne: null,
     numar_comanda_scurt: null,
     observatii: null,
+    order_kind: 'manual',
     parent_comanda_id: null,
     produs_id: ASSOCIATION_TEST_IDS.productId,
     stock_deducted: false,

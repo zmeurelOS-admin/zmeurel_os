@@ -558,11 +558,17 @@ export function ClientPageClient({
         if (!active) return
         setTenantId(resolvedTenantId)
 
-        const { data, error } = await supabase
+        // Coloana `whatsapp_b2b_message` nu există (încă) în schema live a
+        // `tenant_settings`; select-ul eșuează și catch-ul de mai jos cade pe
+        // DEFAULT_WA_MESSAGE. Cast-ul păstrează comportamentul fără tipuri stale.
+        const { data, error } = (await supabase
           .from('tenant_settings')
-          .select('whatsapp_b2b_message')
+          .select('whatsapp_b2b_message' as '*')
           .eq('tenant_id', resolvedTenantId)
-          .maybeSingle()
+          .maybeSingle()) as unknown as {
+          data: { whatsapp_b2b_message?: string | null } | null
+          error: { message?: string } | null
+        }
 
         if (error) throw error
         if (!active) return

@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activitati_agricole: {
@@ -244,6 +219,88 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_log: {
+        Row: {
+          campuri_lipsa_count: number | null
+          confidence: string | null
+          created_at: string
+          feature: string
+          id: string
+          success: boolean
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          campuri_lipsa_count?: number | null
+          confidence?: string | null
+          created_at?: string
+          feature: string
+          id?: string
+          success?: boolean
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          campuri_lipsa_count?: number | null
+          confidence?: string | null
+          created_at?: string
+          feature?: string
+          id?: string
+          success?: boolean
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ajustari_stoc: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: string
+          delta_kg: number
+          id: string
+          motiv: string | null
+          tenant_id: string
+          tip: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          delta_kg: number
+          id?: string
+          motiv?: string | null
+          tenant_id: string
+          tip: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          delta_kg?: number
+          id?: string
+          motiv?: string | null
+          tenant_id?: string
+          tip?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ajustari_stoc_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1068,6 +1125,59 @@ export type Database = {
           },
         ]
       }
+      clienti_merge_audit: {
+        Row: {
+          comenzi_migrated: number
+          id: string
+          merged_at: string
+          merged_by: string | null
+          orphan_client_id: string
+          orphan_nume_client: string | null
+          orphan_telefon: string | null
+          principal_client_id: string
+          principal_telefon: string | null
+          tenant_id: string
+          vanzari_butasi_migrated: number
+          vanzari_migrated: number
+        }
+        Insert: {
+          comenzi_migrated?: number
+          id?: string
+          merged_at?: string
+          merged_by?: string | null
+          orphan_client_id: string
+          orphan_nume_client?: string | null
+          orphan_telefon?: string | null
+          principal_client_id: string
+          principal_telefon?: string | null
+          tenant_id: string
+          vanzari_butasi_migrated?: number
+          vanzari_migrated?: number
+        }
+        Update: {
+          comenzi_migrated?: number
+          id?: string
+          merged_at?: string
+          merged_by?: string | null
+          orphan_client_id?: string
+          orphan_nume_client?: string | null
+          orphan_telefon?: string | null
+          principal_client_id?: string
+          principal_telefon?: string | null
+          tenant_id?: string
+          vanzari_butasi_migrated?: number
+          vanzari_migrated?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clienti_merge_audit_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comenzi: {
         Row: {
           canal_confirmare: string | null
@@ -1088,6 +1198,7 @@ export type Database = {
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
+          order_kind: string
           parent_comanda_id: string | null
           pret_per_kg: number
           produs_id: string | null
@@ -1119,6 +1230,7 @@ export type Database = {
           note_interne?: string | null
           numar_comanda_scurt?: string | null
           observatii?: string | null
+          order_kind?: string
           parent_comanda_id?: string | null
           pret_per_kg: number
           produs_id?: string | null
@@ -1150,6 +1262,7 @@ export type Database = {
           note_interne?: string | null
           numar_comanda_scurt?: string | null
           observatii?: string | null
+          order_kind?: string
           parent_comanda_id?: string | null
           pret_per_kg?: number
           produs_id?: string | null
@@ -3612,6 +3725,7 @@ export type Database = {
       shop_orders: {
         Row: {
           campaign_id: string | null
+          checkout_response: Json | null
           created_at: string
           customer_name: string
           customer_phone: string
@@ -3620,8 +3734,12 @@ export type Database = {
           delivery_date: string | null
           delivery_mode: string
           delivery_position: number | null
+          delivery_zone: string | null
           id: string
+          idempotency_key: string | null
+          in_suceava: boolean | null
           items: Json
+          needs_confirmation: boolean | null
           notes: string | null
           notified_wa: boolean
           order_kind: string
@@ -3631,6 +3749,7 @@ export type Database = {
         }
         Insert: {
           campaign_id?: string | null
+          checkout_response?: Json | null
           created_at?: string
           customer_name: string
           customer_phone: string
@@ -3639,8 +3758,12 @@ export type Database = {
           delivery_date?: string | null
           delivery_mode: string
           delivery_position?: number | null
+          delivery_zone?: string | null
           id?: string
+          idempotency_key?: string | null
+          in_suceava?: boolean | null
           items: Json
+          needs_confirmation?: boolean | null
           notes?: string | null
           notified_wa?: boolean
           order_kind?: string
@@ -3650,6 +3773,7 @@ export type Database = {
         }
         Update: {
           campaign_id?: string | null
+          checkout_response?: Json | null
           created_at?: string
           customer_name?: string
           customer_phone?: string
@@ -3658,8 +3782,12 @@ export type Database = {
           delivery_date?: string | null
           delivery_mode?: string
           delivery_position?: number | null
+          delivery_zone?: string | null
           id?: string
+          idempotency_key?: string | null
+          in_suceava?: boolean | null
           items?: Json
+          needs_confirmation?: boolean | null
           notes?: string | null
           notified_wa?: boolean
           order_kind?: string
@@ -3687,6 +3815,8 @@ export type Database = {
       shop_products: {
         Row: {
           available: boolean
+          bulk_price_lei: number | null
+          bulk_threshold_kg: number | null
           created_at: string
           description: string | null
           id: string
@@ -3698,6 +3828,8 @@ export type Database = {
         }
         Insert: {
           available?: boolean
+          bulk_price_lei?: number | null
+          bulk_threshold_kg?: number | null
           created_at?: string
           description?: string | null
           id: string
@@ -3709,6 +3841,8 @@ export type Database = {
         }
         Update: {
           available?: boolean
+          bulk_price_lei?: number | null
+          bulk_threshold_kg?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -3845,6 +3979,113 @@ export type Database = {
           },
         ]
       }
+      stock_reservations: {
+        Row: {
+          calitate: string
+          cantitate_kg: number
+          comanda_id: string | null
+          consumed_at: string | null
+          depozit: string
+          id: string
+          linked_vanzare_id: string | null
+          locatie_id: string | null
+          metadata: Json
+          produs: string
+          released_at: string | null
+          reserved_at: string
+          shop_order_id: string | null
+          source_type: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          calitate?: string
+          cantitate_kg: number
+          comanda_id?: string | null
+          consumed_at?: string | null
+          depozit?: string
+          id?: string
+          linked_vanzare_id?: string | null
+          locatie_id?: string | null
+          metadata?: Json
+          produs?: string
+          released_at?: string | null
+          reserved_at?: string
+          shop_order_id?: string | null
+          source_type: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          calitate?: string
+          cantitate_kg?: number
+          comanda_id?: string | null
+          consumed_at?: string | null
+          depozit?: string
+          id?: string
+          linked_vanzare_id?: string | null
+          locatie_id?: string | null
+          metadata?: Json
+          produs?: string
+          released_at?: string | null
+          reserved_at?: string
+          shop_order_id?: string | null
+          source_type?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_reservations_comanda_id_fkey"
+            columns: ["comanda_id"]
+            isOneToOne: false
+            referencedRelation: "comenzi"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_linked_vanzare_id_fkey"
+            columns: ["linked_vanzare_id"]
+            isOneToOne: false
+            referencedRelation: "vanzari"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_linked_vanzare_id_fkey"
+            columns: ["linked_vanzare_id"]
+            isOneToOne: false
+            referencedRelation: "vanzari_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_locatie_id_fkey"
+            columns: ["locatie_id"]
+            isOneToOne: false
+            referencedRelation: "parcele"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_locatie_id_fkey"
+            columns: ["locatie_id"]
+            isOneToOne: false
+            referencedRelation: "parcele_extended"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_shop_order_id_fkey"
+            columns: ["shop_order_id"]
+            isOneToOne: false
+            referencedRelation: "shop_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_reservations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_metrics_daily: {
         Row: {
           created_at: string
@@ -3898,7 +4139,6 @@ export type Database = {
           longitudine_default: number | null
           tenant_id: string
           updated_at: string | null
-          whatsapp_b2b_message: string | null
         }
         Insert: {
           created_at?: string | null
@@ -3907,7 +4147,6 @@ export type Database = {
           longitudine_default?: number | null
           tenant_id: string
           updated_at?: string | null
-          whatsapp_b2b_message?: string | null
         }
         Update: {
           created_at?: string | null
@@ -3916,7 +4155,6 @@ export type Database = {
           longitudine_default?: number | null
           tenant_id?: string
           updated_at?: string | null
-          whatsapp_b2b_message?: string | null
         }
         Relationships: [
           {
@@ -4789,9 +5027,72 @@ export type Database = {
         }[]
       }
       bucharest_today: { Args: never; Returns: string }
-      check_and_increment_ai_usage: {
-        Args: { p_today: string; p_user_id: string }
+      check_and_increment_ai_usage:
+        | { Args: { p_today: string; p_user_id: string }; Returns: Json }
+        | {
+            Args: { p_limit: number; p_today: string; p_user_id: string }
+            Returns: Json
+          }
+      check_and_log_ai_usage:
+        | {
+            Args: { p_feature: string; p_tenant_id: string; p_user_id: string }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_feature: string
+              p_tenant_id: string
+              p_tenant_limit: number
+              p_tenant_window_minutes: number
+              p_user_id: string
+              p_user_limit: number
+              p_user_window_minutes: number
+            }
+            Returns: Json
+          }
+      check_recent_shop_order: {
+        Args: {
+          p_campaign_id?: string
+          p_customer_phone: string
+          p_minutes?: number
+          p_tenant_id: string
+        }
         Returns: Json
+      }
+      consume_active_stock_reservations_for_comanda: {
+        Args: {
+          p_comanda_id: string
+          p_delivered_qty: number
+          p_delivery_date: string
+          p_delivery_note?: string
+          p_tenant_id: string
+          p_vanzare_id: string
+        }
+        Returns: number
+      }
+      create_ajustare_stoc: {
+        Args: {
+          p_data?: string
+          p_delta_kg: number
+          p_motiv?: string
+          p_tip: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          data: string
+          delta_kg: number
+          id: string
+          motiv: string | null
+          tenant_id: string
+          tip: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ajustari_stoc"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_notification: {
         Args: {
@@ -4910,6 +5211,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data: string
+          data_incasare: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -4957,6 +5259,15 @@ export type Database = {
         Args: { p_payment_status?: string; p_shop_order_id: string }
         Returns: Json
       }
+      deliver_shop_order_atomic_partial: {
+        Args: {
+          p_delivered_kg: number
+          p_payment_status?: string
+          p_remaining_delivery_date?: string
+          p_shop_order_id: string
+        }
+        Returns: Json
+      }
       generate_business_id: { Args: { prefix: string }; Returns: string }
       generate_farmer_weekly_summary: {
         Args: { p_anchor_date?: string }
@@ -4980,11 +5291,23 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      get_sellable_cal1_stock_summary: {
+        Args: { p_tenant_id?: string }
+        Returns: {
+          consumat_definitiv_cal1_kg: number
+          disponibil_cal1_kg: number
+          legacy_in_livrare_fara_rezervare_kg: number
+          recoltat_cal1_kg: number
+          rezervat_activ_cal1_kg: number
+          stoc_cal1_ledger_kg: number
+        }[]
+      }
       is_legal_docs_complete: {
         Args: { p_tenant_id: string }
         Returns: boolean
       }
       is_superadmin: { Args: { check_user_id?: string }; Returns: boolean }
+      is_tenant_owner: { Args: { p_tenant: string }; Returns: boolean }
       list_association_farmer_legal_status: {
         Args: never
         Returns: {
@@ -4998,10 +5321,21 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      list_sellable_cal1_buckets_for_reservation: {
+        Args: { p_tenant_id?: string }
+        Returns: {
+          available_kg: number
+          calitate: string
+          depozit: string
+          locatie_id: string
+          produs: string
+        }[]
+      }
       list_shop_orders_in_delivery_today: {
         Args: never
         Returns: {
           campaign_id: string | null
+          checkout_response: Json | null
           created_at: string
           customer_name: string
           customer_phone: string
@@ -5010,8 +5344,12 @@ export type Database = {
           delivery_date: string | null
           delivery_mode: string
           delivery_position: number | null
+          delivery_zone: string | null
           id: string
+          idempotency_key: string | null
+          in_suceava: boolean | null
           items: Json
+          needs_confirmation: boolean | null
           notes: string | null
           notified_wa: boolean
           order_kind: string
@@ -5030,6 +5368,54 @@ export type Database = {
         Args: { p_line_ids: string[]; p_order_id: string }
         Returns: Json
       }
+      mark_comanda_incasata: {
+        Args: { p_comanda_id: string }
+        Returns: {
+          cantitate_kg: number
+          client_id: string | null
+          client_sync_id: string
+          comanda_id: string | null
+          conflict_flag: boolean | null
+          created_at: string
+          created_by: string | null
+          data: string
+          data_incasare: string | null
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          id_vanzare: string
+          observatii_ladite: string | null
+          pret_lei_kg: number
+          produs_id: string | null
+          status_plata: string | null
+          sync_status: string | null
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vanzari"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      merge_clienti_duplicates: {
+        Args: {
+          p_merged_by?: string
+          p_orphan_ids: string[]
+          p_principal_id: string
+          p_tenant_id: string
+        }
+        Returns: {
+          comenzi_migrated: number
+          orphan_id: string
+          vanzari_butasi_migrated: number
+          vanzari_migrated: number
+        }[]
+      }
+      operator_can_write: { Args: { p_module: string }; Returns: boolean }
+      operator_is_operator: { Args: never; Returns: boolean }
       place_preorder_atomic: {
         Args: {
           p_campaign_id: string
@@ -5038,12 +5424,56 @@ export type Database = {
           p_delivery_address: string
           p_delivery_city: string
           p_delivery_mode: string
+          p_idempotency_key?: string
+          p_in_suceava?: boolean
           p_items: Json
           p_notes?: string
+          p_preferred_delivery_date?: string
           p_tenant_id: string
           p_total_lei: number
         }
         Returns: Json
+      }
+      promote_shop_order_to_comanda: {
+        Args: { p_shop_order_id: string }
+        Returns: {
+          canal_confirmare: string | null
+          cantitate_kg: number
+          client_id: string | null
+          client_nume_manual: string | null
+          cost_livrare: number
+          created_at: string
+          created_by: string | null
+          customer_snapshot: Json | null
+          data_comanda: string
+          data_livrare: string
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          linked_vanzare_id: string | null
+          locatie_livrare: string | null
+          note_interne: string | null
+          numar_comanda_scurt: string | null
+          observatii: string | null
+          order_kind: string
+          parent_comanda_id: string | null
+          pret_per_kg: number
+          produs_id: string | null
+          status: string
+          stock_deducted: boolean
+          telefon: string | null
+          tenant_id: string
+          total: number
+          updated_at: string
+          updated_by: string | null
+          whatsapp_consent: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "comenzi"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       refresh_tenant_metrics_daily: {
         Args: { p_date?: string }
@@ -5068,8 +5498,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      reopen_comanda_atomic: {
-        Args: { p_comanda_id: string; p_tenant_id?: string }
+      release_comanda_delivery_reservation: {
+        Args: {
+          p_comanda_id: string
+          p_next_status: Database["public"]["Enums"]["comanda_status"]
+        }
         Returns: {
           canal_confirmare: string | null
           cantitate_kg: number
@@ -5077,6 +5510,7 @@ export type Database = {
           client_nume_manual: string | null
           cost_livrare: number
           created_at: string
+          created_by: string | null
           customer_snapshot: Json | null
           data_comanda: string
           data_livrare: string
@@ -5088,6 +5522,7 @@ export type Database = {
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
+          order_kind: string
           parent_comanda_id: string | null
           pret_per_kg: number
           produs_id: string | null
@@ -5097,6 +5532,81 @@ export type Database = {
           tenant_id: string
           total: number
           updated_at: string
+          updated_by: string | null
+          whatsapp_consent: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "comenzi"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      release_shop_order_delivery_reservation: {
+        Args: { p_next_status: string; p_shop_order_id: string }
+        Returns: {
+          campaign_id: string | null
+          checkout_response: Json | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_city: string | null
+          delivery_date: string | null
+          delivery_mode: string
+          delivery_position: number | null
+          delivery_zone: string | null
+          id: string
+          idempotency_key: string | null
+          in_suceava: boolean | null
+          items: Json
+          needs_confirmation: boolean | null
+          notes: string | null
+          notified_wa: boolean
+          order_kind: string
+          status: string
+          tenant_id: string | null
+          total_lei: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shop_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reopen_comanda_atomic: {
+        Args: { p_comanda_id: string; p_tenant_id?: string }
+        Returns: {
+          canal_confirmare: string | null
+          cantitate_kg: number
+          client_id: string | null
+          client_nume_manual: string | null
+          cost_livrare: number
+          created_at: string
+          created_by: string | null
+          customer_snapshot: Json | null
+          data_comanda: string
+          data_livrare: string
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          linked_vanzare_id: string | null
+          locatie_livrare: string | null
+          note_interne: string | null
+          numar_comanda_scurt: string | null
+          observatii: string | null
+          order_kind: string
+          parent_comanda_id: string | null
+          pret_per_kg: number
+          produs_id: string | null
+          status: string
+          stock_deducted: boolean
+          telefon: string | null
+          tenant_id: string
+          total: number
+          updated_at: string
+          updated_by: string | null
           whatsapp_consent: boolean
         }
         SetofOptions: {
@@ -5110,6 +5620,17 @@ export type Database = {
         Args: { p_order_ids: string[] }
         Returns: number
       }
+      reserve_sellable_cal1_stock: {
+        Args: {
+          p_comanda_id?: string
+          p_metadata?: Json
+          p_required_kg?: number
+          p_shop_order_id?: string
+          p_source_type: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       resolve_recoltare_stock_identity: {
         Args: {
           p_observatii?: string
@@ -5118,12 +5639,159 @@ export type Database = {
         }
         Returns: Json
       }
+      resolve_shop_order_total_kg_loose: {
+        Args: { p_items: Json }
+        Returns: number
+      }
+      resolve_zmeura_produs_id: {
+        Args: { p_tenant_id: string }
+        Returns: string
+      }
+      resync_shop_order_bridge_qty: {
+        Args: { p_shop_order_id: string }
+        Returns: Json
+      }
       seed_demo_for_tenant:
         | { Args: { p_tenant_id: string }; Returns: Json }
         | { Args: { p_demo_type?: string; p_tenant_id: string }; Returns: Json }
+      set_comanda_delivered: {
+        Args: {
+          p_comanda_id: string
+          p_delivered_qty?: number
+          p_status_plata?: string
+        }
+        Returns: Json
+      }
+      set_comanda_in_delivery: {
+        Args: { p_comanda_id: string }
+        Returns: {
+          canal_confirmare: string | null
+          cantitate_kg: number
+          client_id: string | null
+          client_nume_manual: string | null
+          cost_livrare: number
+          created_at: string
+          created_by: string | null
+          customer_snapshot: Json | null
+          data_comanda: string
+          data_livrare: string
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          linked_vanzare_id: string | null
+          locatie_livrare: string | null
+          note_interne: string | null
+          numar_comanda_scurt: string | null
+          observatii: string | null
+          order_kind: string
+          parent_comanda_id: string | null
+          pret_per_kg: number
+          produs_id: string | null
+          status: string
+          stock_deducted: boolean
+          telefon: string | null
+          tenant_id: string
+          total: number
+          updated_at: string
+          updated_by: string | null
+          whatsapp_consent: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "comenzi"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_comanda_in_delivery_with_reservation: {
+        Args: { p_comanda_id: string }
+        Returns: {
+          canal_confirmare: string | null
+          cantitate_kg: number
+          client_id: string | null
+          client_nume_manual: string | null
+          cost_livrare: number
+          created_at: string
+          created_by: string | null
+          customer_snapshot: Json | null
+          data_comanda: string
+          data_livrare: string
+          data_origin: string | null
+          demo_seed_id: string | null
+          id: string
+          linked_vanzare_id: string | null
+          locatie_livrare: string | null
+          note_interne: string | null
+          numar_comanda_scurt: string | null
+          observatii: string | null
+          order_kind: string
+          parent_comanda_id: string | null
+          pret_per_kg: number
+          produs_id: string | null
+          status: string
+          stock_deducted: boolean
+          telefon: string | null
+          tenant_id: string
+          total: number
+          updated_at: string
+          updated_by: string | null
+          whatsapp_consent: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "comenzi"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_shop_customer_acquisition_source_once: {
         Args: { p_phone: string; p_source: string; p_tenant_id: string }
         Returns: boolean
+      }
+      set_shop_order_delivered: {
+        Args: {
+          p_delivered_qty?: number
+          p_shop_order_id: string
+          p_status_plata?: string
+        }
+        Returns: Json
+      }
+      set_shop_order_in_delivery: {
+        Args: { p_delivery_date?: string; p_shop_order_id: string }
+        Returns: Json
+      }
+      set_shop_order_in_delivery_with_reservation: {
+        Args: { p_delivery_date?: string; p_shop_order_id: string }
+        Returns: {
+          campaign_id: string | null
+          checkout_response: Json | null
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          delivery_address: string | null
+          delivery_city: string | null
+          delivery_date: string | null
+          delivery_mode: string
+          delivery_position: number | null
+          delivery_zone: string | null
+          id: string
+          idempotency_key: string | null
+          in_suceava: boolean | null
+          items: Json
+          needs_confirmation: boolean | null
+          notes: string | null
+          notified_wa: boolean
+          order_kind: string
+          status: string
+          tenant_id: string | null
+          total_lei: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shop_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       sync_recoltare_stock_movements: {
         Args: {
@@ -5136,6 +5804,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      sync_shop_order_bridge_status: {
+        Args: { p_next_status: string; p_shop_order_id: string }
+        Returns: Json
       }
       tenant_has_core_data: { Args: { p_tenant_id: string }; Returns: boolean }
       update_my_farm_name: {
@@ -5206,6 +5878,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data: string
+          data_incasare: string | null
           data_origin: string | null
           demo_seed_id: string | null
           id: string
@@ -5401,9 +6074,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       comanda_status: [

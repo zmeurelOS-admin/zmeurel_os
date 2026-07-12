@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -7,12 +8,19 @@ import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { LoadingState } from '@/components/app/LoadingState'
 import { PageHeader } from '@/components/app/PageHeader'
+import { AjustareStocDialog } from '@/components/stocuri/AjustareStocDialog'
+import { Button } from '@/components/ui/button'
 import StatusBadge from '@/components/ui/StatusBadge'
 import {
   STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
   STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
 } from '@/lib/calculations/stock-audit-thresholds'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  AJUSTARE_STOC_TIP_LABELS,
+  getAjustariStoc,
+  type AjustareStocTip,
+} from '@/lib/supabase/queries/ajustari-stoc'
 import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
 
 function formatKg(value: number): string {
@@ -20,6 +28,23 @@ function formatKg(value: number): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(Number(value || 0))
+}
+
+function formatDeltaKg(value: number): string {
+  const formatted = new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(Number(value || 0)))
+  return `${value >= 0 ? '+' : '−'}${formatted} kg`
+}
+
+function formatDataRo(value: string): string {
+  const parsed = new Date(`${value.slice(0, 10)}T12:00:00`)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('ro-RO')
+}
+
+function tipLabel(tip: string): string {
+  return AJUSTARE_STOC_TIP_LABELS[tip as AjustareStocTip] ?? tip
 }
 
 function stockStatus(totalKg: number): { label: string; tone: 'success' | 'warning' | 'danger' } {
@@ -56,6 +81,8 @@ function StockMetric({
 }
 
 export function StocuriPageClient() {
+  const [ajustareOpen, setAjustareOpen] = useState(false)
+
   const {
     data: summary,
     isLoading,
@@ -66,6 +93,14 @@ export function StocuriPageClient() {
     queryKey: queryKeys.stocGlobalCal1,
     queryFn: getSellableCal1StockSummary,
   })
+
+  const ajustariQuery = useQuery({
+    queryKey: queryKeys.ajustariStoc,
+    queryFn: getAjustariStoc,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  })
+  const ajustari = ajustariQuery.data ?? []
 
   const disponibil = summary?.disponibilCal1Kg ?? 0
   const status = stockStatus(disponibil)
@@ -98,12 +133,58 @@ export function StocuriPageClient() {
                 </div>
                 <StatusBadge text={status.label} variant={status.tone} />
               </div>
+              <div className="mt-4">
+                <Button type="button" onClick={() => setAjustareOpen(true)}>
+                  Ajustează stocul
+                </Button>
+              </div>
             </section>
 
             <section className="grid gap-3 md:grid-cols-3">
               <StockMetric label="Recoltat cal. I" value={summary.recoltatCal1Kg} tone="success" />
               <StockMetric label="Livrat" value={summary.consumatDefinitivCal1Kg} />
               <StockMetric label="În livrare" value={summary.rezervatActivCal1Kg} tone="warning" />
+            </section>
+
+            <section className="rounded-[22px] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-soft)]">
+              <h3 className="text-sm font-semibold text-[var(--text-secondary)]">Istoric ajustări</h3>
+              {ajustariQuery.isError ? (
+                <p className="mt-3 text-sm text-[var(--status-danger-text)]">
+                  Nu am putut încărca istoricul ajustărilor.
+                </p>
+              ) : null}
+              {!ajustariQuery.isError && ajustari.length === 0 ? (
+                <p className="mt-3 text-sm text-[var(--text-secondary)]">
+                  Nicio ajustare încă. Folosește „Ajustează stocul” pentru congelat, procesat, pierderi sau consum
+                  propriu.
+                </p>
+              ) : null}
+              {ajustari.length > 0 ? (
+                <ul className="mt-3 divide-y divide-[var(--surface-divider)]">
+                  {ajustari.map((ajustare) => (
+                    <li key={ajustare.id} className="flex items-start justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">
+                          {tipLabel(ajustare.tip)}
+                        </p>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          {formatDataRo(ajustare.data)}
+                          {ajustare.motiv ? ` • ${ajustare.motiv}` : ''}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 text-sm font-semibold tabular-nums ${
+                          ajustare.delta_kg >= 0
+                            ? 'text-[var(--status-success-text)]'
+                            : 'text-[var(--status-danger-text)]'
+                        }`}
+                      >
+                        {formatDeltaKg(ajustare.delta_kg)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </section>
 
             <section className="rounded-[18px] bg-[var(--surface-card-muted)] p-4 text-sm leading-relaxed text-[var(--text-secondary)]">
@@ -113,6 +194,8 @@ export function StocuriPageClient() {
           </div>
         ) : null}
       </DashboardContentShell>
+
+      <AjustareStocDialog open={ajustareOpen} onOpenChange={setAjustareOpen} disponibilKg={disponibil} />
     </AppShell>
   )
 }

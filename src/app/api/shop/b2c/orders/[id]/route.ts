@@ -18,7 +18,8 @@ const orderItemSchema = z.object({
   vid: z.string().trim().min(1),
   label: z.string().trim().min(1),
   qty: z.number().int().positive(),
-  price_lei: z.number().int().nonnegative(),
+  // Grila de preț produce prețuri cu zecimale (17.50) — nu mai cerem integer.
+  price_lei: z.number().nonnegative(),
 })
 
 const patchBodySchema = z
@@ -124,6 +125,25 @@ type ShopOrderRpcClient = Awaited<ReturnType<typeof createClient>> & {
       args: {
         p_shop_order_id: string
         p_delivery_date: string | null
+      },
+    ): Promise<{
+      data: unknown
+      error: { message?: string; code?: string; details?: string } | null
+    }>
+    (
+      fn: 'sync_shop_order_bridge_status',
+      args: {
+        p_shop_order_id: string
+        p_next_status: 'noua' | 'confirmata' | 'anulata'
+      },
+    ): Promise<{
+      data: unknown
+      error: { message?: string; code?: string; details?: string } | null
+    }>
+    (
+      fn: 'resync_shop_order_bridge_qty',
+      args: {
+        p_shop_order_id: string
       },
     ): Promise<{
       data: unknown
@@ -254,7 +274,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
     | null = null
 
-  if (parsed.data.status !== undefined || parsed.data.delivery_date === undefined) {
+  if (
+    parsed.data.status !== undefined ||
+    parsed.data.items !== undefined ||
+    parsed.data.delivery_date === undefined
+  ) {
     const { data: currentOrder, error: currentOrderError } = await admin
       .from('shop_orders')
       .select('status,delivery_date')
@@ -275,6 +299,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     currentOrderForStatus = currentOrder
+  }
+
+  // R3: editarea items pe o comandă aflată în livrare ar desincroniza cantitatea
+  // angajată (comanda bridge a validat stocul pe snapshot-ul vechi).
+  if (parsed.data.items !== undefined && currentOrderForStatus?.status === 'in_livrare') {
+    return errorResponse('Retrogradează comanda din livrare înainte de a modifica produsele.', 409)
   }
 
   // delivery_date pentru tranziția in_livrare se pasează direct la RPC (nu prin UPDATE prematur).
@@ -327,6 +357,27 @@ export async function PATCH(request: Request, context: RouteContext) {
     data = result.data as unknown as UpdatedShopOrderContactRow[]
   }
 
+  // R3: după editarea items, resincronizăm cantitatea/prețul pe comanda bridge
+  // (dacă există link ERP). Eroarea e raportată — altfel bridge-ul ar rămâne stale.
+  if (parsed.data.items !== undefined) {
+    const rpcClient = supabase as ShopOrderRpcClient
+    const { error: resyncError } = await rpcClient.rpc('resync_shop_order_bridge_qty', {
+      p_shop_order_id: id,
+    })
+
+    if (resyncError) {
+      console.error(
+        '[shop/b2c/orders] bridge qty resync failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...resyncError })),
+      )
+      return errorResponse(
+        resyncError.message || 'Nu am putut resincroniza comanda din registru.',
+        409,
+        resyncError,
+      )
+    }
+  }
+
   if (statusUpdate === 'in_livrare') {
     // RPC-ul promovează shop order-ul în comenzi, validează stocul derivat
     // și oglindește status + delivery_date atomic.
@@ -347,47 +398,25 @@ export async function PATCH(request: Request, context: RouteContext) {
         error,
       )
     }
-  } else if (
-    statusUpdate !== undefined &&
-    currentOrderForStatus?.status === 'in_livrare' &&
-    (statusUpdate === 'confirmata' || statusUpdate === 'anulata')
-  ) {
-    const { data: statusOnlyData, error } = await admin
-      .from('shop_orders')
-      .update({ status: statusUpdate })
-      .eq('id', id)
-      .eq('tenant_id', tenantId)
-      .select('id')
-
-    if (error) {
-      console.error(
-        '[shop/b2c/orders] status patch failed',
-        sanitizeForLog(toSafeErrorContext({ id, ...error })),
-      )
-      return errorResponse('Nu am putut actualiza comanda.', 500)
-    }
-
-    if (!statusOnlyData?.length) {
-      return errorResponse('Comanda nu a fost găsită.', 404)
-    }
   } else if (statusUpdate !== undefined) {
-    const { data: statusOnlyData, error: statusOnlyError } = await admin
-      .from('shop_orders')
-      .update({ status: statusUpdate })
-      .eq('id', id)
-      .eq('tenant_id', tenantId)
-      .select('id')
+    // noua/confirmata/anulata: sincronizează atomic shop_orders + comanda bridge
+    // (fix R2 — anularea/retrogradarea eliberează stocul angajat de bridge).
+    const rpcClient = supabase as ShopOrderRpcClient
+    const { error: syncError } = await rpcClient.rpc('sync_shop_order_bridge_status', {
+      p_shop_order_id: id,
+      p_next_status: statusUpdate,
+    })
 
-    if (statusOnlyError) {
+    if (syncError) {
       console.error(
-        '[shop/b2c/orders] status patch failed',
-        sanitizeForLog(toSafeErrorContext({ id, ...statusOnlyError })),
+        '[shop/b2c/orders] status sync failed',
+        sanitizeForLog(toSafeErrorContext({ id, ...syncError })),
       )
-      return errorResponse('Nu am putut actualiza comanda.', 500)
-    }
-
-    if (!statusOnlyData?.length) {
-      return errorResponse('Comanda nu a fost găsită.', 404)
+      return errorResponse(
+        syncError.message || 'Nu am putut actualiza statusul comenzii.',
+        409,
+        syncError,
+      )
     }
   }
 

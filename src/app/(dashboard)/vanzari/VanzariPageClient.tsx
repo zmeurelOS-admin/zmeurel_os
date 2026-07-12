@@ -1,11 +1,9 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
@@ -13,31 +11,23 @@ import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { TableCardsSkeleton } from '@/components/app/ModuleSkeletons'
 import { PageHeader } from '@/components/app/PageHeader'
-import { Button } from '@/components/ui/button'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
 import { track } from '@/lib/analytics/track'
-import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { getComenzi } from '@/lib/supabase/queries/comenzi'
 import { getClienți } from '@/lib/supabase/queries/clienti'
-import { deleteVanzare, getVanzari, updateVanzare, type Vanzare } from '@/lib/supabase/queries/vanzari'
-import { useAddAction } from '@/contexts/AddActionContext'
+import {
+  getVanzari,
+  setVanzareStatusPlata,
+  type Vanzare,
+  type VanzareStatusPlataUpdate,
+} from '@/lib/supabase/queries/vanzari'
 import { queryKeys } from '@/lib/query-keys'
 
-const AddVanzareDialog = dynamic(
-  () => import('@/components/vanzari/AddVanzareDialog').then((mod) => mod.AddVanzareDialog),
-  { ssr: false }
-)
-const EditVanzareDialog = dynamic(
-  () => import('@/components/vanzari/EditVanzareDialog').then((mod) => mod.EditVanzareDialog),
-  { ssr: false }
-)
-const ConfirmDeleteDialog = dynamic(
-  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
-  { ssr: false }
-)
+// Vânzările se creează exclusiv prin livrarea comenzilor (set_comanda_delivered).
+// Pagina este un registru read-only; singura acțiune permisă e statusul plății.
 
 interface Client {
   id: string
@@ -80,7 +70,7 @@ function normalizeText(value: string | null | undefined): string {
   return (value ?? '')
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
 }
 
 function isIncasata(status: string | null | undefined): boolean {
@@ -110,12 +100,10 @@ interface VanzareCardNewProps {
   onToggle: () => void
   onMarkPaid: () => void
   onMarkUnpaid: () => void
-  onEdit: () => void
-  onDelete: () => void
   onOpenComanda: () => void
 }
 
-function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpaid, onEdit, onDelete, onOpenComanda }: VanzareCardNewProps) {
+function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpaid, onOpenComanda }: VanzareCardNewProps) {
   const subtitle = new Date(vanzare.data).toLocaleDateString('ro-RO')
   const secondaryValue = `${Number(vanzare.cantitate_kg || 0).toFixed(1)} kg • ${Number(vanzare.pret_lei_kg || 0).toFixed(2)} RON/kg`
   const meta = vanzare.comanda_id ? 'Din comandă' : undefined
@@ -226,30 +214,6 @@ function VanzareCardNew({ vanzare, isExpanded, onToggle, onMarkPaid, onMarkUnpai
               Marchează ca neîncasat
             </button>
           )}
-
-          {/* EDIT / DELETE */}
-          <div className="mt-3 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-              className="min-h-9 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-            >
-              ✏️ Editează
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className="min-h-9 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-            >
-              🗑️ Șterge
-            </button>
-          </div>
         </>
       ) : undefined}
     />
@@ -260,18 +224,11 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
   useTrackModuleView('vanzari')
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { registerAddAction } = useAddAction()
   const hasInitialVanzari = initialVanzari.length > 0
   const hasInitialClienti = initialClienți.length > 0
-  const pendingDeleteTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
-  const pendingDeletedItems = useRef<Record<string, { item: Vanzare; index: number }>>({})
-  const deleteMutateRef = useRef<(id: string) => void>(() => {})
 
   const [searchTerm, setSearchTerm] = useState('')
   const [temporalFilter, setTemporalFilter] = useState<TemporalFilter>('luna')
-  const [addOpen, setAddOpen] = useState(false)
-  const [editingVanzare, setEditingVanzare] = useState<Vanzare | null>(null)
-  const [deletingVanzare, setDeletingVanzare] = useState<Vanzare | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const {
@@ -309,96 +266,19 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
     refetchOnWindowFocus: false,
   })
 
-  const restorePendingDeleteItem = (vanzareId: string) => {
-    const pendingItem = pendingDeletedItems.current[vanzareId]
-    if (!pendingItem) return
-
-    delete pendingDeletedItems.current[vanzareId]
-    queryClient.setQueryData<Vanzare[]>(queryKeys.vanzari, (current = []) => {
-      if (current.some((item) => item.id === vanzareId)) return current
-
-      const next = [...current]
-      const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
-      next.splice(insertAt, 0, pendingItem.item)
-      return next
-    })
-  }
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteVanzare,
-    onSuccess: (_, deletedId) => {
+  const statusPlataMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: VanzareStatusPlataUpdate }) =>
+      setVanzareStatusPlata(id, status),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal, exact: true })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenzi, exact: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
-      queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
-      delete pendingDeletedItems.current[deletedId]
-      trackEvent('delete_item', 'vanzari')
-      track('vanzare_delete', { id: deletedId })
-      toast.success('Vânzare ștearsă')
-      setDeletingVanzare(null)
-    },
-    onError: (err: Error, deletedId) => {
-      restorePendingDeleteItem(deletedId)
-      toast.error(err.message)
-      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
-    },
-  })
-
-  const markPaidMutation = useMutation({
-    mutationFn: (id: string) => updateVanzare(id, { status_plata: 'platit' }),
-    onSuccess: (result) => {
-      if (!result.success) {
-        toast.error(result.error)
-        return
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      toast.success('✓ Marcat ca încasat')
+      toast.success(variables.status === 'platit' ? '✓ Marcat ca încasat' : 'Marcat ca neîncasat')
     },
     onError: (err: Error) => {
       toast.error(err.message)
     },
   })
-
-  const markUnpaidMutation = useMutation({
-    mutationFn: (id: string) => updateVanzare(id, { status_plata: 'restanta' }),
-    onSuccess: (result) => {
-      if (!result.success) {
-        toast.error(result.error)
-        return
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.vanzari, exact: true })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
-      toast.success('Marcat ca neîncasat')
-    },
-    onError: (err: Error) => {
-      toast.error(err.message)
-    },
-  })
-
-  useEffect(() => {
-    deleteMutateRef.current = (id) => deleteMutation.mutate(id)
-  }, [deleteMutation])
-  useEffect(() => {
-    const pendingTimersRef = pendingDeleteTimers
-    const pendingItemsRef = pendingDeletedItems
-    return () => {
-      Object.keys(pendingTimersRef.current).forEach((id) => {
-        clearTimeout(pendingTimersRef.current[id])
-        if (pendingItemsRef.current[id]) {
-          delete pendingItemsRef.current[id]
-          deleteMutateRef.current(id)
-        }
-      })
-      pendingTimersRef.current = {}
-    }
-  }, [])
-
-  useEffect(() => {
-    const unregister = registerAddAction(() => setAddOpen(true), '💰 Vânzare directă')
-    return unregister
-  }, [registerAddAction])
 
   useEffect(() => {
     const query = searchTerm.trim()
@@ -410,46 +290,6 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
 
     return () => clearTimeout(timer)
   }, [searchTerm])
-
-  const scheduleDelete = (vanzare: Vanzare) => {
-    const vanzareId = vanzare.id
-    const currentItems = queryClient.getQueryData<Vanzare[]>(queryKeys.vanzari) ?? []
-    const deleteIndex = currentItems.findIndex((item) => item.id === vanzareId)
-
-    pendingDeletedItems.current[vanzareId] = { item: vanzare, index: deleteIndex }
-    queryClient.setQueryData<Vanzare[]>(queryKeys.vanzari, (current = []) => current.filter((item) => item.id !== vanzareId))
-
-    const timer = setTimeout(() => {
-      delete pendingDeleteTimers.current[vanzareId]
-      deleteMutation.mutate(vanzareId)
-    }, 5000)
-
-    pendingDeleteTimers.current[vanzareId] = timer
-
-    toast('Element șters', {
-      duration: 5000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          const pendingTimer = pendingDeleteTimers.current[vanzareId]
-          if (!pendingTimer) return
-          clearTimeout(pendingTimer)
-          delete pendingDeleteTimers.current[vanzareId]
-          const pendingItem = pendingDeletedItems.current[vanzareId]
-          delete pendingDeletedItems.current[vanzareId]
-          if (!pendingItem) return
-
-          queryClient.setQueryData<Vanzare[]>(queryKeys.vanzari, (current = []) => {
-            if (current.some((item) => item.id === vanzareId)) return current
-            const next = [...current]
-            const insertAt = pendingItem.index >= 0 ? Math.min(pendingItem.index, next.length) : next.length
-            next.splice(insertAt, 0, pendingItem.item)
-            return next
-          })
-        },
-      },
-    })
-  }
 
   const clientMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -583,40 +423,21 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
       },
     },
     {
-      id: 'actions',
-      header: 'Acțiuni',
+      id: 'incasare',
+      header: 'Încasare',
       enableSorting: false,
       cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Editează vânzarea"
-            onClick={(event) => {
-              event.stopPropagation()
-              setEditingVanzare(row.original)
-            }}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Șterge vânzarea"
-            onClick={(event) => {
-              event.stopPropagation()
-              setDeletingVanzare(row.original)
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
-          </Button>
-        </div>
+        <span
+          className="text-xs font-semibold"
+          style={{
+            color: row.original.incasata ? 'var(--status-success-text)' : 'var(--status-warning-text)',
+          }}
+        >
+          {row.original.incasata ? 'Încasat' : 'Neîncasat'}
+        </span>
       ),
       meta: {
         searchable: false,
-        sticky: 'right',
         headerClassName: 'w-[104px] text-right',
         cellClassName: 'w-[104px] text-right',
       },
@@ -733,10 +554,8 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
                 vanzare={vanzare}
                 isExpanded={expandedId === vanzare.id}
                 onToggle={() => setExpandedId(expandedId === vanzare.id ? null : vanzare.id)}
-                onMarkPaid={() => markPaidMutation.mutate(vanzare.id)}
-                onMarkUnpaid={() => markUnpaidMutation.mutate(vanzare.id)}
-                onEdit={() => setEditingVanzare(vanzare)}
-                onDelete={() => scheduleDelete(vanzare)}
+                onMarkPaid={() => statusPlataMutation.mutate({ id: vanzare.id, status: 'platit' })}
+                onMarkUnpaid={() => statusPlataMutation.mutate({ id: vanzare.id, status: 'restanta' })}
                 onOpenComanda={() => router.push('/comenzi')}
               />
             )}
@@ -744,30 +563,6 @@ export function VanzariPageClient({ initialVanzari = [], clienti: initialClienț
         ) : null}
 
       </DashboardContentShell>
-
-      <AddVanzareDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger tenantVanzari={vanzari} />
-
-      <EditVanzareDialog
-        vanzare={editingVanzare}
-        open={!!editingVanzare}
-        tenantVanzari={vanzari}
-        onOpenChange={(open) => {
-          if (!open) setEditingVanzare(null)
-        }}
-      />
-
-      <ConfirmDeleteDialog
-        open={!!deletingVanzare}
-        onOpenChange={(open) => {
-          if (!open) setDeletingVanzare(null)
-        }}
-        onConfirm={() => {
-          if (deletingVanzare) deleteMutation.mutate(deletingVanzare.id)
-        }}
-        loading={deleteMutation.isPending}
-        title="Șterge vânzarea?"
-        description="Această acțiune va șterge vânzarea și va restaura stocul. Nu poate fi anulată."
-      />
     </AppShell>
   )
 }

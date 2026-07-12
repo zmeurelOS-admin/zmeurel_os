@@ -1,5 +1,6 @@
 export const queryKeys = {
   activitati: ['activitati'] as const,
+  ajustariStoc: ['ajustari-stoc'] as const,
   culturi: (solarId: string) => ['culturi', solarId] as const,
   culturiCounts: (scope: string) => ['culturi-counts', scope] as const,
   culturiTreatmentIntervals: (scope: string) => ['culturi-treatment-intervals', scope] as const,

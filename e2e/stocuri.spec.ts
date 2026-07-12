@@ -104,7 +104,7 @@ test.describe('Stocuri inventory per locatie', () => {
     if (ctx.userId) await ctx.service.auth.admin.deleteUser(ctx.userId)
   })
 
-  test('create recoltare writes miscari_stoc and stocuri page shows aggregates', async ({ page }) => {
+  test('create recoltare feeds derived stock without writing miscari_stoc', async ({ page }) => {
     await login(page, ctx.email!, ctx.password!)
 
     await page.goto('/recoltari')
@@ -124,29 +124,27 @@ test.describe('Stocuri inventory per locatie', () => {
     const service = ctx.service!
     const { data: recoltare } = await service
       .from('recoltari')
-      .select('id')
+      .select('id,kg_cal1,kg_cal2')
       .eq('tenant_id', ctx.tenantId!)
       .order('created_at', { ascending: false })
       .limit(1)
       .single()
 
     expect(recoltare?.id).toBeTruthy()
+    expect(Number(recoltare?.kg_cal1 ?? 0)).toBe(5)
+    expect(Number(recoltare?.kg_cal2 ?? 0)).toBe(3)
 
+    // miscari_stoc este arhivă înghețată: recoltarea NU mai scrie în ea.
     const { data: miscari } = await service
       .from('miscari_stoc')
-      .select('calitate,cantitate_kg,tip_miscare')
+      .select('id')
       .eq('referinta_id', recoltare!.id)
-      .eq('tip_miscare', 'recoltare')
 
-    expect(miscari?.length).toBe(2)
-    const cal1 = miscari?.find((m) => m.calitate === 'cal1')
-    const cal2 = miscari?.find((m) => m.calitate === 'cal2')
-    expect(Number(cal1?.cantitate_kg ?? 0)).toBe(5)
-    expect(Number(cal2?.cantitate_kg ?? 0)).toBe(3)
+    expect(miscari?.length ?? 0).toBe(0)
 
+    // Pagina /stocuri afișează pool-ul derivat cal1 (5 kg din recoltarea de mai sus).
     await page.goto('/stocuri')
-    await expect(page.getByText('Stoc Fresh Cal1')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('5.00 kg')).toBeVisible()
-    await expect(page.getByText('3.00 kg')).toBeVisible()
+    await expect(page.getByText('Zmeură cal. I').first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('5,0 kg').first()).toBeVisible()
   })
 })

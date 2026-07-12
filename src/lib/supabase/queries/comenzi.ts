@@ -305,6 +305,31 @@ function getDefaultActiveStatus(dataLivrare?: string | null): ComandaStatus {
   return dataLivrare && dataLivrare > today ? 'programata' : 'confirmata'
 }
 
+/**
+ * ID-ul produsului "Zmeură proaspătă" al tenantului (gardă pentru viitor pe
+ * comenzi.produs_id; disponibilul rămâne necalculat pe produs — produs unic).
+ * Nefatal: întoarce null dacă produsul lipsește (ex. tenanți demo).
+ */
+async function resolveZmeuraProdusId(
+  supabase: ReturnType<typeof getSupabase>,
+  tenantId: string,
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('produse')
+      .select('id,nume')
+      .eq('tenant_id', tenantId)
+      .ilike('nume', 'zmeur%')
+      .limit(5)
+
+    if (error || !data?.length) return null
+    const exact = data.find((row) => row.nume === 'Zmeură proaspătă')
+    return (exact ?? data[0]).id
+  } catch {
+    return null
+  }
+}
+
 async function selectComandaRowById(
   supabase: ReturnType<typeof getSupabase>,
   id: string,
@@ -374,6 +399,7 @@ export async function createComanda(input: CreateComandaInput): Promise<Comanda>
     order_kind: input.order_kind ?? 'manual',
     status: requestedStatus === 'in_livrare' ? getDefaultActiveStatus(input.data_livrare ?? null) : requestedStatus,
     observatii: input.observatii?.trim() || null,
+    produs_id: await resolveZmeuraProdusId(supabase, tenantId),
     created_by: user?.id ?? null,
     updated_by: user?.id ?? null,
   }
