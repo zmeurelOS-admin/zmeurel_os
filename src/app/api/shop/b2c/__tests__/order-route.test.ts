@@ -25,8 +25,8 @@ vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => getSupabaseAdmin(),
 }))
 
-// Grila live: 17,50 lei/caserolă sub 10 kg; 15,00 lei/caserolă de la 10 kg (20 caserole).
-const PRICING_ROW = { price_lei: 17.5, bulk_threshold_kg: 10, bulk_price_lei: 15 }
+// Grila live: 17,50 lei/caserolă sub 11 kg; 15,00 lei/caserolă de la 11 kg (22 caserole).
+const PRICING_ROW = { price_lei: 17.5, bulk_threshold_kg: 11, bulk_price_lei: 15 }
 
 function buildShopProductsTable() {
   return {
@@ -160,9 +160,9 @@ describe('POST /api/shop/b2c/order', () => {
     })
   })
 
-  it('aplică retroactiv prețul de volum la pragul de 10 kg (20 caserole) și ignoră prețul clientului', async () => {
+  it('păstrează prețul de bază sub prag (21 caserole = 10,5 kg)', async () => {
     const body = baseBody()
-    body.items[0] = { ...body.items[0], qty: 20, price_lei: 1 }
+    body.items[0] = { ...body.items[0], qty: 21, price_lei: 1 }
     body.total_lei = 1
 
     const response = await POST(
@@ -174,18 +174,41 @@ describe('POST /api/shop/b2c/order', () => {
       expect.objectContaining({
         items: [
           expect.objectContaining({
-            qty: 20,
+            qty: 21,
+            price_lei: 17.5,
+          }),
+        ],
+        total_lei: 367.5,
+      }),
+    )
+  })
+
+  it('aplică retroactiv prețul de volum la pragul de 11 kg (22 caserole) și ignoră prețul clientului', async () => {
+    const body = baseBody()
+    body.items[0] = { ...body.items[0], qty: 22, price_lei: 1 }
+    body.total_lei = 1
+
+    const response = await POST(
+      createSameOriginRequest('/api/shop/b2c/order', { method: 'POST', json: body }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            qty: 22,
             price_lei: 15,
           }),
         ],
-        total_lei: 300,
+        total_lei: 330,
       }),
     )
     expect(createNotificationForTenantOwner).toHaveBeenCalledWith(
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Comandă magazin 🍓',
-      expect.stringContaining('20 caserole (10 kg) · 300 lei'),
+      expect.stringContaining('22 caserole (11 kg) · 330 lei'),
       expect.anything(),
       'order',
       '11111111-1111-4111-8111-111111111111',

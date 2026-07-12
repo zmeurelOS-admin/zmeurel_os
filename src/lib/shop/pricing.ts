@@ -1,10 +1,11 @@
 // Grilă de preț pe cantitate pentru shop-ul public (comanda.zmeurel.ro).
 //
-// Regula de business (2026-07-12): prețul per caserolă depinde de cantitatea
-// TOTALĂ de zmeură din coș, cu prag RETROACTIV (nu marginal):
-//   * sub prag (10 kg):   35 lei/kg -> 17,50 lei/caserolă 500 g
+// Regula de business (2026-07-12, prag mutat la 11 kg pe 2026-07-12): prețul
+// per caserolă depinde de cantitatea TOTALĂ de zmeură din coș, cu prag
+// RETROACTIV (nu marginal):
+//   * sub prag (11 kg):   35 lei/kg -> 17,50 lei/caserolă 500 g
 //   * la/peste prag (>=): 30 lei/kg -> 15,00 lei/caserolă, pe TOT coșul
-// Discontinuitatea la prag (20 caserole = 300 lei < 19 caserole = 332,50 lei)
+// Discontinuitatea la prag (22 caserole = 330 lei < 21 caserole = 367,50 lei)
 // este intenționată și asumată de owner.
 //
 // Sursa de adevăr pentru valori este rândul global `shop_products` ('zmeura'):
@@ -31,7 +32,7 @@ export type ZmeuraPricingConfig = {
 /** Fallback pentru cazul în care rândul `shop_products` nu poate fi citit. */
 export const DEFAULT_ZMEURA_PRICING: ZmeuraPricingConfig = {
   basePriceLei: 17.5,
-  bulkThresholdKg: 10,
+  bulkThresholdKg: 11,
   bulkPriceLei: 15,
 }
 
