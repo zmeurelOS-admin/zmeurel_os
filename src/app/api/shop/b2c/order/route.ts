@@ -9,9 +9,11 @@ import {
 } from '@/lib/notifications/create'
 import { upsertShopCustomer } from '@/lib/shop/b2c-customers'
 import { upsertClientFromShopOrder } from '@/lib/shop/clienti-sync'
+import { formatLei } from '@/lib/shop/b2c-order-helpers'
 import {
   computeZmeuraTotalLei,
-  ZMEURA_CASEROLA_PRICE_LEI,
+  resolveZmeuraPricing,
+  resolveZmeuraUnitPriceLei,
   ZMEURA_PRODUCT_ID,
 } from '@/lib/shop/pricing'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
@@ -23,7 +25,8 @@ const lineSchema = z.object({
   vid: z.string().trim().min(1),
   label: z.string().trim().min(1),
   qty: z.number().int().positive(),
-  price_lei: z.number().int().nonnegative(),
+  // Doar informativ — serverul recalculează prețul din grilă; acceptă zecimale (17.50).
+  price_lei: z.number().nonnegative(),
 })
 
 const bodySchema = z.object({
@@ -37,7 +40,7 @@ const bodySchema = z.object({
   deliveryZone: z.enum(['zona1', 'zona2', 'zona3', 'zona4', 'ridicare']).nullable().optional(),
   preferredDeliveryDate: z.string().date().nullable().optional(),
   items: z.array(lineSchema).length(1, 'Coșul trebuie să conțină doar zmeură'),
-  total_lei: z.number().int().positive('Total invalid'),
+  total_lei: z.number().positive('Total invalid'),
   notes: z.string().trim().max(2000).optional(),
 })
 
@@ -107,16 +110,34 @@ export async function POST(request: Request) {
     return errorResponse('Magazinul acceptă momentan doar comenzi de zmeură.', 400)
   }
 
-  const totalLei = computeZmeuraTotalLei(item.qty)
+  const admin = getSupabaseAdmin()
+
+  // Grila de preț se citește din shop_products (sursa de adevăr, modificabilă
+  // fără deploy); prețurile trimise de client sunt IGNORATE și recalculate aici.
+  // Fallback pe DEFAULT_ZMEURA_PRICING dacă rândul nu poate fi citit.
+  const { data: pricingRow, error: pricingError } = await admin
+    .from('shop_products')
+    .select('price_lei, bulk_threshold_kg, bulk_price_lei')
+    .eq('id', ZMEURA_PRODUCT_ID)
+    .maybeSingle()
+
+  if (pricingError) {
+    console.error(
+      '[shop/b2c/order] pricing lookup failed; falling back to defaults',
+      sanitizeForLog(toSafeErrorContext(pricingError)),
+    )
+  }
+
+  const pricing = resolveZmeuraPricing(pricingRow)
+  const totalLei = computeZmeuraTotalLei(item.qty, pricing)
+  const unitPriceLei = resolveZmeuraUnitPriceLei(item.qty, pricing)
   const orderKind = campaign_id ? 'preorder' : 'standard'
   const normalizedItems = [
     {
       ...item,
-      price_lei: ZMEURA_CASEROLA_PRICE_LEI,
+      price_lei: unitPriceLei,
     },
   ]
-
-  const admin = getSupabaseAdmin()
   let orderId: string
   let milestoneResult: z.infer<typeof preorderResultSchema> | null = null
 
@@ -221,6 +242,23 @@ export async function POST(request: Request) {
     }
   }
 
+  // Sursă unică de adevăr: comanda apare în `comenzi` din momentul checkout-ului,
+  // nu abia la in_livrare. RPC-ul e idempotent și rulează cu service role.
+  // Nefatal: dacă promovarea eșuează, comanda shop rămâne validă, iar
+  // set_shop_order_in_delivery/delivered o promovează la prima tranziție.
+  {
+    const { error: promoteError } = await admin.rpc(
+      'promote_shop_order_to_comanda' as never,
+      { p_shop_order_id: orderId } as never,
+    )
+    if (promoteError) {
+      console.error(
+        '[shop/b2c/order] promote to comenzi failed',
+        sanitizeForLog(toSafeErrorContext({ error: promoteError, orderId })),
+      )
+    }
+  }
+
   const notificationItems = normalizedItems.map(({ qty, label }) => ({ qty, label }))
   const notificationTitle =
     orderKind === 'preorder' ? 'Precomandă magazin 🍓' : 'Comandă magazin 🍓'
@@ -234,7 +272,7 @@ export async function POST(request: Request) {
       : delivery_city?.trim()
         ? `${customer_name}, ${normalizedCustomerPhone}, ${delivery_city.trim()}`
         : `${customer_name}, ${normalizedCustomerPhone}`
-  const notificationBody = `${quantityLabel} (${quantityKgLabel} kg) · ${totalLei} lei\n${customerDetails}`
+  const notificationBody = `${quantityLabel} (${quantityKgLabel} kg) · ${formatLei(totalLei)} lei\n${customerDetails}`
   const extra = {
     orderId,
     tenantId: configuredTenantId,

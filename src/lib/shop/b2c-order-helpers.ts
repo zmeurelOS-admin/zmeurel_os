@@ -94,7 +94,12 @@ type ShopOrderItem = {
 }
 
 export function formatLei(value: number) {
-  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+  // Grila de preț produce totaluri cu zecimale (ex. 87,50 lei la 5 × 17,50);
+  // întregii rămân fără zecimale (300 lei).
+  return new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value)
 }
 
 export function formatOrderDate(iso: string) {

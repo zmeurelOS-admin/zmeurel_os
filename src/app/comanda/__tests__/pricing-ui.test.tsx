@@ -24,7 +24,9 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 20,
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
             available: true,
             sort_order: 1,
           },
@@ -33,19 +35,63 @@ describe('ShopClient volume pricing', () => {
     )
 
     expect(screen.getAllByText('1 caserolă · 0,5 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('20 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('17,50 lei').length).toBeGreaterThan(0)
     expect(screen.getByText('1 caserolă · 500 g')).toBeInTheDocument()
-    expect(screen.getByText('2 caserole · 1 kg')).toBeInTheDocument()
+    expect(screen.getByText('1 kg · 2 caserole')).toBeInTheDocument()
+    expect(screen.getByText('35 lei')).toBeInTheDocument()
+    expect(
+      screen.getByText(/De la 10 kg \(20 caserole\): 30 lei\/kg pe toată comanda/),
+    ).toBeInTheDocument()
     expect(screen.queryByText('-1 leu')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Alege 2 caserole' }))
     expect(screen.getAllByText('2 caserole · 1 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('40 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('35 lei').length).toBeGreaterThan(0)
     expect(screen.queryByText(/economisești/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Crește cantitatea' }))
     expect(screen.getAllByText('3 caserole · 1,5 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('60 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('52,50 lei').length).toBeGreaterThan(0)
+  })
+
+  it('trece pe prețul de volum la 20 de caserole (10 kg) și revine sub prag', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <ShopClient
+        loadError={null}
+        products={[
+          {
+            id: 'zmeura',
+            name: 'Zmeură',
+            description: 'Zmeură proaspătă',
+            unit_label: 'Caserolă 500 g',
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
+            available: true,
+            sort_order: 1,
+          },
+        ]}
+      />,
+    )
+
+    const qtyInput = screen.getByRole('spinbutton', { name: 'Cantitate caserole' })
+
+    // 19 caserole (9,5 kg): încă la prețul de bază — 19 × 17,50 = 332,50 lei
+    await user.clear(qtyInput)
+    await user.type(qtyInput, '19')
+    expect(screen.getByRole('button', { name: 'Comandă acum · 332,50 lei' })).toBeInTheDocument()
+    expect(screen.getByText('19 caserole × 17,50 lei')).toBeInTheDocument()
+
+    // 20 caserole (10 kg): prag retroactiv — TOT coșul la 15 lei = 300 lei (< 332,50)
+    await user.click(screen.getByRole('button', { name: 'Crește cantitatea' }))
+    expect(screen.getByRole('button', { name: 'Comandă acum · 300 lei' })).toBeInTheDocument()
+    expect(screen.getByText('20 caserole × 15 lei · preț de volum (30 lei/kg)')).toBeInTheDocument()
+
+    // înapoi sub prag: prețul de bază se reaplică
+    await user.click(screen.getByRole('button', { name: 'Scade cantitatea' }))
+    expect(screen.getByRole('button', { name: 'Comandă acum · 332,50 lei' })).toBeInTheDocument()
   })
 
   it('acceptă cantități introduse direct și normalizează valorile goale la blur', async () => {
@@ -60,7 +106,9 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 20,
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
             available: true,
             sort_order: 1,
           },
@@ -74,7 +122,7 @@ describe('ShopClient volume pricing', () => {
 
     expect(qtyInput).toHaveValue(60)
     expect(screen.getAllByText('60 caserole · 30 kg').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('1.200 lei').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('900 lei').length).toBeGreaterThan(0)
 
     await user.clear(qtyInput)
     await user.tab()
@@ -83,7 +131,7 @@ describe('ShopClient volume pricing', () => {
     await user.click(qtyInput)
     await user.clear(qtyInput)
     await user.type(qtyInput, '0')
-    expect(screen.getByRole('button', { name: 'Comandă acum · 20 lei' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comandă acum · 17,50 lei' })).toBeInTheDocument()
     await user.tab()
     expect(qtyInput).toHaveValue(0)
     expect(screen.getByRole('button', { name: 'Comandă acum · 0 lei' })).toBeInTheDocument()
@@ -116,7 +164,9 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 20,
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
             available: true,
             sort_order: 1,
           },
@@ -211,7 +261,9 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 20,
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
             available: true,
             sort_order: 1,
           },
@@ -260,7 +312,9 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 20,
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
             available: true,
             sort_order: 1,
           },
@@ -342,7 +396,9 @@ describe('ShopClient volume pricing', () => {
             name: 'Zmeură',
             description: 'Zmeură proaspătă',
             unit_label: 'Caserolă 500 g',
-            price_lei: 20,
+            price_lei: 17.5,
+            bulk_threshold_kg: 10,
+            bulk_price_lei: 15,
             available: true,
             sort_order: 1,
           },

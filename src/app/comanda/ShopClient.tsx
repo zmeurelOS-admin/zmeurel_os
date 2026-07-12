@@ -32,10 +32,12 @@ import {
 } from '@/lib/shop/campaign-mock'
 import {
   computeZmeuraTotalLei,
-  ZMEURA_CASEROLA_PRICE_LEI,
-  ZMEURA_CASEROLE_PER_KG,
-  ZMEURA_KG_PRICE_LEI,
+  isBulkPricingActive,
+  resolveZmeuraPricing,
+  resolveZmeuraUnitPriceLei,
+  toPricePerKgLei,
   ZMEURA_PRODUCT_ID,
+  type ZmeuraPricingConfig,
 } from '@/lib/shop/pricing'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
 import {
@@ -87,6 +89,8 @@ export type ComandaShopProduct = {
   description: string | null
   unit_label: string
   price_lei: number | null
+  bulk_threshold_kg: number | null
+  bulk_price_lei: number | null
   available: boolean
   sort_order: number
 }
@@ -153,28 +157,25 @@ type RecentShopOrder = {
 }
 
 function formatLei(value: number) {
-  return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(value)
+  return new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value)
 }
 
 function formatKg(qty: number) {
   return new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(qty / 2)
 }
 
-function formatPriceBreakdown(qty: number): string {
-  const pairs = Math.floor(qty / ZMEURA_CASEROLE_PER_KG)
-  const remainingCaserole = qty % ZMEURA_CASEROLE_PER_KG
-  const parts: string[] = []
+function formatPriceBreakdown(qty: number, pricing: ZmeuraPricingConfig): string {
+  if (qty <= 0) return ''
 
-  if (pairs > 0) {
-    parts.push(`${pairs} ${pairs === 1 ? 'pereche' : 'perechi'} × ${formatLei(ZMEURA_KG_PRICE_LEI)} lei`)
-  }
-  if (remainingCaserole > 0) {
-    parts.push(
-      `${remainingCaserole} ${remainingCaserole === 1 ? 'caserolă' : 'caserole'} × ${formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei`,
-    )
-  }
+  const unitPrice = resolveZmeuraUnitPriceLei(qty, pricing)
+  const base = `${qty} ${qty === 1 ? 'caserolă' : 'caserole'} × ${formatLei(unitPrice)} lei`
 
-  return parts.join(' + ')
+  return isBulkPricingActive(qty, pricing)
+    ? `${base} · preț de volum (${formatLei(toPricePerKgLei(unitPrice))} lei/kg)`
+    : base
 }
 
 function formatOrderDate(value: string): string {
@@ -310,10 +311,13 @@ function buildWaMessage(input: {
   deliveryMode: DeliveryMode
   address: string
   notes: string
+  pricing: ZmeuraPricingConfig
 }) {
+  const cartQty = input.lines.reduce((sum, line) => sum + line.qty, 0)
   const productLines = input.lines
     .map((line) => {
-      const sub = computeZmeuraTotalLei(line.qty)
+      // Prețul unitar e derivat din cantitatea TOTALĂ a coșului (prag retroactiv).
+      const sub = line.qty * resolveZmeuraUnitPriceLei(cartQty, input.pricing)
       return `• ${line.product.unit_label} × ${line.qty} = ${formatLei(sub)} lei`
     })
     .join('\n')
@@ -359,7 +363,15 @@ function ZmeurelLogo({
   )
 }
 
-function CheckoutOrderSummary({ lines, total }: { lines: CartLine[]; total: number }) {
+function CheckoutOrderSummary({
+  lines,
+  total,
+  pricing,
+}: {
+  lines: CartLine[]
+  total: number
+  pricing: ZmeuraPricingConfig
+}) {
   const totalQty = lines.reduce((sum, line) => sum + line.qty, 0)
 
   return (
@@ -373,9 +385,15 @@ function CheckoutOrderSummary({ lines, total }: { lines: CartLine[]; total: numb
         </div>
         <p className="text-xl font-extrabold tabular-nums text-[#F16B6B]">{formatLei(total)} lei</p>
       </div>
+      {isBulkPricingActive(totalQty, pricing) && pricing.bulkPriceLei !== null ? (
+        <p className="mt-2 inline-flex rounded-full bg-[#F16B6B]/12 px-2.5 py-1 text-[11px] font-bold text-[#E15453]">
+          Preț de volum aplicat: {formatLei(toPricePerKgLei(pricing.bulkPriceLei))} lei/kg
+        </p>
+      ) : null}
       <ul className="mt-3 space-y-1.5 text-[13px] text-[#312E3F]">
         {lines.map((line) => {
-          const lineTotal = computeZmeuraTotalLei(line.qty)
+          // Prag retroactiv: prețul liniei folosește cantitatea totală a coșului.
+          const lineTotal = line.qty * resolveZmeuraUnitPriceLei(totalQty, pricing)
           return (
             <li key={line.product.id} className="flex items-center justify-between gap-3">
               <span>Zmeură · caserolă 500g × {line.qty}</span>
@@ -400,6 +418,9 @@ export function ShopClient({
     [products],
   )
   const primaryProduct = available[0] ?? products.find((product) => product.id === ZMEURA_PRODUCT_ID) ?? null
+  // Grila de preț vine din shop_products (price_lei = bază, bulk_* = pragul de volum),
+  // cu fallback pe DEFAULT_ZMEURA_PRICING dacă rândul nu s-a putut încărca.
+  const pricing = useMemo(() => resolveZmeuraPricing(primaryProduct), [primaryProduct])
 
   const [qtyById, setQtyById] = useState<Record<string, number>>(() =>
     available[0] ? { [available[0].id]: 1 } : {},
@@ -685,7 +706,7 @@ export function ShopClient({
   }, [available, qtyById])
 
   const cartCount = useMemo(() => cartLines.reduce((s, l) => s + l.qty, 0), [cartLines])
-  const cartTotal = useMemo(() => computeZmeuraTotalLei(cartCount), [cartCount])
+  const cartTotal = useMemo(() => computeZmeuraTotalLei(cartCount, pricing), [cartCount, pricing])
   const primaryQty = primaryProduct ? (qtyById[primaryProduct.id] ?? 0) : 0
   const normalizedOrderPhone = normalizeRomanianMobilePhone(orderPhone)
   const hasValidIdentity = orderName.trim().length >= 2 && normalizedOrderPhone !== null
@@ -872,6 +893,7 @@ export function ShopClient({
         deliveryMode,
         address: orderAddress,
         notes: orderNotes,
+        pricing,
       })
       window.open(`${WA_BASE}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
 
@@ -928,7 +950,8 @@ export function ShopClient({
       vid: line.product.id,
       label: `${line.product.name} — ${line.product.unit_label}`,
       qty: line.qty,
-      price_lei: ZMEURA_CASEROLA_PRICE_LEI,
+      // Informativ pentru server; checkout-ul recalculează oricum prețul din grilă.
+      price_lei: resolveZmeuraUnitPriceLei(cartCount, pricing),
     }))
 
     const payload: OrderRequestPayload = {
@@ -1181,16 +1204,22 @@ export function ShopClient({
               <div className="rounded-[18px] border border-[#F3DAD4] bg-[#FFF9F7] px-3 py-3">
                 <p className="text-xs font-bold text-[#312E3F]/68">1 caserolă · 500 g</p>
                 <p className="mt-1 text-xl font-extrabold tabular-nums text-[#F16B6B]">
-                  {formatLei(ZMEURA_CASEROLA_PRICE_LEI)} lei
+                  {formatLei(pricing.basePriceLei)} lei
                 </p>
               </div>
               <div className="rounded-[18px] border border-[#F16B6B] bg-[#FFF0ED] px-3 py-3">
-                <p className="text-xs font-bold text-[#312E3F]/68">2 caserole · 1 kg</p>
+                <p className="text-xs font-bold text-[#312E3F]/68">1 kg · 2 caserole</p>
                 <p className="mt-1 text-xl font-extrabold tabular-nums text-[#F16B6B]">
-                  {formatLei(ZMEURA_KG_PRICE_LEI)} lei
+                  {formatLei(toPricePerKgLei(pricing.basePriceLei))} lei
                 </p>
               </div>
             </div>
+            {pricing.bulkThresholdKg !== null && pricing.bulkPriceLei !== null ? (
+              <p className="mt-2 rounded-xl bg-[#312E3F] px-3 py-2 text-center text-xs font-bold text-white">
+                🏷️ De la {formatLei(pricing.bulkThresholdKg)} kg ({pricing.bulkThresholdKg * 2} caserole):{' '}
+                {formatLei(toPricePerKgLei(pricing.bulkPriceLei))} lei/kg pe toată comanda
+              </p>
+            ) : null}
 
             {primaryProduct?.available ? (
               <>
@@ -1287,7 +1316,7 @@ export function ShopClient({
                 </div>
 
                 <p className="mt-3 rounded-xl bg-[#FFF6F3] px-3 py-2 text-center text-xs font-semibold text-[#312E3F]/72">
-                  {formatPriceBreakdown(primaryQty)}
+                  {formatPriceBreakdown(primaryQty, pricing)}
                 </p>
 
                 <button
@@ -1528,7 +1557,7 @@ export function ShopClient({
               </p>
 
               <div className="mt-4">
-                <CheckoutOrderSummary lines={cartLines} total={cartTotal} />
+                <CheckoutOrderSummary lines={cartLines} total={cartTotal} pricing={pricing} />
               </div>
 
               <div className="mt-4 space-y-3">

@@ -25,6 +25,19 @@ vi.mock('@/lib/supabase/admin', () => ({
   getSupabaseAdmin: () => getSupabaseAdmin(),
 }))
 
+// Grila live: 17,50 lei/caserolă sub 10 kg; 15,00 lei/caserolă de la 10 kg (20 caserole).
+const PRICING_ROW = { price_lei: 17.5, bulk_threshold_kg: 10, bulk_price_lei: 15 }
+
+function buildShopProductsTable() {
+  return {
+    select: () => ({
+      eq: () => ({
+        maybeSingle: async () => ({ data: PRICING_ROW, error: null }),
+      }),
+    }),
+  }
+}
+
 function buildAdmin(
   orderId = '11111111-1111-4111-8111-111111111111',
   preorderResult: Record<string, unknown> | null = null,
@@ -39,6 +52,7 @@ function buildAdmin(
       })
     },
     from: (table: string) => {
+      if (table === 'shop_products') return buildShopProductsTable()
       if (table !== 'shop_orders') throw new Error(`unexpected table ${table}`)
       return {
         insert: (payload: Record<string, unknown>) => {
@@ -101,10 +115,10 @@ describe('POST /api/shop/b2c/order', () => {
             vid: 'zmeura',
             label: 'Zmeură — Caserolă 500 g',
             qty: 2,
-            price_lei: 20,
+            price_lei: 17.5,
           },
         ],
-        total_lei: 40,
+        total_lei: 35,
         order_kind: 'standard',
       }),
     )
@@ -112,7 +126,7 @@ describe('POST /api/shop/b2c/order', () => {
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Comandă magazin 🍓',
-      '2 caserole (1 kg) · 40 lei\nIon Popescu, 0722123456, Suceava',
+      '2 caserole (1 kg) · 35 lei\nIon Popescu, 0722123456, Suceava',
       expect.objectContaining({
         channel: 'farm_shop',
         clientName: 'Ion Popescu',
@@ -121,7 +135,7 @@ describe('POST /api/shop/b2c/order', () => {
         items: [{ qty: 2, label: 'Zmeură — Caserolă 500 g' }],
         orderKind: 'standard',
         tenantId: process.env.SHOP_TENANT_ID,
-        totalLei: 40,
+        totalLei: 35,
       }),
       'order',
       '11111111-1111-4111-8111-111111111111',
@@ -144,6 +158,38 @@ describe('POST /api/shop/b2c/order', () => {
       deliveryAddress: 'Suceava, str. Fermierului 10',
       deliveryCity: 'Suceava',
     })
+  })
+
+  it('aplică retroactiv prețul de volum la pragul de 10 kg (20 caserole) și ignoră prețul clientului', async () => {
+    const body = baseBody()
+    body.items[0] = { ...body.items[0], qty: 20, price_lei: 1 }
+    body.total_lei = 1
+
+    const response = await POST(
+      createSameOriginRequest('/api/shop/b2c/order', { method: 'POST', json: body }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(insertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            qty: 20,
+            price_lei: 15,
+          }),
+        ],
+        total_lei: 300,
+      }),
+    )
+    expect(createNotificationForTenantOwner).toHaveBeenCalledWith(
+      process.env.SHOP_TENANT_ID,
+      'order_new',
+      'Comandă magazin 🍓',
+      expect.stringContaining('20 caserole (10 kg) · 300 lei'),
+      expect.anything(),
+      'order',
+      '11111111-1111-4111-8111-111111111111',
+    )
   })
 
   it('folosește RPC-ul atomic pentru precomandă și returnează milestone-ul real', async () => {
@@ -180,7 +226,7 @@ describe('POST /api/shop/b2c/order', () => {
     await expect(response.json()).resolves.toEqual({
       success: true,
       order_id: orderId,
-      total_lei: 20,
+      total_lei: 17.5,
       current_count: 500,
       hit_milestone: true,
       milestone_threshold: 500,
@@ -191,7 +237,7 @@ describe('POST /api/shop/b2c/order', () => {
       process.env.SHOP_TENANT_ID,
       'order_new',
       'Precomandă magazin 🍓',
-      '1 caserolă (0,5 kg) · 20 lei\nIon Popescu, 0722123456 — ridicare',
+      '1 caserolă (0,5 kg) · 17,50 lei\nIon Popescu, 0722123456 — ridicare',
       expect.objectContaining({
         channel: 'farm_shop',
         icon: '/shop-icon-192.png',
@@ -211,10 +257,10 @@ describe('POST /api/shop/b2c/order', () => {
             vid: 'zmeura',
             label: 'Zmeură — Caserolă 500 g',
             qty: 1,
-            price_lei: 20,
+            price_lei: 17.5,
           },
         ],
-        p_total_lei: 20,
+        p_total_lei: 17.5,
         p_idempotency_key: '55555555-5555-4555-8555-555555555555',
       }),
     )
@@ -322,6 +368,7 @@ describe('POST /api/shop/b2c/order', () => {
           return Promise.resolve({ data: null, error: null })
         },
         from: (table: string) => {
+          if (table === 'shop_products') return buildShopProductsTable()
           if (table !== 'shop_orders') throw new Error(`unexpected table ${table}`)
           return {
             insert: (payload: Record<string, unknown>) => {
@@ -359,7 +406,7 @@ describe('POST /api/shop/b2c/order', () => {
     await expect(response.json()).resolves.toEqual({
       success: true,
       order_id: orderId,
-      total_lei: 20,
+      total_lei: 17.5,
       current_count: 501,
       hit_milestone: false,
       milestone_threshold: null,

@@ -11,6 +11,8 @@ const PRODUCTS = [
     description: 'Zmeură proaspătă',
     unit_label: 'Caserolă 500 g',
     price_lei: 18,
+    bulk_threshold_kg: null,
+    bulk_price_lei: null,
     available: true,
     sort_order: 1,
   },
