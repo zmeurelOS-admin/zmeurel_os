@@ -21,6 +21,8 @@ import { buildCategoryCheltuieliOptions, CHELTUIELI_CATEGORY_EMOJI } from '@/lib
 import { Textarea } from '@/components/ui/textarea'
 import { generateClientId } from '@/lib/offline/generateClientId'
 import { trackEvent } from '@/lib/analytics/trackEvent'
+import { getFinancialMutationError, logFinancialMutationError } from '@/lib/financial/save-errors'
+import { decimalAmountSchema } from '@/lib/financial/decimal-amount-schema'
 import { hapticError } from '@/lib/utils/haptic'
 import { CATEGORII_CHELTUIELI, resolveCheltuialaCategorie } from '@/lib/financial/categories'
 import { queryKeys } from '@/lib/query-keys'
@@ -30,12 +32,7 @@ const cheltuialaSchema = z.object({
   client_sync_id: z.string().optional(),
   data: z.string().min(1, 'Data este obligatorie'),
   categorie: z.string().min(1, 'Selecteaza categoria'),
-  suma_lei: z
-    .string()
-    .min(1, 'Suma este obligatorie')
-    .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, {
-      message: 'Suma trebuie să fie pozitivă',
-    }),
+  suma_lei: decimalAmountSchema(),
   furnizor: z.string().optional(),
   descriere: z.string().optional(),
 })
@@ -139,19 +136,16 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
       form.reset(defaultValues())
       onOpenChange(false)
     } catch (error: unknown) {
-      const maybeError = error as { status?: number; code?: string }
-      const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
-      if (conflict) {
-        submittedRef.current = true
-        toast.info('Inregistrarea era deja sincronizat?.')
-        onOpenChange(false)
-        return
-      }
-
       trackEvent({ eventName: 'create_failed', moduleName: 'cheltuieli', status: 'failed' })
-      console.error('Error creating cheltuiala:', error)
+      const resolvedError = getFinancialMutationError(error, {
+        fallbackMessage: 'Nu am putut salva cheltuiala.',
+        module: 'cheltuieli',
+        operation: 'upsert',
+        tableOrRpc: 'public.cheltuieli_diverse',
+      })
+      logFinancialMutationError(resolvedError)
       hapticError()
-      toast.error('Eroare la salvare.')
+      toast.error(resolvedError.userMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -288,13 +282,11 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
                 <Label htmlFor="chelt_suma_mobile">Sumă (lei)</Label>
                 <Input
                   id="chelt_suma_mobile"
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  pattern="[0-9]*"
-                  step="0.01"
-                  min="0"
+                  pattern="[0-9]+([.,][0-9]+)?"
                   className="agri-control h-12 border-[var(--primary)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
-                  placeholder="Ex: 150.50"
+                  placeholder="Ex: 150,50"
                   {...form.register('suma_lei')}
                 />
                 {form.formState.errors.suma_lei ? (
@@ -414,13 +406,11 @@ export function AddCheltuialaDialog({ open, onOpenChange, onSubmit, initialValue
                 <Label htmlFor="chelt_suma">Sumă (lei)</Label>
                 <Input
                   id="chelt_suma"
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  pattern="[0-9]*"
-                  step="0.01"
-                  min="0"
+                  pattern="[0-9]+([.,][0-9]+)?"
                   className="agri-control h-12 md:h-11"
-                  placeholder="Ex: 150.50"
+                  placeholder="Ex: 150,50"
                   {...form.register('suma_lei')}
                 />
                 {form.formState.errors.suma_lei ? (

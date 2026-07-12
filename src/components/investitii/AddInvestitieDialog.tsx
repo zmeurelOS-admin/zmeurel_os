@@ -21,6 +21,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { buildCategoryInvestitiiOptions, INVESTITII_CATEGORY_EMOJI } from '@/lib/ui/app-select-maps'
 import { Textarea } from '@/components/ui/textarea'
+import { getFinancialMutationError, logFinancialMutationError } from '@/lib/financial/save-errors'
+import { decimalAmountSchema } from '@/lib/financial/decimal-amount-schema'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
 import { createInvestitie, CATEGORII_INVESTITII } from '@/lib/supabase/queries/investitii'
 import { getParcele } from '@/lib/supabase/queries/parcele'
@@ -33,7 +35,7 @@ const investitieSchema = z.object({
   categorie: z.string().min(1, 'Categoria este obligatorie'),
   furnizor: z.string().optional(),
   descriere: z.string().optional(),
-  suma_lei: z.string().min(1, 'Suma este obligatorie'),
+  suma_lei: decimalAmountSchema(),
 })
 
 type InvestitieFormData = z.infer<typeof investitieSchema>
@@ -128,16 +130,15 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
       setDialogOpen(false)
     },
     onError: (error: unknown) => {
-      const maybeError = error as { status?: number; code?: string }
-      const conflict = maybeError?.status === 409 || maybeError?.code === '23505'
-      if (conflict) {
-        toast.info('Inregistrarea era deja sincronizat?.')
-        setDialogOpen(false)
-        return
-      }
-      
+      const resolvedError = getFinancialMutationError(error, {
+        fallbackMessage: 'Nu am putut salva investiția.',
+        module: 'investitii',
+        operation: 'insert',
+        tableOrRpc: 'public.investitii',
+      })
+      logFinancialMutationError(resolvedError)
       hapticError()
-      toast.error('Eroare la adaugarea investitiei')
+      toast.error(resolvedError.userMessage)
     },
   })
 
@@ -350,12 +351,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                   <Label htmlFor="inv_suma_lei_mobile">Suma investită (lei)</Label>
                   <Input
                     id="inv_suma_lei_mobile"
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    step="0.01"
-                    min="0"
+                    pattern="[0-9]+([.,][0-9]+)?"
                     className="agri-control h-12 border-[var(--primary)] shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_12%,transparent)]"
-                    placeholder="Ex: 1500.00"
+                    placeholder="Ex: 1500,00"
                     {...form.register('suma_lei')}
                   />
                   {form.formState.errors.suma_lei ? (
@@ -455,12 +455,11 @@ export function AddInvestitieDialog({ open, onOpenChange, hideTrigger = false, i
                   <Label htmlFor="inv_suma_lei">Suma investită (lei)</Label>
                   <Input
                     id="inv_suma_lei"
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    step="0.01"
-                    min="0"
+                    pattern="[0-9]+([.,][0-9]+)?"
                     className="agri-control h-12 md:h-11"
-                    placeholder="Ex: 1500.00"
+                    placeholder="Ex: 1500,00"
                     {...form.register('suma_lei')}
                   />
                   {form.formState.errors.suma_lei ? (
