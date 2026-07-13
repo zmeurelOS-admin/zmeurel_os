@@ -78,7 +78,6 @@ import {
   type ComandaStatus,
   updateComanda,
 } from '@/lib/supabase/queries/comenzi'
-import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
@@ -291,43 +290,6 @@ function formatKgOneDecimal(value: number): string {
 
 function getUnifiedSelectionId(item: UnifiedOrderItem): string {
   return `${item.source}-${item.id}`
-}
-
-function StocPills({
-  stocDisponibil,
-  inLivrare,
-  angajat,
-  livratAzi,
-}: {
-  stocDisponibil: number
-  inLivrare: number
-  angajat: number
-  livratAzi: number
-}) {
-  const stocOk = stocDisponibil > 0
-
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <span
-        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none ${
-          stocOk
-            ? 'bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-            : 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
-        }`}
-      >
-        📦 {stocDisponibil.toFixed(1)} cal1 disp.
-      </span>
-      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]">
-        🚚 {inLivrare.toFixed(1)} drum
-      </span>
-      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--brand-coral-soft)] text-[var(--brand-coral)]">
-        🔖 {angajat.toFixed(1)} ang.
-      </span>
-      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none bg-[var(--surface-card-muted)] text-[var(--text-secondary)]">
-        ✅ {livratAzi.toFixed(1)} livrate azi
-      </span>
-    </div>
-  )
 }
 
 function getUnifiedOrderNeedKg(item: UnifiedOrderItem): number {
@@ -1611,7 +1573,6 @@ export function ComenziPageClient() {
   const [orderSort, setOrderSort] = useState<ComenziOrderSort>(() =>
     initialTab === 'programate' ? 'delivery_date' : 'created_at',
   )
-  const [showStocDetail, setShowStocDetail] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [speedDialOpen, setSpeedDialOpen] = useState(false)
   const [dinMesajOpen, setDinMesajOpen] = useState(false)
@@ -1704,11 +1665,6 @@ export function ComenziPageClient() {
   const { data: clienti = [] } = useQuery({
     queryKey: clientiComenziQueryKey,
     queryFn: getClienți,
-  })
-
-  const { data: vanzari = [] } = useQuery({
-    queryKey: queryKeys.vanzari,
-    queryFn: getVanzari,
   })
 
   const {
@@ -2116,24 +2072,6 @@ export function ComenziPageClient() {
   )
 
   const totalStocDisponibilKg = Number(stocSummary.disponibilCal1Kg || 0)
-
-  const kgInLivrare = operationalSnapshot.kgInLivrare
-  const kgAngajat = round2(
-    Number(stocSummary.rezervatActivCal1Kg || 0) +
-      Number(stocSummary.legacyInLivrareFaraRezervareKg || 0),
-  )
-
-  const kgLivratAzi = useMemo(() => {
-    const todayStr = todayIso()
-
-    return (
-      Math.round(
-        vanzari
-          .filter((v) => v.data === todayStr)
-          .reduce((sum, v) => sum + Number(v.cantitate_kg ?? 0), 0) * 10,
-      ) / 10
-    )
-  }, [vanzari])
   const necesarKgTotal = useMemo(
     () =>
       unifiedAllOrders.reduce((sum, item) => {
@@ -2502,28 +2440,55 @@ export function ComenziPageClient() {
           onOpenReceivables={() => setFilterAndTab('livrate', 'neincasat')}
         />
 
-        <div className="flex justify-end">
-          <button
-            type="button"
-            className="min-h-10 px-1 text-xs font-semibold text-[var(--text-secondary)] underline-offset-4 transition hover:text-[var(--text-primary)] hover:underline"
-            aria-expanded={showStocDetail}
-            onClick={() => setShowStocDetail((current) => !current)}
-          >
-            Detalii stoc {showStocDetail ? '▴' : '▾'}
-          </button>
-        </div>
-        {showStocDetail ? (
-          <StocPills
-            stocDisponibil={totalStocDisponibilKg}
-            inLivrare={kgInLivrare}
-            angajat={kgAngajat}
-            livratAzi={kgLivratAzi}
+        <DesktopToolbar className="hidden md:flex">
+          <SearchField
+            containerClassName="w-full max-w-md min-w-[200px]"
+            placeholder="Caută după client sau telefon..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Caută comenzi (desktop)"
           />
-        ) : null}
+        </DesktopToolbar>
 
-        <div className="flex min-h-11 items-center justify-end gap-2 md:hidden">
+        <div className="space-y-2" data-testid="comenzi-mobile-controls">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
+              Sortează:
+            </Label>
+            <Select
+              value={orderSort}
+              onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
+            >
+              <SelectTrigger id="comenzi-sort" className="h-9 w-full text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at">Dată plasare ↑</SelectItem>
+                <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
+                <SelectItem value="delivery_date">Cel mai apropiat (restanțe primele)</SelectItem>
+                {activeTab === 'programate' ? (
+                  <SelectItem value="delivery_date_desc">Cel mai îndepărtat</SelectItem>
+                ) : null}
+                <SelectItem value="locality">Localitate / Zonă</SelectItem>
+                <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
+                <SelectItem value="total_desc">Total lei ↓</SelectItem>
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985] md:hidden"
+              aria-label={mobileSearchOpen ? 'Închide căutarea' : 'Deschide căutarea'}
+              aria-expanded={mobileSearchOpen}
+              onClick={() => {
+                if (mobileSearchOpen) setSearch('')
+                setMobileSearchOpen((current) => !current)
+              }}
+            >
+              {mobileSearchOpen ? <X className="h-[18px] w-[18px]" aria-hidden /> : <Search className="h-[18px] w-[18px]" aria-hidden />}
+            </button>
+          </div>
           {mobileSearchOpen ? (
-            <div className="min-w-0 flex-1 animate-in fade-in slide-in-from-right-2 duration-200">
+            <div className="min-w-0 animate-in fade-in slide-in-from-right-2 duration-200 md:hidden">
               <SearchField
                 autoFocus
                 containerClassName="w-full"
@@ -2535,53 +2500,6 @@ export function ComenziPageClient() {
               />
             </div>
           ) : null}
-          <button
-            type="button"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
-            aria-label={mobileSearchOpen ? 'Închide căutarea' : 'Deschide căutarea'}
-            aria-expanded={mobileSearchOpen}
-            onClick={() => {
-              if (mobileSearchOpen) setSearch('')
-              setMobileSearchOpen((current) => !current)
-            }}
-          >
-            {mobileSearchOpen ? <X className="h-5 w-5" aria-hidden /> : <Search className="h-5 w-5" aria-hidden />}
-          </button>
-        </div>
-
-        <DesktopToolbar className="hidden md:flex">
-          <SearchField
-            containerClassName="w-full max-w-md min-w-[200px]"
-            placeholder="Caută după client sau telefon..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Caută comenzi (desktop)"
-          />
-        </DesktopToolbar>
-
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
-            Sortează:
-          </Label>
-          <Select
-            value={orderSort}
-            onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
-          >
-            <SelectTrigger id="comenzi-sort" className="h-9 w-full max-w-[15rem] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="created_at">Dată plasare ↑</SelectItem>
-              <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
-              <SelectItem value="delivery_date">Cel mai apropiat (restanțe primele)</SelectItem>
-              {activeTab === 'programate' ? (
-                <SelectItem value="delivery_date_desc">Cel mai îndepărtat</SelectItem>
-              ) : null}
-              <SelectItem value="locality">Localitate / Zonă</SelectItem>
-              <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
-              <SelectItem value="total_desc">Total lei ↓</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {isError ? (
