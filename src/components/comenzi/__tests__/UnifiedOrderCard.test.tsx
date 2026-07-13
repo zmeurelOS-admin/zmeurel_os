@@ -72,12 +72,100 @@ describe('UnifiedOrderCard', () => {
     expect(container.querySelector('[data-testid="order-status-pill"]')).not.toBeInTheDocument()
   })
 
+  it('afișează avertismentul de telefon duplicat și acțiunile directe în Comenzi', async () => {
+    const user = userEvent.setup()
+    const onStatusChange = vi.fn()
+    const manualOrder: Comanda = {
+      id: 'manual-duplicate-phone',
+      tenant_id: 'tenant',
+      client_id: null,
+      client_nume_manual: 'Ana Ionescu',
+      telefon: '0740 123 456',
+      locatie_livrare: 'Suceava',
+      data_comanda: '2026-07-13',
+      data_livrare: '2026-07-14',
+      cantitate_kg: 2.5,
+      pret_per_kg: 40,
+      total: 100,
+      status: 'confirmata',
+      observatii: null,
+      linked_vanzare_id: null,
+      parent_comanda_id: null,
+      created_at: '2026-07-13T08:00:00.000Z',
+      updated_at: '2026-07-13T08:00:00.000Z',
+      data_origin: 'magazin_public',
+      dup_phone_warning: 'Maria Popescu',
+      last_call_status: null,
+    }
+
+    render(
+      <UnifiedOrderCard
+        item={mapB2bToUnified(manualOrder, {})}
+        variant="comenzi"
+        comenziMode="active"
+        onB2bStatusChange={onStatusChange}
+        onB2bDeliveryDateChange={() => undefined}
+      />,
+    )
+
+    expect(screen.getByText('Același telefon ca „Maria Popescu” — verifică dacă e duplicat')).toBeInTheDocument()
+    expect(screen.getByText('Cantitate')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Programează' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'În livrare' }))
+    expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'in_livrare')
+    await user.click(screen.getByRole('button', { name: 'Anulează' }))
+    expect(screen.getByRole('button', { name: 'Da, anulează' })).toBeInTheDocument()
+  })
+
   it('păstrează badge-ul de status în varianta Livrări', () => {
     const { container } = render(
       <UnifiedOrderCard item={mapShopToUnified(order)} variant="livrari" />,
     )
 
     expect(container.querySelector('[data-testid="order-status-pill"]')).toHaveTextContent('În livrare')
+  })
+
+  it('expune Sună, N-a răspuns și Livrat direct în Livrări', async () => {
+    const user = userEvent.setup()
+    const onCallStatusChange = vi.fn()
+    const onStatusChange = vi.fn()
+    const manualOrder: Comanda = {
+      id: 'manual-delivery-actions',
+      tenant_id: 'tenant',
+      client_id: null,
+      client_nume_manual: 'Ioana Popescu',
+      telefon: '0740 555 555',
+      locatie_livrare: 'Suceava',
+      data_comanda: '2026-07-13',
+      data_livrare: '2026-07-13',
+      cantitate_kg: 1,
+      pret_per_kg: 40,
+      total: 40,
+      status: 'in_livrare',
+      observatii: null,
+      linked_vanzare_id: null,
+      parent_comanda_id: null,
+      created_at: '2026-07-13T08:00:00.000Z',
+      updated_at: '2026-07-13T08:00:00.000Z',
+      data_origin: null,
+      dup_phone_warning: null,
+      last_call_status: null,
+    }
+
+    render(
+      <UnifiedOrderCard
+        item={mapB2bToUnified(manualOrder, {})}
+        variant="livrari"
+        onB2bStatusChange={onStatusChange}
+        onCallStatusChange={onCallStatusChange}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: 'Sună' })).toHaveAttribute('href', 'tel:0740555555')
+    await user.click(screen.getByRole('button', { name: 'N-a răspuns' }))
+    expect(onCallStatusChange).toHaveBeenCalledWith(manualOrder.id, 'no_answer')
+    await user.click(screen.getByRole('button', { name: 'Livrat' }))
+    expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'livrata')
   })
 
   it('afișează reward-ul shop ca badge read-only', async () => {

@@ -1,3 +1,9 @@
+-- INTENTIONALLY NOT APPLIED ON PRODUCTION.
+-- The financial RLS policies below are not active. User decision confirmed
+-- on 2026-07-13. Do not mark this migration as applied or restore it to the
+-- active migration directory without new explicit confirmation.
+-- See supabase/migrations_archive/README.md for the reconciliation context.
+
 -- Financial modules must remain owner-only even on projects that still carry
 -- older tenant-wide policy names from previous migration histories.
 

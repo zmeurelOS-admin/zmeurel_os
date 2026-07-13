@@ -248,6 +248,12 @@ export function LivrariPageClient() {
             ? 'Data livrării a fost actualizată.'
             : 'Data livrării a fost ștearsă.',
         )
+      } else if (variables.payload.last_call_status !== undefined) {
+        toast.success(
+          variables.payload.last_call_status === 'no_answer'
+            ? 'Marcat: sunat, nu a răspuns.'
+            : 'Marcajul de apel a fost eliminat.',
+        )
       }
       refreshAll()
     },
@@ -472,6 +478,7 @@ export function LivrariPageClient() {
                           disabled
                           onB2bStatusChange={handleManualStatusChange}
                           onB2bDeliveryDateChange={() => undefined}
+                          onCallStatusChange={() => undefined}
                           onEdit={() => undefined}
                         />
                       </SortableDeliveryCard>
@@ -490,6 +497,7 @@ export function LivrariPageClient() {
                               disabled
                               onB2bStatusChange={() => undefined}
                               onB2bDeliveryDateChange={() => undefined}
+                              onCallStatusChange={() => undefined}
                               onEdit={() => undefined}
                             />
                           </div>
@@ -511,6 +519,9 @@ export function LivrariPageClient() {
                     onB2bStatusChange={handleManualStatusChange}
                     onB2bDeliveryDateChange={(id, data_livrare) => {
                       updateManualOrderMutation.mutate({ id, payload: { data_livrare } })
+                    }}
+                    onCallStatusChange={(id, last_call_status) => {
+                      updateManualOrderMutation.mutate({ id, payload: { last_call_status } })
                     }}
                     onEdit={() => {
                       if (order.b2bComanda) {

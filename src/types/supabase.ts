@@ -1192,7 +1192,9 @@ export type Database = {
           data_livrare: string
           data_origin: string | null
           demo_seed_id: string | null
+          dup_phone_warning: string | null
           id: string
+          last_call_status: string | null
           linked_vanzare_id: string | null
           locatie_livrare: string | null
           note_interne: string | null
@@ -1224,7 +1226,9 @@ export type Database = {
           data_livrare: string
           data_origin?: string | null
           demo_seed_id?: string | null
+          dup_phone_warning?: string | null
           id?: string
+          last_call_status?: string | null
           linked_vanzare_id?: string | null
           locatie_livrare?: string | null
           note_interne?: string | null
@@ -1256,7 +1260,9 @@ export type Database = {
           data_livrare?: string
           data_origin?: string | null
           demo_seed_id?: string | null
+          dup_phone_warning?: string | null
           id?: string
+          last_call_status?: string | null
           linked_vanzare_id?: string | null
           locatie_livrare?: string | null
           note_interne?: string | null

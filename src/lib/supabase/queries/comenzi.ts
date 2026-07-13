@@ -48,6 +48,10 @@ export interface Comanda {
   updated_by?: string | null
   /** Ex. `magazin_public` pentru comenzi din magazinul fermierului. */
   data_origin: string | null
+  /** Semnal neblocant pentru un telefon activ deja folosit de alt nume. */
+  dup_phone_warning?: string | null
+  /** Stare operațională din Livrări; null când apelul nu are marcaj. */
+  last_call_status?: 'no_answer' | null
   client_nume?: string | null
 }
 
@@ -77,6 +81,7 @@ export interface UpdateComandaInput {
   order_kind?: ComandaOrderKind
   status?: ComandaStatus
   observatii?: string | null
+  last_call_status?: 'no_answer' | null
 }
 
 export interface DeliverComandaInput {
@@ -156,6 +161,8 @@ const COMANDA_SELECT_FIELDS: string = `
   created_by,
   updated_by,
   data_origin,
+  dup_phone_warning,
+  last_call_status,
   clienti (
     nume_client
   ),
@@ -296,6 +303,8 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     created_by: row.created_by ?? null,
     updated_by: row.updated_by ?? null,
     data_origin: row.data_origin ?? null,
+    dup_phone_warning: row.dup_phone_warning ?? null,
+    last_call_status: row.last_call_status === 'no_answer' ? 'no_answer' : null,
     client_nume: row.clienti?.nume_client ?? null,
   }
 }
@@ -459,6 +468,7 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
     ...(input.order_kind !== undefined ? { order_kind: input.order_kind } : {}),
     ...(!shouldSetInDelivery && input.status !== undefined ? { status: input.status } : {}),
     ...(input.observatii !== undefined ? { observatii: input.observatii?.trim() || null } : {}),
+    ...(input.last_call_status !== undefined ? { last_call_status: input.last_call_status } : {}),
     updated_at: new Date().toISOString(),
     updated_by: user?.id ?? null,
   }

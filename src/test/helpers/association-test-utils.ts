@@ -74,6 +74,8 @@ export function mockAssociationOrder(overrides?: Partial<ComandaRow>): ComandaRo
     status: 'noua',
     data_comanda: ISO.split('T')[0]!,
     data_livrare: '2026-04-05',
+    dup_phone_warning: null,
+    last_call_status: null,
     created_at: ISO,
     created_by: null,
     updated_at: ISO,

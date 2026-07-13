@@ -32,6 +32,8 @@ export type UnifiedOrderItem = {
   statusLabel: string
   paymentStatus: string | null
   paymentComandaId: string | null
+  dupPhoneWarning: string | null
+  lastCallStatus: 'no_answer' | null
   confirmed: boolean
   b2bComanda?: Comanda
   shopOrder?: ShopOrderRow
@@ -182,6 +184,8 @@ export function mapB2bToUnified(comanda: Comanda, clientMap: Record<string, Clie
     statusLabel: B2B_STATUS_LABELS[comanda.status] ?? comanda.status,
     paymentStatus: comanda.linked_vanzare?.status_plata ?? null,
     paymentComandaId: comanda.linked_vanzare_id ? comanda.id : null,
+    dupPhoneWarning: comanda.dup_phone_warning ?? null,
+    lastCallStatus: comanda.last_call_status ?? null,
     confirmed: false,
     b2bComanda: comanda,
   }
@@ -222,6 +226,8 @@ export function mapShopToUnified(
     statusLabel: SHOP_STATUS_LABELS[order.status] ?? order.status,
     paymentStatus: bridgeComanda?.linked_vanzare?.status_plata ?? null,
     paymentComandaId: bridgeComanda?.linked_vanzare_id ? bridgeComanda.id : null,
+    dupPhoneWarning: bridgeComanda?.dup_phone_warning ?? null,
+    lastCallStatus: bridgeComanda?.last_call_status ?? null,
     confirmed: order.notified_wa,
     shopOrder: order,
   }

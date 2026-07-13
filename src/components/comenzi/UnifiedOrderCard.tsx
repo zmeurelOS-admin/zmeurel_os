@@ -1,7 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { CircleDollarSign, ChevronDown, Phone } from 'lucide-react'
+import {
+  Ban,
+  CalendarDays,
+  CircleDollarSign,
+  ChevronDown,
+  PackageCheck,
+  Phone,
+  PhoneCall,
+  PhoneOff,
+  Truck,
+} from 'lucide-react'
 
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -15,7 +25,24 @@ import {
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
 import type { ComandaStatus } from '@/lib/supabase/queries/comenzi'
-import { waUrlForPhone, type ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
+import { todayBucharestDate, waUrlForPhone, type ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 
 function formatKgFromGrams(grams: number): string {
   return `${new Intl.NumberFormat('ro-RO', {
@@ -166,6 +193,7 @@ export function UnifiedOrderCard({
   onOpenB2bDetails,
   onB2bStatusChange,
   onB2bDeliveryDateChange,
+  onCallStatusChange,
   onShopStatusChange,
   onShopConfirmedChange,
   onShopDeliveryDateChange,
@@ -173,10 +201,13 @@ export function UnifiedOrderCard({
   onMarkPaid,
   onEdit,
   variant = 'livrari',
+  comenziMode,
 }: {
   item: UnifiedOrderItem
   /** În Comenzi statusul rămâne control în detalii, nu badge permanent pe card. */
   variant?: 'comenzi' | 'livrari'
+  /** Sub-varianta operațională a cardului din modulul Comenzi. */
+  comenziMode?: 'active' | 'programate'
   disabled?: boolean
   compact?: boolean
   selectable?: boolean
@@ -184,7 +215,8 @@ export function UnifiedOrderCard({
   onToggleSelect?: (selected: boolean) => void
   onOpenB2bDetails?: (id: string) => void
   onB2bStatusChange?: (id: string, status: ComandaStatus) => void | Promise<void>
-  onB2bDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
+  onB2bDeliveryDateChange?: (id: string, deliveryDate: string | null) => void | Promise<void>
+  onCallStatusChange?: (id: string, status: 'no_answer' | null) => void | Promise<void>
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void | Promise<void>
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
   onShopDeliveryDateChange?: (id: string, deliveryDate: string | null) => void
@@ -254,6 +286,21 @@ export function UnifiedOrderCard({
   const blocksStatusWhatsApp =
     isCanonicalComanda &&
     (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
+
+  if (variant === 'comenzi') {
+    return (
+      <ComenziOperationalCard
+        item={item}
+        disabled={disabled}
+        mode={comenziMode ?? (item.status === 'programata' ? 'programate' : 'active')}
+        onStatusChange={onB2bStatusChange}
+        onDeliveryDateChange={onB2bDeliveryDateChange}
+        onEdit={onEdit}
+      />
+    )
+  }
+
+  const hasNoAnswer = item.lastCallStatus === 'no_answer'
 
   const markShopNotified = () => {
     if (shopOrder && !shopOrder.notified_wa) {
@@ -333,7 +380,9 @@ export function UnifiedOrderCard({
   if (!compact) {
     return (
       <article
-        className={`overflow-hidden rounded-xl border bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
+        className={`overflow-hidden rounded-xl border shadow-[var(--shadow-soft)] ${
+          hasNoAnswer ? 'bg-[var(--status-warning-bg)]' : 'bg-[var(--surface-card)]'
+        } ${
           item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
         } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
         style={{
@@ -364,6 +413,7 @@ export function UnifiedOrderCard({
               </p>
               <OriginBadge item={item} />
               {variant === 'livrari' ? <StatusPill item={item} /> : null}
+              {hasNoAnswer ? <NoAnswerBadge /> : null}
               {isUnpaid ? <UnpaidBadge /> : null}
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
@@ -376,17 +426,13 @@ export function UnifiedOrderCard({
           </button>
         </div>
 
-        {!hasKnownLocality && variant === 'comenzi' && onEdit ? (
-          <div className="px-3 pb-2">
-            <button
-              type="button"
-              className="min-h-9 text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline"
-              onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-            >
-              + Adaugă adresă
-            </button>
-          </div>
-        ) : null}
+        <DeliveryQuickActions
+          item={item}
+          disabled={disabled}
+          hasNoAnswer={hasNoAnswer}
+          onStatusChange={onB2bStatusChange}
+          onCallStatusChange={onCallStatusChange}
+        />
 
         <div
           aria-hidden={!expanded}
@@ -533,7 +579,9 @@ export function UnifiedOrderCard({
 
   return (
     <article
-      className={`overflow-hidden rounded-2xl border-[1.5px] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
+      className={`overflow-hidden rounded-2xl border-[1.5px] shadow-[var(--shadow-soft)] ${
+        hasNoAnswer ? 'bg-[var(--status-warning-bg)]' : 'bg-[var(--surface-card)]'
+      } ${
         item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
       } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
       style={{
@@ -572,6 +620,7 @@ export function UnifiedOrderCard({
               <div className={`flex max-w-[48%] shrink-0 flex-wrap items-center justify-end ${compact ? 'gap-1' : 'gap-1.5'}`}>
                 <OriginBadge item={item} />
                 {needsConfirmation ? <ConfirmationBadge /> : null}
+                {hasNoAnswer ? <NoAnswerBadge /> : null}
                 <span className="whitespace-nowrap text-[11px] font-medium text-[var(--text-tertiary)]">
                   {formatOrderDateTime(item.createdAt)}
                 </span>
@@ -620,15 +669,6 @@ export function UnifiedOrderCard({
                 </>
               ) : null}
             </button>
-            {!hasKnownLocality && variant === 'comenzi' && onEdit ? (
-              <button
-                type="button"
-                className="mt-1 min-h-8 text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline"
-                onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-              >
-                + Adaugă adresă
-              </button>
-            ) : null}
           </div>
         </div>
       </div>
@@ -702,6 +742,14 @@ export function UnifiedOrderCard({
       </div>
 
       {!isTerminal ? (
+        <>
+          <DeliveryQuickActions
+            item={item}
+            disabled={disabled}
+            hasNoAnswer={hasNoAnswer}
+            onStatusChange={onB2bStatusChange}
+            onCallStatusChange={onCallStatusChange}
+          />
         <div
           className={`grid grid-cols-2 border-t border-[var(--divider)] px-3 ${
             compact ? 'gap-1.5 py-1.5' : 'gap-2 py-3'
@@ -769,6 +817,7 @@ export function UnifiedOrderCard({
             </PopoverContent>
           </Popover>
         </div>
+        </>
       ) : null}
 
       {needsConfirmation ? (
@@ -808,6 +857,309 @@ export function UnifiedOrderCard({
 
     </article>
   )
+}
+
+function ComenziOperationalCard({
+  item,
+  disabled,
+  mode,
+  onStatusChange,
+  onDeliveryDateChange,
+  onEdit,
+}: {
+  item: UnifiedOrderItem
+  disabled?: boolean
+  mode: 'active' | 'programate'
+  onStatusChange?: (id: string, status: ComandaStatus) => void | Promise<void>
+  onDeliveryDateChange?: (id: string, value: string | null) => void | Promise<void>
+  onEdit?: (id: string, source: 'shop' | 'manual') => void
+}) {
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const totalFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(item.totalLei))
+  const quantityFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(item.quantity)
+  const quantityLabel = item.quantityUnit === 'kg' ? `${quantityFormatted} kg` : formatKgFromGrams(item.quantity * KG_PER_CASEROLĂ * 1000)
+  const isOverdue = mode === 'programate' && Boolean(item.deliveryDate && item.deliveryDate < todayBucharestDate())
+  const isTerminal = item.status === 'livrata' || item.status === 'anulata'
+  const isCanonicalComanda = Boolean(item.b2bComanda)
+  const hasKnownLocality = Boolean(item.localityLabel.trim()) && item.localityLabel !== 'Necunoscută'
+  const scheduleLabel = mode === 'programate' ? 'Reprogramează' : 'Programează'
+
+  const scheduleOrder = async (date: string) => {
+    if (!onDeliveryDateChange) return
+    await onDeliveryDateChange(item.id, date)
+    if (mode === 'active' && item.status !== 'programata') {
+      await onStatusChange?.(item.id, 'programata')
+    }
+    setScheduleOpen(false)
+  }
+
+  return (
+    <article
+      className={`overflow-hidden rounded-[22px] border-[1.5px] shadow-[var(--shadow-soft)] ${
+        isOverdue ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]' : 'border-[var(--card-border-default)] bg-[var(--surface-card)]'
+      }`}
+    >
+      {item.dupPhoneWarning ? (
+        <div className="border-b border-l-4 border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold leading-snug text-[var(--status-warning-text)]">
+          Același telefon ca „{item.dupPhoneWarning}” — verifică dacă e duplicat
+        </div>
+      ) : null}
+      {isOverdue ? (
+        <div className="border-b border-l-4 border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-bold text-[var(--status-danger-text)]">
+          Restanță — data a trecut, reprogramează
+        </div>
+      ) : null}
+
+      <div className="px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
+            {item.customerName}
+          </p>
+          <OriginBadge item={item} />
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 divide-x divide-[var(--divider)] rounded-xl bg-[var(--surface-card-muted)] py-2">
+          <CardMetric label="Cantitate" value={quantityLabel} />
+          <CardMetric label="Total" value={`${totalFormatted} lei`} />
+          <CardMetric label="Dată" value={formatComenziDate(item.deliveryDate ?? item.orderDate)} />
+        </div>
+
+        {!isTerminal ? (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={disabled || !isCanonicalComanda || !onDeliveryDateChange}
+              onClick={() => setScheduleOpen(true)}
+              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-1 text-[11px] font-semibold text-[var(--text-primary)] transition active:scale-[0.985] disabled:opacity-50"
+            >
+              <CalendarDays className="h-4 w-4" aria-hidden />
+              <span className="truncate">{scheduleLabel}</span>
+            </button>
+            <button
+              type="button"
+              disabled={disabled || !isCanonicalComanda || !onStatusChange}
+              onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'in_livrare'))}
+              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-1 text-[11px] font-semibold text-[var(--status-info-text)] transition active:scale-[0.985] disabled:opacity-50"
+            >
+              <Truck className="h-4 w-4" aria-hidden />
+              <span>În livrare</span>
+            </button>
+            <button
+              type="button"
+              disabled={disabled || !isCanonicalComanda || !onStatusChange}
+              onClick={() => setCancelOpen(true)}
+              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-1 text-[11px] font-semibold text-[var(--status-danger-text)] transition active:scale-[0.985] disabled:opacity-50"
+            >
+              <Ban className="h-4 w-4" aria-hidden />
+              <span>Anulează</span>
+            </button>
+          </div>
+        ) : null}
+
+        {onEdit && !hasKnownLocality ? (
+          <button
+            type="button"
+            onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+            className="mt-2 min-h-8 text-xs font-semibold text-[var(--primary)]"
+          >
+            + Adaugă adresă
+          </button>
+        ) : onEdit ? (
+          <button
+            type="button"
+            onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+            className="mt-2 min-h-8 text-xs font-semibold text-[var(--primary)]"
+          >
+            Vezi / editează detaliile
+          </button>
+        ) : null}
+      </div>
+
+      <OrderScheduleSheet
+        key={`${item.id}-${scheduleOpen ? item.deliveryDate ?? 'today' : 'closed'}`}
+        open={scheduleOpen}
+        currentDate={item.deliveryDate}
+        customerName={item.customerName}
+        pending={Boolean(disabled)}
+        onOpenChange={setScheduleOpen}
+        onSave={scheduleOrder}
+      />
+      <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anulezi comanda?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Comanda pentru {item.customerName} nu va mai apărea în lista activă.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Renunță</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[var(--status-danger-text)] text-white"
+              onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'anulata'))}
+            >
+              Da, anulează
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </article>
+  )
+}
+
+function CardMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 px-2 text-center">
+      <p className="truncate text-[10px] font-medium text-[var(--text-tertiary)]">{label}</p>
+      <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
+    </div>
+  )
+}
+
+function NoAnswerBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-[3px] text-[10px] font-semibold leading-none text-[var(--status-warning-text)]">
+      <PhoneOff className="h-3 w-3" aria-hidden />
+      Sunat, nu a răspuns
+    </span>
+  )
+}
+
+function DeliveryQuickActions({
+  item,
+  disabled,
+  hasNoAnswer,
+  onStatusChange,
+  onCallStatusChange,
+}: {
+  item: UnifiedOrderItem
+  disabled?: boolean
+  hasNoAnswer: boolean
+  onStatusChange?: (id: string, status: ComandaStatus) => void | Promise<void>
+  onCallStatusChange?: (id: string, status: 'no_answer' | null) => void | Promise<void>
+}) {
+  const phoneHref = item.phone ? `tel:${item.phone.replace(/\s/g, '')}` : undefined
+  const canAct = Boolean(item.b2bComanda)
+
+  return (
+    <div className="grid grid-cols-3 gap-2 border-t border-[var(--divider)] px-3 py-2.5">
+      {phoneHref ? (
+        <a
+          href={phoneHref}
+          className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-1 text-[11px] font-semibold text-[var(--status-info-text)] transition active:scale-[0.985]"
+        >
+          <PhoneCall className="h-4 w-4" aria-hidden />
+          Sună
+        </a>
+      ) : (
+        <span className="flex min-h-11 flex-col items-center justify-center rounded-xl border border-[var(--border-default)] px-1 text-[11px] font-medium text-[var(--text-tertiary)]">
+          Fără telefon
+        </span>
+      )}
+      <button
+        type="button"
+        disabled={disabled || !canAct || !onCallStatusChange}
+        onClick={() => void Promise.resolve(onCallStatusChange?.(item.id, hasNoAnswer ? null : 'no_answer'))}
+        className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 text-[11px] font-semibold transition active:scale-[0.985] disabled:opacity-50 ${
+          hasNoAnswer
+            ? 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+            : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)]'
+        }`}
+      >
+        <PhoneOff className="h-4 w-4" aria-hidden />
+        N-a răspuns
+      </button>
+      <button
+        type="button"
+        disabled={disabled || !canAct || !onStatusChange}
+        onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'livrata'))}
+        className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-1 text-[11px] font-semibold text-[var(--status-success-text)] transition active:scale-[0.985] disabled:opacity-50"
+      >
+        <PackageCheck className="h-4 w-4" aria-hidden />
+        Livrat
+      </button>
+    </div>
+  )
+}
+
+function OrderScheduleSheet({
+  open,
+  currentDate,
+  customerName,
+  pending,
+  onOpenChange,
+  onSave,
+}: {
+  open: boolean
+  currentDate: string | null
+  customerName: string
+  pending: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (value: string) => void | Promise<void>
+}) {
+  const [selectedDate, setSelectedDate] = useState(currentDate ?? todayBucharestDate())
+  const today = todayBucharestDate()
+  const quickDates = [
+    { label: 'Azi', value: today },
+    { label: 'Mâine', value: addDaysToIso(today, 1) },
+    { label: 'Peste 2 zile', value: addDaysToIso(today, 2) },
+  ]
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="rounded-t-[28px] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <SheetHeader>
+          <SheetTitle>Programează livrarea</SheetTitle>
+          <SheetDescription>{customerName}</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 px-4 pb-2 pt-4">
+          <div className="grid grid-cols-3 gap-2">
+            {quickDates.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setSelectedDate(option.value)}
+                className={`min-h-11 rounded-xl border px-2 text-xs font-semibold transition active:scale-[0.985] ${
+                  selectedDate === option.value
+                    ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                    : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)]'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <AppDatePicker
+            id="unified-order-schedule-date"
+            label="Altă dată"
+            value={selectedDate}
+            onChange={(value) => value && setSelectedDate(value)}
+            triggerClassName="min-h-11"
+          />
+          <button
+            type="button"
+            disabled={pending || !selectedDate}
+            onClick={() => void Promise.resolve(onSave(selectedDate))}
+            className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[var(--agri-primary)] px-4 text-sm font-bold text-white transition active:scale-[0.985] disabled:opacity-50"
+          >
+            {pending ? 'Se salvează...' : 'Confirmă data'}
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function addDaysToIso(value: string, days: number): string {
+  const date = new Date(`${value}T12:00:00.000Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function formatComenziDate(value: string): string {
+  if (value === todayBucharestDate()) return 'Azi'
+  return formatDeliveryDate(value)
 }
 
 function formatDeliveryDate(value: string): string {

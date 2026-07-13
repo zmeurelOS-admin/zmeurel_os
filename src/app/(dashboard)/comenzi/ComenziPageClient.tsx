@@ -82,6 +82,7 @@ import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
+import { normalizePhoneNumber } from '@/lib/utils/normalize-phone'
 import { queryKeys } from '@/lib/query-keys'
 import {
   calculateViewportDropdownLayout,
@@ -346,6 +347,44 @@ function normalize(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
 }
 
+type OrderPhoneConflict = {
+  values: ComandaFormState
+  existingName: string
+}
+
+function findActiveOrderPhoneConflict({
+  orders,
+  clienti,
+  values,
+}: {
+  orders: Comanda[]
+  clienti: Client[]
+  values: ComandaFormState
+}): OrderPhoneConflict | null {
+  const normalizedPhone = normalizePhoneNumber(values.telefon || '')
+  if (!normalizedPhone) return null
+
+  const selectedClientName = values.client_id
+    ? clienti.find((client) => client.id === values.client_id)?.nume_client ?? ''
+    : ''
+  const submittedName = normalize(values.client_nume_manual || selectedClientName)
+  if (!submittedName) return null
+  const clientMap = Object.fromEntries(clienti.map((client) => [client.id, client])) as Record<string, Client>
+
+  const existingOrder = orders.find((order) => {
+    if (!['noua', 'confirmata', 'programata', 'in_livrare'].includes(order.status)) return false
+    if (normalizePhoneNumber(order.telefon || '') !== normalizedPhone) return false
+    return normalize(getClientName(order, clientMap)) !== submittedName
+  })
+
+  if (!existingOrder) return null
+
+  return {
+    values,
+    existingName: getClientName(existingOrder, clientMap),
+  }
+}
+
 function groupOrdersByCreatedDate(
   orders: UnifiedOrderItem[],
   direction: 'asc' | 'desc',
@@ -509,10 +548,6 @@ function getRelativeScheduledLabel(date: string, referenceDate?: string): string
   if (diffDays === 0) return 'Azi'
   if (diffDays === 1) return 'Mâine'
   return null
-}
-
-function isOpenStatus(status: ComandaStatus): boolean {
-  return status !== 'livrata' && status !== 'anulata'
 }
 
 function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
@@ -1642,6 +1677,8 @@ export function ComenziPageClient() {
   const [clientPrefill, setClientPrefill] = useState<ContactPrompt | null>(null)
   const [addClientOpen, setAddClientOpen] = useState(false)
   const [stocInsuficientModal, setStocInsuficientModal] = useState<StocInsuficientSnapshot | null>(null)
+  const [orderPhoneConflict, setOrderPhoneConflict] = useState<OrderPhoneConflict | null>(null)
+  const [duplicatePhoneFormPatch, setDuplicatePhoneFormPatch] = useState<{ token: number; values: ComandaFormState } | null>(null)
   const isOperator = memberRole === 'operator'
   const canWriteComenzi = !isOperator || accessLevel === 'write'
   const canDeleteComenzi = !isOperator
@@ -1803,6 +1840,7 @@ export function ComenziPageClient() {
           : undefined,
       })
       setAddOpen(false)
+      setDuplicatePhoneFormPatch(null)
 
       if (variables.clientPersistencePlan.action === 'create-new') {
         try {
@@ -1857,7 +1895,6 @@ export function ComenziPageClient() {
       hapticSuccess()
       if (variables.payload.status === 'in_livrare') {
         toast('Comanda mutată în livrări 🚚')
-        router.push('/livrari')
       } else {
         toast.success('Comanda actualizată')
       }
@@ -2144,10 +2181,10 @@ export function ComenziPageClient() {
     const term = normalize(search)
 
     return unifiedAllOrders.filter((item) => {
-      if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
+      if (activeTab === 'de_livrat' && item.status !== 'noua' && item.status !== 'confirmata') return false
       if (
         activeTab === 'programate' &&
-        !(isUnifiedOpenStatus(item.status) && Boolean(getUnifiedOrderEffectiveDate(item)))
+        !(item.status === 'programata' && Boolean(getUnifiedOrderEffectiveDate(item)))
       ) {
         return false
       }
@@ -2273,6 +2310,89 @@ export function ComenziPageClient() {
       }
     }
     await updateMutation.mutateAsync({ id, payload: { status } })
+  }
+
+  const submitNewOrder = async (values: ComandaFormState, allowDifferentName = false) => {
+    const cantitate = Number(values.cantitate_kg)
+    const zeroPriceOrder = values.order_kind === 'cadou' || values.order_kind === 'consum_propriu'
+    const pret = zeroPriceOrder ? 0 : Number(values.pret_per_kg)
+    if (!Number.isFinite(cantitate) || cantitate <= 0) {
+      hapticError()
+      toast.error('Cantitatea trebuie să fie mai mare decât 0.')
+      return
+    }
+    if (!Number.isFinite(pret) || pret < 0 || (!zeroPriceOrder && pret <= 0)) {
+      hapticError()
+      toast.error(zeroPriceOrder ? 'Prețul nu poate fi negativ.' : 'Prețul trebuie să fie mai mare decât 0.')
+      return
+    }
+
+    if (values.status === 'in_livrare' || values.order_kind === 'consum_propriu') {
+      const canContinue = await guardStocPentruInLivrare(cantitate)
+      if (!canContinue) return
+    }
+
+    if (!allowDifferentName) {
+      const phoneConflict = findActiveOrderPhoneConflict({ orders: comenzi, clienti, values })
+      if (phoneConflict) {
+        hapticError()
+        setOrderPhoneConflict(phoneConflict)
+        return
+      }
+    }
+
+    const safeClientMatch = values.client_id || allowDifferentName
+      ? null
+      : resolveExistingClientByPhone(clienti, values.telefon)
+    const resolvedClientId =
+      values.client_id || (safeClientMatch?.status === 'existing' ? safeClientMatch.client.id : '')
+    const clientPersistencePlan = planOrderClientPersistence({
+      clienti,
+      clientId: resolvedClientId || null,
+      clientName: values.client_nume_manual || '',
+      rawPhone: values.telefon || '',
+      address: values.locatie_livrare || '',
+      saveClientRequested: values.salveaza_client_in_lista,
+    })
+
+    if (clientPersistencePlan.action === 'invalid') {
+      hapticError()
+      toast.error(clientPersistencePlan.message)
+      return
+    }
+
+    const createdComanda = await createMutation.mutateAsync({
+      payload: {
+        client_id: resolvedClientId || null,
+        client_nume_manual: resolvedClientId ? null : values.client_nume_manual || null,
+        telefon: values.telefon || null,
+        locatie_livrare: values.locatie_livrare || null,
+        data_comanda: values.data_comanda || today,
+        data_livrare: values.data_livrare || null,
+        cantitate_kg: cantitate,
+        pret_per_kg: pret,
+        order_kind: values.order_kind,
+        status: values.order_kind === 'consum_propriu' ? 'confirmata' : values.status,
+        observatii: values.observatii || null,
+      },
+      clientPersistencePlan,
+    })
+
+    if (values.order_kind === 'consum_propriu' && createdComanda) {
+      try {
+        await deliverMutation.mutateAsync({
+          comandaId: createdComanda.id,
+          cantitateLivrataKg: cantitate,
+          statusPlata: 'platit',
+          dataLivrareRamasa: null,
+        })
+      } catch {
+        toast.error(
+          'Comanda a fost creată dar livrarea a eșuat. Găsești comanda în lista de active și o poți livra manual.',
+          { duration: 6000 },
+        )
+      }
+    }
   }
 
   const magazinGroupForViewDialog = useMemo(() => {
@@ -2549,6 +2669,7 @@ export function ComenziPageClient() {
                           key={getUnifiedSelectionId(item)}
                           item={item}
                           variant="comenzi"
+                          comenziMode={activeTab === 'programate' ? 'programate' : 'active'}
                           disabled={updateMutation.isPending}
                           onOpenB2bDetails={(id) => {
                             const comanda = comenzi.find((row) => row.id === id)
@@ -2556,12 +2677,12 @@ export function ComenziPageClient() {
                           }}
                           onB2bStatusChange={handleB2bStatusChange}
                           onMarkPaid={canWriteComenzi ? handleMarkPaid : undefined}
-                          onB2bDeliveryDateChange={(id, data_livrare) => {
+                          onB2bDeliveryDateChange={async (id, data_livrare) => {
                             if (!canWriteComenzi) {
                               toast.error('Ai acces doar pentru citire în Comenzi.')
                               return
                             }
-                            updateMutation.mutate({ id, payload: { data_livrare } })
+                            await updateMutation.mutateAsync({ id, payload: { data_livrare } })
                           }}
                           onEdit={() => {
                             if (!canWriteComenzi) {
@@ -2613,6 +2734,7 @@ export function ComenziPageClient() {
                           key={getUnifiedSelectionId(item)}
                           item={item}
                           variant="comenzi"
+                          comenziMode={activeTab === 'programate' ? 'programate' : 'active'}
                           compact
                           disabled={updateMutation.isPending}
                           onOpenB2bDetails={(id) => {
@@ -2621,12 +2743,12 @@ export function ComenziPageClient() {
                           }}
                           onB2bStatusChange={handleB2bStatusChange}
                           onMarkPaid={canWriteComenzi ? handleMarkPaid : undefined}
-                          onB2bDeliveryDateChange={(id, data_livrare) => {
+                          onB2bDeliveryDateChange={async (id, data_livrare) => {
                             if (!canWriteComenzi) {
                               toast.error('Ai acces doar pentru citire în Comenzi.')
                               return
                             }
-                            updateMutation.mutate({ id, payload: { data_livrare } })
+                            await updateMutation.mutateAsync({ id, payload: { data_livrare } })
                           }}
                           onEdit={() => {
                             if (!canWriteComenzi) {
@@ -2683,12 +2805,13 @@ export function ComenziPageClient() {
       ) : null}
 
       <ComandaDialog
-        key={`create-${isCreateDialogOpen ? 'open' : 'closed'}`}
+        key={`create-${isCreateDialogOpen ? 'open' : 'closed'}-${duplicatePhoneFormPatch?.token ?? 'base'}`}
         open={canWriteComenzi && isCreateDialogOpen}
         onOpenChange={(open) => {
           if (!canWriteComenzi) return
           if (!open) {
             setAddOpen(false)
+            setDuplicatePhoneFormPatch(null)
             clearComandaFormQueryParams()
             return
           }
@@ -2697,86 +2820,54 @@ export function ComenziPageClient() {
         saving={createMutation.isPending}
         clienti={clienti}
         mode="create"
-        initialCreateValues={queryCreatePrefill}
-        onSave={async (values) => {
-          const cantitate = Number(values.cantitate_kg)
-          const zeroPriceOrder =
-            values.order_kind === 'cadou' || values.order_kind === 'consum_propriu'
-          const pret = zeroPriceOrder ? 0 : Number(values.pret_per_kg)
-          if (!Number.isFinite(cantitate) || cantitate <= 0) {
-            hapticError()
-            toast.error('Cantitatea trebuie să fie mai mare decât 0.')
-            return
-          }
-          if (!Number.isFinite(pret) || pret < 0 || (!zeroPriceOrder && pret <= 0)) {
-            hapticError()
-            toast.error(zeroPriceOrder ? 'Prețul nu poate fi negativ.' : 'Prețul trebuie să fie mai mare decât 0.')
-            return
-          }
-
-          if (values.status === 'in_livrare' || values.order_kind === 'consum_propriu') {
-            const canContinue = await guardStocPentruInLivrare(cantitate)
-            if (!canContinue) {
-              return
-            }
-          }
-
-          const safeClientMatch = values.client_id
-            ? null
-            : resolveExistingClientByPhone(clienti, values.telefon)
-          const resolvedClientId =
-            values.client_id ||
-            (safeClientMatch?.status === 'existing' ? safeClientMatch.client.id : '')
-          const clientPersistencePlan = planOrderClientPersistence({
-            clienti,
-            clientId: resolvedClientId || null,
-            clientName: values.client_nume_manual || '',
-            rawPhone: values.telefon || '',
-            address: values.locatie_livrare || '',
-            saveClientRequested: values.salveaza_client_in_lista,
-          })
-
-          if (clientPersistencePlan.action === 'invalid') {
-            hapticError()
-            toast.error(clientPersistencePlan.message)
-            return
-          }
-
-          const createdComanda = await createMutation.mutateAsync({
-            payload: {
-              client_id: resolvedClientId || null,
-              client_nume_manual: resolvedClientId ? null : values.client_nume_manual || null,
-              telefon: values.telefon || null,
-              locatie_livrare: values.locatie_livrare || null,
-              data_comanda: values.data_comanda || today,
-              data_livrare: values.data_livrare || null,
-              cantitate_kg: cantitate,
-              pret_per_kg: pret,
-              order_kind: values.order_kind,
-              status: values.order_kind === 'consum_propriu' ? 'confirmata' : values.status,
-              observatii: values.observatii || null,
-            },
-            clientPersistencePlan,
-          })
-
-          // Flux instant consum_propriu: livrare imediată după creare
-          if (values.order_kind === 'consum_propriu' && createdComanda) {
-            try {
-              await deliverMutation.mutateAsync({
-                comandaId: createdComanda.id,
-                cantitateLivrataKg: cantitate,
-                statusPlata: 'platit',
-                dataLivrareRamasa: null,
-              })
-            } catch {
-              toast.error(
-                'Comanda a fost creată dar livrarea a eșuat. Găsești comanda în lista de active și o poți livra manual.',
-                { duration: 6000 },
-              )
-            }
-          }
-        }}
+        initialCreateValues={duplicatePhoneFormPatch?.values ?? queryCreatePrefill}
+        onSave={submitNewOrder}
       />
+
+      <AlertDialog open={Boolean(orderPhoneConflict)} onOpenChange={(open) => !open && setOrderPhoneConflict(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Telefon folosit de alt client</AlertDialogTitle>
+            <AlertDialogDescription>
+              Există deja o comandă activă pentru „{orderPhoneConflict?.existingName ?? 'client'}” cu același număr.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                if (!orderPhoneConflict) return
+                setDuplicatePhoneFormPatch({
+                  token: Date.now(),
+                  values: {
+                    ...orderPhoneConflict.values,
+                    client_id: '',
+                    client_nume_manual: orderPhoneConflict.existingName,
+                  },
+                })
+                setOrderPhoneConflict(null)
+                toast('Am completat numele clientului existent. Verifică și salvează comanda.')
+              }}
+            >
+              Folosește clientul existent ({orderPhoneConflict?.existingName ?? 'Client'})
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const pending = orderPhoneConflict
+                setOrderPhoneConflict(null)
+                if (pending) void submitNewOrder(pending.values, true)
+              }}
+            >
+              Nu, e o persoană diferită — continuă
+            </Button>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anulează</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ComandaDialog
         key={`edit-${editing?.id ?? 'none'}-${editing ? 'open' : 'closed'}`}
