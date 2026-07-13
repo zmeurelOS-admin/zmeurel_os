@@ -2,11 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import {
-  buildDeliveryLocation,
-  deriveDeliverySelection,
-  ErpLocalitySelector,
-} from '@/components/comenzi/ErpLocalitySelector'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,7 +33,6 @@ import {
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
 import { normalizeRomanianMobilePhone, ROMANIAN_PHONE_ERROR } from '@/lib/shop/phone'
-import type { LocalityConfig, VillageConfig } from '@/lib/shop/delivery-zones'
 import type { Client } from '@/lib/supabase/queries/clienti'
 import {
   updateComanda,
@@ -53,9 +47,7 @@ type EditOrderForm = {
   customerName: string
   phone: string
   deliveryMode: 'livrare' | 'ridicare'
-  locality: LocalityConfig | null
-  village: VillageConfig | null
-  street: string
+  deliveryAddress: string
   quantity: string
   price: string
   deliveryDate: string
@@ -71,12 +63,6 @@ export type EditOrderSheetProps = {
   order: UnifiedOrderItem
   clienti: Client[]
   onSaved: () => void
-}
-
-const ORDER_KIND_LABELS: Record<ComandaOrderKind, string> = {
-  manual: 'Manual',
-  cadou: '🎁 Cadou',
-  consum_propriu: '🏠 Consum propriu',
 }
 
 function normalizeSearch(value: string): string {
@@ -124,23 +110,19 @@ function formFromOrder(order: UnifiedOrderItem): EditOrderForm {
   if (order.source === 'shop' && order.shopOrder) {
     const shop = order.shopOrder
     const item = firstShopItem(order)
-    const deliverySelection =
+    const deliveryAddress =
       shop.delivery_mode === 'ridicare'
-        ? deriveDeliverySelection('Ridicare la fermă (Văratec)')
-        : deriveDeliverySelection(
-            [shop.delivery_city?.trim(), shop.delivery_address?.trim()]
-              .filter(Boolean)
-              .join(', '),
-          )
+        ? 'Ridicare la fermă (Văratec)'
+        : [shop.delivery_city?.trim(), shop.delivery_address?.trim()]
+            .filter(Boolean)
+            .join(', ')
 
     return {
       clientId: '',
       customerName: shop.customer_name,
       phone: shop.customer_phone,
       deliveryMode: shop.delivery_mode === 'ridicare' ? 'ridicare' : 'livrare',
-      locality: deliverySelection.locality,
-      village: deliverySelection.village,
-      street: deliverySelection.street,
+      deliveryAddress,
       quantity: String(item.qty),
       price: String(item.priceLei),
       deliveryDate: shop.delivery_date ?? '',
@@ -152,15 +134,15 @@ function formFromOrder(order: UnifiedOrderItem): EditOrderForm {
   }
 
   const manual = order.b2bComanda
-  const deliverySelection = deriveDeliverySelection(manual?.locatie_livrare ?? '')
+  const deliveryAddress = manual?.locatie_livrare ?? ''
   return {
     clientId: manual?.client_id ?? '',
     customerName: order.customerName,
     phone: manual?.telefon ?? order.phone,
-    deliveryMode: deliverySelection.mode,
-    locality: deliverySelection.locality,
-    village: deliverySelection.village,
-    street: deliverySelection.street,
+    deliveryMode: deliveryAddress.toLocaleLowerCase('ro-RO').startsWith('ridicare')
+      ? 'ridicare'
+      : 'livrare',
+    deliveryAddress,
     quantity: String(manual?.cantitate_kg ?? order.quantity),
     price:
       manual?.order_kind === 'cadou' || manual?.order_kind === 'consum_propriu'
@@ -184,7 +166,6 @@ export function EditOrderSheet({
   const isMobile = useMediaQuery('(max-width: 767px)')
   const [form, setForm] = useState<EditOrderForm>(() => formFromOrder(order))
   const [clientMenuOpen, setClientMenuOpen] = useState(false)
-  const [blockedMessage, setBlockedMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const clientMenuRef = useRef<HTMLDivElement>(null)
   // Bridge-urile Shop sunt editate ca `comenzi`; ramura Shop rămâne doar
@@ -199,7 +180,6 @@ export function EditOrderSheet({
     queueMicrotask(() => {
       setForm(formFromOrder(order))
       setClientMenuOpen(false)
-      setBlockedMessage('')
     })
   }, [open, order])
 
@@ -243,17 +223,16 @@ export function EditOrderSheet({
     )
   }, [form.status, isShop])
 
-  const updateDeliveryLocation = (
-    locality: LocalityConfig | null,
-    village: VillageConfig | null,
-    street: string,
-  ) => {
-    setForm((current) => ({ ...current, locality, village, street }))
-  }
-
   const normalizePhoneOnBlur = () => {
     const normalized = normalizeRomanianMobilePhone(form.phone)
     if (normalized) setForm((current) => ({ ...current, phone: normalized }))
+  }
+
+  const keepMobileFieldVisible = (element: HTMLElement) => {
+    if (!window.matchMedia('(max-width: 767px)').matches) return
+    window.setTimeout(() => {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
   }
 
   const save = async () => {
@@ -282,18 +261,15 @@ export function EditOrderSheet({
     const location =
       form.deliveryMode === 'ridicare'
         ? 'Ridicare la fermă (Văratec)'
-        : buildDeliveryLocation(form.locality, form.village, form.street)
+        : form.deliveryAddress.trim()
 
     setSaving(true)
     try {
       if (isShop) {
         const initial = formFromOrder(order)
-        const deliveryCity = form.village?.name ?? form.locality?.name ?? ''
-        const initialDeliveryCity =
-          initial.village?.name ?? initial.locality?.name ?? ''
-        const deliveryAddress = form.deliveryMode === 'livrare' ? form.street.trim() : ''
+        const deliveryAddress = form.deliveryMode === 'livrare' ? form.deliveryAddress.trim() : ''
         const initialDeliveryAddress =
-          initial.deliveryMode === 'livrare' ? initial.street.trim() : ''
+          initial.deliveryMode === 'livrare' ? initial.deliveryAddress.trim() : ''
         const payload: Record<string, unknown> = {}
 
         if (form.customerName.trim() !== initial.customerName.trim()) {
@@ -309,11 +285,10 @@ export function EditOrderSheet({
           payload.delivery_mode = form.deliveryMode
         }
         if (
-          deliveryAddress !== initialDeliveryAddress ||
-          deliveryCity !== initialDeliveryCity
+          deliveryAddress !== initialDeliveryAddress
         ) {
           payload.delivery_address = deliveryAddress
-          payload.delivery_city = deliveryCity
+          payload.delivery_city = ''
         }
         if ((form.deliveryDate || null) !== (initial.deliveryDate || null)) {
           payload.delivery_date = form.deliveryDate || null
@@ -402,16 +377,15 @@ export function EditOrderSheet({
                 className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-card-muted)]"
                 onMouseDown={(event) => {
                   event.preventDefault()
-                  const selection = deriveDeliverySelection(client.adresa ?? '')
                   setForm((current) => ({
                     ...current,
                     clientId: client.id,
                     customerName: client.nume_client,
                     phone: client.telefon || current.phone,
-                    deliveryMode: selection.mode,
-                    locality: selection.locality,
-                    village: selection.village,
-                    street: selection.street,
+                    deliveryMode: client.adresa?.toLocaleLowerCase('ro-RO').startsWith('ridicare')
+                      ? 'ridicare'
+                      : current.deliveryMode,
+                    deliveryAddress: client.adresa || current.deliveryAddress,
                   }))
                   setClientMenuOpen(false)
                 }}
@@ -449,9 +423,12 @@ export function EditOrderSheet({
                 setForm((current) => ({
                   ...current,
                   deliveryMode: mode,
-                  locality: mode === 'ridicare' ? null : current.locality,
-                  village: mode === 'ridicare' ? null : current.village,
-                  street: mode === 'ridicare' ? '' : current.street,
+                  deliveryAddress:
+                    mode === 'ridicare'
+                      ? 'Ridicare la fermă (Văratec)'
+                      : current.deliveryAddress.startsWith('Ridicare la fermă')
+                        ? ''
+                        : current.deliveryAddress,
                 }))
               }
             >
@@ -462,35 +439,15 @@ export function EditOrderSheet({
       </div>
 
       {form.deliveryMode === 'livrare' ? (
-        <ErpLocalitySelector
-          selectedLocality={form.locality}
-          selectedVillage={form.village}
-          street={form.street}
-          blockedMessage={blockedMessage}
-          onSelectLocality={(locality) => {
-            setBlockedMessage('')
-            updateDeliveryLocation(locality, null, form.street)
-          }}
-          onSelectVillage={(village) => {
-            setBlockedMessage('')
-            updateDeliveryLocation(form.locality, village, form.street)
-          }}
-          onBlockedVillage={(village) =>
-            setBlockedMessage(village.blockedMessage ?? `Nu livrăm în ${village.name}.`)
-          }
-          onStreetChange={(street) =>
-            updateDeliveryLocation(form.locality, form.village, street)
-          }
-        />
-      ) : null}
-
-      {!isShop ? (
         <div className="space-y-1.5">
-          <Label htmlFor={`edit-order-kind-${order.id}`}>Tip comandă</Label>
+          <Label htmlFor={`edit-order-address-${order.id}`}>Adresă livrare</Label>
           <Input
-            id={`edit-order-kind-${order.id}`}
-            readOnly
-            value={ORDER_KIND_LABELS[manualOrderKind] ?? ORDER_KIND_LABELS.manual}
+            id={`edit-order-address-${order.id}`}
+            value={form.deliveryAddress}
+            placeholder="ex: Suceava, str. Unirii 12"
+            onChange={(event) =>
+              setForm((current) => ({ ...current, deliveryAddress: event.target.value }))
+            }
           />
         </div>
       ) : null}
@@ -539,12 +496,6 @@ export function EditOrderSheet({
         />
       </div>
 
-      {isShop && price !== 20 ? (
-        <p className="text-xs font-semibold text-[var(--status-warning-text)]">
-          ⚠ Prețul standard este 20 lei/caserolă
-        </p>
-      ) : null}
-
       <div className="flex items-center justify-between rounded-xl bg-[var(--surface-card-muted)] px-4 py-3">
         <span className="text-sm font-semibold text-[var(--text-secondary)]">Total calculat</span>
         <strong className="text-lg tabular-nums text-[var(--text-primary)]">
@@ -589,6 +540,7 @@ export function EditOrderSheet({
           className="min-h-[2.75rem] md:min-h-[3rem]"
           maxLength={1000}
           value={form.notes}
+          onFocus={(event) => keepMobileFieldVisible(event.currentTarget)}
           onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
         />
       </div>
@@ -609,12 +561,15 @@ export function EditOrderSheet({
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-[28px]">
+        <SheetContent
+          side="bottom"
+          className="flex h-dvh max-h-dvh flex-col overflow-hidden rounded-none border-x-0 border-y-0"
+        >
           <SheetHeader>
             <SheetTitle>Editează comanda</SheetTitle>
             <SheetDescription>{order.customerName}</SheetDescription>
           </SheetHeader>
-          {content}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{content}</div>
           <SheetFooter>{actions}</SheetFooter>
         </SheetContent>
       </Sheet>

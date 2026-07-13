@@ -97,6 +97,8 @@ interface FormDialogLayoutProps {
   hideHeader?: boolean
   showHandle?: boolean
   showCloseButton?: boolean
+  /** Pe mobil, formularul ocupă întreg viewport-ul dinamic. */
+  mobileFullHeight?: boolean
   /** De la `md+`: modal centrat mai lat, padding generos — mobilul rămâne pe lățimea compactă existentă. */
   desktopFormWide?: boolean
   /** De la `md+`: variantă compactă pentru formulare scurte (padding/înălțime reduse). */
@@ -116,6 +118,7 @@ export function FormDialogLayout({
   hideHeader,
   showHandle,
   showCloseButton = false,
+  mobileFullHeight = false,
   desktopFormWide = false,
   desktopFormCompact = false,
   isolateFromParentModal = false,
@@ -124,6 +127,7 @@ export function FormDialogLayout({
     <DialogContent
       aria-describedby={undefined}
       showCloseButton={showCloseButton}
+      mobileFullHeight={mobileFullHeight}
       onPointerDownOutside={
         isolateFromParentModal ? (event) => event.preventDefault() : undefined
       }
@@ -133,6 +137,8 @@ export function FormDialogLayout({
       }
       className={cn(
         'flex min-h-0 w-[min(96vw,720px)] max-h-[min(88dvh,860px)] flex-col gap-0 overflow-hidden rounded-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] p-0 shadow-[var(--agri-elevated-shadow)] sm:max-w-lg',
+        mobileFullHeight &&
+          'h-dvh max-h-dvh w-screen max-w-none rounded-none border-x-0 border-y-0 md:h-auto md:w-[min(96vw,720px)] md:max-h-[min(88dvh,860px)] md:rounded-[var(--agri-radius-lg)] md:border',
         desktopFormWide && 'md:w-[min(96vw,84rem)] md:max-w-none md:max-h-[min(92dvh,60rem)] md:rounded-2xl',
         desktopFormCompact && 'md:max-h-[min(82dvh,40rem)] md:rounded-[20px]',
         contentClassName,

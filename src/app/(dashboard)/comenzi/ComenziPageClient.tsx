@@ -228,11 +228,7 @@ const orderKindLabelMap: Record<ComandaOrderKind, string> = {
   consum_propriu: '🏠 Consum propriu',
 }
 
-const PRET_IMPLICIT_LEI_PER_KG = 40
-const CREATE_COMANDA_STATUS_OPTIONS = COMENZI_STATUSES.filter(
-  (status): status is ComandaStatus =>
-    status === 'noua' || status === 'confirmata' || status === 'in_livrare',
-)
+const PRET_IMPLICIT_LEI_PER_KG = 35
 
 function getComandaPillClassName(active: boolean) {
   return cn(
@@ -255,7 +251,6 @@ interface ComandaFormState {
   order_kind: ComandaOrderKind
   status: ComandaStatus
   observatii: string
-  salveaza_client_in_lista: boolean
 }
 
 function todayIso(): string {
@@ -559,11 +554,10 @@ function defaultFormState(status: ComandaStatus = 'noua'): ComandaFormState {
     data_comanda: todayIso(),
     data_livrare: todayIso(),
     cantitate_kg: '',
-    pret_per_kg: '',
+    pret_per_kg: String(PRET_IMPLICIT_LEI_PER_KG),
     order_kind: 'manual',
     status,
     observatii: '',
-    salveaza_client_in_lista: false,
   }
 }
 
@@ -586,7 +580,6 @@ function buildComandaDialogInitialFormState(params: {
         order_kind: initial.order_kind ?? 'manual',
         status: initial.status,
         observatii: initial.observatii ?? '',
-        salveaza_client_in_lista: false,
       }
     : {
         ...defaultFormState('confirmata'),
@@ -595,6 +588,13 @@ function buildComandaDialogInitialFormState(params: {
 
   const prefillClientId = baseForm.client_id
   const client = prefillClientId ? clienti.find((item) => item.id === prefillClientId) : undefined
+  const isZeroPriceOrder =
+    baseForm.order_kind === 'cadou' || baseForm.order_kind === 'consum_propriu'
+  const normalizedPrice = isZeroPriceOrder
+    ? '0'
+    : !initial && !baseForm.pret_per_kg.trim()
+      ? String(PRET_IMPLICIT_LEI_PER_KG)
+      : baseForm.pret_per_kg
 
   return {
     ...baseForm,
@@ -602,6 +602,7 @@ function buildComandaDialogInitialFormState(params: {
     client_nume_manual: prefillClientId ? '' : baseForm.client_nume_manual,
     telefon: client?.telefon || baseForm.telefon,
     locatie_livrare: client?.adresa || baseForm.locatie_livrare,
+    pret_per_kg: normalizedPrice,
   }
 }
 
@@ -971,10 +972,8 @@ function ComandaDialog({
   )
 
   // Logica vizibilitate câmpuri per tip comandă
-  const isConsumPropriu = form.order_kind === 'consum_propriu'
   const isCadou = form.order_kind === 'cadou'
   const isManual = form.order_kind === 'manual'
-  const isZeroPriceOrderKind = isCadou || isConsumPropriu
   const showClientFields = isManual || isCadou
   const showDeliveryFields = isManual
   const showPriceField = isManual
@@ -987,7 +986,6 @@ function ComandaDialog({
     form.client_nume_manual.trim() || selectedClient?.nume_client || displayedComboInput.trim() || 'Client'
   const canSaveContact = suggestedClientName.trim().length > 0 && resolvedPhone.trim().length > 0
   const isNewClientFlow = !form.client_id && form.client_nume_manual.trim().length > 0
-  const showSaveClientToggle = mode === 'create' && !selectedClient && isManual
   const previewKg = Number(form.cantitate_kg || 0)
   const previewPret = Number(form.pret_per_kg || 0)
   const previewTotal = Number.isFinite(previewKg) && Number.isFinite(previewPret) ? previewKg * previewPret : 0
@@ -1053,18 +1051,6 @@ function ComandaDialog({
     }
   }, [comboInput, comboOpen, updateComboDropdownLayout])
 
-  useEffect(() => {
-    if (isZeroPriceOrderKind && form.pret_per_kg !== '0') {
-      setForm((prev) => ({ ...prev, pret_per_kg: '0' }))
-    }
-  }, [form.pret_per_kg, isZeroPriceOrderKind])
-
-  useEffect(() => {
-    if (mode !== 'create' || !isManual || isZeroPriceOrderKind || hasEditedManualPrice) return
-    if (form.pret_per_kg.trim().length > 0) return
-    setForm((prev) => ({ ...prev, pret_per_kg: String(PRET_IMPLICIT_LEI_PER_KG) }))
-  }, [form.pret_per_kg, hasEditedManualPrice, isManual, isZeroPriceOrderKind, mode])
-
   const handleCreateOrderKindChange = useCallback(
     (nextOrderKind: ComandaOrderKind) => {
       setForm((prev) => {
@@ -1084,17 +1070,19 @@ function ComandaDialog({
           ...prev,
           order_kind: nextOrderKind,
           pret_per_kg: nextManualPrice,
-          status:
-            nextOrderKind === 'consum_propriu'
-              ? 'livrata'
-              : prev.status === 'livrata'
-              ? 'confirmata'
-              : prev.status,
+          status: mode === 'create' ? 'confirmata' : prev.status,
         }
       })
     },
-    [hasEditedManualPrice],
+    [hasEditedManualPrice, mode],
   )
+
+  const keepMobileFieldVisible = useCallback((element: HTMLElement) => {
+    if (!window.matchMedia('(max-width: 767px)').matches) return
+    window.setTimeout(() => {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 300)
+  }, [])
 
   const comboFiltered = useMemo(() => {
     const term = normalize(comboInput)
@@ -1110,13 +1098,10 @@ function ComandaDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={mode === 'create' ? 'Adaugă comandă' : 'Editează comandă'}
-      description={
-        mode === 'create'
-          ? 'Pregătești rapid o comandă nouă și verifici rezumatul înainte de salvare.'
-          : 'Actualizezi datele comenzii fără să schimbi fluxul existent de client și livrare.'
-      }
+      description={mode === 'edit' ? 'Actualizezi datele comenzii fără să schimbi fluxul existent de client și livrare.' : undefined}
       desktopFormWide
       showCloseButton
+      mobileFullHeight
       contentClassName="md:w-[min(96vw,76rem)] md:max-w-none md:max-h-[min(92dvh,54rem)] lg:w-[min(94vw,78rem)]"
       footer={
         <DialogFormActions
@@ -1179,25 +1164,6 @@ function ComandaDialog({
               )}
             </div>
 
-            {isManual && mode === 'create' ? (
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {CREATE_COMANDA_STATUS_OPTIONS.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      aria-pressed={form.status === status}
-                      className={getComandaPillClassName(form.status === status)}
-                      onClick={() => setForm((prev) => ({ ...prev, status }))}
-                    >
-                      {statusLabelMap[status]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             {/* ── 2. Câmpuri client (Manual + Cadou) ── */}
             {showClientFields ? (
               <>
@@ -1218,7 +1184,7 @@ function ComandaDialog({
                       onClick={() => {
                         setComboInput('')
                         setComboOpen(true)
-                        setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '', salveaza_client_in_lista: false }))
+                        setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: '' }))
                       }}
                     >
                       Schimbă
@@ -1277,7 +1243,6 @@ function ComandaDialog({
                                       client_nume_manual: '',
                                       telefon: client.telefon || prev.telefon,
                                       locatie_livrare: client.adresa || prev.locatie_livrare,
-                                      salveaza_client_in_lista: false,
                                     }))
                                   }}
                                 >
@@ -1340,24 +1305,6 @@ function ComandaDialog({
                   </div>
                 ) : null}
 
-                {showSaveClientToggle ? (
-                  <label className="flex items-start gap-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-1.5 text-sm text-[var(--text-primary)] shadow-[var(--shadow-soft)]">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 rounded border-[var(--agri-border)] text-[var(--agri-primary)]"
-                      checked={form.salveaza_client_in_lista}
-                      onChange={(event) =>
-                        setForm((prev) => ({ ...prev, salveaza_client_in_lista: event.target.checked }))
-                      }
-                    />
-                    <span>
-                      <span className="block font-medium">Salvează și clientul în lista de clienți</span>
-                      <span className="block text-xs text-[var(--text-secondary)]">
-                        Creează client nou doar după confirmarea ta explicită.
-                      </span>
-                    </span>
-                  </label>
-                ) : null}
               </>
             ) : null}
 
@@ -1559,6 +1506,7 @@ function ComandaDialog({
               <Textarea
                 className="agri-control min-h-[2.75rem] md:min-h-[2.25rem]"
                 value={form.observatii}
+                onFocus={(event) => keepMobileFieldVisible(event.currentTarget)}
                 onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
               />
             </div>
@@ -1584,6 +1532,7 @@ function ComandaDialog({
                 <Textarea
                   className="agri-control min-h-[3rem]"
                   value={form.observatii}
+                  onFocus={(event) => keepMobileFieldVisible(event.currentTarget)}
                   onChange={(e) => setForm((prev) => ({ ...prev, observatii: e.target.value }))}
                 />
               </CollapsibleContent>
@@ -1883,6 +1832,20 @@ export function ComenziPageClient() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) => updateComanda(id, payload),
+    onMutate: async (variables) => {
+      if (!variables.payload.status) return { previousComenzi: undefined }
+
+      await queryClient.cancelQueries({ queryKey: queryKeys.comenzi })
+      const previousComenzi = queryClient.getQueryData<Comanda[]>(queryKeys.comenzi)
+      queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current = []) =>
+        current.map((comanda) =>
+          comanda.id === variables.id
+            ? { ...comanda, status: variables.payload.status as ComandaStatus }
+            : comanda,
+        ),
+      )
+      return { previousComenzi }
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
@@ -1894,13 +1857,18 @@ export function ComenziPageClient() {
       track('comanda_edit', { id: variables.id })
       hapticSuccess()
       if (variables.payload.status === 'in_livrare') {
-        toast('Comanda mutată în livrări 🚚')
+        const movedOrder = comenzi.find((comanda) => comanda.id === variables.id)
+        const movedName = movedOrder ? getClientName(movedOrder, clientMap) : 'Comanda'
+        toast.success(`${movedName} mutată în Livrări ✓`)
       } else {
         toast.success('Comanda actualizată')
       }
       setEditing(null)
     },
-    onError: (err: Error) => {
+    onError: (err: Error, _variables, context) => {
+      if (context?.previousComenzi) {
+        queryClient.setQueryData(queryKeys.comenzi, context.previousComenzi)
+      }
       hapticError()
       const stockSnapshot = parseStocInsuficientError(err)
       if (stockSnapshot) {
@@ -2141,7 +2109,7 @@ export function ComenziPageClient() {
     () =>
       unifiedAllOrders.filter(
         (item) =>
-          isUnifiedOpenStatus(item.status) &&
+          item.status === 'programata' &&
           Boolean(getUnifiedOrderEffectiveDate(item)),
       ).length,
     [unifiedAllOrders],
@@ -2182,11 +2150,9 @@ export function ComenziPageClient() {
 
     return unifiedAllOrders.filter((item) => {
       if (activeTab === 'de_livrat' && item.status !== 'noua' && item.status !== 'confirmata') return false
-      if (
-        activeTab === 'programate' &&
-        !(item.status === 'programata' && Boolean(getUnifiedOrderEffectiveDate(item)))
-      ) {
-        return false
+      if (activeTab === 'programate') {
+        if (item.status === 'in_livrare') return false
+        if (item.status !== 'programata' || !getUnifiedOrderEffectiveDate(item)) return false
       }
       if (activeTab === 'livrate' && item.status !== 'livrata') return false
       if (
@@ -2327,7 +2293,7 @@ export function ComenziPageClient() {
       return
     }
 
-    if (values.status === 'in_livrare' || values.order_kind === 'consum_propriu') {
+    if (values.order_kind === 'consum_propriu') {
       const canContinue = await guardStocPentruInLivrare(cantitate)
       if (!canContinue) return
     }
@@ -2352,7 +2318,9 @@ export function ComenziPageClient() {
       clientName: values.client_nume_manual || '',
       rawPhone: values.telefon || '',
       address: values.locatie_livrare || '',
-      saveClientRequested: values.salveaza_client_in_lista,
+      saveClientRequested: Boolean(
+        values.client_nume_manual.trim() && values.telefon.trim(),
+      ),
     })
 
     if (clientPersistencePlan.action === 'invalid') {
@@ -2372,7 +2340,7 @@ export function ComenziPageClient() {
         cantitate_kg: cantitate,
         pret_per_kg: pret,
         order_kind: values.order_kind,
-        status: values.order_kind === 'consum_propriu' ? 'confirmata' : values.status,
+        status: 'confirmata',
         observatii: values.observatii || null,
       },
       clientPersistencePlan,

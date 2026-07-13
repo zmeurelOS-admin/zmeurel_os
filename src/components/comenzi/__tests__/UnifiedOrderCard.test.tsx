@@ -183,7 +183,7 @@ describe('UnifiedOrderCard', () => {
     expect(screen.queryByRole('button', { name: /bonus/i })).not.toBeInTheDocument()
   })
 
-  it('afișează cardul shop collapsed implicit și deschide body-ul la tap pe header', async () => {
+  it('afișează telefonul apelabil direct și deschide body-ul la tap pe header', async () => {
     const user = userEvent.setup()
     render(
       <UnifiedOrderCard
@@ -196,9 +196,9 @@ describe('UnifiedOrderCard', () => {
       name: 'Arată detaliile comenzii pentru Maria Popescu',
     })
     expect(header).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByText('0740 123 456').closest('[aria-hidden]')).toHaveAttribute(
-      'aria-hidden',
-      'true',
+    expect(screen.getByRole('link', { name: '0740 123 456' })).toHaveAttribute(
+      'href',
+      'tel:0740123456',
     )
 
     await user.click(header)
@@ -206,10 +206,7 @@ describe('UnifiedOrderCard', () => {
     expect(
       screen.getByRole('button', { name: 'Ascunde detaliile comenzii pentru Maria Popescu' }),
     ).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText('0740 123 456').closest('[aria-hidden]')).toHaveAttribute(
-      'aria-hidden',
-      'false',
-    )
+    expect(screen.getByRole('link', { name: '0740 123 456' })).toBeVisible()
   })
 
   it('expune acțiunea de editare pentru comenzile shop', async () => {

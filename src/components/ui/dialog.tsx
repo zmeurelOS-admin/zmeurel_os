@@ -82,11 +82,17 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     showCloseButton?: boolean
+    mobileFullHeight?: boolean
   }
->(({ className, children, showCloseButton = true, ...props }, ref) => (
+>(({ className, children, showCloseButton = true, mobileFullHeight = false, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <div className="fixed inset-0 z-[1001] flex items-center justify-center p-4">
+    <div
+      className={cn(
+        "fixed inset-0 z-[1001] flex items-center justify-center",
+        mobileFullHeight ? "p-0 md:p-4" : "p-4",
+      )}
+    >
       <DialogPrimitive.Content
         ref={ref}
         className={cn(

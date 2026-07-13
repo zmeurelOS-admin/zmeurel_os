@@ -426,6 +426,18 @@ export function UnifiedOrderCard({
           </button>
         </div>
 
+        {phoneHref ? (
+          <div className="border-t border-[var(--divider)] px-3 py-1.5">
+            <a
+              href={phoneHref}
+              className="inline-flex min-h-9 max-w-full items-center gap-2 text-sm font-semibold text-[var(--info-text)] transition active:scale-[0.985]"
+            >
+              <Phone className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="truncate">{item.phone}</span>
+            </a>
+          </div>
+        ) : null}
+
         <DeliveryQuickActions
           item={item}
           disabled={disabled}
@@ -442,16 +454,6 @@ export function UnifiedOrderCard({
         >
           <div className="min-h-0 overflow-hidden">
             <div className="space-y-3 border-t border-[var(--divider)] px-3 py-3">
-              {phoneHref ? (
-                <a
-                  href={phoneHref}
-                  className="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-[var(--info-text)]"
-                >
-                  <Phone className="h-4 w-4 shrink-0" aria-hidden />
-                  <span className="truncate">{item.phone}</span>
-                </a>
-              ) : null}
-
               {!isTerminal ? (
                 <div className="space-y-3">
                   <div className="space-y-1.5">

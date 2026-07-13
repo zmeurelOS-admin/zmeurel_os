@@ -12,6 +12,7 @@ interface AppDialogProps {
   footer?: React.ReactNode
   contentClassName?: string
   showCloseButton?: boolean
+  mobileFullHeight?: boolean
   /** Modal mai lat pe `md+` (formulare desktop); sub `md` rămâne compact. */
   desktopFormWide?: boolean
   /** Variantă compactă desktop pentru formulare scurte (header/content/footer mai dense). */
@@ -29,6 +30,7 @@ export function AppDialog({
   footer,
   contentClassName,
   showCloseButton,
+  mobileFullHeight,
   desktopFormWide,
   desktopFormCompact,
   isolateFromParentModal,
@@ -41,6 +43,7 @@ export function AppDialog({
         footer={footer}
         contentClassName={contentClassName}
         showCloseButton={showCloseButton}
+        mobileFullHeight={mobileFullHeight}
         desktopFormWide={desktopFormWide}
         desktopFormCompact={desktopFormCompact}
         isolateFromParentModal={isolateFromParentModal}
