@@ -466,10 +466,17 @@ function buildProgramateGroups(
     byDate.set(effectiveDate, current)
   }
 
-  const groupDirection = sort === 'delivery_date_desc' ? -1 : 1
+  const today = todayIso()
 
   return [...byDate.entries()]
-    .sort(([dateA], [dateB]) => groupDirection * dateA.localeCompare(dateB))
+    .sort(([dateA], [dateB]) => {
+      if (sort === 'delivery_date_desc') return dateB.localeCompare(dateA)
+
+      // Restanțele se văd primele, apoi livrările de azi și cele viitoare.
+      const priorityA = dateA < today ? 0 : dateA === today ? 1 : 2
+      const priorityB = dateB < today ? 0 : dateB === today ? 1 : 2
+      return priorityA - priorityB || dateA.localeCompare(dateB)
+    })
     .map(([date, groupedOrders]) => {
       const sortedOrders = [...groupedOrders].sort((a, b) =>
         compareOrdersForSort(a, b, sort),
@@ -658,12 +665,13 @@ function PillTabs({
     { key: 'toate' as const, label: 'Toate' },
   ]
   return (
-    <ModulePillRow className="flex-nowrap overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <ModulePillRow className="grid grid-cols-3 gap-2">
       {tabs.map((tab) => (
         <ModulePillFilterButton
           key={tab.key}
           active={value === tab.key}
           onClick={() => onChange(tab.key)}
+          className="inline-flex min-h-11 w-full items-center justify-center whitespace-normal px-2 text-center leading-tight"
         >
           {tab.label}
         </ModulePillFilterButton>
@@ -671,13 +679,18 @@ function PillTabs({
       <ModulePillFilterButton
         active={receivablesActive}
         onClick={onOpenReceivables}
+        className="inline-flex min-h-11 w-full items-center justify-center whitespace-normal px-2 text-center leading-tight"
       >
         De încasat
         {receivableCount > 0
           ? ` ${receivableCount} · ${formatLeiCompact(receivableTotal)} lei`
           : ''}
       </ModulePillFilterButton>
-      <ModulePillFilterButton active={false} onClick={onOpenCampaign}>
+      <ModulePillFilterButton
+        active={false}
+        onClick={onOpenCampaign}
+        className="inline-flex min-h-11 w-full items-center justify-center px-2"
+      >
         <span aria-hidden="true">🎯</span>
         <span className="sr-only">Campanie</span>
       </ModulePillFilterButton>
@@ -828,6 +841,7 @@ function StocNecesarCard({
   stocDisponibilKg: number
 }) {
   const hasEnoughStock = stocDisponibilKg >= necesarKg
+  const diferentaKg = Math.abs(stocDisponibilKg - necesarKg)
 
   return (
     <div
@@ -846,7 +860,11 @@ function StocNecesarCard({
             Necesar livrări: {formatKgOneDecimal(necesarKg)}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">
-            Stoc cal1 disponibil: {formatKgOneDecimal(stocDisponibilKg)}
+            Ai nevoie de {formatKgOneDecimal(necesarKg)}, ai disponibil{' '}
+            {formatKgOneDecimal(stocDisponibilKg)}.{' '}
+            {hasEnoughStock
+              ? `Surplus: ${formatKgOneDecimal(diferentaKg)}.`
+              : `Lipsesc: ${formatKgOneDecimal(diferentaKg)}.`}
           </p>
         </div>
         <span
@@ -1602,6 +1620,7 @@ export function ComenziPageClient() {
   const [orderSort, setOrderSort] = useState<ComenziOrderSort>(() =>
     initialTab === 'programate' ? 'delivery_date' : 'created_at',
   )
+  const [showStocDetail, setShowStocDetail] = useState(false)
   const [speedDialOpen, setSpeedDialOpen] = useState(false)
   const [dinMesajOpen, setDinMesajOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -2387,12 +2406,24 @@ export function ComenziPageClient() {
           onOpenReceivables={() => setFilterAndTab('livrate', 'neincasat')}
         />
 
-        <StocPills
-          stocDisponibil={totalStocDisponibilKg}
-          inLivrare={kgInLivrare}
-          angajat={kgAngajat}
-          livratAzi={kgLivratAzi}
-        />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="min-h-10 px-1 text-xs font-semibold text-[var(--text-secondary)] underline-offset-4 transition hover:text-[var(--text-primary)] hover:underline"
+            aria-expanded={showStocDetail}
+            onClick={() => setShowStocDetail((current) => !current)}
+          >
+            Detalii stoc {showStocDetail ? '▴' : '▾'}
+          </button>
+        </div>
+        {showStocDetail ? (
+          <StocPills
+            stocDisponibil={totalStocDisponibilKg}
+            inLivrare={kgInLivrare}
+            angajat={kgAngajat}
+            livratAzi={kgLivratAzi}
+          />
+        ) : null}
 
         <SearchField
           containerClassName="md:hidden"
@@ -2426,9 +2457,9 @@ export function ComenziPageClient() {
             <SelectContent>
               <SelectItem value="created_at">Dată plasare ↑</SelectItem>
               <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
-              <SelectItem value="delivery_date">Dată livrare ↑</SelectItem>
+              <SelectItem value="delivery_date">Cel mai apropiat (restanțe primele)</SelectItem>
               {activeTab === 'programate' ? (
-                <SelectItem value="delivery_date_desc">Dată livrare (azi primul) ↓</SelectItem>
+                <SelectItem value="delivery_date_desc">Cel mai îndepărtat</SelectItem>
               ) : null}
               <SelectItem value="locality">Localitate / Zonă</SelectItem>
               <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
@@ -2484,6 +2515,7 @@ export function ComenziPageClient() {
                         <UnifiedOrderCard
                           key={getUnifiedSelectionId(item)}
                           item={item}
+                          variant="comenzi"
                           disabled={updateMutation.isPending}
                           onOpenB2bDetails={(id) => {
                             const comanda = comenzi.find((row) => row.id === id)
@@ -2542,6 +2574,7 @@ export function ComenziPageClient() {
                         <UnifiedOrderCard
                           key={getUnifiedSelectionId(item)}
                           item={item}
+                          variant="comenzi"
                           compact
                           disabled={updateMutation.isPending}
                           onOpenB2bDetails={(id) => {

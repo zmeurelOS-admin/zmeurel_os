@@ -39,6 +39,7 @@ export function ModulePillFilterButton({
   children,
   activeTone = 'primary',
   activeStyle = 'solid',
+  className,
 }: {
   active: boolean
   onClick: () => void
@@ -47,6 +48,7 @@ export function ModulePillFilterButton({
   activeTone?: 'primary' | 'danger'
   /** `minimal` = contur + text accent, fără bloc verde plin (dashboard curat). */
   activeStyle?: 'solid' | 'minimal'
+  className?: string
 }) {
   return (
     <button
@@ -61,6 +63,7 @@ export function ModulePillFilterButton({
             : active
               ? 'border border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] text-[var(--pill-active-text)]'
               : 'border border-[var(--pill-inactive-border)] bg-[var(--pill-inactive-bg)] text-[var(--pill-inactive-text)]',
+        className,
       )}
     >
       {children}

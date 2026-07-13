@@ -35,6 +35,22 @@ const order: ShopOrderRow = {
 }
 
 describe('UnifiedOrderCard', () => {
+  it('nu afișează badge-ul de status în varianta Comenzi', () => {
+    const { container } = render(
+      <UnifiedOrderCard item={mapShopToUnified(order)} variant="comenzi" />,
+    )
+
+    expect(container.querySelector('[data-testid="order-status-pill"]')).not.toBeInTheDocument()
+  })
+
+  it('păstrează badge-ul de status în varianta Livrări', () => {
+    const { container } = render(
+      <UnifiedOrderCard item={mapShopToUnified(order)} variant="livrari" />,
+    )
+
+    expect(container.querySelector('[data-testid="order-status-pill"]')).toHaveTextContent('În livrare')
+  })
+
   it('afișează reward-ul shop ca badge read-only', async () => {
     const user = userEvent.setup()
     render(<UnifiedOrderCard item={mapShopToUnified(order)} compact />)

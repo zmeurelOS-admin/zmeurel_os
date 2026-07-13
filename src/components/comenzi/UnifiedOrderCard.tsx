@@ -81,6 +81,7 @@ function StatusPill({ item }: { item: UnifiedOrderItem }) {
 
   return (
     <span
+      data-testid="order-status-pill"
       className={`inline-flex shrink-0 rounded-full border px-2 py-[3px] text-[11px] font-semibold leading-none ${toneClass}`}
     >
       {item.statusLabel}
@@ -171,8 +172,11 @@ export function UnifiedOrderCard({
   onShopNotifiedChange,
   onMarkPaid,
   onEdit,
+  variant = 'livrari',
 }: {
   item: UnifiedOrderItem
+  /** În Comenzi statusul rămâne control în detalii, nu badge permanent pe card. */
+  variant?: 'comenzi' | 'livrari'
   disabled?: boolean
   compact?: boolean
   selectable?: boolean
@@ -357,7 +361,7 @@ export function UnifiedOrderCard({
                 {item.customerName}
               </p>
               <OriginBadge item={item} />
-              <StatusPill item={item} />
+              {variant === 'livrari' ? <StatusPill item={item} /> : null}
               {isUnpaid ? <UnpaidBadge /> : null}
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
@@ -574,7 +578,7 @@ export function UnifiedOrderCard({
               ) : (
                 <span />
               )}
-              <StatusPill item={item} />
+              {variant === 'livrari' ? <StatusPill item={item} /> : null}
               {isUnpaid ? <UnpaidBadge /> : null}
             </div>
 
