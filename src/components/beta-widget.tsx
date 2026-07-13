@@ -79,7 +79,7 @@ export default function BetaWidget() {
           }}
         >
           {showExpanded ? (
-            <div className="relative w-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-800 md:shadow-xl">
+            <div className="relative w-[min(260px,calc(100vw-104px))] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-800 md:w-[260px] md:shadow-xl">
               <button
                 type="button"
                 className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2 dark:hover:bg-slate-700 dark:hover:text-slate-200"

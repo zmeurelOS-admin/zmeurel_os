@@ -249,6 +249,8 @@ export function UnifiedOrderCard({
           ? 'var(--indicator-magazin)'
           : 'var(--indicator-manual)'
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
+  const hasKnownLocality =
+    Boolean(item.localityLabel.trim()) && item.localityLabel !== 'Necunoscută'
   const blocksStatusWhatsApp =
     isCanonicalComanda &&
     (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
@@ -357,7 +359,7 @@ export function UnifiedOrderCard({
             className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <div className="flex flex-wrap items-center gap-1.5">
-              <p className="min-w-0 flex-1 truncate text-[14px] font-bold leading-tight text-[var(--text-primary)]">
+              <p className="min-w-0 flex-1 line-clamp-2 text-[14px] font-bold leading-tight text-[var(--text-primary)]">
                 {item.customerName}
               </p>
               <OriginBadge item={item} />
@@ -366,13 +368,25 @@ export function UnifiedOrderCard({
             </div>
             <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
               <span className="min-w-0 flex-1 truncate">
-                {displayQuantityLabel} · {totalFormatted} lei ·{' '}
-                {item.localityLabel}
+                {displayQuantityLabel} · {totalFormatted} lei
+                {hasKnownLocality ? ` · ${item.localityLabel}` : ''}
               </span>
               <span className="shrink-0">{mobileDateLabel}</span>
             </div>
           </button>
         </div>
+
+        {!hasKnownLocality && variant === 'comenzi' && onEdit ? (
+          <div className="px-3 pb-2">
+            <button
+              type="button"
+              className="min-h-9 text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline"
+              onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+            >
+              + Adaugă adresă
+            </button>
+          </div>
+        ) : null}
 
         <div
           aria-hidden={!expanded}
@@ -549,7 +563,7 @@ export function UnifiedOrderCard({
               }`}
             >
               <p
-                className={`min-w-0 flex-1 truncate leading-tight text-[var(--text-primary)] ${
+                className={`min-w-0 flex-1 line-clamp-2 leading-tight text-[var(--text-primary)] ${
                   compact ? 'text-[12px] font-medium' : 'text-[15px] font-bold'
                 }`}
               >
@@ -591,8 +605,12 @@ export function UnifiedOrderCard({
               }`}
             >
               <span>{displayQuantityLabel} · {totalFormatted} lei</span>
-              <span className="text-[var(--text-tertiary)]"> · </span>
-              <span className="font-medium text-[var(--text-secondary)]">{item.localityLabel}</span>
+              {hasKnownLocality ? (
+                <>
+                  <span className="text-[var(--text-tertiary)]"> · </span>
+                  <span className="font-medium text-[var(--text-secondary)]">{item.localityLabel}</span>
+                </>
+              ) : null}
               {item.deliveryDate ? (
                 <>
                   <span className="text-[var(--text-tertiary)]"> · </span>
@@ -602,6 +620,15 @@ export function UnifiedOrderCard({
                 </>
               ) : null}
             </button>
+            {!hasKnownLocality && variant === 'comenzi' && onEdit ? (
+              <button
+                type="button"
+                className="mt-1 min-h-8 text-xs font-semibold text-[var(--primary)] underline-offset-4 hover:underline"
+                onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+              >
+                + Adaugă adresă
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

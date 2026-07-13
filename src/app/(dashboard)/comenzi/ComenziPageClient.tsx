@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Check, ChevronDown, UserRoundPlus } from 'lucide-react'
+import { Check, ChevronDown, Search, UserRoundPlus, X } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -689,10 +689,10 @@ function PillTabs({
       <ModulePillFilterButton
         active={false}
         onClick={onOpenCampaign}
-        className="inline-flex min-h-11 w-full items-center justify-center px-2"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 px-2"
       >
         <span aria-hidden="true">🎯</span>
-        <span className="sr-only">Campanie</span>
+        <span>Campanie</span>
       </ModulePillFilterButton>
     </ModulePillRow>
   )
@@ -780,6 +780,7 @@ function UnifiedOrderGroupSection({
   orderCount,
   quantitySummary,
   necesarKg,
+  totalKg,
   showHeader = true,
   scheduledView = false,
   referenceDate,
@@ -789,6 +790,7 @@ function UnifiedOrderGroupSection({
   orderCount: number
   quantitySummary: string
   necesarKg?: number
+  totalKg?: number
   showHeader?: boolean
   scheduledView?: boolean
   referenceDate?: string
@@ -800,9 +802,9 @@ function UnifiedOrderGroupSection({
     : date
       ? new Intl.DateTimeFormat('ro-RO', {
           day: 'numeric',
-          month: 'long',
+          month: 'short',
           timeZone: 'UTC',
-        }).format(new Date(`${date}T12:00:00.000Z`))
+        }).format(new Date(`${date}T12:00:00.000Z`)).replace(/\./g, '')
       : 'Comenzi'
   const relativeLabel =
     scheduledView && date
@@ -810,8 +812,13 @@ function UnifiedOrderGroupSection({
       : null
   const label =
     scheduledView && date
-      ? `📅 ${baseLabel}${relativeLabel ? ` · ${relativeLabel}` : ''}`
+      ? `📅 ${relativeLabel === 'Azi' ? 'Azi' : baseLabel}`
       : baseLabel
+  const showNecesarKg =
+    typeof necesarKg === 'number' &&
+    necesarKg > 0 &&
+    typeof totalKg === 'number' &&
+    Math.abs(necesarKg - totalKg) >= 0.05
 
   return (
     <section className={showHeader ? 'space-y-3' : undefined}>
@@ -825,7 +832,7 @@ function UnifiedOrderGroupSection({
         >
           {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
           {quantitySummary ? ` · ${quantitySummary}` : ''}
-          {typeof necesarKg === 'number' && necesarKg > 0 ? ` · ${formatKgOneDecimal(necesarKg)} necesari` : ''}
+          {showNecesarKg ? ` · ${formatKgOneDecimal(necesarKg)} necesari` : ''}
         </div>
       ) : null}
       {children}
@@ -1621,6 +1628,7 @@ export function ComenziPageClient() {
     initialTab === 'programate' ? 'delivery_date' : 'created_at',
   )
   const [showStocDetail, setShowStocDetail] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [speedDialOpen, setSpeedDialOpen] = useState(false)
   const [dinMesajOpen, setDinMesajOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -2301,7 +2309,7 @@ export function ComenziPageClient() {
         />
       )}
     >
-      <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 py-3 sm:mt-0 sm:py-3">
+      <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 pb-16 pt-3 sm:mt-0 sm:py-3 md:pb-3">
         {(operationalSnapshot.activeTotalCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
           <div className="space-y-2">
             <ModuleScoreboard className="gap-x-3.5 gap-y-2">
@@ -2425,13 +2433,33 @@ export function ComenziPageClient() {
           />
         ) : null}
 
-        <SearchField
-          containerClassName="md:hidden"
-          placeholder="Caută după client sau telefon..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          aria-label="Caută comenzi"
-        />
+        <div className="flex min-h-11 items-center justify-end gap-2 md:hidden">
+          {mobileSearchOpen ? (
+            <div className="min-w-0 flex-1 animate-in fade-in slide-in-from-right-2 duration-200">
+              <SearchField
+                autoFocus
+                containerClassName="w-full"
+                className="h-11"
+                placeholder="Client sau telefon..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Caută comenzi"
+              />
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
+            aria-label={mobileSearchOpen ? 'Închide căutarea' : 'Deschide căutarea'}
+            aria-expanded={mobileSearchOpen}
+            onClick={() => {
+              if (mobileSearchOpen) setSearch('')
+              setMobileSearchOpen((current) => !current)
+            }}
+          >
+            {mobileSearchOpen ? <X className="h-5 w-5" aria-hidden /> : <Search className="h-5 w-5" aria-hidden />}
+          </button>
+        </div>
 
         <DesktopToolbar className="hidden md:flex">
           <SearchField
@@ -2495,9 +2523,13 @@ export function ComenziPageClient() {
                       ? `${group.totalQty.toLocaleString('ro-RO')} kg`
                       : formatKgOneDecimal(group.totalQty * KG_PER_CASEROLĂ)
                     : ''
+                const totalKg = group.orders.reduce(
+                  (sum, item) => sum + getUnifiedOrderNeedKg(item),
+                  0,
+                )
                 const necesarKg =
                   activeTab === 'programate'
-                    ? group.orders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)
+                    ? totalKg
                     : undefined
                 return (
                   <UnifiedOrderGroupSection
@@ -2506,6 +2538,7 @@ export function ComenziPageClient() {
                     orderCount={group.orders.length}
                     quantitySummary={quantitySummary}
                     necesarKg={necesarKg}
+                    totalKg={totalKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
                     referenceDate={today}
@@ -2554,9 +2587,13 @@ export function ComenziPageClient() {
                       ? `${group.totalQty.toLocaleString('ro-RO')} kg`
                       : formatKgOneDecimal(group.totalQty * KG_PER_CASEROLĂ)
                     : ''
+                const totalKg = group.orders.reduce(
+                  (sum, item) => sum + getUnifiedOrderNeedKg(item),
+                  0,
+                )
                 const necesarKg =
                   activeTab === 'programate'
-                    ? group.orders.reduce((sum, item) => sum + getUnifiedOrderNeedKg(item), 0)
+                    ? totalKg
                     : undefined
                 return (
                   <UnifiedOrderGroupSection
@@ -2565,6 +2602,7 @@ export function ComenziPageClient() {
                     orderCount={group.orders.length}
                     quantitySummary={quantitySummary}
                     necesarKg={necesarKg}
+                    totalKg={totalKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
                     referenceDate={today}

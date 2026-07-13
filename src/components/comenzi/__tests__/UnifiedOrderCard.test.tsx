@@ -35,6 +35,35 @@ const order: ShopOrderRow = {
 }
 
 describe('UnifiedOrderCard', () => {
+  it('afișează numele lung pe maximum două rânduri în Comenzi', () => {
+    const longNameOrder = {
+      ...order,
+      customer_name: 'Mariana Savin-Giosan cu un nume foarte lung',
+    }
+    render(<UnifiedOrderCard item={mapShopToUnified(longNameOrder)} variant="comenzi" />)
+
+    expect(screen.getByText(longNameOrder.customer_name)).toHaveClass('line-clamp-2')
+  })
+
+  it('înlocuiește localitatea necunoscută cu acțiunea de adăugare a adresei', async () => {
+    const user = userEvent.setup()
+    const onEdit = vi.fn()
+    const withoutAddress = mapShopToUnified({
+      ...order,
+      delivery_address: null,
+      delivery_city: null,
+      delivery_zone: null,
+    })
+
+    render(
+      <UnifiedOrderCard item={withoutAddress} variant="comenzi" onEdit={onEdit} />,
+    )
+
+    expect(screen.queryByText('Necunoscută')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '+ Adaugă adresă' }))
+    expect(onEdit).toHaveBeenCalledWith(order.id, 'shop')
+  })
+
   it('nu afișează badge-ul de status în varianta Comenzi', () => {
     const { container } = render(
       <UnifiedOrderCard item={mapShopToUnified(order)} variant="comenzi" />,
