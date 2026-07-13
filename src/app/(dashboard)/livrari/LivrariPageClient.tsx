@@ -44,53 +44,32 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   getUnifiedOrderEffectiveDate,
-  KG_PER_CASEROLĂ,
   mapB2bToUnified,
-  mapShopToUnified,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
 import { queryKeys } from '@/lib/query-keys'
-import {
-  formatItemsHuman,
-  formatLei,
-  todayBucharestDate,
-  type ShopOrderStatus,
-  type ShopOrderRow,
-} from '@/lib/shop/b2c-order-helpers'
-import {
-  fetchShopOrdersInLivrare,
-  fetchShopOrdersScheduledToday,
-  reorderShopDeliveriesToday,
-} from '@/lib/shop/shop-orders-queries'
+import { formatLei, todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import { getClienți, type Client } from '@/lib/supabase/queries/clienti'
 import {
   deliverComanda,
-  deliverShopOrderPartial,
-  fetchComenziManualInLivrare,
+  getComenzi,
   updateComanda,
   type Comanda,
   type ComandaPaymentStatus,
 } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
 
-type EditTarget =
-  | { type: 'shop'; order: ShopOrderRow }
-  | { type: 'manual'; order: Comanda }
-  | null
+type EditTarget = Comanda | null
 
 type DeliveryTarget = UnifiedOrderItem & {
   total_lei: number
   cantitate_kg: number
   customer_name: string
   delivery_address: string | null
-  _shopOrder?: ShopOrderRow
   _comanda?: Comanda
 }
 
 function getDeliverableKg(order: UnifiedOrderItem): number {
-  if (order.source === 'shop') {
-    return Math.round(order.quantity * KG_PER_CASEROLĂ * 100) / 100
-  }
   return Math.round(order.quantity * 100) / 100
 }
 
@@ -105,31 +84,8 @@ function compareUnifiedDeliveryFifo(a: UnifiedOrderItem, b: UnifiedOrderItem): n
   return a.id.localeCompare(b.id)
 }
 
-async function patchShopOrder(input: {
-  id: string
-  status?: ShopOrderStatus
-  delivery_date?: string | null
-  notified_wa?: boolean
-  status_plata?: ComandaPaymentStatus
-}): Promise<void> {
-  const response = await fetch(`/api/shop/b2c/orders/${input.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
-  const json = (await response.json()) as { success?: boolean; error?: string }
-  if (!response.ok || !json.success) {
-    throw new Error(json.error ?? 'Nu am putut actualiza comanda din shop.')
-  }
-}
-
 function toDeliveryTarget(order: UnifiedOrderItem): DeliveryTarget {
-  const deliveryAddress =
-    order.source === 'shop'
-      ? [order.shopOrder?.delivery_address?.trim(), order.shopOrder?.delivery_city?.trim()]
-          .filter(Boolean)
-          .join(', ') || null
-      : order.b2bComanda?.locatie_livrare?.trim() || null
+  const deliveryAddress = order.b2bComanda?.locatie_livrare?.trim() || null
 
   return {
     ...order,
@@ -137,7 +93,6 @@ function toDeliveryTarget(order: UnifiedOrderItem): DeliveryTarget {
     cantitate_kg: getDeliverableKg(order),
     customer_name: order.customerName,
     delivery_address: deliveryAddress,
-    _shopOrder: order.shopOrder,
     _comanda: order.b2bComanda,
   }
 }
@@ -151,28 +106,18 @@ export function LivrariPageClient() {
   const [scheduledTodayExpanded, setScheduledTodayExpanded] = useState(false)
 
   const ordersQuery = useQuery({
-    queryKey: queryKeys.shopOrdersInLivrare,
-    queryFn: fetchShopOrdersInLivrare,
-  })
-  const scheduledTodayQuery = useQuery({
-    queryKey: queryKeys.shopOrdersScheduledToday(tenantId),
-    queryFn: () => fetchShopOrdersScheduledToday(tenantId!),
-    enabled: Boolean(tenantId),
-  })
-  const comenziManualQuery = useQuery({
-    queryKey: queryKeys.comenziManualInLivrare,
-    queryFn: fetchComenziManualInLivrare,
+    queryKey: queryKeys.comenzi,
+    queryFn: getComenzi,
   })
   const clientiQuery = useQuery({
     queryKey: queryKeys.clienti,
     queryFn: getClienți,
   })
 
-  const shopOrders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
-  const manualOrders = useMemo(() => comenziManualQuery.data ?? [], [comenziManualQuery.data])
-  const scheduledToday = useMemo(
-    () => scheduledTodayQuery.data ?? [],
-    [scheduledTodayQuery.data],
+  const allOrders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
+  const deliveryOrders = useMemo(
+    () => allOrders.filter((order) => order.status === 'in_livrare'),
+    [allOrders],
   )
   const clientMap = useMemo(() => {
     const map: Record<string, Client> = {}
@@ -181,18 +126,25 @@ export function LivrariPageClient() {
     }
     return map
   }, [clientiQuery.data])
+  const scheduledToday = useMemo(
+    () =>
+      allOrders
+        .filter(
+          (order) =>
+            order.data_livrare === todayBucharestDate() &&
+            (order.status === 'noua' || order.status === 'confirmata' || order.status === 'programata'),
+        )
+        .map((order) => mapB2bToUnified(order, clientMap)),
+    [allOrders, clientMap],
+  )
   const deliveryItems = useMemo(
     () =>
-      [
-        ...manualOrders.map((comanda) => mapB2bToUnified(comanda, clientMap)),
-        ...shopOrders.map((order) => mapShopToUnified(order)),
-      ].sort(compareUnifiedDeliveryFifo),
-    [clientMap, manualOrders, shopOrders],
+      deliveryOrders.map((comanda) => mapB2bToUnified(comanda, clientMap)).sort(compareUnifiedDeliveryFifo),
+    [clientMap, deliveryOrders],
   )
   const editUnified = useMemo(() => {
     if (!editTarget) return null
-    if (editTarget.type === 'shop') return mapShopToUnified(editTarget.order)
-    return mapB2bToUnified(editTarget.order, clientMap)
+    return mapB2bToUnified(editTarget, clientMap)
   }, [clientMap, editTarget])
   const totalLei = deliveryItems.reduce((sum, order) => sum + order.totalLei, 0)
   const kgB2b = deliveryItems
@@ -243,17 +195,6 @@ export function LivrariPageClient() {
     return result
   }, [customOrderIds, deliveryItems])
 
-  const reorderShopDeliveriesMutation = useMutation({
-    mutationFn: reorderShopDeliveriesToday,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Nu am putut salva ordinea livrărilor pentru livrator.')
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
-    },
-  })
-
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -272,17 +213,8 @@ export function LivrariPageClient() {
       const newIds = arrayMove(ids, from, to)
       saveOrder(newIds)
 
-      const today = todayBucharestDate()
-      const itemById = new Map(orderedDeliveryItems.map((item) => [item.id, item]))
-      const shopOrderIdsToday = newIds.filter((id) => {
-        const item = itemById.get(id)
-        return item?.source === 'shop' && getUnifiedOrderEffectiveDate(item) === today
-      })
-      if (shopOrderIdsToday.length > 0) {
-        reorderShopDeliveriesMutation.mutate(shopOrderIdsToday)
-      }
     },
-    [orderedDeliveryItems, saveOrder, reorderShopDeliveriesMutation],
+    [orderedDeliveryItems, saveOrder],
   )
 
   const sensors = useSensors(
@@ -299,34 +231,12 @@ export function LivrariPageClient() {
     () => orderedDeliveryItems.map(toDeliveryTarget),
     [orderedDeliveryItems],
   )
-  const isFetchingAny = ordersQuery.isFetching || comenziManualQuery.isFetching
+  const isFetchingAny = ordersQuery.isFetching
 
   const refreshAll = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.shopOrdersScheduledToday(tenantId),
-    })
-  }, [queryClient, tenantId])
-
-  const patchShopOrderMutation = useMutation({
-    mutationFn: patchShopOrder,
-    onSuccess: (_, variables) => {
-      if (variables.delivery_date !== undefined) {
-        toast.success(
-          variables.delivery_date
-            ? 'Data livrării a fost actualizată.'
-            : 'Data livrării a fost ștearsă.',
-        )
-      }
-      refreshAll()
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+  }, [queryClient])
 
   const updateManualOrderMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) =>
@@ -342,65 +252,6 @@ export function LivrariPageClient() {
       refreshAll()
     },
     onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
-
-  const markDeliveredMutation = useMutation({
-    mutationFn: async ({
-      order,
-      statusPlata,
-    }: {
-      order: ShopOrderRow
-      statusPlata: ComandaPaymentStatus
-    }) => {
-      const response = await fetch(`/api/shop/b2c/orders/${order.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'livrata', status_plata: statusPlata }),
-      })
-      const json = (await response.json()) as { success?: boolean; error?: string }
-      if (!response.ok || !json.success) {
-        throw new Error(json.error ?? 'Nu am putut marca livrarea.')
-      }
-      return order
-    },
-    onMutate: async ({ order }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.shopOrdersInLivrare })
-      const previous = queryClient.getQueryData<ShopOrderRow[]>(queryKeys.shopOrdersInLivrare)
-      const previousCount = queryClient.getQueryData<number>(
-        queryKeys.shopOrdersInLivrareCount,
-      )
-      queryClient.setQueryData<ShopOrderRow[]>(
-        queryKeys.shopOrdersInLivrare,
-        (current) => current?.filter((item) => item.id !== order.id) ?? [],
-      )
-      queryClient.setQueryData<number>(queryKeys.shopOrdersInLivrareCount, (current) =>
-        Math.max(0, (current ?? 1) - 1),
-      )
-      setDeliveredInSession((current) => [
-        toDeliveryTarget(mapShopToUnified({ ...order, status: 'livrata' })),
-        ...current.filter((item) => item.id !== order.id),
-      ])
-      setDeliverTarget(null)
-      return { previous, previousCount, order }
-    },
-    onSuccess: () => {
-      toast.success('Comandă livrată')
-      refreshAll()
-    },
-    onError: (error: Error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(queryKeys.shopOrdersInLivrare, context.previous)
-      }
-      if (context?.previousCount !== undefined) {
-        queryClient.setQueryData(queryKeys.shopOrdersInLivrareCount, context.previousCount)
-      }
-      if (context?.order) {
-        setDeliveredInSession((current) =>
-          current.filter((order) => order.id !== context.order.id),
-        )
-      }
       toast.error(error.message)
     },
   })
@@ -428,34 +279,8 @@ export function LivrariPageClient() {
         ...current.filter((item) => item.id !== result.deliveredOrder.id),
       ])
       setDeliverTarget(null)
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-    },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    },
-  })
-
-  const deliverPartialShopMutation = useMutation({
-    mutationFn: async ({
-      shopOrder,
-      kgLivrat,
-      statusPlata,
-    }: {
-      shopOrder: ShopOrderRow
-      kgLivrat: number
-      statusPlata: ComandaPaymentStatus
-    }) =>
-      deliverShopOrderPartial({
-        shopOrderId: shopOrder.id,
-        deliveredKg: kgLivrat,
-        statusPlata,
-      }),
-    onSuccess: () => {
-      toast.success('Livrare parțială înregistrată')
-      setDeliverTarget(null)
-      refreshAll()
     },
     onError: (error: Error) => {
       toast.error(error.message)
@@ -471,22 +296,14 @@ export function LivrariPageClient() {
           kgLivrat,
           statusPlata,
         })
-        return
-      }
-      if (deliverTarget.shopOrder) {
-        deliverPartialShopMutation.mutate({
-          shopOrder: deliverTarget.shopOrder,
-          kgLivrat,
-          statusPlata,
-        })
       }
     },
-    [deliverPartialManualMutation, deliverPartialShopMutation, deliverTarget],
+    [deliverPartialManualMutation, deliverTarget],
   )
 
   const handleManualStatusChange = useCallback(
     (id: string, status: Parameters<typeof updateComanda>[1]['status']) => {
-      const order = deliveryItems.find((item) => item.id === id && item.source === 'b2b')
+      const order = deliveryItems.find((item) => item.id === id)
       if (!order?.b2bComanda || !status) return
       if (status === 'livrata') {
         setDeliverTarget(toDeliveryTarget(order))
@@ -495,19 +312,6 @@ export function LivrariPageClient() {
       updateManualOrderMutation.mutate({ id, payload: { status } })
     },
     [deliveryItems, updateManualOrderMutation],
-  )
-
-  const handleShopStatusChange = useCallback(
-    (id: string, status: ShopOrderStatus) => {
-      const order = deliveryItems.find((item) => item.id === id && item.source === 'shop')
-      if (!order?.shopOrder) return
-      if (status === 'livrata') {
-        setDeliverTarget(toDeliveryTarget(order))
-        return
-      }
-      patchShopOrderMutation.mutate({ id, status })
-    },
-    [deliveryItems, patchShopOrderMutation],
   )
 
   const headerSubtitle =
@@ -540,7 +344,7 @@ export function LivrariPageClient() {
             disabled={isFetchingAny}
             onClick={() => {
               refreshAll()
-              void Promise.all([ordersQuery.refetch(), comenziManualQuery.refetch()])
+              void ordersQuery.refetch()
             }}
           >
             <RefreshCw className={isFetchingAny ? 'animate-spin' : ''} />
@@ -549,19 +353,17 @@ export function LivrariPageClient() {
       }
     >
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-8">
-        {ordersQuery.isLoading || comenziManualQuery.isLoading ? (
+        {ordersQuery.isLoading ? (
           <EntityListSkeleton count={3} />
         ) : null}
 
-        {ordersQuery.isError || comenziManualQuery.isError ? (
+        {ordersQuery.isError ? (
           <ErrorState
             title="Eroare la încărcare"
             message={
-              (ordersQuery.error as Error)?.message ??
-              (comenziManualQuery.error as Error)?.message ??
-              'Nu am putut încărca livrările.'
+              (ordersQuery.error as Error)?.message ?? 'Nu am putut încărca livrările.'
             }
-            onRetry={() => void Promise.all([ordersQuery.refetch(), comenziManualQuery.refetch()])}
+            onRetry={() => void ordersQuery.refetch()}
           />
         ) : null}
 
@@ -592,17 +394,17 @@ export function LivrariPageClient() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold">{order.customer_name}</p>
+                        <p className="truncate text-sm font-bold">{order.customerName}</p>
                         <p className="mt-1 line-clamp-2 text-xs text-[var(--text-secondary)]">
-                          {order.delivery_address?.trim() || 'Adresă necompletată'}
+                          {order.addressShort || 'Adresă necompletată'}
                         </p>
                       </div>
                       <span className="shrink-0 text-sm font-bold text-[var(--brand-coral)]">
-                        {formatLei(order.total_lei)} lei
+                        {formatLei(order.totalLei)} lei
                       </span>
                     </div>
                     <p className="mt-2 text-xs text-[var(--text-secondary)]">
-                      {formatItemsHuman(order.items)}
+                      {order.productsLabel}
                     </p>
                   </article>
                 ))}
@@ -612,9 +414,7 @@ export function LivrariPageClient() {
         ) : null}
 
         {!ordersQuery.isLoading &&
-        !comenziManualQuery.isLoading &&
         !ordersQuery.isError &&
-        !comenziManualQuery.isError &&
         deliveryItems.length > 0 ? (
           <section className="space-y-3">
             <header className="border-b border-[var(--divider)] pb-3">
@@ -672,10 +472,6 @@ export function LivrariPageClient() {
                           disabled
                           onB2bStatusChange={handleManualStatusChange}
                           onB2bDeliveryDateChange={() => undefined}
-                          onShopStatusChange={handleShopStatusChange}
-                          onShopConfirmedChange={() => undefined}
-                          onShopNotifiedChange={() => undefined}
-                          onShopDeliveryDateChange={() => undefined}
                           onEdit={() => undefined}
                         />
                       </SortableDeliveryCard>
@@ -694,10 +490,6 @@ export function LivrariPageClient() {
                               disabled
                               onB2bStatusChange={() => undefined}
                               onB2bDeliveryDateChange={() => undefined}
-                              onShopStatusChange={() => undefined}
-                              onShopConfirmedChange={() => undefined}
-                              onShopNotifiedChange={() => undefined}
-                              onShopDeliveryDateChange={() => undefined}
                               onEdit={() => undefined}
                             />
                           </div>
@@ -713,33 +505,16 @@ export function LivrariPageClient() {
                     key={`${order.source}-${order.id}`}
                     item={order}
                     disabled={
-                      markDeliveredMutation.isPending ||
                       deliverPartialManualMutation.isPending ||
-                      deliverPartialShopMutation.isPending ||
-                      patchShopOrderMutation.isPending ||
                       updateManualOrderMutation.isPending
                     }
                     onB2bStatusChange={handleManualStatusChange}
                     onB2bDeliveryDateChange={(id, data_livrare) => {
                       updateManualOrderMutation.mutate({ id, payload: { data_livrare } })
                     }}
-                    onShopStatusChange={handleShopStatusChange}
-                    onShopConfirmedChange={(id, confirmed) => {
-                      patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                    }}
-                    onShopNotifiedChange={(id, notified) => {
-                      patchShopOrderMutation.mutate({ id, notified_wa: notified })
-                    }}
-                    onShopDeliveryDateChange={(id, delivery_date) => {
-                      patchShopOrderMutation.mutate({ id, delivery_date })
-                    }}
-                    onEdit={(_, source) => {
-                      if (source === 'shop' && order.shopOrder) {
-                        setEditTarget({ type: 'shop', order: order.shopOrder })
-                        return
-                      }
-                      if (source === 'manual' && order.b2bComanda) {
-                        setEditTarget({ type: 'manual', order: order.b2bComanda })
+                    onEdit={() => {
+                      if (order.b2bComanda) {
+                        setEditTarget(order.b2bComanda)
                       }
                     }}
                   />
@@ -750,9 +525,7 @@ export function LivrariPageClient() {
         ) : null}
 
         {!ordersQuery.isLoading &&
-        !comenziManualQuery.isLoading &&
         !ordersQuery.isError &&
-        !comenziManualQuery.isError &&
         deliveryItems.length === 0 &&
         deliveredInSession.length === 0 ? (
           <div className="flex flex-col items-center rounded-[22px] bg-[var(--surface-card)] px-6 py-12 text-center shadow-[var(--shadow-soft)]">
@@ -779,31 +552,14 @@ export function LivrariPageClient() {
       <DeliveryConfirmationDialog
         key={deliverTarget ? `${deliverTarget.source}-${deliverTarget.id}` : 'closed'}
         order={deliverTarget}
-        pending={
-          markDeliveredMutation.isPending ||
-          (Boolean(deliverTarget?.b2bComanda) && deliverPartialManualMutation.isPending)
-        }
-        pendingPartial={
-          deliverPartialManualMutation.isPending || deliverPartialShopMutation.isPending
-        }
+        pending={deliverPartialManualMutation.isPending}
+        pendingPartial={deliverPartialManualMutation.isPending}
         onOpenChange={(open) => {
-          if (
-            !open &&
-            !markDeliveredMutation.isPending &&
-            !deliverPartialManualMutation.isPending &&
-            !deliverPartialShopMutation.isPending
-          ) {
+          if (!open && !deliverPartialManualMutation.isPending) {
             setDeliverTarget(null)
           }
         }}
         onConfirm={(statusPlata) => {
-          if (deliverTarget?.shopOrder) {
-            markDeliveredMutation.mutate({
-              order: deliverTarget.shopOrder,
-              statusPlata,
-            })
-            return
-          }
           if (deliverTarget?.b2bComanda) {
             const kg = getDeliverableKg(deliverTarget)
             if (kg > 0) {
@@ -818,15 +574,14 @@ export function LivrariPageClient() {
 
       {editTarget && editUnified ? (
         <EditOrderSheet
-          key={`edit-${editTarget.type}-${editTarget.order.id}`}
+          key={`edit-${editTarget.id}`}
           open
           order={editUnified}
           clienti={clientiQuery.data ?? []}
           onOpenChange={(open) => !open && setEditTarget(null)}
           onSaved={() => {
             setEditTarget(null)
-            void queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
-            void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
           }}
         />
       ) : null}

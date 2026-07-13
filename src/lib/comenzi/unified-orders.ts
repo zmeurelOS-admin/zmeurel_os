@@ -1,6 +1,5 @@
 import type { Comanda, ComandaStatus } from '@/lib/supabase/queries/comenzi'
 import type { Client } from '@/lib/supabase/queries/clienti'
-import { MAGAZIN_DATA_ORIGIN } from '@/lib/comenzi/magazin-groups'
 import {
   formatItemsHuman,
   type ShopOrderRow,
@@ -45,6 +44,18 @@ export type UnifiedOrderGroup = {
 }
 
 export const KG_PER_CASEROLĂ = 0.5
+
+/**
+ * Originea este strict un detaliu de prezentare. Toate rândurile afișate de
+ * dashboard provin din `comenzi`; un bridge Shop primește doar badge-ul Shop.
+ */
+export function isShopOrderOrigin(dataOrigin: string | null | undefined): boolean {
+  return (
+    dataOrigin === 'shop_order_bridge' ||
+    dataOrigin === 'magazin_public' ||
+    dataOrigin === 'magazin_asociatie'
+  )
+}
 
 export interface ComenziOperationalSnapshot {
   activeTotalCount: number
@@ -151,7 +162,7 @@ export function mapB2bToUnified(comanda: Comanda, clientMap: Record<string, Clie
 
   return {
     id: comanda.id,
-    source: 'b2b',
+    source: isShopOrderOrigin(comanda.data_origin) ? 'shop' : 'b2b',
     orderKind: comanda.order_kind ?? null,
     clientTip: clientMap[comanda.client_id ?? '']?.tip ?? 'standard',
     createdAt: comanda.created_at,
@@ -221,12 +232,7 @@ export function isUnifiedOpenStatus(status: string): boolean {
 }
 
 export function isManualOrderActiveForComenziTab(comanda: Comanda): boolean {
-  return (
-    comanda.data_origin !== MAGAZIN_DATA_ORIGIN &&
-    comanda.data_origin !== 'shop_order_bridge' &&
-    comanda.status !== 'livrata' &&
-    comanda.status !== 'anulata'
-  )
+  return comanda.status !== 'livrata' && comanda.status !== 'anulata'
 }
 
 function getShopOrderKg(order: ShopOrderRow): number {
@@ -241,8 +247,29 @@ function getShopOrderKg(order: ShopOrderRow): number {
 
 export function getComenziOperationalSnapshot(
   comenzi: Comanda[],
-  shopOrders: ShopOrderRow[],
+  shopOrders?: ShopOrderRow[],
 ): ComenziOperationalSnapshot {
+  // Modulul Comenzi/Livrări nu mai transmite shopOrders: bridge-urile sunt
+  // deja rânduri canonice în `comenzi` și trebuie numărate o singură dată.
+  if (!shopOrders) {
+    const statusAngajat = new Set<ComandaStatus>(['noua', 'confirmata', 'programata'])
+    return {
+      activeTotalCount: comenzi.filter(
+        (item) => item.status !== 'in_livrare' && isUnifiedOpenStatus(item.status),
+      ).length,
+      kgInLivrare: Math.round(
+        comenzi
+          .filter((item) => item.status === 'in_livrare')
+          .reduce((sum, item) => sum + Number(item.cantitate_kg ?? 0), 0) * 10,
+      ) / 10,
+      kgAngajat: Math.round(
+        comenzi
+          .filter((item) => statusAngajat.has(item.status))
+          .reduce((sum, item) => sum + Number(item.cantitate_kg ?? 0), 0) * 10,
+      ) / 10,
+    }
+  }
+
   const activeManualCount = comenzi.filter(isManualOrderActiveForComenziTab).length
 
   const shopActiveCount = shopOrders.filter(

@@ -1,9 +1,10 @@
 // src/lib/supabase/queries/investitii.ts
 
 import { getSupabase } from '../client'
+import { getFinancialMutationError } from '@/lib/financial/save-errors'
+import { resolveFinancialWriteContext } from '@/lib/financial/write-context'
 import { generateBusinessId } from '@/lib/supabase/business-ids'
 import { resolveInvestitieCategorie } from '@/lib/financial/categories'
-import { getTenantId } from '@/lib/tenant/get-tenant'
 
 // ===============================
 // CONSTANTS
@@ -134,8 +135,19 @@ export async function createInvestitie(
   input: CreateInvestitieInput
 ): Promise<Investitie> {
   const supabase = getSupabase()
-  const nextId = await generateBusinessId(supabase, 'INV')
-  const tenantId = await getTenantId(supabase)
+  const { tenantId } = await resolveFinancialWriteContext(supabase, 'investitii')
+
+  let nextId: string
+  try {
+    nextId = await generateBusinessId(supabase, 'INV')
+  } catch (error) {
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut genera ID-ul investiției.',
+      module: 'investitii',
+      operation: 'generate_business_id',
+      tableOrRpc: 'public.generate_business_id',
+    })
+  }
 
   const { data, error } = await supabase
     .from('investitii')
@@ -152,7 +164,14 @@ export async function createInvestitie(
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut salva investiția.',
+      module: 'investitii',
+      operation: 'insert',
+      tableOrRpc: 'public.investitii',
+    })
+  }
 
   return normalizeInvestitieRow(data as unknown as Record<string, unknown>)
 }
@@ -162,7 +181,7 @@ export async function updateInvestitie(
   input: UpdateInvestitieInput
 ): Promise<Investitie> {
   const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
+  const { tenantId } = await resolveFinancialWriteContext(supabase, 'investitii')
 
   const { data, error } = await supabase
     .from('investitii')
@@ -178,14 +197,21 @@ export async function updateInvestitie(
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut actualiza investiția.',
+      module: 'investitii',
+      operation: 'update',
+      tableOrRpc: 'public.investitii',
+    })
+  }
 
   return normalizeInvestitieRow(data as unknown as Record<string, unknown>)
 }
 
 export async function deleteInvestitie(id: string): Promise<void> {
   const supabase = getSupabase()
-  const tenantId = await getTenantId(supabase)
+  const { tenantId } = await resolveFinancialWriteContext(supabase, 'investitii')
 
   const { error } = await supabase
     .from('investitii')
@@ -193,6 +219,13 @@ export async function deleteInvestitie(id: string): Promise<void> {
     .eq('id', id)
     .eq('tenant_id', tenantId)
 
-  if (error) throw error
+  if (error) {
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut șterge investiția.',
+      module: 'investitii',
+      operation: 'delete',
+      tableOrRpc: 'public.investitii',
+    })
+  }
 }
 

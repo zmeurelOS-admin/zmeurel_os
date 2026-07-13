@@ -2,6 +2,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Check, ChevronDown, UserRoundPlus } from 'lucide-react'
@@ -83,6 +84,10 @@ import { downloadVCard } from '@/lib/utils/downloadVCard'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
 import {
+  calculateViewportDropdownLayout,
+  type ViewportDropdownLayout,
+} from '@/lib/ui/viewport-dropdown'
+import {
   getMagazinGroupOrders,
   isMagazinPublicOrder,
 } from '@/lib/comenzi/magazin-groups'
@@ -94,17 +99,12 @@ import {
 import {
   getUnifiedOrderEffectiveDate,
   getComenziOperationalSnapshot,
-  isManualOrderActiveForComenziTab,
   KG_PER_CASEROLĂ,
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
   mapB2bToUnified,
-  mapShopToUnified,
-  mergeUnifiedOrders,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
-import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
-import { fetchShopOrders } from '@/lib/shop/shop-orders-queries'
 import {
   DELIVERY_ZONES,
   type DeliveryZone,
@@ -203,15 +203,6 @@ type CreateClientMutationVariables = {
   onDuplicateWarning?: (existing: ClientDuplicateWarning) => void
 }
 
-type PatchShopOrderInput = {
-  id: string
-  status?: ShopOrderStatus
-  notified_wa?: boolean
-  delivery_date?: string | null
-  delivered_kg?: number
-  status_plata?: ComandaPaymentStatus
-}
-
 const statusLabelMap: Record<ComandaStatus, string> = {
   noua: 'Nouă',
   confirmata: 'Confirmată',
@@ -276,14 +267,6 @@ function tomorrowIso(): string {
   return tomorrow.toISOString().split('T')[0]
 }
 
-function formatCompactDateLabel(value: string): string {
-  if (!value) return 'Selectează data'
-  const parsed = new Date(`${value}T12:00:00`)
-  if (Number.isNaN(parsed.getTime())) return value
-  const prefix = value === todayIso() ? 'Azi · ' : ''
-  return `${prefix}${parsed.toLocaleDateString('ro-RO')}`
-}
-
 function formatDate(value: string | null | undefined): string {
   if (!value) return '-'
   const parsed = new Date(value)
@@ -312,32 +295,6 @@ function formatKgOneDecimal(value: number): string {
 
 function getUnifiedSelectionId(item: UnifiedOrderItem): string {
   return `${item.source}-${item.id}`
-}
-
-async function patchShopOrder(input: PatchShopOrderInput): Promise<void> {
-  const res = await fetch(`/api/shop/b2c/orders/${input.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.notified_wa !== undefined ? { notified_wa: input.notified_wa } : {}),
-      ...(input.delivery_date !== undefined ? { delivery_date: input.delivery_date } : {}),
-      ...(input.delivered_kg !== undefined ? { delivered_kg: input.delivered_kg } : {}),
-      ...(input.status_plata !== undefined ? { status_plata: input.status_plata } : {}),
-    }),
-  })
-  const json = (await res.json()) as {
-    success?: boolean
-    error?: string
-    code?: string
-    details?: string
-  }
-  if (!res.ok || !json.success) {
-    throw Object.assign(new Error(json.error ?? 'Actualizare eșuată'), {
-      code: json.code,
-      details: json.details,
-    })
-  }
 }
 
 function StocPills({
@@ -944,6 +901,9 @@ function ComandaDialog({
   const [mobileObservatiiOpen, setMobileObservatiiOpen] = useState(false)
   const [hasEditedManualPrice, setHasEditedManualPrice] = useState(false)
   const comboRef = useRef<HTMLDivElement>(null)
+  const comboInputRef = useRef<HTMLInputElement>(null)
+  const comboDropdownRef = useRef<HTMLDivElement>(null)
+  const [comboDropdownLayout, setComboDropdownLayout] = useState<ViewportDropdownLayout | null>(null)
   const lastManualPriceRef = useRef(
     initialFormState.pret_per_kg && initialFormState.pret_per_kg !== '0'
       ? initialFormState.pret_per_kg
@@ -976,15 +936,62 @@ function ComandaDialog({
   const summaryQuantity = Number.isFinite(previewKg) ? formatKg(previewKg) : '—'
   const summaryUnitPrice = Number.isFinite(previewPret) ? formatLei(previewPret) : '—'
 
+  const updateComboDropdownLayout = useCallback(() => {
+    const input = comboInputRef.current
+    if (!input) return
+
+    const rect = input.getBoundingClientRect()
+    const visualViewport = window.visualViewport
+    const viewportTop = visualViewport?.offsetTop ?? 0
+    const viewportLeft = visualViewport?.offsetLeft ?? 0
+    setComboDropdownLayout(
+      calculateViewportDropdownLayout(rect, {
+        top: viewportTop,
+        left: viewportLeft,
+        height: visualViewport?.height ?? window.innerHeight,
+        width: visualViewport?.width ?? window.innerWidth,
+        layoutHeight: window.innerHeight,
+      }),
+    )
+  }, [])
+
   useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (comboRef.current && !comboRef.current.contains(event.target as Node)) {
+    const handleOutsideClick = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (!comboRef.current?.contains(target) && !comboDropdownRef.current?.contains(target)) {
         setComboOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('pointerdown', handleOutsideClick)
+    return () => document.removeEventListener('pointerdown', handleOutsideClick)
   }, [])
+
+  useEffect(() => {
+    if (!comboOpen) return
+
+    let animationFrame = window.requestAnimationFrame(updateComboDropdownLayout)
+    const scheduleUpdate = () => {
+      window.cancelAnimationFrame(animationFrame)
+      animationFrame = window.requestAnimationFrame(updateComboDropdownLayout)
+    }
+    const visualViewport = window.visualViewport
+    const resizeObserver = new ResizeObserver(scheduleUpdate)
+
+    if (comboInputRef.current) resizeObserver.observe(comboInputRef.current)
+    window.addEventListener('resize', scheduleUpdate)
+    window.addEventListener('scroll', scheduleUpdate, true)
+    visualViewport?.addEventListener('resize', scheduleUpdate)
+    visualViewport?.addEventListener('scroll', scheduleUpdate)
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', scheduleUpdate)
+      window.removeEventListener('scroll', scheduleUpdate, true)
+      visualViewport?.removeEventListener('resize', scheduleUpdate)
+      visualViewport?.removeEventListener('scroll', scheduleUpdate)
+    }
+  }, [comboInput, comboOpen, updateComboDropdownLayout])
 
   useEffect(() => {
     if (isZeroPriceOrderKind && form.pret_per_kg !== '0') {
@@ -1168,6 +1175,7 @@ function ComandaDialog({
                   </Label>
                   <div className="relative">
                     <Input
+                      ref={comboInputRef}
                       id="comanda_client_combo"
                       className="agri-control h-10 md:h-9"
                       placeholder={isCadou ? 'Nume beneficiar (opțional)...' : 'Caută după nume sau telefon...'}
@@ -1181,52 +1189,65 @@ function ComandaDialog({
                         setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: val }))
                       }}
                     />
-                    {comboOpen && (
-                      <div className="absolute left-0 right-0 bottom-full z-50 mb-1 max-h-56 overflow-y-auto rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]">
-                        {comboFiltered.length === 0 ? (
-                          <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">
-                            Niciun client găsit — completează manual
-                          </p>
-                        ) : (
-                          comboFiltered.map((client) => (
+                    {comboOpen && comboDropdownLayout
+                      ? createPortal(
+                          <div
+                            ref={comboDropdownRef}
+                            role="listbox"
+                            aria-label="Sugestii clienți"
+                            className="pointer-events-auto fixed z-[1100] overflow-y-auto overscroll-contain rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-elevated)]"
+                            style={comboDropdownLayout}
+                          >
+                            {comboFiltered.length === 0 ? (
+                              <p className="px-3 py-2 text-sm text-[var(--text-secondary)]">
+                                Niciun client găsit
+                              </p>
+                            ) : (
+                              comboFiltered.map((client) => (
+                                <button
+                                  key={client.id}
+                                  type="button"
+                                  className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
+                                  onClick={() => {
+                                    setComboInput(client.nume_client)
+                                    setComboOpen(false)
+                                    setForm((prev) => ({
+                                      ...prev,
+                                      client_id: client.id,
+                                      client_nume_manual: '',
+                                      telefon: client.telefon || prev.telefon,
+                                      locatie_livrare: client.adresa || prev.locatie_livrare,
+                                      salveaza_client_in_lista: false,
+                                    }))
+                                  }}
+                                >
+                                  <span className="font-medium text-[var(--text-primary)]">
+                                    {client.nume_client}
+                                  </span>
+                                  {client.telefon ? (
+                                    <span className="text-[var(--text-secondary)]">— {client.telefon}</span>
+                                  ) : null}
+                                </button>
+                              ))
+                            )}
                             <button
-                              key={client.id}
                               type="button"
-                              className="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-sm hover:bg-[var(--soft-success-bg)]"
-                              onMouseDown={(e) => {
-                                e.preventDefault()
-                                setComboInput(client.nume_client)
+                              className="flex w-full items-center gap-1.5 border-t border-[var(--divider)] px-3 py-2.5 text-left text-sm font-medium text-[var(--success-text)] hover:bg-[var(--success-bg)]"
+                              onClick={() => {
                                 setComboOpen(false)
                                 setForm((prev) => ({
                                   ...prev,
-                                  client_id: client.id,
-                                  client_nume_manual: '',
-                                  telefon: client.telefon || prev.telefon,
-                                  locatie_livrare: client.adresa || prev.locatie_livrare,
-                                  salveaza_client_in_lista: false,
+                                  client_id: '',
+                                  client_nume_manual: comboInput,
                                 }))
                               }}
                             >
-                              <span className="font-medium text-[var(--text-primary)]">{client.nume_client}</span>
-                              {client.telefon ? (
-                                <span className="text-[var(--text-secondary)]">— {client.telefon}</span>
-                              ) : null}
+                              ➕ Client nou — completează manual
                             </button>
-                          ))
-                        )}
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-1.5 border-t border-[var(--divider)] px-3 py-2.5 text-left text-sm font-medium text-[var(--success-text)] hover:bg-[var(--success-bg)]"
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            setComboOpen(false)
-                            setForm((prev) => ({ ...prev, client_id: '', client_nume_manual: comboInput }))
-                          }}
-                        >
-                          ➕ Client nou — completează manual
-                        </button>
-                      </div>
-                    )}
+                          </div>,
+                          document.body,
+                        )
+                      : null}
                   </div>
                 </div>
 
@@ -1662,19 +1683,9 @@ export function ComenziPageClient() {
     queryFn: getComenzi,
   })
 
-  const {
-    data: shopOrders = [],
-    isLoading: shopOrdersLoading,
-    isError: shopOrdersError,
-    error: shopOrdersErrorObj,
-  } = useQuery({
-    queryKey: queryKeys.shopOrders,
-    queryFn: fetchShopOrders,
-  })
-
   useMobileScrollRestore({
     storageKey: 'scroll:comenzi',
-    ready: !isLoading && !shopOrdersLoading,
+    ready: !isLoading,
   })
 
   const { data: clienti = [] } = useQuery({
@@ -1973,56 +1984,6 @@ export function ComenziPageClient() {
     },
   })
 
-  const patchShopOrderMutation = useMutation({
-    mutationFn: patchShopOrder,
-    onSuccess: (_, variables) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
-
-      if (variables.delivery_date !== undefined) {
-        toast.success(
-          variables.delivery_date
-            ? 'Data livrării a fost actualizată'
-            : 'Data livrării a fost ștearsă',
-        )
-      }
-
-      if (variables.status === 'in_livrare') {
-        toast('Comanda mutată în livrări 🚚')
-        router.push('/livrari')
-      }
-
-      if (variables.status === 'livrata') {
-        setDeliveryTarget(null)
-        toast.success('Comanda a fost marcată ca livrată.')
-      }
-    },
-    onError: (err: Error) => {
-      hapticError()
-      const stockSnapshot = parseStocInsuficientError(err)
-      if (stockSnapshot) {
-        setStocInsuficientModal(stockSnapshot)
-        return
-      }
-      toast.error(err.message)
-    },
-  })
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
-    }, 30_000)
-    return () => clearInterval(interval)
-  }, [queryClient])
-
   useEffect(() => {
     if (!canWriteComenzi) return
     const unregister = registerAddAction(() => {
@@ -2064,45 +2025,15 @@ export function ComenziPageClient() {
   }
 
   const today = todayIso()
-  const manualComenzi = useMemo(
-    () =>
-      comenzi.filter(
-        (item) =>
-          !isMagazinPublicOrder(item) &&
-          item.data_origin !== 'shop_order_bridge',
-      ),
-    [comenzi],
-  )
-  const activeComenzi = useMemo(
-    () => manualComenzi.filter((item) => isOpenStatus(item.status)),
-    [manualComenzi],
-  )
+  const manualComenzi = comenzi
   const livrateComenzi = useMemo(
     () => manualComenzi.filter((item) => item.status === 'livrata'),
     [manualComenzi],
   )
-  const activeShopOrders = useMemo(
-    () => shopOrders.filter((item) => item.status !== 'anulata'),
-    [shopOrders],
-  )
-  const shopLivrateCount = useMemo(
-    () => activeShopOrders.filter((item) => item.status === 'livrata').length,
-    [activeShopOrders],
-  )
   const operationalSnapshot = useMemo(
-    () => getComenziOperationalSnapshot(comenzi, shopOrders),
-    [comenzi, shopOrders],
+    () => getComenziOperationalSnapshot(comenzi),
+    [comenzi],
   )
-
-  const shopBridgeByOrderId = useMemo(() => {
-    const map = new Map<string, Comanda>()
-    comenzi.forEach((comanda) => {
-      if (comanda.data_origin === 'shop_order_bridge' && comanda.shop_order_id) {
-        map.set(comanda.shop_order_id, comanda)
-      }
-    })
-    return map
-  }, [comenzi])
 
   const livrateNeincasate = useMemo(() => {
     return comenzi
@@ -2118,19 +2049,10 @@ export function ComenziPageClient() {
   }, [comenzi])
 
   const neincasatComandaIds = useMemo(() => new Set(livrateNeincasate.map((item) => item.comanda.id)), [livrateNeincasate])
-  const neincasatShopOrderIds = useMemo(
-    () =>
-      new Set(
-        livrateNeincasate
-          .map((item) => item.comanda.shop_order_id)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    [livrateNeincasate],
-  )
   const neincasatRon = useMemo(() => livrateNeincasate.reduce((sum, item) => sum + item.amount, 0), [livrateNeincasate])
   const unifiedAllOrders = useMemo(
-    () => mergeUnifiedOrders(manualComenzi, activeShopOrders, clientMap, shopBridgeByOrderId),
-    [clientMap, manualComenzi, activeShopOrders, shopBridgeByOrderId],
+    () => comenzi.map((item) => mapB2bToUnified(item, clientMap)),
+    [clientMap, comenzi],
   )
 
   const comenziAziCount = useMemo(
@@ -2195,13 +2117,7 @@ export function ComenziPageClient() {
     const term = normalize(search)
 
     return unifiedAllOrders.filter((item) => {
-      if (activeTab === 'de_livrat') {
-        if (item.source === 'b2b' && item.b2bComanda) {
-          if (!isManualOrderActiveForComenziTab(item.b2bComanda)) return false
-        } else if (!isUnifiedOpenStatus(item.status)) {
-          return false
-        }
-      }
+      if (activeTab === 'de_livrat' && !isUnifiedOpenStatus(item.status)) return false
       if (
         activeTab === 'programate' &&
         !(isUnifiedOpenStatus(item.status) && Boolean(getUnifiedOrderEffectiveDate(item)))
@@ -2238,22 +2154,17 @@ export function ComenziPageClient() {
         return false
       }
 
-      if (item.source === 'b2b' && item.b2bComanda) {
-        const b2b = item.b2bComanda
-        if (activeFilter === 'neincasat' && !(b2b.status === 'livrata' && neincasatComandaIds.has(b2b.id))) return false
-      } else if (
+      if (
         activeFilter === 'neincasat' &&
-        !(item.status === 'livrata' && neincasatShopOrderIds.has(item.id))
-      ) {
-        return false
-      }
+        !(item.status === 'livrata' && neincasatComandaIds.has(item.id))
+      ) return false
 
       if (!term) return true
       const clientName = normalize(item.customerName)
       const phone = normalize(item.phone)
       return clientName.includes(term) || phone.includes(term)
     })
-  }, [activeFilter, activeTab, neincasatComandaIds, neincasatShopOrderIds, search, today, unifiedAllOrders])
+  }, [activeFilter, activeTab, neincasatComandaIds, search, today, unifiedAllOrders])
   const unifiedGroups = useMemo(
     () =>
       activeTab === 'programate'
@@ -2298,22 +2209,12 @@ export function ComenziPageClient() {
   ) => {
     if (!deliveryTarget) return
 
-    if (deliveryTarget.source === 'b2b' && deliveryTarget.b2bComanda) {
+    if (deliveryTarget.b2bComanda) {
       deliverMutation.mutate({
         comandaId: deliveryTarget.b2bComanda.id,
         cantitateLivrataKg,
         statusPlata,
         dataLivrareRamasa: null,
-      })
-      return
-    }
-
-    if (deliveryTarget.source === 'shop' && deliveryTarget.shopOrder) {
-      patchShopOrderMutation.mutate({
-        id: deliveryTarget.shopOrder.id,
-        status: 'livrata',
-        delivered_kg: cantitateLivrataKg,
-        status_plata: statusPlata,
       })
     }
   }
@@ -2345,30 +2246,6 @@ export function ComenziPageClient() {
       }
     }
     await updateMutation.mutateAsync({ id, payload: { status } })
-  }
-
-  const handleShopStatusChange = async (id: string, status: ShopOrderStatus): Promise<void> => {
-    if (!canWriteComenzi) {
-      toast.error('Ai acces doar pentru citire în Comenzi.')
-      throw new Error('Acces read-only')
-    }
-    if (status === 'in_livrare') {
-      const shopOrder = shopOrders.find((row) => row.id === id)
-      const unified = shopOrder ? mapShopToUnified(shopOrder) : null
-      const kgNecesar = unified ? getUnifiedOrderNeedKg(unified) : 0
-      const canContinue = await guardStocPentruInLivrare(kgNecesar)
-      if (!canContinue) {
-        throw new Error('Stoc insuficient')
-      }
-    }
-    if (status === 'livrata') {
-      const shopOrder = shopOrders.find((row) => row.id === id)
-      if (shopOrder) {
-        setDeliveryTarget(mapShopToUnified(shopOrder, shopBridgeByOrderId.get(shopOrder.id)))
-      }
-      return
-    }
-    await patchShopOrderMutation.mutateAsync({ id, status })
   }
 
   const magazinGroupForViewDialog = useMemo(() => {
@@ -2503,7 +2380,7 @@ export function ComenziPageClient() {
           onOpenCampaign={() => router.push('/comenzi/campanie')}
           activeCount={operationalSnapshot.activeTotalCount}
           scheduledCount={programateCount}
-          livrateCount={livrateComenzi.length + shopLivrateCount}
+          livrateCount={livrateComenzi.length}
           receivableCount={livrateNeincasate.length}
           receivableTotal={neincasatRon}
           receivablesActive={activeTab === 'livrate' && activeFilter === 'neincasat'}
@@ -2560,15 +2437,15 @@ export function ComenziPageClient() {
           </Select>
         </div>
 
-        {(isError || shopOrdersError) ? (
+        {isError ? (
           <ErrorState
             title="Eroare"
-            message={((error ?? shopOrdersErrorObj) as Error)?.message ?? 'Nu am putut încărca comenzile.'}
+            message={(error as Error)?.message ?? 'Nu am putut încărca comenzile.'}
           />
         ) : null}
-        {(isLoading || shopOrdersLoading) ? <EntityListSkeleton /> : null}
+        {isLoading ? <EntityListSkeleton /> : null}
 
-        {!isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length === 0 ? (
+        {!isLoading && !isError && unifiedFiltered.length === 0 ? (
           <ModuleEmptyCard
             emoji="📋"
             title="Nicio comandă încă"
@@ -2576,7 +2453,7 @@ export function ComenziPageClient() {
           />
         ) : null}
 
-        {!isLoading && !shopOrdersLoading && !isError && !shopOrdersError && unifiedFiltered.length > 0 ? (
+        {!isLoading && !isError && unifiedFiltered.length > 0 ? (
           <>
             <div className="space-y-5 md:hidden">
               {unifiedGroups.map((group) => {
@@ -2607,11 +2484,7 @@ export function ComenziPageClient() {
                         <UnifiedOrderCard
                           key={getUnifiedSelectionId(item)}
                           item={item}
-                          disabled={
-                            item.source === 'shop'
-                              ? patchShopOrderMutation.isPending
-                              : updateMutation.isPending
-                          }
+                          disabled={updateMutation.isPending}
                           onOpenB2bDetails={(id) => {
                             const comanda = comenzi.find((row) => row.id === id)
                             if (comanda) setViewing(comanda)
@@ -2624,28 +2497,6 @@ export function ComenziPageClient() {
                               return
                             }
                             updateMutation.mutate({ id, payload: { data_livrare } })
-                          }}
-                          onShopStatusChange={handleShopStatusChange}
-                          onShopConfirmedChange={(id, confirmed) => {
-                            if (!canWriteComenzi) {
-                              toast.error('Ai acces doar pentru citire în Comenzi.')
-                              return
-                            }
-                            patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                          }}
-                          onShopNotifiedChange={(id, notified) => {
-                            if (!canWriteComenzi) {
-                              toast.error('Ai acces doar pentru citire în Comenzi.')
-                              return
-                            }
-                            patchShopOrderMutation.mutate({ id, notified_wa: notified })
-                          }}
-                          onShopDeliveryDateChange={(id, delivery_date) => {
-                            if (!canWriteComenzi) {
-                              toast.error('Ai acces doar pentru citire în Comenzi.')
-                              return
-                            }
-                            patchShopOrderMutation.mutate({ id, delivery_date })
                           }}
                           onEdit={() => {
                             if (!canWriteComenzi) {
@@ -2692,11 +2543,7 @@ export function ComenziPageClient() {
                           key={getUnifiedSelectionId(item)}
                           item={item}
                           compact
-                          disabled={
-                            item.source === 'shop'
-                              ? patchShopOrderMutation.isPending
-                              : updateMutation.isPending
-                          }
+                          disabled={updateMutation.isPending}
                           onOpenB2bDetails={(id) => {
                             const comanda = comenzi.find((row) => row.id === id)
                             if (comanda) setViewing(comanda)
@@ -2709,28 +2556,6 @@ export function ComenziPageClient() {
                               return
                             }
                             updateMutation.mutate({ id, payload: { data_livrare } })
-                          }}
-                          onShopStatusChange={handleShopStatusChange}
-                          onShopConfirmedChange={(id, confirmed) => {
-                            if (!canWriteComenzi) {
-                              toast.error('Ai acces doar pentru citire în Comenzi.')
-                              return
-                            }
-                            patchShopOrderMutation.mutate({ id, notified_wa: confirmed })
-                          }}
-                          onShopNotifiedChange={(id, notified) => {
-                            if (!canWriteComenzi) {
-                              toast.error('Ai acces doar pentru citire în Comenzi.')
-                              return
-                            }
-                            patchShopOrderMutation.mutate({ id, notified_wa: notified })
-                          }}
-                          onShopDeliveryDateChange={(id, delivery_date) => {
-                            if (!canWriteComenzi) {
-                              toast.error('Ai acces doar pentru citire în Comenzi.')
-                              return
-                            }
-                            patchShopOrderMutation.mutate({ id, delivery_date })
                           }}
                           onEdit={() => {
                             if (!canWriteComenzi) {
@@ -2779,14 +2604,8 @@ export function ComenziPageClient() {
             if (!open) setEditingOrder(null)
           }}
           onSaved={() => {
-            if (editingOrder.source === 'shop') {
-              void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrders })
-              void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrare })
-              void queryClient.invalidateQueries({ queryKey: queryKeys.shopOrdersInLivrareCount })
-            } else {
-              void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
-              void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-            }
+            void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
             setEditingOrder(null)
           }}
         />
@@ -2945,9 +2764,9 @@ export function ComenziPageClient() {
       <ComandaDeliveryDialog
         key={deliveryTarget ? `${deliveryTarget.source}-${deliveryTarget.id}` : 'closed'}
         order={deliveryTarget}
-        pending={deliverMutation.isPending || patchShopOrderMutation.isPending}
+        pending={deliverMutation.isPending}
         onOpenChange={(open) => {
-          if (!open && !deliverMutation.isPending && !patchShopOrderMutation.isPending) {
+          if (!open && !deliverMutation.isPending) {
             setDeliveryTarget(null)
           }
         }}

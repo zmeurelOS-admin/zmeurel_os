@@ -2,6 +2,8 @@
 import { getSupabase } from '../client';
 import { generateBusinessId } from '@/lib/supabase/business-ids';
 import { resolveCheltuialaCategorie } from '@/lib/financial/categories';
+import { getFinancialMutationError } from '@/lib/financial/save-errors';
+import { resolveFinancialWriteContext } from '@/lib/financial/write-context';
 import { getTenantId } from '@/lib/tenant/get-tenant';
 
 export interface Cheltuiala {
@@ -200,11 +202,19 @@ export async function createCheltuiala(
   input: CreateCheltuialaInput
 ): Promise<Cheltuiala> {
   const supabase = getSupabase();
-  const nextId = await generateBusinessId(supabase, 'CH');
-  const tenantId = await getTenantId(supabase);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { tenantId, userId } = await resolveFinancialWriteContext(supabase, 'cheltuieli');
+
+  let nextId: string;
+  try {
+    nextId = await generateBusinessId(supabase, 'CH');
+  } catch (error) {
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut genera ID-ul cheltuielii.',
+      module: 'cheltuieli',
+      operation: 'generate_business_id',
+      tableOrRpc: 'public.generate_business_id',
+    });
+  }
 
   const { data, error } = await supabase
     .from('cheltuieli_diverse')
@@ -219,8 +229,8 @@ export async function createCheltuiala(
         furnizor: input.furnizor || null,
         document_url: input.document_url || null,
         sync_status: input.sync_status ?? 'synced',
-        created_by: user?.id ?? null,
-        updated_by: user?.id ?? null,
+        created_by: userId,
+        updated_by: userId,
         tenant_id: tenantId,
       },
       { onConflict: 'client_sync_id' }
@@ -251,15 +261,23 @@ export async function createCheltuiala(
       .single();
 
     if (fallbackError) {
-      
-      throw toReadableError(fallbackError, 'Nu am putut salva cheltuiala.');
+      throw getFinancialMutationError(fallbackError, {
+        fallbackMessage: 'Nu am putut salva cheltuiala.',
+        module: 'cheltuieli',
+        operation: 'insert',
+        tableOrRpc: 'public.cheltuieli_diverse',
+      });
     }
 
     return fallbackData as unknown as Cheltuiala;
   }
 
-  
-  throw toReadableError(error, 'Nu am putut salva cheltuiala.');
+  throw getFinancialMutationError(error, {
+    fallbackMessage: 'Nu am putut salva cheltuiala.',
+    module: 'cheltuieli',
+    operation: 'upsert',
+    tableOrRpc: 'public.cheltuieli_diverse',
+  });
 }
 
 export async function updateCheltuiala(
@@ -267,7 +285,7 @@ export async function updateCheltuiala(
   input: UpdateCheltuialaInput
 ): Promise<Cheltuiala> {
   const supabase = getSupabase();
-  const tenantId = await getTenantId(supabase);
+  const { tenantId } = await resolveFinancialWriteContext(supabase, 'cheltuieli');
 
   const { data, error } = await supabase
     .from('cheltuieli_diverse')
@@ -284,8 +302,12 @@ export async function updateCheltuiala(
     .single();
 
   if (error) {
-
-    throw error;
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut actualiza cheltuiala.',
+      module: 'cheltuieli',
+      operation: 'update',
+      tableOrRpc: 'public.cheltuieli_diverse',
+    });
   }
 
   return data as unknown as Cheltuiala;
@@ -293,7 +315,7 @@ export async function updateCheltuiala(
 
 export async function deleteCheltuiala(id: string): Promise<void> {
   const supabase = getSupabase();
-  const tenantId = await getTenantId(supabase);
+  const { tenantId } = await resolveFinancialWriteContext(supabase, 'cheltuieli');
 
   const { error } = await supabase
     .from('cheltuieli_diverse')
@@ -302,8 +324,12 @@ export async function deleteCheltuiala(id: string): Promise<void> {
     .eq('tenant_id', tenantId);
 
   if (error) {
-
-    throw error;
+    throw getFinancialMutationError(error, {
+      fallbackMessage: 'Nu am putut șterge cheltuiala.',
+      module: 'cheltuieli',
+      operation: 'delete',
+      tableOrRpc: 'public.cheltuieli_diverse',
+    });
   }
 }
 

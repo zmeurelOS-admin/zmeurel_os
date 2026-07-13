@@ -253,7 +253,7 @@ export async function POST(request: Request) {
     )
     if (promoteError) {
       console.error(
-        '[shop/b2c/order] promote to comenzi failed',
+        '[shop/b2c/order][critical-unbridged-shop-order] promote to comenzi failed; order requires reconciliation before it can appear in ERP',
         sanitizeForLog(toSafeErrorContext({ error: promoteError, orderId })),
       )
     }

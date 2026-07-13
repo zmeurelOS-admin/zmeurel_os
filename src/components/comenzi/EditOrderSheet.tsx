@@ -187,7 +187,9 @@ export function EditOrderSheet({
   const [blockedMessage, setBlockedMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const clientMenuRef = useRef<HTMLDivElement>(null)
-  const isShop = order.source === 'shop'
+  // Bridge-urile Shop sunt editate ca `comenzi`; ramura Shop rămâne doar
+  // pentru eventualii consumatori legacy care oferă un ShopOrder fără bridge.
+  const isShop = !order.b2bComanda && order.source === 'shop'
   const manualOrderKind = (order.b2bComanda?.order_kind ?? 'manual') as ComandaOrderKind
   const isZeroPriceKind =
     !isShop && (manualOrderKind === 'cadou' || manualOrderKind === 'consum_propriu')

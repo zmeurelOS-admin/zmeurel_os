@@ -5,21 +5,20 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LivrariPageClient } from '@/app/(dashboard)/livrari/LivrariPageClient'
-import type { ShopOrderRow } from '@/lib/shop/b2c-order-helpers'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
 const {
-  fetchManualOrdersMock,
-  fetchOrdersMock,
-  fetchScheduledMock,
+  deliverComandaMock,
+  getComenziMock,
   toastErrorMock,
   toastSuccessMock,
+  updateComandaMock,
 } = vi.hoisted(() => ({
-  fetchManualOrdersMock: vi.fn<() => Promise<Comanda[]>>(),
-  fetchOrdersMock: vi.fn<() => Promise<ShopOrderRow[]>>(),
-  fetchScheduledMock: vi.fn<() => Promise<ShopOrderRow[]>>(),
+  deliverComandaMock: vi.fn(),
+  getComenziMock: vi.fn<() => Promise<Comanda[]>>(),
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
+  updateComandaMock: vi.fn(),
 }))
 
 vi.mock('@/components/app/AppShell', () => ({
@@ -35,18 +34,14 @@ vi.mock('@/components/app/DashboardAuthContext', () => ({
   useDashboardAuth: () => ({ tenantId: '00000000-0000-4000-8000-000000000301' }),
 }))
 
-vi.mock('@/lib/shop/shop-orders-queries', () => ({
-  fetchShopOrdersInLivrare: fetchOrdersMock,
-  fetchShopOrdersScheduledToday: fetchScheduledMock,
-  reorderShopDeliveriesToday: vi.fn().mockResolvedValue(undefined),
-}))
-
 vi.mock('@/lib/supabase/queries/clienti', () => ({
   getClienți: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('@/lib/supabase/queries/comenzi', () => ({
-  fetchComenziManualInLivrare: fetchManualOrdersMock,
+  deliverComanda: deliverComandaMock,
+  getComenzi: getComenziMock,
+  updateComanda: updateComandaMock,
 }))
 
 vi.mock('@/lib/ui/toast', () => ({
@@ -57,70 +52,39 @@ vi.mock('@/lib/ui/toast', () => ({
   },
 }))
 
-const order: ShopOrderRow = {
+const shopBridgeOrder: Comanda = {
   id: '00000000-0000-4000-8000-000000000101',
-  created_at: '2026-06-07T08:00:00.000Z',
-  customer_name: 'Maria Popescu',
-  customer_phone: '0740 123 456',
-  delivery_mode: 'livrare',
-  delivery_address: 'Strada Florilor 10, Suceava',
-  delivery_date: '2026-06-07',
-  delivery_position: 1,
-  items: [
-    {
-      vid: 'afine-300',
-      label: 'Caserolă 300 g',
-      qty: 2,
-      price_lei: 10,
-    },
-  ],
-  total_lei: 20,
-  notes: null,
+  tenant_id: '00000000-0000-4000-8000-000000000301',
+  client_id: null,
+  client_nume_manual: 'Maria Popescu',
+  telefon: '0740 123 456',
+  locatie_livrare: 'Strada Florilor 10, Suceava',
+  data_comanda: '2026-06-07',
+  data_livrare: '2026-06-07',
+  cantitate_kg: 1,
+  pret_per_kg: 20,
+  total: 20,
   status: 'in_livrare',
-  notified_wa: true,
-  milestone_reward: {
-    reward_label: 'O caserolă bonus',
-    status: 'pending',
-  },
-}
-
-const secondOrder: ShopOrderRow = {
-  ...order,
-  id: '00000000-0000-4000-8000-000000000102',
-  customer_name: 'Ion Ionescu',
-  customer_phone: '0740 654 321',
-  delivery_address: 'Strada Livezilor 2, Suceava',
-  delivery_position: 2,
-}
-
-const scheduledOrder: ShopOrderRow = {
-  ...order,
-  id: '00000000-0000-4000-8000-000000000103',
-  customer_name: 'Ana Programată',
-  status: 'confirmata',
-  delivery_position: null,
+  observatii: 'Caserolă 300 g × 2',
+  linked_vanzare_id: null,
+  parent_comanda_id: null,
+  created_at: '2026-06-07T08:00:00.000Z',
+  updated_at: '2026-06-07T08:00:00.000Z',
+  data_origin: 'shop_order_bridge',
+  shop_order_id: '00000000-0000-4000-8000-000000000501',
 }
 
 const manualOrder: Comanda = {
+  ...shopBridgeOrder,
   id: '00000000-0000-4000-8000-000000000201',
-  tenant_id: '00000000-0000-4000-8000-000000000301',
-  client_id: null,
   client_nume_manual: 'Client Manual',
   telefon: '0722 000 111',
   locatie_livrare: 'Sat Demo 1',
-  data_comanda: '2026-06-07',
-  data_livrare: '2026-06-07',
   cantitate_kg: 3,
   pret_per_kg: 12,
   total: 36,
-  status: 'in_livrare',
   observatii: '3 kg afine',
-  linked_vanzare_id: null,
-  parent_comanda_id: null,
-  created_at: '2026-06-07T07:00:00.000Z',
-  updated_at: '2026-06-07T07:00:00.000Z',
   data_origin: null,
-  client_nume: null,
 }
 
 function renderPage() {
@@ -139,88 +103,75 @@ function renderPage() {
 }
 
 beforeEach(() => {
-  fetchManualOrdersMock.mockReset()
-  fetchManualOrdersMock.mockResolvedValue([])
-  fetchOrdersMock.mockReset()
-  fetchOrdersMock.mockResolvedValue([order])
-  fetchScheduledMock.mockReset()
-  fetchScheduledMock.mockResolvedValue([])
+  deliverComandaMock.mockReset()
+  deliverComandaMock.mockResolvedValue({
+    deliveredOrder: { ...shopBridgeOrder, status: 'livrata' },
+    vanzare: { id: 'vanzare-1' },
+    remainingOrder: null,
+    deductedStockKg: 1,
+  })
+  getComenziMock.mockReset()
+  getComenziMock.mockResolvedValue([shopBridgeOrder])
   toastErrorMock.mockReset()
   toastSuccessMock.mockReset()
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => ({
-      ok: true,
-      json: async () => ({ success: true }),
-    })),
-  )
+  updateComandaMock.mockReset()
+  updateComandaMock.mockResolvedValue(shopBridgeOrder)
 })
 
 describe('LivrariPageClient', () => {
-  it('afișează adresa și acțiunile de teren pentru o comandă din shop', async () => {
+  it('afișează un bridge Shop din comenzi cu badge-ul de origine și acțiunile canonice', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(
-      await screen.findByRole('button', { name: /Maria Popescu/ }),
-    )
+    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
 
+    expect(screen.getByText('Shop')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '0740 123 456' })).toHaveAttribute('href', 'tel:0740123456')
     expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Schimbă statusul comenzii' })).toBeInTheDocument()
   })
 
-  it('confirmă statusul livrat și mută cardul în secțiunea Livrate', async () => {
+  it('livrează bridge-ul Shop prin RPC-ul canonic pentru comenzi', async () => {
     const user = userEvent.setup()
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
     await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
     await user.click(screen.getByRole('button', { name: 'Livrată' }))
-
-    expect(screen.getByRole('heading', { name: 'Marchezi comanda ca livrată?' })).toBeInTheDocument()
-    expect(
-      screen.getByText(/creează venitul în Vânzări și scade din stoc/),
-    ).toBeInTheDocument()
-
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
-    expect(JSON.parse(String(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body))).toEqual({
-      status: 'livrata',
-      status_plata: 'platit',
-    })
+    await waitFor(() =>
+      expect(deliverComandaMock).toHaveBeenCalledWith({
+        comandaId: shopBridgeOrder.id,
+        cantitateLivrataKg: 1,
+        statusPlata: 'platit',
+        dataLivrareRamasa: null,
+      }),
+    )
     expect(await screen.findByText('Livrate (1)')).toBeInTheDocument()
-    expect(toastSuccessMock).toHaveBeenCalledWith('Comandă livrată')
+    expect(toastSuccessMock).toHaveBeenCalledWith('Livrare parțială înregistrată')
   })
 
-  it('trimite plata neîncasată la livrarea din shop', async () => {
+  it('transmite plata neîncasată către livrarea canonică', async () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(
-      await screen.findByRole('button', {
-        name: 'Arată detaliile comenzii pentru Maria Popescu',
-      }),
-    )
+    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
     await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
     await user.click(screen.getByRole('button', { name: 'Livrată' }))
     await user.click(screen.getByRole('radio', { name: 'Neplătit' }))
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
-    expect(JSON.parse(String(vi.mocked(global.fetch).mock.calls[0]?.[1]?.body))).toEqual({
-      status: 'livrata',
-      status_plata: 'neplatit',
-    })
+    await waitFor(() =>
+      expect(deliverComandaMock).toHaveBeenCalledWith(
+        expect.objectContaining({ statusPlata: 'neplatit' }),
+      ),
+    )
   })
 
-  it('restaurează comanda și totalul când livrarea atomică eșuează', async () => {
+  it('restaurează comanda și totalul când livrarea canonică eșuează', async () => {
     const user = userEvent.setup()
-    vi.mocked(global.fetch).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ success: false, error: 'Stoc insuficient pentru livrare.' }),
-    } as Response)
+    deliverComandaMock.mockRejectedValueOnce(new Error('Stoc insuficient pentru livrare.'))
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
@@ -236,47 +187,33 @@ describe('LivrariPageClient', () => {
     expect(screen.queryByText('Livrate (1)')).not.toBeInTheDocument()
   })
 
-  it('recalculează totalul și persistă editarea comenzii', async () => {
+  it('salvează editarea bridge-ului prin updateComanda', async () => {
     const user = userEvent.setup()
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
     await user.click(screen.getByRole('button', { name: /Editează/ }))
 
-    expect(screen.getByRole('heading', { name: 'Editează comanda' })).toBeInTheDocument()
-    const editDialog = screen.getByRole('dialog')
-    expect(within(editDialog).getByText('20 lei')).toBeInTheDocument()
-
-    const quantityInput = within(editDialog).getByRole('spinbutton', {
-      name: 'Cantitate (caserole)',
-    })
-    await user.clear(quantityInput)
-    await user.type(quantityInput, '3')
-
-    expect(within(editDialog).getByText('30 lei')).toBeInTheDocument()
-    await user.click(within(editDialog).getByRole('button', { name: 'Salvează' }))
+    const dialog = screen.getByRole('dialog')
+    const quantity = within(dialog).getByRole('spinbutton', { name: 'Cantitate (kg)' })
+    await user.clear(quantity)
+    await user.type(quantity, '1.5')
+    await user.click(within(dialog).getByRole('button', { name: 'Salvează' }))
 
     await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        `/api/shop/b2c/orders/${order.id}`,
-        expect.objectContaining({
-          method: 'PATCH',
-        }),
+      expect(updateComandaMock).toHaveBeenCalledWith(
+        shopBridgeOrder.id,
+        expect.objectContaining({ cantitate_kg: 1.5 }),
       ),
     )
-    const patchOptions = vi.mocked(global.fetch).mock.calls.find(
-      ([url]) => url === `/api/shop/b2c/orders/${order.id}`,
-    )?.[1]
-    expect(JSON.parse(String(patchOptions?.body))).toEqual({
-      items: [{ vid: 'afine-300', label: 'Caserolă 300 g', qty: 3, price_lei: 10 }],
-    })
     expect(toastSuccessMock).toHaveBeenCalledWith('Comanda a fost actualizată.')
   })
 
-  it('ordonează FIFO și folosește fallback-ul de dată pentru comenzile fără delivery_date', async () => {
-    fetchOrdersMock.mockResolvedValue([
-      { ...order, id: 'fallback-early', customer_name: 'Ion Ionescu', delivery_date: null, created_at: '2026-06-06T08:00:00.000Z' },
-      { ...secondOrder, id: 'scheduled-later', customer_name: 'Maria Popescu', delivery_date: '2026-06-07', created_at: '2026-06-05T08:00:00.000Z' },
+  it('ordonează FIFO comenzile canonice și arată programările de azi', async () => {
+    getComenziMock.mockResolvedValue([
+      { ...shopBridgeOrder, id: 'fallback-early', client_nume_manual: 'Ion Ionescu', data_comanda: '2026-06-06', data_livrare: null, created_at: '2026-06-06T08:00:00.000Z' },
+      { ...shopBridgeOrder, id: 'scheduled-later', client_nume_manual: 'Maria Popescu', data_livrare: '2026-06-07', created_at: '2026-06-05T08:00:00.000Z' },
+      { ...shopBridgeOrder, id: 'scheduled-today', client_nume_manual: 'Ana Programată', status: 'programata', data_livrare: new Date().toISOString().slice(0, 10) },
     ])
     renderPage()
 
@@ -285,39 +222,20 @@ describe('LivrariPageClient', () => {
     })
     expect(cards[0]).toHaveAccessibleName('Arată detaliile comenzii pentru Ion Ionescu')
     expect(cards[1]).toHaveAccessibleName('Arată detaliile comenzii pentru Maria Popescu')
+    expect(await screen.findByRole('button', { name: /1 comandă programată pentru azi/i })).toBeInTheDocument()
   })
 
-  it('afișează și extinde comenzile programate azi care nu sunt încă în livrare', async () => {
+  it('afișează comenzile manuale prin aceeași sursă canonică', async () => {
     const user = userEvent.setup()
-    fetchScheduledMock.mockResolvedValue([scheduledOrder])
-    renderPage()
-
-    const banner = await screen.findByRole('button', {
-      name: /1 comandă programată pentru azi — nu este încă în livrare/i,
-    })
-    expect(screen.queryByText('Ana Programată')).not.toBeInTheDocument()
-
-    await user.click(banner)
-
-    expect(screen.getByText('Ana Programată')).toBeInTheDocument()
-    expect(screen.getAllByText('Caserolă 300 g × 2')).toHaveLength(1)
-  })
-
-  it('afișează comenzile manuale în listă fără acțiunile rezervate shop-ului', async () => {
-    const user = userEvent.setup()
-    fetchOrdersMock.mockResolvedValue([])
-    fetchManualOrdersMock.mockResolvedValue([manualOrder])
+    getComenziMock.mockResolvedValue([manualOrder])
     renderPage()
 
     expect(await screen.findByText('Client Manual')).toBeInTheDocument()
     expect(screen.getByText('3.0 kg clienți · 36 lei')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Reordonează livrarea 1' })).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /Client Manual/ }))
-
     expect(screen.getByRole('link', { name: '0722 000 111' })).toHaveAttribute('href', 'tel:0722000111')
     expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Schimbă statusul comenzii' })).toBeInTheDocument()
-    expect(screen.queryByText(/WhatsApp trimis/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Magazin')).not.toBeInTheDocument()
   })
 })

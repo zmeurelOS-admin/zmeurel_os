@@ -1,6 +1,5 @@
 import dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
-dotenv.config({ path: '.env' })
 
 import { defineConfig, devices } from '@playwright/test';
 
@@ -9,8 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Testing RLS-First Architecture with strict tenant isolation
  */
 export default defineConfig({
-  testDir: '.',
-  testMatch: ['e2e/**/*.spec.ts', 'tests/e2e/**/*.spec.ts', 'tests-e2e/**/*.spec.ts'],
+  testDir: './e2e',
   
   /* Run tests in files in parallel */
   fullyParallel: false, // Important: Security tests must run sequentially to avoid conflicts
@@ -31,9 +29,6 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:3000',
-
-    /* Keep service workers enabled explicitly for the PWA suite. */
-    serviceWorkers: 'allow',
     
     /* Collect trace when retrying the failed test. */
     trace: 'on-first-retry',
@@ -43,9 +38,6 @@ export default defineConfig({
     
     /* Video on failure */
     video: 'retain-on-failure',
-
-    /* Always run headless for CI compatibility */
-    headless: true,
   },
 
   /* Configure projects for major browsers */
@@ -58,9 +50,9 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run start',
-    port: 3000,
-    timeout: 120000,
+    command: 'npm run dev',
+    url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
   },
 });

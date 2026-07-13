@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
+import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
@@ -85,6 +86,8 @@ function InvestitieCardNew({
   investitie,
   parcelaName,
   isExpanded,
+  canEdit,
+  canDelete,
   onToggle,
   onEdit,
   onDelete,
@@ -92,6 +95,8 @@ function InvestitieCardNew({
   investitie: Investitie
   parcelaName: string
   isExpanded: boolean
+  canEdit: boolean
+  canDelete: boolean
   onToggle: () => void
   onEdit: () => void
   onDelete: () => void
@@ -134,28 +139,34 @@ function InvestitieCardNew({
               {investitie.data ? new Date(investitie.data).toLocaleDateString('ro-RO') : '—'}
             </span>
           </div>
-          <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                onEdit()
-              }}
-              className="min-h-8 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
-            >
-              Editează
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                onDelete()
-              }}
-              className="min-h-8 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
-            >
-              Șterge
-            </button>
-          </div>
+          {canEdit || canDelete ? (
+            <div className="mt-2 flex justify-center gap-2 border-t border-[var(--surface-divider)] pt-2">
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onEdit()
+                  }}
+                  className="min-h-8 rounded-lg border border-[var(--button-muted-border)] bg-[var(--button-muted-bg)] px-3 text-[11px] font-semibold text-[var(--button-muted-text)]"
+                >
+                  Editează
+                </button>
+              ) : null}
+              {canDelete ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDelete()
+                  }}
+                  className="min-h-8 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 text-[11px] font-semibold text-[var(--status-danger-text)]"
+                >
+                  Șterge
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </>
       }
     />
@@ -167,6 +178,7 @@ function InvestitieCardNew({
 export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiPageClientProps) {
   const queryClient = useQueryClient()
   const { registerAddAction } = useAddAction()
+  const { memberRole, accessLevel } = useDashboardAuth()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()
@@ -184,6 +196,9 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
   const [editingInvestitie, setEditingInvestitie] = useState<Investitie | null>(null)
   const [deletingInvestitie, setDeletingInvestitie] = useState<Investitie | null>(null)
   const [desktopSelectedInvestitieId, setDesktopSelectedInvestitieId] = useState<string | null>(null)
+  const isOperator = memberRole === 'operator'
+  const canWriteInvestitii = !isOperator || accessLevel === 'write'
+  const canDeleteInvestitii = !isOperator
 
   const {
     data: investitii = initialInvestitii,
@@ -258,101 +273,114 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
     return ['Toate', ...categories]
   }, [investitii])
 
-  const desktopColumns = useMemo<ColumnDef<Investitie>[]>(() => [
-    {
-      accessorKey: 'data',
-      header: 'Data',
-      cell: ({ row }) => (row.original.data ? formatData(row.original.data) : '-'),
-      meta: {
-        searchValue: (row: Investitie) => row.data,
+  const desktopColumns = useMemo<ColumnDef<Investitie>[]>(() => {
+    const columns: ColumnDef<Investitie>[] = [
+      {
+        accessorKey: 'data',
+        header: 'Data',
+        cell: ({ row }) => (row.original.data ? formatData(row.original.data) : '-'),
+        meta: {
+          searchValue: (row: Investitie) => row.data,
+        },
       },
-    },
-    {
-      accessorKey: 'categorie',
-      header: 'Categorie',
-      cell: ({ row }) => {
-        const icon = investitieCategoryIcon(row.original.categorie)
-        return (
-          <span className="inline-flex items-center gap-2 font-medium">
-            <span>{icon.emoji}</span>
-            <span>{row.original.categorie || 'Alte investiții'}</span>
-          </span>
-        )
+      {
+        accessorKey: 'categorie',
+        header: 'Categorie',
+        cell: ({ row }) => {
+          const icon = investitieCategoryIcon(row.original.categorie)
+          return (
+            <span className="inline-flex items-center gap-2 font-medium">
+              <span>{icon.emoji}</span>
+              <span>{row.original.categorie || 'Alte investiții'}</span>
+            </span>
+          )
+        },
+        meta: {
+          searchValue: (row: Investitie) => row.categorie,
+        },
       },
-      meta: {
-        searchValue: (row: Investitie) => row.categorie,
+      {
+        accessorKey: 'descriere',
+        header: 'Descriere',
+        cell: ({ row }) => row.original.descriere || '-',
+        meta: {
+          searchValue: (row: Investitie) => row.descriere,
+        },
       },
-    },
-    {
-      accessorKey: 'descriere',
-      header: 'Descriere',
-      cell: ({ row }) => row.original.descriere || '-',
-      meta: {
-        searchValue: (row: Investitie) => row.descriere,
+      {
+        accessorKey: 'suma_lei',
+        header: 'Cost',
+        cell: ({ row }) => `${formatRon(Number(row.original.suma_lei || 0))} RON`,
+        meta: {
+          searchValue: (row: Investitie) => row.suma_lei,
+          numeric: true,
+        },
       },
-    },
-    {
-      accessorKey: 'suma_lei',
-      header: 'Cost',
-      cell: ({ row }) => `${formatRon(Number(row.original.suma_lei || 0))} RON`,
-      meta: {
-        searchValue: (row: Investitie) => row.suma_lei,
-        numeric: true,
+      {
+        accessorKey: 'furnizor',
+        header: 'Furnizor',
+        cell: ({ row }) => row.original.furnizor || '-',
+        meta: {
+          searchValue: (row: Investitie) => row.furnizor,
+        },
       },
-    },
-    {
-      accessorKey: 'furnizor',
-      header: 'Furnizor',
-      cell: ({ row }) => row.original.furnizor || '-',
-      meta: {
-        searchValue: (row: Investitie) => row.furnizor,
-      },
-    },
-    {
-      id: 'actions',
-      header: 'Acțiuni',
-      enableSorting: false,
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Editează investiția"
-            onClick={(event) => {
-              event.stopPropagation()
-              setEditingInvestitie(row.original)
-            }}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Șterge investiția"
-            onClick={(event) => {
-              event.stopPropagation()
-              setDeletingInvestitie(row.original)
-            }}
-          >
-            <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
-          </Button>
-        </div>
-      ),
-      meta: {
-        searchable: false,
-        sticky: 'right',
-        headerClassName: 'w-[104px] text-right',
-        cellClassName: 'w-[104px] text-right',
-      },
-    },
-  ], [])
+    ]
+
+    if (canWriteInvestitii || canDeleteInvestitii) {
+      columns.push({
+        id: 'actions',
+        header: 'Acțiuni',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            {canWriteInvestitii ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Editează investiția"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setEditingInvestitie(row.original)
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {canDeleteInvestitii ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Șterge investiția"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setDeletingInvestitie(row.original)
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-[var(--soft-danger-text)]" />
+              </Button>
+            ) : null}
+          </div>
+        ),
+        meta: {
+          searchable: false,
+          sticky: 'right',
+          headerClassName: 'w-[104px] text-right',
+          cellClassName: 'w-[104px] text-right',
+        },
+      })
+    }
+
+    return columns
+  }, [canDeleteInvestitii, canWriteInvestitii])
 
   useEffect(() => {
     if (!openFormFromQuery) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAddOpen(true)
+    if (canWriteInvestitii) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAddOpen(true)
+    }
     const nextParams = new URLSearchParams(searchParams.toString())
     nextParams.delete('openForm')
     nextParams.delete('suma')
@@ -361,12 +389,13 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
     nextParams.delete('descriere')
     const query = nextParams.toString()
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [openFormFromQuery, pathname, router, searchParams])
+  }, [canWriteInvestitii, openFormFromQuery, pathname, router, searchParams])
 
   useEffect(() => {
+    if (!canWriteInvestitii) return
     const unregister = registerAddAction(() => setAddOpen(true), 'Adaugă investiție')
     return unregister
-  }, [registerAddAction])
+  }, [canWriteInvestitii, registerAddAction])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -488,6 +517,8 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
                       investitie.parcela_id ? parcelaMap[investitie.parcela_id] || 'Parcela' : 'Parcela'
                     }
                     isExpanded={expandedId === investitie.id}
+                    canEdit={canWriteInvestitii}
+                    canDelete={canDeleteInvestitii}
                     onToggle={() => setExpandedId(expandedId === investitie.id ? null : investitie.id)}
                     onEdit={() => setEditingInvestitie(investitie)}
                     onDelete={() => setDeletingInvestitie(investitie)}
@@ -504,24 +535,28 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
                     : undefined
                 }
                 footer={
-                  desktopSelectedInvestitie ? (
+                  desktopSelectedInvestitie && (canWriteInvestitii || canDeleteInvestitii) ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="agri-cta"
-                        onClick={() => setEditingInvestitie(desktopSelectedInvestitie)}
-                      >
-                        Editează
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        className="agri-cta"
-                        onClick={() => setDeletingInvestitie(desktopSelectedInvestitie)}
-                      >
-                        Șterge
-                      </Button>
+                      {canWriteInvestitii ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="agri-cta"
+                          onClick={() => setEditingInvestitie(desktopSelectedInvestitie)}
+                        >
+                          Editează
+                        </Button>
+                      ) : null}
+                      {canDeleteInvestitii ? (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          className="agri-cta"
+                          onClick={() => setDeletingInvestitie(desktopSelectedInvestitie)}
+                        >
+                          Șterge
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null
                 }
@@ -602,8 +637,11 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
       </DashboardContentShell>
 
       <AddInvestitieDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
+        open={canWriteInvestitii && addOpen}
+        onOpenChange={(open) => {
+          if (!canWriteInvestitii) return
+          setAddOpen(open)
+        }}
         hideTrigger
         initialValues={{
           suma_lei: prefillSuma,
@@ -615,12 +653,15 @@ export function InvestitiiPageClient({ initialInvestitii, parcele }: InvestitiiP
 
       <EditInvestitieDialog
         investitie={editingInvestitie}
-        open={!!editingInvestitie}
-        onOpenChange={(open) => { if (!open) setEditingInvestitie(null) }}
+        open={canWriteInvestitii && !!editingInvestitie}
+        onOpenChange={(open) => {
+          if (!canWriteInvestitii) return
+          if (!open) setEditingInvestitie(null)
+        }}
       />
 
       <DeleteConfirmDialog
-        open={!!deletingInvestitie}
+        open={canDeleteInvestitii && !!deletingInvestitie}
         onOpenChange={(open) => { if (!open) setDeletingInvestitie(null) }}
         onConfirm={() => {
           if (deletingInvestitie) deleteMutation.mutate(deletingInvestitie.id)

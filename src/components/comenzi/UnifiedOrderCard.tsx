@@ -193,17 +193,21 @@ export function UnifiedOrderCard({
   const isShop = item.source === 'shop'
   const shopOrder = item.shopOrder
   const b2bOrder = item.b2bComanda
+  // În dashboard, inclusiv comenzile Shop sunt rânduri `comenzi` bridge.
+  // Păstrăm fallback-ul legacy doar pentru consumatorii non-dashboard ai cardului.
+  const isCanonicalComanda = Boolean(b2bOrder)
   const isTerminal = item.status === 'livrata' || item.status === 'anulata'
   const isUnpaid =
     item.status === 'livrata' &&
     item.paymentStatus === 'neplatit' &&
     Boolean(item.paymentComandaId)
   const needsConfirmation =
+    !isCanonicalComanda &&
     Boolean(shopOrder?.needs_confirmation ?? shopOrder?.delivery_zone === 'zona4') &&
     item.status === 'noua'
-  const statusTransitions = isShop
-    ? SHOP_STATUS_TRANSITIONS[item.status as ShopOrderStatus]
-    : B2B_STATUS_TRANSITIONS[item.status as ComandaStatus]
+  const statusTransitions = isCanonicalComanda
+    ? B2B_STATUS_TRANSITIONS[item.status as ComandaStatus]
+    : SHOP_STATUS_TRANSITIONS[item.status as ShopOrderStatus]
   const totalFormatted = new Intl.NumberFormat('ro-RO', {
     maximumFractionDigits: 0,
   }).format(Math.round(item.totalLei))
@@ -220,11 +224,11 @@ export function UnifiedOrderCard({
       : `${(item.quantity * KG_PER_CASEROLĂ).toFixed(1)} kg`
   const displayQuantityLabel = kgLabel ?? quantityLabel
   const phoneHref = item.phone ? `tel:${item.phone.replace(/\s/g, '')}` : undefined
-  const fullAddress = isShop
-    ? [shopOrder?.delivery_address?.trim(), shopOrder?.delivery_city?.trim()]
+  const fullAddress = isCanonicalComanda
+    ? b2bOrder?.locatie_livrare?.trim() || ''
+    : [shopOrder?.delivery_address?.trim(), shopOrder?.delivery_city?.trim()]
         .filter(Boolean)
         .join(', ')
-    : b2bOrder?.locatie_livrare?.trim() || ''
   const orderDateLong = new Intl.DateTimeFormat('ro-RO', {
     day: 'numeric',
     month: 'long',
@@ -242,7 +246,7 @@ export function UnifiedOrderCard({
           : 'var(--indicator-manual)'
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
   const blocksStatusWhatsApp =
-    !isShop &&
+    isCanonicalComanda &&
     (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
 
   const markShopNotified = () => {
@@ -276,7 +280,14 @@ export function UnifiedOrderCard({
 
   const handleStatusChange = async (nextStatus: ShopOrderStatus | ComandaStatus) => {
     setStatusMenuOpen(false)
-    if (isShop) {
+    if (isCanonicalComanda) {
+      try {
+        await onB2bStatusChange?.(item.id, nextStatus as ComandaStatus)
+        openStatusWhatsApp(nextStatus)
+      } catch {
+        // Eroarea este afișată în parent; WhatsApp se deschide doar după succes.
+      }
+    } else if (isShop) {
       try {
         await onShopStatusChange?.(item.id, nextStatus as ShopOrderStatus)
         // WB se deschide doar după confirmarea serverului
@@ -295,10 +306,10 @@ export function UnifiedOrderCard({
   }
 
   const handleDeliveryDateChange = (value: string | null) => {
-    if (isShop) {
-      onShopDeliveryDateChange?.(item.id, value)
-    } else {
+    if (isCanonicalComanda) {
       onB2bDeliveryDateChange?.(item.id, value)
+    } else {
+      onShopDeliveryDateChange?.(item.id, value)
     }
   }
 
@@ -427,9 +438,9 @@ export function UnifiedOrderCard({
                             onClick={() => handleStatusChange(nextStatus)}
                             className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] active:scale-[0.985]"
                           >
-                            {isShop
-                              ? SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]
-                              : B2B_STATUS_LABELS[nextStatus as ComandaStatus]}
+                            {isCanonicalComanda
+                              ? B2B_STATUS_LABELS[nextStatus as ComandaStatus]
+                              : SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]}
                           </button>
                         ))}
                       </div>
@@ -442,7 +453,7 @@ export function UnifiedOrderCard({
                 <button
                   type="button"
                   className="min-h-10 text-left text-sm font-semibold text-[var(--primary)]"
-                  onClick={() => onEdit(item.id, isShop ? 'shop' : 'manual')}
+                  onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
                 >
                   ✏ Editează
                 </button>
@@ -615,7 +626,7 @@ export function UnifiedOrderCard({
                 status={shopOrder.milestone_reward.status}
               />
             ) : null}
-            {!isShop && onOpenB2bDetails ? (
+            {isCanonicalComanda && onOpenB2bDetails ? (
               <button
                 type="button"
                 className="min-h-9 text-xs font-semibold text-[var(--primary)]"
@@ -650,7 +661,7 @@ export function UnifiedOrderCard({
               <button
                 type="button"
                 className="min-h-9 text-xs font-semibold text-[var(--primary)]"
-                onClick={() => onEdit(item.id, isShop ? 'shop' : 'manual')}
+                onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
               >
                 ✏ Editează
               </button>
@@ -718,9 +729,9 @@ export function UnifiedOrderCard({
                     onClick={() => handleStatusChange(nextStatus)}
                     className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] active:scale-[0.985]"
                   >
-                    {isShop
-                      ? SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]
-                      : B2B_STATUS_LABELS[nextStatus as ComandaStatus]}
+                    {isCanonicalComanda
+                      ? B2B_STATUS_LABELS[nextStatus as ComandaStatus]
+                      : SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]}
                   </button>
                 ))}
               </div>
