@@ -45,7 +45,7 @@ describe('UnifiedOrderCard', () => {
     expect(screen.getByText(longNameOrder.customer_name)).toHaveClass('line-clamp-2')
   })
 
-  it('înlocuiește localitatea necunoscută cu acțiunea de adăugare a adresei', async () => {
+  it('expune iconița de editare în header și permite corectarea adresei lipsă', async () => {
     const user = userEvent.setup()
     const onEdit = vi.fn()
     const withoutAddress = mapShopToUnified({
@@ -60,7 +60,7 @@ describe('UnifiedOrderCard', () => {
     )
 
     expect(screen.queryByText('Necunoscută')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '+ Adaugă adresă' }))
+    await user.click(screen.getByRole('button', { name: 'Editează comanda pentru Maria Popescu' }))
     expect(onEdit).toHaveBeenCalledWith(order.id, 'shop')
   })
 
@@ -72,9 +72,10 @@ describe('UnifiedOrderCard', () => {
     expect(container.querySelector('[data-testid="order-status-pill"]')).not.toBeInTheDocument()
   })
 
-  it('afișează avertismentul de telefon duplicat și acțiunile directe în Comenzi', async () => {
+  it('afișează gridul 2×2, observațiile și editarea directă în Comenzi', async () => {
     const user = userEvent.setup()
     const onStatusChange = vi.fn()
+    const onEdit = vi.fn()
     const manualOrder: Comanda = {
       id: 'manual-duplicate-phone',
       tenant_id: 'tenant',
@@ -88,7 +89,7 @@ describe('UnifiedOrderCard', () => {
       pret_per_kg: 40,
       total: 100,
       status: 'confirmata',
-      observatii: null,
+      observatii: 'Sună înainte cu 15 minute',
       linked_vanzare_id: null,
       parent_comanda_id: null,
       created_at: '2026-07-13T08:00:00.000Z',
@@ -105,14 +106,25 @@ describe('UnifiedOrderCard', () => {
         comenziMode="active"
         onB2bStatusChange={onStatusChange}
         onB2bDeliveryDateChange={() => undefined}
+        onEdit={onEdit}
       />,
     )
 
     expect(screen.getByText('Același telefon ca „Maria Popescu” — verifică dacă e duplicat')).toBeInTheDocument()
     expect(screen.getByText('Cantitate')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Programează' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'În livrare' })).toBeInTheDocument()
+    const livratButton = screen.getByRole('button', { name: 'Livrat' })
+    expect(livratButton).toHaveClass('bg-[var(--agri-primary)]')
+    expect(screen.getByRole('button', { name: 'Anulează' })).toBeInTheDocument()
+    expect(screen.getByText('Observații')).toBeInTheDocument()
+    expect(screen.getByText('Sună înainte cu 15 minute')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Editează comanda pentru Ana Ionescu' }))
+    expect(onEdit).toHaveBeenCalledWith(manualOrder.id, 'manual')
     await user.click(screen.getByRole('button', { name: 'În livrare' }))
     expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'in_livrare')
+    await user.click(livratButton)
+    expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'livrata')
     await user.click(screen.getByRole('button', { name: 'Anulează' }))
     expect(screen.getByRole('button', { name: 'Da, anulează' })).toBeInTheDocument()
   })

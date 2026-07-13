@@ -7,9 +7,11 @@ import {
   CircleDollarSign,
   ChevronDown,
   PackageCheck,
+  Pencil,
   Phone,
   PhoneCall,
   PhoneOff,
+  StickyNote,
   Truck,
 } from 'lucide-react'
 
@@ -884,8 +886,8 @@ function ComenziOperationalCard({
   const isOverdue = mode === 'programate' && Boolean(item.deliveryDate && item.deliveryDate < todayBucharestDate())
   const isTerminal = item.status === 'livrata' || item.status === 'anulata'
   const isCanonicalComanda = Boolean(item.b2bComanda)
-  const hasKnownLocality = Boolean(item.localityLabel.trim()) && item.localityLabel !== 'Necunoscută'
   const scheduleLabel = mode === 'programate' ? 'Reprogramează' : 'Programează'
+  const observatii = item.b2bComanda?.observatii?.trim() || ''
 
   const scheduleOrder = async (date: string) => {
     if (!onDeliveryDateChange) return
@@ -918,7 +920,19 @@ function ComenziOperationalCard({
           <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
             {item.customerName}
           </p>
-          <OriginBadge item={item} />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <OriginBadge item={item} />
+            {onEdit ? (
+              <button
+                type="button"
+                onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
+                aria-label={`Editează comanda pentru ${item.customerName}`}
+              >
+                <Pencil className="h-4 w-4" aria-hidden />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-3 grid grid-cols-3 divide-x divide-[var(--divider)] rounded-xl bg-[var(--surface-card-muted)] py-2">
@@ -927,8 +941,18 @@ function ComenziOperationalCard({
           <CardMetric label="Dată" value={formatComenziDate(item.deliveryDate ?? item.orderDate)} />
         </div>
 
+        {observatii ? (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2.5 text-[var(--status-warning-text)]">
+            <StickyNote className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.02em]">Observații</p>
+              <p className="mt-0.5 text-sm font-medium leading-snug">{observatii}</p>
+            </div>
+          </div>
+        ) : null}
+
         {!isTerminal ? (
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={disabled || !isCanonicalComanda || !onDeliveryDateChange}
@@ -950,6 +974,15 @@ function ComenziOperationalCard({
             <button
               type="button"
               disabled={disabled || !isCanonicalComanda || !onStatusChange}
+              onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'livrata'))}
+              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--agri-primary)] bg-[var(--agri-primary)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+            >
+              <PackageCheck className="h-4 w-4" aria-hidden />
+              <span>Livrat</span>
+            </button>
+            <button
+              type="button"
+              disabled={disabled || !isCanonicalComanda || !onStatusChange}
               onClick={() => setCancelOpen(true)}
               className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-1 text-[11px] font-semibold text-[var(--status-danger-text)] transition active:scale-[0.985] disabled:opacity-50"
             >
@@ -957,24 +990,6 @@ function ComenziOperationalCard({
               <span>Anulează</span>
             </button>
           </div>
-        ) : null}
-
-        {onEdit && !hasKnownLocality ? (
-          <button
-            type="button"
-            onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-            className="mt-2 min-h-8 text-xs font-semibold text-[var(--primary)]"
-          >
-            + Adaugă adresă
-          </button>
-        ) : onEdit ? (
-          <button
-            type="button"
-            onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-            className="mt-2 min-h-8 text-xs font-semibold text-[var(--primary)]"
-          >
-            Vezi / editează detaliile
-          </button>
         ) : null}
       </div>
 

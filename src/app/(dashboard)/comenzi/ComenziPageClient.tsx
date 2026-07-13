@@ -159,6 +159,13 @@ type ContactPrompt = {
   phone: string
 }
 
+type DeliveryLaunchSource = 'card-direct' | 'view-dialog'
+
+type DeliveryTargetState = {
+  order: UnifiedOrderItem
+  source: DeliveryLaunchSource
+}
+
 type StocInsuficientSnapshot = {
   disponibilKg: number
   totalKg: number
@@ -1579,7 +1586,7 @@ export function ComenziPageClient() {
   const [addOpen, setAddOpen] = useState(false)
   const [editing, setEditing] = useState<Comanda | null>(null)
   const [editingOrder, setEditingOrder] = useState<UnifiedOrderItem | null>(null)
-  const [deliveryTarget, setDeliveryTarget] = useState<UnifiedOrderItem | null>(null)
+  const [deliveryTarget, setDeliveryTarget] = useState<DeliveryTargetState | null>(null)
   const [deleting, setDeleting] = useState<Comanda | null>(null)
   const [reopening, setReopening] = useState<Comanda | null>(null)
   const [viewing, setViewing] = useState<Comanda | null>(null)
@@ -1897,6 +1904,19 @@ export function ComenziPageClient() {
     }) =>
       deliverComanda({ comandaId, cantitateLivrataKg, statusPlata, dataLivrareRamasa }),
     onSuccess: (result) => {
+      const deliverySource = deliveryTarget?.source ?? 'view-dialog'
+      queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current = []) => {
+        const next = current.map((comanda) =>
+          comanda.id === result.deliveredOrder.id ? result.deliveredOrder : comanda,
+        )
+        if (
+          result.remainingOrder &&
+          !next.some((comanda) => comanda.id === result.remainingOrder?.id)
+        ) {
+          return [result.remainingOrder, ...next]
+        }
+        return next
+      })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
       queryClient.invalidateQueries({ queryKey: queryKeys.comenziManualInLivrare })
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzari })
@@ -1906,7 +1926,13 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
       hapticSuccess()
-      toast('Comandă livrată! Vânzare creată.')
+      const delivered = result.deliveredOrder
+      const deliveredName = getClientName(delivered, clientMap)
+      if (deliverySource === 'card-direct') {
+        toast.success(`${deliveredName} livrată direct ✓`)
+      } else {
+        toast('Comandă livrată! Vânzare creată.')
+      }
       if (result.remainingOrder) {
         toast(
           `Comandă parțială: a rămas ${result.remainingOrder.cantitate_kg} kg — comandă nouă creată.`,
@@ -1914,15 +1940,15 @@ export function ComenziPageClient() {
       }
       setDeliveryTarget(null)
 
-      const delivered = result.deliveredOrder
-      const deliveredName = getClientName(delivered, clientMap)
       const deliveredPhone = (delivered.telefon || '').trim()
       if (!delivered.client_id && deliveredPhone) {
         setContactPrompt({ name: deliveredName, phone: deliveredPhone })
       }
 
-      setActiveTab('livrate')
-      setActiveFilter('none')
+      if (deliverySource !== 'card-direct') {
+        setActiveTab('livrate')
+        setActiveFilter('none')
+      }
     },
     onError: (err: Error) => {
       hapticError()
@@ -2163,23 +2189,30 @@ export function ComenziPageClient() {
     }
   }
 
-  const handleConfirmDeliver = (comanda: Comanda) => {
+  const handleConfirmDeliver = (
+    comanda: Comanda,
+    source: DeliveryLaunchSource = 'view-dialog',
+  ) => {
     if (!canWriteComenzi) {
       toast.error('Ai acces doar pentru citire în Comenzi.')
       return
     }
-    setDeliveryTarget(mapB2bToUnified(comanda, clientMap))
+    setDeliveryTarget({
+      order: mapB2bToUnified(comanda, clientMap),
+      source,
+    })
   }
 
   const handleDeliveryDialogConfirm = (
     cantitateLivrataKg: number,
     statusPlata: ComandaPaymentStatus,
   ) => {
-    if (!deliveryTarget) return
+    const deliveryOrder = deliveryTarget?.order
+    if (!deliveryOrder) return
 
-    if (deliveryTarget.b2bComanda) {
+    if (deliveryOrder.b2bComanda) {
       deliverMutation.mutate({
-        comandaId: deliveryTarget.b2bComanda.id,
+        comandaId: deliveryOrder.b2bComanda.id,
         cantitateLivrataKg,
         statusPlata,
         dataLivrareRamasa: null,
@@ -2202,7 +2235,7 @@ export function ComenziPageClient() {
     }
     if (status === 'livrata') {
       const comanda = comenzi.find((row) => row.id === id)
-      if (comanda) handleConfirmDeliver(comanda)
+      if (comanda) handleConfirmDeliver(comanda, 'card-direct')
       return
     }
     if (status === 'in_livrare') {
@@ -2810,8 +2843,8 @@ export function ComenziPageClient() {
       />
 
       <ComandaDeliveryDialog
-        key={deliveryTarget ? `${deliveryTarget.source}-${deliveryTarget.id}` : 'closed'}
-        order={deliveryTarget}
+        key={deliveryTarget ? `${deliveryTarget.order.source}-${deliveryTarget.order.id}-${deliveryTarget.source}` : 'closed'}
+        order={deliveryTarget?.order ?? null}
         pending={deliverMutation.isPending}
         onOpenChange={(open) => {
           if (!open && !deliverMutation.isPending) {
@@ -2839,7 +2872,7 @@ export function ComenziPageClient() {
         onDeliver={(comanda) => {
           if (!canWriteComenzi) return
           setViewing(null)
-          handleConfirmDeliver(comanda)
+          handleConfirmDeliver(comanda, 'view-dialog')
         }}
         onEdit={(comanda) => {
           if (!canWriteComenzi) return
