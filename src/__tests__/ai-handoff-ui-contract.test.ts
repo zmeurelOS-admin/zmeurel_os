@@ -114,6 +114,7 @@ describe('AI handoff UI contract - openForm consumption', () => {
       data_livrare: '2026-03-26',
       cantitate_kg: '18',
       pret_per_kg: '24',
+      order_kind: 'manual',
       observatii: 'Sursa: Delniwa',
       status: 'confirmata',
     })
