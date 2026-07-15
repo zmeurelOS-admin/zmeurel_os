@@ -241,6 +241,8 @@ export function LivrariPageClient() {
   const refreshAll = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
     void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobal })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
   }, [queryClient])
 
   const updateManualOrderMutation = useMutation({
@@ -530,7 +532,15 @@ export function LivrariPageClient() {
                     }
                     onB2bStatusChange={handleManualStatusChange}
                     onB2bDeliveryDateChange={(id, data_livrare) => {
-                      updateManualOrderMutation.mutate({ id, payload: { data_livrare } })
+                      const isFutureDeliveryDate = Boolean(
+                        data_livrare && data_livrare > todayBucharestDate(),
+                      )
+                      return updateManualOrderMutation.mutateAsync({
+                        id,
+                        payload: isFutureDeliveryDate
+                          ? { data_livrare, status: 'programata' }
+                          : { data_livrare },
+                      }).then(() => undefined)
                     }}
                     onCallStatusChange={(id, last_call_status) => {
                       updateManualOrderMutation.mutate({ id, payload: { last_call_status } })

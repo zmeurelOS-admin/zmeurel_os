@@ -24,6 +24,7 @@
   --success-bg: #eef6ef;
   --success-text: #2c5438;
   --success-solid: #2c5438;
+  --alert: var(--status-danger-text);
   --success-border: #b8d5bd;
   --warning-bg: #fff6e5;
   --warning-text: #a8721f;

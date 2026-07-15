@@ -108,6 +108,7 @@ import {
   DELIVERY_ZONES,
   type DeliveryZone,
 } from '@/lib/shop/delivery-zones'
+import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import { cn } from '@/lib/utils'
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
@@ -259,7 +260,7 @@ interface ComandaFormState {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().split('T')[0]
+  return todayBucharestDate()
 }
 
 function tomorrowIso(): string {

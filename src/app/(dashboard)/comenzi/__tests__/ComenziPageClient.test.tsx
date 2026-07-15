@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ComenziPageClient } from '@/app/(dashboard)/comenzi/ComenziPageClient'
+import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
 const {
@@ -295,7 +296,7 @@ describe('ComenziPageClient', () => {
 
   it('include programatele în Active și păstrează Programate separat, cu cardul strict din kg Cal. I', async () => {
     const user = userEvent.setup()
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayBucharestDate()
     getComenziMock.mockResolvedValue([
       manualOrder,
       { ...manualOrder, id: 'scheduled-today', client_nume_manual: 'Client Azi', data_livrare: today, cantitate_kg: 2 },
@@ -328,7 +329,7 @@ describe('ComenziPageClient', () => {
 
   it('nu afișează comenzile în livrare în Active sau Programate', async () => {
     const user = userEvent.setup()
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayBucharestDate()
     getComenziMock.mockResolvedValue([
       manualOrder,
       {
@@ -374,7 +375,7 @@ describe('ComenziPageClient', () => {
     { name: 'rezervă parțială', recoltatKg: 2.5, necesarAziKg: 2, necesarRestKg: 1, message: 'Acoperit azi, cu rezervă' },
     { name: 'surplus total', recoltatKg: 3, necesarAziKg: 2, necesarRestKg: 1, message: 'Surplus — acoperă tot ce ai programat' },
   ])('afișează starea cromatică $name', async ({ recoltatKg, necesarAziKg, necesarRestKg, message }) => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayBucharestDate()
     getComenziMock.mockResolvedValue([
       { ...manualOrder, id: `today-${recoltatKg}`, data_livrare: today, cantitate_kg: necesarAziKg },
       { ...manualOrder, id: `rest-${recoltatKg}`, data_livrare: '2099-01-01', cantitate_kg: necesarRestKg },

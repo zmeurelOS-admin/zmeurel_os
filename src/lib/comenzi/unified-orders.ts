@@ -98,7 +98,7 @@ export const B2B_STATUS_TRANSITIONS: Record<ComandaStatus, ComandaStatus[]> = {
   noua: ['confirmata', 'anulata', 'livrata'],
   confirmata: ['in_livrare', 'anulata', 'livrata'],
   programata: ['in_livrare', 'anulata'],
-  in_livrare: ['programata', 'livrata'],
+  in_livrare: ['programata', 'livrata', 'anulata'],
   livrata: [],
   anulata: [],
 }

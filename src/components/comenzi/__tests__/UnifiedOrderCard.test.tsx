@@ -77,6 +77,7 @@ describe('UnifiedOrderCard', () => {
     const user = userEvent.setup()
     const onStatusChange = vi.fn()
     const onEdit = vi.fn()
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
     const manualOrder: Comanda = {
       id: 'manual-duplicate-phone',
       tenant_id: 'tenant',
@@ -130,10 +131,16 @@ describe('UnifiedOrderCard', () => {
     expect(onEdit).toHaveBeenCalledWith(manualOrder.id, 'manual')
     await user.click(screen.getByRole('button', { name: 'În livrare' }))
     expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'in_livrare')
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('https://wa.me/40740123456?text='),
+      '_blank',
+      'noopener,noreferrer',
+    )
     await user.click(livratButton)
     expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'livrata')
     await user.click(screen.getByRole('button', { name: 'Anulează' }))
     expect(screen.getByRole('button', { name: 'Da, anulează' })).toBeInTheDocument()
+    openSpy.mockRestore()
   })
 
   it('păstrează badge-ul de status în varianta Livrări', () => {
@@ -258,7 +265,7 @@ describe('UnifiedOrderCard', () => {
   it.each([
     ['noua', ['Confirmată', 'Anulată', 'Livrată'], ['În livrare']],
     ['confirmata', ['În livrare', 'Anulată', 'Livrată'], ['Confirmată']],
-    ['in_livrare', ['Programată', 'Livrată'], ['Anulată']],
+    ['in_livrare', ['Programată', 'Livrată', 'Anulată'], []],
   ] as const)(
     'afișează doar tranzițiile valide pentru statusul %s',
     async (status, expected, absent) => {
@@ -296,6 +303,14 @@ describe('UnifiedOrderCard', () => {
           name: `Arată detaliile comenzii pentru ${manualOrder.client_nume_manual}`,
         }),
       )
+      if (status === 'in_livrare') {
+        expect(screen.getAllByRole('button', { name: 'Livrat' })).toHaveLength(2)
+        expect(screen.getByRole('button', { name: 'Reprogramat' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Anulat' })).toHaveClass('bg-[var(--alert)]')
+        expect(screen.queryByRole('button', { name: 'Schimbă statusul comenzii' })).not.toBeInTheDocument()
+        return
+      }
+
       await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
 
       for (const label of expected) {

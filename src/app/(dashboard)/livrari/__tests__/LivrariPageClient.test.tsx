@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { LivrariPageClient } from '@/app/(dashboard)/livrari/LivrariPageClient'
+import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import type { Comanda } from '@/lib/supabase/queries/comenzi'
 
 const {
@@ -139,7 +140,10 @@ describe('LivrariPageClient', () => {
     expect(screen.getByText('Shop')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '0740 123 456' })).toHaveAttribute('href', 'tel:0740123456')
     expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Schimbă statusul comenzii' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Livrat' })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Reprogramat' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Anulat' })).toHaveClass('bg-[var(--alert)]')
+    expect(screen.queryByRole('button', { name: 'Schimbă statusul comenzii' })).not.toBeInTheDocument()
   })
 
   it('livrează bridge-ul Shop prin RPC-ul canonic pentru comenzi', async () => {
@@ -147,8 +151,7 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
-    await user.click(screen.getByRole('button', { name: 'Livrată' }))
+    await user.click(screen.getAllByRole('button', { name: 'Livrat' })[1])
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
     await waitFor(() =>
@@ -168,8 +171,7 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
-    await user.click(screen.getByRole('button', { name: 'Livrată' }))
+    await user.click(screen.getAllByRole('button', { name: 'Livrat' })[1])
     await user.click(screen.getByRole('radio', { name: 'Neplătit' }))
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
@@ -186,8 +188,7 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getByRole('button', { name: 'Schimbă statusul comenzii' }))
-    await user.click(screen.getByRole('button', { name: 'Livrată' }))
+    await user.click(screen.getAllByRole('button', { name: 'Livrat' })[1])
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
     await waitFor(() =>
@@ -196,6 +197,25 @@ describe('LivrariPageClient', () => {
     expect(screen.getByText('Maria Popescu')).toBeInTheDocument()
     expect(screen.getByText('1.0 kg shop · 20 lei')).toBeInTheDocument()
     expect(screen.queryByText('Livrate (1)')).not.toBeInTheDocument()
+  })
+
+  it('reprogramează pentru o dată viitoare și mută comanda în Programate', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
+    await user.click(screen.getByRole('button', { name: 'Reprogramat' }))
+    await user.click(screen.getByRole('button', { name: 'Mâine' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmă data' }))
+
+    const tomorrow = new Date(`${todayBucharestDate()}T12:00:00.000Z`)
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+    await waitFor(() =>
+      expect(updateComandaMock).toHaveBeenCalledWith(shopBridgeOrder.id, {
+        data_livrare: tomorrow.toISOString().slice(0, 10),
+        status: 'programata',
+      }),
+    )
   })
 
   it('salvează editarea bridge-ului prin updateComanda', async () => {
@@ -224,7 +244,7 @@ describe('LivrariPageClient', () => {
     getComenziMock.mockResolvedValue([
       { ...shopBridgeOrder, id: 'fallback-early', client_nume_manual: 'Ion Ionescu', data_comanda: '2026-06-06', data_livrare: null, created_at: '2026-06-06T08:00:00.000Z' },
       { ...shopBridgeOrder, id: 'scheduled-later', client_nume_manual: 'Maria Popescu', data_livrare: '2026-06-07', created_at: '2026-06-05T08:00:00.000Z' },
-      { ...shopBridgeOrder, id: 'scheduled-today', client_nume_manual: 'Ana Programată', status: 'programata', data_livrare: new Date().toISOString().slice(0, 10) },
+      { ...shopBridgeOrder, id: 'scheduled-today', client_nume_manual: 'Ana Programată', status: 'programata', data_livrare: todayBucharestDate() },
     ])
     renderPage()
 

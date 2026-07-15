@@ -99,6 +99,56 @@ function OriginBadge({ item }: { item: UnifiedOrderItem }) {
   )
 }
 
+function openOrderStatusWhatsApp(
+  item: UnifiedOrderItem,
+  nextStatus: ShopOrderStatus | ComandaStatus,
+  markShopNotified?: () => void,
+) {
+  const isCanonicalComanda = Boolean(item.b2bComanda)
+  const blocksStatusWhatsApp =
+    isCanonicalComanda &&
+    (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
+  if (blocksStatusWhatsApp) return
+  if (!item.phone || (nextStatus !== 'confirmata' && nextStatus !== 'in_livrare')) return
+
+  const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
+  const fullAddress = isCanonicalComanda
+    ? item.b2bComanda?.locatie_livrare?.trim() || ''
+    : [item.shopOrder?.delivery_address?.trim(), item.shopOrder?.delivery_city?.trim()]
+        .filter(Boolean)
+        .join(', ')
+  const deliveryAddress = fullAddress || item.addressShort || 'adresa comunicată'
+  const quantityFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(item.quantity)
+  const kgLabel =
+    item.quantityUnit === 'kg'
+      ? null
+      : `${(item.quantity * KG_PER_CASEROLĂ).toFixed(1)} kg`
+  const displayQuantityLabel =
+    kgLabel ?? `${quantityFormatted} ${item.quantity === 1 ? 'caserolă' : 'caserole'}`
+  const unitDescription =
+    item.quantityUnit === 'kg'
+      ? `${quantityFormatted} kg`
+      : `${displayQuantityLabel} de zmeură`
+  const totalFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(item.totalLei))
+  const orderDateLong = new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  }).format(new Date(item.createdAt))
+  const message =
+    nextStatus === 'confirmata'
+      ? `Bună ziua, ${firstName}! 🍓\n\nAm primit comanda dvs. din ${orderDateLong}: ${unitDescription} (${totalFormatted} lei).\n\nVă vom contacta cu detaliile livrării.\n\nMulțumim că ați ales Ferma Zmeurel! 🌿`
+      : `Bună ziua, ${firstName}! 🍓\n\nComanda dvs. de ${unitDescription} (${totalFormatted} lei), plasată pe ${orderDateLong}, va fi livrată la adresa: ${deliveryAddress}.\n\nVeți fi sunat cu puțin timp înainte de sosire.\n\nMulțumim! — Ferma Zmeurel 🌿`
+
+  window.open(
+    `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`,
+    '_blank',
+    'noopener,noreferrer',
+  )
+  markShopNotified?.()
+}
+
 function StatusPill({ item }: { item: UnifiedOrderItem }) {
   const toneClass =
     item.status === 'livrata'
@@ -232,6 +282,7 @@ export function UnifiedOrderCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
+  const [deliveryScheduleOpen, setDeliveryScheduleOpen] = useState(false)
   const isShop = item.source === 'shop'
   const shopOrder = item.shopOrder
   const b2bOrder = item.b2bComanda
@@ -271,18 +322,9 @@ export function UnifiedOrderCard({
     : [shopOrder?.delivery_address?.trim(), shopOrder?.delivery_city?.trim()]
         .filter(Boolean)
         .join(', ')
-  const orderDateLong = new Intl.DateTimeFormat('ro-RO', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Europe/Bucharest',
-  }).format(new Date(item.createdAt))
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
   const hasKnownLocality =
     Boolean(item.localityLabel.trim()) && item.localityLabel !== 'Necunoscută'
-  const blocksStatusWhatsApp =
-    isCanonicalComanda &&
-    (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
 
   if (variant === 'comenzi') {
     return (
@@ -310,26 +352,7 @@ export function UnifiedOrderCard({
   }
 
   const openStatusWhatsApp = (nextStatus: ShopOrderStatus | ComandaStatus) => {
-    if (blocksStatusWhatsApp) return
-    if (!item.phone || (nextStatus !== 'confirmata' && nextStatus !== 'in_livrare')) return
-
-    const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
-    const deliveryAddress = fullAddress || item.addressShort || 'adresa comunicată'
-    const unitDescription =
-      item.quantityUnit === 'kg'
-        ? `${quantityFormatted} kg`
-        : `${displayQuantityLabel} de zmeură`
-    const message =
-      nextStatus === 'confirmata'
-        ? `Bună ziua, ${firstName}! 🍓\n\nAm primit comanda dvs. din ${orderDateLong}: ${unitDescription} (${totalFormatted} lei).\n\nVă vom contacta cu detaliile livrării.\n\nMulțumim că ați ales Ferma Zmeurel! 🌿`
-        : `Bună ziua, ${firstName}! 🍓\n\nComanda dvs. de ${unitDescription} (${totalFormatted} lei), plasată pe ${orderDateLong}, va fi livrată la adresa: ${deliveryAddress}.\n\nVeți fi sunat cu puțin timp înainte de sosire.\n\nMulțumim! — Ferma Zmeurel 🌿`
-
-    window.open(
-      `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(message)}`,
-      '_blank',
-      'noopener,noreferrer',
-    )
-    markShopNotified()
+    openOrderStatusWhatsApp(item, nextStatus, markShopNotified)
   }
 
   const handleStatusChange = async (nextStatus: ShopOrderStatus | ComandaStatus) => {
@@ -359,11 +382,11 @@ export function UnifiedOrderCard({
     }
   }
 
-  const handleDeliveryDateChange = (value: string | null) => {
+  const handleDeliveryDateChange = async (value: string | null) => {
     if (isCanonicalComanda) {
-      onB2bDeliveryDateChange?.(item.id, value)
+      await onB2bDeliveryDateChange?.(item.id, value)
     } else {
-      onShopDeliveryDateChange?.(item.id, value)
+      await onShopDeliveryDateChange?.(item.id, value)
     }
   }
 
@@ -449,64 +472,93 @@ export function UnifiedOrderCard({
           <div className="min-h-0 overflow-hidden">
             <div className="space-y-3 border-t border-[var(--divider)] px-3 py-3">
               {!isTerminal ? (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <AppDatePicker
-                      id={`unified-mobile-delivery-date-${item.source}-${item.id}`}
-                      placeholder="Setează data"
-                      value={item.deliveryDate ?? ''}
-                      disabled={disabled}
-                      triggerClassName="h-10 bg-[var(--surface-card)] px-3 text-sm"
-                      onChange={handleDeliveryDateChange}
-                    />
-                    {item.deliveryDate ? (
-                      <button
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => handleDeliveryDateChange(null)}
-                        className="w-full text-left text-xs font-medium text-[var(--text-tertiary)]"
-                      >
-                        Șterge data
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <Popover open={statusMenuOpen} onOpenChange={setStatusMenuOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        disabled={disabled || statusTransitions.length === 0}
-                        className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-left text-sm font-semibold text-[var(--text-primary)] disabled:opacity-50"
-                        aria-label="Schimbă statusul comenzii"
-                      >
-                        <span className="truncate">{item.statusLabel}</span>
-                        <ChevronDown
-                          className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]"
-                          aria-hidden
-                        />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-52 p-2">
-                      <p className="px-2 pb-1.5 text-xs font-semibold text-[var(--text-tertiary)]">
-                        Schimbă statusul
-                      </p>
-                      <div className="space-y-1">
-                        {statusTransitions.map((nextStatus) => (
-                          <button
-                            key={nextStatus}
-                            type="button"
-                            onClick={() => handleStatusChange(nextStatus)}
-                            className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] active:scale-[0.985]"
-                          >
-                            {isCanonicalComanda
-                              ? B2B_STATUS_LABELS[nextStatus as ComandaStatus]
-                              : SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]}
-                          </button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                isCanonicalComanda && item.status === 'in_livrare' ? (
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
+                    onClick={() => void handleStatusChange('livrata')}
+                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-2 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+                  >
+                    <PackageCheck className="h-4 w-4 shrink-0" aria-hidden />
+                    Livrat
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled || !isCanonicalComanda || !onB2bDeliveryDateChange}
+                    onClick={() => setDeliveryScheduleOpen(true)}
+                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-2 text-[11px] font-semibold text-[var(--text-primary)] transition active:scale-[0.985] disabled:opacity-50"
+                  >
+                    <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+                    Reprogramat
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
+                    onClick={() => void handleStatusChange('anulata')}
+                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--alert)] bg-[var(--alert)] px-2 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+                  >
+                    <Ban className="h-4 w-4 shrink-0" aria-hidden />
+                    Anulat
+                  </button>
                 </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <AppDatePicker
+                        id={`unified-mobile-delivery-date-${item.source}-${item.id}`}
+                        placeholder="Setează data"
+                        value={item.deliveryDate ?? ''}
+                        disabled={disabled}
+                        triggerClassName="h-10 bg-[var(--surface-card)] px-3 text-sm"
+                        onChange={handleDeliveryDateChange}
+                      />
+                      {item.deliveryDate ? (
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => void handleDeliveryDateChange(null)}
+                          className="w-full text-left text-xs font-medium text-[var(--text-tertiary)]"
+                        >
+                          Șterge data
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <Popover open={statusMenuOpen} onOpenChange={setStatusMenuOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={disabled || statusTransitions.length === 0}
+                          className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-left text-sm font-semibold text-[var(--text-primary)] disabled:opacity-50"
+                          aria-label="Schimbă statusul comenzii"
+                        >
+                          <span className="truncate">{item.statusLabel}</span>
+                          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-52 p-2">
+                        <p className="px-2 pb-1.5 text-xs font-semibold text-[var(--text-tertiary)]">
+                          Schimbă statusul
+                        </p>
+                        <div className="space-y-1">
+                          {statusTransitions.map((nextStatus) => (
+                            <button
+                              key={nextStatus}
+                              type="button"
+                              onClick={() => handleStatusChange(nextStatus)}
+                              className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] active:scale-[0.985]"
+                            >
+                              {isCanonicalComanda
+                                ? B2B_STATUS_LABELS[nextStatus as ComandaStatus]
+                                : SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )
               ) : null}
 
               {onEdit ? (
@@ -569,6 +621,18 @@ export function UnifiedOrderCard({
             </button>
           </div>
         ) : null}
+        <OrderScheduleSheet
+          key={`${item.id}-${deliveryScheduleOpen ? item.deliveryDate ?? 'today' : 'closed'}`}
+          open={deliveryScheduleOpen}
+          currentDate={item.deliveryDate}
+          customerName={item.customerName}
+          pending={Boolean(disabled)}
+          onOpenChange={setDeliveryScheduleOpen}
+          onSave={async (date) => {
+            await handleDeliveryDateChange(date)
+            setDeliveryScheduleOpen(false)
+          }}
+        />
       </article>
     )
   }
@@ -894,9 +958,18 @@ function ComenziOperationalCard({
     setScheduleOpen(false)
   }
 
+  const startDelivery = async () => {
+    try {
+      await onStatusChange?.(item.id, 'in_livrare')
+      openOrderStatusWhatsApp(item, 'in_livrare')
+    } catch {
+      // Eroarea este afișată în parent; WhatsApp se deschide doar după succes.
+    }
+  }
+
   return (
     <article
-      className={`overflow-hidden rounded-[22px] border-[1.5px] shadow-[var(--shadow-soft)] ${
+      className={`relative overflow-hidden rounded-[22px] border-[1.5px] shadow-[var(--shadow-soft)] ${
         isOverdue ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]' : 'border-[var(--card-border-default)] bg-[var(--surface-card)]'
       }`}
     >
@@ -905,13 +978,14 @@ function ComenziOperationalCard({
         aria-expanded={expanded}
         aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
         onClick={() => setExpanded((current) => !current)}
-        className="flex min-h-[72px] w-full items-center justify-between gap-3 px-3 py-3 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        className="flex min-h-[72px] w-full items-center justify-between gap-3 px-3 py-3 pr-20 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
               {item.customerName}
             </p>
+            <OriginBadge item={item} />
             <span className="shrink-0 rounded-full bg-[var(--status-info-bg)] px-2 py-1 text-xs font-bold tabular-nums text-[var(--status-info-text)]">
               {quantityLabel}
             </span>
@@ -934,6 +1008,16 @@ function ComenziOperationalCard({
           aria-hidden
         />
       </button>
+      {onEdit ? (
+        <button
+          type="button"
+          onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+          className="absolute right-10 top-3 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
+          aria-label={`Editează comanda pentru ${item.customerName}`}
+        >
+          <Pencil className="h-4 w-4" aria-hidden />
+        </button>
+      ) : null}
 
       <div
         aria-hidden={!expanded}
@@ -954,21 +1038,7 @@ function ComenziOperationalCard({
           ) : null}
 
           <div className="border-t border-[var(--divider)] px-3 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <OriginBadge item={item} />
-              {onEdit ? (
-                <button
-                  type="button"
-                  onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
-                  aria-label={`Editează comanda pentru ${item.customerName}`}
-                >
-                  <Pencil className="h-4 w-4" aria-hidden />
-                </button>
-              ) : null}
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 divide-x divide-[var(--divider)] rounded-xl bg-[var(--surface-card-muted)] py-2">
+            <div className="grid grid-cols-3 divide-x divide-[var(--divider)] rounded-xl bg-[var(--surface-card-muted)] py-2">
               <CardMetric label="Cantitate" value={quantityLabel} />
               <CardMetric label="Total" value={`${totalFormatted} lei`} />
               <CardMetric label="Dată" value={formatComenziDate(item.deliveryDate ?? item.orderDate)} />
@@ -998,7 +1068,7 @@ function ComenziOperationalCard({
                 <button
                   type="button"
                   disabled={disabled || !isCanonicalComanda || !onStatusChange}
-                  onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'in_livrare'))}
+                  onClick={() => void startDelivery()}
                   className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-1 text-[11px] font-semibold text-[var(--status-info-text)] transition active:scale-[0.985] disabled:opacity-50"
                 >
                   <Truck className="h-4 w-4" aria-hidden />
