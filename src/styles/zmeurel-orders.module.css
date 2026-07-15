@@ -1,7 +1,7 @@
 .theme {
-  --surface-page: #fdf3f0;
+  --surface-page: #f6f5f2;
   --surface-card: #ffffff;
-  --surface-card-muted: #fff2ee;
+  --surface-card-muted: #f7f6f4;
   --surface-card-elevated: #ffffff;
 
   --text-primary: #312e3f;
@@ -9,11 +9,11 @@
   --text-tertiary: #867f8c;
   --text-on-accent: #ffffff;
 
-  --border-default: #f3d9d5;
-  --border-strong: #eec8c2;
+  --border-default: #e5e1dc;
+  --border-strong: #d9d3cc;
   --divider: rgba(49, 46, 63, 0.1);
   --input-bg: #ffffff;
-  --input-border: #f3d9d5;
+  --input-border: #e5e1dc;
   --input-placeholder: #867f8c;
   --surface-input: #ffffff;
   --focus-ring: #f16b6b;
@@ -23,6 +23,7 @@
 
   --success-bg: #eef6ef;
   --success-text: #2c5438;
+  --success-solid: #2c5438;
   --success-border: #b8d5bd;
   --warning-bg: #fff6e5;
   --warning-text: #a8721f;
@@ -33,9 +34,9 @@
   --info-bg: #f0f2ff;
   --info-text: #5568c9;
   --info-border: #cbd2fa;
-  --neutral-bg: #f9f3f2;
-  --neutral-text: #756d78;
-  --neutral-border: #eadbd8;
+  --neutral-bg: #f4f3f1;
+  --neutral-text: #6f6972;
+  --neutral-border: #e2ded8;
   --soft-success-bg: #eef6ef;
   --soft-success-border: #b8d5bd;
 
@@ -51,9 +52,9 @@
   --status-info-bg: #f0f2ff;
   --status-info-text: #5568c9;
   --status-info-border: #cbd2fa;
-  --status-neutral-bg: #f9f3f2;
-  --status-neutral-text: #756d78;
-  --status-neutral-border: #eadbd8;
+  --status-neutral-bg: #f4f3f1;
+  --status-neutral-text: #6f6972;
+  --status-neutral-border: #e2ded8;
 
   --primary: #f16b6b;
   --primary-foreground: #ffffff;
@@ -76,13 +77,13 @@
   --agri-primary-muted: #fff0ed;
   --agri-text: #312e3f;
   --agri-text-muted: #625d6d;
-  --agri-border: #f3d9d5;
+  --agri-border: #e5e1dc;
   --agri-danger: #d8402f;
   --agri-focus-ring: 0 0 0 3px rgba(241, 107, 107, 0.28);
   --agri-hero-bg: #312e3f;
   --agri-hero-shadow: 0 16px 40px rgba(49, 46, 63, 0.14);
 
-  --card-border-default: #f3d9d5;
+  --card-border-default: #e5e1dc;
   --indicator-shop: #f16b6b;
   --indicator-manual: #5568c9;
   --indicator-patiserie: #5568c9;
@@ -91,9 +92,9 @@
   --pill-active-bg: #f16b6b;
   --pill-active-border: #f16b6b;
   --pill-active-text: #ffffff;
-  --pill-inactive-bg: #fff2ee;
-  --pill-inactive-border: #f3d9d5;
-  --pill-inactive-hover-bg: #fbe7e2;
+  --pill-inactive-bg: #ffffff;
+  --pill-inactive-border: #e5e1dc;
+  --pill-inactive-hover-bg: #f7f6f4;
   --pill-inactive-text: #312e3f;
 
   --value-positive: #3a6d49;

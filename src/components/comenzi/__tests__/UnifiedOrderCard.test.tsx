@@ -122,7 +122,7 @@ describe('UnifiedOrderCard', () => {
     expect(screen.getByRole('button', { name: 'Programează' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'În livrare' })).toBeInTheDocument()
     const livratButton = screen.getByRole('button', { name: 'Livrat' })
-    expect(livratButton).toHaveClass('bg-[var(--success-text)]')
+    expect(livratButton).toHaveClass('bg-[var(--success-solid)]')
     expect(screen.getByRole('button', { name: 'Anulează' })).toBeInTheDocument()
     expect(screen.getByText('Observații')).toBeInTheDocument()
     expect(screen.getByText('Sună înainte cu 15 minute')).toBeInTheDocument()

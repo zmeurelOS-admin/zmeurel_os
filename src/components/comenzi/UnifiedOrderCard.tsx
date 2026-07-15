@@ -277,15 +277,6 @@ export function UnifiedOrderCard({
     year: 'numeric',
     timeZone: 'Europe/Bucharest',
   }).format(new Date(item.createdAt))
-  const leftBorderColor = needsConfirmation
-    ? 'var(--indicator-confirmation)'
-    : isShop
-      ? 'var(--indicator-shop)'
-      : item.clientTip === 'patiserie'
-        ? 'var(--indicator-patiserie)'
-        : item.clientTip === 'magazin'
-          ? 'var(--indicator-magazin)'
-          : 'var(--indicator-manual)'
   const mobileDateLabel = formatCompactDate(item.deliveryDate ?? item.createdAt)
   const hasKnownLocality =
     Boolean(item.localityLabel.trim()) && item.localityLabel !== 'Necunoscută'
@@ -390,16 +381,9 @@ export function UnifiedOrderCard({
   if (!compact) {
     return (
       <article
-        className={`overflow-hidden rounded-xl border shadow-[var(--shadow-soft)] ${
-          hasNoAnswer ? 'bg-[var(--status-warning-bg)]' : 'bg-[var(--surface-card)]'
-        } ${
+        className={`overflow-hidden rounded-[22px] border-[1.5px] border-[var(--card-border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
           item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
         } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
-        style={{
-          borderColor: 'var(--card-border-default)',
-          borderLeftWidth: '3px',
-          borderLeftColor: leftBorderColor,
-        }}
       >
         <div className="flex items-start gap-2 px-3 py-2.5">
           {selectable ? (
@@ -418,7 +402,7 @@ export function UnifiedOrderCard({
             className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
             <div className="flex flex-wrap items-center gap-1.5">
-              <p className="min-w-0 flex-1 line-clamp-2 text-[14px] font-bold leading-tight text-[var(--text-primary)]">
+              <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
                 {item.customerName}
               </p>
               <OriginBadge item={item} />
@@ -591,16 +575,9 @@ export function UnifiedOrderCard({
 
   return (
     <article
-      className={`overflow-hidden rounded-2xl border-[1.5px] shadow-[var(--shadow-soft)] ${
-        hasNoAnswer ? 'bg-[var(--status-warning-bg)]' : 'bg-[var(--surface-card)]'
-      } ${
+      className={`overflow-hidden rounded-[22px] border-[1.5px] border-[var(--card-border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
         item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
       } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
-      style={{
-        borderColor: 'var(--card-border-default)',
-        borderLeftWidth: '4px',
-        borderLeftColor: leftBorderColor,
-      }}
     >
       <div className={compact ? 'px-3 py-2' : 'px-3 py-3'}>
         <div className={`flex items-start ${compact ? 'gap-2' : 'gap-2.5'}`}>
@@ -1031,7 +1008,7 @@ function ComenziOperationalCard({
                   type="button"
                   disabled={disabled || !isCanonicalComanda || !onStatusChange}
                   onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'livrata'))}
-                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-text)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
                 >
                   <PackageCheck className="h-4 w-4" aria-hidden />
                   <span>Livrat</span>
@@ -1087,7 +1064,7 @@ function DeliveryReorderCard({ item, position }: { item: UnifiedOrderItem; posit
   const locality = item.localityLabel || 'Necunoscută'
 
   return (
-    <article className="flex min-h-16 items-center gap-3 rounded-xl border border-[var(--card-border-default)] bg-[var(--surface-card)] px-3 py-3 shadow-[var(--shadow-soft)]">
+    <article className="flex min-h-16 items-center gap-3 rounded-[22px] border-[1.5px] border-[var(--card-border-default)] bg-[var(--surface-card)] px-3 py-3 shadow-[var(--shadow-soft)]">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--agri-primary)] text-sm font-bold text-white">
         {position}
       </span>
@@ -1165,7 +1142,7 @@ function DeliveryQuickActions({
         type="button"
         disabled={disabled || !canAct || !onStatusChange}
         onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'livrata'))}
-        className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-1 text-[11px] font-semibold text-[var(--status-success-text)] transition active:scale-[0.985] disabled:opacity-50"
+        className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
       >
         <PackageCheck className="h-4 w-4" aria-hidden />
         Livrat

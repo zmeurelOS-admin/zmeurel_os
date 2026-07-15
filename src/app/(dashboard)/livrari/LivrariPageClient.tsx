@@ -503,7 +503,7 @@ export function LivrariPageClient() {
                         const activeOrder = orderedOrders.find((o) => o.id === activeDragId)
                         if (!activeOrder) return null
                         return (
-                          <div className="rounded-xl shadow-2xl">
+                          <div className="rounded-[22px] shadow-2xl">
                             <UnifiedOrderCard
                               item={activeOrder}
                               reorderPosition={orderedOrders.findIndex((order) => order.id === activeDragId) + 1}
