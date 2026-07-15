@@ -119,6 +119,17 @@ beforeEach(() => {
 })
 
 describe('LivrariPageClient', () => {
+  it('afișează în header contorul canonic al comenzilor livrate', async () => {
+    getComenziMock.mockResolvedValue([
+      { ...shopBridgeOrder, status: 'livrata' },
+      { ...manualOrder, status: 'livrata' },
+      shopBridgeOrder,
+    ])
+    renderPage()
+
+    expect(await screen.findByText('✅ Livrate 2')).toBeInTheDocument()
+  })
+
   it('afișează un bridge Shop din comenzi cu badge-ul de origine și acțiunile canonice', async () => {
     const user = userEvent.setup()
     renderPage()

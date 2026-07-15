@@ -194,6 +194,8 @@ _Last updated: 2026-05-02_
 
 **Coloane `comenzi`:** id, tenant_id, client_id, client_nume_manual, telefon, locatie_livrare, data_comanda, data_livrare, cantitate_kg, pret_per_kg, total, status, plata ['integral'|'avans'|'restanta']
 
+**Organizare operațională:** în pagina Comenzi, toate comenzile cu status deschis sunt exclusive între tab-uri: **Active** au `data_livrare IS NULL`, iar **Programate** au `data_livrare IS NOT NULL`, grupate după această dată cu totalul kg al zilei. Cardul de sus folosește strict `recoltari.kg_cal1` de azi și necesarul comenzilor deschise; nu modifică disponibilul Cal. I sau ledger-ul de stoc.
+
 ---
 
 ## 10. Clienți (Customers)

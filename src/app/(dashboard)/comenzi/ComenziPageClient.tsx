@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Check, ChevronDown, Search, UserRoundPlus, X } from 'lucide-react'
+import { Check, ChevronDown, Menu, Search, Target, UserRoundPlus, X } from 'lucide-react'
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
@@ -34,7 +34,6 @@ import {
   ModuleEmptyCard,
   ModulePillFilterButton,
   ModulePillRow,
-  ModuleScoreboard,
 } from '@/components/app/module-list-chrome'
 import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
@@ -61,7 +60,7 @@ import { track } from '@/lib/analytics/track'
 import { spacing } from '@/lib/design-tokens'
 import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
 import { getSupabase } from '@/lib/supabase/client'
-import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
+import { getRecoltari } from '@/lib/supabase/queries/recoltari'
 import {
   COMANDA_ORDER_KINDS,
   COMENZI_STATUSES,
@@ -98,7 +97,6 @@ import {
 } from '@/lib/comenzi/ai-order-client'
 import {
   getUnifiedOrderEffectiveDate,
-  getComenziOperationalSnapshot,
   KG_PER_CASEROLĂ,
   groupAllOrdersByDeliveryDate,
   isUnifiedOpenStatus,
@@ -463,10 +461,11 @@ function buildProgramateGroups(
   const byDate = new Map<string, UnifiedOrderItem[]>()
 
   for (const order of orders) {
-    const effectiveDate = getUnifiedOrderEffectiveDate(order)
-    const current = byDate.get(effectiveDate) ?? []
+    const deliveryDate = order.deliveryDate
+    if (deliveryDate === null) continue
+    const current = byDate.get(deliveryDate) ?? []
     current.push(order)
-    byDate.set(effectiveDate, current)
+    byDate.set(deliveryDate, current)
   }
 
   const today = todayIso()
@@ -643,10 +642,8 @@ function saveContactAsVCard(name: string, phone: string) {
 function PillTabs({
   value,
   onChange,
-  onOpenCampaign,
   activeCount,
   scheduledCount,
-  livrateCount,
   receivableCount,
   receivableTotal,
   receivablesActive,
@@ -654,10 +651,8 @@ function PillTabs({
 }: {
   value: TabKey
   onChange: (value: TabKey) => void
-  onOpenCampaign: () => void
   activeCount: number
   scheduledCount: number
-  livrateCount: number
   receivableCount: number
   receivableTotal: number
   receivablesActive: boolean
@@ -666,8 +661,6 @@ function PillTabs({
   const tabs = [
     { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` ${activeCount}` : ''}` },
     { key: 'programate' as const, label: `Progr.${scheduledCount > 0 ? ` ${scheduledCount}` : ''}` },
-    { key: 'livrate' as const, label: `Livr.${livrateCount > 0 ? ` ${livrateCount}` : ''}` },
-    { key: 'toate' as const, label: 'Toate' },
   ]
   return (
     <ModulePillRow className="grid grid-cols-3 gap-2">
@@ -690,14 +683,6 @@ function PillTabs({
         {receivableCount > 0
           ? ` ${receivableCount} · ${formatLeiCompact(receivableTotal)} lei`
           : ''}
-      </ModulePillFilterButton>
-      <ModulePillFilterButton
-        active={false}
-        onClick={onOpenCampaign}
-        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 px-2"
-      >
-        <span aria-hidden="true">🎯</span>
-        <span>Campanie</span>
       </ModulePillFilterButton>
     </ModulePillRow>
   )
@@ -785,7 +770,6 @@ function UnifiedOrderGroupSection({
   orderCount,
   quantitySummary,
   necesarKg,
-  totalKg,
   showHeader = true,
   scheduledView = false,
   referenceDate,
@@ -795,7 +779,6 @@ function UnifiedOrderGroupSection({
   orderCount: number
   quantitySummary: string
   necesarKg?: number
-  totalKg?: number
   showHeader?: boolean
   scheduledView?: boolean
   referenceDate?: string
@@ -819,11 +802,7 @@ function UnifiedOrderGroupSection({
     scheduledView && date
       ? `📅 ${relativeLabel === 'Azi' ? 'Azi' : baseLabel}`
       : baseLabel
-  const showNecesarKg =
-    typeof necesarKg === 'number' &&
-    necesarKg > 0 &&
-    typeof totalKg === 'number' &&
-    Math.abs(necesarKg - totalKg) >= 0.05
+  const showNecesarKg = typeof necesarKg === 'number'
 
   return (
     <section className={showHeader ? 'space-y-3' : undefined}>
@@ -837,7 +816,11 @@ function UnifiedOrderGroupSection({
         >
           {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
           {quantitySummary ? ` · ${quantitySummary}` : ''}
-          {showNecesarKg ? ` · ${formatKgOneDecimal(necesarKg)} necesari` : ''}
+          {showNecesarKg ? (
+            <span className="ml-2 inline-flex rounded-full border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-info-text)]">
+              {formatKgOneDecimal(necesarKg)} necesare
+            </span>
+          ) : null}
         </div>
       ) : null}
       {children}
@@ -845,49 +828,73 @@ function UnifiedOrderGroupSection({
   )
 }
 
-function StocNecesarCard({
-  necesarKg,
-  stocDisponibilKg,
+function RecoltareNecesitateCard({
+  recoltatKg,
+  necesarAziKg,
+  necesarRestKg,
 }: {
-  necesarKg: number
-  stocDisponibilKg: number
+  recoltatKg: number
+  necesarAziKg: number
+  necesarRestKg: number
 }) {
-  const hasEnoughStock = stocDisponibilKg >= necesarKg
-  const diferentaKg = Math.abs(stocDisponibilKg - necesarKg)
+  const state = (() => {
+    if (recoltatKg <= 0) {
+      return {
+        message: 'Zero stoc — n-ai recoltat azi',
+        cardClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
+        textClassName: 'text-[var(--status-danger-text)]',
+      }
+    }
+    if (recoltatKg < necesarAziKg) {
+      return {
+        message: 'Sub necesarul zilei',
+        cardClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
+        textClassName: 'text-[var(--status-danger-text)]',
+      }
+    }
+    if (
+      recoltatKg < necesarAziKg + necesarRestKg &&
+      recoltatKg - necesarAziKg < 0.3
+    ) {
+      return {
+        message: 'Acoperit exact azi',
+        cardClassName: 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]',
+        textClassName: 'text-[var(--status-success-text)]',
+      }
+    }
+    if (recoltatKg >= necesarAziKg + necesarRestKg) {
+      return {
+        message: 'Surplus — acoperă tot ce ai programat',
+        cardClassName: 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]',
+        textClassName: 'text-[var(--status-warning-text)]',
+      }
+    }
+    return {
+      message: 'Acoperit azi, cu rezervă',
+      cardClassName: 'border-[var(--status-info-border)] bg-[var(--status-info-bg)]',
+      textClassName: 'text-[var(--status-info-text)]',
+    }
+  })()
 
   return (
     <div
-      className={`rounded-2xl border px-3 py-2 ${
-        hasEnoughStock
-          ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]'
-          : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]'
-      }`}
+      data-testid="recoltare-necesitate-card"
+      className={`rounded-2xl border px-3 py-3 ${state.cardClassName}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-0.5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-            Stoc vs necesar
-          </p>
-          <p className="text-sm font-semibold text-[var(--text-primary)]">
-            Necesar livrări: {formatKgOneDecimal(necesarKg)}
-          </p>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Ai nevoie de {formatKgOneDecimal(necesarKg)}, ai disponibil{' '}
-            {formatKgOneDecimal(stocDisponibilKg)}.{' '}
-            {hasEnoughStock
-              ? `Surplus: ${formatKgOneDecimal(diferentaKg)}.`
-              : `Lipsesc: ${formatKgOneDecimal(diferentaKg)}.`}
-          </p>
+      <p className={`mb-2 text-xs font-bold ${state.textClassName}`}>{state.message}</p>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Recoltat</p>
+          <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(recoltatKg)}</p>
         </div>
-        <span
-          className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${
-            hasEnoughStock
-              ? 'bg-[var(--status-success-bg)] text-[var(--success-text)]'
-              : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
-          }`}
-        >
-          {hasEnoughStock ? '✅ OK' : '⚠️ Sub necesar'}
-        </span>
+        <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Necesar azi</p>
+          <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(necesarAziKg)}</p>
+        </div>
+        <div className="min-w-0 rounded-xl border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-2 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--status-neutral-text)]">Necesar rest</p>
+          <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(necesarRestKg)}</p>
+        </div>
       </div>
     </div>
   )
@@ -1674,18 +1681,9 @@ export function ComenziPageClient() {
     queryFn: getClienți,
   })
 
-  const {
-    data: stocSummary = {
-      recoltatCal1Kg: 0,
-      consumatDefinitivCal1Kg: 0,
-      rezervatActivCal1Kg: 0,
-      legacyInLivrareFaraRezervareKg: 0,
-      stocCal1LedgerKg: 0,
-      disponibilCal1Kg: 0,
-    },
-  } = useQuery({
-    queryKey: queryKeys.stocGlobalCal1,
-    queryFn: getSellableCal1StockSummary,
+  const { data: recoltari = [] } = useQuery({
+    queryKey: queryKeys.recoltari,
+    queryFn: getRecoltari,
   })
 
   const clientMap = useMemo(() => {
@@ -2039,16 +2037,6 @@ export function ComenziPageClient() {
   }
 
   const today = todayIso()
-  const manualComenzi = comenzi
-  const livrateComenzi = useMemo(
-    () => manualComenzi.filter((item) => item.status === 'livrata'),
-    [manualComenzi],
-  )
-  const operationalSnapshot = useMemo(
-    () => getComenziOperationalSnapshot(comenzi),
-    [comenzi],
-  )
-
   const livrateNeincasate = useMemo(() => {
     return comenzi
       .filter(
@@ -2069,54 +2057,55 @@ export function ComenziPageClient() {
     [clientMap, comenzi],
   )
 
-  const comenziAziCount = useMemo(
-    () =>
-      unifiedAllOrders.filter(
-        (item) =>
-          isUnifiedOpenStatus(item.status) &&
-          getUnifiedOrderEffectiveDate(item) === today,
-      ).length,
-    [today, unifiedAllOrders],
-  )
-  const comenziRestanteCount = useMemo(
-    () =>
-      unifiedAllOrders.filter(
-        (item) =>
-          isUnifiedOpenStatus(item.status) &&
-          getUnifiedOrderEffectiveDate(item) < today,
-      ).length,
-    [today, unifiedAllOrders],
-  )
   const programateCount = useMemo(
     () =>
       unifiedAllOrders.filter(
         (item) =>
-          item.status === 'programata' &&
-          Boolean(getUnifiedOrderEffectiveDate(item)),
+          isUnifiedOpenStatus(item.status) && item.deliveryDate !== null,
+      ).length,
+    [unifiedAllOrders],
+  )
+  const activeCount = useMemo(
+    () =>
+      unifiedAllOrders.filter(
+        (item) => isUnifiedOpenStatus(item.status) && item.deliveryDate === null,
       ).length,
     [unifiedAllOrders],
   )
 
-  const totalStocDisponibilKg = Number(stocSummary.disponibilCal1Kg || 0)
-  const necesarKgTotal = useMemo(
+  const recoltatAziKg = useMemo(
     () =>
-      unifiedAllOrders.reduce((sum, item) => {
-        if (!isUnifiedOpenStatus(item.status) || !item.deliveryDate) return sum
-        return sum + getUnifiedOrderNeedKg(item)
+      recoltari.reduce((sum, recoltare) => {
+        if (recoltare.data !== today) return sum
+        return sum + Number(recoltare.kg_cal1 ?? 0)
       }, 0),
-    [unifiedAllOrders],
+    [recoltari, today],
   )
-
-  const showStocNecesarCard = necesarKgTotal > 0
+  const { necesarAziKg, necesarRestKg } = useMemo(
+    () =>
+      unifiedAllOrders.reduce(
+        (totals, item) => {
+          if (!isUnifiedOpenStatus(item.status) || item.deliveryDate === null) return totals
+          const necesarKg = getUnifiedOrderNeedKg(item)
+          if (item.deliveryDate === today) totals.necesarAziKg += necesarKg
+          else if (item.deliveryDate !== today) totals.necesarRestKg += necesarKg
+          return totals
+        },
+        { necesarAziKg: 0, necesarRestKg: 0 },
+      ),
+    [today, unifiedAllOrders],
+  )
 
   const unifiedFiltered = useMemo(() => {
     const term = normalize(search)
 
     return unifiedAllOrders.filter((item) => {
-      if (activeTab === 'de_livrat' && item.status !== 'noua' && item.status !== 'confirmata') return false
+      if (
+        activeTab === 'de_livrat' &&
+        (!isUnifiedOpenStatus(item.status) || item.deliveryDate !== null)
+      ) return false
       if (activeTab === 'programate') {
-        if (item.status === 'in_livrare') return false
-        if (item.status !== 'programata' || !getUnifiedOrderEffectiveDate(item)) return false
+        if (!isUnifiedOpenStatus(item.status) || item.deliveryDate === null) return false
       }
       if (activeTab === 'livrate' && item.status !== 'livrata') return false
       if (
@@ -2369,104 +2358,17 @@ export function ComenziPageClient() {
       )}
     >
       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 pb-16 pt-3 sm:mt-0 sm:py-3 md:pb-3">
-        {(operationalSnapshot.activeTotalCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
-          <div className="space-y-2">
-            <ModuleScoreboard className="gap-x-3.5 gap-y-2">
-              {operationalSnapshot.activeTotalCount > 0 ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="cursor-pointer"
-                  onClick={() => setFilterAndTab('de_livrat', 'active')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
-                  }}
-                >
-                  <span className="text-lg font-extrabold text-[var(--agri-text)]">{operationalSnapshot.activeTotalCount}</span>
-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
-                </span>
-              ) : null}
-              {comenziAziCount > 0 ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="cursor-pointer"
-                  onClick={() => setFilterAndTab('de_livrat', 'azi')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi')
-                  }}
-                >
-                  <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAziCount}</span>
-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">azi</span>
-                </span>
-              ) : null}
-              {comenziRestanteCount > 0 ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="cursor-pointer"
-                  onClick={() => setFilterAndTab('de_livrat', 'restante')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante')
-                  }}
-                >
-                  <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestanteCount}</span>
-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">restante</span>
-                </span>
-              ) : null}
-              {neincasatRon > 0 ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="cursor-pointer"
-                  onClick={() => setFilterAndTab('livrate', 'neincasat')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat')
-                  }}
-                >
-                  <span className="text-base font-bold text-[var(--status-warning-text)]">{formatLeiCompact(neincasatRon)}</span>
-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">RON neîncasat</span>
-                </span>
-              ) : null}
-              {totalStocDisponibilKg > 0 ? (
-                <span>
-                  <span className="text-sm font-semibold text-[var(--success-text)]">{formatKg(totalStocDisponibilKg)}</span>
-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">stoc</span>
-                </span>
-              ) : null}
-            </ModuleScoreboard>
-
-            {showStocNecesarCard ? (
-              <StocNecesarCard
-                necesarKg={necesarKgTotal}
-                stocDisponibilKg={totalStocDisponibilKg}
-              />
-            ) : null}
-          </div>
-        ) : null}
+        <RecoltareNecesitateCard
+          recoltatKg={recoltatAziKg}
+          necesarAziKg={necesarAziKg}
+          necesarRestKg={necesarRestKg}
+        />
 
         <PillTabs
           value={activeTab}
-          onChange={(value) => {
-            setActiveTab(value)
-            if (value === 'programate') setOrderSort('delivery_date')
-            if (value !== 'programate' && orderSort === 'delivery_date_desc') {
-              setOrderSort('created_at')
-            }
-            if (value === 'de_livrat') setOrderSort('created_at')
-            if (value === 'de_livrat' && activeFilter === 'neincasat') setActiveFilter('none')
-            if (
-              value === 'livrate' &&
-              ['azi', 'active', 'restante', 'viitoare'].includes(activeFilter)
-            ) {
-              setActiveFilter('none')
-            }
-            if (value === 'programate' && activeFilter === 'neincasat') setActiveFilter('none')
-          }}
-          onOpenCampaign={() => router.push('/comenzi/campanie')}
-          activeCount={operationalSnapshot.activeTotalCount}
+          onChange={(value) => setFilterAndTab(value, value === 'de_livrat' ? 'active' : 'none')}
+          activeCount={activeCount}
           scheduledCount={programateCount}
-          livrateCount={livrateComenzi.length}
           receivableCount={livrateNeincasate.length}
           receivableTotal={neincasatRon}
           receivablesActive={activeTab === 'livrate' && activeFilter === 'neincasat'}
@@ -2481,6 +2383,23 @@ export function ComenziPageClient() {
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Caută comenzi (desktop)"
           />
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
+            aria-label="Arată toate comenzile"
+            aria-pressed={activeTab === 'toate'}
+            onClick={() => setFilterAndTab('toate', 'none')}
+          >
+            <Menu className="h-[18px] w-[18px]" aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] shadow-sm transition active:scale-[0.985]"
+            aria-label="Deschide campania de comenzi"
+            onClick={() => router.push('/comenzi/campanie')}
+          >
+            <Target className="h-[18px] w-[18px]" aria-hidden />
+          </button>
         </DesktopToolbar>
 
         <div className="space-y-2" data-testid="comenzi-mobile-controls">
@@ -2507,6 +2426,23 @@ export function ComenziPageClient() {
                 <SelectItem value="total_desc">Total lei ↓</SelectItem>
               </SelectContent>
             </Select>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985] md:hidden"
+              aria-label="Arată toate comenzile"
+              aria-pressed={activeTab === 'toate'}
+              onClick={() => setFilterAndTab('toate', 'none')}
+            >
+              <Menu className="h-[18px] w-[18px]" aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] shadow-sm transition active:scale-[0.985] md:hidden"
+              aria-label="Deschide campania de comenzi"
+              onClick={() => router.push('/comenzi/campanie')}
+            >
+              <Target className="h-[18px] w-[18px]" aria-hidden />
+            </button>
             <button
               type="button"
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985] md:hidden"
@@ -2575,9 +2511,8 @@ export function ComenziPageClient() {
                     key={group.date ?? 'unscheduled'}
                     date={group.date}
                     orderCount={group.orders.length}
-                    quantitySummary={quantitySummary}
+                    quantitySummary={activeTab === 'programate' ? '' : quantitySummary}
                     necesarKg={necesarKg}
-                    totalKg={totalKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
                     referenceDate={today}
@@ -2640,9 +2575,8 @@ export function ComenziPageClient() {
                     key={group.date ?? 'unscheduled'}
                     date={group.date}
                     orderCount={group.orders.length}
-                    quantitySummary={quantitySummary}
+                    quantitySummary={activeTab === 'programate' ? '' : quantitySummary}
                     necesarKg={necesarKg}
-                    totalKg={totalKg}
                     showHeader={showOrderGroupHeaders}
                     scheduledView={activeTab === 'programate'}
                     referenceDate={today}

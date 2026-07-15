@@ -11,7 +11,7 @@ const {
   deliverComandaMock,
   getCliențiMock,
   getComenziMock,
-  getSellableCal1StockSummaryMock,
+  getRecoltariMock,
   getVanzariMock,
   toastErrorMock,
   toastInfoMock,
@@ -21,7 +21,7 @@ const {
   deliverComandaMock: vi.fn(),
   getCliențiMock: vi.fn().mockResolvedValue([]),
   getComenziMock: vi.fn<() => Promise<Comanda[]>>(),
-  getSellableCal1StockSummaryMock: vi.fn(),
+  getRecoltariMock: vi.fn(),
   getVanzariMock: vi.fn().mockResolvedValue([]),
   toastErrorMock: vi.fn(),
   toastInfoMock: vi.fn(),
@@ -193,8 +193,8 @@ vi.mock('@/lib/supabase/queries/comenzi', async () => {
   }
 })
 
-vi.mock('@/lib/supabase/queries/miscari-stoc', () => ({
-  getSellableCal1StockSummary: getSellableCal1StockSummaryMock,
+vi.mock('@/lib/supabase/queries/recoltari', () => ({
+  getRecoltari: getRecoltariMock,
 }))
 
 vi.mock('@/lib/supabase/queries/vanzari', () => ({
@@ -234,7 +234,7 @@ const manualOrder: Comanda = {
   telefon: '0740 123 456',
   locatie_livrare: 'Suceava',
   data_comanda: '2026-07-13',
-  data_livrare: '2026-07-14',
+  data_livrare: null,
   cantitate_kg: 2,
   pret_per_kg: 35,
   total: 70,
@@ -267,15 +267,8 @@ beforeEach(() => {
   getCliențiMock.mockResolvedValue([])
   getComenziMock.mockReset()
   getComenziMock.mockResolvedValue([manualOrder])
-  getSellableCal1StockSummaryMock.mockReset()
-  getSellableCal1StockSummaryMock.mockResolvedValue({
-    recoltatCal1Kg: 20,
-    consumatDefinitivCal1Kg: 4,
-    rezervatActivCal1Kg: 3,
-    legacyInLivrareFaraRezervareKg: 1,
-    stocCal1LedgerKg: 16,
-    disponibilCal1Kg: 12,
-  })
+  getRecoltariMock.mockReset()
+  getRecoltariMock.mockResolvedValue([])
   getVanzariMock.mockResolvedValue([])
   toastMock.mockReset()
   toastErrorMock.mockReset()
@@ -298,6 +291,58 @@ describe('ComenziPageClient', () => {
     await user.click(within(mobileControls).getByRole('button', { name: 'Deschide căutarea' }))
 
     expect(within(mobileControls).getByLabelText('Caută comenzi')).toBeInTheDocument()
+  })
+
+  it('separă Active de Programate și calculează cardul strict din kg Cal. I', async () => {
+    const user = userEvent.setup()
+    const today = new Date().toISOString().slice(0, 10)
+    getComenziMock.mockResolvedValue([
+      manualOrder,
+      { ...manualOrder, id: 'scheduled-today', client_nume_manual: 'Client Azi', data_livrare: today, cantitate_kg: 2 },
+      { ...manualOrder, id: 'scheduled-rest', client_nume_manual: 'Client Rest', data_livrare: '2099-01-01', cantitate_kg: 3 },
+      { ...manualOrder, id: 'delivered-no-date', client_nume_manual: 'Livrat', status: 'livrata', data_livrare: null },
+    ])
+    getRecoltariMock.mockResolvedValue([
+      { data: today, kg_cal1: 5, kg_cal2: 100 },
+    ])
+
+    renderPage()
+
+    const card = await screen.findByTestId('recoltare-necesitate-card')
+    await waitFor(() => {
+      expect(within(card).getByText('Recoltat')).toBeInTheDocument()
+      expect(within(card).getByText('5,0 kg')).toBeInTheDocument()
+      expect(within(card).getByText('2,0 kg')).toBeInTheDocument()
+      expect(within(card).getByText('3,0 kg')).toBeInTheDocument()
+    })
+    expect(screen.getAllByText('Client Demo')).toHaveLength(2)
+    expect(screen.queryByText('Client Azi')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Progr\. 2/ }))
+
+    expect((await screen.findAllByText('Client Azi')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Client Rest')).toHaveLength(2)
+    expect(screen.queryByText('Client Demo')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { name: 'zero', recoltatKg: 0, necesarAziKg: 2, necesarRestKg: 1, message: 'Zero stoc — n-ai recoltat azi' },
+    { name: 'deficit', recoltatKg: 1, necesarAziKg: 2, necesarRestKg: 1, message: 'Sub necesarul zilei' },
+    { name: 'exact azi', recoltatKg: 2.1, necesarAziKg: 2, necesarRestKg: 1, message: 'Acoperit exact azi' },
+    { name: 'rezervă parțială', recoltatKg: 2.5, necesarAziKg: 2, necesarRestKg: 1, message: 'Acoperit azi, cu rezervă' },
+    { name: 'surplus total', recoltatKg: 3, necesarAziKg: 2, necesarRestKg: 1, message: 'Surplus — acoperă tot ce ai programat' },
+  ])('afișează starea cromatică $name', async ({ recoltatKg, necesarAziKg, necesarRestKg, message }) => {
+    const today = new Date().toISOString().slice(0, 10)
+    getComenziMock.mockResolvedValue([
+      { ...manualOrder, id: `today-${recoltatKg}`, data_livrare: today, cantitate_kg: necesarAziKg },
+      { ...manualOrder, id: `rest-${recoltatKg}`, data_livrare: '2099-01-01', cantitate_kg: necesarRestKg },
+    ])
+    getRecoltariMock.mockResolvedValue([{ data: today, kg_cal1: recoltatKg, kg_cal2: 999 }])
+
+    const view = renderPage()
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    view.unmount()
   })
 
   it('livrează direct din card prin deliverComanda și rămâne în modulul curent', async () => {

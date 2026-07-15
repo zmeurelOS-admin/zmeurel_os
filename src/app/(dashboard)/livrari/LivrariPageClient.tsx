@@ -115,6 +115,10 @@ export function LivrariPageClient() {
   })
 
   const allOrders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
+  const livrateCount = useMemo(
+    () => allOrders.filter((order) => order.status === 'livrata').length,
+    [allOrders],
+  )
   const deliveryOrders = useMemo(
     () => allOrders.filter((order) => order.status === 'in_livrare'),
     [allOrders],
@@ -339,7 +343,12 @@ export function LivrariPageClient() {
             <h1 className="text-lg leading-tight text-[var(--brand-dark)] [font-weight:750]">
               Livrări de azi
             </h1>
-            <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
+              <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-success-text)]">
+                ✅ Livrate {livrateCount}
+              </span>
+            </div>
           </div>
           <Button
             type="button"
