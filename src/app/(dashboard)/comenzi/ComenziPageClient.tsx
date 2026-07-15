@@ -2061,6 +2061,7 @@ export function ComenziPageClient() {
     () =>
       unifiedAllOrders.filter(
         (item) =>
+          item.status !== 'in_livrare' &&
           isUnifiedOpenStatus(item.status) && item.deliveryDate !== null,
       ).length,
     [unifiedAllOrders],
@@ -2068,7 +2069,10 @@ export function ComenziPageClient() {
   const activeCount = useMemo(
     () =>
       unifiedAllOrders.filter(
-        (item) => isUnifiedOpenStatus(item.status) && item.deliveryDate === null,
+        (item) =>
+          item.status !== 'in_livrare' &&
+          isUnifiedOpenStatus(item.status) &&
+          item.deliveryDate === null,
       ).length,
     [unifiedAllOrders],
   )
@@ -2102,10 +2106,16 @@ export function ComenziPageClient() {
     return unifiedAllOrders.filter((item) => {
       if (
         activeTab === 'de_livrat' &&
-        (!isUnifiedOpenStatus(item.status) || item.deliveryDate !== null)
+        (item.status === 'in_livrare' ||
+          !isUnifiedOpenStatus(item.status) ||
+          item.deliveryDate !== null)
       ) return false
       if (activeTab === 'programate') {
-        if (!isUnifiedOpenStatus(item.status) || item.deliveryDate === null) return false
+        if (
+          item.status === 'in_livrare' ||
+          !isUnifiedOpenStatus(item.status) ||
+          item.deliveryDate === null
+        ) return false
       }
       if (activeTab === 'livrate' && item.status !== 'livrata') return false
       if (

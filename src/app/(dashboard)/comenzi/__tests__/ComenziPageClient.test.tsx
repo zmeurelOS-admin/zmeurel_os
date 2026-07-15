@@ -325,6 +325,47 @@ describe('ComenziPageClient', () => {
     expect(screen.queryByText('Client Demo')).not.toBeInTheDocument()
   })
 
+  it('nu afișează comenzile în livrare în Active sau Programate', async () => {
+    const user = userEvent.setup()
+    const today = new Date().toISOString().slice(0, 10)
+    getComenziMock.mockResolvedValue([
+      manualOrder,
+      {
+        ...manualOrder,
+        id: 'in-delivery-active',
+        client_nume_manual: 'În drum fără dată',
+        status: 'in_livrare',
+      },
+      {
+        ...manualOrder,
+        id: 'scheduled-normal',
+        client_nume_manual: 'Programată normal',
+        data_livrare: today,
+      },
+      {
+        ...manualOrder,
+        id: 'in-delivery-scheduled',
+        client_nume_manual: 'În drum programată',
+        status: 'in_livrare',
+        data_livrare: today,
+      },
+    ])
+
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /Active 1/ }))
+
+    expect((await screen.findAllByText('Client Demo')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('În drum fără dată')).not.toBeInTheDocument()
+    expect(screen.queryByText('În drum programată')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Progr\. 1/ }))
+
+    expect((await screen.findAllByText('Programată normal')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('În drum fără dată')).not.toBeInTheDocument()
+    expect(screen.queryByText('În drum programată')).not.toBeInTheDocument()
+  })
+
   it.each([
     { name: 'zero', recoltatKg: 0, necesarAziKg: 2, necesarRestKg: 1, message: 'Zero stoc — n-ai recoltat azi' },
     { name: 'deficit', recoltatKg: 1, necesarAziKg: 2, necesarRestKg: 1, message: 'Sub necesarul zilei' },
