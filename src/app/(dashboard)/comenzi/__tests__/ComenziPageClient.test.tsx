@@ -293,7 +293,7 @@ describe('ComenziPageClient', () => {
     expect(within(mobileControls).getByLabelText('Caută comenzi')).toBeInTheDocument()
   })
 
-  it('separă Active de Programate și calculează cardul strict din kg Cal. I', async () => {
+  it('include programatele în Active și păstrează Programate separat, cu cardul strict din kg Cal. I', async () => {
     const user = userEvent.setup()
     const today = new Date().toISOString().slice(0, 10)
     getComenziMock.mockResolvedValue([
@@ -316,7 +316,8 @@ describe('ComenziPageClient', () => {
       expect(within(card).getByText('3,0 kg')).toBeInTheDocument()
     })
     expect(screen.getAllByText('Client Demo')).toHaveLength(2)
-    expect(screen.queryByText('Client Azi')).not.toBeInTheDocument()
+    expect((await screen.findAllByText('Client Azi')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Client Rest')).toHaveLength(2)
 
     await user.click(screen.getByRole('button', { name: /Progr\. 2/ }))
 
@@ -353,7 +354,7 @@ describe('ComenziPageClient', () => {
 
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Active 1/ }))
+    await user.click(await screen.findByRole('button', { name: /Active 2/ }))
 
     expect((await screen.findAllByText('Client Demo')).length).toBeGreaterThan(0)
     expect(screen.queryByText('În drum fără dată')).not.toBeInTheDocument()

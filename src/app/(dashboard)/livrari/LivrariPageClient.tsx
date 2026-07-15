@@ -31,6 +31,7 @@ import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
+import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -338,36 +339,38 @@ export function LivrariPageClient() {
   return (
     <AppShell
       header={
-        <div className="flex min-h-[52px] w-full items-center justify-between gap-3 px-1">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg leading-tight text-[var(--brand-dark)] [font-weight:750]">
-              Livrări de azi
-            </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <p className="text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
-              <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-success-text)]">
-                ✅ Livrate {livrateCount}
-              </span>
+        <div className={zmeurelTheme.theme}>
+          <div className="flex min-h-[52px] w-full items-center justify-between gap-3 px-1">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg leading-tight text-[var(--brand-dark)] [font-weight:750]">
+                Livrări de azi
+              </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <p className="text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
+                <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-success-text)]">
+                  ✅ Livrate {livrateCount}
+                </span>
+              </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-11 w-11 shrink-0"
+              aria-label="Reîncarcă livrările"
+              disabled={isFetchingAny}
+              onClick={() => {
+                refreshAll()
+                void ordersQuery.refetch()
+              }}
+            >
+              <RefreshCw className={isFetchingAny ? 'animate-spin' : ''} />
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-11 w-11 shrink-0"
-            aria-label="Reîncarcă livrările"
-            disabled={isFetchingAny}
-            onClick={() => {
-              refreshAll()
-              void ordersQuery.refetch()
-            }}
-          >
-            <RefreshCw className={isFetchingAny ? 'animate-spin' : ''} />
-          </Button>
         </div>
       }
     >
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-8">
+      <div className={`${zmeurelTheme.theme} mx-auto flex w-full max-w-3xl flex-col gap-5 pb-8`}>
         {ordersQuery.isLoading ? (
           <EntityListSkeleton count={3} />
         ) : null}
@@ -481,10 +484,10 @@ export function LivrariPageClient() {
                 >
                   <div className="space-y-2">
                     {orderedOrders.map((order, index) => (
-                      <SortableDeliveryCard key={order.id} id={order.id} position={index + 1}>
+                      <SortableDeliveryCard key={order.id} id={order.id}>
                         <UnifiedOrderCard
                           item={order}
-                          disabled
+                          reorderPosition={index + 1}
                           onB2bStatusChange={handleManualStatusChange}
                           onB2bDeliveryDateChange={() => undefined}
                           onCallStatusChange={() => undefined}
@@ -503,7 +506,7 @@ export function LivrariPageClient() {
                           <div className="rounded-xl shadow-2xl">
                             <UnifiedOrderCard
                               item={activeOrder}
-                              disabled
+                              reorderPosition={orderedOrders.findIndex((order) => order.id === activeDragId) + 1}
                               onB2bStatusChange={() => undefined}
                               onB2bDeliveryDateChange={() => undefined}
                               onCallStatusChange={() => undefined}
@@ -611,11 +614,9 @@ export function LivrariPageClient() {
 
 function SortableDeliveryCard({
   id,
-  position,
   children,
 }: {
   id: string
-  position: number
   children: React.ReactNode
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -626,18 +627,12 @@ function SortableDeliveryCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-xl ${isDragging ? 'opacity-0' : ''}`}
+      {...attributes}
+      {...listeners}
+      className={`touch-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-0' : ''}`}
+      aria-label="Trage comanda pentru a reordona"
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex h-11 touch-none cursor-grab items-center justify-between rounded-t-xl bg-[var(--agri-primary)] px-4 active:cursor-grabbing"
-        aria-label={`Poziția ${position} — trage pentru a reordona`}
-      >
-        <span className="text-sm text-white [font-weight:700]">#{position}</span>
-        <GripVertical className="h-5 w-5 text-white/80" />
-      </div>
-      <div className="[&>article]:rounded-t-none">{children}</div>
+      {children}
     </div>
   )
 }

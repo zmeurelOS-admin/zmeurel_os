@@ -1,0 +1,109 @@
+.theme {
+  --surface-page: #fdf3f0;
+  --surface-card: #ffffff;
+  --surface-card-muted: #fff2ee;
+  --surface-card-elevated: #ffffff;
+
+  --text-primary: #312e3f;
+  --text-secondary: #625d6d;
+  --text-tertiary: #867f8c;
+  --text-on-accent: #ffffff;
+
+  --border-default: #f3d9d5;
+  --border-strong: #eec8c2;
+  --divider: rgba(49, 46, 63, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #f3d9d5;
+  --input-placeholder: #867f8c;
+  --surface-input: #ffffff;
+  --focus-ring: #f16b6b;
+
+  --shadow-soft: 0 1px 3px rgba(49, 46, 63, 0.08);
+  --shadow-elevated: 0 8px 20px rgba(49, 46, 63, 0.14);
+
+  --success-bg: #eef6ef;
+  --success-text: #2c5438;
+  --success-border: #b8d5bd;
+  --warning-bg: #fff6e5;
+  --warning-text: #a8721f;
+  --warning-border: #e8c486;
+  --danger-bg: #fff0ed;
+  --danger-text: #d8402f;
+  --danger-border: #efb8ae;
+  --info-bg: #f0f2ff;
+  --info-text: #5568c9;
+  --info-border: #cbd2fa;
+  --neutral-bg: #f9f3f2;
+  --neutral-text: #756d78;
+  --neutral-border: #eadbd8;
+  --soft-success-bg: #eef6ef;
+  --soft-success-border: #b8d5bd;
+
+  --status-success-bg: #eef6ef;
+  --status-success-text: #2c5438;
+  --status-success-border: #b8d5bd;
+  --status-warning-bg: #fff6e5;
+  --status-warning-text: #a8721f;
+  --status-warning-border: #e8c486;
+  --status-danger-bg: #fff0ed;
+  --status-danger-text: #d8402f;
+  --status-danger-border: #efb8ae;
+  --status-info-bg: #f0f2ff;
+  --status-info-text: #5568c9;
+  --status-info-border: #cbd2fa;
+  --status-neutral-bg: #f9f3f2;
+  --status-neutral-text: #756d78;
+  --status-neutral-border: #eadbd8;
+
+  --primary: #f16b6b;
+  --primary-foreground: #ffffff;
+  --destructive: #d8402f;
+  --ring: #f16b6b;
+  --zmeurel-leaf: #3a6d49;
+  --zmeurel-leaf-deep: #2c5438;
+  --zmeurel-leaf-bright: #4f8f63;
+  --brand-coral: #f16b6b;
+  --brand-coral-soft: #fff0ed;
+  --brand-dark: #312e3f;
+  --brand-green: var(--zmeurel-leaf);
+  --brand-green-soft: #eef6ef;
+  --brand-yellow: #c98a2e;
+  --brand-yellow-soft: #fff6e5;
+  --brand-blue: #5568c9;
+  --brand-blue-soft: #f0f2ff;
+
+  --agri-primary: #f16b6b;
+  --agri-primary-muted: #fff0ed;
+  --agri-text: #312e3f;
+  --agri-text-muted: #625d6d;
+  --agri-border: #f3d9d5;
+  --agri-danger: #d8402f;
+  --agri-focus-ring: 0 0 0 3px rgba(241, 107, 107, 0.28);
+  --agri-hero-bg: #312e3f;
+  --agri-hero-shadow: 0 16px 40px rgba(49, 46, 63, 0.14);
+
+  --card-border-default: #f3d9d5;
+  --indicator-shop: #f16b6b;
+  --indicator-manual: #5568c9;
+  --indicator-patiserie: #5568c9;
+  --indicator-magazin: #4f8f63;
+  --indicator-confirmation: #c98a2e;
+  --pill-active-bg: #f16b6b;
+  --pill-active-border: #f16b6b;
+  --pill-active-text: #ffffff;
+  --pill-inactive-bg: #fff2ee;
+  --pill-inactive-border: #f3d9d5;
+  --pill-inactive-hover-bg: #fbe7e2;
+  --pill-inactive-text: #312e3f;
+
+  --value-positive: #3a6d49;
+  --value-negative: #d8402f;
+  --cta-recoltare-bg: #3a6d49;
+  --cta-recoltare-border: #2c5438;
+  --cta-activitate-bg: #5568c9;
+  --cta-activitate-border: #4455ad;
+  --cta-vanzare-bg: #c98a2e;
+  --cta-vanzare-text: #312e3f;
+  --cta-vanzare-border: #a8721f;
+  --cta-vanzare-ring: #e8c486;
+}

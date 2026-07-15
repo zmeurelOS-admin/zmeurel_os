@@ -26,6 +26,7 @@ import {
   SHOP_STATUS_LABELS,
   type UnifiedOrderItem,
 } from '@/lib/comenzi/unified-orders'
+import { getDisplayOrderObservatii } from '@/lib/comenzi/shop-observations'
 import type { ComandaStatus } from '@/lib/supabase/queries/comenzi'
 import { todayBucharestDate, waUrlForPhone, type ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import {
@@ -204,12 +205,15 @@ export function UnifiedOrderCard({
   onEdit,
   variant = 'livrari',
   comenziMode,
+  reorderPosition,
 }: {
   item: UnifiedOrderItem
   /** În Comenzi statusul rămâne control în detalii, nu badge permanent pe card. */
   variant?: 'comenzi' | 'livrari'
   /** Sub-varianta operațională a cardului din modulul Comenzi. */
   comenziMode?: 'active' | 'programate'
+  /** Randare compactă, blocată, folosită exclusiv în modul de reordonare Livrări. */
+  reorderPosition?: number
   disabled?: boolean
   compact?: boolean
   selectable?: boolean
@@ -300,6 +304,10 @@ export function UnifiedOrderCard({
         onEdit={onEdit}
       />
     )
+  }
+
+  if (typeof reorderPosition === 'number') {
+    return <DeliveryReorderCard item={item} position={reorderPosition} />
   }
 
   const hasNoAnswer = item.lastCallStatus === 'no_answer'
@@ -878,6 +886,7 @@ function ComenziOperationalCard({
   onDeliveryDateChange?: (id: string, value: string | null) => void | Promise<void>
   onEdit?: (id: string, source: 'shop' | 'manual') => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const totalFormatted = new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 0 }).format(Math.round(item.totalLei))
@@ -887,7 +896,17 @@ function ComenziOperationalCard({
   const isTerminal = item.status === 'livrata' || item.status === 'anulata'
   const isCanonicalComanda = Boolean(item.b2bComanda)
   const scheduleLabel = mode === 'programate' ? 'Reprogramează' : 'Programează'
-  const observatii = item.b2bComanda?.observatii?.trim() || ''
+  const observatii = getDisplayOrderObservatii(
+    item.b2bComanda?.observatii,
+    item.source === 'shop',
+  )
+  const scheduledForLabel =
+    mode === 'active' && item.deliveryDate
+      ? item.deliveryDate === todayBucharestDate()
+        ? 'Programat pt azi'
+        : `Programat pt ${formatDeliveryDate(item.deliveryDate)}`
+      : null
+  const locality = item.localityLabel || 'Necunoscută'
 
   const scheduleOrder = async (date: string) => {
     if (!onDeliveryDateChange) return
@@ -904,93 +923,132 @@ function ComenziOperationalCard({
         isOverdue ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]' : 'border-[var(--card-border-default)] bg-[var(--surface-card)]'
       }`}
     >
-      {item.dupPhoneWarning ? (
-        <div className="border-b border-l-4 border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold leading-snug text-[var(--status-warning-text)]">
-          Același telefon ca „{item.dupPhoneWarning}” — verifică dacă e duplicat
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
+        onClick={() => setExpanded((current) => !current)}
+        className="flex min-h-[72px] w-full items-center justify-between gap-3 px-3 py-3 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
+              {item.customerName}
+            </p>
+            <span className="shrink-0 rounded-full bg-[var(--status-info-bg)] px-2 py-1 text-xs font-bold tabular-nums text-[var(--status-info-text)]">
+              {quantityLabel}
+            </span>
+          </div>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+            {scheduledForLabel ? (
+              <span className="inline-flex max-w-full rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--status-warning-text)]">
+                {scheduledForLabel}
+              </span>
+            ) : null}
+            <span className="min-w-0 truncate text-xs font-medium text-[var(--text-secondary)]">
+              {locality}
+            </span>
+          </div>
         </div>
-      ) : null}
-      {isOverdue ? (
-        <div className="border-b border-l-4 border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-bold text-[var(--status-danger-text)]">
-          Restanță — data a trecut, reprogramează
-        </div>
-      ) : null}
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-[var(--text-tertiary)] transition-transform duration-200 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        />
+      </button>
 
-      <div className="px-3 py-3">
-        <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
-            {item.customerName}
-          </p>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <OriginBadge item={item} />
-            {onEdit ? (
-              <button
-                type="button"
-                onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
-                aria-label={`Editează comanda pentru ${item.customerName}`}
-              >
-                <Pencil className="h-4 w-4" aria-hidden />
-              </button>
+      <div
+        aria-hidden={!expanded}
+        className={`grid transition-[grid-template-rows,opacity] duration-200 ${
+          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          {item.dupPhoneWarning ? (
+            <div className="border-b border-l-4 border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2 text-xs font-semibold leading-snug text-[var(--status-warning-text)]">
+              Același telefon ca „{item.dupPhoneWarning}” — verifică dacă e duplicat
+            </div>
+          ) : null}
+          {isOverdue ? (
+            <div className="border-b border-l-4 border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-bold text-[var(--status-danger-text)]">
+              Restanță — data a trecut, reprogramează
+            </div>
+          ) : null}
+
+          <div className="border-t border-[var(--divider)] px-3 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <OriginBadge item={item} />
+              {onEdit ? (
+                <button
+                  type="button"
+                  onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
+                  aria-label={`Editează comanda pentru ${item.customerName}`}
+                >
+                  <Pencil className="h-4 w-4" aria-hidden />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 divide-x divide-[var(--divider)] rounded-xl bg-[var(--surface-card-muted)] py-2">
+              <CardMetric label="Cantitate" value={quantityLabel} />
+              <CardMetric label="Total" value={`${totalFormatted} lei`} />
+              <CardMetric label="Dată" value={formatComenziDate(item.deliveryDate ?? item.orderDate)} />
+            </div>
+
+            {observatii ? (
+              <div className="mt-3 flex items-start gap-2 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2.5 text-[var(--status-warning-text)]">
+                <StickyNote className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.02em]">Observații</p>
+                  <p className="mt-0.5 text-sm font-medium leading-snug">{observatii}</p>
+                </div>
+              </div>
+            ) : null}
+
+            {!isTerminal ? (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  disabled={disabled || !isCanonicalComanda || !onDeliveryDateChange}
+                  onClick={() => setScheduleOpen(true)}
+                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-1 text-[11px] font-semibold text-[var(--text-primary)] transition active:scale-[0.985] disabled:opacity-50"
+                >
+                  <CalendarDays className="h-4 w-4" aria-hidden />
+                  <span className="truncate">{scheduleLabel}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled || !isCanonicalComanda || !onStatusChange}
+                  onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'in_livrare'))}
+                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-1 text-[11px] font-semibold text-[var(--status-info-text)] transition active:scale-[0.985] disabled:opacity-50"
+                >
+                  <Truck className="h-4 w-4" aria-hidden />
+                  <span>În livrare</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled || !isCanonicalComanda || !onStatusChange}
+                  onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'livrata'))}
+                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-text)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+                >
+                  <PackageCheck className="h-4 w-4" aria-hidden />
+                  <span>Livrat</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={disabled || !isCanonicalComanda || !onStatusChange}
+                  onClick={() => setCancelOpen(true)}
+                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-1 text-[11px] font-semibold text-[var(--status-danger-text)] transition active:scale-[0.985] disabled:opacity-50"
+                >
+                  <Ban className="h-4 w-4" aria-hidden />
+                  <span>Anulează</span>
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
-
-        <div className="mt-3 grid grid-cols-3 divide-x divide-[var(--divider)] rounded-xl bg-[var(--surface-card-muted)] py-2">
-          <CardMetric label="Cantitate" value={quantityLabel} />
-          <CardMetric label="Total" value={`${totalFormatted} lei`} />
-          <CardMetric label="Dată" value={formatComenziDate(item.deliveryDate ?? item.orderDate)} />
-        </div>
-
-        {observatii ? (
-          <div className="mt-3 flex items-start gap-2 rounded-xl border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-3 py-2.5 text-[var(--status-warning-text)]">
-            <StickyNote className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.02em]">Observații</p>
-              <p className="mt-0.5 text-sm font-medium leading-snug">{observatii}</p>
-            </div>
-          </div>
-        ) : null}
-
-        {!isTerminal ? (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={disabled || !isCanonicalComanda || !onDeliveryDateChange}
-              onClick={() => setScheduleOpen(true)}
-              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-1 text-[11px] font-semibold text-[var(--text-primary)] transition active:scale-[0.985] disabled:opacity-50"
-            >
-              <CalendarDays className="h-4 w-4" aria-hidden />
-              <span className="truncate">{scheduleLabel}</span>
-            </button>
-            <button
-              type="button"
-              disabled={disabled || !isCanonicalComanda || !onStatusChange}
-              onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'in_livrare'))}
-              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-1 text-[11px] font-semibold text-[var(--status-info-text)] transition active:scale-[0.985] disabled:opacity-50"
-            >
-              <Truck className="h-4 w-4" aria-hidden />
-              <span>În livrare</span>
-            </button>
-            <button
-              type="button"
-              disabled={disabled || !isCanonicalComanda || !onStatusChange}
-              onClick={() => void Promise.resolve(onStatusChange?.(item.id, 'livrata'))}
-              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--agri-primary)] bg-[var(--agri-primary)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
-            >
-              <PackageCheck className="h-4 w-4" aria-hidden />
-              <span>Livrat</span>
-            </button>
-            <button
-              type="button"
-              disabled={disabled || !isCanonicalComanda || !onStatusChange}
-              onClick={() => setCancelOpen(true)}
-              className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-1 text-[11px] font-semibold text-[var(--status-danger-text)] transition active:scale-[0.985] disabled:opacity-50"
-            >
-              <Ban className="h-4 w-4" aria-hidden />
-              <span>Anulează</span>
-            </button>
-          </div>
-        ) : null}
       </div>
 
       <OrderScheduleSheet
@@ -1021,6 +1079,22 @@ function ComenziOperationalCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </article>
+  )
+}
+
+function DeliveryReorderCard({ item, position }: { item: UnifiedOrderItem; position: number }) {
+  const locality = item.localityLabel || 'Necunoscută'
+
+  return (
+    <article className="flex min-h-16 items-center gap-3 rounded-xl border border-[var(--card-border-default)] bg-[var(--surface-card)] px-3 py-3 shadow-[var(--shadow-soft)]">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--agri-primary)] text-sm font-bold text-white">
+        {position}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-[var(--text-primary)]">{item.customerName}</p>
+        <p className="mt-0.5 truncate text-xs font-medium text-[var(--text-secondary)]">{locality}</p>
+      </div>
     </article>
   )
 }

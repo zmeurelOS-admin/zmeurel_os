@@ -45,7 +45,7 @@ describe('UnifiedOrderCard', () => {
     expect(screen.getByText(longNameOrder.customer_name)).toHaveClass('line-clamp-2')
   })
 
-  it('expune iconița de editare în header și permite corectarea adresei lipsă', async () => {
+  it('afișează fallback-ul de locație și expune editarea după expand', async () => {
     const user = userEvent.setup()
     const onEdit = vi.fn()
     const withoutAddress = mapShopToUnified({
@@ -59,7 +59,8 @@ describe('UnifiedOrderCard', () => {
       <UnifiedOrderCard item={withoutAddress} variant="comenzi" onEdit={onEdit} />,
     )
 
-    expect(screen.queryByText('Necunoscută')).not.toBeInTheDocument()
+    expect(screen.getByText('Necunoscută')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
     await user.click(screen.getByRole('button', { name: 'Editează comanda pentru Maria Popescu' }))
     expect(onEdit).toHaveBeenCalledWith(order.id, 'shop')
   })
@@ -72,7 +73,7 @@ describe('UnifiedOrderCard', () => {
     expect(container.querySelector('[data-testid="order-status-pill"]')).not.toBeInTheDocument()
   })
 
-  it('afișează gridul 2×2, observațiile și editarea directă în Comenzi', async () => {
+  it('afișează detaliile și acțiunile Comenzi doar după expand', async () => {
     const user = userEvent.setup()
     const onStatusChange = vi.fn()
     const onEdit = vi.fn()
@@ -110,12 +111,18 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
+    expect(screen.getByRole('button', { name: 'Arată detaliile comenzii pentru Ana Ionescu' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText('Programat pt 14 iul.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Programează' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Arată detaliile comenzii pentru Ana Ionescu' }))
+
     expect(screen.getByText('Același telefon ca „Maria Popescu” — verifică dacă e duplicat')).toBeInTheDocument()
     expect(screen.getByText('Cantitate')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Programează' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'În livrare' })).toBeInTheDocument()
     const livratButton = screen.getByRole('button', { name: 'Livrat' })
-    expect(livratButton).toHaveClass('bg-[var(--agri-primary)]')
+    expect(livratButton).toHaveClass('bg-[var(--success-text)]')
     expect(screen.getByRole('button', { name: 'Anulează' })).toBeInTheDocument()
     expect(screen.getByText('Observații')).toBeInTheDocument()
     expect(screen.getByText('Sună înainte cu 15 minute')).toBeInTheDocument()
@@ -135,6 +142,22 @@ describe('UnifiedOrderCard', () => {
     )
 
     expect(container.querySelector('[data-testid="order-status-pill"]')).toHaveTextContent('În livrare')
+  })
+
+  it('reduce cardul la poziție, nume și localitate în modul de reordonare', () => {
+    render(
+      <UnifiedOrderCard
+        item={mapShopToUnified(order)}
+        variant="livrari"
+        reorderPosition={2}
+      />,
+    )
+
+    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByText('Maria Popescu')).toBeInTheDocument()
+    expect(screen.getByText('Suceava')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Sună' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Livrat' })).not.toBeInTheDocument()
   })
 
   it('expune Sună, N-a răspuns și Livrat direct în Livrări', async () => {

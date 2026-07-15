@@ -52,6 +52,7 @@ import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
+import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
 import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
 import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
@@ -2071,8 +2072,7 @@ export function ComenziPageClient() {
       unifiedAllOrders.filter(
         (item) =>
           item.status !== 'in_livrare' &&
-          isUnifiedOpenStatus(item.status) &&
-          item.deliveryDate === null,
+          isUnifiedOpenStatus(item.status),
       ).length,
     [unifiedAllOrders],
   )
@@ -2107,8 +2107,7 @@ export function ComenziPageClient() {
       if (
         activeTab === 'de_livrat' &&
         (item.status === 'in_livrare' ||
-          !isUnifiedOpenStatus(item.status) ||
-          item.deliveryDate !== null)
+          !isUnifiedOpenStatus(item.status))
       ) return false
       if (activeTab === 'programate') {
         if (
@@ -2162,11 +2161,15 @@ export function ComenziPageClient() {
     () =>
       activeTab === 'programate'
         ? buildProgramateGroups(unifiedFiltered, orderSort)
-        : buildComenziOrderGroups(unifiedFiltered, orderSort),
+        : buildComenziOrderGroups(
+            unifiedFiltered,
+            activeTab === 'de_livrat' ? 'created_at' : orderSort,
+          ),
     [activeTab, orderSort, unifiedFiltered],
   )
   const showOrderGroupHeaders =
-    activeTab === 'programate' || (orderSort !== 'qty_desc' && orderSort !== 'total_desc')
+    activeTab === 'programate' ||
+    (activeTab === 'de_livrat' || (orderSort !== 'qty_desc' && orderSort !== 'total_desc'))
 
   const setFilterAndTab = (tab: TabKey, filter: DashboardFilter) => {
     setActiveTab(tab)
@@ -2346,28 +2349,30 @@ export function ComenziPageClient() {
   return (
     <AppShell
       header={(
-        <PageHeader
-          title="Comenzi"
-          subtitle="Livrări, statusuri și încasări"
-          contentVariant="workspace"
-          rightSlot={
-            canWriteComenzi ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSpeedDialOpen(false)
-                  setDinMesajOpen(true)
-                }}
-                className="hidden h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm [font-weight:650] text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] md:inline-flex lg:border-white/30 lg:bg-white/14 lg:text-[var(--text-on-accent)] lg:hover:bg-white/24"
-              >
-                Din mesaj
-              </button>
-            ) : null
-          }
-        />
+        <div className={zmeurelTheme.theme}>
+          <PageHeader
+            title="Comenzi"
+            subtitle="Livrări, statusuri și încasări"
+            contentVariant="workspace"
+            rightSlot={
+              canWriteComenzi ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpeedDialOpen(false)
+                    setDinMesajOpen(true)
+                  }}
+                  className="hidden h-8 items-center rounded-full border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-sm [font-weight:650] text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] md:inline-flex lg:border-white/30 lg:bg-white/14 lg:text-[var(--text-on-accent)] lg:hover:bg-white/24"
+                >
+                  Din mesaj
+                </button>
+              ) : null
+            }
+          />
+        </div>
       )}
     >
-      <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 pb-16 pt-3 sm:mt-0 sm:py-3 md:pb-3">
+      <DashboardContentShell variant="workspace" className={`${zmeurelTheme.theme} mt-2 flex flex-col gap-3 pb-16 pt-3 sm:mt-0 sm:py-3 md:pb-3`}>
         <RecoltareNecesitateCard
           recoltatKg={recoltatAziKg}
           necesarAziKg={necesarAziKg}
@@ -2414,28 +2419,39 @@ export function ComenziPageClient() {
 
         <div className="space-y-2" data-testid="comenzi-mobile-controls">
           <div className="flex items-center gap-2">
-            <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
-              Sortează:
-            </Label>
-            <Select
-              value={orderSort}
-              onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
-            >
-              <SelectTrigger id="comenzi-sort" className="h-9 w-full text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at">Dată plasare ↑</SelectItem>
-                <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
-                <SelectItem value="delivery_date">Cel mai apropiat (restanțe primele)</SelectItem>
-                {activeTab === 'programate' ? (
-                  <SelectItem value="delivery_date_desc">Cel mai îndepărtat</SelectItem>
-                ) : null}
-                <SelectItem value="locality">Localitate / Zonă</SelectItem>
-                <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
-                <SelectItem value="total_desc">Total lei ↓</SelectItem>
-              </SelectContent>
-            </Select>
+            {activeTab === 'de_livrat' ? (
+              <>
+                <span className="shrink-0 text-xs text-[var(--text-secondary)]">Sortează:</span>
+                <div className="flex h-9 min-w-0 flex-1 items-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-3 text-xs font-semibold text-[var(--text-secondary)]">
+                  Dată plasare ↑
+                </div>
+              </>
+            ) : (
+              <>
+                <Label htmlFor="comenzi-sort" className="shrink-0 text-xs text-[var(--text-secondary)]">
+                  Sortează:
+                </Label>
+                <Select
+                  value={orderSort}
+                  onValueChange={(value) => setOrderSort(value as ComenziOrderSort)}
+                >
+                  <SelectTrigger id="comenzi-sort" className="h-9 w-full text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="created_at">Dată plasare ↑</SelectItem>
+                    <SelectItem value="created_at_desc">Dată plasare ↓</SelectItem>
+                    <SelectItem value="delivery_date">Cel mai apropiat (restanțe primele)</SelectItem>
+                    {activeTab === 'programate' ? (
+                      <SelectItem value="delivery_date_desc">Cel mai îndepărtat</SelectItem>
+                    ) : null}
+                    <SelectItem value="locality">Localitate / Zonă</SelectItem>
+                    <SelectItem value="qty_desc">Cantitate ↓</SelectItem>
+                    <SelectItem value="total_desc">Total lei ↓</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
             <button
               type="button"
               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985] md:hidden"
