@@ -59,6 +59,12 @@
 
   --primary: #f16b6b;
   --primary-foreground: #ffffff;
+  --accent: var(--primary);
+  --gold: #c98a2e;
+  --gold-wash: #fff6e5;
+  --leaf: var(--zmeurel-leaf);
+  --dusk: #312e3f;
+  --whatsapp-solid: #25D366;
   --destructive: #d8402f;
   --ring: #f16b6b;
   --zmeurel-leaf: #3a6d49;

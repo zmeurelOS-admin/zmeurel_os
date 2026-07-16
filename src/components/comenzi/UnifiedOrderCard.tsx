@@ -4,8 +4,10 @@ import { useState } from 'react'
 import {
   Ban,
   CalendarDays,
+  Check,
   CircleDollarSign,
   ChevronDown,
+  MapPin,
   PackageCheck,
   Pencil,
   Phone,
@@ -101,15 +103,26 @@ function OriginBadge({ item }: { item: UnifiedOrderItem }) {
 
 function openOrderStatusWhatsApp(
   item: UnifiedOrderItem,
-  nextStatus: ShopOrderStatus | ComandaStatus,
+  nextStatus: ShopOrderStatus | ComandaStatus | null,
   markShopNotified?: () => void,
-) {
+  messageOverride?: string,
+): boolean {
+  if (messageOverride) {
+    if (!item.phone) return false
+    window.open(
+      `${waUrlForPhone(item.phone)}?text=${encodeURIComponent(messageOverride)}`,
+      '_blank',
+      'noopener,noreferrer',
+    )
+    return true
+  }
+
   const isCanonicalComanda = Boolean(item.b2bComanda)
   const blocksStatusWhatsApp =
     isCanonicalComanda &&
     (item.orderKind === 'cadou' || item.orderKind === 'consum_propriu')
-  if (blocksStatusWhatsApp) return
-  if (!item.phone || (nextStatus !== 'confirmata' && nextStatus !== 'in_livrare')) return
+  if (blocksStatusWhatsApp) return false
+  if (!item.phone || (nextStatus !== 'confirmata' && nextStatus !== 'in_livrare')) return false
 
   const firstName = item.customerName.trim().split(/\s+/)[0] || item.customerName.trim()
   const fullAddress = isCanonicalComanda
@@ -147,6 +160,7 @@ function openOrderStatusWhatsApp(
     'noopener,noreferrer',
   )
   markShopNotified?.()
+  return true
 }
 
 function StatusPill({ item }: { item: UnifiedOrderItem }) {
@@ -283,6 +297,8 @@ export function UnifiedOrderCard({
   const [expanded, setExpanded] = useState(false)
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const [deliveryScheduleOpen, setDeliveryScheduleOpen] = useState(false)
+  const [calledInSession, setCalledInSession] = useState(false)
+  const [noAnswerWhatsAppSent, setNoAnswerWhatsAppSent] = useState(false)
   const isShop = item.source === 'shop'
   const shopOrder = item.shopOrder
   const b2bOrder = item.b2bComanda
@@ -401,14 +417,32 @@ export function UnifiedOrderCard({
     markShopNotified()
   }
 
-  if (!compact) {
+  const handleCall = () => {
+    setCalledInSession(true)
+  }
+
+  const handleNoAnswer = () => {
+    void Promise.resolve(onCallStatusChange?.(item.id, 'no_answer'))
+    const deliveryOrOrderDate = item.deliveryDate ?? item.orderDate
+    const message = `Bună ziua! Sunt de la Zmeurel — v-am sunat pentru a vă livra comanda dvs. de ${displayQuantityLabel} zmeură, în valoare de ${totalFormatted} lei, din data de ${formatDeliveryDate(deliveryOrOrderDate)}, dar nu am reușit să vă găsim. Dacă mai doriți livrarea, ne puteți răspunde aici pe WhatsApp sau ne puteți suna, ca să stabilim locul de livrare. Vă mulțumim! 🍓`
+    if (openOrderStatusWhatsApp(item, null, undefined, message)) {
+      setNoAnswerWhatsAppSent(true)
+    }
+  }
+
+  if (
+    variant === 'livrari' &&
+    item.status === 'in_livrare' &&
+    Boolean(onB2bStatusChange) &&
+    !compact
+  ) {
     return (
       <article
         className={`overflow-hidden rounded-[22px] border-[1.5px] border-[var(--card-border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] ${
-          item.status === 'livrata' ? 'opacity-80' : item.status === 'anulata' ? 'opacity-50' : ''
-        } ${selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''}`}
+          selected ? 'ring-2 ring-[var(--focus-ring)] ring-offset-1 ring-offset-[var(--surface-page)]' : ''
+        }`}
       >
-        <div className="flex items-start gap-2 px-3 py-2.5">
+        <div className="px-3 pb-2 pt-3">
           {selectable ? (
             <SelectionCheckbox
               checked={Boolean(selected)}
@@ -422,46 +456,97 @@ export function UnifiedOrderCard({
             aria-expanded={expanded}
             aria-label={`${expanded ? 'Ascunde' : 'Arată'} detaliile comenzii pentru ${item.customerName}`}
             onClick={() => setExpanded((current) => !current)}
-            className="flex min-w-0 flex-1 flex-col gap-1 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+            className="flex w-full min-w-0 flex-col gap-2 text-left outline-none transition active:bg-[var(--surface-card-muted)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           >
-            <div className="flex flex-wrap items-center gap-1.5">
-              <p className="min-w-0 flex-1 line-clamp-2 text-[15px] font-bold leading-tight text-[var(--text-primary)]">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 line-clamp-2 text-[16px] font-bold leading-tight text-[var(--text-primary)]">
                 {item.customerName}
               </p>
-              <OriginBadge item={item} />
-              {variant === 'livrari' ? <StatusPill item={item} /> : null}
-              {hasNoAnswer ? <NoAnswerBadge /> : null}
-              {isUnpaid ? <UnpaidBadge /> : null}
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className="rounded-full bg-[var(--accent)] px-2.5 py-1 text-xs font-bold tabular-nums text-white">
+                  {displayQuantityLabel}
+                </span>
+                <span className="rounded-full bg-[var(--gold-wash)] px-2.5 py-1 text-xs font-bold tabular-nums text-[var(--gold)]">
+                  {totalFormatted} lei
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-tertiary)]">
-              <span className="min-w-0 flex-1 truncate">
-                {displayQuantityLabel} · {totalFormatted} lei
-                {hasKnownLocality ? ` · ${item.localityLabel}` : ''}
-              </span>
-              <span className="shrink-0">{mobileDateLabel}</span>
-            </div>
+            <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-[var(--text-secondary)]">
+              <MapPin className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
+              <span className="truncate">{fullAddress || item.addressShort || 'Adresă necompletată'}</span>
+            </span>
           </button>
         </div>
 
-        {phoneHref ? (
-          <div className="border-t border-[var(--divider)] px-3 py-1.5">
+        <div className="mx-3 flex min-h-11 items-center rounded-xl border border-[var(--border-default)] bg-[var(--surface-card-muted)] px-2">
+          {phoneHref ? (
             <a
               href={phoneHref}
-              className="inline-flex min-h-9 max-w-full items-center gap-2 text-sm font-semibold text-[var(--info-text)] transition active:scale-[0.985]"
+              onClick={handleCall}
+              className="inline-flex min-h-10 min-w-0 flex-1 items-center gap-2 px-1 text-sm font-semibold text-[var(--info-text)] transition active:scale-[0.985]"
             >
-              <Phone className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="truncate">{item.phone}</span>
+              {calledInSession ? <Check className="h-4 w-4 shrink-0 text-[var(--gold)]" aria-hidden /> : <Phone className="h-4 w-4 shrink-0" aria-hidden />}
+              <span className="truncate">{calledInSession ? 'Sunat' : item.phone}</span>
             </a>
-          </div>
-        ) : null}
+          ) : (
+            <span className="min-w-0 flex-1 px-1 text-sm font-medium text-[var(--text-tertiary)]">Fără telefon</span>
+          )}
+          <div className="mx-2 h-6 w-px bg-[var(--border-default)]" aria-hidden />
+          <OriginBadge item={item} />
+          {onEdit ? (
+            <button
+              type="button"
+              onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
+              className="ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-secondary)] transition active:scale-[0.985]"
+              aria-label={`Editează comanda pentru ${item.customerName}`}
+            >
+              <Pencil className="h-4 w-4" aria-hidden />
+            </button>
+          ) : null}
+        </div>
 
-        <DeliveryQuickActions
-          item={item}
-          disabled={disabled}
-          hasNoAnswer={hasNoAnswer}
-          onStatusChange={onB2bStatusChange}
-          onCallStatusChange={onCallStatusChange}
-        />
+        <div className="grid grid-cols-3 gap-2 px-3 py-3">
+          {phoneHref ? (
+            <a
+              href={phoneHref}
+              onClick={handleCall}
+              className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 text-[11px] font-semibold transition active:scale-[0.985] ${
+                calledInSession
+                  ? 'border-[var(--gold)] bg-[var(--gold-wash)] text-[var(--gold)]'
+                  : 'border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]'
+              }`}
+            >
+              {calledInSession ? <Check className="h-4 w-4" aria-hidden /> : <PhoneCall className="h-4 w-4" aria-hidden />}
+              {calledInSession ? 'Sunat' : 'Sună'}
+            </a>
+          ) : (
+            <span className="flex min-h-11 flex-col items-center justify-center rounded-xl border border-[var(--border-default)] px-1 text-[11px] font-medium text-[var(--text-tertiary)]">Fără telefon</span>
+          )}
+          <button
+            type="button"
+            disabled={disabled || !item.phone}
+            onClick={handleNoAnswer}
+            className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 text-[11px] font-semibold transition active:scale-[0.985] disabled:opacity-50 ${
+              noAnswerWhatsAppSent
+                ? 'border-[var(--whatsapp-solid)] bg-[var(--whatsapp-solid)] text-white'
+                : hasNoAnswer
+                  ? 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+                  : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)]'
+            }`}
+          >
+            {noAnswerWhatsAppSent ? <Check className="h-4 w-4" aria-hidden /> : <PhoneOff className="h-4 w-4" aria-hidden />}
+            <span className="truncate">{noAnswerWhatsAppSent ? 'Trimis pe WhatsApp' : 'N-a răspuns'}</span>
+          </button>
+          <button
+            type="button"
+            disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
+            onClick={() => void Promise.resolve(onB2bStatusChange?.(item.id, 'livrata'))}
+            className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+          >
+            <PackageCheck className="h-4 w-4" aria-hidden />
+            Livrat
+          </button>
+        </div>
 
         <div
           aria-hidden={!expanded}
@@ -470,136 +555,27 @@ export function UnifiedOrderCard({
           }`}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="space-y-3 border-t border-[var(--divider)] px-3 py-3">
-              {!isTerminal ? (
-                isCanonicalComanda && item.status === 'in_livrare' ? (
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
-                    onClick={() => void handleStatusChange('livrata')}
-                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-2 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
-                  >
-                    <PackageCheck className="h-4 w-4 shrink-0" aria-hidden />
-                    Livrat
-                  </button>
+            <div className="border-t border-[var(--divider)] px-3 py-3">
+              <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     disabled={disabled || !isCanonicalComanda || !onB2bDeliveryDateChange}
                     onClick={() => setDeliveryScheduleOpen(true)}
-                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-2 text-[11px] font-semibold text-[var(--text-primary)] transition active:scale-[0.985] disabled:opacity-50"
+                    className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-2 text-xs font-semibold text-[var(--text-primary)] transition active:scale-[0.985] disabled:opacity-50"
                   >
-                    <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+                    <CalendarDays className="h-4 w-4" aria-hidden />
                     Reprogramat
                   </button>
                   <button
                     type="button"
                     disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
                     onClick={() => void handleStatusChange('anulata')}
-                    className="flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--alert)] bg-[var(--alert)] px-2 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+                    className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--alert)] bg-[var(--alert)] px-2 text-xs font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
                   >
-                    <Ban className="h-4 w-4 shrink-0" aria-hidden />
+                    <Ban className="h-4 w-4" aria-hidden />
                     Anulat
                   </button>
-                </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <AppDatePicker
-                        id={`unified-mobile-delivery-date-${item.source}-${item.id}`}
-                        placeholder="Setează data"
-                        value={item.deliveryDate ?? ''}
-                        disabled={disabled}
-                        triggerClassName="h-10 bg-[var(--surface-card)] px-3 text-sm"
-                        onChange={handleDeliveryDateChange}
-                      />
-                      {item.deliveryDate ? (
-                        <button
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => void handleDeliveryDateChange(null)}
-                          className="w-full text-left text-xs font-medium text-[var(--text-tertiary)]"
-                        >
-                          Șterge data
-                        </button>
-                      ) : null}
-                    </div>
-
-                    <Popover open={statusMenuOpen} onOpenChange={setStatusMenuOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={disabled || statusTransitions.length === 0}
-                          className="flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 text-left text-sm font-semibold text-[var(--text-primary)] disabled:opacity-50"
-                          aria-label="Schimbă statusul comenzii"
-                        >
-                          <span className="truncate">{item.statusLabel}</span>
-                          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-52 p-2">
-                        <p className="px-2 pb-1.5 text-xs font-semibold text-[var(--text-tertiary)]">
-                          Schimbă statusul
-                        </p>
-                        <div className="space-y-1">
-                          {statusTransitions.map((nextStatus) => (
-                            <button
-                              key={nextStatus}
-                              type="button"
-                              onClick={() => handleStatusChange(nextStatus)}
-                              className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-card-muted)] active:scale-[0.985]"
-                            >
-                              {isCanonicalComanda
-                                ? B2B_STATUS_LABELS[nextStatus as ComandaStatus]
-                                : SHOP_STATUS_LABELS[nextStatus as ShopOrderStatus]}
-                            </button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )
-              ) : null}
-
-              {onEdit ? (
-                <button
-                  type="button"
-                  className="min-h-10 text-left text-sm font-semibold text-[var(--primary)]"
-                  onClick={() => onEdit(item.id, isCanonicalComanda ? 'manual' : 'shop')}
-                >
-                  ✏ Editează
-                </button>
-              ) : null}
-
-              {shopOrder ? (
-                shopOrder.notified_wa ? (
-                  <p className="text-sm font-semibold text-[var(--success-text)]">✓ Anunțat WA</p>
-                ) : (
-                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-[var(--border-default)]"
-                      checked={item.confirmed}
-                      disabled={disabled}
-                      onChange={(event) =>
-                        onShopConfirmedChange?.(item.id, event.target.checked)
-                      }
-                    />
-                    WhatsApp trimis
-                  </label>
-                )
-              ) : null}
-
-              {needsConfirmation ? (
-                <button
-                  type="button"
-                  disabled={disabled || !item.phone}
-                  onClick={handleZona4WhatsApp}
-                  className="flex min-h-10 w-full items-center justify-center rounded-full bg-[var(--whatsapp-green)] px-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-                >
-                  Stabilește livrare pe WhatsApp
-                </button>
-              ) : null}
+              </div>
             </div>
           </div>
         </div>

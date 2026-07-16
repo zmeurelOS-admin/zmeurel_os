@@ -143,12 +143,37 @@ describe('UnifiedOrderCard', () => {
     openSpy.mockRestore()
   })
 
-  it('păstrează badge-ul de status în varianta Livrări', () => {
+  it('păstrează statusul în acțiuni, nu ca fundal implicit în headerul Livrări', () => {
+    const manualDelivery = mapB2bToUnified(
+      {
+        id: 'manual-delivery-header',
+        tenant_id: 'tenant',
+        client_id: null,
+        client_nume_manual: order.customer_name,
+        telefon: order.customer_phone,
+        locatie_livrare: order.delivery_address,
+        data_comanda: '2026-06-10',
+        data_livrare: '2026-06-10',
+        cantitate_kg: 1,
+        pret_per_kg: 35,
+        total: 35,
+        status: 'in_livrare',
+        observatii: null,
+        linked_vanzare_id: null,
+        parent_comanda_id: null,
+        created_at: '2026-06-10T08:00:00.000Z',
+        updated_at: '2026-06-10T08:00:00.000Z',
+        data_origin: null,
+      },
+      {},
+    )
     const { container } = render(
-      <UnifiedOrderCard item={mapShopToUnified(order)} variant="livrari" />,
+      <UnifiedOrderCard item={manualDelivery} variant="livrari" onB2bStatusChange={() => undefined} />,
     )
 
-    expect(container.querySelector('[data-testid="order-status-pill"]')).toHaveTextContent('În livrare')
+    expect(container.querySelector('[data-testid="order-status-pill"]')).not.toBeInTheDocument()
+    expect(screen.getByText('1 kg')).toHaveClass('bg-[var(--accent)]')
+    expect(screen.getByText('35 lei')).toHaveClass('bg-[var(--gold-wash)]')
   })
 
   it('reduce cardul la poziție, nume și localitate în modul de reordonare', () => {
@@ -171,6 +196,7 @@ describe('UnifiedOrderCard', () => {
     const user = userEvent.setup()
     const onCallStatusChange = vi.fn()
     const onStatusChange = vi.fn()
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
     const manualOrder: Comanda = {
       id: 'manual-delivery-actions',
       tenant_id: 'tenant',
@@ -204,10 +230,24 @@ describe('UnifiedOrderCard', () => {
     )
 
     expect(screen.getByRole('link', { name: 'Sună' })).toHaveAttribute('href', 'tel:0740555555')
+    await user.click(screen.getByRole('link', { name: 'Sună' }))
+    expect(screen.getAllByText('Sunat')).toHaveLength(2)
     await user.click(screen.getByRole('button', { name: 'N-a răspuns' }))
     expect(onCallStatusChange).toHaveBeenCalledWith(manualOrder.id, 'no_answer')
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('https://wa.me/40740555555?text='),
+      '_blank',
+      'noopener,noreferrer',
+    )
+    expect(decodeURIComponent(String(openSpy.mock.calls[0][0]))).toContain(
+      'comanda dvs. de 1 kg zmeură, în valoare de 40 lei, din data de 13 iul.',
+    )
+    expect(screen.getByRole('button', { name: 'Trimis pe WhatsApp' })).toHaveClass(
+      'bg-[var(--whatsapp-solid)]',
+    )
     await user.click(screen.getByRole('button', { name: 'Livrat' }))
     expect(onStatusChange).toHaveBeenCalledWith(manualOrder.id, 'livrata')
+    openSpy.mockRestore()
   })
 
   it('afișează reward-ul shop ca badge read-only', async () => {
@@ -304,7 +344,7 @@ describe('UnifiedOrderCard', () => {
         }),
       )
       if (status === 'in_livrare') {
-        expect(screen.getAllByRole('button', { name: 'Livrat' })).toHaveLength(2)
+        expect(screen.getByRole('button', { name: 'Livrat' })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Reprogramat' })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Anulat' })).toHaveClass('bg-[var(--alert)]')
         expect(screen.queryByRole('button', { name: 'Schimbă statusul comenzii' })).not.toBeInTheDocument()
@@ -348,19 +388,13 @@ describe('UnifiedOrderCard', () => {
       />,
     )
 
-    expect(screen.getByText('✓ Anunțat WA').closest('[aria-hidden]')).toHaveAttribute(
-      'aria-hidden',
-      'true',
-    )
+    expect(screen.queryByText('✓ Anunțat WA')).not.toBeInTheDocument()
     await user.click(
       screen.getByRole('button', {
         name: 'Arată detaliile comenzii pentru Maria Popescu',
       }),
     )
-    expect(screen.getByText('✓ Anunțat WA').closest('[aria-hidden]')).toHaveAttribute(
-      'aria-hidden',
-      'false',
-    )
+    expect(screen.getByText('✓ Anunțat WA')).toBeVisible()
     expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
   })
@@ -447,7 +481,7 @@ describe('UnifiedOrderCard', () => {
 
     render(<UnifiedOrderCard item={mapB2bToUnified(manualOrder, {})} />)
 
-    expect(screen.getByText('35 kg · 123 lei · Suceava')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Arată rezumatul comenzii pentru Ion Popescu' })).toHaveTextContent('35 kg · 123 lei · Suceava')
     expect(screen.getByText('Manual')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: 'Confirmat' })).not.toBeInTheDocument()
   })

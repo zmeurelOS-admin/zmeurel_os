@@ -135,12 +135,12 @@ describe('LivrariPageClient', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
+    await user.click(await screen.findByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
 
     expect(screen.getByText('Shop')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: '0740 123 456' })).toHaveAttribute('href', 'tel:0740123456')
     expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: 'Livrat' })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Livrat' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reprogramat' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Anulat' })).toHaveClass('bg-[var(--alert)]')
     expect(screen.queryByRole('button', { name: 'Schimbă statusul comenzii' })).not.toBeInTheDocument()
@@ -150,8 +150,8 @@ describe('LivrariPageClient', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getAllByRole('button', { name: 'Livrat' })[1])
+    await user.click(await screen.findByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
+    await user.click(screen.getByRole('button', { name: 'Livrat' }))
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
     await waitFor(() =>
@@ -170,8 +170,8 @@ describe('LivrariPageClient', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getAllByRole('button', { name: 'Livrat' })[1])
+    await user.click(await screen.findByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
+    await user.click(screen.getByRole('button', { name: 'Livrat' }))
     await user.click(screen.getByRole('radio', { name: 'Neplătit' }))
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
@@ -187,8 +187,8 @@ describe('LivrariPageClient', () => {
     deliverComandaMock.mockRejectedValueOnce(new Error('Stoc insuficient pentru livrare.'))
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
-    await user.click(screen.getAllByRole('button', { name: 'Livrat' })[1])
+    await user.click(await screen.findByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
+    await user.click(screen.getByRole('button', { name: 'Livrat' }))
     await user.click(screen.getByRole('button', { name: 'Da, marchează livrat' }))
 
     await waitFor(() =>
@@ -203,7 +203,7 @@ describe('LivrariPageClient', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
+    await user.click(await screen.findByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
     await user.click(screen.getByRole('button', { name: 'Reprogramat' }))
     await user.click(screen.getByRole('button', { name: 'Mâine' }))
     await user.click(screen.getByRole('button', { name: 'Confirmă data' }))
@@ -222,7 +222,7 @@ describe('LivrariPageClient', () => {
     const user = userEvent.setup()
     renderPage()
 
-    await user.click(await screen.findByRole('button', { name: /Maria Popescu/ }))
+    await user.click(await screen.findByRole('button', { name: 'Arată detaliile comenzii pentru Maria Popescu' }))
     await user.click(screen.getByRole('button', { name: /Editează/ }))
 
     const dialog = screen.getByRole('dialog')
@@ -264,7 +264,7 @@ describe('LivrariPageClient', () => {
     expect(await screen.findByText('Client Manual')).toBeInTheDocument()
     expect(screen.getByText('3.0 kg clienți · 36 lei')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Client Manual/ }))
+    await user.click(screen.getByRole('button', { name: 'Arată detaliile comenzii pentru Client Manual' }))
     expect(screen.getByRole('link', { name: '0722 000 111' })).toHaveAttribute('href', 'tel:0722000111')
     expect(screen.getByRole('button', { name: /Editează/ })).toBeInTheDocument()
     expect(screen.queryByText('Magazin')).not.toBeInTheDocument()
