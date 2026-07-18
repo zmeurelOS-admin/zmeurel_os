@@ -2,17 +2,16 @@
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Banknote, ChevronDown, ChevronRight, CircleDot, Layers2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, SlidersHorizontal, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
+import { AppDialog } from '@/components/app/AppDialog'
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import {
   ModuleEmptyCard,
-  ModulePillFilterButton,
-  ModulePillRow,
   ModuleScoreboard,
 } from '@/components/app/module-list-chrome'
 import { ErrorState } from '@/components/app/ErrorState'
@@ -144,6 +143,33 @@ function formatGroupDate(value: string): string {
     month: 'short',
     timeZone: 'UTC',
   }).format(new Date(`${value}T12:00:00.000Z`)).replace(/\./g, '')
+}
+
+function CompactTodayMetric({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  tone?: 'success' | 'warning' | 'neutral'
+}) {
+  const toneClassName =
+    tone === 'success'
+      ? 'bg-[var(--success-text)]'
+      : tone === 'warning'
+        ? 'bg-[var(--warning-text)]'
+        : 'bg-[var(--text-secondary)]'
+
+  return (
+    <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
+      <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', toneClassName)} aria-hidden />
+        <span className="truncate">{label}</span>
+      </p>
+      <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{value}</p>
+    </div>
+  )
 }
 
 function RecoltareDayGroupCard({
@@ -283,6 +309,7 @@ export function RecoltariPageClient({
   const [selectedCulegatorId, setSelectedCulegatorId] = useState('all')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [aiPrefill, setAiPrefill] = useState<{ parcela_id: string; parcela_label: string; cantitate_kg: string; data: string; observatii: string } | null>(null)
   const [editingRecoltare, setEditingRecoltare] = useState<Recoltare | null>(null)
@@ -652,6 +679,16 @@ export function RecoltariPageClient({
     { key: 'custom', label: 'Interval custom' },
     { key: 'toate', label: 'Toate perioadele' },
   ]
+  const activeAdvancedFilterCount =
+    (selectedCulegatorId !== 'all' ? 1 : 0) + (selectedParcelaId !== 'all' ? 1 : 0)
+  const resetVisibleFilters = () => {
+    setSearchTerm('')
+    setTimeFilter('azi')
+    setSelectedCulegatorId('all')
+    setSelectedParcelaId('all')
+    setCustomStartDate('')
+    setCustomEndDate('')
+  }
 
   return (
     <AppShell
@@ -674,98 +711,102 @@ export function RecoltariPageClient({
 
         {!initialError && !isError ? (
           <>
-            <ModuleScoreboard className="grid grid-cols-1 gap-2 border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] sm:grid-cols-3">
-              <div className="flex items-center gap-3 rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_78%,var(--surface-card))] px-3 py-2">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card)] text-[var(--success-text)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
-                  <CircleDot className="h-5 w-5" aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] text-[var(--text-secondary)] [font-weight:650]">Cal I azi</p>
-                  <p className="truncate text-[20px] text-[var(--success-text)] [font-weight:750]">
-                    {formatKg(todayDashboard.cal1Kg, 1)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl bg-[color:color-mix(in_srgb,var(--warning-bg)_82%,var(--surface-card))] px-3 py-2">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card)] text-[var(--warning-text)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
-                  <Layers2 className="h-5 w-5" aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] text-[var(--text-secondary)] [font-weight:650]">Cal II azi</p>
-                  <p className="truncate text-[20px] text-[var(--warning-text)] [font-weight:750]">
-                    {formatKg(todayDashboard.cal2Kg, 1)}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl bg-[var(--surface-muted)] px-3 py-2">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
-                  <Banknote className="h-5 w-5" aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] text-[var(--text-secondary)] [font-weight:650]">Plătit azi</p>
-                  <p className="truncate text-[20px] text-[var(--text-primary)] [font-weight:750]">
-                    {formatLei(todayDashboard.paidLei)}
-                  </p>
-                </div>
-              </div>
+            <ModuleScoreboard className="grid grid-cols-3 gap-2 rounded-2xl border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-3 shadow-[var(--shadow-soft)]">
+              <CompactTodayMetric label="Cal I azi" value={formatKg(todayDashboard.cal1Kg, 1)} tone="success" />
+              <CompactTodayMetric label="Cal II azi" value={formatKg(todayDashboard.cal2Kg, 1)} tone="warning" />
+              <CompactTodayMetric label="Plătit azi" value={formatLei(todayDashboard.paidLei)} />
             </ModuleScoreboard>
 
             {seasonParcelaChips.length > 0 ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Sezon pe parcelă</p>
-                  <p className="text-xs text-[var(--text-secondary)]">Atinge o parcelă pentru filtrare</p>
-                </div>
-                <div className="overflow-x-auto pb-1 [scrollbar-width:none]">
-                  <div className="flex min-w-max gap-2">
-                    {seasonParcelaChips.map((chip) => {
-                      const isActive = selectedParcelaId === chip.parcelaId
+              <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-2.5 py-2 shadow-[var(--shadow-soft)]">
+                <p className="mb-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
+                  Sezon pe parcelă
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {seasonParcelaChips.map((chip) => {
+                    const isActive = selectedParcelaId === chip.parcelaId
 
-                      return (
-                        <button
-                          key={chip.parcelaId}
-                          type="button"
-                          onClick={() => setSelectedParcelaId((current) => (current === chip.parcelaId ? 'all' : chip.parcelaId))}
-                          className={cn(
-                            'shrink-0 rounded-2xl border px-3 py-2 text-left shadow-[var(--shadow-soft)] transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out',
-                            'active:scale-[0.985]',
-                            isActive
-                              ? 'border-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--success-bg)_72%,var(--surface-card))]'
-                              : 'border-[var(--border-default)] bg-[var(--surface-card)]',
-                          )}
-                          aria-label={`Filtrează după ${chip.displayName}`}
-                          aria-pressed={isActive}
-                        >
-                          <span className="block whitespace-nowrap text-[13px] leading-snug text-[var(--text-primary)] [font-weight:650]">
-                            {chip.displayName}
-                          </span>
-                          <span className="mt-1 block whitespace-nowrap text-[11px] leading-snug text-[var(--text-secondary)]">
-                            {formatKgValue(chip.totalKg, 2)} kg · Cal I {chip.cal1Pct}%
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
+                    return (
+                      <button
+                        key={chip.parcelaId}
+                        type="button"
+                        onClick={() => setSelectedParcelaId((current) => (current === chip.parcelaId ? 'all' : chip.parcelaId))}
+                        className={cn(
+                          'min-w-0 rounded-xl border px-2 py-1.5 text-left transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out active:scale-[0.985]',
+                          isActive
+                            ? 'border-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--success-bg)_72%,var(--surface-card))]'
+                            : 'border-[var(--border-default)] bg-[var(--surface-card)]',
+                        )}
+                        aria-label={`Filtrează după ${chip.displayName}`}
+                        aria-pressed={isActive}
+                      >
+                        <span className="block truncate text-[12px] leading-snug text-[var(--text-primary)] [font-weight:650]">
+                          {chip.displayName}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[10px] leading-snug text-[var(--text-secondary)]">
+                          {formatKgValue(chip.totalKg, 2)} kg · Cal I {chip.cal1Pct}%
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             ) : null}
 
-            <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]">
-              <ModulePillRow>
-                {timeFilterOptions.map((option) => (
-                  <ModulePillFilterButton
-                    key={option.key}
-                    active={timeFilter === option.key}
-                    activeStyle="minimal"
-                    onClick={() => setTimeFilter(option.key)}
-                  >
-                    {option.label}
-                  </ModulePillFilterButton>
-                ))}
-              </ModulePillRow>
-
+            <div className="space-y-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-2.5 shadow-[var(--shadow-soft)]">
+              <div className="grid grid-cols-[minmax(112px,0.7fr)_minmax(0,1fr)_auto_auto] items-center gap-2">
+                <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value as TimeFilter)}>
+                  <SelectTrigger aria-label="Interval recoltări" className="h-9 rounded-lg px-3 text-xs">
+                    <SelectValue placeholder="Interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeFilterOptions.map((option) => (
+                      <SelectItem key={option.key} value={option.key}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <SearchField
+                  placeholder="Caută..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  aria-label="Caută recoltări"
+                  className="h-9 rounded-lg text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  className={cn(
+                    'relative h-9 w-9 rounded-lg',
+                    activeAdvancedFilterCount > 0
+                      ? 'border-[var(--success-text)] text-[var(--success-text)]'
+                      : undefined,
+                  )}
+                  aria-label="Filtre avansate"
+                  onClick={() => setAdvancedFiltersOpen(true)}
+                >
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                  {activeAdvancedFilterCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--success-text)] px-1 text-[10px] font-bold text-white">
+                      {activeAdvancedFilterCount}
+                    </span>
+                  ) : null}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  className="h-9 w-9 rounded-lg"
+                  aria-label="Resetează filtrele"
+                  onClick={resetVisibleFilters}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </Button>
+              </div>
               {timeFilter === 'custom' ? (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <AppDatePicker
                     id="recoltari-filter-start"
                     label="De la"
@@ -782,43 +823,7 @@ export function RecoltariPageClient({
                   />
                 </div>
               ) : null}
-
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.6fr)_minmax(180px,0.6fr)]">
-                <SearchField
-                  placeholder="Caută după culegător, parcelă sau observații..."
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  aria-label="Caută recoltări"
-                />
-                <Select value={selectedCulegatorId} onValueChange={setSelectedCulegatorId}>
-                  <SelectTrigger aria-label="Filtrează după culegător" className="h-11">
-                    <SelectValue placeholder="Toți culegătorii" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toți culegătorii</SelectItem>
-                    {culegatori.map((culegator) => (
-                      <SelectItem key={culegator.id} value={culegator.id}>
-                        {culegator.nume_prenume || 'Culegător'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedParcelaId} onValueChange={setSelectedParcelaId}>
-                  <SelectTrigger aria-label="Filtrează după parcelă" className="h-11">
-                    <SelectValue placeholder="Toate parcelele" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Toate parcelele</SelectItem>
-                    {parcele.map((parcela) => (
-                      <SelectItem key={parcela.id} value={parcela.id}>
-                        {formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--text-secondary)]">
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">
                 <span>
                   <span className="font-semibold text-[var(--text-primary)]">{formatKg(totalCantitateKg, 2)}</span>
                   <span className="ml-1 text-xs text-[var(--text-tertiary)]">în listă</span>
@@ -882,6 +887,69 @@ export function RecoltariPageClient({
           </div>
         ) : null}
       </DashboardContentShell>
+
+      <AppDialog
+        open={advancedFiltersOpen}
+        onOpenChange={setAdvancedFiltersOpen}
+        title="Filtre avansate"
+        description="Restrânge lista după persoană și parcelă."
+        contentClassName="space-y-4"
+        desktopFormCompact
+        showCloseButton
+        footer={
+          <div className="flex w-full items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSelectedCulegatorId('all')
+                setSelectedParcelaId('all')
+              }}
+            >
+              Resetează
+            </Button>
+            <Button type="button" onClick={() => setAdvancedFiltersOpen(false)}>
+              Aplică
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">Culegător</p>
+            <Select value={selectedCulegatorId} onValueChange={setSelectedCulegatorId}>
+              <SelectTrigger aria-label="Filtrează după culegător" className="h-10">
+                <SelectValue placeholder="Toți culegătorii" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toți culegătorii</SelectItem>
+                {culegatori.map((culegator) => (
+                  <SelectItem key={culegator.id} value={culegator.id}>
+                    {culegator.nume_prenume || 'Culegător'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-[var(--text-secondary)]">Parcelă</p>
+            <Select value={selectedParcelaId} onValueChange={setSelectedParcelaId}>
+              <SelectTrigger aria-label="Filtrează după parcelă" className="h-10">
+                <SelectValue placeholder="Toate parcelele" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toate parcelele</SelectItem>
+                {parcele.map((parcela) => (
+                  <SelectItem key={parcela.id} value={parcela.id}>
+                    {formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </AppDialog>
 
       <ViewRecoltareDialog
         open={Boolean(viewingRecoltare)}
