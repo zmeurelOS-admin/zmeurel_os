@@ -10,7 +10,7 @@ import {
   normalizeFarmMemberAccess,
 } from '@/lib/farm-members/access'
 import { getSupabaseAdmin } from '@/lib/supabase/admin'
-import { getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
+import { getNonOperatorTenantIdOrNull, getTenantIdByUserIdOrNull } from '@/lib/tenant/get-tenant'
 import type { Database } from '@/types/supabase'
 
 function clearStaleSupabaseAuthCookies(request: NextRequest, response: NextResponse) {
@@ -221,18 +221,18 @@ export async function proxy(request: NextRequest) {
     | null = null
   let operatorAccess = normalizeFarmMemberAccess(null)
   let operatorFirstRoute = '/comenzi'
+  // true doar când query-ul admin farm_members de mai jos a rulat fără eroare
+  // (miss definitiv = user-ul nu e operator). Pe eroare rămâne false și forțează
+  // fallback la rezolvarea completă, care re-verifică operator.
+  let operatorLookupSucceeded = false
 
-  try {
-    tenantId = await getTenantIdByUserIdOrNull(supabase, user.id)
-  } catch (error) {
-    console.error('[proxy] tenant lookup failed', {
-      pathname,
-      userId: user.id,
-      message: error instanceof Error ? error.message : 'unknown',
-    })
-    return supabaseResponse
-  }
-
+  // Sursă unică pentru apartenența de operator: un singur query farm_members
+  // (service-role) per request. Rulează înaintea rezolvării de tenant, astfel
+  // încât operatorii să nu mai interogheze farm_members și prin
+  // getTenantIdByUserIdOrNull() (al doilea query redundant, semnalat în audit).
+  // RLS „member can read own row" (user_id = auth.uid()) garantează că și
+  // clientul de sesiune ar returna exact același rând, deci rezultatul
+  // autorizării rămâne identic.
   try {
     const admin = getSupabaseAdmin()
     const { data: member, error: memberError } = await admin
@@ -247,6 +247,9 @@ export async function proxy(request: NextRequest) {
       .maybeSingle()
 
     const farmMember = member as unknown as { tenant_id?: string; role?: string; modules_access?: unknown } | null
+    if (!memberError) {
+      operatorLookupSucceeded = true
+    }
     if (!memberError && farmMember?.tenant_id) {
       operatorMember = {
         tenant_id: farmMember.tenant_id,
@@ -262,6 +265,31 @@ export async function proxy(request: NextRequest) {
       userId: user.id,
       message: error instanceof Error ? error.message : 'unknown',
     })
+  }
+
+  if (operatorMember) {
+    // Operator: tenant-ul e cel din apartenența deja rezolvată mai sus.
+    // Nu mai apelăm getTenantIdByUserIdOrNull() — ar reinteroga farm_members.
+    tenantId = operatorMember.tenant_id
+  } else {
+    // Non-operator: dacă query-ul admin farm_members a reușit (miss confirmat),
+    // sărim peste sub-query-ul de operator din getTenantIdByUserIdOrNull() și
+    // rezolvăm direct owned/profil — un singur query farm_members per request.
+    // Dacă query-ul admin a eșuat, folosim fallback-ul complet care re-verifică
+    // operator, ca să păstrăm comportamentul dinainte de optimizare.
+    const resolveTenant = operatorLookupSucceeded
+      ? getNonOperatorTenantIdOrNull
+      : getTenantIdByUserIdOrNull
+    try {
+      tenantId = await resolveTenant(supabase, user.id)
+    } catch (error) {
+      console.error('[proxy] tenant lookup failed', {
+        pathname,
+        userId: user.id,
+        message: error instanceof Error ? error.message : 'unknown',
+      })
+      return supabaseResponse
+    }
   }
 
   requestHeaders.set('x-zmeurel-user-id', user.id)

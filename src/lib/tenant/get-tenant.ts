@@ -95,6 +95,30 @@ export async function getTenantIdByUserIdOrNull(
   return profile?.tenant_id ?? null
 }
 
+/**
+ * Rezolvă tenant-ul pentru un user despre care apelantul a stabilit DEJA că nu
+ * e operator activ (owned tenant → `profiles.tenant_id`), sărind peste
+ * sub-query-ul de operator din {@link getTenantIdByUserIdOrNull}.
+ *
+ * A se folosi EXCLUSIV când non-operator e deja confirmat printr-un query
+ * `farm_members` reușit (ex. `src/proxy.ts`, care rulează deja acel query pe
+ * fiecare request). Pentru orice alt apelant, folosește
+ * {@link getTenantIdByUserIdOrNull} — apelarea acesteia pentru un operator ar
+ * rezolva greșit la tenant-ul owned/profil.
+ */
+export async function getNonOperatorTenantIdOrNull(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<string | null> {
+  const ownedTenantId = await getOwnedTenantIdOrNull(supabase, userId)
+  if (ownedTenantId) {
+    return ownedTenantId
+  }
+
+  const profile = await getProfileTenantRow(supabase, userId)
+  return profile?.tenant_id ?? null
+}
+
 export async function getTenantByIdOrNull(
   supabase: SupabaseClient<Database>,
   tenantId: string | null
