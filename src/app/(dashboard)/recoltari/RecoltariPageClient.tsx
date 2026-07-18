@@ -2,14 +2,13 @@
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, CircleDot, Layers2, Scale, Users } from 'lucide-react'
+import { Banknote, ChevronDown, ChevronRight, CircleDot, Layers2 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { toast } from '@/lib/ui/toast'
 
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
-import { DesktopKpiStrip } from '@/components/app/DesktopKpiStrip'
 import {
   ModuleEmptyCard,
   ModulePillFilterButton,
@@ -23,16 +22,24 @@ import { StickyActionBar } from '@/components/app/StickyActionBar'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { Button } from '@/components/ui/button'
-import { DesktopInspectorPanel, DesktopInspectorSection, DesktopSplitPane } from '@/components/ui/desktop'
+import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { SearchField } from '@/components/ui/SearchField'
-import Sparkline from '@/components/ui/Sparkline'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ViewRecoltareDialog } from '@/components/recoltari/ViewRecoltareDialog'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
 import { getHarvestCropSelection, stripHiddenAgricultureMetadata } from '@/lib/parcele/crop-config'
 import { formatUnitateDisplayName, getUnitateTipLabel } from '@/lib/parcele/unitate'
-import { aggregateRecoltariByCulegator, type RecoltareWorkerAggregate } from '@/lib/recoltari/aggregate-by-culegator'
+import {
+  calculateTodayRecoltariDashboard,
+  filterRecoltariForList,
+  groupRecoltariByDay,
+  type RecoltariDayGroup,
+  type RecoltariFilterState,
+  type RecoltariParcelaMetaMap,
+  type RecoltariWorkerMetaMap,
+} from '@/lib/recoltari/list-view'
 import { getCulegatori } from '@/lib/supabase/queries/culegatori'
 import { getRecoltareDeleteImpact } from '@/lib/supabase/queries/miscari-stoc'
 import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
@@ -40,6 +47,7 @@ import { deleteRecoltare, getRecoltari, getRecoltareTotalKg, type Recoltare } fr
 import { buildRecoltareDeleteLabel } from '@/lib/ui/delete-labels'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 
 const AddRecoltareDialog = dynamic(
   () => import('@/components/recoltari/AddRecoltareDialog').then((mod) => mod.AddRecoltareDialog),
@@ -54,7 +62,7 @@ const DeleteConfirmDialog = dynamic(
   { ssr: false }
 )
 
-type TimeFilter = 'azi' | 'toate'
+type TimeFilter = 'azi' | 'saptamana' | 'luna' | 'custom' | 'toate'
 
 interface RecoltariPageClientProps {
   initialRecoltari?: Recoltare[]
@@ -108,123 +116,105 @@ function formatLei(value: number): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(value)} lei`
 }
 
-function formatTableDate(value: string | null | undefined): string {
-  if (!value) return '—'
-  const date = new Date(value.slice(0, 10))
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('ro-RO')
-}
-
 function calculateCal1Pct(cal1: number, cal2: number): number {
   const total = cal1 + cal2
   if (total <= 0) return 0
   return Math.round((cal1 / total) * 100)
 }
 
-type ParcelaMetaMap = Record<
-  string,
-  { name: string; displayName: string; soi: string; status: string; tipLabel: string }
->
-
-function formatHarvestCount(value: number): string {
-  return `${value} ${value === 1 ? 'recoltare' : 'recoltări'}`
-}
+type ParcelaMetaMap = RecoltariParcelaMetaMap
 
 function formatRatePerKg(value: number): string {
   return `${new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 2 }).format(value)} lei/kg`
 }
 
-function formatAggregateRate(aggregate: RecoltareWorkerAggregate): string | null {
-  if (aggregate.hasVariableRate) return 'Rată variabilă'
-  if (aggregate.uniformSnapshotRateLeiKg === null) return null
-  return formatRatePerKg(aggregate.uniformSnapshotRateLeiKg)
+function startOfCurrentWeekIso(today: Date): string {
+  const day = today.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  return toIsoDate(shiftDays(today, mondayOffset))
 }
 
-function RecoltareAggregateCard({
-  aggregate,
-  expanded = false,
-  selected = false,
-  showInlineDetails = true,
+function startOfCurrentMonthIso(today: Date): string {
+  return toIsoDate(new Date(today.getFullYear(), today.getMonth(), 1))
+}
+
+function formatGroupDate(value: string): string {
+  return new Intl.DateTimeFormat('ro-RO', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T12:00:00.000Z`)).replace(/\./g, '')
+}
+
+function RecoltareDayGroupCard({
+  group,
+  expanded,
   parcelaMap,
+  culegatorMap,
   onToggle,
   onViewHarvest,
 }: {
-  aggregate: RecoltareWorkerAggregate
-  expanded?: boolean
-  selected?: boolean
-  showInlineDetails?: boolean
+  group: RecoltariDayGroup
+  expanded: boolean
   parcelaMap: ParcelaMetaMap
+  culegatorMap: RecoltariWorkerMetaMap
   onToggle: () => void
   onViewHarvest: (recoltare: Recoltare) => void
 }) {
-  const rateLabel = formatAggregateRate(aggregate)
-
   return (
     <div
-      className={[
-        'overflow-hidden rounded-[22px] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] transition-[transform,box-shadow,border-color] duration-150 ease-out',
-        selected ? 'ring-2 ring-[color:color-mix(in_srgb,var(--success-text)_28%,transparent)]' : '',
-      ].join(' ')}
+      className="overflow-hidden rounded-[22px] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] transition-[transform,box-shadow,border-color] duration-150 ease-out"
     >
       <button
         type="button"
         onClick={onToggle}
-        aria-expanded={showInlineDetails ? expanded : undefined}
+        aria-expanded={expanded}
         className="flex w-full items-start gap-3 p-[18px] text-left transition-transform duration-150 ease-out active:scale-[0.985]"
       >
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-base text-[var(--text-primary)] [font-weight:700]">{aggregate.workerName}</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                {formatHarvestCount(aggregate.harvestCount)}
-                {rateLabel ? ` · ${rateLabel}` : ''}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#F8F7F5,#F0EFEC)] text-[var(--success-text)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+          {expanded ? <ChevronDown className="h-5 w-5" aria-hidden /> : <ChevronRight className="h-5 w-5" aria-hidden />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <p className="truncate text-base text-[var(--text-primary)] [font-weight:750]">
+                {formatGroupDate(group.date)}
+              </p>
+              <p className="text-xs text-[var(--text-secondary)]">
+                {group.harvestCount} {group.harvestCount === 1 ? 'recoltare' : 'recoltări'} · {formatKg(group.totalKg, 1)}
               </p>
             </div>
-            <div className="shrink-0 rounded-2xl bg-[var(--success-text)] px-3 py-2 text-right text-white shadow-[0_6px_18px_rgba(13,155,92,0.18)]">
-              <p className="text-[10px] uppercase tracking-[0.08em] text-white/80">De plătit</p>
-              <p className="text-sm [font-weight:700]">{formatLei(aggregate.totalPaymentLei)}</p>
-            </div>
+            <p className="shrink-0 text-sm text-[var(--success-text)] [font-weight:700]">
+              {formatLei(group.paidLei)}
+            </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-[var(--surface-muted)] px-3 py-2">
               <p className="text-[11px] text-[var(--text-secondary)]">Total</p>
-              <p className="text-sm text-[var(--text-primary)] [font-weight:700]">{formatKgValue(aggregate.totalKg, 2)} kg</p>
+              <p className="text-sm text-[var(--text-primary)] [font-weight:700]">{formatKgValue(group.totalKg, 2)} kg</p>
             </div>
             <div className="rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_78%,var(--surface-card))] px-3 py-2">
               <p className="text-[11px] text-[var(--text-secondary)]">Cal I</p>
-              <p className="text-sm text-[var(--success-text)] [font-weight:700]">{formatKgValue(aggregate.totalCal1Kg, 2)} kg</p>
+              <p className="text-sm text-[var(--success-text)] [font-weight:700]">{formatKgValue(group.cal1Kg, 2)} kg</p>
             </div>
             <div className="rounded-2xl bg-[color:color-mix(in_srgb,var(--warning-bg)_82%,var(--surface-card))] px-3 py-2">
               <p className="text-[11px] text-[var(--text-secondary)]">Cal II</p>
-              <p className="text-sm text-[var(--warning-text)] [font-weight:700]">{formatKgValue(aggregate.totalCal2Kg, 2)} kg</p>
+              <p className="text-sm text-[var(--warning-text)] [font-weight:700]">{formatKgValue(group.cal2Kg, 2)} kg</p>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-            {showInlineDetails ? (
-              expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
-            ) : selected ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : null}
-            <span>
-              {showInlineDetails
-                ? expanded
-                  ? 'Ascunde recoltările individuale'
-                  : 'Vezi recoltările individuale'
-                : 'Selectează pentru detalii'}
-            </span>
           </div>
         </div>
       </button>
 
-      {showInlineDetails && expanded ? (
+      {expanded ? (
         <div className="border-t border-[var(--border-default)] bg-[var(--surface-muted)] px-[18px] py-3">
           <div className="space-y-2">
-            {aggregate.harvests.map((recoltare) => {
+            {group.harvests.map((recoltare) => {
               const parcelaMeta = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined
+              const culegatorName = recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume : undefined
               const totalKg = getRecoltareTotalKg(recoltare)
+              const selectedCrop = getHarvestCropSelection(recoltare.observatii)
+              const visibleObservatii = stripHiddenAgricultureMetadata(recoltare.observatii)
 
               return (
                 <button
@@ -236,9 +226,16 @@ function RecoltareAggregateCard({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm text-[var(--text-primary)] [font-weight:650]">
+                        {culegatorName || 'Culegător'}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
                         {parcelaMeta?.displayName || parcelaMeta?.name || 'Parcelă'}
                       </p>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatTableDate(recoltare.data)}</p>
+                      {selectedCrop ? (
+                        <p className="mt-1 truncate text-xs text-[var(--text-tertiary)]">
+                          {[selectedCrop.culture, selectedCrop.variety].filter(Boolean).join(' · ')}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-[var(--text-primary)] [font-weight:700]">{formatKgValue(totalKg, 2)} kg</p>
@@ -255,6 +252,9 @@ function RecoltareAggregateCard({
                       {formatLei(Number(recoltare.valoare_munca_lei ?? 0))}
                     </span>
                   </div>
+                  {visibleObservatii.trim() ? (
+                    <p className="mt-2 line-clamp-2 text-xs text-[var(--text-tertiary)]">{visibleObservatii}</p>
+                  ) : null}
                 </button>
               )
             })}
@@ -279,13 +279,16 @@ export function RecoltariPageClient({
 
   const [searchTerm, setSearchTerm] = useState('')
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('azi')
+  const [selectedParcelaId, setSelectedParcelaId] = useState('all')
+  const [selectedCulegatorId, setSelectedCulegatorId] = useState('all')
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [aiPrefill, setAiPrefill] = useState<{ parcela_id: string; parcela_label: string; cantitate_kg: string; data: string; observatii: string } | null>(null)
   const [editingRecoltare, setEditingRecoltare] = useState<Recoltare | null>(null)
   const [deletingRecoltare, setDeletingRecoltare] = useState<Recoltare | null>(null)
   const [viewingRecoltare, setViewingRecoltare] = useState<Recoltare | null>(null)
-  const [expandedAggregateKey, setExpandedAggregateKey] = useState<string | null>(null)
-  const [desktopSelectedAggregateKey, setDesktopSelectedAggregateKey] = useState<string | null>(null)
+  const [expandedDay, setExpandedDay] = useState<string | null>(null)
 
   const pathname = usePathname()
   const router = useRouter()
@@ -339,7 +342,8 @@ export function RecoltariPageClient({
     return current
   }, [])
   const todayIso = toIsoDate(today)
-  const last7StartIso = toIsoDate(shiftDays(today, -6))
+  const currentWeekStartIso = startOfCurrentWeekIso(today)
+  const currentMonthStartIso = startOfCurrentMonthIso(today)
   const seasonStartDate = (() => {
     const seasonStart = new Date(today.getFullYear(), 2, 1)
     if (today < seasonStart) {
@@ -348,10 +352,6 @@ export function RecoltariPageClient({
     return seasonStart
   })()
   const seasonStartIso = toIsoDate(seasonStartDate)
-
-  const last7DaysIso = useMemo(() => {
-    return Array.from({ length: 7 }, (_, index) => toIsoDate(shiftDays(today, -6 + index)))
-  }, [today])
 
   const {
     data: recoltari = [],
@@ -537,7 +537,7 @@ export function RecoltariPageClient({
     return map
   }, [parcele])
 
-  const culegatorMap = useMemo(() => {
+  const culegatorMap = useMemo<RecoltariWorkerMetaMap>(() => {
     const map: Record<string, { nume: string; tarif: number }> = {}
     culegatori.forEach((c) => {
       map[c.id] = {
@@ -575,71 +575,41 @@ export function RecoltariPageClient({
       .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ro-RO'))
   }, [parcelaMap, recoltari, seasonStartIso, todayIso])
 
-  const searchFilteredRecoltari = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
-    if (!term) return recoltari
+  const filters = useMemo<RecoltariFilterState>(
+    () => ({
+      searchTerm,
+      timeFilter,
+      parcelaId: selectedParcelaId,
+      culegatorId: selectedCulegatorId,
+      customStartDate,
+      customEndDate,
+    }),
+    [customEndDate, customStartDate, searchTerm, selectedCulegatorId, selectedParcelaId, timeFilter],
+  )
 
-    return recoltari.filter((recoltare) => {
-      const parcelaName = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id]?.name || '' : ''
-      const parcelaDisplay = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id]?.displayName || '' : ''
-      const parcelaSoi = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id]?.soi || '' : ''
-      const parcelaTip = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id]?.tipLabel || '' : ''
-      const culegatorName = recoltare.culegator_id ? culegatorMap[recoltare.culegator_id]?.nume || '' : ''
-      return (
-        parcelaName.toLowerCase().includes(term) ||
-        parcelaDisplay.toLowerCase().includes(term) ||
-        parcelaSoi.toLowerCase().includes(term) ||
-        parcelaTip.toLowerCase().includes(term) ||
-        culegatorName.toLowerCase().includes(term) ||
-        (recoltare.observatii?.toLowerCase().includes(term) ?? false)
-      )
-    })
-  }, [recoltari, searchTerm, parcelaMap, culegatorMap])
-
-  const filteredRecoltari = useMemo(() => {
-    return searchFilteredRecoltari.filter((recoltare) => {
-      const date = toDateOnly(recoltare.data)
-      if (!date) return false
-
-      if (timeFilter === 'azi') return date === todayIso
-      return true
-    })
-  }, [searchFilteredRecoltari, timeFilter, todayIso])
+  const filteredRecoltari = useMemo(
+    () =>
+      filterRecoltariForList({
+        recoltari,
+        filters,
+        parcelaMap,
+        culegatorMap,
+        todayIso,
+        currentWeekStartIso,
+        currentMonthStartIso,
+      }),
+    [culegatorMap, currentMonthStartIso, currentWeekStartIso, filters, parcelaMap, recoltari, todayIso],
+  )
 
   const totalCantitateKg = useMemo(
     () => filteredRecoltari.reduce((sum, recoltare) => sum + getRecoltareTotalKg(recoltare), 0),
     [filteredRecoltari]
   )
 
-  const todayRows = useMemo(
-    () => searchFilteredRecoltari.filter((recoltare) => toDateOnly(recoltare.data) === todayIso),
-    [searchFilteredRecoltari, todayIso]
+  const todayDashboard = useMemo(
+    () => calculateTodayRecoltariDashboard(recoltari, todayIso),
+    [recoltari, todayIso],
   )
-
-  const last7Rows = useMemo(
-    () =>
-      searchFilteredRecoltari.filter((recoltare) => {
-        const date = toDateOnly(recoltare.data)
-        return date >= last7StartIso && date <= todayIso
-      }),
-    [searchFilteredRecoltari, last7StartIso, todayIso]
-  )
-
-  const todayTotalKg = useMemo(() => todayRows.reduce((sum, row) => sum + getRecoltareTotalKg(row), 0), [todayRows])
-  const weekTotalKg = useMemo(() => last7Rows.reduce((sum, row) => sum + getRecoltareTotalKg(row), 0), [last7Rows])
-  const todayCal1Kg = useMemo(() => todayRows.reduce((sum, row) => sum + Number(row.kg_cal1 ?? 0), 0), [todayRows])
-  const todayCal2Kg = useMemo(() => todayRows.reduce((sum, row) => sum + Number(row.kg_cal2 ?? 0), 0), [todayRows])
-
-  const weekSeries = useMemo(() => {
-    return last7DaysIso.map((dayIso) =>
-      searchFilteredRecoltari.reduce((sum, row) => {
-        if (toDateOnly(row.data) !== dayIso) return sum
-        return sum + getRecoltareTotalKg(row)
-      }, 0)
-    )
-  }, [last7DaysIso, searchFilteredRecoltari])
-
-  const shouldShowSparkline = weekSeries.filter((value) => value > 0).length >= 2
 
   const kpiCal1Kg = useMemo(
     () => filteredRecoltari.reduce((sum, row) => sum + Number(row.kg_cal1 ?? 0), 0),
@@ -657,69 +627,29 @@ export function RecoltariPageClient({
     return ids.size
   }, [filteredRecoltari])
 
-  const recoltariDesktopKpiItems = useMemo(() => {
-    if (recoltari.length === 0) return []
-    return [
-      {
-        icon: Scale,
-        label: 'Total recoltat',
-        value: formatKg(totalCantitateKg, 2),
-      },
-      {
-        icon: CircleDot,
-        label: 'Calitate CAL 1',
-        value: formatKg(kpiCal1Kg, 2),
-      },
-      {
-        icon: Layers2,
-        label: 'Calitate CAL 2',
-        value: formatKg(kpiCal2Kg, 2),
-      },
-      {
-        icon: Users,
-        label: 'Culegători implicați',
-        value: String(kpiCulegatoriImplicati),
-      },
-    ]
-  }, [recoltari.length, totalCantitateKg, kpiCal1Kg, kpiCal2Kg, kpiCulegatoriImplicati])
-
-  const culegatorAggregates = useMemo(
-    () =>
-      aggregateRecoltariByCulegator({
-        recoltari: filteredRecoltari,
-        resolveWorkerName: (workerId) => (workerId ? culegatorMap[workerId]?.nume : undefined),
-      }),
-    [filteredRecoltari, culegatorMap],
-  )
-
   const totalFilteredPaymentLei = useMemo(
-    () => culegatorAggregates.reduce((sum, aggregate) => sum + aggregate.totalPaymentLei, 0),
-    [culegatorAggregates],
+    () => filteredRecoltari.reduce((sum, recoltare) => sum + Number(recoltare.valoare_munca_lei ?? 0), 0),
+    [filteredRecoltari],
   )
 
-  const desktopSelectedAggregate =
-    culegatorAggregates.find((aggregate) => aggregate.workerKey === desktopSelectedAggregateKey) ??
-    culegatorAggregates[0] ??
-    null
+  const dayGroups = useMemo(() => groupRecoltariByDay(filteredRecoltari), [filteredRecoltari])
 
   useEffect(() => {
-    if (culegatorAggregates.length === 0) {
-      setDesktopSelectedAggregateKey(null)
-      setExpandedAggregateKey(null)
+    if (dayGroups.length === 0) {
+      setExpandedDay(null)
       return
     }
 
-    if (!desktopSelectedAggregateKey || !culegatorAggregates.some((item) => item.workerKey === desktopSelectedAggregateKey)) {
-      setDesktopSelectedAggregateKey(culegatorAggregates[0].workerKey)
+    if (expandedDay && !dayGroups.some((group) => group.date === expandedDay)) {
+      setExpandedDay(null)
     }
-
-    if (expandedAggregateKey && !culegatorAggregates.some((item) => item.workerKey === expandedAggregateKey)) {
-      setExpandedAggregateKey(null)
-    }
-  }, [culegatorAggregates, desktopSelectedAggregateKey, expandedAggregateKey])
+  }, [dayGroups, expandedDay])
 
   const timeFilterOptions: Array<{ key: TimeFilter; label: string }> = [
     { key: 'azi', label: 'Azi' },
+    { key: 'saptamana', label: 'Săptămâna curentă' },
+    { key: 'luna', label: 'Luna curentă' },
+    { key: 'custom', label: 'Interval custom' },
     { key: 'toate', label: 'Toate perioadele' },
   ]
 
@@ -744,42 +674,41 @@ export function RecoltariPageClient({
 
         {!initialError && !isError ? (
           <>
-            {/* Scoreboard compact — doar mobil */}
-            {recoltari.length > 0 ? (
-              <ModuleScoreboard className="items-center justify-between gap-3 border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] md:hidden">
-                <div className="flex min-w-0 flex-1 flex-col gap-2">
-                  <div className="flex flex-wrap items-baseline gap-2.5">
-                    <span>
-                      <span className="text-[22px] font-extrabold tracking-[-0.03em] text-[var(--text-primary)]">
-                        {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(todayTotalKg)}
-                      </span>
-                      <span className="ml-1 text-[11px] font-medium text-[var(--text-secondary)]">kg azi</span>
-                    </span>
-                    {weekTotalKg > 0 ? (
-                      <span>
-                        <span className="text-[15px] font-bold text-[var(--text-primary)]">
-                          {new Intl.NumberFormat('ro-RO', { maximumFractionDigits: 1 }).format(weekTotalKg)}
-                        </span>
-                        <span className="ml-1 text-[11px] text-[var(--text-secondary)]">săpt</span>
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-                    <span className="rounded-full bg-[color:color-mix(in_srgb,var(--success-bg)_78%,var(--surface-card))] px-2.5 py-1 text-[var(--success-text)]">
-                      Cal I {formatKgValue(todayCal1Kg, 1)} kg
-                    </span>
-                    <span className="rounded-full bg-[color:color-mix(in_srgb,var(--warning-bg)_82%,var(--surface-card))] px-2.5 py-1 text-[var(--warning-text)]">
-                      Cal II {formatKgValue(todayCal2Kg, 1)} kg
-                    </span>
-                  </div>
+            <ModuleScoreboard className="grid grid-cols-1 gap-2 border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)] sm:grid-cols-3">
+              <div className="flex items-center gap-3 rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_78%,var(--surface-card))] px-3 py-2">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card)] text-[var(--success-text)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+                  <CircleDot className="h-5 w-5" aria-hidden />
                 </div>
-                {shouldShowSparkline ? (
-                  <Sparkline data={weekSeries} color="var(--success-text)" width={48} height={18} />
-                ) : null}
-              </ModuleScoreboard>
-            ) : null}
-
-            <DesktopKpiStrip items={recoltariDesktopKpiItems} />
+                <div className="min-w-0">
+                  <p className="text-[11px] text-[var(--text-secondary)] [font-weight:650]">Cal I azi</p>
+                  <p className="truncate text-[20px] text-[var(--success-text)] [font-weight:750]">
+                    {formatKg(todayDashboard.cal1Kg, 1)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl bg-[color:color-mix(in_srgb,var(--warning-bg)_82%,var(--surface-card))] px-3 py-2">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card)] text-[var(--warning-text)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+                  <Layers2 className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] text-[var(--text-secondary)] [font-weight:650]">Cal II azi</p>
+                  <p className="truncate text-[20px] text-[var(--warning-text)] [font-weight:750]">
+                    {formatKg(todayDashboard.cal2Kg, 1)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl bg-[var(--surface-muted)] px-3 py-2">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card)] text-[var(--text-primary)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+                  <Banknote className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] text-[var(--text-secondary)] [font-weight:650]">Plătit azi</p>
+                  <p className="truncate text-[20px] text-[var(--text-primary)] [font-weight:750]">
+                    {formatLei(todayDashboard.paidLei)}
+                  </p>
+                </div>
+              </div>
+            </ModuleScoreboard>
 
             {seasonParcelaChips.length > 0 ? (
               <div className="space-y-2">
@@ -790,21 +719,22 @@ export function RecoltariPageClient({
                 <div className="overflow-x-auto pb-1 [scrollbar-width:none]">
                   <div className="flex min-w-max gap-2">
                     {seasonParcelaChips.map((chip) => {
-                      const isActive = searchTerm.trim().toLowerCase() === chip.displayName.toLowerCase()
+                      const isActive = selectedParcelaId === chip.parcelaId
 
                       return (
                         <button
                           key={chip.parcelaId}
                           type="button"
-                          onClick={() => setSearchTerm(chip.displayName)}
-                          className={[
+                          onClick={() => setSelectedParcelaId((current) => (current === chip.parcelaId ? 'all' : chip.parcelaId))}
+                          className={cn(
                             'shrink-0 rounded-2xl border px-3 py-2 text-left shadow-[var(--shadow-soft)] transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out',
                             'active:scale-[0.985]',
                             isActive
                               ? 'border-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--success-bg)_72%,var(--surface-card))]'
-                              : 'border-[var(--border-default)] bg-[var(--surface-card)]'
-                          ].join(' ')}
+                              : 'border-[var(--border-default)] bg-[var(--surface-card)]',
+                          )}
                           aria-label={`Filtrează după ${chip.displayName}`}
+                          aria-pressed={isActive}
                         >
                           <span className="block whitespace-nowrap text-[13px] leading-snug text-[var(--text-primary)] [font-weight:650]">
                             {chip.displayName}
@@ -820,7 +750,7 @@ export function RecoltariPageClient({
               </div>
             ) : null}
 
-            <div className="space-y-3 md:hidden">
+            <div className="space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)]">
               <ModulePillRow>
                 {timeFilterOptions.map((option) => (
                   <ModulePillFilterButton
@@ -833,51 +763,80 @@ export function RecoltariPageClient({
                   </ModulePillFilterButton>
                 ))}
               </ModulePillRow>
-              <SearchField
-                placeholder="Caută după culegător, parcelă sau observații..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                aria-label="Caută recoltări agregate"
-              />
-            </div>
 
-            <div className="hidden space-y-3 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-4 shadow-[var(--shadow-soft)] md:block">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <ModulePillRow>
-                  {timeFilterOptions.map((option) => (
-                    <ModulePillFilterButton
-                      key={option.key}
-                      active={timeFilter === option.key}
-                      activeStyle="minimal"
-                      onClick={() => setTimeFilter(option.key)}
-                    >
-                      {option.label}
-                    </ModulePillFilterButton>
-                  ))}
-                </ModulePillRow>
-                <div className="flex flex-shrink-0 flex-wrap items-center gap-x-2 text-sm text-[var(--text-secondary)]">
-                  <span>
-                    <span className="font-semibold text-[var(--text-primary)]">{formatKg(totalCantitateKg, 2)}</span>
-                    <span className="ml-1 text-xs text-[var(--text-tertiary)]">în perioadă</span>
-                  </span>
-                  <span className="text-[var(--text-tertiary)]">·</span>
-                  <span>
-                    {culegatorAggregates.length} {culegatorAggregates.length === 1 ? 'culegător' : 'culegători'}
-                  </span>
-                  <span className="text-[var(--text-tertiary)]">·</span>
-                  <span>
-                    <span className="font-semibold text-[var(--text-primary)]">{formatLei(totalFilteredPaymentLei)}</span>
-                    <span className="ml-1 text-xs text-[var(--text-tertiary)]">de plată</span>
-                  </span>
+              {timeFilter === 'custom' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <AppDatePicker
+                    id="recoltari-filter-start"
+                    label="De la"
+                    value={customStartDate}
+                    onChange={setCustomStartDate}
+                    placeholder="Alege data de început"
+                  />
+                  <AppDatePicker
+                    id="recoltari-filter-end"
+                    label="Până la"
+                    value={customEndDate}
+                    onChange={setCustomEndDate}
+                    placeholder="Alege data de final"
+                  />
                 </div>
+              ) : null}
+
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.6fr)_minmax(180px,0.6fr)]">
+                <SearchField
+                  placeholder="Caută după culegător, parcelă sau observații..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  aria-label="Caută recoltări"
+                />
+                <Select value={selectedCulegatorId} onValueChange={setSelectedCulegatorId}>
+                  <SelectTrigger aria-label="Filtrează după culegător" className="h-11">
+                    <SelectValue placeholder="Toți culegătorii" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toți culegătorii</SelectItem>
+                    {culegatori.map((culegator) => (
+                      <SelectItem key={culegator.id} value={culegator.id}>
+                        {culegator.nume_prenume || 'Culegător'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedParcelaId} onValueChange={setSelectedParcelaId}>
+                  <SelectTrigger aria-label="Filtrează după parcelă" className="h-11">
+                    <SelectValue placeholder="Toate parcelele" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toate parcelele</SelectItem>
+                    {parcele.map((parcela) => (
+                      <SelectItem key={parcela.id} value={parcela.id}>
+                        {formatUnitateDisplayName(parcela.nume_parcela, parcela.tip_unitate)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <SearchField
-                containerClassName="w-full max-w-2xl"
-                placeholder="Caută după culegător, parcelă sau observații..."
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                aria-label="Caută recoltări agregate (desktop)"
-              />
+
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-[var(--text-secondary)]">
+                <span>
+                  <span className="font-semibold text-[var(--text-primary)]">{formatKg(totalCantitateKg, 2)}</span>
+                  <span className="ml-1 text-xs text-[var(--text-tertiary)]">în listă</span>
+                </span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span>
+                  {kpiCulegatoriImplicati} {kpiCulegatoriImplicati === 1 ? 'culegător' : 'culegători'}
+                </span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span>Cal I {formatKg(kpiCal1Kg, 2)}</span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span>Cal II {formatKg(kpiCal2Kg, 2)}</span>
+                <span className="text-[var(--text-tertiary)]">·</span>
+                <span>
+                  <span className="font-semibold text-[var(--text-primary)]">{formatLei(totalFilteredPaymentLei)}</span>
+                  <span className="ml-1 text-xs text-[var(--text-tertiary)]">de plată în listă</span>
+                </span>
+              </div>
             </div>
           </>
         ) : null}
@@ -899,144 +858,28 @@ export function RecoltariPageClient({
           />
         ) : null}
 
-        {!isLoading && !isError && !initialError && recoltari.length > 0 && culegatorAggregates.length === 0 ? (
+        {!isLoading && !isError && !initialError && recoltari.length > 0 && dayGroups.length === 0 ? (
           <ModuleEmptyCard
             emoji="🫐"
             title="Nimic recoltat în perioada selectată"
-            hint={timeFilter === 'azi' ? 'Recoltările de azi vor apărea aici' : 'Modifică căutarea sau revino pe Azi'}
+            hint="Modifică intervalul, culegătorul, parcela sau căutarea."
           />
         ) : null}
 
-        {!isLoading && !isError && !initialError && culegatorAggregates.length > 0 ? (
-          <>
-            <div className="space-y-3 md:hidden">
-              {culegatorAggregates.map((aggregate) => (
-                <RecoltareAggregateCard
-                  key={aggregate.workerKey}
-                  aggregate={aggregate}
-                  expanded={expandedAggregateKey === aggregate.workerKey}
-                  parcelaMap={parcelaMap}
-                  onToggle={() =>
-                    setExpandedAggregateKey((current) => (current === aggregate.workerKey ? null : aggregate.workerKey))
-                  }
-                  onViewHarvest={(recoltare) => setViewingRecoltare(recoltare)}
-                />
-              ))}
-            </div>
-
-            <div className="hidden md:block">
-              <DesktopSplitPane
-                master={
-                  <div className="space-y-3">
-                    {culegatorAggregates.map((aggregate) => (
-                      <RecoltareAggregateCard
-                        key={aggregate.workerKey}
-                        aggregate={aggregate}
-                        selected={desktopSelectedAggregate?.workerKey === aggregate.workerKey}
-                        showInlineDetails={false}
-                        parcelaMap={parcelaMap}
-                        onToggle={() => setDesktopSelectedAggregateKey(aggregate.workerKey)}
-                        onViewHarvest={(recoltare) => setViewingRecoltare(recoltare)}
-                      />
-                    ))}
-                  </div>
-                }
-                detail={
-                  <DesktopInspectorPanel
-                    title={desktopSelectedAggregate ? desktopSelectedAggregate.workerName : 'Detalii culegător'}
-                    description={
-                      desktopSelectedAggregate
-                        ? `${formatHarvestCount(desktopSelectedAggregate.harvestCount)} în ${timeFilter === 'azi' ? 'azi' : 'toată perioada'}`
-                        : undefined
-                    }
-                  >
-                    {desktopSelectedAggregate ? (
-                      <>
-                        <DesktopInspectorSection label="Sumar">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl bg-[var(--surface-muted)] p-3">
-                              <p className="text-xs text-[var(--text-secondary)]">Total</p>
-                              <p className="mt-1 text-base text-[var(--text-primary)] [font-weight:700]">
-                                {formatKg(desktopSelectedAggregate.totalKg, 2)}
-                              </p>
-                            </div>
-                            <div className="rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_78%,var(--surface-card))] p-3">
-                              <p className="text-xs text-[var(--text-secondary)]">De plătit</p>
-                              <p className="mt-1 text-base text-[var(--success-text)] [font-weight:700]">
-                                {formatLei(desktopSelectedAggregate.totalPaymentLei)}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--text-secondary)]">
-                            <span>Cal I {formatKg(desktopSelectedAggregate.totalCal1Kg, 2)}</span>
-                            <span>Cal II {formatKg(desktopSelectedAggregate.totalCal2Kg, 2)}</span>
-                            {formatAggregateRate(desktopSelectedAggregate) ? (
-                              <span>{formatAggregateRate(desktopSelectedAggregate)}</span>
-                            ) : null}
-                          </div>
-                        </DesktopInspectorSection>
-
-                        <DesktopInspectorSection label="Recoltări individuale">
-                          <div className="space-y-2">
-                            {desktopSelectedAggregate.harvests.map((recoltare) => {
-                              const parcelaMeta = recoltare.parcela_id ? parcelaMap[recoltare.parcela_id] : undefined
-                              const selectedCrop = getHarvestCropSelection(recoltare.observatii)
-                              const visibleObservatii = stripHiddenAgricultureMetadata(recoltare.observatii)
-
-                              return (
-                                <button
-                                  key={recoltare.id}
-                                  type="button"
-                                  onClick={() => setViewingRecoltare(recoltare)}
-                                  className="w-full rounded-2xl bg-[var(--surface-muted)] p-3 text-left transition-transform duration-150 ease-out hover:translate-y-[-1px]"
-                                >
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <p className="truncate text-sm text-[var(--text-primary)] [font-weight:650]">
-                                        {parcelaMeta?.displayName || parcelaMeta?.name || 'Parcelă'}
-                                      </p>
-                                      <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatTableDate(recoltare.data)}</p>
-                                      {selectedCrop ? (
-                                        <p className="mt-1 truncate text-xs text-[var(--text-tertiary)]">
-                                          {[selectedCrop.culture, selectedCrop.variety].filter(Boolean).join(' · ')}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-sm text-[var(--text-primary)] [font-weight:700]">
-                                        {formatKgValue(getRecoltareTotalKg(recoltare), 2)} kg
-                                      </p>
-                                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                                        {formatRatePerKg(Number(recoltare.pret_lei_pe_kg_snapshot ?? 0))}
-                                      </p>
-                                      <p className="mt-1 text-xs text-[var(--success-text)] [font-weight:650]">
-                                        {formatLei(Number(recoltare.valoare_munca_lei ?? 0))}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--text-secondary)]">
-                                    <span>Cal I {formatKgValue(Number(recoltare.kg_cal1 ?? 0), 2)} kg</span>
-                                    <span>Cal II {formatKgValue(Number(recoltare.kg_cal2 ?? 0), 2)} kg</span>
-                                  </div>
-                                  {visibleObservatii.trim() ? (
-                                    <p className="mt-2 line-clamp-2 text-xs text-[var(--text-tertiary)]">{visibleObservatii}</p>
-                                  ) : null}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </DesktopInspectorSection>
-                      </>
-                    ) : (
-                      <p className="text-sm text-[var(--text-secondary)]">
-                        Selectează un culegător pentru a vedea recoltările din agregare.
-                      </p>
-                    )}
-                  </DesktopInspectorPanel>
-                }
+        {!isLoading && !isError && !initialError && dayGroups.length > 0 ? (
+          <div className="space-y-3">
+            {dayGroups.map((group) => (
+              <RecoltareDayGroupCard
+                key={group.date}
+                group={group}
+                expanded={expandedDay === group.date}
+                parcelaMap={parcelaMap}
+                culegatorMap={culegatorMap}
+                onToggle={() => setExpandedDay((current) => (current === group.date ? null : group.date))}
+                onViewHarvest={(recoltare) => setViewingRecoltare(recoltare)}
               />
-            </div>
-          </>
+            ))}
+          </div>
         ) : null}
       </DashboardContentShell>
 
