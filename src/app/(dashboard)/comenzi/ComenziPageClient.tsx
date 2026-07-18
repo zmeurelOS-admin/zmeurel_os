@@ -865,15 +865,15 @@ function RecoltareNecesitateCard({
     if (recoltatKg <= 0) {
       return {
         message: 'Zero stoc — n-ai recoltat azi',
-        cardClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
-        textClassName: 'text-[var(--status-danger-text)]',
+        cardClassName: 'border-[var(--bittersweet-solid)] bg-[var(--bittersweet-solid)]',
+        textClassName: 'text-white',
       }
     }
     if (recoltatKg < necesarAziKg) {
       return {
         message: 'Sub necesarul zilei',
-        cardClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
-        textClassName: 'text-[var(--status-danger-text)]',
+        cardClassName: 'border-[var(--bittersweet-solid)] bg-[var(--bittersweet-solid)]',
+        textClassName: 'text-white',
       }
     }
     if (
@@ -907,11 +907,11 @@ function RecoltareNecesitateCard({
     >
       <p className={`mb-2 text-xs font-bold ${state.textClassName}`}>{state.message}</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
+        <div className="min-w-0 rounded-xl border border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] px-2 py-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Recoltat</p>
           <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(recoltatKg)}</p>
         </div>
-        <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
+        <div className="min-w-0 rounded-xl border border-[var(--brand-charade-border)] bg-[var(--brand-charade-soft)] px-2 py-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Necesar azi</p>
           <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(necesarAziKg)}</p>
         </div>

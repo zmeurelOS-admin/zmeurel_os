@@ -388,7 +388,7 @@ export function LivrariPageClient() {
         ) : null}
 
         {scheduledToday.length > 0 ? (
-          <section className="overflow-hidden rounded-[20px] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] shadow-[var(--shadow-soft)]">
+          <section className="overflow-hidden rounded-[20px] bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)] shadow-[var(--shadow-soft)]">
             <button
               type="button"
               className="flex min-h-14 w-full items-center justify-between gap-3 px-4 py-3 text-left"
@@ -406,7 +406,7 @@ export function LivrariPageClient() {
             </button>
 
             {scheduledTodayExpanded ? (
-              <div className="space-y-2 border-t border-[var(--status-warning-border)] px-3 py-3">
+              <div className="space-y-2 border-t border-[var(--brand-coral-border)] px-3 py-3">
                 {scheduledToday.map((order) => (
                   <article
                     key={order.id}

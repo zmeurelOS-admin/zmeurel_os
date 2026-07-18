@@ -74,7 +74,7 @@ function OriginBadge({ item }: { item: UnifiedOrderItem }) {
   const isShop = item.source === 'shop'
   const badgeProps = isShop
     ? {
-        className: 'bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]',
+        className: 'bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)]',
         label: 'Shop',
       }
     : item.orderKind === 'cadou'
@@ -88,7 +88,7 @@ function OriginBadge({ item }: { item: UnifiedOrderItem }) {
             label: '🏠 Consum',
           }
         : {
-            className: 'bg-[var(--status-info-bg)] text-[var(--status-info-text)]',
+            className: 'bg-[var(--brand-charade-soft)] text-[var(--brand-dark)]',
             label: 'Manual',
           }
   return (
@@ -168,9 +168,9 @@ function StatusPill({ item }: { item: UnifiedOrderItem }) {
     item.status === 'livrata'
       ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
       : item.status === 'anulata'
-        ? 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
+        ? 'border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)]'
         : item.status === 'in_livrare'
-          ? 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+          ? 'border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)]'
           : 'border-[var(--border-default)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)]'
 
   return (
@@ -968,7 +968,7 @@ function ComenziOperationalCard({
           </div>
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
             {scheduledForLabel ? (
-              <span className="inline-flex max-w-full rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--status-warning-text)]">
+              <span className="inline-flex max-w-full rounded-full border border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--brand-coral-deep)]">
                 {scheduledForLabel}
               </span>
             ) : null}
@@ -1133,7 +1133,7 @@ function CardMetric({ label, value }: { label: string; value: string }) {
 
 function NoAnswerBadge() {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-[3px] text-[10px] font-semibold leading-none text-[var(--status-warning-text)]">
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] px-2 py-[3px] text-[10px] font-semibold leading-none text-[var(--brand-coral-deep)]">
       <PhoneOff className="h-3 w-3" aria-hidden />
       Sunat, nu a răspuns
     </span>
@@ -1177,7 +1177,7 @@ function DeliveryQuickActions({
         onClick={() => void Promise.resolve(onCallStatusChange?.(item.id, hasNoAnswer ? null : 'no_answer'))}
         className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 text-[11px] font-semibold transition active:scale-[0.985] disabled:opacity-50 ${
           hasNoAnswer
-            ? 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+            ? 'border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)]'
             : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)]'
         }`}
       >

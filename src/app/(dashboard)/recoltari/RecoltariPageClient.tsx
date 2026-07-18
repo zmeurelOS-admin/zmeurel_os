@@ -47,6 +47,7 @@ import { buildRecoltareDeleteLabel } from '@/lib/ui/delete-labels'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
+import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
 
 const AddRecoltareDialog = dynamic(
   () => import('@/components/recoltari/AddRecoltareDialog').then((mod) => mod.AddRecoltareDialog),
@@ -156,18 +157,30 @@ function CompactTodayMetric({
 }) {
   const toneClassName =
     tone === 'success'
-      ? 'bg-[var(--success-text)]'
+      ? {
+          card: 'border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)]',
+          dot: 'bg-[var(--brand-coral-deep)]',
+          value: 'text-[var(--brand-coral-deep)]',
+        }
       : tone === 'warning'
-        ? 'bg-[var(--warning-text)]'
-        : 'bg-[var(--text-secondary)]'
+        ? {
+            card: 'border-[var(--brand-charade-border)] bg-[var(--brand-charade-soft)]',
+            dot: 'bg-[var(--brand-dark)]',
+            value: 'text-[var(--brand-dark)]',
+          }
+        : {
+            card: 'border-white/60 bg-[var(--surface-card)]/70',
+            dot: 'bg-[var(--text-secondary)]',
+            value: 'text-[var(--text-primary)]',
+          }
 
   return (
-    <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
+    <div className={cn('min-w-0 rounded-xl border px-2 py-2', toneClassName.card)}>
       <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">
-        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', toneClassName)} aria-hidden />
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', toneClassName.dot)} aria-hidden />
         <span className="truncate">{label}</span>
       </p>
-      <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{value}</p>
+      <p className={cn('mt-0.5 truncate text-sm font-bold', toneClassName.value)}>{value}</p>
     </div>
   )
 }
@@ -197,7 +210,7 @@ function RecoltareDayGroupCard({
         aria-expanded={expanded}
         className="flex w-full items-start gap-3 p-[18px] text-left transition-transform duration-150 ease-out active:scale-[0.985]"
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#F8F7F5,#F0EFEC)] text-[var(--success-text)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#F8F7F5,#F0EFEC)] text-[var(--brand-coral-deep)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]">
           {expanded ? <ChevronDown className="h-5 w-5" aria-hidden /> : <ChevronRight className="h-5 w-5" aria-hidden />}
         </div>
         <div className="min-w-0 flex-1">
@@ -220,13 +233,13 @@ function RecoltareDayGroupCard({
               <p className="text-[11px] text-[var(--text-secondary)]">Total</p>
               <p className="text-sm text-[var(--text-primary)] [font-weight:700]">{formatKgValue(group.totalKg, 2)} kg</p>
             </div>
-            <div className="rounded-2xl bg-[color:color-mix(in_srgb,var(--success-bg)_78%,var(--surface-card))] px-3 py-2">
+            <div className="rounded-2xl bg-[var(--brand-coral-soft)] px-3 py-2">
               <p className="text-[11px] text-[var(--text-secondary)]">Cal I</p>
-              <p className="text-sm text-[var(--success-text)] [font-weight:700]">{formatKgValue(group.cal1Kg, 2)} kg</p>
+              <p className="text-sm text-[var(--brand-coral-deep)] [font-weight:700]">{formatKgValue(group.cal1Kg, 2)} kg</p>
             </div>
-            <div className="rounded-2xl bg-[color:color-mix(in_srgb,var(--warning-bg)_82%,var(--surface-card))] px-3 py-2">
+            <div className="rounded-2xl bg-[var(--brand-charade-soft)] px-3 py-2">
               <p className="text-[11px] text-[var(--text-secondary)]">Cal II</p>
-              <p className="text-sm text-[var(--warning-text)] [font-weight:700]">{formatKgValue(group.cal2Kg, 2)} kg</p>
+              <p className="text-sm text-[var(--brand-dark)] [font-weight:700]">{formatKgValue(group.cal2Kg, 2)} kg</p>
             </div>
           </div>
         </div>
@@ -705,7 +718,7 @@ export function RecoltariPageClient({
         </div>
       }
     >
-      <DashboardContentShell variant="workspace" className="mt-2 space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3">
+      <DashboardContentShell variant="workspace" className={`${zmeurelTheme.theme} mt-2 space-y-3 py-3 sm:mt-0 sm:space-y-4 sm:py-3`}>
         {initialError ? <ErrorState title="Eroare" message={initialError} /> : null}
         {isError && !initialError ? <ErrorState title="Eroare" message={(error as Error).message} /> : null}
 
@@ -734,8 +747,8 @@ export function RecoltariPageClient({
                         className={cn(
                           'min-w-0 rounded-xl border px-2 py-1.5 text-left transition-[transform,box-shadow,border-color,background-color] duration-150 ease-out active:scale-[0.985]',
                           isActive
-                            ? 'border-[var(--success-text)] bg-[color:color-mix(in_srgb,var(--success-bg)_72%,var(--surface-card))]'
-                            : 'border-[var(--border-default)] bg-[var(--surface-card)]',
+                            ? 'border-[var(--brand-coral-deep)] bg-[var(--brand-coral-soft)]'
+                            : 'border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)]',
                         )}
                         aria-label={`Filtrează după ${chip.displayName}`}
                         aria-pressed={isActive}
@@ -781,7 +794,7 @@ export function RecoltariPageClient({
                   className={cn(
                     'relative h-9 w-9 rounded-lg',
                     activeAdvancedFilterCount > 0
-                      ? 'border-[var(--success-text)] text-[var(--success-text)]'
+                      ? 'border-[var(--brand-coral-deep)] text-[var(--brand-coral-deep)]'
                       : undefined,
                   )}
                   aria-label="Filtre avansate"
@@ -789,7 +802,7 @@ export function RecoltariPageClient({
                 >
                   <SlidersHorizontal className="h-4 w-4" aria-hidden />
                   {activeAdvancedFilterCount > 0 ? (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--success-text)] px-1 text-[10px] font-bold text-white">
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bittersweet-solid)] px-1 text-[10px] font-bold text-white">
                       {activeAdvancedFilterCount}
                     </span>
                   ) : null}
