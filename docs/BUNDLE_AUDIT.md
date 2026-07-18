@@ -1,5 +1,20 @@
 # BUNDLE_AUDIT
 
+## 2026-07-18 Comenzi & Livrări Dialog Code-Split
+
+- Applied changes:
+  - kept the page shell, list/cards, filters, and the always-visible `ComenziSpeedDial` FAB eager
+  - moved interaction-only dialogs/sheets behind `next/dynamic` with `{ ssr: false }`, mirroring the Recoltări pattern (`RecoltariPageClient.tsx:52-60`)
+  - `/comenzi`: `EditOrderSheet`, `ComenziDinMesajSheet`, `ViewComandaDialog`, `AddClientDialog`, `ConfirmDeleteDialog`
+  - `/livrari`: `EditOrderSheet`
+  - render JSX and dialog business logic left byte-identical — only the import declarations changed
+- Measured outcome (server `page.js` as proxy, since Next 16 non-TTY build omits the First Load JS columns):
+  - `/comenzi`: ~`122 KB` → ~`99 KB` (about `-23 KB`, `-19%`)
+  - `/livrari`: ~`89 KB` → ~`87 KB` (about `-2 KB`; only `EditOrderSheet` is splittable and it shares deps with the eager `UnifiedOrderCard`/`PaymentStatusToggle`)
+- Important tradeoff:
+  - first open of each deferred dialog pays a small async chunk load; acceptable because these are secondary to the initial orders/deliveries list
+  - shared components (`EditOrderSheet`, `AddClientDialog`, `ConfirmDeleteDialog`) were converted only at the per-file import site; their other consumers (Clienți page, tests) are untouched
+
 ## Scope And Method
 
 - Date: 2026-03-18

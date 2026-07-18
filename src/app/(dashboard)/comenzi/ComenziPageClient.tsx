@@ -2,6 +2,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -9,10 +10,8 @@ import { Check, ChevronDown, Menu, Search, Target, UserRoundPlus, X } from 'luci
 import { toast } from '@/lib/ui/toast'
 
 import { AppDialog } from '@/components/app/AppDialog'
-import { ComenziDinMesajSheet } from './ComenziDinMesajSheet'
 import { ComandaFormSummary } from '@/components/comenzi/ComandaFormSummary'
 import { ComenziSpeedDial } from './ComenziSpeedDial'
-import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,12 +34,10 @@ import {
   ModulePillFilterButton,
   ModulePillRow,
 } from '@/components/app/module-list-chrome'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { AddClientDialog } from '@/components/clienti/AddClientDialog'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Button } from '@/components/ui/button'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
@@ -54,7 +51,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
 import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
-import { ViewComandaDialog } from '@/components/comenzi/ViewComandaDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { track } from '@/lib/analytics/track'
@@ -110,6 +106,30 @@ import {
 } from '@/lib/shop/delivery-zones'
 import { todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import { cn } from '@/lib/utils'
+
+// Dialoguri/sheet-uri deschise doar la interacțiune — code-split ca în
+// RecoltariPageClient (nu randează DOM când sunt închise), ca să nu intre în
+// First Load JS al rutei /comenzi.
+const ComenziDinMesajSheet = dynamic(
+  () => import('./ComenziDinMesajSheet').then((mod) => mod.ComenziDinMesajSheet),
+  { ssr: false }
+)
+const EditOrderSheet = dynamic(
+  () => import('@/components/comenzi/EditOrderSheet').then((mod) => mod.EditOrderSheet),
+  { ssr: false }
+)
+const ViewComandaDialog = dynamic(
+  () => import('@/components/comenzi/ViewComandaDialog').then((mod) => mod.ViewComandaDialog),
+  { ssr: false }
+)
+const AddClientDialog = dynamic(
+  () => import('@/components/clienti/AddClientDialog').then((mod) => mod.AddClientDialog),
+  { ssr: false }
+)
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
 
 type DashboardFilter = 'none' | 'azi' | 'active' | 'restante' | 'viitoare' | 'neincasat'
 type TabKey = 'de_livrat' | 'programate' | 'livrate' | 'toate'

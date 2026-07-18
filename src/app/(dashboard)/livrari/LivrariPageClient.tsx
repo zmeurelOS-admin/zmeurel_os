@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, GripVertical, RefreshCw } from 'lucide-react'
 import {
@@ -28,7 +29,6 @@ import { AppShell } from '@/components/app/AppShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
-import { EditOrderSheet } from '@/components/comenzi/EditOrderSheet'
 import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
 import { UnifiedOrderCard } from '@/components/comenzi/UnifiedOrderCard'
 import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
@@ -59,6 +59,13 @@ import {
   type ComandaPaymentStatus,
 } from '@/lib/supabase/queries/comenzi'
 import { toast } from '@/lib/ui/toast'
+
+// Sheet de editare deschis doar la interacțiune — code-split ca în
+// RecoltariPageClient, ca să nu intre în First Load JS al rutei /livrari.
+const EditOrderSheet = dynamic(
+  () => import('@/components/comenzi/EditOrderSheet').then((mod) => mod.EditOrderSheet),
+  { ssr: false }
+)
 
 type EditTarget = Comanda | null
 
