@@ -134,8 +134,13 @@ function round2(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100
 }
 
-async function checkStocPentruInLivrare(kgNecesar: number): Promise<void> {
-  const stoc = await getComenziStockSummaryAzi()
+type ComenziStockSummaryAzi = Awaited<ReturnType<typeof getComenziStockSummaryAzi>>
+
+async function checkStocPentruInLivrare(
+  kgNecesar: number,
+  loadStockSummary: () => Promise<ComenziStockSummaryAzi> = getComenziStockSummaryAzi,
+): Promise<void> {
+  const stoc = await loadStockSummary()
   if (stoc.totalStocDisponibilKg < kgNecesar) {
     throw new StocInsuficientError({
       disponibilKg: round2(stoc.totalStocDisponibilKg),
@@ -833,12 +838,29 @@ function UnifiedOrderGroupSection({
 function RecoltareNecesitateCard({
   recoltatKg,
   necesarAziKg,
+  disponibilAziKg,
   necesarRestKg,
 }: {
   recoltatKg: number
   necesarAziKg: number
+  disponibilAziKg: number
   necesarRestKg: number
 }) {
+  const disponibilState =
+    disponibilAziKg <= 0
+      ? {
+          tileClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
+          valueClassName: 'text-[var(--status-danger-text)]',
+        }
+      : disponibilAziKg < 0.3
+        ? {
+            tileClassName: 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]',
+            valueClassName: 'text-[var(--status-warning-text)]',
+          }
+        : {
+            tileClassName: 'border-white/60 bg-[var(--surface-card)]/70',
+            valueClassName: 'text-[var(--text-primary)]',
+          }
   const state = (() => {
     if (recoltatKg <= 0) {
       return {
@@ -884,7 +906,7 @@ function RecoltareNecesitateCard({
       className={`rounded-2xl border px-3 py-3 ${state.cardClassName}`}
     >
       <p className={`mb-2 text-xs font-bold ${state.textClassName}`}>{state.message}</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Recoltat</p>
           <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(recoltatKg)}</p>
@@ -892,6 +914,10 @@ function RecoltareNecesitateCard({
         <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Necesar azi</p>
           <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(necesarAziKg)}</p>
+        </div>
+        <div className={`min-w-0 rounded-xl border px-2 py-2 ${disponibilState.tileClassName}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Disponibil azi</p>
+          <p className={`mt-0.5 truncate text-sm font-bold ${disponibilState.valueClassName}`}>{formatKgOneDecimal(disponibilAziKg)}</p>
         </div>
         <div className="min-w-0 rounded-xl border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-2 py-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--status-neutral-text)]">Necesar rest</p>
@@ -1647,7 +1673,12 @@ export function ComenziPageClient() {
 
   const guardStocPentruInLivrare = useCallback(async (kgNecesar: number, options?: { selectionCount?: number }) => {
     try {
-      await checkStocPentruInLivrare(kgNecesar)
+      await checkStocPentruInLivrare(kgNecesar, () =>
+        queryClient.fetchQuery({
+          queryKey: queryKeys.comenziStockSummaryAzi,
+          queryFn: getComenziStockSummaryAzi,
+        }),
+      )
       return true
     } catch (err) {
       if (err instanceof StocInsuficientError) {
@@ -1661,7 +1692,7 @@ export function ComenziPageClient() {
       toast.error(err instanceof Error ? err.message : 'Nu am putut verifica stocul disponibil.')
       return false
     }
-  }, [])
+  }, [queryClient])
 
   const {
     data: comenzi = [],
@@ -1686,6 +1717,11 @@ export function ComenziPageClient() {
   const { data: recoltari = [] } = useQuery({
     queryKey: queryKeys.recoltari,
     queryFn: getRecoltari,
+  })
+
+  const { data: comenziStockSummary } = useQuery({
+    queryKey: queryKeys.comenziStockSummaryAzi,
+    queryFn: getComenziStockSummaryAzi,
   })
 
   const clientMap = useMemo(() => {
@@ -1733,6 +1769,7 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziStockSummaryAzi })
       track('comanda_add', {
         cantitate: Number(variables.payload.cantitate_kg || 0),
         client_id: variables.payload.client_id ?? null,
@@ -1817,6 +1854,7 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziStockSummaryAzi })
       track('comanda_edit', { id: variables.id })
       hapticSuccess()
       if (variables.payload.status === 'in_livrare') {
@@ -1853,6 +1891,7 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziStockSummaryAzi })
       delete pendingDeletedItems.current[deletedId]
       track('comanda_delete', { id: deletedId })
       hapticSuccess()
@@ -1925,6 +1964,7 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziStockSummaryAzi })
       hapticSuccess()
       const delivered = result.deliveredOrder
       const deliveredName = getClientName(delivered, clientMap)
@@ -1987,6 +2027,7 @@ export function ComenziPageClient() {
       queryClient.invalidateQueries({ queryKey: queryKeys.stocGlobalCal1 })
       queryClient.invalidateQueries({ queryKey: queryKeys.stocuriLocatiiRoot })
       queryClient.invalidateQueries({ queryKey: queryKeys.miscariStoc })
+      queryClient.invalidateQueries({ queryKey: queryKeys.comenziStockSummaryAzi })
       hapticSuccess()
       toast.success('Comandă redeschisă')
       setReopening(null)
@@ -2377,6 +2418,7 @@ export function ComenziPageClient() {
         <RecoltareNecesitateCard
           recoltatKg={recoltatAziKg}
           necesarAziKg={necesarAziKg}
+          disponibilAziKg={comenziStockSummary?.totalStocDisponibilKg ?? 0}
           necesarRestKg={necesarRestKg}
         />
 

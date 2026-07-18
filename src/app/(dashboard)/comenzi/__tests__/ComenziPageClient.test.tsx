@@ -12,6 +12,7 @@ const {
   deliverComandaMock,
   getCliențiMock,
   getComenziMock,
+  getComenziStockSummaryAziMock,
   getRecoltariMock,
   getVanzariMock,
   toastErrorMock,
@@ -22,6 +23,7 @@ const {
   deliverComandaMock: vi.fn(),
   getCliențiMock: vi.fn().mockResolvedValue([]),
   getComenziMock: vi.fn<() => Promise<Comanda[]>>(),
+  getComenziStockSummaryAziMock: vi.fn(),
   getRecoltariMock: vi.fn(),
   getVanzariMock: vi.fn().mockResolvedValue([]),
   toastErrorMock: vi.fn(),
@@ -127,12 +129,20 @@ vi.mock('@/components/comenzi/UnifiedOrderCard', () => ({
     onEdit,
   }: {
     item: { id: string; customerName: string }
-    onB2bStatusChange?: (id: string, status: 'livrata') => void
+    onB2bStatusChange?: (id: string, status: 'in_livrare' | 'livrata') => Promise<void> | void
     onEdit?: () => void
   }) => (
     <div data-testid="order-card">
       <span>{item.customerName}</span>
-      <button type="button" onClick={() => onB2bStatusChange?.(item.id, 'livrata')}>
+      <button
+        type="button"
+        onClick={() => {
+          void Promise.resolve(onB2bStatusChange?.(item.id, 'in_livrare')).catch(() => undefined)
+        }}
+      >
+        În livrare
+      </button>
+      <button type="button" onClick={() => void onB2bStatusChange?.(item.id, 'livrata')}>
         Livrat
       </button>
       <button type="button" onClick={() => onEdit?.()}>
@@ -182,12 +192,7 @@ vi.mock('@/lib/supabase/queries/comenzi', async () => {
     deleteComanda: vi.fn(),
     deliverComanda: deliverComandaMock,
     getComenzi: getComenziMock,
-    getComenziStockSummaryAzi: vi.fn().mockResolvedValue({
-      totalStocDisponibilKg: 12,
-      totalStocCal1Kg: 18,
-      rezervatActivKg: 2,
-      legacyInLivrareKg: 1,
-    }),
+    getComenziStockSummaryAzi: getComenziStockSummaryAziMock,
     markComandaIncasata: vi.fn(),
     reopenComanda: vi.fn(),
     updateComanda: vi.fn(),
@@ -268,6 +273,13 @@ beforeEach(() => {
   getCliențiMock.mockResolvedValue([])
   getComenziMock.mockReset()
   getComenziMock.mockResolvedValue([manualOrder])
+  getComenziStockSummaryAziMock.mockReset()
+  getComenziStockSummaryAziMock.mockResolvedValue({
+    totalStocDisponibilKg: 12,
+    totalStocCal1Kg: 18,
+    rezervatActivKg: 2,
+    legacyInLivrareKg: 1,
+  })
   getRecoltariMock.mockReset()
   getRecoltariMock.mockResolvedValue([])
   getVanzariMock.mockResolvedValue([])
@@ -312,7 +324,9 @@ describe('ComenziPageClient', () => {
     const card = await screen.findByTestId('recoltare-necesitate-card')
     await waitFor(() => {
       expect(within(card).getByText('Recoltat')).toBeInTheDocument()
+      expect(within(card).getByText('Disponibil azi')).toBeInTheDocument()
       expect(within(card).getByText('5,0 kg')).toBeInTheDocument()
+      expect(within(card).getByText('12,0 kg')).toBeInTheDocument()
       expect(within(card).getByText('2,0 kg')).toBeInTheDocument()
       expect(within(card).getByText('3,0 kg')).toBeInTheDocument()
     })
@@ -366,6 +380,66 @@ describe('ComenziPageClient', () => {
     expect((await screen.findAllByText('Programată normal')).length).toBeGreaterThan(0)
     expect(screen.queryByText('În drum fără dată')).not.toBeInTheDocument()
     expect(screen.queryByText('În drum programată')).not.toBeInTheDocument()
+  })
+
+  it('afișează același disponibil în card și în modalul Stoc insuficient pentru două comenzi în livrare azi', async () => {
+    const user = userEvent.setup()
+    const today = todayBucharestDate()
+    getComenziStockSummaryAziMock.mockResolvedValue({
+      totalStocDisponibilKg: 2.5,
+      totalStocCal1Kg: 10,
+      rezervatActivKg: 6,
+      legacyInLivrareKg: 1.5,
+    })
+    getComenziMock.mockResolvedValue([
+      {
+        ...manualOrder,
+        id: 'in-delivery-1',
+        client_nume_manual: 'În livrare 1',
+        status: 'in_livrare',
+        data_livrare: today,
+        cantitate_kg: 4,
+      },
+      {
+        ...manualOrder,
+        id: 'in-delivery-2',
+        client_nume_manual: 'În livrare 2',
+        status: 'in_livrare',
+        data_livrare: today,
+        cantitate_kg: 3.5,
+      },
+      {
+        ...manualOrder,
+        id: 'needs-stock',
+        client_nume_manual: 'Client Nou',
+        status: 'confirmata',
+        data_livrare: today,
+        cantitate_kg: 3,
+      },
+    ])
+    getRecoltariMock.mockResolvedValue([{ data: today, kg_cal1: 10, kg_cal2: 999 }])
+
+    renderPage()
+
+    const card = await screen.findByTestId('recoltare-necesitate-card')
+    await waitFor(() => {
+      expect(within(card).getByText('Disponibil azi')).toBeInTheDocument()
+      expect(within(card).getByText('2,5 kg')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /Active 1/ }))
+    await user.click((await screen.findAllByRole('button', { name: 'În livrare' }))[0])
+
+    expect(await screen.findByText('Stoc insuficient')).toBeInTheDocument()
+    expect(
+      screen.getByText((_content, node) => {
+        if (node?.tagName.toLowerCase() !== 'p') return false
+        const text = node.textContent ?? ''
+        return text.includes('Disponibil acum:') && text.includes('2,5 kg')
+      }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('2,5 kg')).toHaveLength(2)
+    expect(getComenziStockSummaryAziMock).toHaveBeenCalled()
   })
 
   it.each([

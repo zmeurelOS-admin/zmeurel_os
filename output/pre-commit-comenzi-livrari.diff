@@ -1,0 +1,748 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 89d126c..e5c6a02 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -44,7 +44,7 @@ Core runtime pattern:
+ - **Analytics admin / zgomot E2E**: `profiles.exclude_from_analytics` și `tenants.exclude_from_analytics` (migrare `20260402100000_analytics_exclude_test_accounts.sql`) — backfill pe `auth.users` cu email `*@example.test` (pattern folosit în toate spec-urile Playwright din repo). `loadAnalyticsDashboardData` și `refresh_tenant_metrics_daily` exclud aceste rânduri din KPI-uri și agregări zilnice. Reversibil în SQL. Preview read-only: `scripts/sql/analytics-exclude-test-accounts-preview.sql`.
+ - **Magazin fermier (public, client final)**: ` /magazin` — landing; `/magazin/[tenantId]` — catalog produse read-only (încărcare server cu `getSupabaseAdmin()` în `src/lib/shop/load-public-shop.ts`), coș în state local + **checkout light**: `POST /api/shop/order` (anonim, `validateSameOriginMutation`, `getSupabaseAdmin`) inserează una sau mai multe înregistrări în `comenzi` (status `noua`, `data_origin: magazin_public`, `produs_id` când există coloana), câte una per linie din coș. Endpointul are hardening anti-abuse server-side în `src/lib/api/public-write-guard.ts` (rate limit fixed-window + cooldown scurt pe fingerprint de payload) și întoarce `429` cu `Retry-After` când pragurile sunt depășite. După inserări reușite, `notifyFarmerShopOrder` (`src/lib/shop/notify-farmer-shop-order.ts`) poate trimite email fermierului prin **Resend** (HTTPS, fără dependență npm): destinatar = email din Auth pentru `tenants.owner_user_id`, sau override opțional `SHOP_ORDER_NOTIFY_EMAIL`; necesită `SHOP_ORDER_NOTIFY_FROM` + (`SHOP_ORDER_NOTIFY_RESEND_API_KEY` sau `RESEND_API_KEY`). Eșecul notificării este logat; răspunsul JSON de succes nu depinde de email. Proxy permite `pathname.startsWith('/api/shop')` fără autentificare. UI: `src/components/shop/FarmShopClient.tsx` (nu folosește AppShell ERP). Din ERP, modulul **Produse** (`ProdusePageClient`) expune „Vezi magazin” / „Copiază link magazin” folosind `tenantId` din `useDashboardAuth()` (fără fetch suplimentar); CTA-urile sunt dezactivate până există cel puțin un produs cu status „activ” (aliniat la vitrina publică).
+ - **Magazin asociație (public, multi-fermier)**: `/magazin/asociatie` — branding „Gustă din Bucovina” **doar** aici (layout + `src/styles/association-shop.css`, fonturi Baloo 2 / Inter în `src/app/magazin/asociatie/layout.tsx`); nu în ERP sau magazin fermier. Catalog: `loadAssociationCatalog` / `loadAssociationCatalogCached` (`src/lib/shop/load-association-catalog.ts`) — produse `status = activ` pentru tenants cu `tenants.is_association_approved = true` (setat din **Admin** → tabel tenanți, coloana „Magazin asociație”, API `PATCH /api/admin/tenant-association`, doar superadmin) **reunit** cu fallback temporar pe allowlist explicit în env: `ASSOCIATION_ALLOWED_OWNER_USER_IDS` (preferat, UUID-uri) și opțional `ASSOCIATION_ALLOWED_EMAILS` (legacy/tranziție). Fără fallback hardcodat în cod; fără filtru `is_demo`. UI: `AssociationShopClient.tsx` orchestrator + `src/components/shop/association/*` (header brand pe verde, hero, filtre + sortare client-side, carduri, detaliu dialog/sheet, coș drawer, checkout), `AssociationLogo.tsx`, `AssociationHeroVisual.tsx`, imagini produse cu `next/image` (`unoptimized` pentru URL storage); hero Unsplash în `next.config.js`. Landing comercial: trust în hero, secțiune „Cum funcționează”, grid, „Despre asociație” (valori) + footer; paletă (#0D6342 / #FF9E1B / #FFF9E3 / #F5EDCA / text #3D4543 / #6B7A72 / border #E8E0C4); coș grupat pe fermier; `POST /api/shop/order` per `tenantId`. Fără AppShell ERP.
+-- **Comenzi + Livrări ERP (`/comenzi`, `/livrari`)**: `public.comenzi` este sursa unică de citire pentru dashboard, inclusiv bridge-urile Shop (`data_origin = shop_order_bridge`). Badge-ul „Shop” se derivează din `data_origin`, însă toate tranzițiile dashboard (programare, intrare în livrare, livrare, anulare) rulează pe rândul `comenzi`; livrarea totală/parțială folosește `set_comanda_delivered` prin `deliverComanda()`. `shop_orders` rămâne doar intake/checkout public și snapshot de compatibilitate: triggerul `sync_shop_order_status_from_comanda` îi oglindește statusul bridge-ului. RPC-urile `sync_shop_order_bridge_status`, `set_shop_order_in_delivery` și `set_shop_order_delivered` rămân pentru endpointul public B2C, nu pentru listele dashboard. La livrare se alege `platit` sau `neplatit`; starea și `data_incasare` rămân exclusiv în `vanzari`, iar `mark_comanda_incasata` este idempotent. Fluxul nu scrie în `miscari_stoc` sau `stock_reservations`.
++- **Comenzi + Livrări ERP (`/comenzi`, `/livrari`)**: `public.comenzi` este sursa unică de citire pentru dashboard, inclusiv bridge-urile Shop (`data_origin = shop_order_bridge`). În `/comenzi`, comenzile cu status deschis se împart exhaustiv: **Active** = `data_livrare IS NULL`, **Programate** = `data_livrare IS NOT NULL`; cardul operațional compară strict `recoltari.kg_cal1` de azi cu necesarul comenzilor deschise de azi/rest. Badge-ul „Shop” se derivează din `data_origin`, însă toate tranzițiile dashboard (programare, intrare în livrare, livrare, anulare) rulează pe rândul `comenzi`; livrarea totală/parțială folosește `set_comanda_delivered` prin `deliverComanda()`. `shop_orders` rămâne doar intake/checkout public și snapshot de compatibilitate: triggerul `sync_shop_order_status_from_comanda` îi oglindește statusul bridge-ului. RPC-urile `sync_shop_order_bridge_status`, `set_shop_order_in_delivery` și `set_shop_order_delivered` rămân pentru endpointul public B2C, nu pentru listele dashboard. La livrare se alege `platit` sau `neplatit`; starea și `data_incasare` rămân exclusiv în `vanzari`, iar `mark_comanda_incasata` este idempotent. Fluxul nu scrie în `miscari_stoc` sau `stock_reservations`.
+ - **Stoc vandabil cal1 derivat**: din `2026-06-26`, punctul unic de adevăr pentru disponibilitate este `public.get_sellable_cal1_stock_summary()`, calculat derivat din `recoltari.kg_cal1`, `comenzi` livrate/în livrare, `ajustari_stoc.delta_kg` și `shop_orders` istorice nepromovate. `miscari_stoc` și `stock_reservations` rămân arhive/read-only pentru fluxul de comenzi; RPC-urile vechi rămân definite pentru rollback, dar frontendul nu le mai apelează. Pagina `/stocuri` afișează doar pool-ul total „Zmeură cal1”, fără stoc per parcelă.
+ - **Profil public producător editat din workspace-ul asociației**: în `/asociatie/producatori`, adminii/moderatorii pot edita `tenants.descriere_publica`, `specialitate`, `localitate` și `poze_ferma` direct din dialogul `ProducerProfileEditor`; API-urile sunt `PATCH /api/association/producer-profile` și `POST/DELETE /api/association/producer-photos`. Pozele fermei merg în bucket-ul public `producer-photos` (`storage.objects`), maxim 3 URL-uri per tenant. RLS pe `tenants` permite staff-ului asociației doar aceste câmpuri publice prin migrarea `20260405011_allow_profile_update.sql`, iar triggerul `enforce_tenants_assoc_admin_updates()` blochează modificarea altor coloane.
+ - **Catalog produse asociație (ERP)**: `/asociatie/produse` folosește acum tabel full-width + Sheet responsive unic pentru vizualizare/editare produs (`side="right"` pe `md+`, `side="bottom"` pe mobil), cu tab-uri „Preț & Vizibilitate” și „Informații alimentare”; „Elimină din catalog” face doar PATCH (`association_listed = false`, `association_price = null`), fără DELETE pe `produse`. Crearea nouă merge prin `POST /api/association/products/create` și inserează în `public.produse` pentru un fermier aprobat al asociației, cu TODO explicit despre vizibilitatea ulterioară în ERP-ul fermierului.
+diff --git a/docs/MODULES.md b/docs/MODULES.md
+index e0d0ba4..3c34cda 100644
+--- a/docs/MODULES.md
++++ b/docs/MODULES.md
+@@ -194,6 +194,8 @@ _Last updated: 2026-05-02_
+ 
+ **Coloane `comenzi`:** id, tenant_id, client_id, client_nume_manual, telefon, locatie_livrare, data_comanda, data_livrare, cantitate_kg, pret_per_kg, total, status, plata ['integral'|'avans'|'restanta']
+ 
++**Organizare operațională:** în pagina Comenzi, toate comenzile cu status deschis sunt exclusive între tab-uri: **Active** au `data_livrare IS NULL`, iar **Programate** au `data_livrare IS NOT NULL`, grupate după această dată cu totalul kg al zilei. Cardul de sus folosește strict `recoltari.kg_cal1` de azi și necesarul comenzilor deschise; nu modifică disponibilul Cal. I sau ledger-ul de stoc.
++
+ ---
+ 
+ ## 10. Clienți (Customers)
+diff --git a/src/app/(dashboard)/comenzi/ComenziPageClient.tsx b/src/app/(dashboard)/comenzi/ComenziPageClient.tsx
+index 145ea0c..e3517d9 100644
+--- a/src/app/(dashboard)/comenzi/ComenziPageClient.tsx
++++ b/src/app/(dashboard)/comenzi/ComenziPageClient.tsx
+@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
+ import { createPortal } from 'react-dom'
+ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+-import { Check, ChevronDown, Search, UserRoundPlus, X } from 'lucide-react'
++import { Check, ChevronDown, Menu, Search, Target, UserRoundPlus, X } from 'lucide-react'
+ import { toast } from '@/lib/ui/toast'
+ 
+ import { AppDialog } from '@/components/app/AppDialog'
+@@ -34,7 +34,6 @@ import {
+   ModuleEmptyCard,
+   ModulePillFilterButton,
+   ModulePillRow,
+-  ModuleScoreboard,
+ } from '@/components/app/module-list-chrome'
+ import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
+ import { ErrorState } from '@/components/app/ErrorState'
+@@ -61,7 +60,7 @@ import { track } from '@/lib/analytics/track'
+ import { spacing } from '@/lib/design-tokens'
+ import { createClienți, getClienți, type Client, type ClientDuplicateWarning } from '@/lib/supabase/queries/clienti'
+ import { getSupabase } from '@/lib/supabase/client'
+-import { getSellableCal1StockSummary } from '@/lib/supabase/queries/miscari-stoc'
++import { getRecoltari } from '@/lib/supabase/queries/recoltari'
+ import {
+   COMANDA_ORDER_KINDS,
+   COMENZI_STATUSES,
+@@ -98,7 +97,6 @@ import {
+ } from '@/lib/comenzi/ai-order-client'
+ import {
+   getUnifiedOrderEffectiveDate,
+-  getComenziOperationalSnapshot,
+   KG_PER_CASEROLĂ,
+   groupAllOrdersByDeliveryDate,
+   isUnifiedOpenStatus,
+@@ -463,10 +461,11 @@ function buildProgramateGroups(
+   const byDate = new Map<string, UnifiedOrderItem[]>()
+ 
+   for (const order of orders) {
+-    const effectiveDate = getUnifiedOrderEffectiveDate(order)
+-    const current = byDate.get(effectiveDate) ?? []
++    const deliveryDate = order.deliveryDate
++    if (deliveryDate === null) continue
++    const current = byDate.get(deliveryDate) ?? []
+     current.push(order)
+-    byDate.set(effectiveDate, current)
++    byDate.set(deliveryDate, current)
+   }
+ 
+   const today = todayIso()
+@@ -643,10 +642,8 @@ function saveContactAsVCard(name: string, phone: string) {
+ function PillTabs({
+   value,
+   onChange,
+-  onOpenCampaign,
+   activeCount,
+   scheduledCount,
+-  livrateCount,
+   receivableCount,
+   receivableTotal,
+   receivablesActive,
+@@ -654,10 +651,8 @@ function PillTabs({
+ }: {
+   value: TabKey
+   onChange: (value: TabKey) => void
+-  onOpenCampaign: () => void
+   activeCount: number
+   scheduledCount: number
+-  livrateCount: number
+   receivableCount: number
+   receivableTotal: number
+   receivablesActive: boolean
+@@ -666,8 +661,6 @@ function PillTabs({
+   const tabs = [
+     { key: 'de_livrat' as const, label: `Active${activeCount > 0 ? ` ${activeCount}` : ''}` },
+     { key: 'programate' as const, label: `Progr.${scheduledCount > 0 ? ` ${scheduledCount}` : ''}` },
+-    { key: 'livrate' as const, label: `Livr.${livrateCount > 0 ? ` ${livrateCount}` : ''}` },
+-    { key: 'toate' as const, label: 'Toate' },
+   ]
+   return (
+     <ModulePillRow className="grid grid-cols-3 gap-2">
+@@ -691,14 +684,6 @@ function PillTabs({
+           ? ` ${receivableCount} · ${formatLeiCompact(receivableTotal)} lei`
+           : ''}
+       </ModulePillFilterButton>
+-      <ModulePillFilterButton
+-        active={false}
+-        onClick={onOpenCampaign}
+-        className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 px-2"
+-      >
+-        <span aria-hidden="true">🎯</span>
+-        <span>Campanie</span>
+-      </ModulePillFilterButton>
+     </ModulePillRow>
+   )
+ }
+@@ -785,7 +770,6 @@ function UnifiedOrderGroupSection({
+   orderCount,
+   quantitySummary,
+   necesarKg,
+-  totalKg,
+   showHeader = true,
+   scheduledView = false,
+   referenceDate,
+@@ -795,7 +779,6 @@ function UnifiedOrderGroupSection({
+   orderCount: number
+   quantitySummary: string
+   necesarKg?: number
+-  totalKg?: number
+   showHeader?: boolean
+   scheduledView?: boolean
+   referenceDate?: string
+@@ -819,11 +802,7 @@ function UnifiedOrderGroupSection({
+     scheduledView && date
+       ? `📅 ${relativeLabel === 'Azi' ? 'Azi' : baseLabel}`
+       : baseLabel
+-  const showNecesarKg =
+-    typeof necesarKg === 'number' &&
+-    necesarKg > 0 &&
+-    typeof totalKg === 'number' &&
+-    Math.abs(necesarKg - totalKg) >= 0.05
++  const showNecesarKg = typeof necesarKg === 'number'
+ 
+   return (
+     <section className={showHeader ? 'space-y-3' : undefined}>
+@@ -837,7 +816,11 @@ function UnifiedOrderGroupSection({
+         >
+           {label} · {orderCount} {orderCount === 1 ? 'comandă' : 'comenzi'}
+           {quantitySummary ? ` · ${quantitySummary}` : ''}
+-          {showNecesarKg ? ` · ${formatKgOneDecimal(necesarKg)} necesari` : ''}
++          {showNecesarKg ? (
++            <span className="ml-2 inline-flex rounded-full border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-info-text)]">
++              {formatKgOneDecimal(necesarKg)} necesare
++            </span>
++          ) : null}
+         </div>
+       ) : null}
+       {children}
+@@ -845,49 +828,73 @@ function UnifiedOrderGroupSection({
+   )
+ }
+ 
+-function StocNecesarCard({
+-  necesarKg,
+-  stocDisponibilKg,
++function RecoltareNecesitateCard({
++  recoltatKg,
++  necesarAziKg,
++  necesarRestKg,
+ }: {
+-  necesarKg: number
+-  stocDisponibilKg: number
++  recoltatKg: number
++  necesarAziKg: number
++  necesarRestKg: number
+ }) {
+-  const hasEnoughStock = stocDisponibilKg >= necesarKg
+-  const diferentaKg = Math.abs(stocDisponibilKg - necesarKg)
++  const state = (() => {
++    if (recoltatKg <= 0) {
++      return {
++        message: 'Zero stoc — n-ai recoltat azi',
++        cardClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
++        textClassName: 'text-[var(--status-danger-text)]',
++      }
++    }
++    if (recoltatKg < necesarAziKg) {
++      return {
++        message: 'Sub necesarul zilei',
++        cardClassName: 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)]',
++        textClassName: 'text-[var(--status-danger-text)]',
++      }
++    }
++    if (
++      recoltatKg < necesarAziKg + necesarRestKg &&
++      recoltatKg - necesarAziKg < 0.3
++    ) {
++      return {
++        message: 'Acoperit exact azi',
++        cardClassName: 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]',
++        textClassName: 'text-[var(--status-success-text)]',
++      }
++    }
++    if (recoltatKg >= necesarAziKg + necesarRestKg) {
++      return {
++        message: 'Surplus — acoperă tot ce ai programat',
++        cardClassName: 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]',
++        textClassName: 'text-[var(--status-warning-text)]',
++      }
++    }
++    return {
++      message: 'Acoperit azi, cu rezervă',
++      cardClassName: 'border-[var(--status-info-border)] bg-[var(--status-info-bg)]',
++      textClassName: 'text-[var(--status-info-text)]',
++    }
++  })()
+ 
+   return (
+     <div
+-      className={`rounded-2xl border px-3 py-2 ${
+-        hasEnoughStock
+-          ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]'
+-          : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)]'
+-      }`}
++      data-testid="recoltare-necesitate-card"
++      className={`rounded-2xl border px-3 py-3 ${state.cardClassName}`}
+     >
+-      <div className="flex items-start justify-between gap-3">
+-        <div className="space-y-0.5">
+-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">
+-            Stoc vs necesar
+-          </p>
+-          <p className="text-sm font-semibold text-[var(--text-primary)]">
+-            Necesar livrări: {formatKgOneDecimal(necesarKg)}
+-          </p>
+-          <p className="text-xs text-[var(--text-secondary)]">
+-            Ai nevoie de {formatKgOneDecimal(necesarKg)}, ai disponibil{' '}
+-            {formatKgOneDecimal(stocDisponibilKg)}.{' '}
+-            {hasEnoughStock
+-              ? `Surplus: ${formatKgOneDecimal(diferentaKg)}.`
+-              : `Lipsesc: ${formatKgOneDecimal(diferentaKg)}.`}
+-          </p>
++      <p className={`mb-2 text-xs font-bold ${state.textClassName}`}>{state.message}</p>
++      <div className="grid grid-cols-3 gap-2">
++        <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
++          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Recoltat</p>
++          <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(recoltatKg)}</p>
++        </div>
++        <div className="min-w-0 rounded-xl border border-white/60 bg-[var(--surface-card)]/70 px-2 py-2">
++          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text-secondary)]">Necesar azi</p>
++          <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(necesarAziKg)}</p>
++        </div>
++        <div className="min-w-0 rounded-xl border border-[var(--status-neutral-border)] bg-[var(--status-neutral-bg)] px-2 py-2">
++          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--status-neutral-text)]">Necesar rest</p>
++          <p className="mt-0.5 truncate text-sm font-bold text-[var(--text-primary)]">{formatKgOneDecimal(necesarRestKg)}</p>
+         </div>
+-        <span
+-          className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${
+-            hasEnoughStock
+-              ? 'bg-[var(--status-success-bg)] text-[var(--success-text)]'
+-              : 'bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+-          }`}
+-        >
+-          {hasEnoughStock ? '✅ OK' : '⚠️ Sub necesar'}
+-        </span>
+       </div>
+     </div>
+   )
+@@ -1674,18 +1681,9 @@ export function ComenziPageClient() {
+     queryFn: getClienți,
+   })
+ 
+-  const {
+-    data: stocSummary = {
+-      recoltatCal1Kg: 0,
+-      consumatDefinitivCal1Kg: 0,
+-      rezervatActivCal1Kg: 0,
+-      legacyInLivrareFaraRezervareKg: 0,
+-      stocCal1LedgerKg: 0,
+-      disponibilCal1Kg: 0,
+-    },
+-  } = useQuery({
+-    queryKey: queryKeys.stocGlobalCal1,
+-    queryFn: getSellableCal1StockSummary,
++  const { data: recoltari = [] } = useQuery({
++    queryKey: queryKeys.recoltari,
++    queryFn: getRecoltari,
+   })
+ 
+   const clientMap = useMemo(() => {
+@@ -2039,16 +2037,6 @@ export function ComenziPageClient() {
+   }
+ 
+   const today = todayIso()
+-  const manualComenzi = comenzi
+-  const livrateComenzi = useMemo(
+-    () => manualComenzi.filter((item) => item.status === 'livrata'),
+-    [manualComenzi],
+-  )
+-  const operationalSnapshot = useMemo(
+-    () => getComenziOperationalSnapshot(comenzi),
+-    [comenzi],
+-  )
+-
+   const livrateNeincasate = useMemo(() => {
+     return comenzi
+       .filter(
+@@ -2069,54 +2057,55 @@ export function ComenziPageClient() …20 tokens truncated…() =>
+-      unifiedAllOrders.filter(
+-        (item) =>
+-          isUnifiedOpenStatus(item.status) &&
+-          getUnifiedOrderEffectiveDate(item) === today,
+-      ).length,
+-    [today, unifiedAllOrders],
+-  )
+-  const comenziRestanteCount = useMemo(
++  const programateCount = useMemo(
+     () =>
+       unifiedAllOrders.filter(
+         (item) =>
+-          isUnifiedOpenStatus(item.status) &&
+-          getUnifiedOrderEffectiveDate(item) < today,
++          isUnifiedOpenStatus(item.status) && item.deliveryDate !== null,
+       ).length,
+-    [today, unifiedAllOrders],
++    [unifiedAllOrders],
+   )
+-  const programateCount = useMemo(
++  const activeCount = useMemo(
+     () =>
+       unifiedAllOrders.filter(
+-        (item) =>
+-          item.status === 'programata' &&
+-          Boolean(getUnifiedOrderEffectiveDate(item)),
++        (item) => isUnifiedOpenStatus(item.status) && item.deliveryDate === null,
+       ).length,
+     [unifiedAllOrders],
+   )
+ 
+-  const totalStocDisponibilKg = Number(stocSummary.disponibilCal1Kg || 0)
+-  const necesarKgTotal = useMemo(
++  const recoltatAziKg = useMemo(
+     () =>
+-      unifiedAllOrders.reduce((sum, item) => {
+-        if (!isUnifiedOpenStatus(item.status) || !item.deliveryDate) return sum
+-        return sum + getUnifiedOrderNeedKg(item)
++      recoltari.reduce((sum, recoltare) => {
++        if (recoltare.data !== today) return sum
++        return sum + Number(recoltare.kg_cal1 ?? 0)
+       }, 0),
+-    [unifiedAllOrders],
++    [recoltari, today],
++  )
++  const { necesarAziKg, necesarRestKg } = useMemo(
++    () =>
++      unifiedAllOrders.reduce(
++        (totals, item) => {
++          if (!isUnifiedOpenStatus(item.status) || item.deliveryDate === null) return totals
++          const necesarKg = getUnifiedOrderNeedKg(item)
++          if (item.deliveryDate === today) totals.necesarAziKg += necesarKg
++          else if (item.deliveryDate !== today) totals.necesarRestKg += necesarKg
++          return totals
++        },
++        { necesarAziKg: 0, necesarRestKg: 0 },
++      ),
++    [today, unifiedAllOrders],
+   )
+-
+-  const showStocNecesarCard = necesarKgTotal > 0
+ 
+   const unifiedFiltered = useMemo(() => {
+     const term = normalize(search)
+ 
+     return unifiedAllOrders.filter((item) => {
+-      if (activeTab === 'de_livrat' && item.status !== 'noua' && item.status !== 'confirmata') return false
++      if (
++        activeTab === 'de_livrat' &&
++        (!isUnifiedOpenStatus(item.status) || item.deliveryDate !== null)
++      ) return false
+       if (activeTab === 'programate') {
+-        if (item.status === 'in_livrare') return false
+-        if (item.status !== 'programata' || !getUnifiedOrderEffectiveDate(item)) return false
++        if (!isUnifiedOpenStatus(item.status) || item.deliveryDate === null) return false
+       }
+       if (activeTab === 'livrate' && item.status !== 'livrata') return false
+       if (
+@@ -2369,104 +2358,17 @@ export function ComenziPageClient() {
+       )}
+     >
+       <DashboardContentShell variant="workspace" className="mt-2 flex flex-col gap-3 pb-16 pt-3 sm:mt-0 sm:py-3 md:pb-3">
+-        {(operationalSnapshot.activeTotalCount > 0 || comenziRestanteCount > 0 || neincasatRon > 0 || showStocNecesarCard) ? (
+-          <div className="space-y-2">
+-            <ModuleScoreboard className="gap-x-3.5 gap-y-2">
+-              {operationalSnapshot.activeTotalCount > 0 ? (
+-                <span
+-                  role="button"
+-                  tabIndex={0}
+-                  className="cursor-pointer"
+-                  onClick={() => setFilterAndTab('de_livrat', 'active')}
+-                  onKeyDown={(e) => {
+-                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'active')
+-                  }}
+-                >
+-                  <span className="text-lg font-extrabold text-[var(--agri-text)]">{operationalSnapshot.activeTotalCount}</span>
+-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">active</span>
+-                </span>
+-              ) : null}
+-              {comenziAziCount > 0 ? (
+-                <span
+-                  role="button"
+-                  tabIndex={0}
+-                  className="cursor-pointer"
+-                  onClick={() => setFilterAndTab('de_livrat', 'azi')}
+-                  onKeyDown={(e) => {
+-                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'azi')
+-                  }}
+-                >
+-                  <span className="text-base font-bold text-[var(--status-warning-text)]">{comenziAziCount}</span>
+-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">azi</span>
+-                </span>
+-              ) : null}
+-              {comenziRestanteCount > 0 ? (
+-                <span
+-                  role="button"
+-                  tabIndex={0}
+-                  className="cursor-pointer"
+-                  onClick={() => setFilterAndTab('de_livrat', 'restante')}
+-                  onKeyDown={(e) => {
+-                    if (e.key === 'Enter') setFilterAndTab('de_livrat', 'restante')
+-                  }}
+-                >
+-                  <span className="text-base font-bold text-[var(--status-danger-text)]">{comenziRestanteCount}</span>
+-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">restante</span>
+-                </span>
+-              ) : null}
+-              {neincasatRon > 0 ? (
+-                <span
+-                  role="button"
+-                  tabIndex={0}
+-                  className="cursor-pointer"
+-                  onClick={() => setFilterAndTab('livrate', 'neincasat')}
+-                  onKeyDown={(e) => {
+-                    if (e.key === 'Enter') setFilterAndTab('livrate', 'neincasat')
+-                  }}
+-                >
+-                  <span className="text-base font-bold text-[var(--status-warning-text)]">{formatLeiCompact(neincasatRon)}</span>
+-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">RON neîncasat</span>
+-                </span>
+-              ) : null}
+-              {totalStocDisponibilKg > 0 ? (
+-                <span>
+-                  <span className="text-sm font-semibold text-[var(--success-text)]">{formatKg(totalStocDisponibilKg)}</span>
+-                  <span className="ml-1 text-[11px] text-[var(--agri-text-muted)]">stoc</span>
+-                </span>
+-              ) : null}
+-            </ModuleScoreboard>
+-
+-            {showStocNecesarCard ? (
+-              <StocNecesarCard
+-                necesarKg={necesarKgTotal}
+-                stocDisponibilKg={totalStocDisponibilKg}
+-              />
+-            ) : null}
+-          </div>
+-        ) : null}
++        <RecoltareNecesitateCard
++          recoltatKg={recoltatAziKg}
++          necesarAziKg={necesarAziKg}
++          necesarRestKg={necesarRestKg}
++        />
+ 
+         <PillTabs
+           value={activeTab}
+-          onChange={(value) => {
+-            setActiveTab(value)
+-            if (value === 'programate') setOrderSort('delivery_date')
+-            if (value !== 'programate' && orderSort === 'delivery_date_desc') {
+-              setOrderSort('created_at')
+-            }
+-            if (value === 'de_livrat') setOrderSort('created_at')
+-            if (value === 'de_livrat' && activeFilter === 'neincasat') setActiveFilter('none')
+-            if (
+-              value === 'livrate' &&
+-              ['azi', 'active', 'restante', 'viitoare'].includes(activeFilter)
+-            ) {
+-              setActiveFilter('none')
+-            }
+-            if (value === 'programate' && activeFilter === 'neincasat') setActiveFilter('none')
+-          }}
+-          onOpenCampaign={() => router.push('/comenzi/campanie')}
+-          activeCount={operationalSnapshot.activeTotalCount}
++          onChange={(value) => setFilterAndTab(value, value === 'de_livrat' ? 'active' : 'none')}
++          activeCount={activeCount}
+           scheduledCount={programateCount}
+-          livrateCount={livrateComenzi.length}
+           receivableCount={livrateNeincasate.length}
+           receivableTotal={neincasatRon}
+           receivablesActive={activeTab === 'livrate' && activeFilter === 'neincasat'}
+@@ -2481,6 +2383,23 @@ export function ComenziPageClient() {
+             onChange={(e) => setSearch(e.target.value)}
+             aria-label="Caută comenzi (desktop)"
+           />
++          <button
++            type="button"
++            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985]"
++            aria-label="Arată toate comenzile"
++            aria-pressed={activeTab === 'toate'}
++            onClick={() => setFilterAndTab('toate', 'none')}
++          >
++            <Menu className="h-[18px] w-[18px]" aria-hidden />
++          </button>
++          <button
++            type="button"
++            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] shadow-sm transition active:scale-[0.985]"
++            aria-label="Deschide campania de comenzi"
++            onClick={() => router.push('/comenzi/campanie')}
++          >
++            <Target className="h-[18px] w-[18px]" aria-hidden />
++          </button>
+         </DesktopToolbar>
+ 
+         <div className="space-y-2" data-testid="comenzi-mobile-controls">
+@@ -2507,6 +2426,23 @@ export function ComenziPageClient() {
+                 <SelectItem value="total_desc">Total lei ↓</SelectItem>
+               </SelectContent>
+             </Select>
++            <button
++              type="button"
++              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985] md:hidden"
++              aria-label="Arată toate comenzile"
++              aria-pressed={activeTab === 'toate'}
++              onClick={() => setFilterAndTab('toate', 'none')}
++            >
++              <Menu className="h-[18px] w-[18px]" aria-hidden />
++            </button>
++            <button
++              type="button"
++              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] shadow-sm transition active:scale-[0.985] md:hidden"
++              aria-label="Deschide campania de comenzi"
++              onClick={() => router.push('/comenzi/campanie')}
++            >
++              <Target className="h-[18px] w-[18px]" aria-hidden />
++            </button>
+             <button
+               type="button"
+               className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm transition active:scale-[0.985] md:hidden"
+@@ -2575,9 +2511,8 @@ export function ComenziPageClient() {
+                     key={group.date ?? 'unscheduled'}
+                     date={group.date}
+                     orderCount={group.orders.length}
+-                    quantitySummary={quantitySummary}
++                    quantitySummary={activeTab === 'programate' ? '' : quantitySummary}
+                     necesarKg={necesarKg}
+-                    totalKg={totalKg}
+                     showHeader={showOrderGroupHeaders}
+                     scheduledView={activeTab === 'programate'}
+                     referenceDate={today}
+@@ -2640,9 +2575,8 @@ export function ComenziPageClient() {
+                     key={group.date ?? 'unscheduled'}
+                     date={group.date}
+                     orderCount={group.orders.length}
+-                    quantitySummary={quantitySummary}
++                    quantitySummary={activeTab === 'programate' ? '' : quantitySummary}
+                     necesarKg={necesarKg}
+-                    totalKg={totalKg}
+                     showHeader={showOrderGroupHeaders}
+                     scheduledView={activeTab === 'programate'}
+                     referenceDate={today}
+diff --git a/src/app/(dashboard)/comenzi/__tests__/ComenziPageClient.test.tsx b/src/app/(dashboard)/comenzi/__tests__/ComenziPageClient.test.tsx
+index 822eb35..ad5e652 100644
+--- a/src/app/(dashboard)/comenzi/__tests__/ComenziPageClient.test.tsx
++++ b/src/app/(dashboard)/comenzi/__tests__/ComenziPageClient.test.tsx
+@@ -11,7 +11,7 @@ const {
+   deliverComandaMock,
+   getCliențiMock,
+   getComenziMock,
+-  getSellableCal1StockSummaryMock,
++  getRecoltariMock,
+   getVanzariMock,
+   toastErrorMock,
+   toastInfoMock,
+@@ -21,7 +21,7 @@ const {
+   deliverComandaMock: vi.fn(),
+   getCliențiMock: vi.fn().mockResolvedValue([]),
+   getComenziMock: vi.fn<() => Promise<Comanda[]>>(),
+-  getSellableCal1StockSummaryMock: vi.fn(),
++  getRecoltariMock: vi.fn(),
+   getVanzariMock: vi.fn().mockResolvedValue([]),
+   toastErrorMock: vi.fn(),
+   toastInfoMock: vi.fn(),
+@@ -193,8 +193,8 @@ vi.mock('@/lib/supabase/queries/comenzi', async () => {
+   }
+ })
+ 
+-vi.mock('@/lib/supabase/queries/miscari-stoc', () => ({
+-  getSellableCal1StockSummary: getSellableCal1StockSummaryMock,
++vi.mock('@/lib/supabase/queries/recoltari', () => ({
++  getRecoltari: getRecoltariMock,
+ }))
+ 
+ vi.mock('@/lib/supabase/queries/vanzari', () => ({
+@@ -234,7 +234,7 @@ const manualOrder: Comanda = {
+   telefon: '0740 123 456',
+   locatie_livrare: 'Suceava',
+   data_comanda: '2026-07-13',
+-  data_livrare: '2026-07-14',
++  data_livrare: null,
+   cantitate_kg: 2,
+   pret_per_kg: 35,
+   total: 70,
+@@ -267,15 +267,8 @@ beforeEach(() => {
+   getCliențiMock.mockResolvedValue([])
+   getComenziMock.mockReset()
+   getComenziMock.mockResolvedValue([manualOrder])
+-  getSellableCal1StockSummaryMock.mockReset()
+-  getSellableCal1StockSummaryMock.mockResolvedValue({
+-    recoltatCal1Kg: 20,
+-    consumatDefinitivCal1Kg: 4,
+-    rezervatActivCal1Kg: 3,
+-    legacyInLivrareFaraRezervareKg: 1,
+-    stocCal1LedgerKg: 16,
+-    disponibilCal1Kg: 12,
+-  })
++  getRecoltariMock.mockReset()
++  getRecoltariMock.mockResolvedValue([])
+   getVanzariMock.mockResolvedValue([])
+   toastMock.mockReset()
+   toastErrorMock.mockReset()
+@@ -300,6 +293,58 @@ describe('ComenziPageClient', () => {
+     expect(within(mobileControls).getByLabelText('Caută comenzi')).toBeInTheDocument()
+   })
+ 
++  it('separă Active de Programate și calculează cardul strict din kg Cal. I', async () => {
++    const user = userEvent.setup()
++    const today = new Date().toISOString().slice(0, 10)
++    getComenziMock.mockResolvedValue([
++      manualOrder,
++      { ...manualOrder, id: 'scheduled-today', client_nume_manual: 'Client Azi', data_livrare: today, cantitate_kg: 2 },
++      { ...manualOrder, id: 'scheduled-rest', client_nume_manual: 'Client Rest', data_livrare: '2099-01-01', cantitate_kg: 3 },
++      { ...manualOrder, id: 'delivered-no-date', client_nume_manual: 'Livrat', status: 'livrata', data_livrare: null },
++    ])
++    getRecoltariMock.mockResolvedValue([
++      { data: today, kg_cal1: 5, kg_cal2: 100 },
++    ])
++
++    renderPage()
++
++    const card = await screen.findByTestId('recoltare-necesitate-card')
++    await waitFor(() => {
++      expect(within(card).getByText('Recoltat')).toBeInTheDocument()
++      expect(within(card).getByText('5,0 kg')).toBeInTheDocument()
++      expect(within(card).getByText('2,0 kg')).toBeInTheDocument()
++      expect(within(card).getByText('3,0 kg')).toBeInTheDocument()
++    })
++    expect(screen.getAllByText('Client Demo')).toHaveLength(2)
++    expect(screen.queryByText('Client Azi')).not.toBeInTheDocument()
++
++    await user.click(screen.getByRole('button', { name: /Progr\. 2/ }))
++
++    expect((await screen.findAllByText('Client Azi')).length).toBeGreaterThan(0)
++    expect(screen.getAllByText('Client Rest')).toHaveLength(2)
++    expect(screen.queryByText('Client Demo')).not.toBeInTheDocument()
++  })
++
++  it.each([
++    { name: 'zero', recoltatKg: 0, necesarAziKg: 2, necesarRestKg: 1, message: 'Zero stoc — n-ai recoltat azi' },
++    { name: 'deficit', recoltatKg: 1, necesarAziKg: 2, necesarRestKg: 1, message: 'Sub necesarul zilei' },
++    { name: 'exact azi', recoltatKg: 2.1, necesarAziKg: 2, necesarRestKg: 1, message: 'Acoperit exact azi' },
++    { name: 'rezervă parțială', recoltatKg: 2.5, necesarAziKg: 2, necesarRestKg: 1, message: 'Acoperit azi, cu rezervă' },
++    { name: 'surplus total', recoltatKg: 3, necesarAziKg: 2, necesarRestKg: 1, message: 'Surplus — acoperă tot ce ai programat' },
++  ])('afișează starea cromatică $name', async ({ recoltatKg, necesarAziKg, necesarRestKg, message }) => {
++    const today = new Date().toISOString().slice(0, 10)
++    getComenziMock.mockResolvedValue([
++      { ...manualOrder, id: `today-${recoltatKg}`, data_livrare: today, cantitate_kg: necesarAziKg },
++      { ...manualOrder, id: `rest-${recoltatKg}`, data_livrare: '2099-01-01', cantitate_kg: necesarRestKg },
++    ])
++    getRecoltariMock.mockResolvedValue([{ data: today, kg_cal1: recoltatKg, kg_cal2: 999 }])
++
++    const view = renderPage()
++
++    expect(await screen.findByText(message)).toBeInTheDocument()
++    view.unmount()
++  })
++
+   it('livrează direct din card prin deliverComanda și rămâne în modulul curent', async () => {
+     const user = userEvent.setup()
+     deliverComandaMock.mockImplementation(async () => {
+diff --git a/src/app/(dashboard)/livrari/LivrariPageClient.tsx b/src/app/(dashboard)/livrari/LivrariPageClient.tsx
+index d91befc..b4559b9 100644
+--- a/src/app/(dashboard)/livrari/LivrariPageClient.tsx
++++ b/src/app/(dashboard)/livrari/LivrariPageClient.tsx
+@@ -115,6 +115,10 @@ export function LivrariPageClient() {
+   })
+ 
+   const allOrders = useMemo(() => ordersQuery.data ?? [], [ordersQuery.data])
++  const livrateCount = useMemo(
++    () => allOrders.filter((order) => order.status === 'livrata').length,
++    [allOrders],
++  )
+   const deliveryOrders = useMemo(
+     () => allOrders.filter((order) => order.status === 'in_livrare'),
+     [allOrders],
+@@ -339,7 +343,12 @@ export function LivrariPageClient() {
+             <h1 className="text-lg leading-tight text-[var(--brand-dark)] [font-weight:750]">
+               Livrări de azi
+             </h1>
+-            <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
++            <div className="mt-1 flex flex-wrap items-center gap-2">
++              <p className="text-sm text-[var(--text-secondary)]">{headerSubtitle}</p>
++              <span className="inline-flex items-center rounded-full border border-[var(--status-success-border)] bg-[var(--status-success-bg)] px-2 py-0.5 text-xs font-bold text-[var(--status-success-text)]">
++                ✅ Livrate {livrateCount}
++              </span>
++            </div>
+           </div>
+           <Button
+             type="button"
+diff --git a/src/app/(dashboard)/livrari/__tests__/LivrariPageClient.test.tsx b/src/app/(dashboard)/livrari/__tests__/LivrariPageClient.test.tsx
+index a545c58..862c2c9 100644
+--- a/src/app/(dashboard)/livrari/__tests__/LivrariPageClient.test.tsx
++++ b/src/app/(dashboard)/livrari/__tests__/LivrariPageClient.test.tsx
+@@ -119,6 +119,17 @@ beforeEach(() => {
+ })
+ 
+ describe('LivrariPageClient', () => {
++  it('afișează în header contorul canonic al comenzilor livrate', async () => {
++    getComenziMock.mockResolvedValue([
++      { ...shopBridgeOrder, status: 'livrata' },
++      { ...manualOrder, status: 'livrata' },
++      shopBridgeOrder,
++    ])
++    renderPage()
++
++    expect(await screen.findByText('✅ Livrate 2')).toBeInTheDocument()
++  })
++
+   it('afișează un bridge Shop din comenzi cu badge-ul de origine și acțiunile canonice', async () => {
+     const user = userEvent.setup()
+     renderPage()
+
