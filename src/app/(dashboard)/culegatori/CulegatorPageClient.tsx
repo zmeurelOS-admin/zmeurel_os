@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MapPin, Pencil, Trash2, UserCheck, UserRound, Users, Wallet } from 'lucide-react'
@@ -11,12 +12,9 @@ import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { DesktopKpiStrip } from '@/components/app/DesktopKpiStrip'
 import { AppDialog } from '@/components/app/AppDialog'
 import { ModuleEmptyCard, ModuleScoreboard } from '@/components/app/module-list-chrome'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { AddCulegatorDialog } from '@/components/culegatori/AddCulegatorDialog'
-import { EditCulegatorDialog } from '@/components/culegatori/EditCulegatorDialog'
 import { Button } from '@/components/ui/button'
 import { DesktopInspectorPanel, DesktopInspectorSection, DesktopSplitPane } from '@/components/ui/desktop'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
@@ -37,6 +35,20 @@ import {
 } from '@/lib/supabase/queries/culegatori'
 import { getParcele } from '@/lib/supabase/queries/parcele'
 import { getRecoltari, type Recoltare } from '@/lib/supabase/queries/recoltari'
+
+// Dialoguri deschise doar la interacțiune — code-split (ssr:false).
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
+const AddCulegatorDialog = dynamic(
+  () => import('@/components/culegatori/AddCulegatorDialog').then((mod) => mod.AddCulegatorDialog),
+  { ssr: false }
+)
+const EditCulegatorDialog = dynamic(
+  () => import('@/components/culegatori/EditCulegatorDialog').then((mod) => mod.EditCulegatorDialog),
+  { ssr: false }
+)
 
 interface Props {
   initialCulegatori: Culegator[]

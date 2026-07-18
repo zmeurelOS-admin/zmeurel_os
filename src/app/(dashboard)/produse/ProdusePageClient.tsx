@@ -1,19 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, ExternalLink, Pencil, Trash2 } from 'lucide-react'
 
 import { AppShell } from '@/components/app/AppShell'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton, ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { ModuleEmptyCard } from '@/components/app/module-list-chrome'
 import { PageHeader } from '@/components/app/PageHeader'
-import { AddProdusDialog } from '@/components/produse/AddProdusDialog'
-import { EditProdusDialog } from '@/components/produse/EditProdusDialog'
 import { ProductAssociationOfferBlock } from '@/components/produse/ProductAssociationOfferBlock'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +42,20 @@ import {
   type Produs,
 } from '@/lib/supabase/queries/produse'
 import { toast } from '@/lib/ui/toast'
+
+// Dialoguri deschise doar la interacțiune — code-split (ssr:false).
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
+const AddProdusDialog = dynamic(
+  () => import('@/components/produse/AddProdusDialog').then((mod) => mod.AddProdusDialog),
+  { ssr: false }
+)
+const EditProdusDialog = dynamic(
+  () => import('@/components/produse/EditProdusDialog').then((mod) => mod.EditProdusDialog),
+  { ssr: false }
+)
 
 const STATUS_FILTER = [
   { value: 'all' as const, label: 'Toate' },

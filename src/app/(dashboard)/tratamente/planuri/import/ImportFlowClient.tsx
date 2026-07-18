@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { Check, FileSpreadsheet } from 'lucide-react'
 
@@ -8,8 +9,15 @@ import { AppShell } from '@/components/app/AppShell'
 import { Button } from '@/components/ui/button'
 import type { ParseResult } from '@/app/(dashboard)/tratamente/planuri/import/actions'
 import { ConfigurareStep } from './ConfigurareStep'
-import { ReviewStep } from './ReviewStep'
 import { UploadStep } from './UploadStep'
+
+// ReviewStep (~1942 linii) e randat DOAR la pasul final al wizard-ului
+// (după ce `parseResult` există), deci îl code-splituim ca să nu intre în
+// First Load JS al rutei de import.
+const ReviewStep = dynamic(
+  () => import('./ReviewStep').then((mod) => mod.ReviewStep),
+  { ssr: false }
+)
 
 const STEPS = ['Configurare', 'Upload', 'Review'] as const
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import dynamic from 'next/dynamic'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, MessageCircle, Pencil, RefreshCw, Trash2, Users } from 'lucide-react'
@@ -15,13 +16,10 @@ import {
   ModulePillRow,
   ModuleScoreboard,
 } from '@/components/app/module-list-chrome'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { AddClientDialog } from '@/components/clienti/AddClientDialog'
-import { EditClientDialog } from '@/components/clienti/EditClientDialog'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { ResponsiveDataView } from '@/components/ui/ResponsiveDataView'
 import { SearchField } from '@/components/ui/SearchField'
@@ -46,6 +44,23 @@ import { getVanzari } from '@/lib/supabase/queries/vanzari'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { normalizePhoneNumber } from '@/lib/utils/normalize-phone'
 import { toast } from '@/lib/ui/toast'
+
+// Dialoguri deschise doar la interacțiune — code-split (ssr:false), ca în
+// modulele deja optimizate (Comenzi/Livrări/Recoltări). Nu randează DOM când
+// sunt închise, deci ies din First Load JS al rutei /clienti.
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
+const AddClientDialog = dynamic(
+  () => import('@/components/clienti/AddClientDialog').then((mod) => mod.AddClientDialog),
+  { ssr: false }
+)
+const EditClientDialog = dynamic(
+  () => import('@/components/clienti/EditClientDialog').then((mod) => mod.EditClientDialog),
+  { ssr: false }
+)
+
 type CreateClientMutationVariables = {
   input: Parameters<typeof createClienti>[0]
   onDuplicateWarning?: (existing: ClientDuplicateWarning) => void

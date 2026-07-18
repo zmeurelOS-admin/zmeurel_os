@@ -1,5 +1,39 @@
 # BUNDLE_AUDIT
 
+## 2026-07-18 CRUD + Import Wizard Dialog Code-Split (rundă 2)
+
+- Applied changes (mirror the proven Comenzi/Livrări/Recoltări pattern —
+  `dynamic(() => import(...).then((m) => m.X), { ssr: false })`, render JSX
+  unchanged, dialogs render null when closed):
+  - `/clienti`: AddClientDialog, EditClientDialog, ConfirmDeleteDialog
+    (AppDialog wrapper kept static — inline dialogs)
+  - `/produse`: AddProdusDialog, EditProdusDialog, ConfirmDeleteDialog
+  - `/cheltuieli`: AddCheltuialaDialog, EditCheltuialaDialog, ConfirmDeleteDialog
+  - `/culegatori`: AddCulegatorDialog, EditCulegatorDialog, ConfirmDeleteDialog
+    (AppDialog kept static)
+  - `/investitii`: AddInvestitieDialog, EditInvestitieDialog, DeleteConfirmDialog
+  - `/tratamente/planuri/import`: ReviewStep (~1942 linii, randat doar la pasul
+    final `parseResult` din ImportFlowClient); ConfigurareStep/UploadStep rămân
+    statice (randate mai devreme în wizard)
+  - conversii strict per-fișier; consumatorii shared (comenzi are deja propriul
+    dynamic pe AddClientDialog, testele importă direct) rămân neatinși
+- Measured outcome (server `page.js` proxy):
+  - `/tratamente/planuri/import`: ~`118 KB` → ~`52 KB` (`-66 KB`, `-56%`)
+  - `/investitii`: ~`59 KB` → ~`38 KB` (`-21 KB`, `-36%`)
+  - `/cheltuieli`: ~`65 KB` → ~`51 KB` (`-14 KB`, `-22%`)
+  - `/produse`: ~`91 KB` → ~`73 KB` (`-18 KB`, `-20%`)
+  - `/culegatori`: ~`69 KB` → ~`63 KB` (`-6 KB`, `-9%`)
+  - `/clienti`: proxy-ul server a urcat `82 KB` → `85 KB`, dar e artefact de
+    manifest (dynamic loadable refs), NU First Load JS client. Confirmat în
+    `react-loadable-manifest.json`: AddClientDialog/EditClientDialog/
+    ConfirmDeleteDialog sunt acum chunk-uri async separate → codul dialogurilor
+    e amânat, deci First Load JS client scade. Server `page.js` nu e un proxy
+    fidel când componenta principală (1726 linii) domină și dialogurile splitate
+    sunt relativ mici.
+- Important: server `page.js` rămâne un proxy imperfect (Next 16 non-TTY omite
+  coloanele First Load JS reale); dovada structurală a splitării e prezența
+  componentelor ca dynamic chunks în `react-loadable-manifest.json`.
+
 ## 2026-07-18 Comenzi & Livrări Dialog Code-Split
 
 - Applied changes:

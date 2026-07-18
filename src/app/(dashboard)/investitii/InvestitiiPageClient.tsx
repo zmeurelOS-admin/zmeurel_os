@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Pencil, Trash2, Landmark } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -19,9 +20,6 @@ import {
 import { ErrorState } from '@/components/app/ErrorState'
 import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
-import { AddInvestitieDialog } from '@/components/investitii/AddInvestitieDialog'
-import { EditInvestitieDialog } from '@/components/investitii/EditInvestitieDialog'
 import { Button } from '@/components/ui/button'
 import {
   DesktopInspectorPanel,
@@ -37,6 +35,20 @@ import { useAddAction } from '@/contexts/AddActionContext'
 import { deleteInvestitie, getInvestitii, type Investitie } from '@/lib/supabase/queries/investitii'
 import { buildInvestitieDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
+
+// Dialoguri deschise doar la interacțiune — code-split (ssr:false).
+const DeleteConfirmDialog = dynamic(
+  () => import('@/components/parcele/DeleteConfirmDialog').then((mod) => mod.DeleteConfirmDialog),
+  { ssr: false }
+)
+const AddInvestitieDialog = dynamic(
+  () => import('@/components/investitii/AddInvestitieDialog').then((mod) => mod.AddInvestitieDialog),
+  { ssr: false }
+)
+const EditInvestitieDialog = dynamic(
+  () => import('@/components/investitii/EditInvestitieDialog').then((mod) => mod.EditInvestitieDialog),
+  { ssr: false }
+)
 
 interface Parcela {
   id: string

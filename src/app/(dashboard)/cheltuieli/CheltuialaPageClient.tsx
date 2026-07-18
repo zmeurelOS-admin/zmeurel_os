@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -16,13 +17,10 @@ import {
   ModulePillRow,
   ModuleScoreboard,
 } from '@/components/app/module-list-chrome'
-import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
 import { useMobileScrollRestore } from '@/components/app/useMobileScrollRestore'
-import { AddCheltuialaDialog } from '@/components/cheltuieli/AddCheltuialaDialog'
-import { EditCheltuialaDialog } from '@/components/cheltuieli/EditCheltuialaDialog'
 import { Button } from '@/components/ui/button'
 import {
   DesktopInspectorPanel,
@@ -44,6 +42,20 @@ import { isAutoManoperaCheltuiala } from '@/lib/supabase/queries/manopera-auto'
 import { buildCheltuialaDeleteLabel } from '@/lib/ui/delete-labels'
 import { hapticError, hapticSuccess } from '@/lib/utils/haptic'
 import { queryKeys } from '@/lib/query-keys'
+
+// Dialoguri deschise doar la interacțiune — code-split (ssr:false).
+const ConfirmDeleteDialog = dynamic(
+  () => import('@/components/app/ConfirmDeleteDialog').then((mod) => mod.ConfirmDeleteDialog),
+  { ssr: false }
+)
+const AddCheltuialaDialog = dynamic(
+  () => import('@/components/cheltuieli/AddCheltuialaDialog').then((mod) => mod.AddCheltuialaDialog),
+  { ssr: false }
+)
+const EditCheltuialaDialog = dynamic(
+  () => import('@/components/cheltuieli/EditCheltuialaDialog').then((mod) => mod.EditCheltuialaDialog),
+  { ssr: false }
+)
 
 interface CheltuialaFormData {
   client_sync_id?: string
