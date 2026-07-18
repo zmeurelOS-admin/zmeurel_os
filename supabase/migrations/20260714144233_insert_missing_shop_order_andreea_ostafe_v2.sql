@@ -1,0 +1,13 @@
+-- Migrare de DATE aplicată DIRECT pe producție pe 2026-07-14 (versiune 20260714144233).
+-- Conținut original: un singur INSERT one-off în `comenzi` pentru o comandă shop
+-- lipsă (client final, `data_origin = 'shop_order_bridge'`, status `noua`),
+-- deja executat pe producție.
+--
+-- Acest fișier există DOAR pentru a reconcilia istoricul de migrări local↔remote
+-- (`supabase migration list` se aliniază pe baza versiunii din nume, nu a
+-- conținutului). INSERT-ul NU este reprodus aici, intenționat:
+--   1. este deja aplicat pe producție — re-rularea ar crea o comandă DUPLICAT;
+--   2. conținea date personale ale unui client (nume + telefon), ținute în afara
+--      istoricului git.
+--
+-- Stub fără efect (no-op): sigur de rulat oricând, nu inserează și nu modifică nimic.
