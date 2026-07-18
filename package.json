@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "check:backup-readiness": "node scripts/check-backup-readiness.mjs",
     "check:staging-readiness": "node scripts/check-staging-readiness.mjs",
+    "seed:prod-test-account": "node scripts/seed-production-test-account.mjs",
     "check:sensitive-hardcoding": "node scripts/check-sensitive-hardcoding.mjs",
     "check:server-supabase-boundaries": "node scripts/check-server-supabase-boundaries.mjs",
     "test:ai-chat": "playwright test --config=playwright.ai-chat.config.ts",
