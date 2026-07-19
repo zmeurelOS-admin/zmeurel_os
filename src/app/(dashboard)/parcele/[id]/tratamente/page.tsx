@@ -171,10 +171,15 @@ export default async function ParcelaTratamentePage({ params }: PageProps) {
     notFound()
   }
 
-  const configurareSezon = parcelaSezon ? await getOrCreateConfigurareSezon(parcelaSezon, an) : null
+  // configurareSezon (depinde de parcelaSezon) și planComplet (depinde de
+  // planActiv.plan.id) sunt independente între ele, iar ambele input-uri sunt
+  // deja rezolvate din Promise.all de mai sus → le rulăm în paralel.
+  const [configurareSezon, planComplet] = await Promise.all([
+    parcelaSezon ? getOrCreateConfigurareSezon(parcelaSezon, an) : Promise.resolve(null),
+    planActiv?.plan?.id ? getPlanTratamentCuLinii(planActiv.plan.id) : Promise.resolve(null),
+  ])
   const rubusMixt = isRubusMixt(configurareSezon)
   const planuriDisponibile = filterPlanuriDisponibile(toatePlanurile, parcela)
-  const planComplet = planActiv?.plan?.id ? await getPlanTratamentCuLinii(planActiv.plan.id) : null
   const singleStageState = rubusMixt ? null : buildStageState(stadii, grupBiologic, null)
   const dualStageState = rubusMixt
     ? {

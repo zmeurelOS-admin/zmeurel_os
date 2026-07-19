@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Sprout } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
@@ -9,11 +10,8 @@ import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { ListSkeletonCard } from '@/components/app/ListSkeleton'
 import { PageHeader } from '@/components/app/PageHeader'
-import { DeleteConfirmDialog } from '@/components/parcele/DeleteConfirmDialog'
 import { SearchField } from '@/components/ui/SearchField'
 import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
-import { AddVanzareButasiDialog } from '@/components/vanzari-butasi/AddVanzareButasiDialog'
-import { EditVanzareButasiDialog } from '@/components/vanzari-butasi/EditVanzareButasiDialog'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import {
@@ -23,6 +21,21 @@ import {
 } from '@/lib/supabase/queries/vanzari-butasi'
 import { buildButasiOrderDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
+
+// Dialoguri mari deschise doar la interacțiune — code-split (ssr:false), ca în
+// modulele deja optimizate. Nu randează DOM când sunt închise.
+const AddVanzareButasiDialog = dynamic(
+  () => import('@/components/vanzari-butasi/AddVanzareButasiDialog').then((mod) => mod.AddVanzareButasiDialog),
+  { ssr: false }
+)
+const EditVanzareButasiDialog = dynamic(
+  () => import('@/components/vanzari-butasi/EditVanzareButasiDialog').then((mod) => mod.EditVanzareButasiDialog),
+  { ssr: false }
+)
+const DeleteConfirmDialog = dynamic(
+  () => import('@/components/parcele/DeleteConfirmDialog').then((mod) => mod.DeleteConfirmDialog),
+  { ssr: false }
+)
 
 interface Client {
   id: string

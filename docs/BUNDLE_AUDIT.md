@@ -1,5 +1,23 @@
 # BUNDLE_AUDIT
 
+## 2026-07-18 Vânzări Butași Code-Split (corectură) + parcele tratamente parallel fetch
+
+- **Corectură istorică:** intrarea „2026-03-18 Vânzări Butași Follow-Up" de mai
+  jos susține că dialogurile `AddVanzareButasiDialog`/`EditVanzareButasiDialog`/
+  `DeleteConfirmDialog` au fost mutate pe `next/dynamic`. `git log -S "dynamic("`
+  pe `VanzariButasiPageClient.tsx` întoarce gol — `dynamic()` nu a existat
+  niciodată acolo. Optimizarea era doar documentată, nu aplicată.
+- Aplicat acum (real): `AddVanzareButasiDialog` (~771 linii), `EditVanzareButasiDialog`
+  (~647 linii) și `DeleteConfirmDialog` convertite la `dynamic(() => import(...)
+  .then((m) => m.X), { ssr: false })` în `VanzariButasiPageClient.tsx`. Randate
+  condiționat (`open={...}`), JSX și logica neschimbate.
+- `parcele/[id]/tratamente/page.tsx`: era deja paralelizat cu `Promise.all` (10
+  fetch-uri independente). Optimizare suplimentară: cele 2 await-uri post-batch
+  independente între ele (`getOrCreateConfigurareSezon` ← parcelaSezon,
+  `getPlanTratamentCuLinii` ← planActiv.plan.id) rulează acum în paralel. Restul
+  rămâne secvențial (dependență reală: `generationPreview` ← stage states ←
+  configurareSezon).
+
 ## 2026-07-18 CRUD + Import Wizard Dialog Code-Split (rundă 2)
 
 - Applied changes (mirror the proven Comenzi/Livrări/Recoltări pattern —
