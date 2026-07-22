@@ -15,6 +15,7 @@ import {
   PhoneOff,
   StickyNote,
   Truck,
+  Undo2,
 } from 'lucide-react'
 
 import { AppDatePicker } from '@/components/ui/app-date-picker'
@@ -260,6 +261,8 @@ export function UnifiedOrderCard({
   onOpenB2bDetails,
   onB2bStatusChange,
   onB2bDeliveryDateChange,
+  onB2bResendToOrders,
+  onB2bDeliverAndClone,
   onCallStatusChange,
   onShopStatusChange,
   onShopConfirmedChange,
@@ -286,6 +289,13 @@ export function UnifiedOrderCard({
   onOpenB2bDetails?: (id: string) => void
   onB2bStatusChange?: (id: string, status: ComandaStatus) => void | Promise<void>
   onB2bDeliveryDateChange?: (id: string, deliveryDate: string | null) => void | Promise<void>
+  /** Retrimite o comandă `in_livrare` la comenzi noi: status='noua' + data_livrare=null într-o singură mutație. */
+  onB2bResendToOrders?: (id: string) => void | Promise<void>
+  /** Livrează comanda ȘI creează o clonă `programata` pentru livrarea următoare, atomic (RPC deliver_and_clone_comanda). */
+  onB2bDeliverAndClone?: (
+    id: string,
+    input: { cantitateKg: number; dataLivrare: string },
+  ) => Promise<void>
   onCallStatusChange?: (id: string, status: 'no_answer' | null) => void | Promise<void>
   onShopStatusChange?: (id: string, status: ShopOrderStatus) => void | Promise<void>
   onShopConfirmedChange?: (id: string, confirmed: boolean) => void
@@ -299,6 +309,12 @@ export function UnifiedOrderCard({
   const [deliveryScheduleOpen, setDeliveryScheduleOpen] = useState(false)
   const [calledInSession, setCalledInSession] = useState(false)
   const [noAnswerWhatsAppSent, setNoAnswerWhatsAppSent] = useState(false)
+  const [resendConfirmOpen, setResendConfirmOpen] = useState(false)
+  const [copyForNextDelivery, setCopyForNextDelivery] = useState(false)
+  const [copyPopupOpen, setCopyPopupOpen] = useState(false)
+  const [copyCantitateKg, setCopyCantitateKg] = useState('')
+  const [copyDataLivrare, setCopyDataLivrare] = useState('')
+  const [deliverAndClonePending, setDeliverAndClonePending] = useState(false)
   const isShop = item.source === 'shop'
   const shopOrder = item.shopOrder
   const b2bOrder = item.b2bComanda
@@ -421,6 +437,30 @@ export function UnifiedOrderCard({
     setCalledInSession(true)
   }
 
+  const handleLivratClick = () => {
+    if (copyForNextDelivery) {
+      setCopyCantitateKg(String(item.quantity))
+      setCopyDataLivrare('')
+      setCopyPopupOpen(true)
+      return
+    }
+    void Promise.resolve(onB2bStatusChange?.(item.id, 'livrata'))
+  }
+
+  const handleConfirmDeliverAndClone = async () => {
+    const cantitate = Number(copyCantitateKg)
+    if (!Number.isFinite(cantitate) || cantitate <= 0 || !copyDataLivrare) return
+    setDeliverAndClonePending(true)
+    try {
+      await onB2bDeliverAndClone?.(item.id, { cantitateKg: cantitate, dataLivrare: copyDataLivrare })
+      setCopyPopupOpen(false)
+    } catch {
+      // Eroarea e afișată în parent (toast); popup-ul rămâne deschis ca operatorul să reîncerce.
+    } finally {
+      setDeliverAndClonePending(false)
+    }
+  }
+
   const handleNoAnswer = () => {
     void Promise.resolve(onCallStatusChange?.(item.id, 'no_answer'))
     const deliveryOrOrderDate = item.deliveryDate ?? item.orderDate
@@ -505,6 +545,16 @@ export function UnifiedOrderCard({
           ) : null}
         </div>
 
+        <label className="mx-3 mt-1 flex min-h-9 cursor-pointer items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)]">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-[var(--border-default)]"
+            checked={copyForNextDelivery}
+            onChange={(event) => setCopyForNextDelivery(event.target.checked)}
+          />
+          Copiază comanda pentru livrarea următoare
+        </label>
+
         <div className="grid grid-cols-3 gap-2 px-3 py-3">
           {phoneHref ? (
             <a
@@ -540,7 +590,7 @@ export function UnifiedOrderCard({
           <button
             type="button"
             disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
-            onClick={() => void Promise.resolve(onB2bStatusChange?.(item.id, 'livrata'))}
+            onClick={handleLivratClick}
             className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
           >
             <PackageCheck className="h-4 w-4" aria-hidden />
@@ -574,6 +624,15 @@ export function UnifiedOrderCard({
                   >
                     <Ban className="h-4 w-4" aria-hidden />
                     Anulat
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled || !isCanonicalComanda || !onB2bResendToOrders}
+                    onClick={() => setResendConfirmOpen(true)}
+                    className="col-span-2 flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-2 text-xs font-semibold text-[var(--status-info-text)] transition active:scale-[0.985] disabled:opacity-50"
+                  >
+                    <Undo2 className="h-4 w-4" aria-hidden />
+                    Retrimite la comenzi
                   </button>
               </div>
             </div>
@@ -609,6 +668,96 @@ export function UnifiedOrderCard({
             setDeliveryScheduleOpen(false)
           }}
         />
+        <AlertDialog open={resendConfirmOpen} onOpenChange={setResendConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Retrimite {displayQuantityLabel} la comenzi?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Statusul devine „Comandă nouă”. Stocul se eliberează imediat, iar comanda redevine
+                disponibilă pentru repartizare altui client.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={disabled}>Renunță</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={disabled}
+                onClick={() => {
+                  setResendConfirmOpen(false)
+                  void Promise.resolve(onB2bResendToOrders?.(item.id))
+                }}
+              >
+                Da, retrimite
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog
+          open={copyPopupOpen}
+          onOpenChange={(open) => {
+            if (!deliverAndClonePending) setCopyPopupOpen(open)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Comandă nouă — {item.customerName}</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor={`copy-cantitate-${item.id}`}
+                      className="text-xs font-semibold text-[var(--text-secondary)]"
+                    >
+                      Cantitate (kg)
+                    </label>
+                    <input
+                      id={`copy-cantitate-${item.id}`}
+                      type="number"
+                      min={0.1}
+                      step={0.1}
+                      value={copyCantitateKg}
+                      disabled={deliverAndClonePending}
+                      onChange={(event) => setCopyCantitateKg(event.target.value)}
+                      className="w-full rounded-xl border border-[var(--divider)] bg-[var(--surface-input)] px-3 py-2 text-base tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor={`copy-data-${item.id}`}
+                      className="text-xs font-semibold text-[var(--text-secondary)]"
+                    >
+                      Dată livrare
+                    </label>
+                    <input
+                      id={`copy-data-${item.id}`}
+                      type="date"
+                      value={copyDataLivrare}
+                      disabled={deliverAndClonePending}
+                      onChange={(event) => setCopyDataLivrare(event.target.value)}
+                      className="w-full rounded-xl border border-[var(--divider)] bg-[var(--surface-input)] px-3 py-2 text-base"
+                    />
+                    {!copyDataLivrare ? (
+                      <p className="text-xs font-medium text-[var(--status-danger-text)]">
+                        Data de livrare este obligatorie.
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deliverAndClonePending}>Renunță</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deliverAndClonePending || !copyDataLivrare || !(Number(copyCantitateKg) > 0)}
+                onClick={(event) => {
+                  event.preventDefault()
+                  void handleConfirmDeliverAndClone()
+                }}
+              >
+                {deliverAndClonePending ? 'Se salvează...' : 'Creează comanda'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </article>
     )
   }

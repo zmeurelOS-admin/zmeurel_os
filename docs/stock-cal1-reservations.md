@@ -22,6 +22,7 @@ Data: `2026-06-26` (actualizat `2026-07-11` — Faza 2 unificare, migrația `202
 - `set_comanda_in_delivery(uuid)` validează disponibilul derivat și trece comanda în `in_livrare`. Dacă nu există stoc suficient, aruncă `STOC_INSUFICIENT` cu `DETAIL` în forma `necesar=<kg>;disponibil=<kg>`.
 - `set_comanda_delivered(uuid, numeric default null, text default 'platit')` creează exact o `vanzare` financiară și marchează comanda `livrata` cu `linked_vanzare_id` în aceeași actualizare. `status_plata` acceptă doar `platit`/`neplatit`, fără efect asupra stocului.
 - Livrarea parțială este păstrată: comanda părinte se reduce la cantitatea livrată, iar restul devine comandă copil `confirmata`.
+- `deliver_and_clone_comanda(uuid, numeric, date)` (`2026-07-22`) — livrează integral o comandă `in_livrare` (apelează `set_comanda_delivered` cu `status_plata='platit'`, nicio duplicare de logică) ȘI creează, în aceeași tranzacție, o comandă nouă `programata` cu `parent_comanda_id` spre original — pentru butonul „Copiază comanda pentru livrarea următoare” din Livrări. Folosit doar din acest flux; nu acceptă livrare parțială sau `neplatit`.
 
 ## Shop bridge
 

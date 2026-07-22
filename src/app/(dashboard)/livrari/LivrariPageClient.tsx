@@ -52,6 +52,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { formatLei, todayBucharestDate } from '@/lib/shop/b2c-order-helpers'
 import { getClienți, type Client } from '@/lib/supabase/queries/clienti'
 import {
+  deliverAndCloneComanda,
   deliverComanda,
   getComenzi,
   updateComanda,
@@ -256,7 +257,9 @@ export function LivrariPageClient() {
     mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof updateComanda>[1] }) =>
       updateComanda(id, payload),
     onSuccess: (_, variables) => {
-      if (variables.payload.data_livrare !== undefined) {
+      if (variables.payload.status === 'noua' && variables.payload.data_livrare === null) {
+        toast.success('Comanda a fost retrimisă la comenzi noi.')
+      } else if (variables.payload.data_livrare !== undefined) {
         toast.success(
           variables.payload.data_livrare
             ? 'Data livrării a fost actualizată.'
@@ -332,6 +335,43 @@ export function LivrariPageClient() {
       updateManualOrderMutation.mutate({ id, payload: { status } })
     },
     [deliveryItems, updateManualOrderMutation],
+  )
+
+  const handleResendToOrders = useCallback(
+    (id: string) => {
+      const order = deliveryItems.find((item) => item.id === id)
+      if (!order?.b2bComanda) return undefined
+      return updateManualOrderMutation
+        .mutateAsync({ id, payload: { status: 'noua', data_livrare: null } })
+        .then(() => undefined)
+    },
+    [deliveryItems, updateManualOrderMutation],
+  )
+
+  const deliverAndCloneMutation = useMutation({
+    mutationFn: (input: Parameters<typeof deliverAndCloneComanda>[0]) => deliverAndCloneComanda(input),
+    onSuccess: () => {
+      toast.success('Comanda a fost livrată și o comandă nouă a fost creată pentru livrarea următoare.')
+      refreshAll()
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const handleDeliverAndClone = useCallback(
+    (id: string, input: { cantitateKg: number; dataLivrare: string }) => {
+      const order = deliveryItems.find((item) => item.id === id)
+      if (!order?.b2bComanda) return Promise.resolve()
+      return deliverAndCloneMutation
+        .mutateAsync({
+          comandaId: id,
+          newCantitateKg: input.cantitateKg,
+          newDataLivrare: input.dataLivrare,
+        })
+        .then(() => undefined)
+    },
+    [deliveryItems, deliverAndCloneMutation],
   )
 
   const headerSubtitle =
@@ -538,6 +578,8 @@ export function LivrariPageClient() {
                       updateManualOrderMutation.isPending
                     }
                     onB2bStatusChange={handleManualStatusChange}
+                    onB2bResendToOrders={handleResendToOrders}
+                    onB2bDeliverAndClone={handleDeliverAndClone}
                     onB2bDeliveryDateChange={(id, data_livrare) => {
                       const isFutureDeliveryDate = Boolean(
                         data_livrare && data_livrare > todayBucharestDate(),

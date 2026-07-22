@@ -118,6 +118,12 @@ type DeliverShopOrderPayload = {
   remaining_order?: Record<string, unknown> | null
 }
 
+type DeliverAndCloneComandaPayload = {
+  delivered_order: Record<string, unknown> | null
+  vanzare: Vanzare | null
+  new_order: Record<string, unknown> | null
+}
+
 type ComandaRow = Tables<'comenzi'>
 type ComandaQueryRow = ComandaRow & {
   order_kind?: string | null
@@ -235,6 +241,17 @@ type ComenziRpcClient = ReturnType<typeof getSupabase> & {
       }
     ): Promise<{
       data: Vanzare | null
+      error: SupabaseLikeError | null
+    }>
+    (
+      fn: 'deliver_and_clone_comanda',
+      args: {
+        p_comanda_id: string
+        p_new_cantitate_kg: number
+        p_new_data_livrare: string
+      }
+    ): Promise<{
+      data: DeliverAndCloneComandaPayload | null
       error: SupabaseLikeError | null
     }>
   }
@@ -570,6 +587,50 @@ export async function deliverComanda(input: DeliverComandaInput): Promise<{
     vanzare: data.vanzare,
     remainingOrder: data.remaining_order ? mapComanda(data.remaining_order as ComandaQueryRow) : null,
     deductedStockKg: round2(Number(data.deducted_stock_kg ?? 0)),
+  }
+}
+
+export interface DeliverAndCloneComandaInput {
+  comandaId: string
+  newCantitateKg: number
+  newDataLivrare: string
+}
+
+/**
+ * Livrează integral o comandă `in_livrare` ȘI creează o clonă `programata`
+ * pentru livrarea următoare, atomic (RPC `deliver_and_clone_comanda`).
+ */
+export async function deliverAndCloneComanda(input: DeliverAndCloneComandaInput): Promise<{
+  deliveredOrder: Comanda
+  newOrder: Comanda
+}> {
+  const newCantitateKg = round2(input.newCantitateKg)
+
+  if (!Number.isFinite(newCantitateKg) || newCantitateKg <= 0) {
+    throw new Error('Cantitatea comenzii noi trebuie sa fie mai mare decat 0.')
+  }
+  if (!input.newDataLivrare) {
+    throw new Error('Data de livrare a comenzii noi este obligatorie.')
+  }
+
+  const rpcClient = getSupabase() as ComenziRpcClient
+  const { data, error } = await rpcClient.rpc('deliver_and_clone_comanda', {
+    p_comanda_id: input.comandaId,
+    p_new_cantitate_kg: newCantitateKg,
+    p_new_data_livrare: input.newDataLivrare,
+  })
+
+  if (error) {
+    throw toReadableError(error, 'Nu am putut livra si clona comanda.')
+  }
+
+  if (!data?.delivered_order || !data.new_order) {
+    throw new Error('Livrarea si clonarea nu au putut fi finalizate complet.')
+  }
+
+  return {
+    deliveredOrder: mapComanda(data.delivered_order as ComandaQueryRow),
+    newOrder: mapComanda(data.new_order as ComandaQueryRow),
   }
 }
 
