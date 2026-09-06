@@ -327,6 +327,18 @@ function formatKgOneDecimal(value: number): string {
   }).format(Number(value || 0))} kg`
 }
 
+// La o zecimală fixă, 0.26 și 0.30 arată identic ("0,3 kg") — exact diferența care face modalul
+// de stoc insuficient să pară "greșit" când, de fapt, lipsesc doar câteva zeci de grame. Modalul
+// compară la 2 zecimale (round2), deci are nevoie de până la 2 zecimale ca cifrele afișate să
+// corespundă deciziei reale — dar afișează doar 1 pentru valori "rotunde" (2.5 → "2,5 kg", nu
+// "2,50 kg"), ca să rămână identic cu restul UI-ului (carduri KPI) în cazurile obișnuite.
+function formatKgUpToTwoDecimals(value: number): string {
+  return `${new Intl.NumberFormat('ro-RO', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0))} kg`
+}
+
 function getUnifiedSelectionId(item: UnifiedOrderItem): string {
   return `${item.source}-${item.id}`
 }
@@ -1063,12 +1075,22 @@ function ComandaDialog({
       window.cancelAnimationFrame(animationFrame)
       animationFrame = window.requestAnimationFrame(updateComboDropdownLayout)
     }
+    // Scroll-ul din interiorul listei de sugestii nu trebuie să repoziționeze dropdown-ul —
+    // input-ul ancoră nu s-a mișcat. Fără filtrul ăsta, listener-ul de `scroll` de pe `window`
+    // (capture: true) prinde și scroll-ul propriei liste (evenimentele `scroll` se propagă în
+    // faza de capture prin tot arborele), recalculând layout-ul (setState) la fiecare cadru cât
+    // timp utilizatorul trage cu degetul — re-render-urile în buclă întrerup scroll-ul nativ pe
+    // mobil (lista pare "blocată", nu poți scrola la mai mulți clienți).
+    const handleWindowScroll = (event: Event) => {
+      if (comboDropdownRef.current?.contains(event.target as Node)) return
+      scheduleUpdate()
+    }
     const visualViewport = window.visualViewport
     const resizeObserver = new ResizeObserver(scheduleUpdate)
 
     if (comboInputRef.current) resizeObserver.observe(comboInputRef.current)
     window.addEventListener('resize', scheduleUpdate)
-    window.addEventListener('scroll', scheduleUpdate, true)
+    window.addEventListener('scroll', handleWindowScroll, true)
     visualViewport?.addEventListener('resize', scheduleUpdate)
     visualViewport?.addEventListener('scroll', scheduleUpdate)
 
@@ -1076,7 +1098,7 @@ function ComandaDialog({
       window.cancelAnimationFrame(animationFrame)
       resizeObserver.disconnect()
       window.removeEventListener('resize', scheduleUpdate)
-      window.removeEventListener('scroll', scheduleUpdate, true)
+      window.removeEventListener('scroll', handleWindowScroll, true)
       visualViewport?.removeEventListener('resize', scheduleUpdate)
       visualViewport?.removeEventListener('scroll', scheduleUpdate)
     }
@@ -3004,7 +3026,7 @@ export function ComenziPageClient() {
                 <p>
                   Ai nevoie de{' '}
                   <span className="font-semibold text-[var(--text-primary)]">
-                    {formatKgOneDecimal(stocInsuficientModal?.necesarKg ?? 0)}
+                    {formatKgUpToTwoDecimals(stocInsuficientModal?.necesarKg ?? 0)}
                   </span>
                   {stocInsuficientModal?.selectionCount && stocInsuficientModal.selectionCount > 1
                     ? ` pentru cele ${stocInsuficientModal.selectionCount} comenzi selectate,`
@@ -3014,7 +3036,7 @@ export function ComenziPageClient() {
                 <p>
                   Disponibil acum:{' '}
                   <span className="font-semibold text-[var(--text-primary)]">
-                    {formatKgOneDecimal(stocInsuficientModal?.disponibilKg ?? 0)}
+                    {formatKgUpToTwoDecimals(stocInsuficientModal?.disponibilKg ?? 0)}
                   </span>
                   .
                 </p>
