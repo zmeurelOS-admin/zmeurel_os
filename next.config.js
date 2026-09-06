@@ -156,9 +156,11 @@ const withPWA = require('next-pwa')({
   register: true,
   // Push handlers must be wired at SW generation time (Workbox importScripts), not post-build.
   importScripts: ['/push-handlers.js'],
-  // Keep updates non-disruptive: user decides when to activate waiting SW.
-  skipWaiting: false,
-  clientsClaim: false,
+  // Auto-activate: a new deploy takes over on next reload without waiting for a manual tap
+  // on the "Versiune nouă disponibilă" toast. Trade-off accepted: a tab open exactly when a
+  // deploy lands may reload once (controllerchange handler in ServiceWorkerRegister.tsx).
+  skipWaiting: true,
+  clientsClaim: true,
   inlineWorkboxRuntime: true,
   disable: process.env.NODE_ENV === 'development',
   cacheStartUrl: false,
