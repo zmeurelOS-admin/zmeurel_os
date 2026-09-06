@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { ModulePillFilterButton, ModulePillRow } from '@/components/app/module-list-chrome'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { DialogFormActions } from '@/components/ui/dialog-form-actions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
@@ -41,6 +41,21 @@ import {
 } from '@/lib/supabase/queries/comenzi'
 import type { ShopOrderStatus } from '@/lib/shop/b2c-order-helpers'
 import { toast } from '@/lib/ui/toast'
+import zmeurelTheme from '@/styles/zmeurel-orders.module.css'
+
+/** Aceeași logică de nuanțe ca `StatusPill` din carduri — Livrat = succes, Anulată/În livrare = coral, rest = neutru. */
+function statusPillToneClass(status: string, active: boolean): string {
+  if (!active) {
+    return 'border-[var(--pill-inactive-border)] bg-[var(--pill-inactive-bg)] text-[var(--pill-inactive-text)] hover:bg-[var(--pill-inactive-hover-bg)]'
+  }
+  if (status === 'livrata') {
+    return 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+  }
+  if (status === 'anulata' || status === 'in_livrare') {
+    return 'border-[var(--brand-coral-border)] bg-[var(--brand-coral-soft)] text-[var(--brand-coral-deep)]'
+  }
+  return 'border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] text-[var(--pill-active-text)]'
+}
 
 type EditOrderForm = {
   clientId: string
@@ -411,14 +426,14 @@ export function EditOrderSheet({
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label>Mod livrare</Label>
-        <div className="grid grid-cols-2 gap-2">
+        <ModulePillRow className="grid grid-cols-2 gap-2">
           {(['livrare', 'ridicare'] as const).map((mode) => (
-            <Button
+            <ModulePillFilterButton
               key={mode}
-              type="button"
-              variant={form.deliveryMode === mode ? 'default' : 'outline'}
+              active={form.deliveryMode === mode}
+              className="min-h-10 w-full"
               onClick={() =>
                 setForm((current) => ({
                   ...current,
@@ -433,9 +448,9 @@ export function EditOrderSheet({
               }
             >
               {mode === 'livrare' ? 'Livrare' : 'Ridicare'}
-            </Button>
+            </ModulePillFilterButton>
           ))}
-        </div>
+        </ModulePillRow>
       </div>
 
       {form.deliveryMode === 'livrare' ? (
@@ -518,9 +533,7 @@ export function EditOrderSheet({
                 onClick={() => setForm((current) => ({ ...current, status }))}
                 className={cn(
                   'inline-flex min-h-8 items-center justify-center rounded-full border px-3 text-sm font-medium transition',
-                  isActive
-                    ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success-text)]'
-                    : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]',
+                  statusPillToneClass(status, isActive),
                   isDisabled && 'cursor-default opacity-60',
                 )}
               >
@@ -548,14 +561,12 @@ export function EditOrderSheet({
   )
 
   const actions = (
-    <>
-      <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
-        Anulează
-      </Button>
-      <Button type="button" disabled={saving} onClick={() => void save()}>
-        {saving ? 'Se salvează...' : 'Salvează'}
-      </Button>
-    </>
+    <DialogFormActions
+      className="w-full"
+      onCancel={() => onOpenChange(false)}
+      onSave={() => void save()}
+      saving={saving}
+    />
   )
 
   if (isMobile) {
@@ -563,7 +574,10 @@ export function EditOrderSheet({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
-          className="flex h-dvh max-h-dvh flex-col overflow-hidden rounded-none border-x-0 border-y-0"
+          className={cn(
+            zmeurelTheme.theme,
+            'flex h-dvh max-h-dvh flex-col overflow-hidden rounded-none border-x-0 border-y-0',
+          )}
         >
           <SheetHeader>
             <SheetTitle>Editează comanda</SheetTitle>
@@ -578,13 +592,15 @@ export function EditOrderSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(94vw,560px)] max-w-[560px] gap-0 p-0">
+      <DialogContent className={cn(zmeurelTheme.theme, 'w-[min(94vw,560px)] max-w-[560px] gap-0 p-0')}>
         <DialogHeader className="px-5 pb-3 pt-5">
           <DialogTitle>Editează comanda</DialogTitle>
           <DialogDescription>{order.customerName}</DialogDescription>
         </DialogHeader>
         {content}
-        <DialogFooter className="px-5 py-4">{actions}</DialogFooter>
+        <div className="flex items-center justify-between gap-3 border-t border-[color:color-mix(in_srgb,var(--agri-border)_55%,transparent)] px-5 py-4">
+          {actions}
+        </div>
       </DialogContent>
     </Dialog>
   )
