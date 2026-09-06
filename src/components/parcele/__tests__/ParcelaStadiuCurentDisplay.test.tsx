@@ -6,8 +6,8 @@ import {
   ParcelaStadiuCurentDisplay,
 } from '@/components/parcele/ParcelaStadiuCurentDisplay'
 import type { ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
-import { resolveStadiiFenologiceCurenteParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
-import { getLabelPentruGrup } from '@/lib/tratamente/stadii-canonic'
+import { resolveStadiiFenologiceCurenteParcela } from '@/lib/parcele/fenofaza-curenta-parcela'
+import { getLabelPentruGrup } from '@/lib/parcele/stadii-canonic'
 
 function makeRow(
   overrides: Partial<ParcelaStadiuCanonic> & Pick<ParcelaStadiuCanonic, 'stadiu' | 'cohort'>

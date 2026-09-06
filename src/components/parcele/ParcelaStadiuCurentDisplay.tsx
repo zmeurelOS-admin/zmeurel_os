@@ -3,13 +3,13 @@
 import { useMemo, type CSSProperties } from 'react'
 
 import type { ConfigurareParcelaSezon, ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
-import { getCohortaLabel, type Cohorta } from '@/lib/tratamente/configurare-sezon'
+import { getCohortaLabel, type Cohorta } from '@/lib/parcele/configurare-sezon'
 import {
   isParcelaRubusMixtFenologie,
   resolveStadiiFenologiceCurenteParcela,
   type StadiuFenologicCurentEntry,
-} from '@/lib/tratamente/fenofaza-curenta-parcela'
-import { getLabelPentruGrup, normalizeStadiu, type GrupBiologic } from '@/lib/tratamente/stadii-canonic'
+} from '@/lib/parcele/fenofaza-curenta-parcela'
+import { getLabelPentruGrup, normalizeStadiu, type GrupBiologic } from '@/lib/parcele/stadii-canonic'
 import { cn } from '@/lib/utils'
 
 export function formatStadiuFenologicLabel(

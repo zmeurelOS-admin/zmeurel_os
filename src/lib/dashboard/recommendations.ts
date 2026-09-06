@@ -1,7 +1,6 @@
 import type { DashboardRecommendationItem } from '@/components/dashboard/DashboardV2Sections'
 import type { DashboardTaskItem } from '@/components/dashboard/TaskList'
 import type { DashboardAlert, MeteoData, ParcelAttentionFlag } from '@/lib/dashboard/engine'
-import type { DashboardTreatmentSuggestion } from '@/lib/dashboard/treatment-suggestions'
 
 export type ParcelAttentionSlice = {
   displayName: string
@@ -22,7 +21,6 @@ export type BuildDashboardRecommendationsInput = {
   parcelAttentionItems: ParcelAttentionSlice[]
   plannedActivitiesCount: number
   criticalStockCount: number
-  nextTreatmentSuggestion?: DashboardTreatmentSuggestion | null
 }
 
 const MAX_RECOMMENDATIONS = 5
@@ -57,7 +55,6 @@ export function buildDashboardRecommendations(
     parcelAttentionItems,
     plannedActivitiesCount,
     criticalStockCount,
-    nextTreatmentSuggestion,
   } = input
 
   const out: DashboardRecommendationItem[] = []
@@ -107,7 +104,6 @@ export function buildDashboardRecommendations(
   )
 
   if (
-    !nextTreatmentSuggestion &&
     !treatmentParcel &&
     (hasAlertCategory(alerts, 'tratamente') || tasks.some((t) => t.id.startsWith('tratament:')))
   ) {
@@ -126,7 +122,7 @@ export function buildDashboardRecommendations(
     })
   }
 
-  if (treatmentParcel && !nextTreatmentSuggestion) {
+  if (treatmentParcel) {
     push({
       id: 'rec-parcel-treatment',
       text: trimSentence(

@@ -27,7 +27,6 @@ import {
   DashboardComenziSnapshotCard,
   DashboardCommercialSnapshotCard,
   DashboardFarmPulseCard,
-  DashboardNextTreatmentCard,
   DashboardQuickActionsCard,
   DashboardRecommendationsCard,
   DashboardTodayCard,
@@ -69,7 +68,6 @@ import { getComenziOperationalSnapshot } from '@/lib/comenzi/unified-orders'
 import { buildAttentionNowItems } from '@/lib/dashboard/attention'
 import { detectFarmContext } from '@/lib/dashboard/context'
 import { buildDashboardRecommendations } from '@/lib/dashboard/recommendations'
-import type { DashboardTreatmentSuggestionsPayload } from '@/lib/dashboard/treatment-suggestions'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import {
   STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
@@ -200,21 +198,6 @@ function buildTrend(current: number, previous: number): { percent: number; posit
     percent: Math.abs((delta / Math.abs(previous)) * 100),
     positive: delta > 0,
   }
-}
-
-async function getDashboardNextTreatmentSuggestion(): Promise<DashboardTreatmentSuggestionsPayload> {
-  const response = await fetch('/api/dashboard/next-treatment-suggestion', {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('Nu am putut încărca sugestia de tratament.')
-  }
-
-  return (await response.json()) as DashboardTreatmentSuggestionsPayload
 }
 
 function getGreeting(value: Date): string {
@@ -472,14 +455,6 @@ export default function DashboardPage() {
       }
       return getDashboardProfilePreferences(userId)
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: false,
-  })
-
-  const nextTreatmentSuggestionQuery = useQuery({
-    queryKey: queryKeys.dashboardNextTreatmentSuggestion,
-    queryFn: getDashboardNextTreatmentSuggestion,
-    placeholderData: (previousData) => previousData,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   })
@@ -942,7 +917,6 @@ export default function DashboardPage() {
       cheltuieli,
       meteo: meteo.data,
       treatmentIntervalByParcela,
-      nextTreatmentSuggestions: nextTreatmentSuggestionQuery.data ?? null,
     }
   }, [
     activitatiDashboard,
@@ -956,7 +930,6 @@ export default function DashboardPage() {
       stocuri,
       todayIso,
       tomorrowIso,
-      nextTreatmentSuggestionQuery.data,
       vanzari,
       yesterdayIso,
       previousSeasonEndIso,
@@ -1025,7 +998,6 @@ export default function DashboardPage() {
         })),
         plannedActivitiesCount: plannedActivities.length,
         criticalStockCount: criticalStocks.length,
-        nextTreatmentSuggestion: nextTreatmentSuggestionQuery.data?.primary ?? null,
       }),
     [
       criticalStocks.length,
@@ -1034,7 +1006,6 @@ export default function DashboardPage() {
       dashboardMicroclimate,
       farmContext.primaryContext,
       meteo.data,
-      nextTreatmentSuggestionQuery.data?.primary,
       parcelAttentionItems,
       plannedActivities.length,
     ],
@@ -1046,15 +1017,11 @@ export default function DashboardPage() {
       recoltariDashboard.length === 0 &&
       vanzari.length === 0 &&
       cheltuieli.length === 0 &&
-      comenzi.length === 0 &&
-      !nextTreatmentSuggestionQuery.data?.primary &&
-      !nextTreatmentSuggestionQuery.data?.secondary,
+      comenzi.length === 0,
     [
       activitatiDashboard.length,
       cheltuieli.length,
       comenzi.length,
-      nextTreatmentSuggestionQuery.data?.primary,
-      nextTreatmentSuggestionQuery.data?.secondary,
       recoltariDashboard.length,
       vanzari.length,
     ],
@@ -1071,23 +1038,6 @@ export default function DashboardPage() {
         description: 'După asta dashboard-ul îți poate sugera ce merită urmărit azi.',
       }
     : null
-
-  const nextTreatmentSetupHelper =
-    !nextTreatmentSuggestionQuery.data?.primary
-      ? {
-          title: 'Ca să primești sugestii aici',
-          bullets: [
-            'Actualizează fenofaza la parcelă',
-            'Asociază un plan de tratament',
-            'Marchează aplicările efectuate',
-          ],
-          description: 'După completare vei vedea tratamentul recomandat și fereastra meteo.',
-          actions: [
-            { label: 'Actualizează fenofaza', href: '/parcele', variant: 'outline' as const },
-            { label: 'Deschide hub Tratamente', href: '/tratamente', variant: 'default' as const },
-          ],
-        }
-      : null
 
   const ordersSetupHelper =
     comenzi.length === 0 && shopOrders.length === 0
@@ -1139,14 +1089,12 @@ export default function DashboardPage() {
           attentionFlags: p.attentionFlags,
         })),
         recommendationIds,
-        hasNextTreatmentSuggestionCard: Boolean(nextTreatmentSuggestionQuery.data?.primary),
       }),
     [
       dashboardAlerts,
       dashboardTasks,
       parcelAttentionItems,
       recommendationIds,
-      nextTreatmentSuggestionQuery.data?.primary,
     ],
   )
 
@@ -1625,17 +1573,6 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid gap-4 lg:grid-cols-12">
-                <div className="lg:col-span-12">
-                  <DashboardNextTreatmentCard
-                    primary={nextTreatmentSuggestionQuery.data?.primary ?? null}
-                    secondary={nextTreatmentSuggestionQuery.data?.secondary ?? null}
-                    loading={nextTreatmentSuggestionQuery.isLoading && !nextTreatmentSuggestionQuery.data}
-                    setupHelper={nextTreatmentSetupHelper}
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-12">
                 <div className="lg:col-span-4">
                   <DashboardComenziSnapshotCard
                     activeCount={comenziSnapshot?.activeTotalCount ?? 0}
@@ -1701,12 +1638,6 @@ export default function DashboardPage() {
                   className="dashboard-meteo-hero"
                 />
               </div>
-              <DashboardNextTreatmentCard
-                primary={nextTreatmentSuggestionQuery.data?.primary ?? null}
-                secondary={nextTreatmentSuggestionQuery.data?.secondary ?? null}
-                loading={nextTreatmentSuggestionQuery.isLoading && !nextTreatmentSuggestionQuery.data}
-                setupHelper={nextTreatmentSetupHelper}
-              />
               <DashboardRecommendationsCard
                 items={recommendationItems}
                 helperText={recommendationsConfidenceHint ?? undefined}

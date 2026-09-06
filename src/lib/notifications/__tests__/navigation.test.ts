@@ -33,7 +33,6 @@ describe('getNotificationHref', () => {
       { type: 'offer_new', data: {}, expected: '/asociatie/oferte' },
       { type: 'offer_approved', data: {}, expected: '/produse' },
       { type: 'offer_rejected', data: {}, expected: '/produse' },
-      { type: 'tratament_reminder', data: {}, expected: '/tratamente' },
     ] as const
 
     for (const testCase of cases) {

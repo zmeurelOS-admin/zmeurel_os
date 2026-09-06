@@ -3,8 +3,8 @@ import { CATEGORII_CHELTUIELI, CATEGORII_INVESTITII } from '@/lib/financial/cate
 import {
   getSistemConducereLabel,
   getTipCicluSoiLabel,
-} from '@/lib/tratamente/configurare-sezon'
-import type { StadiuCod } from '@/lib/tratamente/stadii-canonic'
+} from '@/lib/parcele/configurare-sezon'
+import type { StadiuCod } from '@/lib/parcele/stadii-canonic'
 
 /** Emoji per categorie OPEX — sursă unică pentru AppSelect în cheltuieli. */
 export const CHELTUIELI_CATEGORY_EMOJI: Record<(typeof CATEGORII_CHELTUIELI)[number], string> = {

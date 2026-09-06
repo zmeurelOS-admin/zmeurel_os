@@ -5,7 +5,6 @@ import {
   STOCK_AUDIT_LOW_STOCK_THRESHOLD_KG,
 } from '@/lib/calculations/stock-audit-thresholds'
 import type { DashboardWidgetId } from '@/lib/dashboard/layout'
-import type { DashboardTreatmentSuggestion } from '@/lib/dashboard/treatment-suggestions'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
 import type { ActivitateAgricola } from '@/lib/supabase/queries/activitati-agricole'
 import type { Cheltuiala } from '@/lib/supabase/queries/cheltuieli'
@@ -57,14 +56,6 @@ export interface DashboardRawData {
   meteo: MeteoData | null
   /** Interval minim de tratament per parcelă comercială (zile). */
   treatmentIntervalByParcela: Map<string, number>
-  /**
-   * Semnalul V2 are prioritate față de calculul legacy din activități/culturi.
-   * Dacă lipsește complet, dashboard-ul păstrează fallback-ul istoric.
-   */
-  nextTreatmentSuggestions?: {
-    primary: DashboardTreatmentSuggestion | null
-    secondary: DashboardTreatmentSuggestion | null
-  } | null
 }
 
 export type TreatmentAttention =
@@ -113,14 +104,6 @@ export interface DashboardAlert {
   category: DashboardAlertCategory
   severity: DashboardAlertSeverity
   message: string
-}
-
-function hasV2TreatmentSignal(raw: DashboardRawData): boolean {
-  return Boolean(raw.nextTreatmentSuggestions?.primary || raw.nextTreatmentSuggestions?.secondary)
-}
-
-function getPrimaryV2TreatmentSuggestion(raw: DashboardRawData): DashboardTreatmentSuggestion | null {
-  return raw.nextTreatmentSuggestions?.primary ?? raw.nextTreatmentSuggestions?.secondary ?? null
 }
 
 export interface DailySummary {
@@ -204,8 +187,6 @@ export function buildParcelDashboardStates(raw: DashboardRawData): ParcelDashboa
     bucket.push(harvest)
     byParcelaHarvests.set(parcelaId, bucket)
   }
-
-  const useV2TreatmentSignal = hasV2TreatmentSignal(raw)
 
   return raw.parceleDashboard.map((parcela) => {
     const parcelaId = parcela.id
@@ -299,11 +280,9 @@ export function buildParcelDashboardStates(raw: DashboardRawData): ParcelDashboa
     }
 
     const attentionFlags: ParcelAttentionFlag[] = []
-    if (!useV2TreatmentSignal) {
-      if (treatmentAttention === 'overdue') attentionFlags.push('treatment_overdue')
-      if (treatmentAttention === 'due-soon') attentionFlags.push('treatment_due_soon')
-      if (pauseStatus === 'active' || pauseStatus === 'urgent') attentionFlags.push('pause_active')
-    }
+    if (treatmentAttention === 'overdue') attentionFlags.push('treatment_overdue')
+    if (treatmentAttention === 'due-soon') attentionFlags.push('treatment_due_soon')
+    if (pauseStatus === 'active' || pauseStatus === 'urgent') attentionFlags.push('pause_active')
     if (daysSinceAnyActivity !== null && daysSinceAnyActivity > 21) {
       attentionFlags.push('no_recent_activity')
     }
@@ -331,44 +310,30 @@ export function buildDashboardTasks(
   parcelStates: ParcelDashboardState[],
 ): DashboardTaskItem[] {
   const tasks: DashboardTaskItem[] = []
-  const v2TreatmentSuggestion = getPrimaryV2TreatmentSuggestion(raw)
 
-  if (v2TreatmentSuggestion?.status === 'overdue' || v2TreatmentSuggestion?.status === 'blocked') {
-    tasks.push({
-      id: 'tratamente:recomandat-v2',
-      icon: '🧪',
-      text: 'Verifică tratamentul recomandat',
-      tag: v2TreatmentSuggestion.status === 'blocked' ? 'BLOCAT' : 'URGENT',
-      tone: 'urgent',
-    })
-  }
-
-  if (!hasV2TreatmentSignal(raw)) {
-    // Legacy fallback pentru ferme fără Tratamente V2 configurat.
-    for (const parcel of parcelStates) {
-      if (parcel.treatmentAttention === 'overdue') {
-        tasks.push({
-          id: `tratament:${parcel.parcelaId}`,
-          icon: '🧪',
-          text: `Tratament necesar ${parcel.displayName}`,
-          tag: 'URGENT',
-          tone: 'urgent',
-        })
-      }
-    }
-
-    const parcelsWithActivePause = parcelStates.filter(
-      (p) => p.pauseStatus === 'active' || p.pauseStatus === 'urgent',
-    )
-    if (parcelsWithActivePause.length > 0) {
+  for (const parcel of parcelStates) {
+    if (parcel.treatmentAttention === 'overdue') {
       tasks.push({
-        id: 'pauza:activa',
-        icon: '⏸️',
-        text: `${parcelsWithActivePause.length} parcele în pauză de tratament`,
-        tag: 'PAUZĂ',
-        tone: 'warning',
+        id: `tratament:${parcel.parcelaId}`,
+        icon: '🧪',
+        text: `Tratament necesar ${parcel.displayName}`,
+        tag: 'URGENT',
+        tone: 'urgent',
       })
     }
+  }
+
+  const parcelsWithActivePause = parcelStates.filter(
+    (p) => p.pauseStatus === 'active' || p.pauseStatus === 'urgent',
+  )
+  if (parcelsWithActivePause.length > 0) {
+    tasks.push({
+      id: 'pauza:activa',
+      icon: '⏸️',
+      text: `${parcelsWithActivePause.length} parcele în pauză de tratament`,
+      tag: 'PAUZĂ',
+      tone: 'warning',
+    })
   }
 
   const overdueOrders = raw.comenzi.filter((row) => {
@@ -456,7 +421,6 @@ export function buildDashboardAlerts(
   parcelStates: ParcelDashboardState[],
 ): DashboardAlert[] {
   const alerts: DashboardAlert[] = []
-  const v2TreatmentSuggestion = getPrimaryV2TreatmentSuggestion(raw)
 
   const overdueOrders = raw.comenzi.filter((row) => {
     const deliveryDate = toDateOnly(row.data_livrare)
@@ -486,45 +450,28 @@ export function buildDashboardAlerts(
     })
   }
 
-  if (v2TreatmentSuggestion?.status === 'overdue') {
+  const parcelsWithOverdueTreatment = parcelStates.filter(
+    (p) => p.treatmentAttention === 'overdue',
+  )
+  if (parcelsWithOverdueTreatment.length > 0) {
     alerts.push({
-      id: 'alert:tratamente-v2-overdue',
+      id: 'alert:tratamente-depasite',
       category: 'tratamente',
       severity: 'warning',
-      message: `Tratament recomandat depășit: ${v2TreatmentSuggestion.parcelaLabel}`,
+      message: `Tratamente depășite pe ${parcelsWithOverdueTreatment.length} parcele`,
     })
-  } else if (v2TreatmentSuggestion?.status === 'blocked') {
-    alerts.push({
-      id: 'alert:tratamente-v2-blocked',
-      category: 'tratamente',
-      severity: 'critical',
-      message: `Tratament blocat: ${v2TreatmentSuggestion.reason}`,
-    })
-  } else if (!hasV2TreatmentSignal(raw)) {
-    // Legacy fallback pentru ferme fără Tratamente V2 configurat.
-    const parcelsWithOverdueTreatment = parcelStates.filter(
-      (p) => p.treatmentAttention === 'overdue',
-    )
-    if (parcelsWithOverdueTreatment.length > 0) {
-      alerts.push({
-        id: 'alert:tratamente-depasite',
-        category: 'tratamente',
-        severity: 'warning',
-        message: `Tratamente depășite pe ${parcelsWithOverdueTreatment.length} parcele`,
-      })
-    }
+  }
 
-    const parcelsWithActivePause = parcelStates.filter(
-      (p) => p.pauseStatus === 'active' || p.pauseStatus === 'urgent',
-    )
-    if (parcelsWithActivePause.length > 0) {
-      alerts.push({
-        id: 'alert:pauza-activa',
-        category: 'parcele',
-        severity: 'info',
-        message: `${parcelsWithActivePause.length} parcele în pauză de tratament`,
-      })
-    }
+  const parcelsWithActivePause = parcelStates.filter(
+    (p) => p.pauseStatus === 'active' || p.pauseStatus === 'urgent',
+  )
+  if (parcelsWithActivePause.length > 0) {
+    alerts.push({
+      id: 'alert:pauza-activa',
+      category: 'parcele',
+      severity: 'info',
+      message: `${parcelsWithActivePause.length} parcele în pauză de tratament`,
+    })
   }
 
   if (raw.meteo?.spray && raw.meteo.spray.canSpray === false) {

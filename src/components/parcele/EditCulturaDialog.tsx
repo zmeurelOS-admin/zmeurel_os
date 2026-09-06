@@ -34,7 +34,7 @@ import {
   getLabelPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
-} from '@/lib/tratamente/stadii-canonic'
+} from '@/lib/parcele/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 

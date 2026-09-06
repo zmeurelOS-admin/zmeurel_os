@@ -1,7 +1,7 @@
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantId } from '@/lib/tenant/get-tenant'
-import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
-import { normalizeStadiu } from '@/lib/tratamente/stadii-canonic'
+import type { Cohorta } from '@/lib/parcele/configurare-sezon'
+import { normalizeStadiu } from '@/lib/parcele/stadii-canonic'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 import type { Tables, TablesInsert } from '@/types/supabase'
 

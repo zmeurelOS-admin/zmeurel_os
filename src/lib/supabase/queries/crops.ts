@@ -2,7 +2,7 @@ import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getSupabase } from '@/lib/supabase/client'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import type { UnitateTip } from '@/lib/parcele/unitate'
-import { getGrupBiologicForCropCod } from '@/lib/tratamente/stadii-canonic'
+import { getGrupBiologicForCropCod } from '@/lib/parcele/stadii-canonic'
 import { normalizeForSearch } from '@/lib/utils/string'
 import type { Tables, TablesInsert } from '@/types/supabase'
 

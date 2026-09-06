@@ -33,7 +33,7 @@ import { ParcelaRezumatAgronomicChips } from '@/components/parcele/ParcelaRezuma
 import { ParcelaStadiuCurentDisplay } from '@/components/parcele/ParcelaStadiuCurentDisplay'
 import type { CropCod } from '@/lib/crops/crop-codes'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
-import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
+import { getStadiuOptions } from '@/lib/parcele/stadii-canonic'
 import { getConditiiMediuLabel } from '@/lib/parcele/culturi'
 import {
   COHORTA_APP_SELECT_OPTIONS,
@@ -75,8 +75,8 @@ import {
 import { getCulturiForSolar } from '@/lib/supabase/queries/culturi'
 import { deleteParcela, getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import { getRecoltari } from '@/lib/supabase/queries/recoltari'
-import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
-import { isParcelaRubusMixtFenologie } from '@/lib/tratamente/fenofaza-curenta-parcela'
+import type { Cohorta } from '@/lib/parcele/configurare-sezon'
+import { isParcelaRubusMixtFenologie } from '@/lib/parcele/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
   getLabelPentruGrup,
@@ -84,7 +84,7 @@ import {
   listStadiiPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
-} from '@/lib/tratamente/stadii-canonic'
+} from '@/lib/parcele/stadii-canonic'
 import { buildParcelaDeleteLabel } from '@/lib/ui/delete-labels'
 import { toast } from '@/lib/ui/toast'
 import { getCurrentSezon } from '@/lib/utils/sezon'

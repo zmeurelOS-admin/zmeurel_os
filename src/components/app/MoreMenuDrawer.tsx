@@ -18,7 +18,6 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
-  SprayCan,
   Sprout,
   Store,
   TrendingUp,
@@ -65,7 +64,6 @@ const groups: MenuGroup[] = [
       { href: '/activitati-agricole', label: 'Activități', icon: Sprout },
       { href: '/parcele', label: 'Terenuri', icon: MapPin },
       { href: '/cheltuieli', label: 'Cheltuieli', icon: Receipt },
-      { href: '/tratamente/conformitate', label: 'Protecție & Nutriție', icon: SprayCan },
       { href: '/investitii', label: 'Investiții', icon: TrendingUp },
       { href: '/comenzi', label: 'Comenzi', icon: ShoppingBag },
       { href: '/livrari', label: 'Livrări', icon: Truck },
@@ -103,9 +101,6 @@ const associationGroup: MenuGroup = {
 function isMoreMenuItemActive(pathname: string, href: string) {
   const path = pathname.replace(/\/$/, '') || '/'
   if (href === '/admin') return path === '/admin'
-  if (href === '/tratamente/conformitate') {
-    return path === '/tratamente' || path.startsWith('/tratamente/')
-  }
   return path.startsWith(href)
 }
 

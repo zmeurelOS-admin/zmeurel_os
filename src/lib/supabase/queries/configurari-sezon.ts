@@ -3,13 +3,13 @@ import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { getTenantIdByUserId } from '@/lib/tenant/get-tenant'
 import { normalizeForSearch } from '@/lib/utils/string'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
-import { getGrupBiologicForCropCod, type GrupBiologic } from '@/lib/tratamente/stadii-canonic'
+import { getGrupBiologicForCropCod, type GrupBiologic } from '@/lib/parcele/stadii-canonic'
 import type {
   ConfigurareSezon,
   SistemConducere,
   TipCicluSoi,
   UpsertConfigurareSezon,
-} from '@/lib/tratamente/configurare-sezon'
+} from '@/lib/parcele/configurare-sezon'
 
 type ServerSupabase = Awaited<ReturnType<typeof createClient>>
 type ParcelaConfigurareSezon = Pick<Parcela, 'id' | 'tenant_id' | 'cultura' | 'tip_fruct' | 'soi_plantat' | 'soi'>

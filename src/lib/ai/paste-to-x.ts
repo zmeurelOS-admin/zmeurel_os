@@ -9,7 +9,6 @@ export type PasteToXModule =
   | 'cheltuieli'
   | 'investitii'
   | 'recoltari'
-  | 'tratamente'
 
 export type PasteToXConfidence = 'high' | 'medium' | 'low'
 export type PasteToXAutosaveMode = 'auto' | 'auto_with_threshold' | 'draft_only'
@@ -88,31 +87,10 @@ export const PasteToXRecoltareSchema = z
   })
   .strict()
 
-export const PasteToXTratamentSchema = z
-  .object({
-    data_aplicata: z.union([z.string().regex(ISO_DATE_RE), z.null()]),
-    parcela_referita: nullableTrimmedString(160),
-    produs_nume_manual: nullableTrimmedString(160),
-    doza_text_brut: nullableTrimmedString(200),
-    metoda_aplicare_detectata: z.union([
-      z.enum(['foliar', 'fertirigare', 'fertilizare_baza', 'granulat_sol', 'altul']),
-      z.null(),
-    ]),
-    tip_interventie_detectat: z.union([
-      z.enum(['protectie', 'nutritie', 'biostimulare', 'erbicidare', 'igiena', 'altul']),
-      z.null(),
-    ]),
-    observatii: nullableTrimmedString(300),
-    incertitudini: uncertaintiesSchema,
-    confidence: confidenceSchema,
-  })
-  .strict()
-
 export type PasteToXOrder = z.infer<typeof PasteToXOrderSchema>
 export type PasteToXCheltuiala = z.infer<typeof PasteToXCheltuialaSchema>
 export type PasteToXInvestitie = z.infer<typeof PasteToXInvestitieSchema>
 export type PasteToXRecoltare = z.infer<typeof PasteToXRecoltareSchema>
-export type PasteToXTratament = z.infer<typeof PasteToXTratamentSchema>
 
 type PasteToXModuleConfig = {
   title: string
@@ -211,35 +189,12 @@ export const PASTE_TO_X_MODULES: Record<PasteToXModule, PasteToXModuleConfig> = 
       'Dacă există doar total, pui cal1/cal2 null și păstrezi totalul în cantitate_kg.',
     ].join('\n'),
   },
-  tratamente: {
-    title: 'Tratamente',
-    target: 'aplicari_tratament + aplicari_tratament_produse',
-    autosave: 'draft_only',
-    confirmationThresholdLei: null,
-    prompt: [
-      'Extragi o aplicare de tratament fitosanitar/fertilizare dintr-un mesaj informal. Aceasta este o extracție brută — nu calcula PHI, nu determina FRAC/IRAC și nu valida împotriva unui plan activ.',
-      'Returnezi:',
-      '{',
-      '  "data_aplicata": "YYYY-MM-DD | null",',
-      '  "parcela_referita": "string | null",',
-      '  "produs_nume_manual": "string | null",',
-      '  "doza_text_brut": "string | null",',
-      '  "metoda_aplicare_detectata": "foliar | fertirigare | fertilizare_baza | granulat_sol | altul | null",',
-      '  "tip_interventie_detectat": "protectie | nutritie | biostimulare | erbicidare | igiena | altul | null",',
-      '  "observatii": "string | null",',
-      '  "incertitudini": ["string"],',
-      '  "confidence": "high | medium | low"',
-      '}',
-      'IMPORTANT: "doza_text_brut" păstrează exact formularea din mesaj. Dacă produsul nu pare recunoscut, marchezi asta explicit în incertitudini.',
-    ].join('\n'),
-  },
 }
 
 export const PASTE_TO_X_ROLLOUT_ORDER: PasteToXModule[] = [
   'cheltuieli',
   'investitii',
   'recoltari',
-  'tratamente',
 ]
 
 export function buildPasteToXCommonSystemPrompt(now: PasteToXNowContext): string {

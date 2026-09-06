@@ -8,7 +8,6 @@ import {
   PASTE_TO_X_MODULES,
   PasteToXCheltuialaSchema,
   PasteToXRecoltareSchema,
-  PasteToXTratamentSchema,
 } from '@/lib/ai/paste-to-x'
 
 describe('paste-to-x prompt registry', () => {
@@ -19,7 +18,6 @@ describe('paste-to-x prompt registry', () => {
       'cheltuieli',
       'investitii',
       'recoltari',
-      'tratamente',
     ])
   })
 
@@ -35,17 +33,16 @@ describe('paste-to-x prompt registry', () => {
     expect(prompt).toContain('"confidence": "high" | "medium" | "low"')
   })
 
-  it('compune promptul specific de tratamente și wrapperul user', () => {
-    const prompt = buildPasteToXSystemPrompt('tratamente', {
+  it('compune promptul specific de cheltuieli și wrapperul user', () => {
+    const prompt = buildPasteToXSystemPrompt('cheltuieli', {
       nowLocalDate: '2026-06-21',
       nowLocalDateTime: '2026-06-21 10:30:00',
     })
-    const message = buildPasteToXUserMessage('Am dat Mavrik 2 capace la 16 litri pe P003')
+    const message = buildPasteToXUserMessage('200 lei motorină azi')
 
-    expect(prompt).toContain('doza_text_brut')
-    expect(prompt).toContain('nu calcula PHI')
+    expect(prompt).toContain('suma_lei')
     expect(message).toBe(
-      'Mesaj brut pentru extragere:\n<mesaj>\nAm dat Mavrik 2 capace la 16 litri pe P003\n</mesaj>',
+      'Mesaj brut pentru extragere:\n<mesaj>\n200 lei motorină azi\n</mesaj>',
     )
   })
 })
@@ -84,22 +81,5 @@ describe('paste-to-x schemas', () => {
 
     expect(parsed.cantitate_kg).toBe(48)
     expect(parsed.cantitate_kg_separata.cal1).toBeNull()
-  })
-
-  it('acceptă draftul brut pentru tratamente fără matching de produs', () => {
-    const parsed = PasteToXTratamentSchema.parse({
-      data_aplicata: '2026-06-21',
-      parcela_referita: 'parcela de lângă drum',
-      produs_nume_manual: 'Mavrik',
-      doza_text_brut: '2 capace la 16 litri',
-      metoda_aplicare_detectata: 'foliar',
-      tip_interventie_detectat: 'protectie',
-      observatii: null,
-      incertitudini: ['Produsul trebuie confirmat din nomenclator.'],
-      confidence: 'medium',
-    })
-
-    expect(parsed.doza_text_brut).toBe('2 capace la 16 litri')
-    expect(parsed.tip_interventie_detectat).toBe('protectie')
   })
 })

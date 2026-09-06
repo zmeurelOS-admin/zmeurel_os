@@ -8,7 +8,6 @@ export const FARM_MEMBER_MODULES = [
   'livrari',
   'recoltari',
   'clienti',
-  'tratamente',
   'culegatori',
   'produse',
   'activitati',
@@ -27,7 +26,6 @@ export const FARM_MEMBER_MODULE_LABELS: Record<FarmMemberModule, string> = {
   livrari: 'Livrări',
   recoltari: 'Recoltări',
   clienti: 'Clienți',
-  tratamente: 'Protecție & Nutriție',
   culegatori: 'Culegători',
   produse: 'Produse',
   activitati: 'Activități agricole',
@@ -39,7 +37,6 @@ export const FARM_MEMBER_MODULE_ROUTES: Record<FarmMemberModule, string[]> = {
   livrari: ['/livrari'],
   recoltari: ['/recoltari'],
   clienti: ['/clienti', '/clienti-magazin'],
-  tratamente: ['/tratamente'],
   culegatori: ['/culegatori'],
   produse: ['/produse'],
   activitati: ['/activitati-agricole'],
@@ -51,7 +48,6 @@ export const FARM_MEMBER_MODULE_DEFAULT_ROUTE: Record<FarmMemberModule, string> 
   livrari: '/livrari',
   recoltari: '/recoltari',
   clienti: '/clienti',
-  tratamente: '/tratamente/conformitate',
   culegatori: '/culegatori',
   produse: '/produse',
   activitati: '/activitati-agricole',
@@ -133,11 +129,6 @@ export function isOperatorHardBlockedPath(pathname: string): boolean {
 }
 
 export function isPathAllowedForModule(pathname: string, module: FarmMemberModule): boolean {
-  if (module === 'tratamente') {
-    if (pathname === '/tratamente' || pathname.startsWith('/tratamente/')) return true
-    return /^\/parcele\/[^/]+\/tratamente(?:\/|$)/.test(pathname)
-  }
-
   return FARM_MEMBER_MODULE_ROUTES[module].some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   )

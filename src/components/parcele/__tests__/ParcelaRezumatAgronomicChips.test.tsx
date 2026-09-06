@@ -7,8 +7,8 @@ import { ParcelaRezumatAgronomicChips } from '@/components/parcele/ParcelaRezuma
 import type { Parcela } from '@/lib/supabase/queries/parcele'
 import { queryKeys } from '@/lib/query-keys'
 import type { ParcelaStadiuCanonic } from '@/lib/supabase/queries/parcela-stadii'
-import { resolveStadiuFenologicCurentParcela } from '@/lib/tratamente/fenofaza-curenta-parcela'
-import { getLabelPentruGrup } from '@/lib/tratamente/stadii-canonic'
+import { resolveStadiuFenologicCurentParcela } from '@/lib/parcele/fenofaza-curenta-parcela'
+import { getLabelPentruGrup } from '@/lib/parcele/stadii-canonic'
 
 const createParcelaStadiuCanonic = vi.fn()
 const getStadiiCanoniceParcela = vi.fn()

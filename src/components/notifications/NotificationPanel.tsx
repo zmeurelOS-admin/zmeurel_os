@@ -35,8 +35,6 @@ function iconForType(type: string): string {
       return '❌'
     case 'weekly_sales_summary':
       return '🧾'
-    case 'tratament_reminder':
-      return '🌿'
     case 'system':
       return '🔔'
     default:

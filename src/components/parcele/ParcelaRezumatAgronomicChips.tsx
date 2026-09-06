@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { AppSelect } from '@/components/ui/app-select'
-import { getStadiuOptions } from '@/components/tratamente/plan-wizard/helpers'
+import { getStadiuOptions } from '@/lib/parcele/stadii-canonic'
 import { normalizeCropCod } from '@/lib/crops/crop-codes'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -17,11 +17,11 @@ import {
   type ParcelaStadiuCanonic,
 } from '@/lib/supabase/queries/parcela-stadii'
 import type { Parcela } from '@/lib/supabase/queries/parcele'
-import type { Cohorta } from '@/lib/tratamente/configurare-sezon'
+import type { Cohorta } from '@/lib/parcele/configurare-sezon'
 import {
   isParcelaRubusMixtFenologie,
   resolveStadiuFenologicCurentParcela,
-} from '@/lib/tratamente/fenofaza-curenta-parcela'
+} from '@/lib/parcele/fenofaza-curenta-parcela'
 import {
   getGrupBiologicForCropCod,
   getLabelPentruGrup,
@@ -29,7 +29,7 @@ import {
   listStadiiPentruGrup,
   normalizeStadiu,
   type GrupBiologic,
-} from '@/lib/tratamente/stadii-canonic'
+} from '@/lib/parcele/stadii-canonic'
 import { toast } from '@/lib/ui/toast'
 import { getCurrentSezon } from '@/lib/utils/sezon'
 import { cn } from '@/lib/utils'
