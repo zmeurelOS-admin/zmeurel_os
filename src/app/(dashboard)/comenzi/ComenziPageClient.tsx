@@ -161,12 +161,19 @@ async function checkStocPentruInLivrare(
   loadStockSummary: () => Promise<ComenziStockSummaryAzi> = getComenziStockSummaryAzi,
 ): Promise<void> {
   const stoc = await loadStockSummary()
-  if (stoc.totalStocDisponibilKg < kgNecesar) {
+  // Comparăm rotunjit la 2 zecimale (nivel de gram): disponibilul e derivat din
+  // recoltari−comenzi+ajustari_stoc, o sumă de float-uri care poate ieși cu o eroare
+  // de reprezentare de tipul 0.29999999999999993 pentru un necesar introdus exact ca 0,3.
+  // Fără rotunjire, comparația brută respingea comenzi valide chiar când modalul de eroare
+  // afișa (rotunjit) exact aceeași cantitate ca disponibilul real.
+  const disponibilKg = round2(stoc.totalStocDisponibilKg)
+  const necesarKg = round2(kgNecesar)
+  if (disponibilKg < necesarKg) {
     throw new StocInsuficientError({
-      disponibilKg: round2(stoc.totalStocDisponibilKg),
+      disponibilKg,
       totalKg: round2(stoc.totalStocCal1Kg),
       inLivrareKg: round2(stoc.rezervatActivKg + stoc.legacyInLivrareKg),
-      necesarKg: round2(kgNecesar),
+      necesarKg,
     })
   }
 }
@@ -265,8 +272,8 @@ function getComandaPillClassName(active: boolean) {
   return cn(
     'inline-flex min-h-9 items-center justify-center rounded-full border px-3 text-sm font-medium transition md:min-h-8',
     active
-      ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success-text)]'
-      : 'border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-primary)] hover:bg-[var(--surface-card-muted)]',
+      ? 'border-[var(--pill-active-border)] bg-[var(--pill-active-bg)] text-[var(--pill-active-text)]'
+      : 'border-[var(--pill-inactive-border)] bg-[var(--pill-inactive-bg)] text-[var(--pill-inactive-text)] hover:bg-[var(--pill-inactive-hover-bg)]',
   )
 }
 
@@ -1126,7 +1133,10 @@ function ComandaDialog({
       desktopFormWide
       showCloseButton
       mobileFullHeight
-      contentClassName="md:w-[min(96vw,76rem)] md:max-w-none md:max-h-[min(92dvh,54rem)] lg:w-[min(94vw,78rem)]"
+      contentClassName={cn(
+        zmeurelTheme.theme,
+        'md:w-[min(96vw,76rem)] md:max-w-none md:max-h-[min(92dvh,54rem)] lg:w-[min(94vw,78rem)]',
+      )}
       footer={
         <DialogFormActions
           className="w-full"

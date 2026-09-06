@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ButtonHTMLAttributes } from 'react'
 import {
   Ban,
   CalendarDays,
   Check,
   CircleDollarSign,
   ChevronDown,
+  GripVertical,
   MapPin,
   PackageCheck,
   Pencil,
@@ -273,6 +274,7 @@ export function UnifiedOrderCard({
   variant = 'livrari',
   comenziMode,
   reorderPosition,
+  dragHandleProps,
 }: {
   item: UnifiedOrderItem
   /** În Comenzi statusul rămâne control în detalii, nu badge permanent pe card. */
@@ -281,6 +283,9 @@ export function UnifiedOrderCard({
   comenziMode?: 'active' | 'programate'
   /** Randare compactă, blocată, folosită exclusiv în modul de reordonare Livrări. */
   reorderPosition?: number
+  /** `{...attributes, ...listeners}` de la @dnd-kit/sortable — atașate doar pe mânerul de tragere,
+   * ca restul cardului să rămână scrollabil normal (touch-action) în modul de reordonare. */
+  dragHandleProps?: ButtonHTMLAttributes<HTMLButtonElement>
   disabled?: boolean
   compact?: boolean
   selectable?: boolean
@@ -372,7 +377,9 @@ export function UnifiedOrderCard({
   }
 
   if (typeof reorderPosition === 'number') {
-    return <DeliveryReorderCard item={item} position={reorderPosition} />
+    return (
+      <DeliveryReorderCard item={item} position={reorderPosition} dragHandleProps={dragHandleProps} />
+    )
   }
 
   const hasNoAnswer = item.lastCallStatus === 'no_answer'
@@ -1255,7 +1262,15 @@ function ComenziOperationalCard({
   )
 }
 
-function DeliveryReorderCard({ item, position }: { item: UnifiedOrderItem; position: number }) {
+function DeliveryReorderCard({
+  item,
+  position,
+  dragHandleProps,
+}: {
+  item: UnifiedOrderItem
+  position: number
+  dragHandleProps?: ButtonHTMLAttributes<HTMLButtonElement>
+}) {
   const locality = item.localityLabel || 'Necunoscută'
 
   return (
@@ -1263,10 +1278,20 @@ function DeliveryReorderCard({ item, position }: { item: UnifiedOrderItem; posit
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--agri-primary)] text-sm font-bold text-white">
         {position}
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-bold text-[var(--text-primary)]">{item.customerName}</p>
         <p className="mt-0.5 truncate text-xs font-medium text-[var(--text-secondary)]">{locality}</p>
       </div>
+      {/* Mâner dedicat: doar aici e touch-action:none, ca restul rândului (și lista) să rămână
+          scrollabil normal cu degetul în modul de reordonare. */}
+      <button
+        type="button"
+        {...dragHandleProps}
+        className="flex h-11 w-11 shrink-0 touch-none cursor-grab items-center justify-center rounded-xl text-[var(--text-tertiary)] active:cursor-grabbing active:bg-[var(--surface-card-muted)]"
+        aria-label="Trage pentru a reordona"
+      >
+        <GripVertical className="h-5 w-5" aria-hidden />
+      </button>
     </article>
   )
 }

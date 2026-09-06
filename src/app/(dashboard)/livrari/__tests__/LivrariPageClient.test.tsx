@@ -195,7 +195,7 @@ describe('LivrariPageClient', () => {
       expect(toastErrorMock).toHaveBeenCalledWith('Stoc insuficient pentru livrare.'),
     )
     expect(screen.getByText('Maria Popescu')).toBeInTheDocument()
-    expect(screen.getByText('1.0 kg shop · 20 lei')).toBeInTheDocument()
+    expect(screen.getByText('1.0 kg · 20 lei')).toBeInTheDocument()
     expect(screen.queryByText('Livrate (1)')).not.toBeInTheDocument()
   })
 
@@ -262,7 +262,7 @@ describe('LivrariPageClient', () => {
     renderPage()
 
     expect(await screen.findByText('Client Manual')).toBeInTheDocument()
-    expect(screen.getByText('3.0 kg clienți · 36 lei')).toBeInTheDocument()
+    expect(screen.getByText('3.0 kg · 36 lei')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Arată detaliile comenzii pentru Client Manual' }))
     expect(screen.getByRole('link', { name: '0722 000 111' })).toHaveAttribute('href', 'tel:0722000111')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes } from 'react'
 import dynamic from 'next/dynamic'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, GripVertical, RefreshCw } from 'lucide-react'
@@ -160,21 +160,15 @@ export function LivrariPageClient() {
     return mapB2bToUnified(editTarget, clientMap)
   }, [clientMap, editTarget])
   const totalLei = deliveryItems.reduce((sum, order) => sum + order.totalLei, 0)
-  const kgB2b = deliveryItems
-    .filter((item) => item.source === 'b2b' && (item.clientTip === 'patiserie' || item.clientTip === 'magazin'))
-    .reduce((sum, item) => sum + getDeliverableKg(item), 0)
-  const kgClienti = deliveryItems
-    .filter((item) => item.source === 'b2b' && item.clientTip === 'standard')
-    .reduce((sum, item) => sum + getDeliverableKg(item), 0)
-  const kgShop = deliveryItems
-    .filter((item) => item.source === 'shop')
-    .reduce((sum, item) => sum + getDeliverableKg(item), 0)
+  // O singură cantitate totală, indiferent de sursă (B2B/clienți/shop) — utilizatorul nu vrea
+  // detaliere pe canal în capul de pagină, doar cât e comandat în total.
+  const totalKg = deliveryItems.reduce((sum, item) => sum + getDeliverableKg(item), 0)
   const [isReorderMode, setIsReorderMode] = useState(false)
   const [customOrderIds, setCustomOrderIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!tenantId) return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayBucharestDate()
     const stored = localStorage.getItem(`livrari-order-${tenantId}-${today}`)
     if (stored) {
       try {
@@ -188,7 +182,7 @@ export function LivrariPageClient() {
     (ids: string[]) => {
       setCustomOrderIds(ids)
       if (!tenantId) return
-      const today = new Date().toISOString().slice(0, 10)
+      const today = todayBucharestDate()
       localStorage.setItem(`livrari-order-${tenantId}-${today}`, JSON.stringify(ids))
     },
     [tenantId],
@@ -379,11 +373,7 @@ export function LivrariPageClient() {
       ? deliveredInSession.length > 0
         ? 'Traseul este gata'
         : 'Nicio comandă în drum'
-      : [
-          kgB2b > 0 ? `${kgB2b.toFixed(1)} kg B2B` : null,
-          kgClienti > 0 ? `${kgClienti.toFixed(1)} kg clienți` : null,
-          kgShop > 0 ? `${kgShop.toFixed(1)} kg shop` : null,
-        ].filter(Boolean).join(' · ') + ` · ${formatLei(totalLei)} lei`
+      : `${totalKg.toFixed(1)} kg · ${formatLei(totalLei)} lei`
 
   return (
     <AppShell
@@ -534,14 +524,17 @@ export function LivrariPageClient() {
                   <div className="space-y-2">
                     {orderedOrders.map((order, index) => (
                       <SortableDeliveryCard key={order.id} id={order.id}>
-                        <UnifiedOrderCard
-                          item={order}
-                          reorderPosition={index + 1}
-                          onB2bStatusChange={handleManualStatusChange}
-                          onB2bDeliveryDateChange={() => undefined}
-                          onCallStatusChange={() => undefined}
-                          onEdit={() => undefined}
-                        />
+                        {(dragHandleProps) => (
+                          <UnifiedOrderCard
+                            item={order}
+                            reorderPosition={index + 1}
+                            dragHandleProps={dragHandleProps}
+                            onB2bStatusChange={handleManualStatusChange}
+                            onB2bDeliveryDateChange={() => undefined}
+                            onCallStatusChange={() => undefined}
+                            onEdit={() => undefined}
+                          />
+                        )}
                       </SortableDeliveryCard>
                     ))}
                   </div>
@@ -676,7 +669,10 @@ function SortableDeliveryCard({
   children,
 }: {
   id: string
-  children: React.ReactNode
+  // Render prop: primește doar props-urile de tras (attributes+listeners) ca să le poată atașa
+  // exclusiv pe mânerul de drag, nu pe tot rândul — altfel lista nu mai poate fi scrollată cu
+  // degetul (touch-action: none pe tot cardul) când sunt mai multe comenzi decât încap pe ecran.
+  children: (dragHandleProps: ButtonHTMLAttributes<HTMLButtonElement>) => React.ReactNode
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -686,12 +682,9 @@ function SortableDeliveryCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      {...attributes}
-      {...listeners}
-      className={`touch-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-0' : ''}`}
-      aria-label="Trage comanda pentru a reordona"
+      className={isDragging ? 'opacity-0' : ''}
     >
-      {children}
+      {children({ ...attributes, ...listeners } as ButtonHTMLAttributes<HTMLButtonElement>)}
     </div>
   )
 }
