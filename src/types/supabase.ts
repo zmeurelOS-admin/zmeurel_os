@@ -1200,6 +1200,7 @@ export type Database = {
           note_interne: string | null
           numar_comanda_scurt: string | null
           observatii: string | null
+          ordine_livrare: number | null
           order_kind: string
           parent_comanda_id: string | null
           pret_per_kg: number
@@ -1234,6 +1235,7 @@ export type Database = {
           note_interne?: string | null
           numar_comanda_scurt?: string | null
           observatii?: string | null
+          ordine_livrare?: number | null
           order_kind?: string
           parent_comanda_id?: string | null
           pret_per_kg: number
@@ -1268,6 +1270,7 @@ export type Database = {
           note_interne?: string | null
           numar_comanda_scurt?: string | null
           observatii?: string | null
+          ordine_livrare?: number | null
           order_kind?: string
           parent_comanda_id?: string | null
           pret_per_kg?: number

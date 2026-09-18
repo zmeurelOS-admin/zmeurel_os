@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ButtonHTMLAttributes } from 'react'
+import { useCallback, useMemo, useState, type ButtonHTMLAttributes } from 'react'
 import dynamic from 'next/dynamic'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, GripVertical, RefreshCw } from 'lucide-react'
@@ -26,7 +26,6 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 
 import { AppShell } from '@/components/app/AppShell'
-import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
 import { PaymentStatusToggle } from '@/components/comenzi/PaymentStatusToggle'
@@ -56,6 +55,7 @@ import {
   deliverComanda,
   getComenzi,
   updateComanda,
+  updateOrdineLivrare,
   type Comanda,
   type ComandaPaymentStatus,
 } from '@/lib/supabase/queries/comenzi'
@@ -83,6 +83,15 @@ function getDeliverableKg(order: UnifiedOrderItem): number {
 }
 
 function compareUnifiedDeliveryFifo(a: UnifiedOrderItem, b: UnifiedOrderItem): number {
+  // Ordinea manuală (drag-and-drop, salvată în comenzi.ordine_livrare) are prioritate
+  // și e comună tuturor utilizatorilor tenantului; comenzile fără poziție cad la coadă,
+  // sortate ca înainte după FIFO.
+  const aPos = a.b2bComanda?.ordine_livrare ?? null
+  const bPos = b.b2bComanda?.ordine_livrare ?? null
+  if (aPos !== null && bPos !== null && aPos !== bPos) return aPos - bPos
+  if (aPos !== null && bPos === null) return -1
+  if (aPos === null && bPos !== null) return 1
+
   const aDate = Date.parse(`${getUnifiedOrderEffectiveDate(a)}T12:00:00.000Z`)
   const bDate = Date.parse(`${getUnifiedOrderEffectiveDate(b)}T12:00:00.000Z`)
   if (aDate !== bDate) return aDate - bDate
@@ -108,7 +117,6 @@ function toDeliveryTarget(order: UnifiedOrderItem): DeliveryTarget {
 
 export function LivrariPageClient() {
   const queryClient = useQueryClient()
-  const { tenantId } = useDashboardAuth()
   const [deliverTarget, setDeliverTarget] = useState<DeliveryTarget | null>(null)
   const [editTarget, setEditTarget] = useState<EditTarget>(null)
   const [deliveredInSession, setDeliveredInSession] = useState<DeliveryTarget[]>([])
@@ -164,43 +172,35 @@ export function LivrariPageClient() {
   // detaliere pe canal în capul de pagină, doar cât e comandat în total.
   const totalKg = deliveryItems.reduce((sum, item) => sum + getDeliverableKg(item), 0)
   const [isReorderMode, setIsReorderMode] = useState(false)
-  const [customOrderIds, setCustomOrderIds] = useState<string[]>([])
 
-  useEffect(() => {
-    if (!tenantId) return
-    const today = todayBucharestDate()
-    const stored = localStorage.getItem(`livrari-order-${tenantId}-${today}`)
-    if (stored) {
-      try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setCustomOrderIds(JSON.parse(stored) as string[])
-      } catch {}
-    }
-  }, [tenantId])
+  // Ordinea vine direct din `comenzi.ordine_livrare` (vezi compareUnifiedDeliveryFifo),
+  // deci e aceeași pentru orice utilizator al tenantului, pe orice dispozitiv.
+  const orderedDeliveryItems = deliveryItems
+
+  const saveOrdineLivrareMutation = useMutation({
+    mutationFn: (ids: string[]) => updateOrdineLivrare(ids),
+    onError: (error: Error) => {
+      toast.error(error.message || 'Nu am putut salva ordinea livrărilor.')
+      // Resincronizăm cu serverul dacă update-ul optimist a rămas nesalvat.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.comenzi })
+    },
+  })
 
   const saveOrder = useCallback(
     (ids: string[]) => {
-      setCustomOrderIds(ids)
-      if (!tenantId) return
-      const today = todayBucharestDate()
-      localStorage.setItem(`livrari-order-${tenantId}-${today}`, JSON.stringify(ids))
+      // Update optimist al cache-ului, ca reordonarea să se vadă instant,
+      // fără să aștepte răspunsul serverului.
+      queryClient.setQueryData<Comanda[]>(queryKeys.comenzi, (current) => {
+        if (!current) return current
+        const position = new Map(ids.map((id, index) => [id, index]))
+        return current.map((order) =>
+          position.has(order.id) ? { ...order, ordine_livrare: position.get(order.id)! } : order,
+        )
+      })
+      saveOrdineLivrareMutation.mutate(ids)
     },
-    [tenantId],
+    [queryClient, saveOrdineLivrareMutation],
   )
-
-  const orderedDeliveryItems = useMemo(() => {
-    if (customOrderIds.length === 0) return deliveryItems
-    const idMap = new Map(deliveryItems.map((item) => [item.id, item]))
-    const result: typeof deliveryItems = []
-    for (const id of customOrderIds) {
-      const item = idMap.get(id)
-      if (item) result.push(item)
-    }
-    for (const item of deliveryItems) {
-      if (!customOrderIds.includes(item.id)) result.push(item)
-    }
-    return result
-  }, [customOrderIds, deliveryItems])
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 

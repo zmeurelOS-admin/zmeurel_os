@@ -53,6 +53,8 @@ export interface Comanda {
   /** Stare operațională din Livrări; null când apelul nu are marcaj. */
   last_call_status?: 'no_answer' | null
   client_nume?: string | null
+  /** Poziție manuală în traseul de livrare (drag-and-drop din /livrari); null = ordine FIFO. */
+  ordine_livrare?: number | null
 }
 
 export interface CreateComandaInput {
@@ -169,6 +171,7 @@ const COMANDA_SELECT_FIELDS: string = `
   data_origin,
   dup_phone_warning,
   last_call_status,
+  ordine_livrare,
   clienti (
     nume_client
   ),
@@ -323,6 +326,7 @@ function mapComanda(row: ComandaQueryRow): Comanda {
     dup_phone_warning: row.dup_phone_warning ?? null,
     last_call_status: row.last_call_status === 'no_answer' ? 'no_answer' : null,
     client_nume: row.clienti?.nume_client ?? null,
+    ordine_livrare: row.ordine_livrare ?? null,
   }
 }
 
@@ -532,6 +536,29 @@ export async function updateComanda(id: string, input: UpdateComandaInput): Prom
   }
 
   return mapComanda(await selectComandaRowById(supabase, id, tenantId))
+}
+
+/**
+ * Salvează ordinea manuală de livrare (drag-and-drop din /livrari) în DB,
+ * ca să fie vizibilă pentru orice utilizator al tenantului, pe orice dispozitiv.
+ * `orderedIds` este lista completă de id-uri de comenzi, în ordinea dorită.
+ */
+export async function updateOrdineLivrare(orderedIds: string[]): Promise<void> {
+  const supabase = getSupabase()
+  const tenantId = await getTenantId(supabase)
+
+  const results = await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase
+        .from('comenzi')
+        .update({ ordine_livrare: index } as TablesUpdate<'comenzi'>)
+        .eq('id', id)
+        .eq('tenant_id', tenantId),
+    ),
+  )
+
+  const firstError = results.find((result) => result.error)?.error
+  if (firstError) throw toReadableError(firstError, 'Nu am putut salva ordinea livrărilor.')
 }
 
 export async function deleteComanda(id: string): Promise<void> {
