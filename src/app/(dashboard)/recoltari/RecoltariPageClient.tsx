@@ -25,6 +25,7 @@ import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { SearchField } from '@/components/ui/SearchField'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ViewRecoltareDialog } from '@/components/recoltari/ViewRecoltareDialog'
+import { QuickRecoltareCard } from '@/components/recoltari/QuickRecoltareCard'
 import { track } from '@/lib/analytics/track'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { useTrackModuleView } from '@/lib/analytics/useTrackModuleView'
@@ -724,6 +725,8 @@ export function RecoltariPageClient({
 
         {!initialError && !isError ? (
           <>
+            {canWriteRecoltari ? <QuickRecoltareCard onOpenFullForm={() => setAddOpen(true)} /> : null}
+
             <ModuleScoreboard className="grid grid-cols-3 gap-2 rounded-2xl border-[var(--border-default)] bg-[var(--surface-card)] px-3 py-3 shadow-[var(--shadow-soft)]">
               <CompactTodayMetric label="Cal I azi" value={formatKg(todayDashboard.cal1Kg, 1)} tone="success" />
               <CompactTodayMetric label="Cal II azi" value={formatKg(todayDashboard.cal2Kg, 1)} tone="warning" />
