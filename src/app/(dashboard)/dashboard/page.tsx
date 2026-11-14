@@ -68,6 +68,7 @@ import { getComenziOperationalSnapshot } from '@/lib/comenzi/unified-orders'
 import { buildAttentionNowItems } from '@/lib/dashboard/attention'
 import { detectFarmContext } from '@/lib/dashboard/context'
 import { buildDashboardRecommendations } from '@/lib/dashboard/recommendations'
+import { AziPanel } from '@/components/dashboard/AziPanel'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import {
   STOCK_AUDIT_CRITICAL_STOCK_THRESHOLD_KG,
@@ -1627,6 +1628,16 @@ export default function DashboardPage() {
             </div>
 
             <div className="mb-[var(--dashboard-stack-gap)] grid gap-4 md:hidden">
+              {!editMode ? (
+                <AziPanel
+                  comenzi={comenzi}
+                  recoltari={recoltari}
+                  activitati={activitati}
+                  parcele={parcele}
+                  disponibilCal1Kg={stocuriQuery.data?.disponibilCal1Kg ?? null}
+                  todayIso={todayIso}
+                />
+              ) : null}
               <DashboardTodayCard stats={todayOverviewStats} focusItems={todayFocusItems} />
               <div className="dashboard-stack-meteo">
                 <MeteoDashboardCard
