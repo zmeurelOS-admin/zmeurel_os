@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
+import { FarmBottomTabBar } from '@/components/app/FarmBottomTabBar'
 import { MoreMenuDrawer } from '@/components/app/MoreMenuDrawer'
 
 type TabDef = {
@@ -12,13 +13,6 @@ type TabDef = {
   href: string
   emoji: string
 }
-
-const TABS: TabDef[] = [
-  { label: 'Acasă', href: '/dashboard', emoji: '🏡' },
-  { label: 'Livrări', href: '/livrari', emoji: '🚚' },
-  { label: 'Recoltări', href: '/recoltari', emoji: '🧺' },
-  { label: 'Comenzi', href: '/comenzi', emoji: '📦' },
-]
 
 /** Fermieri și Setări sunt în „Mai mult” — 4 taburi egale pe mobil. */
 const ASOCIATIE_TABS: TabDef[] = [
@@ -28,19 +22,12 @@ const ASOCIATIE_TABS: TabDef[] = [
   { label: 'Livrări', href: '/asociatie/livrari', emoji: '🚚' },
 ]
 
-export function BottomTabBar() {
+/** Spațiul de lucru al asociației își păstrează bara cu 4 taburi + „Mai mult”, neschimbată în V2. */
+function AssociationBottomTabBar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { associationRole } = useDashboardAuth()
   const [moreOpen, setMoreOpen] = useState(false)
-
-  const inAssociationWorkspace = pathname.startsWith('/asociatie')
-  const tabs = useMemo(() => {
-    if (associationRole && inAssociationWorkspace) {
-      return ASOCIATIE_TABS
-    }
-    return TABS
-  }, [associationRole, inAssociationWorkspace])
+  const tabs = ASOCIATIE_TABS
 
   useEffect(() => {
     router.prefetch('/dashboard')
@@ -184,4 +171,11 @@ export function BottomTabBar() {
       <MoreMenuDrawer open={moreOpen} onOpenChange={setMoreOpen} />
     </>
   )
+}
+
+export function BottomTabBar() {
+  const pathname = usePathname()
+  const { associationRole } = useDashboardAuth()
+  if (associationRole && pathname.startsWith('/asociatie')) return <AssociationBottomTabBar />
+  return <FarmBottomTabBar />
 }

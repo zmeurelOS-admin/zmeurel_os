@@ -25,6 +25,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
+import { ZoneSubNav } from '@/components/app/ZoneSubNav'
 import { AppShell } from '@/components/app/AppShell'
 import { ErrorState } from '@/components/app/ErrorState'
 import { EntityListSkeleton } from '@/components/app/ListSkeleton'
@@ -405,6 +406,9 @@ export function LivrariPageClient() {
             >
               <RefreshCw className={isFetchingAny ? 'animate-spin' : ''} />
             </Button>
+          </div>
+        <div className="px-1 pb-1">
+            <ZoneSubNav />
           </div>
         </div>
       }

@@ -5,6 +5,7 @@ import {
   getDashboardContentInnerClassName,
   getDashboardHeaderBleedClassName,
 } from '@/components/app/DashboardContentShell'
+import { ZoneSubNav } from '@/components/app/ZoneSubNav'
 import { cn } from '@/lib/utils'
 
 interface CompactPageHeaderProps {
@@ -71,6 +72,8 @@ export function CompactPageHeader({
               </div>
             ) : null}
           </div>
+
+          <ZoneSubNav />
 
           <div className="hidden items-start justify-between gap-3 lg:flex lg:items-center">
             <div className="min-w-0 space-y-0.5">

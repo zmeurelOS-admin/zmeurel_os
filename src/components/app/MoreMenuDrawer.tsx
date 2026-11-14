@@ -104,7 +104,8 @@ function isMoreMenuItemActive(pathname: string, href: string) {
   return path.startsWith(href)
 }
 
-const MOBILE_NAV_PRIMARY = new Set(['/dashboard', '/livrari', '/recoltari', '/comenzi'])
+// V2: bara de jos are doar zonele; meniul fermei listează toate modulele, ca index complet.
+const MOBILE_NAV_PRIMARY = new Set(['/dashboard'])
 
 function canOperatorSeeParceleMenu(memberRole: 'operator' | null | undefined, access: FarmMemberModuleAccess[] | undefined) {
   if (memberRole !== 'operator') return true

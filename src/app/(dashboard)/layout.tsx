@@ -7,7 +7,6 @@ import {
   DashboardShellTopSlot,
 } from '@/components/layout/DashboardShellSlots'
 import { LegalDocsPersistentBanner } from '@/components/legal-docs/LegalDocsPersistentBanner'
-import UnifiedMobileFab from '@/components/ui/UnifiedMobileFab'
 import { AiPanelProvider } from '@/contexts/AiPanelContext'
 import { isSuperAdmin } from '@/lib/auth/isSuperAdmin'
 import { getAssociationRole } from '@/lib/association/auth'
@@ -88,7 +87,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </main>
           <DashboardShellFloatingOverlays />
           <BottomTabBar />
-          <UnifiedMobileFab />
         </div>
       </AiPanelProvider>
     </Providers>

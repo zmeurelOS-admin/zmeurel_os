@@ -242,7 +242,8 @@ test.describe('Onboarding, demo și guards', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/dashboard', { waitUntil: 'load', timeout: 60000 })
     await expect(page.getByRole('navigation', { name: 'Navigare principală' })).toBeVisible({ timeout: 30000 })
-    const moreBtn = page.locator('nav[aria-label="Navigare principală"] button[aria-label="Mai mult"]')
+    // V2: meniul fermei se deschide din antet (butonul „Mai mult” de lângă secțiunile zonei).
+    const moreBtn = page.getByRole('button', { name: 'Mai mult' })
     await expect(moreBtn).toBeVisible({ timeout: 15000 })
     await moreBtn.click()
     await expect(page.locator('form[action$="/api/auth/sign-out"]')).toBeVisible({ timeout: 25000 })

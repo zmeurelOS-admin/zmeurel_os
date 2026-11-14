@@ -22,7 +22,7 @@ const EXPANDED_WIDTH = 240
 const COLLAPSED_WIDTH = 64
 const DEMO_BANNER_HEIGHT = 48
 
-type GroupKey = "ferma" | "comercial" | "finante" | "administrare"
+type GroupKey = "ferma" | "comercial" | "finante"
 
 type SidebarAccordionKey = GroupKey | "admin"
 
@@ -44,46 +44,43 @@ type Group = {
   items: NavItem[]
 }
 
-const TOP_ITEM: NavItem = { href: "/dashboard", label: "Dashboard", emoji: "🏡" }
+const TOP_ITEM: NavItem = { href: "/dashboard", label: "Azi", emoji: "🏡" }
 
+// V2: aceleași 4 zone ca pe mobil (Azi, Câmp, Vânzare, Bani); cheile grupurilor rămân pentru starea acordeonului.
 const GROUPS: Group[] = [
   {
     key: "ferma",
-    label: "Fermă",
+    label: "Câmp",
     items: [
+      { href: "/recoltari", label: "Cules", emoji: "🧺" },
+      { href: "/activitati-agricole", label: "Lucrări", emoji: "🌱" },
       { href: "/parcele", label: "Parcele", emoji: "🌿" },
-      { href: "/recoltari", label: "Recoltări", emoji: "🧺" },
-      { href: "/activitati-agricole", label: "Activități agricole", emoji: "🌱" },
       { href: "/culegatori", label: "Culegători", emoji: "👷" },
     ],
   },
   {
     key: "comercial",
-    label: "Comercial",
+    label: "Vânzare",
     items: [
       { href: "/comenzi", label: "Comenzi", emoji: "📋" },
       { href: "/livrari", label: "Livrări", emoji: "🚚" },
-      { href: "/vanzari", label: "Vânzări", emoji: "💰" },
       { href: "/clienti", label: "Clienți", emoji: "👥", exact: true },
+      { href: "/stocuri", label: "Stoc", emoji: "📦" },
+      { href: "/produse", label: "Produse", emoji: "🛒" },
+      { href: "/vanzari-butasi", label: "Material săditor", emoji: "🛍️" },
       { href: "/clienti-magazin", label: "Clienți magazin", emoji: "🫐" },
       { href: "/analytics-magazin", label: "Analytics magazin", emoji: "📊" },
-      { href: "/produse", label: "Produse", emoji: "🛒" },
-      { href: "/stocuri", label: "Stocuri", emoji: "📦" },
-      { href: "/vanzari-butasi", label: "Material săditor", emoji: "🛍️" },
     ],
   },
   {
     key: "finante",
-    label: "Finanțe",
+    label: "Bani",
     items: [
+      { href: "/vanzari", label: "Vânzări", emoji: "💰", exact: true },
       { href: "/cheltuieli", label: "Cheltuieli", emoji: "💸" },
       { href: "/investitii", label: "Investiții", emoji: "💼" },
+      { href: "/rapoarte", label: "Rapoarte", emoji: "📈" },
     ],
-  },
-  {
-    key: "administrare",
-    label: "Administrare",
-    items: [{ href: "/rapoarte", label: "Rapoarte", emoji: "📈" }],
   },
 ]
 
@@ -118,32 +115,13 @@ function deriveOpenSectionFromPath(pathname: string, isSuperAdmin: boolean): Sid
 }
 
 function getGroupForPath(pathname: string): GroupKey | null {
+  const inSection = (href: string) => pathname === href || pathname.startsWith(`${href}/`)
+  if (["/recoltari", "/activitati-agricole", "/parcele", "/culegatori"].some(inSection)) return "ferma"
+  if (["/vanzari", "/cheltuieli", "/investitii", "/rapoarte"].some(inSection)) return "finante"
   if (
-    pathname.startsWith("/parcele") ||
-    pathname.startsWith("/recoltari") ||
-    pathname.startsWith("/activitati-agricole") ||
-    pathname.startsWith("/culegatori")
-  ) {
-    return "ferma"
-  }
-  if (
-    pathname.startsWith("/comenzi") ||
-    pathname.startsWith("/livrari") ||
-    pathname.startsWith("/vanzari") ||
-    pathname.startsWith("/clienti") ||
-    pathname.startsWith("/clienti-magazin") ||
-    pathname.startsWith("/analytics-magazin") ||
-    pathname.startsWith("/produse") ||
-    pathname.startsWith("/stocuri") ||
-    pathname.startsWith("/vanzari-butasi")
+    ["/comenzi", "/livrari", "/clienti", "/clienti-magazin", "/analytics-magazin", "/produse", "/stocuri", "/vanzari-butasi"].some(inSection)
   ) {
     return "comercial"
-  }
-  if (pathname.startsWith("/cheltuieli") || pathname.startsWith("/investitii")) {
-    return "finante"
-  }
-  if (pathname.startsWith("/rapoarte")) {
-    return "administrare"
   }
   return null
 }
