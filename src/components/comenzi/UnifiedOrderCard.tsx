@@ -562,12 +562,13 @@ export function UnifiedOrderCard({
           Copiază comanda pentru livrarea următoare
         </label>
 
-        <div className="grid grid-cols-3 gap-2 px-3 py-3">
+        {/* V2: în livrare, „Livrat” e butonul mare de jos; Sună / N-a răspuns stau deasupra. */}
+        <div className="grid grid-cols-2 gap-2 px-3 py-3">
           {phoneHref ? (
             <a
               href={phoneHref}
               onClick={handleCall}
-              className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 text-[11px] font-semibold transition active:scale-[0.985] ${
+              className={`flex min-h-12 items-center justify-center gap-1.5 rounded-xl border px-2 text-sm font-bold transition active:scale-[0.985] ${
                 calledInSession
                   ? 'border-[var(--gold)] bg-[var(--gold-wash)] text-[var(--gold)]'
                   : 'border-[var(--status-info-border)] bg-[var(--status-info-bg)] text-[var(--status-info-text)]'
@@ -577,13 +578,13 @@ export function UnifiedOrderCard({
               {calledInSession ? 'Sunat' : 'Sună'}
             </a>
           ) : (
-            <span className="flex min-h-11 flex-col items-center justify-center rounded-xl border border-[var(--border-default)] px-1 text-[11px] font-medium text-[var(--text-tertiary)]">Fără telefon</span>
+            <span className="flex min-h-12 items-center justify-center rounded-xl border border-[var(--border-default)] px-2 text-sm font-medium text-[var(--text-tertiary)]">Fără telefon</span>
           )}
           <button
             type="button"
             disabled={disabled || !item.phone}
             onClick={handleNoAnswer}
-            className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 text-[11px] font-semibold transition active:scale-[0.985] disabled:opacity-50 ${
+            className={`flex min-h-12 items-center justify-center gap-1.5 rounded-xl border px-2 text-sm font-bold transition active:scale-[0.985] disabled:opacity-50 ${
               noAnswerWhatsAppSent
                 ? 'border-[var(--whatsapp-solid)] bg-[var(--whatsapp-solid)] text-white'
                 : hasNoAnswer
@@ -598,9 +599,9 @@ export function UnifiedOrderCard({
             type="button"
             disabled={disabled || !isCanonicalComanda || !onB2bStatusChange}
             onClick={handleLivratClick}
-            className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-[var(--success-border)] bg-[var(--success-solid)] px-1 text-[11px] font-semibold text-white transition active:scale-[0.985] disabled:opacity-50"
+            className="col-span-2 flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-[var(--success-solid)] bg-[var(--success-solid)] px-3 font-display text-lg tracking-wide text-white transition active:scale-[0.985] disabled:opacity-50 [font-weight:800]"
           >
-            <PackageCheck className="h-4 w-4" aria-hidden />
+            <PackageCheck className="h-6 w-6" aria-hidden />
             Livrat
           </button>
         </div>

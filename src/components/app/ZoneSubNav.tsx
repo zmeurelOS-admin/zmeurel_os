@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
  * Pe rutele din afara zonelor (setări, produse etc.) rămâne doar butonul de meniu.
  */
 export function ZoneSubNav() {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const { associationRole, memberRole, memberAccess } = useDashboardAuth()
   if (associationRole && pathname.startsWith('/asociatie')) return null
 

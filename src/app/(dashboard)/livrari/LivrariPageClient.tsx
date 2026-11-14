@@ -382,7 +382,7 @@ export function LivrariPageClient() {
         <div className={zmeurelTheme.theme}>
           <div className="flex min-h-[52px] w-full items-center justify-between gap-3 px-1">
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg leading-tight text-[var(--brand-dark)] [font-weight:750]">
+              <h1 className="font-display text-[1.4rem] leading-tight text-[var(--text-primary)] [font-weight:800]">
                 Livrări de azi
               </h1>
               <div className="mt-1 flex flex-wrap items-center gap-2">

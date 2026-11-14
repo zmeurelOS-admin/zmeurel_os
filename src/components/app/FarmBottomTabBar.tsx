@@ -44,7 +44,7 @@ const QUICK_ADD = [
  * Meniul fermei (restul modulelor) se deschide din antet, prin evenimentul OPEN_FARM_MENU_EVENT.
  */
 export function FarmBottomTabBar() {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const router = useRouter()
   const { triggerAddAction, hasAction, currentLabel } = useAddAction()
   const [menuOpen, setMenuOpen] = useState(false)
