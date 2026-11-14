@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import { Bricolage_Grotesque, Figtree } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -7,21 +6,11 @@ import { HighVisibilityInit } from '@/components/app/HighVisibilityInit'
 import { ServiceWorkerRegister } from '@/components/app/ServiceWorkerRegister'
 import { ThemeProvider } from '@/components/app/ThemeProvider'
 import { Toaster } from '@/components/Toaster'
+// V2: fonturile vin din pachete npm (Fontsource) și se servesc local, fără descărcare de la Google la build.
+// Figtree pentru text, Bricolage Grotesque pentru titluri și cifre mari.
+import '@fontsource-variable/figtree'
+import '@fontsource-variable/bricolage-grotesque'
 import './globals.css'
-
-// V2: Figtree pentru text (lizibil în soare, diacritice corecte), Bricolage Grotesque doar pentru titluri și cifre mari.
-const fontBody = Figtree({
-  subsets: ['latin', 'latin-ext'],
-  display: 'swap',
-  variable: '--font-body',
-})
-
-const fontDisplay = Bricolage_Grotesque({
-  subsets: ['latin', 'latin-ext'],
-  weight: ['600', '700', '800'],
-  display: 'swap',
-  variable: '--font-display',
-})
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.zmeurel.ro'),
@@ -61,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Zmeurel" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
-      <body className={`${fontBody.variable} ${fontDisplay.variable}`}>
+      <body>
         <ThemeProvider>
           <HighVisibilityInit />
           <ServiceWorkerRegister />

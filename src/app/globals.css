@@ -7,6 +7,9 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
 
+  --font-body: 'Figtree Variable';
+  --font-display: 'Bricolage Grotesque Variable';
+
   --tabbar-h: 72px;
   --app-nav-clearance: calc(var(--tabbar-h) + var(--safe-b));
   --mobile-scroll-padding: 0px;
