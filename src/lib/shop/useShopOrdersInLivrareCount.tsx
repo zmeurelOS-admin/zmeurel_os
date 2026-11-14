@@ -17,7 +17,7 @@ export function ShopOrdersInLivrareNavBadge({ count }: { count: number }) {
   return (
     <span
       className="min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold text-white"
-      style={{ backgroundColor: '#F16B6B' }}
+      style={{ backgroundColor: 'var(--brand-coral)' }}
     >
       {count > 99 ? '99+' : count}
     </span>

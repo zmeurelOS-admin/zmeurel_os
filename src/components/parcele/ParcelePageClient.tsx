@@ -246,8 +246,8 @@ function operationalBadge(statusOperational: StatusOperational): { text: string;
 function etapaDotColor(etapa: string): string {
   const cod = normalizeStadiu(etapa)
   const e = (cod ?? etapa).toLowerCase()
-  if (e.includes('plantare') || e.includes('flori') || e.includes('fructif') || e.includes('cules')) return '#3D7A5F'
-  if (e.includes('seceta') || e.includes('daun') || e.includes('problem') || e.includes('desfiin')) return '#e85d5d'
+  if (e.includes('plantare') || e.includes('flori') || e.includes('fructif') || e.includes('cules')) return '#1B7A46'
+  if (e.includes('seceta') || e.includes('daun') || e.includes('problem') || e.includes('desfiin')) return '#B3261E'
   return '#95b8a0'
 }
 

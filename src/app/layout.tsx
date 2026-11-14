@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Bricolage_Grotesque, Figtree } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
@@ -9,10 +9,18 @@ import { ThemeProvider } from '@/components/app/ThemeProvider'
 import { Toaster } from '@/components/Toaster'
 import './globals.css'
 
-const inter = Inter({
+// V2: Figtree pentru text (lizibil în soare, diacritice corecte), Bricolage Grotesque doar pentru titluri și cifre mari.
+const fontBody = Figtree({
   subsets: ['latin', 'latin-ext'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-body',
+})
+
+const fontDisplay = Bricolage_Grotesque({
+  subsets: ['latin', 'latin-ext'],
+  weight: ['600', '700', '800'],
+  display: 'swap',
+  variable: '--font-display',
 })
 
 export const metadata: Metadata = {
@@ -53,7 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Zmeurel" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
       </head>
-      <body className={inter.variable}>
+      <body className={`${fontBody.variable} ${fontDisplay.variable}`}>
         <ThemeProvider>
           <HighVisibilityInit />
           <ServiceWorkerRegister />

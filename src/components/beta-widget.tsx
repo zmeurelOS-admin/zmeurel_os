@@ -82,7 +82,7 @@ export default function BetaWidget() {
             <div className="relative w-[min(260px,calc(100vw-104px))] rounded-2xl border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-800 md:w-[260px] md:shadow-xl">
               <button
                 type="button"
-                className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                 onClick={() => {
                   window.localStorage.setItem(DISMISSED_KEY, 'true')
                   setIsExpanded(false)
@@ -92,7 +92,7 @@ export default function BetaWidget() {
                 <X className="h-3.5 w-3.5" />
               </button>
 
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-[#E8F5EE] px-2.5 py-1 text-xs font-semibold text-[#3D7A5F] dark:bg-[#3D7A5F]/20 dark:text-emerald-400">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--success-bg)] px-2.5 py-1 text-xs font-semibold text-[var(--success-text)] dark:bg-[var(--success-bg)] dark:text-emerald-400">
                 <span>🧪</span>
                 <span>Ești în beta</span>
               </div>
@@ -103,7 +103,7 @@ export default function BetaWidget() {
                 href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1ebc5a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1ebc5a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2"
               >
                 <MessageCircle className="h-4 w-4" />
                 Scrie-mi pe WhatsApp
@@ -118,7 +118,7 @@ export default function BetaWidget() {
                 setIsExpanded(true)
               }}
               className={[
-                'relative flex h-10 w-10 items-center justify-center rounded-full bg-[#3D7A5F] text-white shadow-md transition-all duration-150 hover:bg-[#1f4a37] hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3D7A5F] focus-visible:ring-offset-2',
+                'relative flex h-10 w-10 items-center justify-center rounded-full bg-[var(--agri-primary)] text-white shadow-md transition-all duration-150 hover:bg-[#1f4a37] hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2',
                 pulseRing ? 'animate-[pulse-ring_700ms_ease-out_1]' : '',
               ]
                 .filter(Boolean)

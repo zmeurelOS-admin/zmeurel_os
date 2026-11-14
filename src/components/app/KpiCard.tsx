@@ -58,7 +58,7 @@ export function KpiCard({
           <p className="text-[13px] leading-snug tracking-[-0.01em] text-[var(--text-secondary)] [font-weight:650]">
             {title}
           </p>
-          <p className="text-[1.15rem] leading-none tracking-[-0.02em] text-[var(--text-primary)] sm:text-[1.4rem] lg:text-xl lg:[font-weight:750]">
+          <p className="font-display text-[1.3rem] leading-none text-[var(--text-primary)] [font-weight:800] sm:text-[1.5rem] lg:text-xl">
             {value}
           </p>
           <span

@@ -50,12 +50,12 @@ export function CompactPageHeader({
               )}
             >
               {title ? (
-                <h1 className="text-[clamp(1.12rem,4.4vw,1.3rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text-primary)] [font-weight:750]">
+                <h1 className="font-display text-[clamp(1.3rem,5.2vw,1.55rem)] leading-[1.1] text-[var(--text-primary)] [font-weight:800]">
                   {title}
                 </h1>
               ) : null}
               {subtitle ? (
-                <p className="mt-0.5 line-clamp-2 text-[12px] leading-[1.3] text-[var(--text-secondary)]">{subtitle}</p>
+                <p className="mt-0.5 line-clamp-2 text-[13px] leading-[1.3] text-[var(--text-secondary)] [font-weight:600]">{subtitle}</p>
               ) : null}
             </div>
             {showMobileRightSlot && rightSlot ? (
