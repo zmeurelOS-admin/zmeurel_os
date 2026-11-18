@@ -20,6 +20,7 @@ export const NOTIFICATION_TYPES = {
   legal_docs_expiring: 'legal_docs_expiring',
   legal_docs_expired: 'legal_docs_expired',
   weekly_sales_summary: 'weekly_sales_summary',
+  butasi_delivery_reminder: 'butasi_delivery_reminder',
   system: 'system',
 } as const
 

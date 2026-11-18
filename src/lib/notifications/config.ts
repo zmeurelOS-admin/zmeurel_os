@@ -80,6 +80,15 @@ export const NOTIFICATION_CONFIG = {
     playSound: false,
     pushEnabled: false,
   },
+  butasi_delivery_reminder: {
+    icon: '🌱',
+    color: '#3D7A5F',
+    toastDuration: 6000,
+    showToast: true,
+    playSound: false,
+    /** Memento livrare material săditor — trebuie să ajungă pe telefon. */
+    pushEnabled: true,
+  },
   system: {
     icon: 'ℹ️',
     color: '#3D4543',

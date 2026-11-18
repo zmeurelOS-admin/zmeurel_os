@@ -56,6 +56,8 @@ export function getNotificationHref(
       return '/settings/documente-legale'
     case 'weekly_sales_summary':
       return '/notificari'
+    case 'butasi_delivery_reminder':
+      return '/vanzari-butasi'
     case 'system':
     default:
       return '/dashboard'

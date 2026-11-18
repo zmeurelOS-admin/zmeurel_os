@@ -6,6 +6,7 @@ import {
   Camera,
   Check,
   ChevronLeft,
+  Contact,
   ChevronRight,
   MessageCircle,
   MoreHorizontal,
@@ -23,6 +24,7 @@ import { trackEvent } from '@/lib/analytics/trackEvent'
 import { captureReactError } from '@/lib/monitoring/report-error'
 import { queryKeys } from '@/lib/query-keys'
 import { createClienți, getClienți, type Client } from '@/lib/supabase/queries/clienti'
+import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
 import {
   SURSA_COMANDA_BUTASI_LABELS,
   SURSE_COMANDA_BUTASI,
@@ -79,6 +81,33 @@ const lei = (value: number) =>
 
 const normalize = (value: string) =>
   value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
+// ─── Agenda telefonului (Contact Picker API — Chrome pe Android) ───────────────
+
+type PickedContact = { name?: string[]; tel?: string[] }
+type ContactsManagerLike = {
+  select: (props: Array<'name' | 'tel'>, options?: { multiple?: boolean }) => Promise<PickedContact[]>
+}
+
+function getContactsManager(): ContactsManagerLike | null {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return null
+  const nav = navigator as Navigator & { contacts?: ContactsManagerLike }
+  if (!('ContactsManager' in window) || !nav.contacts || typeof nav.contacts.select !== 'function') return null
+  return nav.contacts
+}
+
+const phoneDigits = (value: string | null | undefined) => (value ?? '').replace(/\D/g, '').slice(-9)
+
+// ─── Soiuri din parcelele fermei ───────────────────────────────────────────────
+
+/** Ex.: soi „Maravilla”, sau soi_plantat „Zmeură - Maravilla” → „Maravilla”. */
+function soiFromParcela(parcela: Parcela): string | null {
+  const raw = (parcela.soi ?? '').trim() || (parcela.soi_plantat ?? '').trim()
+  if (!raw) return null
+  const parts = raw.split(/\s+[-–]\s+/)
+  const value = parts[parts.length - 1]?.trim()
+  return value || null
+}
 
 // ─── Tipuri ────────────────────────────────────────────────────────────────────
 
@@ -348,6 +377,8 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
 
   const { data: clienti = [] } = useQuery({ queryKey: queryKeys.clienti, queryFn: getClienți })
   const { data: vanzari = [] } = useQuery({ queryKey: queryKeys.vanzariButasi, queryFn: getVanzariButasi })
+  const { data: parcele = [] } = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele })
+  const [contactsManager] = useState(getContactsManager)
 
   // Clienți recenți (din comenzile anterioare), soiuri folosite și ultimul preț pe soi.
   const { recentClients, orderCountByClient, soiOptions, lastPriceBySoi } = useMemo(() => {
@@ -374,13 +405,25 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
       })
     })
 
+    // Soiurile vin din parcelele fermei (ce cultivi = ce vinzi ca butași). Doar dacă nu există
+    // niciun soi pe parcele, cădem pe soiurile folosite în comenzile anterioare.
+    const fromParcele: string[] = []
+    parcele.forEach((parcela) => {
+      if ((parcela.status ?? '').toLowerCase() === 'inactiv') return
+      const soi = soiFromParcela(parcela)
+      if (soi && !fromParcele.some((existing) => normalize(existing) === normalize(soi))) fromParcele.push(soi)
+    })
+    fromParcele.sort((a, b) => a.localeCompare(b, 'ro'))
+
     return {
       recentClients: recent.slice(0, 6),
       orderCountByClient: counts,
-      soiOptions: [...soiCount.values()].sort((a, b) => b.count - a.count).map((e) => e.label).slice(0, 10),
+      soiOptions: fromParcele.length
+        ? fromParcele
+        : [...soiCount.values()].sort((a, b) => b.count - a.count).map((e) => e.label).slice(0, 6),
       lastPriceBySoi: prices,
     }
-  }, [vanzari, clienti])
+  }, [vanzari, clienti, parcele])
 
   const steps = useMemo(
     () => ['sursa', 'client', 'soiuri', ...s.items.map((_, i) => `qty-${i}`), 'avans', 'livrare', 'recap'],
@@ -419,6 +462,32 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
     if (s.calendar) return patch({ calendar: null })
     if (s.fromRecap) return goTo('recap')
     if (s.idx > 0) patch({ idx: s.idx - 1 })
+  }
+
+  const pickFromAgenda = async () => {
+    if (!contactsManager) return
+    try {
+      const [contact] = await contactsManager.select(['name', 'tel'], { multiple: false })
+      if (!contact) return
+      const name = contact.name?.find((n) => n.trim())?.trim() ?? ''
+      const tel = contact.tel?.find((t) => t.trim())?.trim() ?? ''
+      const digits = phoneDigits(tel)
+      // Dacă omul e deja în lista de clienți (după telefon sau nume), îl folosim pe acela.
+      const existing =
+        (digits.length >= 6 ? clienti.find((c) => phoneDigits(c.telefon) === digits) : undefined) ??
+        (name ? clienti.find((c) => normalize(c.nume_client ?? '') === normalize(name)) : undefined)
+      if (existing) {
+        patch({ clientId: existing.id, clientName: existing.nume_client, phone: existing.telefon ?? tel })
+        next()
+        return
+      }
+      patch({ clientId: null, clientName: name || tel, phone: tel })
+    } catch (error) {
+      // Utilizatorul a închis agenda sau browserul a refuzat: nu e o eroare de afișat.
+      if (error instanceof Error && error.name !== 'AbortError' && error.name !== 'InvalidStateError') {
+        toast.error('Nu am putut deschide agenda telefonului.')
+      }
+    }
   }
 
   // ── Salvare ──
@@ -592,14 +661,26 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
         <label htmlFor="wiz_client" className="sr-only">
           Numele clientului
         </label>
-        <input
-          id="wiz_client"
-          className={bigInput}
-          placeholder="Scrie numele sau telefonul…"
-          autoComplete="off"
-          value={s.clientName}
-          onChange={(e) => patch({ clientName: e.target.value, clientId: null })}
-        />
+        <div className="flex gap-2.5">
+          <input
+            id="wiz_client"
+            className={cn(bigInput, 'min-w-0 flex-1')}
+            placeholder="Scrie numele sau telefonul…"
+            autoComplete="off"
+            value={s.clientName}
+            onChange={(e) => patch({ clientName: e.target.value, clientId: null })}
+          />
+          {contactsManager ? (
+            <button
+              type="button"
+              onClick={pickFromAgenda}
+              className="flex h-14 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl border-2 border-[var(--border-default)] bg-[var(--agri-surface)] px-3 text-[var(--agri-text)] active:bg-[var(--agri-surface-muted)]"
+            >
+              <Contact className="h-5 w-5" aria-hidden />
+              <span className="text-xs font-bold">Agendă</span>
+            </button>
+          ) : null}
+        </div>
 
         {isNew ? (
           <div className="space-y-2">
