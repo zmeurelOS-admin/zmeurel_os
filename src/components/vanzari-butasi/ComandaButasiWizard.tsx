@@ -970,23 +970,41 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
         <StepTitle eyebrow={s.items.length > 1 ? `Soiul ${i + 1} din ${s.items.length}` : undefined}>
           Câte <span className="text-[var(--agri-primary)]">{item.soi}</span>?
         </StepTitle>
-        <div className="flex flex-col items-center py-1">
-          <label htmlFor="wiz_qty" className="sr-only">
-            Bucăți
-          </label>
-          <input
-            id="wiz_qty"
-            type="number"
-            inputMode="numeric"
-            min={1}
-            value={item.qty}
-            onChange={(e) => setItem({ qty: e.target.value })}
-            className="h-20 w-full bg-transparent text-center text-[64px] font-extrabold tracking-[-0.03em] text-[var(--agri-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <span className="text-base font-medium text-[var(--text-secondary)]">bucăți</span>
+        <div className="flex items-center gap-2 py-1">
+          <button
+            type="button"
+            aria-label="Scade o bucată"
+            onClick={() => setItem({ qty: String(Math.max(1, Math.round(qty) - 1)) })}
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--agri-surface-muted)] text-[var(--agri-text)] active:opacity-80"
+          >
+            <ChevronLeft className="h-8 w-8" strokeWidth={2.6} aria-hidden />
+          </button>
+          <div className="flex min-w-0 flex-1 flex-col items-center">
+            <label htmlFor="wiz_qty" className="sr-only">
+              Bucăți
+            </label>
+            <input
+              id="wiz_qty"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={item.qty}
+              onChange={(e) => setItem({ qty: e.target.value })}
+              className="h-20 w-full bg-transparent text-center text-[64px] font-extrabold tracking-[-0.03em] text-[var(--agri-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-base font-medium text-[var(--text-secondary)]">bucăți</span>
+          </div>
+          <button
+            type="button"
+            aria-label="Adaugă o bucată"
+            onClick={() => setItem({ qty: String(Math.max(1, Math.round(qty) + 1)) })}
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--agri-primary)_14%,var(--agri-surface))] text-[var(--agri-text)] active:opacity-80"
+          >
+            <ChevronRight className="h-8 w-8" strokeWidth={2.6} aria-hidden />
+          </button>
         </div>
         <div className="grid grid-cols-4 gap-2.5">
-          {[-10, -1, 1, 10].map((d) => (
+          {[-10, -5, 5, 10].map((d) => (
             <button
               key={d}
               type="button"
