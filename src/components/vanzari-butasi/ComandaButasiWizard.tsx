@@ -379,7 +379,7 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
   const { data: vanzari = [] } = useQuery({ queryKey: queryKeys.vanzariButasi, queryFn: getVanzariButasi })
   const { data: parcele = [] } = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele })
   const [contactsManager] = useState(getContactsManager)
-  // Diagnostic temporar pentru agenda telefonului (se vede direct în formular).
+  // Mesaj pentru agenda telefonului, afișat direct în formular (toast-urile se pot pierde sub agendă).
   const [agendaStatus, setAgendaStatus] = useState<string | null>(null)
 
   // Clienți recenți (din comenzile anterioare), soiuri folosite și ultimul preț pe soi.
@@ -468,12 +468,15 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
 
   const pickFromAgenda = async () => {
     if (!contactsManager) return
-    setAgendaStatus('Agenda: s-a deschis, aștept contactul…')
+    setAgendaStatus(null)
     const isStandalone =
       typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches
     try {
-      const result = await contactsManager.select(['name', 'tel'], { multiple: false })
-      const contact = Array.isArray(result) ? result[0] : undefined
+      // `multiple: true`: pe unele telefoane, modul „un singur contact” întoarce o listă goală la Terminat.
+      const result = await contactsManager.select(['name', 'tel'], { multiple: true })
+      const contact = Array.isArray(result)
+        ? (result.find((c) => (c?.tel?.length ?? 0) > 0 || (c?.name?.length ?? 0) > 0) ?? result[0])
+        : undefined
       const firstText = (values: unknown): string => {
         if (!Array.isArray(values)) return typeof values === 'string' ? values.trim() : ''
         const found = values.find((v) => typeof v === 'string' && v.trim())
@@ -481,11 +484,7 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
       }
       const name = firstText(contact?.name)
       const tel = firstText(contact?.tel)
-      setAgendaStatus(
-        `Agenda a răspuns: ${Array.isArray(result) ? `${result.length} contact(e)` : `tip ${typeof result}`}` +
-          `, câmpuri: ${contact ? Object.keys(contact).join(', ') || 'niciunul' : '—'}` +
-          `, nume ${name ? 'da' : 'nu'}, telefon ${tel ? 'da' : 'nu'}`,
-      )
+      setAgendaStatus(null)
 
       if (!name && !tel) {
         // Diagnostic fără date personale: doar forma răspunsului primit de la telefon.
@@ -501,8 +500,11 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
             isStandalone,
           },
         })
-        if (Array.isArray(result) && result.length === 0) return // a închis agenda fără să aleagă
-        toast.error('Agenda n-a trimis numele sau numărul. Scrie-le de mână, te rog.')
+        setAgendaStatus(
+          Array.isArray(result) && result.length === 0
+            ? 'Niciun contact bifat. În agendă atinge contactul până apare bifa, apoi apasă Terminat.'
+            : 'Contactul ales n-are nume sau număr. Scrie-le de mână, te rog.',
+        )
         return
       }
 
@@ -520,14 +522,13 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
       toast.success('Contact preluat din agendă')
     } catch (error) {
       const errName = error instanceof Error ? error.name : typeof error
-      setAgendaStatus(`Agenda: eroare ${errName}${error instanceof Error && error.message ? ` — ${error.message}` : ''}`)
+      if (errName !== 'AbortError') setAgendaStatus(`Nu am putut prelua contactul din agendă (${errName}). Scrie-l de mână.`)
       captureReactError(error, {
         component: 'ComandaButasiWizard',
         tags: { action: 'contact_picker' },
         extra: { errName, isStandalone },
       })
       if (errName === 'AbortError') return // a închis agenda
-      toast.error(`Nu am putut prelua contactul din agendă (${errName}). Scrie-l de mână, te rog.`)
     }
   }
 
