@@ -25,6 +25,7 @@ import { captureReactError } from '@/lib/monitoring/report-error'
 import { queryKeys } from '@/lib/query-keys'
 import { createClienți, getClienți, type Client } from '@/lib/supabase/queries/clienti'
 import { getParcele, type Parcela } from '@/lib/supabase/queries/parcele'
+import type { SharedContact } from '@/lib/vanzari-butasi/shared-contact'
 import {
   SURSA_COMANDA_BUTASI_LABELS,
   SURSE_COMANDA_BUTASI,
@@ -136,6 +137,8 @@ interface WizardState {
   altName: string
   calendar: 'livrare' | 'data' | null
   done: boolean
+  /** Clientul a venit prin „Distribuie” din aplicația Contacte. */
+  fromShare: boolean
 }
 
 const initialState = (): WizardState => ({
@@ -155,6 +158,7 @@ const initialState = (): WizardState => ({
   altName: '',
   calendar: null,
   done: false,
+  fromShare: false,
 })
 
 const SURSA_ICONS: Record<SursaComandaButasi, LucideIcon> = {
@@ -354,9 +358,11 @@ function CalendarPanel({
 interface ComandaButasiWizardProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Contact primit prin „Distribuie” din aplicația Contacte; precompletează clientul. */
+  initialContact?: SharedContact | null
 }
 
-export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardProps) {
+export function ComandaButasiWizard({ open, onOpenChange, initialContact = null }: ComandaButasiWizardProps) {
   const queryClient = useQueryClient()
   const [s, setS] = useState<WizardState>(initialState)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -368,7 +374,18 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
-    if (open) setS(initialState())
+    if (open) {
+      setS(
+        initialContact && (initialContact.name || initialContact.phone)
+          ? {
+              ...initialState(),
+              clientName: initialContact.name || initialContact.phone,
+              phone: initialContact.phone,
+              fromShare: true,
+            }
+          : initialState(),
+      )
+    }
   }
 
   useEffect(() => {
@@ -502,7 +519,7 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
         })
         setAgendaStatus(
           Array.isArray(result) && result.length === 0
-            ? 'Niciun contact bifat. În agendă atinge contactul până apare bifa, apoi apasă Terminat.'
+            ? 'Agenda n-a trimis contactul. Varianta sigură: deschide Contacte → alege omul → Distribuie → Zmeurel OS.'
             : 'Contactul ales n-are nume sau număr. Scrie-le de mână, te rog.',
         )
         return
@@ -689,7 +706,10 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
     )
   } else if (stepKey === 'client') {
     const q = normalize(s.clientName)
-    const exact = clienti.find((c) => normalize(c.nume_client ?? '') === q)
+    const sharedDigits = phoneDigits(s.phone)
+    const exact =
+      clienti.find((c) => normalize(c.nume_client ?? '') === q) ??
+      (sharedDigits.length >= 6 ? clienti.find((c) => phoneDigits(c.telefon) === sharedDigits) : undefined)
     const matches = q
       ? clienti.filter((c) => normalize(c.nume_client ?? '').includes(q) || (c.telefon ?? '').replace(/\s/g, '').includes(q.replace(/\s/g, '')))
       : recentClients
@@ -700,6 +720,12 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
     content = (
       <div className="space-y-4">
         <StepTitle>Cine cumpără?</StepTitle>
+        {s.fromShare ? (
+          <p className="flex items-center gap-2 rounded-xl bg-[var(--soft-success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">
+            <Check className="h-4 w-4 shrink-0" strokeWidth={2.6} aria-hidden />
+            {exact ? `Preluat din Contacte — e deja clientul tău (${exact.nume_client})` : 'Preluat din Contacte'}
+          </p>
+        ) : null}
         <label htmlFor="wiz_client" className="sr-only">
           Numele clientului
         </label>

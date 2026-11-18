@@ -39,6 +39,7 @@ import {
 import { buildButasiOrderDeleteLabel } from '@/lib/ui/delete-labels'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
+import type { SharedContact } from '@/lib/vanzari-butasi/shared-contact'
 
 // Dialoguri mari deschise doar la interacțiune — code-split (ssr:false), ca în
 // modulele deja optimizate. Nu randează DOM când sunt închise.
@@ -249,6 +250,30 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
   const [sursaFilter, setSursaFilter] = useState<SursaFilter>('toate')
   const [sortKey, setSortKey] = useState<SortKey>('noi')
   const [sortOpen, setSortOpen] = useState(false)
+  const [sharedContact, setSharedContact] = useState<SharedContact | null>(null)
+
+  // „Distribuie” din Contacte → /api/share/contact → aici, cu contactul în fragmentul URL (#contact=…).
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.startsWith('#contact')) return
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+    if (!hash.startsWith('#contact=')) {
+      toast.error('Nu am putut citi contactul distribuit. Scrie-l de mână, te rog.')
+      return
+    }
+    try {
+      const data = JSON.parse(decodeURIComponent(hash.slice('#contact='.length))) as { n?: unknown; t?: unknown }
+      const contact = {
+        name: typeof data.n === 'string' ? data.n.slice(0, 120) : '',
+        phone: typeof data.t === 'string' ? data.t.slice(0, 40) : '',
+      }
+      if (!contact.name && !contact.phone) throw new Error('empty')
+      setSharedContact(contact)
+      setAddOpen(true)
+    } catch {
+      toast.error('Nu am putut citi contactul distribuit. Scrie-l de mână, te rog.')
+    }
+  }, [])
   const [addOpen, setAddOpen] = useState(false)
   const [editingVanzare, setEditingVanzare] = useState<VanzareButasi | null>(null)
   const [deletingVanzare, setDeletingVanzare] = useState<VanzareButasi | null>(null)
@@ -664,7 +689,14 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
         </div>
       ) : null}
 
-      <ComandaButasiWizard open={addOpen} onOpenChange={setAddOpen} />
+      <ComandaButasiWizard
+        open={addOpen}
+        onOpenChange={(next) => {
+          setAddOpen(next)
+          if (!next) setSharedContact(null)
+        }}
+        initialContact={sharedContact}
+      />
 
       <EditVanzareButasiDialog
         vanzare={editingVanzare}

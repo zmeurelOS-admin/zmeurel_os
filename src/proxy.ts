@@ -156,6 +156,7 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/auth/beta-guest' ||
     pathname === '/api/integrations/google/sync-now' ||
     pathname.startsWith('/api/cron/') ||
+    pathname === '/api/share/contact' ||
     isPublicAssetRoute
 
   // Never touch auth cookies on callback routes; PKCE exchange depends on code_verifier.

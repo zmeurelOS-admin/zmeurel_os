@@ -56,5 +56,21 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     background_color: '#f0fdf4',
     theme_color: '#166534',
     icons: osIcons,
+    // „Distribuie” din aplicația Contacte → Zmeurel OS deschide comanda nouă de material săditor.
+    share_target: {
+      action: '/api/share/contact',
+      method: 'POST',
+      enctype: 'multipart/form-data',
+      params: {
+        title: 'title',
+        text: 'text',
+        files: [
+          {
+            name: 'contact',
+            accept: ['text/vcard', 'text/x-vcard', 'text/directory', '.vcf'],
+          },
+        ],
+      },
+    },
   }
 }
