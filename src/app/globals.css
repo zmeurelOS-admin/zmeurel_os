@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "../styles/theme.css";
 
+/* `dark:` urmează tema aleasă în aplicație (clasa `.dark` pusă de next-themes), nu tema telefonului. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
@@ -632,12 +635,6 @@ html[data-density='compact'] [data-slot='table-cell'] {
 .dark .dashboard-premium-header > div.absolute.inset-0.lg\:hidden {
   background: color-mix(in srgb, var(--agri-surface) 92%, transparent) !important;
   border-bottom-color: color-mix(in srgb, var(--agri-border) 90%, transparent);
-}
-
-@media (prefers-color-scheme: dark) {
-  .dashboard-premium-scope {
-    text-rendering: optimizeLegibility;
-  }
 }
 
 /* Dashboard V2: o suprafață per secțiune (meteo, carduri V2, widget frame) */
