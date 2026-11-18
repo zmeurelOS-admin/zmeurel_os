@@ -23,7 +23,7 @@ Decizii deja luate (audit, secțiunea 6): tema coral dispare, dar **nu în acest
 
 ## Pași (fiecare = un commit)
 
-1. **Branch** — `git checkout -b redesign/fundatie origin/main`.
+1. **Branch** — există deja (din `main` + acest prompt): `git fetch && git checkout redesign/fundatie && git pull`.
 2. **Modul noapte pe clasa aplicației.**
    - În `src/app/globals.css` adaugi `@custom-variant dark (&:where(.dark, .dark *));`.
    - Analizezi blocul `@media (prefers-color-scheme: dark)` (~l. 637): dacă dublează `.dark`, îl elimini sau îl muți pe `.dark`, ca tema să urmeze doar alegerea din aplicație.
