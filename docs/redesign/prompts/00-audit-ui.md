@@ -1,6 +1,6 @@
 # Prompt 00 — Faza 0: Audit UI (DOAR CITIRE)
 
-Model: Fable 5.2 · Branch: `redesign/audit` · Rezultat: `docs/redesign/audit.md`
+Model: Fable 5.2 · Effort: high · Mod: plan · Branch: `redesign/audit` · Rezultat: `docs/redesign/audit.md`
 
 ## Protocol de lucru (obligatoriu)
 
