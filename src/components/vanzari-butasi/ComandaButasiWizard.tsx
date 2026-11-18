@@ -371,7 +371,8 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
   const patch = (next: Partial<WizardState>) => setS((prev) => ({ ...prev, ...next }))
 
   // La fiecare deschidere pornim de la zero (reset în timpul render-ului, fără effect).
-  const [prevOpen, setPrevOpen] = useState(open)
+  // Pornim de la „închis”, ca un formular montat direct deschis (ex. din „Distribuie”) să fie inițializat.
+  const [prevOpen, setPrevOpen] = useState(false)
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
