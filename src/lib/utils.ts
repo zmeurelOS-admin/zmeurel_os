@@ -8,6 +8,11 @@ import { extendTailwindMerge } from "tailwind-merge"
  */
 const twMerge = extendTailwindMerge({
   extend: {
+    theme: {
+      radius: ["control", "box", "card", "sheet"],
+      shadow: ["1", "2", "overlay"],
+      spacing: ["touch", "touch-lg"],
+    },
     classGroups: {
       z: [{ z: ["sticky", "bar", "nav", "fab", "overlay", "modal", "popover", "toast"] }],
     },

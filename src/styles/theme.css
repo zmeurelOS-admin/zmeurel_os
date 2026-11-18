@@ -1,3 +1,104 @@
+/*
+ * ============================================================================
+ * 1. SETUL CANONIC DE TOKENI (pe roluri) — singura sursă pentru zi și noapte.
+ *    Referință și reguli de folosire: docs/redesign/tokens.md
+ *    Clasele Tailwind (bg-surface, text-fg, shadow-1 …) sunt expuse în
+ *    `@theme inline` din src/app/globals.css.
+ * ============================================================================
+ */
+:root {
+  /* Suprafețe */
+  --page: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #ededeb;
+  --surface-raised: #ffffff;
+
+  /* Text */
+  --fg: #102015;
+  --fg-muted: #3d4a41;
+  --fg-subtle: #64748b;
+
+  /* Contur */
+  --border-subtle: rgba(16, 32, 21, 0.08);
+  --border: #d7e2d9;
+  --border-strong: #c8d4cb;
+
+  /* Principal */
+  --primary: #3d7a5f;
+  --primary-contrast: #ffffff;
+  --primary-soft: #e6f3ea;
+
+  /* Stări: culoare plină, fundal estompat, text pe fundalul estompat, contur */
+  --success: #15803d;
+  --success-bg: #ecfdf3;
+  --success-text: #15803d;
+  --success-border: #86efac;
+  --warning: #b45309;
+  --warning-bg: #fffbeb;
+  --warning-text: #b45309;
+  --warning-border: #fde68a;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-text: #b91c1c;
+  --danger-border: #fecaca;
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+  --info-text: #1d4ed8;
+  --info-border: #bfdbfe;
+  --neutral-bg: #f8fafc;
+  --neutral-text: #475569;
+  --neutral-border: #e2e8f0;
+
+  /* Umbre: 1 = card, 2 = element ridicat, overlay = foi și ferestre */
+  --elevation-1: 0 1px 3px rgba(16, 32, 21, 0.06);
+  --elevation-2: 0 6px 18px rgba(16, 32, 21, 0.1);
+  --elevation-overlay: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 26px rgba(120, 100, 70, 0.08);
+}
+
+.dark {
+  --page: #0b0e13;
+  --surface: #12161d;
+  --surface-muted: #171c23;
+  --surface-raised: #1d232c;
+
+  --fg: #f5f6f7;
+  --fg-muted: #949ba4;
+  --fg-subtle: #6c737d;
+
+  --border-subtle: rgba(148, 155, 164, 0.12);
+  --border: #20262f;
+  --border-strong: #2d343e;
+
+  --primary: #5ca882;
+  --primary-contrast: #08140e;
+  --primary-soft: #0f2218;
+
+  --success: #6fbe95;
+  --success-bg: #0f1d16;
+  --success-text: #6fbe95;
+  --success-border: #1d4a36;
+  --warning: #c9a154;
+  --warning-bg: #1d1812;
+  --warning-text: #c9a154;
+  --warning-border: #4a3a1f;
+  --danger: #e0796a;
+  --danger-bg: #1f1416;
+  --danger-text: #e0796a;
+  --danger-border: #4a2620;
+  --info: #6fa3e0;
+  --info-bg: #131a26;
+  --info-text: #6fa3e0;
+  --info-border: #24344a;
+  --neutral-bg: #171b22;
+  --neutral-text: #c5cad1;
+  --neutral-border: #2d343e;
+
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --elevation-2: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --elevation-overlay: 0 1px 3px rgba(0, 0, 0, 0.22), 0 10px 28px rgba(0, 0, 0, 0.3);
+}
+
+/* 2. Tokenii vechi (devin aliasuri spre setul canonic în pasul următor). */
 :root {
   /* Single source of truth pentru semantic tokens light/dark (consumat de toate componentele UI). */
   /* Semantic surfaces */

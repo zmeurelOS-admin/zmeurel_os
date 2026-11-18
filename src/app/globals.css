@@ -264,6 +264,47 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Setul canonic pe roluri (definit în src/styles/theme.css; referință: docs/redesign/tokens.md) */
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-primary-contrast: var(--primary-contrast);
+  --color-primary-soft: var(--primary-soft);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-text: var(--success-text);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-text: var(--warning-text);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-text: var(--danger-text);
+  --color-danger-border: var(--danger-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-text: var(--info-text);
+  --color-info-border: var(--info-border);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-text: var(--neutral-text);
+  --color-neutral-border: var(--neutral-border);
+
+  /* Umbre: shadow-1 (card), shadow-2 (ridicat), shadow-overlay (foi, ferestre) */
+  --shadow-1: var(--elevation-1);
+  --shadow-2: var(--elevation-2);
+  --shadow-overlay: var(--elevation-overlay);
+
+  /* Atingere: h-touch / min-h-touch / size-touch (48) și *-touch-lg (56); urmează densitatea și vizibilitatea ridicată */
+  --spacing-touch: var(--touch-control-h);
+  --spacing-touch-lg: var(--touch-control-h-lg);
 }
 
 /*
@@ -280,6 +321,12 @@
   --z-index-modal: 1010;
   --z-index-popover: 1020;
   --z-index-toast: 1030;
+
+  /* Raze noi: rounded-control (12), rounded-box (16), rounded-card (22), rounded-sheet (28). Cele vechi (sm/md/lg/xl) rămân. */
+  --radius-control: 12px;
+  --radius-box: 16px;
+  --radius-card: 22px;
+  --radius-sheet: 28px;
 }
 
 @media (min-width: 1024px) {
