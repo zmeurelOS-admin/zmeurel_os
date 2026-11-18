@@ -1,13 +1,14 @@
 # Redesign UI — progres
 
-Ultima actualizare: 18 noiembrie 2026, după Faza 0b.
+Ultima actualizare: 18 noiembrie 2026, după Faza 1a (fundația).
 
 | Fază | Stare |
 |---|---|
 | 0 — Audit UI | **gata**: `docs/redesign/audit.md` |
 | 0b — Audit analytics | **gata**: Anexa G, secțiunile 4 și 6 din `audit.md` |
 | — Ștergerea fișierelor nefolosite (Anexa E) | decisă; pas separat înainte de Faza 1 |
-| 1 — Kit de design | neîncepută |
+| 1a — Fundația: modul noapte, straturi, tokeni | **gata** pe branch `redesign/fundatie` (nemergeuit): `docs/redesign/tokens.md` |
+| 1b — Componentele kitului + `/admin/kit` | neîncepută (prompt 04) |
 | 2 — Mockupuri pe module | neîncepută |
 | 3 — Implementare modul cu modul | neîncepută |
 
@@ -101,3 +102,91 @@ Branch `redesign/cleanup` (din `redesign/audit`). Doar ștergeri de fișiere și
 Fișierele șterse nu erau randate nicăieri, deci nu ar trebui să se schimbe nimic. Verificare rapidă că paginile se încarcă fără eroare:
 
 `/dashboard`, `/parcele` și o parcelă (`/parcele/[id]`), `/activitati-agricole`, `/recoltari`, `/comenzi`, `/livrari`, `/vanzari`, `/vanzari-butasi`, `/clienti` (inclusiv importul de clienți), `/culegatori`, meniul „Mai mult” din bara de jos, `/admin` (superadmin), `/magazin/asociatie`.
+
+---
+
+# Fundația: modul noapte, straturi, tokeni (prompt 03, 18.11.2026)
+
+Branch `redesign/fundatie` (din `main`). Fără redesign: nicio componentă nouă, niciun modul refăcut. Nimic în baza de date. Nemergeuit în `main`.
+
+## Ce s-a făcut
+
+1. **Modul noapte pe clasa aplicației.** `@custom-variant dark` în `globals.css`: cele 160 de clase `dark:` urmează tema aleasă în aplicație, nu tema telefonului. Blocul `@media (prefers-color-scheme: dark)` (fără efect) a fost șters. `ThemeProvider` neschimbat. `tailwind.config.ts` nu e încărcat de nimic; a rămas neatins.
+2. **Scara de straturi.** `z-sticky` 20, `z-bar` 40, `z-nav` 50, `z-fab` 60, `z-overlay` 1000, `z-modal` 1010, `z-popover` 1020, `z-toast` 1030. Aplicată în `AppShell`, `CompactPageHeader`, `BottomTabBar`, `UnifiedMobileFab`, `ui/dialog`, `ui/sheet`, `ui/alert-dialog`, `ui/popover`, `ui/select`, `ui/app-select`, `ui/app-date-picker`, `ui/tooltip`, `Toaster`, fundalul comun al ferestrelor și speed dial-ul din Comenzi.
+3. **Stratul `z-10` din `AppShell` a fost scos.** Conținutul paginii nu mai are context propriu de stivuire; antetul stă pe `z-bar`.
+4. **Setul canonic de tokeni** (suprafețe, text, contur, principal, stări, umbre, raze, atingere), definit o dată în `theme.css` pentru zi și noapte, cu clase Tailwind (`bg-surface`, `text-fg`, `shadow-1`, `rounded-card`, `h-touch` …).
+5. **Aliasuri.** Toate numele vechi trimit spre setul canonic; `globals.css` a rămas doar cu variabilele de layout. Tokenii folosiți fără definiție au primit valoare: `--text-muted`, `--surface-muted`, `--border-subtle`, `--shadow-glow`, `--success-surface`.
+6. **`docs/redesign/tokens.md`** — referința; `CLAUDE.md` trimite la ea.
+
+## Abateri față de promptul 03 și de plan (toate aprobate sau semnalate)
+
+- `ui/dropdown-menu`, `TopBar` și butonul AI nu există în cod. `AiBottomSheet` a rămas neatins (80 / 81, între FAB și fundal).
+- `AppDialog` / `AppDrawer` nu au z-index propriu (moștenesc din `ui/dialog`); `app/StickyActionBar` nu are z-index; `parcele/StickyActionBar` nu e importat de nimeni. Neatinse.
+- `--shadow-sm` și `--shadow-md` nu erau nedefinite: le emite Tailwind. Neatinse.
+- `src/lib/utils.ts`: `tailwind-merge` a trebuit învățat clasele noi, altfel un `className="z-[60]"` venit din afară nu mai înlocuia valoarea implicită.
+- `--success-surface`: planul spunea că nu mai e folosit; avea o utilizare. Alias adăugat după confirmare.
+- Asociație (în afara revamp-ului), două atingeri punctuale: bara „Livrate x / y" a primit `bottom-[var(--app-nav-clearance)] md:bottom-0` (două clase în loc de una: fără a doua rămânea un gol sub ea între 768 și 1023 px); foaia de rol din Producători a pierdut `z-[1002]` (ar fi ajuns sub dialoguri).
+
+## Schimbări vizibile ziua (lista exactă)
+
+| # | Token (și aliasuri) | Înainte → După | Locuri | Unde se vede |
+|---|---|---|---|---|
+| 1 | `--text-secondary`, `--muted-foreground` | #526057 → #3d4a41 | 415 + 2 `var()`, 43 clase `text-muted-foreground` | textul secundar, puțin mai închis, în toată aplicația (mai puțin în paginile Comenzi / Livrări / Recoltări) |
+| 2 | `--danger-text`, `--status-danger-text` | #dc2626 → #b91c1c | 42 + 71 | texte și pastile de eroare / „neîncasat" / ștergere: roșu puțin mai închis |
+| 3 | `--info-text`, `--status-info-text` | #2563eb → #1d4ed8 | 23 + 14 | pastile și texte albastre de informare |
+| 4 | `--value-positive` | #16a34a → #15803d | 6 | cifre verzi (kg, sume pozitive) |
+| 5 | `--muted` | #eef3ee → #ededeb | 2 `var()` + 1 clasă `bg-muted` | butonul „anulează" din notificări (toast), zone gri din admin |
+| 6 | `--secondary` | #f4f7f4 → #ededeb | 2 clase `bg-secondary` | două fundaluri gri |
+| 7 | `--accent-foreground` | #12331f → #102015 | 1 clasă | text pe hover (`ui/button`) |
+| 8 | `--agri-shadow` | umbră caldă 0 6px 18px, 7 % → neutră 0 6px 18px, 10 % | 17 `.agri-card` + cardurile shadcn pe mobil (12 fișiere) | umbra cardurilor, foarte puțin mai accentuată |
+| 9 | `--text-muted` (era nedefinit) | moștenea culoarea părintelui → #3d4a41 | 16 | Asociație (texte „dezactivat", „fără acces"), ora „acum" din notificări |
+| 10 | `--surface-muted` (era nedefinit) | transparent → #ededeb | 2 | Recoltări: fâșia cu linie deasupra din `RecoltariPageClient.tsx:249` primește fundal gri deschis |
+| 11 | `--border-subtle` (era nedefinit) | culoarea textului → linie foarte fină | 2 | Asociație → Producători: linia despărțitoare din card (`AssociationProducatoriClient.tsx:373`) |
+| 12 | `--shadow-glow` (era nedefinit) | fără umbră → umbră de nivel 2 | 1 | butonul „×" al speed dial-ului din Comenzi |
+| 13 | `--success-surface` (era nedefinit) | transparent → #ecfdf3 | 1 | `/analytics-magazin`: pastila activă „7 / 30 / 90 zile" primește fundal verde deschis |
+
+Schimbări de comportament (nu de culoare), zi și noapte:
+- **Comenzi → „+"**: fundalul întunecat acoperă acum și bara de jos, iar butonul „×" stă peste FAB.
+- **Asociație → Livrări**: bara „Livrate x / y" se vede deasupra barei de jos (înainte era acoperită complet de ea pe telefon).
+- **Tooltip-urile** apar peste dialoguri (înainte rămâneau dedesubt).
+
+Fără efect vizibil (0 utilizări): `--bg-secondary`, `--agri-primary-muted`, `--agri-danger`, `--agri-elevated-shadow-hover`.
+
+În paginile Comenzi / Livrări / Recoltări, tema coral își suprascrie singură tokenii de la punctele 1–4, deci acolo se schimbă doar punctele 10 și 12 și ferestrele deschise peste pagină (dialogul de confirmare a livrării etc., care oricum ieșeau din tema coral).
+
+## Schimbări vizibile noaptea (intenționate)
+
+Noaptea erau două palete amestecate (neutru-cărbune din `theme.css` și slate-albastru din `globals.css`). A rămas una, cea neutră. 63 de tokeni și-au schimbat valoarea; tabelul e în `tokens.md`. Ce se vede: cardurile `--agri-surface` (#1a2538 → #12161d), verdele principal (#4ade80 → #5ca882), pastilele active (verde mediu cu text închis), butoanele estompate, notificările și listele derulante (slate → neutru), stările colorate (nuanțe mai stinse), contururile `--agri-border` puțin mai vizibile.
+
+## Verificare
+
+- `lint`: 3 erori, 14 avertismente — aceleași dinainte, în fișiere neatinse. Rulat după fiecare commit de cod.
+- `typecheck`: trece (după fiecare commit).
+- `build`: trece. În CSS-ul de producție: `dark:` compilat pe `:where(.dark, .dark *)` (74 de reguli), zero `prefers-color-scheme: dark`, clasele `z-*` prezente, nicio definiție veche rămasă.
+- `test:critical:unit`: 135 / 137 la rularea completă; cele 2 picate sunt aceleași timeout-uri de 5 s din `integrations/google` (callback + connect) ca la promptul 02. Rerulate separat: 19 / 19.
+- Tokeni fără definiție (comanda din `tokens.md`): rămâne doar `--assoc-ink`, folosit cu valoare de rezervă.
+- Valoarea fiecărui token (380, zi și noapte) a fost comparată în browser înainte și după aliasuri: niciun token dispărut; diferențele sunt exact cele din tabelele de mai sus.
+- Local, 375 px, doar navigare: `/login` cu aplicația pe „Luminos" și sistemul pe întunecat rămâne luminos (bug-ul inițial), și invers; `/comanda` cu foaia de comandă deschisă (fără plasarea comenzii) și `/magazin/asociatie` arată la fel pe ambele teme.
+- **Neverificat local:** paginile din dashboard (speed dial-ul, dialogurile peste bara de jos, Comenzi / Livrări / Recoltări, bara din Asociație). Browserul de test nu era autentificat și nu s-a creat niciun cont sau demo. Rămân de văzut pe preview.
+
+## De verificat pe telefon (preview)
+
+| # | Unde | Ce verificați |
+|---|---|---|
+| 1 | Telefon pe temă **întunecată**, aplicația pe **„Luminos"** (Setări) → `/dashboard`, `/parcele`, `/login`, `/start` | Totul e luminos; nicio zonă închisă la culoare. (Bug-ul inițial.) |
+| 2 | Telefon pe temă luminoasă, aplicația pe **„Întunecat"** → `/dashboard`, `/parcele`, `/clienti`, `/cheltuieli` | Totul e închis; niciun panou alb cu text deschis. Verdele e mai stins decât înainte. |
+| 3 | Setări → comutare Luminos / Întunecat / Sistem | Se schimbă pe loc, fără reîncărcare, inclusiv bara de jos. |
+| 4 | Orice formular vechi (ex. `/cheltuieli` → „+") și o foaie (ex. `/vanzari-butasi` → sortare) | Fereastra și foaia stau peste bara de jos; fundalul întunecat o acoperă. |
+| 5 | Același dialog | FAB-ul dispare cât e deschis dialogul și revine la închidere. |
+| 6 | Android, o foaie sau un dialog deschis → butonul „înapoi" | Se închide fereastra, nu se schimbă pagina. |
+| 7 | `/comenzi` → „+" | Fundalul acoperă bara de jos; „×" e vizibil și închide; „Comandă nouă" și „Din mesaj" deschid formularele. |
+| 8 | `/comenzi`, `/livrari`, `/recoltari`, ziua | Arată ca înainte. Excepții așteptate: fâșia gri de sub sumarul din Recoltări și umbra de pe „×". |
+| 9 | `/comenzi`, `/livrari`, `/recoltari`, noaptea | Rămân luminoase (tema coral nu are variantă de noapte; dispare la refacerea modulelor). Dialogul de confirmare a livrării e închis la culoare, ca înainte. |
+| 10 | Într-un dialog cu selector sau calendar (ex. `/recoltari` → adăugare → parcelă, dată) | Lista și calendarul se deschid peste dialog. |
+| 11 | O acțiune care dă notificare (ex. salvarea unei setări) cu un dialog deschis | Notificarea apare peste dialog. |
+| 12 | `/comanda` (magazinul public), zi și noapte | Pagina, coșul și foaia de comandă arată ca înainte. **Nu plasați comanda.** |
+| 13 | `/magazin/asociatie`, zi și noapte | Pagina, coșul și checkout-ul arată ca înainte. **Nu plasați comanda.** |
+| 14 | Cont de asociație → `/asociatie/livrari` | Bara „Livrate x / y" se vede deasupra barei de jos și nu acoperă ultimul card. |
+| 15 | `/analytics-magazin` | Pastila activă „7 / 30 / 90 zile" are fundal verde deschis. |
+| 16 | Setări → „vizibilitate ridicată" și densitate compactă | Se comportă ca înainte. |
+| 17 | Desktop, orice pagină cu antet (ex. `/parcele`) | Meniul de profil și clopoțelul se deschid peste conținut; tabelele cu antet lipicios nu trec peste antet. |
