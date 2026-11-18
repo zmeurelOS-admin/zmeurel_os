@@ -1,6 +1,7 @@
 # Audit UI — Faza 0 (doar citire)
 
 Branch `redesign/audit`, HEAD `1e3ca48`, 18 noiembrie 2026. Niciun fișier din `src/` nu a fost modificat.
+Completat în Faza 0b (18 noiembrie 2026): interogările de analytics au rulat pe producție (Anexa G), iar ordinea modulelor ține cont de ele și de deciziile din secțiunea 6.
 Cifrele vin din comenzi rulate pe acest HEAD (Anexa F). Exemplele `cale:linie` au fost deschise și confirmate.
 Zone folosite la defalcare: **dashboard** = `src/app/(dashboard)` + componentele modulelor; **admin**; **comun** = `components/ui|app|layout|mobile`; **public** = magazin, comandă, livrator, landing, auth, onboarding; **css**; **lib**.
 
@@ -27,20 +28,23 @@ Alte constatări scurte: chat-ul AI nu poate fi deschis din interfață (nimeni 
 
 ### Ordinea propusă pentru module
 
+Actualizată după analytics și deciziile din 18.11.2026 (secțiunea 6). Toate pasele: doar varianta de telefon; desktopul actual nu are voie să se strice.
+
 | Pas | Module | De ce aici |
 |---|---|---|
-| 0 | **Fundația** (în Faza 1, fără schimbări vizibile în module) | Problemele 1, 2, 4 și 5 se repară o singură dată, global. |
-| 1 | **Recoltări** (pilot) | Un singur formular de 7 câmpuri, cel mai bine acoperit de teste, în bara de jos. Împarte tema coral cu Comenzi, deci validează migrarea ei pe un modul mic. |
-| 2 | **Comenzi + Livrări** | Împart `UnifiedOrderCard` și `EditOrderSheet`; nu pot fi refăcute separat. Cel mai mare câștig, cel mai mare risc. |
-| 3 | **Clienți + Culegători** | Liste gemene, formulare mici. Formularul de client se deschide și din Comenzi. |
-| 4 | **Asociație** (spațiul `/asociatie/*`) | Lipsește din ipoteza de pornire, dar e ce folosește Gustă din Bucovina: 8 ecrane, 5.943 de linii. |
-| 5 | **Dashboard** | Doar citire, fără formulare; profită de carduri și cifre după ce există kit-ul. |
-| 6 | **Cheltuieli + Investiții + Vânzări** | Cheltuieli și Investiții sunt aproape identice ca structură. Vânzări e doar registru. |
-| 7 | **Parcele + Activități** | Cel mai mare fișier din aplicație (3.291 linii); se face când kit-ul e rodat. |
-| 8 | **Stocuri + Produse + Magazin** | Magazinul public are brand propriu și tokeni separați. |
-| 9 | **Rapoarte + Setări + Admin** | Folosire rară, în mare parte desktop. |
+| — | **Ștergerea fișierelor nefolosite** (Anexa E), pas separat înainte de Faza 1 | Decis; cu build de control. |
+| 0 | **Fundația** (în Faza 1, fără schimbări vizibile în module) | Problemele 1, 2, 4 și 5 se repară o singură dată, global; un singur set de tokeni, fără tema coral. |
+| 1 | **Recoltări** (pilot) | Un singur formular de 7 câmpuri, cel mai bine acoperit de teste, în bara de jos. A 4-a ca folosire, cu folosire constantă. Ieșirea din tema coral se probează pe ~3.000 de linii, nu pe ~7.400. |
+| 2 | **Comenzi + Livrări** | Cele mai folosite, clar (57 % din vizualizări). Împart `UnifiedOrderCard` și `EditOrderSheet`; nu pot fi refăcute separat. Cel mai mare câștig, cel mai mare risc. |
+| 3 | **Dashboard** | Al 3-lea ca folosire și singurul deschis de toți tenanții reali. Doar citire, fără formulare. |
+| 4 | **Clienți + Culegători** | Liste gemene, formulare mici. Pagini rar deschise; formularul de client se deschide și din Comenzi. |
+| 5 | **Cheltuieli + Investiții + Vânzări** | Cheltuieli și Investiții sunt aproape identice ca structură. Vânzări e doar registru. Nicio vizualizare în 90 de zile. |
+| 6 | **Parcele + Activități** | Cel mai mare fișier din aplicație (3.291 linii); se face când kit-ul e rodat. Folosire rară. |
+| 7 | **Stocuri + Produse + Magazin** | Magazinul public are brand propriu și tokeni separați. |
+| 8 | **Rapoarte + Setări + Admin** | Folosire rară, în mare parte desktop. |
+| mai târziu | **Asociație** (`/asociatie/*`), **desktopul**, **chat-ul AI** | În afara revamp-ului acum (decizii 18.11.2026). |
 
-Față de ipoteza de pornire: Recoltări trece înaintea perechii Comenzi + Livrări (ca pilot), apar Asociație, Culegători și Investiții, iar pasul 0 e separat. Detalii în secțiunea 4.
+Față de ipoteza de pornire: Recoltări rămâne pilot înaintea perechii Comenzi + Livrări, Dashboard urcă pe 3, Asociație iese din ordine, iar pasul 0 e separat. Detalii în secțiunea 4.
 
 ---
 
@@ -327,11 +331,28 @@ De curățat înainte de extragere: cele 3 fișiere nefolosite din `components/v
 
 ## 4. Ordinea modulelor — argumente
 
-Criterii: cât de des e folosit (din cod: poziția în meniu și acțiunile rapide), cât de mare e, cât de riscant.
+Criterii: cât de des e folosit (din cod și, din Faza 0b, din analytics), cât de mare e, cât de riscant.
 
-**Frecvență.** Bara de jos are, în ordine: Acasă, Livrări, Recoltări, Comenzi (`BottomTabBar.tsx:16-21`). Antetul de desktop are scurtături spre Comenzi, Livrări, Recoltări, Clienți. Restul stau în „Mai mult”.
+**Frecvență din cod.** Bara de jos are, în ordine: Acasă, Livrări, Recoltări, Comenzi (`BottomTabBar.tsx:16-21`). Antetul de desktop are scurtături spre Comenzi, Livrări, Recoltări, Clienți. Restul stau în „Mai mult”.
 
-Din analytics nu am putut lua cifre: interogarea aprobată nu a rulat, fiindcă conectorul Supabase din sesiune nu are drept pe proiectul Zmeurel (Anexa G are interogarea exactă). Mai mult, ar fi fost incompletă: `view_module` e emis doar de 6 pagini (activități, cheltuieli, parcele, produse, recoltări, vânzări) — Comenzi, Livrări, Clienți și Dashboard nu îl trimit deloc. Există în schimb `page_view` cu calea paginii (`app/PageViewTracker.tsx:23`), care le acoperă pe toate.
+**Frecvență reală (analytics, 20.08–18.11.2026).** Din `page_view` (Anexa G, interogarea B): **404 evenimente** în 90 de zile, de la **5 tenanți reali** (402) și 1 demo (2). Colectarea `page_view` există din 15.03.2026, deci fereastra de 90 de zile e acoperită integral. Volumul e mic și concentrat: un singur tenant are 360 din 402 vizualizări. Cifrele arată o **tendință**, nu o măsurătoare.
+
+| Modul | Vizualizări (tenanți reali) | Zile active (însumate pe tenanți) | Tenanți care l-au deschis (din 5) |
+|---|---:|---:|---:|
+| Comenzi | 137 | 35 | 3 |
+| Livrări | 93 | 23 | 3 |
+| Dashboard | 68 | 31 | 5 |
+| Recoltări | 54 | 18 | 3 |
+| Material săditor (referința) | 38 | 2 | 1 |
+| Parcele | 3 | 2 | 2 |
+| Rapoarte | 3 | 2 | 2 |
+| Activități | 2 | 2 | 2 |
+| Clienți, Culegători, Notificări, Admin | câte 1 | câte 1 | câte 1 |
+| Cheltuieli, Investiții, Vânzări, Stocuri, Produse, Setări, Asociație, Clienți magazin, Analytics magazin | 0 | 0 | 0 |
+
+Ce se vede clar, chiar la volum mic: Comenzi + Livrări fac 57 % din vizualizări și au cea mai constantă folosire (tenantul principal le-a deschis în 32, respectiv 20 de zile distincte); Dashboard e singurul deschis de toți; Recoltări e folosit constant (15 zile la tenantul principal); restul modulelor sunt aproape nedeschise. Material săditor are un vârf de 38 de vizualizări în 2 zile, nu folosire constantă. `view_module` (interogarea A) confirmă ce se suprapune: Recoltări 51, Parcele 3, Activități 2.
+
+Limite: `page_view` se trimite doar din zona de dashboard, cu utilizator autentificat și tenant — rutele publice nu apar deloc, ceea ce nu înseamnă că nu sunt folosite. Formularele deschise dintr-un alt modul (de ex. clientul din Comenzi) nu apar ca vizualizări ale modulului lor.
 
 | Modul | Linii (rută + componente) | Formulare | Teste care îl ating | Note de risc |
 |---|---|---|---|---|
@@ -353,7 +374,11 @@ Din analytics nu am putut lua cifre: interogarea aprobată nu a rulat, fiindcă 
 | Setări | 2.546 + 685 | 7 dialoguri + 2 pagini | e2e ×3 | ștergere cont, resetare fermă |
 | Admin | 329 + 1.700 | 0 | e2e ×3 | doar superadmin; pe setul shadcn |
 
-**De ce Recoltări înaintea perechii Comenzi + Livrări.** Ipoteza voastră le pune pe cele două primele, ca fiind cele mai folosite, și e corectă ca prioritate de produs. Propun totuși Recoltări ca pilot fiindcă: are un singur formular, care se potrivește natural pe pași (parcelă → culegător → kilograme → verificare); e singurul modul operațional cu acoperire e2e reală, deci o regresie se vede; și folosește aceeași temă coral, așa că decizia despre ea se testează pe 3.000 de linii, nu pe 7.400. Dacă preferați impactul imediat, ordinea 1 ↔ 2 se poate inversa fără alte consecințe.
+**Ordinea revizuită** (detaliată în Rezumat): fundația → Recoltări (pilot) → Comenzi + Livrări → Dashboard → Clienți + Culegători → Cheltuieli + Investiții + Vânzări → Parcele + Activități → Stocuri + Produse + Magazin → Rapoarte + Setări + Admin. Asociația, desktopul și chat-ul AI sunt „mai târziu” (decizii din secțiunea 6).
+
+**Recoltări rămâne pilot.** Datele confirmă ipoteza voastră: Comenzi + Livrări sunt cele mai folosite, cu diferență clară. Dar argumentul pentru pilot nu era frecvența, ci riscul, iar el nu se schimbă: Recoltări are un singur formular, care se potrivește natural pe pași (parcelă → culegător → kilograme → verificare); e singurul modul operațional cu acoperire e2e reală, deci o regresie se vede; și e folosit constant, deci un pilot pe el chiar e văzut în teren. Cu decizia ca tema coral să dispară, Recoltări probează ieșirea din ea pe ~3.000 de linii înainte de cele ~7.400 din Comenzi + Livrări. Datele întăresc doar o condiție: Comenzi + Livrări vin imediat după pilot, fără alt modul la mijloc. Dacă preferați impactul imediat, ordinea 1 ↔ 2 se poate inversa fără alte consecințe.
+
+**De ce Dashboard urcă pe 3.** E al treilea ca vizualizări și singurul deschis de toți tenanții reali, pe când Clienți și Culegători au câte o singură vizualizare în 90 de zile. Diferența e clară, iar Dashboard nu are formulare, deci e ieftin odată ce kit-ul există. Asociația a ieșit din ordine prin decizie, nu din date (oricum nu apare în `page_view` pe perioada analizată).
 
 **De ce Comenzi + Livrări împreună.** Livrări nu are componente proprii: importă `UnifiedOrderCard`, `PaymentStatusToggle` și `EditOrderSheet` din Comenzi. Refăcute separat, una dintre ele ar rămâne o vreme pe jumătate veche.
 
@@ -388,8 +413,17 @@ Din analytics nu am putut lua cifre: interogarea aprobată nu a rulat, fiindcă 
 2. **Asociație** (`/asociatie/*`): intră în revamp? Dacă da, propun pasul 4.
 3. **Chat-ul AI** nu are buton de deschidere în interfață. E scos intenționat sau e o scăpare?
 4. **Desktop**: păstrăm spațiul de lucru cu panou lateral în modulele care îl au, sau desktopul devine varianta de telefon centrată (cum e acum wizardul din Material săditor, 480 px)?
-5. **Analytics**: vreți să rulați voi interogarea din Anexa G sau să reautorizați conectorul? Recomand și o variantă pe `page_view`, fiindcă `view_module` acoperă doar 6 module.
+5. ~~**Analytics**: vreți să rulați voi interogarea din Anexa G sau să reautorizați conectorul?~~ **Rezolvată**: conectorul a fost reautorizat; ambele interogări (`view_module` și `page_view`) au rulat pe 18.11.2026 — Anexa G.
 6. **Codul nefolosit** (36 de fișiere): îl ștergem într-un commit separat înainte de Faza 1?
+
+### Decizii (18.11.2026)
+
+- **Tema coral** (Comenzi / Livrări / Recoltări) dispare; un singur set de tokeni pentru toată aplicația. (întrebarea 1)
+- **Asociația** (`/asociatie/*`) nu intră în revamp acum; scoasă din ordine, trecută la „mai târziu”. (întrebarea 2)
+- **Chat-ul AI** rămâne în cod, neatins și fără buton; în afara revamp-ului. (întrebarea 3)
+- **Desktopul** nu intră în revamp acum; vine separat, mai târziu. Regulă: modulele refăcute nu au voie să strice desktopul actual. (întrebarea 4)
+- **Fișierele nefolosite** (Anexa E) se șterg într-un pas separat, înainte de Faza 1. (întrebarea 6)
+- **Analytics**: rezolvată. (întrebarea 5)
 
 ---
 
@@ -548,9 +582,13 @@ git grep -oP '<TIPAR>' -- $P | cut -d: -f1 | sort -u | wc -l       # fișiere
 
 Limite cunoscute: (15) nu poate separa butoanele de iconițe; (17) e pe nume de fișier, nu pe un build; (6) include hex din șabloane de e-mail, SVG și configurări, nu doar din interfață.
 
-## Anexa G — Interogarea de analytics (nerulată)
+## Anexa G — Interogările de analytics (rulate)
 
-Nu a rulat: conectorul Supabase disponibil în sesiune a răspuns „You do not have permission to perform this action” pentru proiectul Zmeurel. Nu s-a citit și nu s-a scris nimic în baza de date.
+Rulate pe **18.11.2026**, pe proiectul de producție `ilybohhdeplwcrbpblqw`, prin conectorul Supabase (`execute_sql`). Doar `SELECT` pe `public.analytics_events`; nicio altă tabelă, nimic scris. În repo intră doar agregate anonimizate.
+
+**Volum și perioadă.** 404 evenimente `page_view` în ultimele 90 de zile (20.08–18.11.2026); primul `page_view` din toată tabela e din 15.03.2026, deci fereastra e acoperită integral. 5 tenanți reali (402 vizualizări) și 1 tenant demo (2). Un singur tenant real are 360 de vizualizări. Cifrele se citesc ca tendință, nu ca măsurătoare.
+
+### Interogarea A — `view_module`
 
 ```sql
 with v as (
@@ -578,7 +616,87 @@ left join demo d using (tenant_id)
 order by t.total desc, v.tenant_id, v.views desc;
 ```
 
+Rezultat (4 tenanți, toți reali; niciun tenant demo nu are `view_module`):
+
+| Tenant | Recoltări | Parcele | Activități | Total |
+|---|---:|---:|---:|---:|
+| T1 | 45 | — | — | 45 |
+| T2 | 3 | 2 | 1 | 6 |
+| T3 | 3 | — | 1 | 4 |
+| T4 | — | 1 | — | 1 |
+| **Total** | **51** | **3** | **2** | **56** |
+
+Cheltuieli, Produse și Vânzări (care emit `view_module`) nu au niciun eveniment în 90 de zile.
+
+### Interogarea B — `page_view` pe rută normalizată
+
+```sql
+with pv as (
+  select tenant_id,
+         created_at,
+         regexp_replace(
+           regexp_replace(
+             regexp_replace(
+               split_part(split_part(event_data->>'page', '?', 1), '#', 1),
+               '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=/|$)', '/[id]', 'gi'),
+             '/[0-9]+(?=/|$)', '/[id]', 'g'),
+           '(.)/+$', '\1') as route
+  from public.analytics_events
+  where event_name = 'page_view'
+    and created_at >= now() - interval '90 days'
+    and event_data->>'page' is not null
+),
+r as (
+  select tenant_id, route,
+         count(*)::int as views,
+         count(distinct (created_at at time zone 'Europe/Bucharest')::date)::int as active_days
+  from pv
+  group by tenant_id, route
+),
+t as (select tenant_id, sum(views)::int as total from r group by tenant_id),
+demo as (
+  select distinct tenant_id from public.analytics_events where event_name = 'demo_started'
+)
+select 'T' || dense_rank() over (order by t.total desc, r.tenant_id) as tenant,
+       (d.tenant_id is not null) as has_demo_event,
+       r.route,
+       r.views,
+       r.active_days,
+       (select min(created_at)::date from public.analytics_events where event_name = 'page_view') as first_page_view_date
+from r
+join t using (tenant_id)
+left join demo d using (tenant_id)
+order by t.total desc, r.tenant_id, r.views desc;
+```
+
+Normalizare: se scot query string-ul și fragmentul, segmentele uuid și numerice devin `[id]`, se scoate `/` final. Ziua activă se socotește în `Europe/Bucharest`. Pe perioada analizată nu a apărut nicio rută cu `[id]` și nicio rută nemapată.
+
+**Tenanți reali — vizualizări / zile active, pe module**
+
+| Modul (rută) | T1 | T2 | T3 | T4 | T6 | Total vizualizări | Zile active (însumate) |
+|---|---|---|---|---|---|---:|---:|
+| Comenzi (`/comenzi`) | 131 / 32 | 4 / 1 | 2 / 2 | — | — | 137 | 35 |
+| Livrări (`/livrari`) | 88 / 20 | 2 / 1 | 3 / 2 | — | — | 93 | 23 |
+| Dashboard (`/dashboard`) | 52 / 24 | 10 / 2 | 4 / 3 | 1 / 1 | 1 / 1 | 68 | 31 |
+| Recoltări (`/recoltari`) | 47 / 15 | 4 / 1 | 3 / 2 | — | — | 54 | 18 |
+| Material săditor (`/vanzari-butasi`) | 38 / 2 | — | — | — | — | 38 | 2 |
+| Parcele (`/parcele`) | — | 2 / 1 | — | 1 / 1 | — | 3 | 2 |
+| Rapoarte (`/rapoarte`) | 1 / 1 | 2 / 1 | — | — | — | 3 | 2 |
+| Activități (`/activitati-agricole`) | — | 1 / 1 | 1 / 1 | — | — | 2 | 2 |
+| Clienți (`/clienti`) | 1 / 1 | — | — | — | — | 1 | 1 |
+| Culegători (`/culegatori`) | — | 1 / 1 | — | — | — | 1 | 1 |
+| Notificări (`/notificari`) | 1 / 1 | — | — | — | — | 1 | 1 |
+| Admin (`/admin/analytics`) | 1 / 1 | — | — | — | — | 1 | 1 |
+| **Total** | **360** | **26** | **13** | **2** | **1** | **402** | |
+
+Fără nicio vizualizare: Cheltuieli, Investiții, Vânzări, Stocuri, Produse, Setări, Asociație, Clienți magazin, Analytics magazin, Planuri.
+
+**Tenanți demo** (`has_demo_event` adevărat): un tenant (T5), 2 vizualizări pe `/dashboard`, într-o zi.
+
+**Rute publice** (magazin, comandă, livrator, landing, auth, start): niciuna. `PageViewTracker` e montat doar prin `<Providers>` din `(dashboard)/layout.tsx`, iar `track()` cere utilizator cu tenant, deci zona publică nu e măsurată de `page_view`.
+
 Note:
-- Atinge doar `analytics_events`. Nu întoarce `user_id`, e-mail, `event_data` sau identificatori de tenant (îi înlocuiește cu T1, T2 … după volum).
-- Tenanții demo sunt marcați, nu excluși: coloana `has_demo_event` e adevărată dacă tenantul are vreun eveniment `demo_started` (`(onboarding)/start/page.tsx:288`). E singurul indiciu disponibil fără alte tabele.
-- `view_module` e emis doar din 6 pagini (activități, cheltuieli, parcele, produse, recoltări, vânzări), deci rezultatul nu poate compara Comenzi sau Livrări cu restul. Pentru asta ar trebui `event_name = 'page_view'`, grupat după calea din `event_data->>'page'` — în afara a ce ați aprobat, deci nu am pregătit-o ca interogare de rulat.
+- Ambele interogări ating doar `analytics_events`. Nu întorc `user_id`, e-mail, alte câmpuri din `event_data` sau identificatori reali de tenant.
+- Etichetele T sunt calculate separat în fiecare interogare, după volumul propriu: T1 din A nu e neapărat T1 din B.
+- Tenanții demo sunt marcați, nu excluși: `has_demo_event` e adevărat dacă tenantul are vreun `demo_started` (`(onboarding)/start/page.tsx:288`). Numărul mic de tenanți demo poate veni și din curățarea zilnică a tenanților demo (nu am verificat dacă evenimentele lor se șterg odată cu ei).
+- `view_module` e emis doar din 6 pagini (activități, cheltuieli, parcele, produse, recoltări, vânzări); de aceea comparația între module se face pe `page_view`. Pe zona comună, cele două surse se potrivesc (de ex. Recoltări: 51 `view_module`, 54 `page_view`).

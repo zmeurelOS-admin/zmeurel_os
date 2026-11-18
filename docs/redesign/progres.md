@@ -1,11 +1,13 @@
 # Redesign UI — progres
 
-Ultima actualizare: 18 noiembrie 2026, după Faza 0.
+Ultima actualizare: 18 noiembrie 2026, după Faza 0b.
 
 | Fază | Stare |
 |---|---|
 | 0 — Audit UI | **gata**: `docs/redesign/audit.md` |
-| 1 — Kit de design | neîncepută; așteaptă răspunsurile de mai jos |
+| 0b — Audit analytics | **gata**: Anexa G, secțiunile 4 și 6 din `audit.md` |
+| — Ștergerea fișierelor nefolosite (Anexa E) | decisă; pas separat înainte de Faza 1 |
+| 1 — Kit de design | neîncepută |
 | 2 — Mockupuri pe module | neîncepută |
 | 3 — Implementare modul cu modul | neîncepută |
 
@@ -19,22 +21,32 @@ Ultima actualizare: 18 noiembrie 2026, după Faza 0.
 
 Cod neatins: singurele fișiere create sunt `docs/redesign/audit.md` și acest fișier. Nu s-a scris nimic în baza de date.
 
+## Ce s-a făcut în Faza 0b
+
+- Au rulat pe producție (18.11.2026) două `SELECT` pe `analytics_events`: `view_module` (Anexa G, A) și `page_view` pe rută normalizată (B). În repo sunt doar agregate anonimizate.
+- Volum mic: 404 `page_view` în 90 de zile, 5 tenanți reali, unul cu 360 de vizualizări. Tratate ca tendință.
+- Top module (tenanți reali): Comenzi 137, Livrări 93, Dashboard 68 (singurul deschis de toți), Recoltări 54; restul sub 5, multe la zero.
+- Ordinea revizuită: Recoltări rămâne pilot, Comenzi + Livrări imediat după, Dashboard urcă pe 3; Asociația iese din ordine („mai târziu”).
+- Deciziile din 18.11.2026 trecute în secțiunea 6 din audit.
+
+Cod neatins: s-au modificat doar `docs/redesign/audit.md` și acest fișier. Nimic scris în baza de date.
+
 ## Ce a rămas
 
-- **Analytics.** Interogarea aprobată nu a rulat: conectorul Supabase din sesiune nu are acces la proiectul Zmeurel. Interogarea e în Anexa G. De știut: `view_module` e emis doar din 6 pagini, deci nu poate compara Comenzi sau Livrări cu restul.
+- **Analytics.** Rezolvat. Zona publică nu e măsurată de `page_view` (trackerul e doar în dashboard).
 - **Atribuirea țintelor mici pe ecrane.** Numărătoarea automată nu separă butoanele de iconițe; lista exactă pe ecran se face la mockupuri.
 - **Teste.** Nu am rulat `lint`, `typecheck` și nici testele e2e. Unele e2e caută text fără diacritice și s-ar putea să pice deja.
 - **Fișierele nereferite** (36) sunt candidați stabiliți după nume; înainte de ștergere trebuie un build de control.
 - **Zona publică** (magazin, comandă, livrator, landing) apare doar în cifrele pe zone, nu are inventar detaliat.
 
-## Decizii de care depinde Faza 1
+## Decizii (18.11.2026)
 
-1. Tema coral din Comenzi / Livrări / Recoltări: rămâne ca accent sau dispare?
-2. Spațiul Asociație (`/asociatie/*`) intră în revamp?
-3. Chat-ul AI nu are buton de deschidere — intenționat?
-4. Desktop: păstrăm spațiul de lucru cu panou lateral sau trecem la varianta de telefon centrată?
-5. Analytics: rulați voi interogarea sau reautorizați conectorul?
-6. Ștergem codul nefolosit într-un commit separat înainte de Faza 1?
+1. Tema coral din Comenzi / Livrări / Recoltări dispare; un singur set de tokeni.
+2. Asociația (`/asociatie/*`) nu intră acum în revamp; „mai târziu”.
+3. Chat-ul AI rămâne în cod, neatins și fără buton; în afara revamp-ului.
+4. Desktopul nu intră acum în revamp; modulele refăcute nu au voie să strice desktopul actual.
+5. Analytics: rezolvat (Faza 0b).
+6. Fișierele nefolosite (Anexa E) se șterg într-un pas separat, înainte de Faza 1.
 
 ## De verificat pe telefon
 
