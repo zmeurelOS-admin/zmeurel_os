@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Phone,
   Plus,
+  RefreshCw,
   Send,
   UserRound,
   Users,
@@ -399,6 +400,8 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
   const [contactsManager] = useState(getContactsManager)
   // Mesaj pentru agenda telefonului, afișat direct în formular (toast-urile se pot pierde sub agendă).
   const [agendaStatus, setAgendaStatus] = useState<string | null>(null)
+  // Sincronizare Google la cerere (contact salvat acum în telefon → apare imediat aici).
+  const [googleSync, setGoogleSync] = useState<'idle' | 'running' | 'unavailable' | 'reconnect'>('idle')
 
   // Clienți recenți (din comenzile anterioare), soiuri folosite și ultimul preț pe soi.
   const { recentClients, orderCountByClient, soiOptions, lastPriceBySoi } = useMemo(() => {
@@ -520,7 +523,7 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
         })
         setAgendaStatus(
           Array.isArray(result) && result.length === 0
-            ? 'Agenda n-a trimis contactul. Varianta sigură: deschide Contacte → alege omul → Distribuie → Zmeurel OS.'
+            ? 'Agenda telefonului n-a trimis contactul. Apasă mai jos „Adu contactele noi din Google”, apoi caută-l după nume.'
             : 'Contactul ales n-are nume sau număr. Scrie-le de mână, te rog.',
         )
         return
@@ -547,6 +550,37 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
         extra: { errName, isStandalone },
       })
       if (errName === 'AbortError') return // a închis agenda
+    }
+  }
+
+  const syncGoogleContacts = async () => {
+    setGoogleSync('running')
+    try {
+      const response = await fetch('/api/integrations/google/sync-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      })
+      if (response.status === 400) {
+        // Integrarea există, dar Google a cerut din nou acordul (token expirat) → trebuie reconectată.
+        setGoogleSync('reconnect')
+        return
+      }
+      if (response.status === 403) {
+        setGoogleSync('unavailable')
+        return
+      }
+      if (!response.ok) throw new Error('sync failed')
+      const result = (await response.json()) as { synced?: number }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.clienti })
+      toast.success(
+        result.synced && result.synced > 0
+          ? `Am adus ${result.synced} contacte noi din Google. Caută-l acum după nume.`
+          : 'Contactele sunt la zi. Dacă abia l-ai salvat, mai încearcă peste un minut.',
+      )
+      setGoogleSync('idle')
+    } catch {
+      setGoogleSync('idle')
+      toast.error('Nu am putut aduce contactele din Google. Încearcă din nou.')
     }
   }
 
@@ -754,6 +788,32 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
           <p className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2 text-[13px] font-medium text-[var(--text-secondary)]">
             {agendaStatus}
           </p>
+        ) : null}
+        {googleSync === 'reconnect' && !s.clientId ? (
+          <div className="space-y-2 rounded-2xl bg-[var(--status-warning-bg)] p-3 text-[var(--status-warning-text)]">
+            <p className="text-sm font-semibold">
+              Sincronizarea cu Google e oprită (Google a cerut din nou acordul). Reconectează contul, apoi revino
+              aici și caută clientul.
+            </p>
+            <a
+              href="/api/integrations/google/connect"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--agri-primary)] px-4 text-[15px] font-bold text-[var(--agri-primary-contrast)]"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Reconectează Google
+            </a>
+          </div>
+        ) : null}
+        {(googleSync === 'idle' || googleSync === 'running') && !s.clientId ? (
+          <button
+            type="button"
+            onClick={syncGoogleContacts}
+            disabled={googleSync === 'running'}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border-default)] px-4 text-[15px] font-semibold text-[var(--agri-text)] active:bg-[var(--agri-surface-muted)] disabled:opacity-60"
+          >
+            <RefreshCw className={cn('h-4 w-4', googleSync === 'running' && 'animate-spin')} aria-hidden />
+            {googleSync === 'running' ? 'Aduc contactele din Google…' : 'Nu-l găsești? Adu contactele noi din Google'}
+          </button>
         ) : null}
 
         {isNew ? (
