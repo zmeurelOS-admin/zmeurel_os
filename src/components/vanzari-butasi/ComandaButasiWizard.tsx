@@ -466,11 +466,38 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
 
   const pickFromAgenda = async () => {
     if (!contactsManager) return
+    const isStandalone =
+      typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches
     try {
-      const [contact] = await contactsManager.select(['name', 'tel'], { multiple: false })
-      if (!contact) return
-      const name = contact.name?.find((n) => n.trim())?.trim() ?? ''
-      const tel = contact.tel?.find((t) => t.trim())?.trim() ?? ''
+      const result = await contactsManager.select(['name', 'tel'], { multiple: false })
+      const contact = Array.isArray(result) ? result[0] : undefined
+      const firstText = (values: unknown): string => {
+        if (!Array.isArray(values)) return typeof values === 'string' ? values.trim() : ''
+        const found = values.find((v) => typeof v === 'string' && v.trim())
+        return typeof found === 'string' ? found.trim() : ''
+      }
+      const name = firstText(contact?.name)
+      const tel = firstText(contact?.tel)
+
+      if (!name && !tel) {
+        // Diagnostic fără date personale: doar forma răspunsului primit de la telefon.
+        captureReactError(new Error('contact_picker_empty_result'), {
+          component: 'ComandaButasiWizard',
+          tags: { action: 'contact_picker' },
+          extra: {
+            isArray: Array.isArray(result),
+            resultLength: Array.isArray(result) ? result.length : null,
+            keys: contact ? Object.keys(contact) : [],
+            nameCount: Array.isArray(contact?.name) ? contact.name.length : null,
+            telCount: Array.isArray(contact?.tel) ? contact.tel.length : null,
+            isStandalone,
+          },
+        })
+        if (Array.isArray(result) && result.length === 0) return // a închis agenda fără să aleagă
+        toast.error('Agenda n-a trimis numele sau numărul. Scrie-le de mână, te rog.')
+        return
+      }
+
       const digits = phoneDigits(tel)
       // Dacă omul e deja în lista de clienți (după telefon sau nume), îl folosim pe acela.
       const existing =
@@ -482,11 +509,16 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
         return
       }
       patch({ clientId: null, clientName: name || tel, phone: tel })
+      toast.success('Contact preluat din agendă')
     } catch (error) {
-      // Utilizatorul a închis agenda sau browserul a refuzat: nu e o eroare de afișat.
-      if (error instanceof Error && error.name !== 'AbortError' && error.name !== 'InvalidStateError') {
-        toast.error('Nu am putut deschide agenda telefonului.')
-      }
+      const errName = error instanceof Error ? error.name : typeof error
+      captureReactError(error, {
+        component: 'ComandaButasiWizard',
+        tags: { action: 'contact_picker' },
+        extra: { errName, isStandalone },
+      })
+      if (errName === 'AbortError') return // a închis agenda
+      toast.error(`Nu am putut prelua contactul din agendă (${errName}). Scrie-l de mână, te rog.`)
     }
   }
 
