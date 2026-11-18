@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Sprout } from 'lucide-react'
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Sprout } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/lib/ui/toast'
 
@@ -15,8 +15,11 @@ import { MobileEntityCard } from '@/components/ui/MobileEntityCard'
 import { useAddAction } from '@/contexts/AddActionContext'
 import { getClienți } from '@/lib/supabase/queries/clienti'
 import {
+  SURSA_COMANDA_BUTASI_LABELS,
+  SURSE_COMANDA_BUTASI,
   deleteVanzareButasi,
   getVanzariButasi,
+  type SursaComandaButasi,
   type VanzareButasi,
 } from '@/lib/supabase/queries/vanzari-butasi'
 import { buildButasiOrderDeleteLabel } from '@/lib/ui/delete-labels'
@@ -24,8 +27,8 @@ import { queryKeys } from '@/lib/query-keys'
 
 // Dialoguri mari deschise doar la interacțiune — code-split (ssr:false), ca în
 // modulele deja optimizate. Nu randează DOM când sunt închise.
-const AddVanzareButasiDialog = dynamic(
-  () => import('@/components/vanzari-butasi/AddVanzareButasiDialog').then((mod) => mod.AddVanzareButasiDialog),
+const ComandaButasiWizard = dynamic(
+  () => import('@/components/vanzari-butasi/ComandaButasiWizard').then((mod) => mod.ComandaButasiWizard),
   { ssr: false }
 )
 const EditVanzareButasiDialog = dynamic(
@@ -55,6 +58,21 @@ interface VanzariButasiPageClientProps {
 }
 
 type PeriodFilter = 'luna' | 'toate'
+type SursaFilter = 'toate' | SursaComandaButasi
+type SortDir = 'desc' | 'asc'
+
+const pillStyle = (active: boolean) => ({
+  borderRadius: 20,
+  padding: '4px 14px',
+  fontSize: 12,
+  fontWeight: 600,
+  whiteSpace: 'nowrap' as const,
+  flexShrink: 0,
+  background: active ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
+  color: active ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
+  border: `1px solid ${active ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
+  cursor: 'pointer',
+})
 
 function statusLabel(status: string): string {
   const normalized = status.toLowerCase()
@@ -79,9 +97,12 @@ function ButasiCardNew({
   const totalButasi = (vanzare.items ?? []).reduce((sum, item) => sum + Number(item.cantitate || 0), 0)
   const firstItem = vanzare.items?.[0]
   const soi = firstItem?.soi || 'Butași'
-  const subtitle = vanzare.data_comanda
+  const dataLabel = vanzare.data_comanda
     ? `Comandă ${new Date(vanzare.data_comanda).toLocaleDateString('ro-RO')}`
     : 'Dată nespecificată'
+  const subtitle = vanzare.sursa_comanda
+    ? `${dataLabel} · ${SURSA_COMANDA_BUTASI_LABELS[vanzare.sursa_comanda]}`
+    : dataLabel
   const secondaryValue = `${soi} • ${totalButasi} buc`
   const valoare = Number(vanzare.total_lei || 0)
   const mainValue = `${valoare.toFixed(0)} RON`
@@ -121,6 +142,8 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
 
   const [searchTerm, setSearchTerm] = useState('')
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('luna')
+  const [sursaFilter, setSursaFilter] = useState<SursaFilter>('toate')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [addOpen, setAddOpen] = useState(false)
   const [editingVanzare, setEditingVanzare] = useState<VanzareButasi | null>(null)
   const [deletingVanzare, setDeletingVanzare] = useState<VanzareButasi | null>(null)
@@ -243,29 +266,57 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
     return { nrLuna: lunaOrders.length, totalButasi }
   }, [vanzari, currentMonth])
 
-  const filteredVanzari = useMemo(() => {
-    let rows = vanzari
+  const periodRows = useMemo(
+    () => (periodFilter === 'luna' ? vanzari.filter((v) => (v.data_comanda ?? '').startsWith(currentMonth)) : vanzari),
+    [vanzari, periodFilter, currentMonth],
+  )
 
-    if (periodFilter === 'luna') {
-      rows = rows.filter((v) => (v.data_comanda ?? '').startsWith(currentMonth))
+  // Sursele care apar efectiv în perioada aleasă, cu numărul de comenzi.
+  const sursaCounts = useMemo(() => {
+    const counts = new Map<SursaComandaButasi, number>()
+    periodRows.forEach((v) => {
+      if (v.sursa_comanda) counts.set(v.sursa_comanda, (counts.get(v.sursa_comanda) ?? 0) + 1)
+    })
+    return SURSE_COMANDA_BUTASI.filter((key) => counts.has(key)).map((key) => ({ key, count: counts.get(key) ?? 0 }))
+  }, [periodRows])
+
+  // Dacă sursa aleasă nu mai există în perioada curentă, revenim la „Toate sursele”.
+  const activeSursa: SursaFilter =
+    sursaFilter !== 'toate' && sursaCounts.some((c) => c.key === sursaFilter) ? sursaFilter : 'toate'
+
+  const filteredVanzari = useMemo(() => {
+    let rows = periodRows
+
+    if (activeSursa !== 'toate') {
+      rows = rows.filter((v) => v.sursa_comanda === activeSursa)
     }
 
-    if (!searchTerm.trim()) return rows
     const term = searchTerm.toLowerCase().trim()
-    return rows.filter((order) => {
-      const clientName = order.client_id
-        ? clientMap[order.client_id]?.toLowerCase()
-        : (order.client_nume_manual?.toLowerCase() ?? '')
-      const itemNames = (order.items ?? []).map((item) => item.soi.toLowerCase()).join(' ')
-      return (
-        order.status.toLowerCase().includes(term) ||
-        clientName?.includes(term) ||
-        order.observatii?.toLowerCase().includes(term) ||
-        order.adresa_livrare?.toLowerCase().includes(term) ||
-        itemNames.includes(term)
-      )
+    if (term) {
+      rows = rows.filter((order) => {
+        const clientName = order.client_id
+          ? clientMap[order.client_id]?.toLowerCase()
+          : (order.client_nume_manual?.toLowerCase() ?? '')
+        const itemNames = (order.items ?? []).map((item) => item.soi.toLowerCase()).join(' ')
+        const sursa = order.sursa_comanda ? SURSA_COMANDA_BUTASI_LABELS[order.sursa_comanda].toLowerCase() : ''
+        return (
+          order.status.toLowerCase().includes(term) ||
+          clientName?.includes(term) ||
+          order.observatii?.toLowerCase().includes(term) ||
+          order.adresa_livrare?.toLowerCase().includes(term) ||
+          itemNames.includes(term) ||
+          sursa.includes(term)
+        )
+      })
+    }
+
+    const direction = sortDir === 'desc' ? -1 : 1
+    return [...rows].sort((a, b) => {
+      const byDate = (a.data_comanda ?? '').localeCompare(b.data_comanda ?? '')
+      if (byDate !== 0) return byDate * direction
+      return (a.created_at ?? '').localeCompare(b.created_at ?? '') * direction
     })
-  }, [vanzari, periodFilter, currentMonth, searchTerm, clientMap])
+  }, [periodRows, activeSursa, searchTerm, clientMap, sortDir])
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -295,29 +346,55 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
           )}
         </div>
 
-        {/* Period pills */}
-        <div style={{ display: 'flex', gap: 8 }}>
+        {/* Period pills + sortare */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {([['luna', 'Luna aceasta'], ['toate', 'Toate']] as Array<[PeriodFilter, string]>).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setPeriodFilter(value)}
-              style={{
-                borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
-                background: periodFilter === value ? 'var(--pill-active-bg)' : 'var(--pill-inactive-bg)',
-                color: periodFilter === value ? 'var(--pill-active-text)' : 'var(--pill-inactive-text)',
-                border: `1px solid ${periodFilter === value ? 'var(--pill-active-border)' : 'var(--pill-inactive-border)'}`,
-                cursor: 'pointer',
-              }}
-            >
+            <button key={value} type="button" onClick={() => setPeriodFilter(value)} style={pillStyle(periodFilter === value)}>
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setSortDir((dir) => (dir === 'desc' ? 'asc' : 'desc'))}
+            aria-label={sortDir === 'desc' ? 'Sortare: cele mai noi primele. Schimbă ordinea' : 'Sortare: cele mai vechi primele. Schimbă ordinea'}
+            style={{ ...pillStyle(false), marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            {sortDir === 'desc' ? (
+              <ArrowDownWideNarrow className="h-3.5 w-3.5" aria-hidden />
+            ) : (
+              <ArrowUpNarrowWide className="h-3.5 w-3.5" aria-hidden />
+            )}
+            {sortDir === 'desc' ? 'Cele mai noi' : 'Cele mai vechi'}
+          </button>
         </div>
+
+        {/* Filtru sursă comandă */}
+        {sursaCounts.length > 0 ? (
+          <div
+            role="group"
+            aria-label="Filtrează după sursa comenzii"
+            style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}
+          >
+            <button type="button" onClick={() => setSursaFilter('toate')} style={pillStyle(activeSursa === 'toate')}>
+              Toate sursele
+            </button>
+            {sursaCounts.map(({ key, count }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSursaFilter(key)}
+                aria-pressed={activeSursa === key}
+                style={pillStyle(activeSursa === key)}
+              >
+                {SURSA_COMANDA_BUTASI_LABELS[key]} · {count}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {/* Search */}
         <SearchField
-          placeholder="Caută după client, status, soi sau observații..."
+          placeholder="Caută după client, soi, sursă sau observații..."
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
           aria-label="Caută comenzi material săditor"
@@ -359,7 +436,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
         ) : null}
       </div>
 
-      <AddVanzareButasiDialog open={addOpen} onOpenChange={setAddOpen} hideTrigger />
+      <ComandaButasiWizard open={addOpen} onOpenChange={setAddOpen} />
 
       <EditVanzareButasiDialog
         vanzare={editingVanzare}

@@ -8,7 +8,7 @@ interface VanzareButasiFormSummaryProps {
   orderDateLabel: string
   deliveryDateLabel: string
   location: string
-  sourceParcelName: string
+  sourceLabel: string
   productsLabel: string
   totalLabel: string
   advanceLabel: string
@@ -29,7 +29,7 @@ export function VanzareButasiFormSummary({
   orderDateLabel,
   deliveryDateLabel,
   location,
-  sourceParcelName,
+  sourceLabel,
   productsLabel,
   totalLabel,
   advanceLabel,
@@ -59,8 +59,8 @@ export function VanzareButasiFormSummary({
           <dd className="mt-0.5 break-words text-[var(--text-primary)]">{clipText(location)}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium text-[var(--text-tertiary)]">Teren sursă</dt>
-          <dd className="mt-0.5 break-words text-[var(--text-primary)]">{sourceParcelName}</dd>
+          <dt className="text-xs font-medium text-[var(--text-tertiary)]">Sursa comenzii</dt>
+          <dd className="mt-0.5 break-words text-[var(--text-primary)]">{sourceLabel}</dd>
         </div>
         <div className="grid grid-cols-1 gap-2 rounded-[16px] border border-[var(--divider)] bg-[var(--surface-card)] p-2 text-xs">
           <div>

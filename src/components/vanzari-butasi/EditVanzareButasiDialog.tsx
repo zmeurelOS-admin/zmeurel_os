@@ -20,9 +20,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { getClienți } from '@/lib/supabase/queries/clienti'
-import { getParcele } from '@/lib/supabase/queries/parcele'
 import {
+  SURSA_COMANDA_BUTASI_LABELS,
+  SURSE_COMANDA_BUTASI,
   VANZARE_BUTASI_STATUSES,
+  isSursaComandaButasi,
   type UpdateVanzareButasiInput,
   type VanzareButasi,
   type VanzareButasiStatus,
@@ -49,6 +51,7 @@ const statusLabels: Record<VanzareButasiStatus, string> = {
 const schema = z.object({
   client_id: z.string().optional(),
   parcela_sursa_id: z.string().optional(),
+  sursa_comanda: z.string().optional(),
   status: z.enum(VANZARE_BUTASI_STATUSES),
   data_comanda: z.string().min(1, 'Data comenzii este obligatorie'),
   data_livrare_estimata: z.string().optional(),
@@ -86,6 +89,7 @@ function getDefaultValues(vanzare: VanzareButasi): FormValues {
   return {
     client_id: vanzare.client_id ?? '',
     parcela_sursa_id: vanzare.parcela_sursa_id ?? '',
+    sursa_comanda: vanzare.sursa_comanda ?? '',
     status: vanzare.status,
     data_comanda: vanzare.data_comanda || vanzare.data,
     data_livrare_estimata: vanzare.data_livrare_estimata ?? '',
@@ -118,6 +122,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     defaultValues: {
       client_id: '',
       parcela_sursa_id: '',
+      sursa_comanda: '',
       status: 'noua',
       data_comanda: '',
       data_livrare_estimata: '',
@@ -137,11 +142,6 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
   const { data: clienti = [] } = useQuery({
     queryKey: queryKeys.clienti,
     queryFn: getClienți,
-  })
-
-  const { data: parcele = [] } = useQuery({
-    queryKey: queryKeys.parcele,
-    queryFn: getParcele,
   })
 
   const selectedClientName = vanzare?.client_id
@@ -198,7 +198,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
   const deliveryDateValue = useWatch({ control: form.control, name: 'data_livrare_estimata' }) ?? ''
   const addressValue = useWatch({ control: form.control, name: 'adresa_livrare' }) ?? ''
   const notesValue = useWatch({ control: form.control, name: 'observatii' }) ?? ''
-  const selectedParcelaId = useWatch({ control: form.control, name: 'parcela_sursa_id' }) ?? ''
+  const selectedSursa = useWatch({ control: form.control, name: 'sursa_comanda' }) ?? ''
   const selectedClientId = useWatch({ control: form.control, name: 'client_id' }) ?? ''
 
   const totalProduse = useMemo(
@@ -218,7 +218,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
     ? `${productNames.slice(0, 2).join(', ')}${productNames.length > 2 ? '…' : ''} · ${totalBucati} buc`
     : '—'
   const selectedClient = selectedClientId ? clienti.find((client) => client.id === selectedClientId) : undefined
-  const selectedParcela = selectedParcelaId ? parcele.find((parcela) => parcela.id === selectedParcelaId) : undefined
+  const selectedSursaLabel = isSursaComandaButasi(selectedSursa) ? SURSA_COMANDA_BUTASI_LABELS[selectedSursa] : '—'
   const summaryClientName = selectedClient?.nume_client || comboInput.trim() || 'Client'
 
   const updateMutation = useMutation({
@@ -263,6 +263,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
       input: {
         client_id: values.client_id || null,
         parcela_sursa_id: values.parcela_sursa_id || null,
+        sursa_comanda: isSursaComandaButasi(values.sursa_comanda) ? values.sursa_comanda : null,
         status: values.status,
         data_comanda: values.data_comanda,
         data_livrare_estimata: values.data_livrare_estimata || null,
@@ -312,7 +313,7 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
               orderDateLabel={formatDateLabel(orderDateValue)}
               deliveryDateLabel={formatDateLabel(deliveryDateValue)}
               location={addressValue.trim() || '—'}
-              sourceParcelName={selectedParcela?.nume_parcela || '—'}
+              sourceLabel={selectedSursaLabel}
               productsLabel={productsLabel}
               totalLabel={formatLei(totalProduse || 0)}
               advanceLabel={formatLei(Number.isFinite(avans) ? avans : 0)}
@@ -459,20 +460,20 @@ export function EditVanzareButasiDialog({ vanzare, open, onOpenChange }: EditVan
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Teren sursă</Label>
+                  <Label>Sursa comenzii</Label>
                   <Controller
                     control={form.control}
-                    name="parcela_sursa_id"
+                    name="sursa_comanda"
                     render={({ field }) => (
                       <Select value={field.value || '__none'} onValueChange={(value) => field.onChange(value === '__none' ? '' : value)}>
                         <SelectTrigger className="agri-control h-11 md:h-10">
-                          <SelectValue placeholder="Selectează teren" />
+                          <SelectValue placeholder="De unde a venit comanda" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none">Fără teren</SelectItem>
-                          {parcele.map((parcela) => (
-                            <SelectItem key={parcela.id} value={parcela.id}>
-                              {parcela.nume_parcela}
+                          <SelectItem value="__none">Nespecificată</SelectItem>
+                          {SURSE_COMANDA_BUTASI.map((key) => (
+                            <SelectItem key={key} value={key}>
+                              {SURSA_COMANDA_BUTASI_LABELS[key]}
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -4383,6 +4383,7 @@ export type Database = {
           parcela_sursa_id: string | null
           pret_unitar_lei: number
           soi_butasi: string | null
+          sursa_comanda: string | null
           status: string
           tenant_id: string | null
           tip_fruct: string | null
@@ -4408,6 +4409,7 @@ export type Database = {
           parcela_sursa_id?: string | null
           pret_unitar_lei: number
           soi_butasi?: string | null
+          sursa_comanda?: string | null
           status?: string
           tenant_id?: string | null
           tip_fruct?: string | null
@@ -4433,6 +4435,7 @@ export type Database = {
           parcela_sursa_id?: string | null
           pret_unitar_lei?: number
           soi_butasi?: string | null
+          sursa_comanda?: string | null
           status?: string
           tenant_id?: string | null
           tip_fruct?: string | null

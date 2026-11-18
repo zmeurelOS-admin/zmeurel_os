@@ -7,6 +7,24 @@ export const VANZARE_BUTASI_STATUSES = ['noua', 'confirmata', 'pregatita', 'livr
 
 export type VanzareButasiStatus = (typeof VANZARE_BUTASI_STATUSES)[number]
 
+export const SURSE_COMANDA_BUTASI = ['whatsapp', 'telefon', 'messenger', 'instagram', 'facebook', 'personal', 'altul'] as const
+
+export type SursaComandaButasi = (typeof SURSE_COMANDA_BUTASI)[number]
+
+export const SURSA_COMANDA_BUTASI_LABELS: Record<SursaComandaButasi, string> = {
+  whatsapp: 'WhatsApp',
+  telefon: 'Telefon',
+  messenger: 'Messenger',
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  personal: 'Personal',
+  altul: 'Altul',
+}
+
+export function isSursaComandaButasi(value: unknown): value is SursaComandaButasi {
+  return typeof value === 'string' && (SURSE_COMANDA_BUTASI as readonly string[]).includes(value)
+}
+
 export interface VanzareButasiItem {
   id: string
   tenant_id: string
@@ -36,6 +54,7 @@ export interface VanzareButasi {
   soi_butasi: string | null
   cantitate_butasi: number
   pret_unitar_lei: number
+  sursa_comanda: SursaComandaButasi | null
   created_at: string
   updated_at: string
   tenant_id: string | null
@@ -53,11 +72,13 @@ export interface CreateVanzareButasiInput {
   data_livrare_estimata?: string | null
   status?: VanzareButasiStatus
   client_id?: string | null
+  client_nume_manual?: string | null
   parcela_sursa_id?: string | null
   adresa_livrare?: string | null
   observatii?: string | null
   avans_suma?: number
   avans_data?: string | null
+  sursa_comanda?: SursaComandaButasi | null
   items: VanzareButasiItemInput[]
 }
 
@@ -71,6 +92,7 @@ export interface UpdateVanzareButasiInput {
   observatii?: string | null
   avans_suma?: number
   avans_data?: string | null
+  sursa_comanda?: SursaComandaButasi | null
   items?: VanzareButasiItemInput[]
 }
 
@@ -98,6 +120,7 @@ interface RawVanzareButasiRow {
   soi_butasi: string | null
   cantitate_butasi: number
   pret_unitar_lei: number
+  sursa_comanda?: string | null
   created_at: string
   updated_at: string
   tenant_id: string | null
@@ -207,6 +230,64 @@ function toReadableError(error: unknown, fallbackMessage: string): Error & {
   })
 }
 
+// Coloana `sursa_comanda` vine dintr-o migrare aditivă. Până când migrarea e rulată pe un mediu,
+// citirile și scrierile continuă fără ea (fallback), ca modulul să nu se blocheze.
+let sursaColumnAvailable = true
+
+function isMissingSursaColumn(error: unknown): boolean {
+  if (!isSchemaCacheMismatch(error)) return false
+  const e = extractErrorParts(error)
+  const text = `${e.message ?? ''} ${e.details ?? ''} ${e.hint ?? ''}`.toLowerCase()
+  return text.includes('sursa_comanda')
+}
+
+function buildSelectColumns(includeSursa: boolean): string {
+  return `
+      id,
+      id_vanzare_butasi,
+      data,
+      data_comanda,
+      data_livrare_estimata,
+      status,
+      client_id,
+      client_nume_manual,
+      parcela_sursa_id,
+      adresa_livrare,
+      avans_suma,
+      avans_data,
+      total_lei,
+      observatii,
+      soi_butasi,
+      cantitate_butasi,
+      pret_unitar_lei,${includeSursa ? '\n      sursa_comanda,' : ''}
+      created_at,
+      updated_at,
+      tenant_id,
+      vanzari_butasi_items (
+        id,
+        tenant_id,
+        comanda_id,
+        soi,
+        cantitate,
+        pret_unitar,
+        subtotal,
+        created_at
+      )
+    `
+}
+
+async function runWithSursaFallback<T extends { error: unknown }>(
+  run: (includeSursa: boolean) => PromiseLike<T>,
+): Promise<T> {
+  if (!sursaColumnAvailable) return run(false)
+  const result = await run(true)
+  if (result.error && isMissingSursaColumn(result.error)) {
+    sursaColumnAvailable = false
+    return run(false)
+  }
+  return result
+}
+
 function roundTo2(value: number): number {
   return Math.round(value * 100) / 100
 }
@@ -259,6 +340,7 @@ function mapVanzareRow(row: RawVanzareButasiRow): VanzareButasi {
   return {
     ...row,
     status: assertStatus(row.status || 'noua'),
+    sursa_comanda: isSursaComandaButasi(row.sursa_comanda) ? row.sursa_comanda : null,
     items: row.vanzari_butasi_items ?? [],
   }
 }
@@ -267,43 +349,14 @@ async function getVanzareButasiById(id: string): Promise<VanzareButasi> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
-  const { data, error } = await supabase
-    .from('vanzari_butasi')
-    .select(`
-      id,
-      id_vanzare_butasi,
-      data,
-      data_comanda,
-      data_livrare_estimata,
-      status,
-      client_id,
-      client_nume_manual,
-      parcela_sursa_id,
-      adresa_livrare,
-      avans_suma,
-      avans_data,
-      total_lei,
-      observatii,
-      soi_butasi,
-      cantitate_butasi,
-      pret_unitar_lei,
-      created_at,
-      updated_at,
-      tenant_id,
-      vanzari_butasi_items (
-        id,
-        tenant_id,
-        comanda_id,
-        soi,
-        cantitate,
-        pret_unitar,
-        subtotal,
-        created_at
-      )
-    `)
-    .eq('id', id)
-    .eq('tenant_id', tenantId)
-    .single()
+  const { data, error } = await runWithSursaFallback((includeSursa) =>
+    supabase
+      .from('vanzari_butasi')
+      .select(buildSelectColumns(includeSursa))
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .single(),
+  )
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comanda de butasi.')
 
@@ -314,42 +367,13 @@ export async function getVanzariButasi(): Promise<VanzareButasi[]> {
   const supabase = getSupabase()
   const tenantId = await getTenantId(supabase)
 
-  const { data, error } = await supabase
-    .from('vanzari_butasi')
-    .select(`
-      id,
-      id_vanzare_butasi,
-      data,
-      data_comanda,
-      data_livrare_estimata,
-      status,
-      client_id,
-      client_nume_manual,
-      parcela_sursa_id,
-      adresa_livrare,
-      avans_suma,
-      avans_data,
-      total_lei,
-      observatii,
-      soi_butasi,
-      cantitate_butasi,
-      pret_unitar_lei,
-      created_at,
-      updated_at,
-      tenant_id,
-      vanzari_butasi_items (
-        id,
-        tenant_id,
-        comanda_id,
-        soi,
-        cantitate,
-        pret_unitar,
-        subtotal,
-        created_at
-      )
-    `)
-    .eq('tenant_id', tenantId)
-    .order('data_comanda', { ascending: false })
+  const { data, error } = await runWithSursaFallback((includeSursa) =>
+    supabase
+      .from('vanzari_butasi')
+      .select(buildSelectColumns(includeSursa))
+      .eq('tenant_id', tenantId)
+      .order('data_comanda', { ascending: false }),
+  )
 
   if (error) throw toReadableError(error, 'Nu am putut încărca comenzile de butasi.')
 
@@ -377,6 +401,7 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
     data_livrare_estimata: input.data_livrare_estimata || null,
     status,
     client_id: input.client_id || null,
+    client_nume_manual: input.client_id ? null : input.client_nume_manual?.trim() || null,
     parcela_sursa_id: input.parcela_sursa_id || null,
     adresa_livrare: input.adresa_livrare?.trim() || null,
     observatii: input.observatii?.trim() || null,
@@ -387,11 +412,14 @@ export async function createVanzareButasi(input: CreateVanzareButasiInput): Prom
     cantitate_butasi: normalized.totalCantitate,
     pret_unitar_lei: roundTo2(normalized.totalLei / normalized.totalCantitate),
   }
-  const { data, error } = await supabase
-    .from('vanzari_butasi')
-    .insert(insertPayload)
-    .select('id')
-    .single()
+  const sursaComanda = isSursaComandaButasi(input.sursa_comanda) ? input.sursa_comanda : null
+  const { data, error } = await runWithSursaFallback((includeSursa) =>
+    supabase
+      .from('vanzari_butasi')
+      .insert(includeSursa ? { ...insertPayload, sursa_comanda: sursaComanda } : insertPayload)
+      .select('id')
+      .single(),
+  )
 
   if (error) {
     
@@ -485,6 +513,8 @@ export async function updateVanzareButasi(id: string, input: UpdateVanzareButasi
   if (input.adresa_livrare !== undefined) payload.adresa_livrare = input.adresa_livrare?.trim() || null
   if (input.observatii !== undefined) payload.observatii = input.observatii?.trim() || null
   if (input.avans_data !== undefined) payload.avans_data = input.avans_data || null
+  const hasSursaUpdate = input.sursa_comanda !== undefined
+  const sursaComanda = isSursaComandaButasi(input.sursa_comanda) ? input.sursa_comanda : null
 
   if (hasItemsUpdate) {
     payload.soi_butasi = firstItemSoi
@@ -492,11 +522,13 @@ export async function updateVanzareButasi(id: string, input: UpdateVanzareButasi
     payload.pret_unitar_lei = computedPretUnitar
   }
 
-  const { error: updateError } = await supabase
-    .from('vanzari_butasi')
-    .update(payload)
-    .eq('id', id)
-    .eq('tenant_id', tenantId)
+  const { error: updateError } = await runWithSursaFallback((includeSursa) =>
+    supabase
+      .from('vanzari_butasi')
+      .update(includeSursa && hasSursaUpdate ? { ...payload, sursa_comanda: sursaComanda } : payload)
+      .eq('id', id)
+      .eq('tenant_id', tenantId),
+  )
 
   if (updateError) throw toReadableError(updateError, 'Nu am putut actualiza comanda de butasi.')
 
