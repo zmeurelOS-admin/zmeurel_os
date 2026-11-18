@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import {
   ArrowDownUp,
@@ -250,6 +251,52 @@ function ButasiOrderCard({
   )
 }
 
+// ─── Foaie de jos (portal în body, ca să stea peste bara de navigare și butoanele plutitoare) ──
+
+function BottomSheet({
+  label,
+  onClose,
+  children,
+}: {
+  label: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previous
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[1001] flex items-end justify-center bg-black/50 md:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        className="w-full max-w-md space-y-3 rounded-t-[28px] bg-[var(--surface-card)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-3 shadow-[0_-12px_40px_rgba(0,0,0,0.18)] md:rounded-[28px]"
+      >
+        <div className="mx-auto mb-1 h-1.5 w-11 rounded-full bg-[var(--border-default)]" aria-hidden />
+        {children}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 // ─── Confirmare livrare ───────────────────────────────────────────────────────
 
 function DeliverSheet({
@@ -268,22 +315,7 @@ function DeliverSheet({
   const rest = orderRest(vanzare)
   const total = Number(vanzare.total_lei || 0)
   return (
-    <div
-      className="fixed inset-0 z-[1001] flex items-end justify-center bg-black/45 md:items-center"
-      onClick={(event) => {
-        if (event.target === event.currentTarget && !pending) onClose()
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && !pending) onClose()
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Marchează comanda livrată"
-        className="w-full max-w-md space-y-3 rounded-t-[28px] bg-[var(--surface-card)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-3 md:rounded-[28px]"
-      >
-        <div className="mx-auto mb-1 h-1.5 w-11 rounded-full bg-[var(--border-default)]" aria-hidden />
+    <BottomSheet label="Marchează comanda livrată" onClose={() => (!pending ? onClose() : undefined)}>
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-[22px] font-extrabold leading-tight text-[var(--text-primary)]">Comanda e livrată?</h2>
@@ -335,8 +367,7 @@ function DeliverSheet({
           </button>
         )}
         <p className="text-center text-[13px] text-[var(--text-secondary)]">Totalul comenzii intră la venituri, la data livrării.</p>
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 
@@ -355,6 +386,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
   const [sursaFilter, setSursaFilter] = useState<SursaFilter>('toate')
   const [sortKey, setSortKey] = useState<SortKey>('noi')
   const [sortOpen, setSortOpen] = useState(false)
+  const closeSort = useCallback(() => setSortOpen(false), [])
   const [deliveringVanzare, setDeliveringVanzare] = useState<VanzareButasi | null>(null)
   const [sharedContact, setSharedContact] = useState<SharedContact | null>(null)
 
@@ -760,22 +792,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
 
       {/* Sortare — foaie de jos */}
       {sortOpen ? (
-        <div
-          className="fixed inset-0 z-[1001] flex items-end justify-center bg-black/45 md:items-center"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setSortOpen(false)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setSortOpen(false)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Sortează comenzile"
-            className="w-full max-w-md space-y-2.5 rounded-t-[28px] bg-[var(--surface-card)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-3 md:rounded-[28px]"
-          >
-            <div className="mx-auto mb-1 h-1.5 w-11 rounded-full bg-[var(--border-default)]" aria-hidden />
+        <BottomSheet label="Sortează comenzile" onClose={closeSort}>
             <div className="flex items-center justify-between">
               <h2 className="text-[22px] font-extrabold text-[var(--text-primary)]">Sortează după</h2>
               <button
@@ -814,8 +831,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
                 </button>
               )
             })}
-          </div>
-        </div>
+        </BottomSheet>
       ) : null}
 
       <ComandaButasiWizard
