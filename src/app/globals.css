@@ -266,6 +266,22 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/*
+ * Scara de straturi a aplicației (clase: z-sticky, z-bar, z-nav, z-fab, z-overlay, z-modal, z-popover, z-toast).
+ * Valorile numerice mici (z-10 … z-30) rămân doar pentru ordinea din interiorul unei componente.
+ * Referință: docs/redesign/tokens.md
+ */
+@theme static {
+  --z-index-sticky: 20;
+  --z-index-bar: 40;
+  --z-index-nav: 50;
+  --z-index-fab: 60;
+  --z-index-overlay: 1000;
+  --z-index-modal: 1010;
+  --z-index-popover: 1020;
+  --z-index-toast: 1030;
+}
+
 @media (min-width: 1024px) {
   :root {
     --app-nav-clearance: 0px;

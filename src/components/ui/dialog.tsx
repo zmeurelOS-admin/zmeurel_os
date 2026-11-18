@@ -89,7 +89,7 @@ const DialogContent = React.forwardRef<
     <DialogOverlay />
     <div
       className={cn(
-        "fixed inset-0 z-[1001] flex items-center justify-center",
+        "fixed inset-0 z-modal flex items-center justify-center",
         mobileFullHeight ? "p-0 md:p-4" : "p-4",
       )}
     >

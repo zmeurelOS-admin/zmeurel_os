@@ -411,7 +411,7 @@ export function AppDatePicker({
             align="start"
             sideOffset={6}
             onOpenAutoFocus={(event) => event.preventDefault()}
-            className="z-[1105] w-[min(100vw-2rem,22.5rem)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-2 shadow-lg"
+            className="w-[min(100vw-2rem,22.5rem)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-2 shadow-lg"
           >
             {calendar}
           </PopoverContent>

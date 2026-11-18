@@ -23,12 +23,12 @@ export function ComenziSpeedDial({
       <button
         type="button"
         aria-label="Închide acțiunile rapide"
-        className="fixed inset-0 z-[41] bg-black/20 md:hidden"
+        className="fixed inset-0 z-overlay bg-black/20 md:hidden"
         onClick={() => onOpenChange(false)}
       />
 
       <div
-        className="fixed right-4 z-[44] flex flex-col items-end gap-2 md:hidden"
+        className="fixed right-4 z-modal flex flex-col items-end gap-2 md:hidden"
         style={{
           bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 76px)',
         }}
@@ -54,7 +54,7 @@ export function ComenziSpeedDial({
       </div>
 
       <div
-        className="fixed right-4 z-[45] md:hidden"
+        className="fixed right-4 z-modal md:hidden"
         style={{
           bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 12px)',
         }}

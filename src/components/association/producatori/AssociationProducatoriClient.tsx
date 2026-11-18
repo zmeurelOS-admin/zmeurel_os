@@ -452,7 +452,7 @@ export function AssociationProducatoriClient({
     <>
       {isMobile ? (
         <Sheet open={allocateTarget != null} onOpenChange={(o) => !o && setAllocateTarget(null)}>
-          <SheetContent side="bottom" className="z-[1002]">
+          <SheetContent side="bottom">
             <SheetHeader>
               <SheetTitle>Alege rol workspace</SheetTitle>
               <SheetDescription>

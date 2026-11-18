@@ -20,10 +20,11 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="min-h-0 bg-[var(--agri-bg)]">
-      {header != null ? <div className="relative z-20 lg:z-40">{header}</div> : null}
+      {header != null ? <div className="relative z-bar">{header}</div> : null}
 
+      {/* Fără z-index aici: un strat propriu ar închide tot ce e `fixed` în pagină sub bara de jos și sub FAB. */}
       <div
-        className="relative z-10 px-[var(--shell-content-px)] sm:px-5 md:px-6"
+        className="relative px-[var(--shell-content-px)] sm:px-5 md:px-6"
         style={{ paddingBottom: bottomInset }}
       >
         <div className="mx-auto w-full max-w-md pb-28 pt-0.5 sm:max-w-full sm:pb-32 md:pt-1">{children}</div>
@@ -32,7 +33,7 @@ export function AppShell({
       {bottomBar ? (
         bottomBarFixed ? (
           <div
-            className="fixed inset-x-0 z-40 md:hidden"
+            className="fixed inset-x-0 z-bar md:hidden"
             style={{ bottom: 'calc(var(--app-nav-clearance) + 12px)' }}
           >
             {bottomBar}

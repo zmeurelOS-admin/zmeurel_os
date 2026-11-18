@@ -36,13 +36,13 @@ const SheetContent = React.forwardRef<
 >(({ side = "bottom", className, children, showCloseButton = true, overlayClassName, ...props }, ref) => {
   const sideClasses: Record<NonNullable<SheetContentProps["side"]>, string> = {
     bottom:
-      "fixed bottom-0 left-0 right-0 z-[1001] mt-24 rounded-t-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom max-h-[90svh] overflow-y-auto",
+      "fixed bottom-0 left-0 right-0 z-modal mt-24 rounded-t-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom max-h-[90svh] overflow-y-auto",
     top:
-      "fixed top-0 left-0 right-0 z-[1001] rounded-b-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top max-h-[90svh] overflow-y-auto",
+      "fixed top-0 left-0 right-0 z-modal rounded-b-[var(--agri-radius-lg)] border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top max-h-[90svh] overflow-y-auto",
     left:
-      "fixed left-0 top-0 bottom-0 z-[1001] w-3/4 border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left max-w-sm",
+      "fixed left-0 top-0 bottom-0 z-modal w-3/4 border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left max-w-sm",
     right:
-      "fixed right-0 top-0 bottom-0 z-[1001] w-3/4 border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right max-w-sm",
+      "fixed right-0 top-0 bottom-0 z-modal w-3/4 border border-[var(--agri-border-card)] bg-[var(--agri-surface)] text-[var(--agri-text)] shadow-[var(--agri-elevated-shadow)] duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right max-w-sm",
   }
 
   return (

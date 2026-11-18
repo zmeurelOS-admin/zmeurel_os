@@ -27,6 +27,7 @@ export function Toaster() {
     <SonnerToaster
       theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
       position={isMobile ? 'top-center' : 'top-right'}
+      style={{ zIndex: 'var(--z-index-toast)' }}
       toastOptions={{
         duration: DEFAULT_TOAST_DURATION_MS,
         style: {

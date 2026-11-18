@@ -531,7 +531,7 @@ export function AssociationLivrariClient({ initialOrders, settings: initialSetti
           </section>
         ) : null}
 
-        <section className="fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border-default)] bg-[var(--surface-card)]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur md:left-auto md:right-auto md:mx-auto md:max-w-6xl md:rounded-t-[28px]">
+        <section className="fixed bottom-[var(--app-nav-clearance)] left-0 right-0 z-20 border-t md:bottom-0 border-[var(--border-default)] bg-[var(--surface-card)]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-3 backdrop-blur md:left-auto md:right-auto md:mx-auto md:max-w-6xl md:rounded-t-[28px]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-[var(--text-primary)]">

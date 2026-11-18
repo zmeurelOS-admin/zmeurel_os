@@ -382,7 +382,7 @@ export function AppSelect({
             sideOffset={6}
             onOpenAutoFocus={(event) => event.preventDefault()}
             className={cn(
-              'z-[1105] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
+              'w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-xl border border-[var(--agri-border)] bg-[var(--agri-surface)] p-0 shadow-lg',
               menuClassName
             )}
           >

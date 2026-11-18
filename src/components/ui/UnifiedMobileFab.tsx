@@ -39,12 +39,11 @@ export default function UnifiedMobileFab() {
 
   return (
     <div
-      className="md:hidden"
+      className="z-fab md:hidden"
       style={{
         position: 'fixed',
         bottom: 'calc(var(--tabbar-h) + var(--safe-b) + 12px)',
         right: 16,
-        zIndex: 42,
       }}
     >
       <button
