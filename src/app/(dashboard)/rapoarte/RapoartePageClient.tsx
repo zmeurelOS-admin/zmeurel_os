@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { butasiRevenueBetween, butasiRevenueDate, type ButasiRevenueSource } from '@/lib/vanzari-butasi/revenue'
 import { calculateProfit } from '@/lib/calculations/profit'
 import { trackEvent } from '@/lib/analytics/trackEvent'
 import { calculatePauseStatus } from '@/lib/supabase/queries/activitati-agricole'
@@ -37,6 +38,10 @@ type ReportType =
   | 'productivitate_parcela'
   | 'productivitate_culegator'
   | 'vanzari_client'
+
+function toIsoDay(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 interface RecoltareLite {
   id: string
@@ -104,6 +109,8 @@ interface RapoartePageClientProps {
   initialCulegatori: CulegatorLite[]
   initialClienți: ClientLite[]
   initialActivitati: ActivitateLite[]
+  /** Comenzi de material săditor livrate — intră la venituri la data livrării. */
+  initialButasiLivrate?: ButasiRevenueSource[]
 }
 
 interface DetailRow {
@@ -141,6 +148,7 @@ export function RapoartePageClient({
   initialCulegatori,
   initialClienți,
   initialActivitati,
+  initialButasiLivrate = [],
 }: RapoartePageClientProps) {
   const today = useMemo(() => new Date(), [])
   const seasonStart = useMemo(() => new Date(today.getFullYear(), 2, 1), [today])
@@ -245,13 +253,13 @@ export function RapoartePageClient({
     const venitLei = filteredVanzari.reduce(
       (sum, row) => sum + Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0),
       0
-    )
+    ) + butasiRevenueBetween(initialButasiLivrate, toIsoDay(range.start), toIsoDay(range.end))
     const costLei = filteredCheltuieli.reduce((sum, row) => sum + Number(row.suma_lei || 0), 0)
     return {
       productieKg,
       ...calculateProfit(venitLei, costLei),
     }
-  }, [filteredCheltuieli, filteredRecoltari, filteredVanzari])
+  }, [filteredCheltuieli, filteredRecoltari, filteredVanzari, initialButasiLivrate, range.start, range.end])
 
   const monthlyFinancialRows = useMemo(() => {
     const grouped = new Map<string, { venit: number; cheltuieli: number }>()
@@ -260,6 +268,16 @@ export function RapoartePageClient({
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       const current = grouped.get(key) ?? { venit: 0, cheltuieli: 0 }
       current.venit += Number(row.cantitate_kg || 0) * Number(row.pret_lei_kg || 0)
+      grouped.set(key, current)
+    })
+    initialButasiLivrate.forEach((row) => {
+      const day = butasiRevenueDate(row)
+      if (!day) return
+      const date = new Date(`${day}T12:00:00`)
+      if (date < range.start || date > range.end) return
+      const key = day.slice(0, 7)
+      const current = grouped.get(key) ?? { venit: 0, cheltuieli: 0 }
+      current.venit += Number(row.total_lei || 0)
       grouped.set(key, current)
     })
     filteredCheltuieli.forEach((row) => {
@@ -279,7 +297,7 @@ export function RapoartePageClient({
         venit: value.venit,
         cheltuieli: value.cheltuieli,
       }))
-  }, [filteredCheltuieli, filteredVanzari])
+  }, [filteredCheltuieli, filteredVanzari, initialButasiLivrate, range.start, range.end])
 
   const financialChartMax = useMemo(() => {
     return Math.max(

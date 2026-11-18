@@ -14,6 +14,7 @@ import {
   Plus,
   RefreshCw,
   Send,
+  Trash2,
   UserRound,
   Users,
   X,
@@ -32,8 +33,10 @@ import {
   SURSE_COMANDA_BUTASI,
   createVanzareButasi,
   getVanzariButasi,
+  updateVanzareButasi,
   type SursaComandaButasi,
   type VanzareButasi,
+  type VanzareButasiStatus,
 } from '@/lib/supabase/queries/vanzari-butasi'
 import { toast } from '@/lib/ui/toast'
 import { cn } from '@/lib/utils'
@@ -140,6 +143,12 @@ interface WizardState {
   done: boolean
   /** Clientul a venit prin „Distribuie” din aplicația Contacte. */
   fromShare: boolean
+  /** Editare: id-ul comenzii existente (null = comandă nouă). */
+  editingId: string | null
+  status: VanzareButasiStatus
+  /** Editare: soiurile/cantitățile au fost modificate (altfel nu retrimitem liniile). */
+  itemsDirty: boolean
+  deleteArmed: boolean
 }
 
 const initialState = (): WizardState => ({
@@ -160,7 +169,44 @@ const initialState = (): WizardState => ({
   calendar: null,
   done: false,
   fromShare: false,
+  editingId: null,
+  status: 'noua',
+  itemsDirty: false,
+  deleteArmed: false,
 })
+
+const STATUS_OPTIONS: Array<{ value: VanzareButasiStatus; label: string }> = [
+  { value: 'noua', label: 'Nouă' },
+  { value: 'confirmata', label: 'Confirmată' },
+  { value: 'pregatita', label: 'Pregătită' },
+  { value: 'livrata', label: 'Livrată' },
+  { value: 'anulata', label: 'Anulată' },
+]
+
+function stateFromOrder(order: VanzareButasi, clientName: string): WizardState {
+  const items: WizardItem[] = (order.items ?? []).map((it) => ({
+    soi: it.soi,
+    qty: String(Number(it.cantitate || 0)),
+    price: String(Number(it.pret_unitar || 0)),
+  }))
+  const total = Number(order.total_lei || 0)
+  const avans = Number(order.avans_suma || 0)
+  return {
+    ...initialState(),
+    idx: 5 + items.length, // ecranul de verificare
+    sursa: order.sursa_comanda,
+    clientId: order.client_id,
+    clientName: clientName || order.client_nume_manual || '',
+    items,
+    avansMode: avans <= 0 ? 'none' : avans >= total && total > 0 ? 'all' : 'custom',
+    avansCustom: avans > 0 ? String(avans) : '',
+    livrare: order.data_livrare_estimata?.slice(0, 10) ?? '',
+    dataComanda: (order.data_comanda ?? '').slice(0, 10) || getDates().today,
+    observatii: order.observatii ?? '',
+    editingId: order.id,
+    status: order.status,
+  }
+}
 
 const SURSA_ICONS: Record<SursaComandaButasi, LucideIcon> = {
   whatsapp: MessageCircle,
@@ -361,9 +407,21 @@ interface ComandaButasiWizardProps {
   onOpenChange: (open: boolean) => void
   /** Contact primit prin „Distribuie” din aplicația Contacte; precompletează clientul. */
   initialContact?: SharedContact | null
+  /** Comandă existentă de editat (se deschide pe ecranul de verificare). */
+  editOrder?: VanzareButasi | null
+  editClientName?: string
+  /** Ștergerea e făcută de pagină (cu „Anulează” în toast). */
+  onDelete?: (order: VanzareButasi) => void
 }
 
-export function ComandaButasiWizard({ open, onOpenChange, initialContact = null }: ComandaButasiWizardProps) {
+export function ComandaButasiWizard({
+  open,
+  onOpenChange,
+  initialContact = null,
+  editOrder = null,
+  editClientName = '',
+  onDelete,
+}: ComandaButasiWizardProps) {
   const queryClient = useQueryClient()
   const [s, setS] = useState<WizardState>(initialState)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -376,7 +434,9 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
   const [prevOpen, setPrevOpen] = useState(false)
   if (open !== prevOpen) {
     setPrevOpen(open)
-    if (open) {
+    if (open && editOrder) {
+      setS(stateFromOrder(editOrder, editClientName))
+    } else if (open) {
       setS(
         initialContact && (initialContact.name || initialContact.phone)
           ? {
@@ -391,8 +451,8 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
   }
 
   useEffect(() => {
-    if (open) trackEvent({ eventName: 'open_create_form', moduleName: 'vanzari-butasi', status: 'started' })
-  }, [open])
+    if (open && !editOrder) trackEvent({ eventName: 'open_create_form', moduleName: 'vanzari-butasi', status: 'started' })
+  }, [open, editOrder])
 
   const { data: clienti = [] } = useQuery({ queryKey: queryKeys.clienti, queryFn: getClienți })
   const { data: vanzari = [] } = useQuery({ queryKey: queryKeys.vanzariButasi, queryFn: getVanzariButasi })
@@ -474,16 +534,17 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
   }
   const next = () => {
     setS((prev) => {
-      if (prev.fromRecap) {
-        const recapIdx = ['sursa', 'client', 'soiuri', ...prev.items.map((_, i) => `qty-${i}`), 'avans', 'livrare', 'recap'].indexOf('recap')
-        return { ...prev, idx: recapIdx, fromRecap: false }
-      }
+      const recapIdx = 5 + prev.items.length
+      if (prev.fromRecap) return { ...prev, idx: recapIdx, fromRecap: false }
+      // La editare, după ultimul soi te întorci direct la verificare.
+      const lastQtyIdx = 2 + prev.items.length
+      if (prev.editingId && prev.idx === lastQtyIdx) return { ...prev, idx: recapIdx }
       return { ...prev, idx: prev.idx + 1 }
     })
   }
   const back = () => {
     if (s.calendar) return patch({ calendar: null })
-    if (s.fromRecap) return goTo('recap')
+    if (s.fromRecap || (s.editingId && stepKey !== 'recap')) return goTo('recap')
     if (s.idx > 0) patch({ idx: s.idx - 1 })
   }
 
@@ -611,6 +672,33 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
         }
       }
 
+      if (s.editingId) {
+        if (manualName) throw new Error('Nu am putut salva clientul nou. Încearcă din nou.')
+        const today = getDates().today
+        // Marcată livrată fără dată (sau cu dată în viitor) → data livrării devine azi (contează la venituri).
+        const livrare =
+          s.status === 'livrata' && (!s.livrare || s.livrare > today) ? today : s.livrare || null
+        return updateVanzareButasi(s.editingId, {
+          client_id: clientId,
+          sursa_comanda: s.sursa,
+          status: s.status,
+          data_comanda: s.dataComanda,
+          data_livrare_estimata: livrare,
+          observatii: s.observatii.trim() || null,
+          avans_suma: avans,
+          avans_data: avans > 0 ? (editOrder?.avans_data ?? s.dataComanda) : null,
+          ...(s.itemsDirty
+            ? {
+                items: s.items.map((it) => ({
+                  soi: it.soi.trim(),
+                  cantitate: Math.round(toNumber(it.qty)),
+                  pret_unitar: toNumber(it.price),
+                })),
+              }
+            : {}),
+        })
+      }
+
       return createVanzareButasi({
         client_id: clientId,
         client_nume_manual: manualName,
@@ -630,6 +718,12 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
     },
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.vanzariButasi })
+      if (s.editingId) {
+        hapticSuccess()
+        toast.success('Comanda a fost actualizată')
+        onOpenChange(false)
+        return
+      }
       trackEvent('butasi_order_created', 'vanzari-butasi', {
         orderId: saved.id,
         status: saved.status,
@@ -886,10 +980,10 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
     const all = [...soiOptions, ...extra]
     const toggle = (soi: string) => {
       const i = s.items.findIndex((it) => normalize(it.soi) === normalize(soi))
-      if (i >= 0) patch({ items: s.items.filter((_, idx) => idx !== i) })
+      if (i >= 0) patch({ items: s.items.filter((_, idx) => idx !== i), itemsDirty: true })
       else {
         const last = lastPriceBySoi.get(normalize(soi))
-        patch({ items: [...s.items, { soi, qty: '10', price: last ? String(last) : '' }] })
+        patch({ items: [...s.items, { soi, qty: '10', price: last ? String(last) : '' }], itemsDirty: true })
       }
     }
     const addAlt = () => {
@@ -897,7 +991,12 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
       if (!value) return
       if (!s.items.some((it) => normalize(it.soi) === normalize(value))) {
         const last = lastPriceBySoi.get(normalize(value))
-        patch({ items: [...s.items, { soi: value, qty: '10', price: last ? String(last) : '' }], altName: '', altOpen: false })
+        patch({
+          items: [...s.items, { soi: value, qty: '10', price: last ? String(last) : '' }],
+          altName: '',
+          altOpen: false,
+          itemsDirty: true,
+        })
       } else patch({ altName: '', altOpen: false })
     }
     content = (
@@ -961,7 +1060,11 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
     const i = Number(stepKey.slice(4))
     const item = s.items[i]
     const setItem = (next: Partial<WizardItem>) =>
-      setS((prev) => ({ ...prev, items: prev.items.map((it, idx) => (idx === i ? { ...it, ...next } : it)) }))
+      setS((prev) => ({
+        ...prev,
+        itemsDirty: true,
+        items: prev.items.map((it, idx) => (idx === i ? { ...it, ...next } : it)),
+      }))
     const qty = toNumber(item.qty)
     const price = toNumber(item.price)
     const last = lastPriceBySoi.get(normalize(item.soi))
@@ -1206,7 +1309,28 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
     )
     content = (
       <div className="space-y-4">
-        <StepTitle>Verifică și salvează</StepTitle>
+        <StepTitle>{s.editingId ? 'Modifică comanda' : 'Verifică și salvează'}</StepTitle>
+        {s.editingId ? (
+          <div className="space-y-2">
+            <p className="text-[15px] font-semibold text-[var(--agri-text)]">Status</p>
+            <div role="group" aria-label="Statusul comenzii" className="flex flex-wrap gap-2">
+              {STATUS_OPTIONS.map((option) => {
+                const on = s.status === option.value
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => patch({ status: option.value })}
+                    className={cn('h-11 rounded-full border-2 px-4 text-[15px] font-bold', on ? tileOn : tileOff)}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
         <div className="overflow-hidden rounded-2xl border-2 border-[var(--border-default)]">
           {row(
             'client',
@@ -1268,10 +1392,36 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
             className="w-full resize-none rounded-2xl border-2 border-[var(--border-default)] bg-[var(--agri-surface)] px-4 py-3 text-base text-[var(--agri-text)] outline-none focus:border-[var(--agri-primary)]"
           />
         </div>
+        {s.editingId && editOrder && onDelete ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (!s.deleteArmed) {
+                patch({ deleteArmed: true })
+                return
+              }
+              onDelete(editOrder)
+              onOpenChange(false)
+            }}
+            className={cn(
+              'flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 px-4 text-[15px] font-bold',
+              s.deleteArmed
+                ? 'border-[var(--soft-danger-text)] bg-[var(--soft-danger-bg)] text-[var(--soft-danger-text)]'
+                : 'border-[var(--border-default)] text-[var(--soft-danger-text)]',
+            )}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            {s.deleteArmed ? 'Apasă din nou ca să ștergi comanda' : 'Șterge comanda'}
+          </button>
+        ) : null}
       </div>
     )
     footer = {
-      label: mutation.isPending ? 'Se salvează…' : `Salvează · ${lei(total)}`,
+      label: mutation.isPending
+        ? 'Se salvează…'
+        : s.editingId
+          ? `Salvează modificările · ${lei(total)}`
+          : `Salvează · ${lei(total)}`,
       enabled: !mutation.isPending && s.items.length > 0 && Boolean(s.clientName.trim()),
       action: () => mutation.mutate(),
     }
@@ -1279,8 +1429,17 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
 
   const stepCount = steps.length - 1
   const progress = s.done ? 100 : Math.round((Math.min(s.idx, stepCount) / stepCount) * 100)
-  const stepLabel = s.done ? '' : stepKey === 'recap' ? 'Verificare' : `Pasul ${s.idx + 1} din ${stepCount}`
-  const canGoBack = !s.done && (s.idx > 0 || Boolean(s.calendar))
+  const stepLabel = s.done
+    ? ''
+    : stepKey === 'recap'
+      ? s.editingId
+        ? 'Editare'
+        : 'Verificare'
+      : s.editingId
+        ? 'Editare'
+        : `Pasul ${s.idx + 1} din ${stepCount}`
+  const canGoBack =
+    !s.done && (Boolean(s.calendar) || (s.editingId ? stepKey !== 'recap' : s.idx > 0))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1290,7 +1449,9 @@ export function ComandaButasiWizard({ open, onOpenChange, initialContact = null 
         aria-describedby={undefined}
         className="flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none sm:p-0 md:h-[min(90dvh,860px)] md:max-h-[min(90dvh,860px)] md:w-[min(96vw,480px)] md:rounded-[var(--agri-radius-lg)] md:border"
       >
-        <DialogTitle className="sr-only">Comandă nouă material săditor</DialogTitle>
+        <DialogTitle className="sr-only">
+          {s.editingId ? 'Editează comanda de material săditor' : 'Comandă nouă material săditor'}
+        </DialogTitle>
         <DialogDescription className="sr-only">Completezi comanda pas cu pas.</DialogDescription>
 
         <div className="shrink-0 space-y-3 px-4 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">

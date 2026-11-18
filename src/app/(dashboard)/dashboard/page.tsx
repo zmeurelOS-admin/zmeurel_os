@@ -95,6 +95,8 @@ import {
 } from '@/lib/supabase/queries/profile-dashboard'
 import { getRecoltari, getRecoltareTotalKg } from '@/lib/supabase/queries/recoltari'
 import { getVanzari } from '@/lib/supabase/queries/vanzari'
+import { getVanzariButasi } from '@/lib/supabase/queries/vanzari-butasi'
+import { butasiRevenueBetween } from '@/lib/vanzari-butasi/revenue'
 import { getTenantId } from '@/lib/tenant/get-tenant'
 import { isParcelaDashboardRelevant } from '@/lib/parcele/dashboard-relevance'
 import { formatUnitateDisplayName } from '@/lib/parcele/unitate'
@@ -365,6 +367,13 @@ export default function DashboardPage() {
     placeholderData: (previousData) => previousData,
   })
 
+  // Material săditor livrat = venit (la data livrării).
+  const vanzariButasiQuery = useQuery({
+    queryKey: queryKeys.vanzariButasi,
+    queryFn: getVanzariButasi,
+    placeholderData: (previousData) => previousData,
+  })
+
   const cheltuieliQuery = useQuery({
     queryKey: queryKeys.cheltuieli,
     queryFn: getCheltuieli,
@@ -537,6 +546,7 @@ export default function DashboardPage() {
   const parcele = parceleQuery.data ?? EMPTY_LIST
   const activitati = activitatiQuery.data ?? EMPTY_LIST
   const vanzari = vanzariQuery.data ?? EMPTY_LIST
+  const vanzariButasi = vanzariButasiQuery.data ?? EMPTY_LIST
   const cheltuieli = cheltuieliQuery.data ?? EMPTY_LIST
   const comenzi = comenziQuery.data ?? EMPTY_LIST
   const shopOrders = shopOrdersQuery.data ?? EMPTY_LIST
@@ -655,6 +665,7 @@ export default function DashboardPage() {
       return date >= seasonStartIso && date <= todayIso
     })
     .reduce((sum, row) => sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg), 0)
+    + butasiRevenueBetween(vanzariButasi, seasonStartIso, todayIso)
 
   const venitSezonAnterior = vanzari
     .filter((row) => {
@@ -662,6 +673,7 @@ export default function DashboardPage() {
       return date >= previousSeasonStartIso && date <= previousSeasonEndIso
     })
     .reduce((sum, row) => sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg), 0)
+    + butasiRevenueBetween(vanzariButasi, previousSeasonStartIso, previousSeasonEndIso)
 
   const costSezon = cheltuieli
     .filter((row) => {
@@ -807,12 +819,12 @@ export default function DashboardPage() {
         const date = toDateOnly(row.data)
         if (!date || date < startIso || date > endIso) return sum
         return sum + asNumber(row.cantitate_kg) * asNumber(row.pret_lei_kg)
-      }, 0)
+      }, 0) + butasiRevenueBetween(vanzariButasi, startIso, endIso)
 
       buckets.push(Math.round(bucketValue))
     }
     return buckets
-  }, [vanzari])
+  }, [vanzari, vanzariButasi])
 
   const kpiItems = useMemo(
     () =>

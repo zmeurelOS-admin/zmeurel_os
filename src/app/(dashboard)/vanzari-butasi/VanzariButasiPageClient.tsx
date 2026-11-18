@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Camera,
   Check,
+  CheckCircle2,
   ChevronRight,
   MessageCircle,
   MoreHorizontal,
@@ -33,6 +34,7 @@ import {
   SURSE_COMANDA_BUTASI,
   deleteVanzareButasi,
   getVanzariButasi,
+  updateVanzareButasi,
   type SursaComandaButasi,
   type VanzareButasi,
 } from '@/lib/supabase/queries/vanzari-butasi'
@@ -45,10 +47,6 @@ import type { SharedContact } from '@/lib/vanzari-butasi/shared-contact'
 // modulele deja optimizate. Nu randează DOM când sunt închise.
 const ComandaButasiWizard = dynamic(
   () => import('@/components/vanzari-butasi/ComandaButasiWizard').then((mod) => mod.ComandaButasiWizard),
-  { ssr: false }
-)
-const EditVanzareButasiDialog = dynamic(
-  () => import('@/components/vanzari-butasi/EditVanzareButasiDialog').then((mod) => mod.EditVanzareButasiDialog),
   { ssr: false }
 )
 const DeleteConfirmDialog = dynamic(
@@ -120,11 +118,11 @@ const isActiveOrder = (v: VanzareButasi) => v.status !== 'livrata' && v.status !
 const orderRest = (v: VanzareButasi) => Math.max(0, Number(v.total_lei || 0) - Number(v.avans_suma || 0))
 
 function statusInfo(status: string): { label: string; className: string } {
-  if (status === 'livrata') return { label: 'Livrată', className: 'bg-[var(--soft-success-bg)] text-[var(--success-text)]' }
-  if (status === 'anulata') return { label: 'Anulată', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200' }
+  if (status === 'livrata') return { label: 'Livrată', className: 'bg-[var(--soft-success-bg)] text-[var(--soft-success-text)]' }
+  if (status === 'anulata') return { label: 'Anulată', className: 'bg-[var(--soft-danger-bg)] text-[var(--soft-danger-text)]' }
   if (status === 'confirmata' || status === 'pregatita')
-    return { label: 'În curs', className: 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200' }
-  return { label: 'Nouă', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' }
+    return { label: 'În curs', className: 'bg-[var(--soft-warning-bg)] text-[var(--soft-warning-text)]' }
+  return { label: 'Nouă', className: 'bg-[var(--soft-info-bg)] text-[var(--soft-info-text)]' }
 }
 
 // ─── Card comandă ─────────────────────────────────────────────────────────────
@@ -133,10 +131,12 @@ function ButasiOrderCard({
   vanzare,
   clientNume,
   onOpen,
+  onDeliver,
 }: {
   vanzare: VanzareButasi
   clientNume: string | undefined
   onOpen: () => void
+  onDeliver: () => void
 }) {
   const title = clientNume ?? vanzare.client_nume_manual ?? '—'
   const status = statusInfo(vanzare.status)
@@ -152,10 +152,12 @@ function ButasiOrderCard({
       : []
 
   return (
+    <div className="overflow-hidden rounded-[22px] border border-[var(--border-default)] bg-[var(--surface-card)] shadow-[var(--shadow-soft)]">
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full flex-col gap-3 rounded-[22px] border border-[var(--border-default)] bg-[var(--surface-card)] p-4 text-left shadow-[var(--shadow-soft)] transition-transform active:scale-[0.99]"
+      aria-label={`Deschide comanda lui ${title}`}
+      className="flex w-full flex-col gap-3 p-4 text-left transition-transform active:scale-[0.99]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
@@ -197,7 +199,7 @@ function ButasiOrderCard({
         <span
           className={cn(
             'inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold',
-            livrareSoon ? 'text-orange-700 dark:text-orange-300' : 'text-[var(--text-primary)]',
+            livrareSoon ? 'text-[var(--soft-warning-text)]' : 'text-[var(--text-primary)]',
             !livrare && 'font-medium text-[var(--text-secondary)]',
           )}
         >
@@ -232,6 +234,109 @@ function ButasiOrderCard({
         </span>
       </div>
     </button>
+    {active ? (
+      <div className="px-4 pb-4">
+        <button
+          type="button"
+          onClick={onDeliver}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[var(--agri-primary)] text-base font-bold text-[var(--agri-primary-contrast)] active:opacity-90"
+        >
+          <CheckCircle2 className="h-5 w-5" aria-hidden />
+          Marchează livrată
+        </button>
+      </div>
+    ) : null}
+    </div>
+  )
+}
+
+// ─── Confirmare livrare ───────────────────────────────────────────────────────
+
+function DeliverSheet({
+  vanzare,
+  clientNume,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  vanzare: VanzareButasi
+  clientNume: string | undefined
+  pending: boolean
+  onClose: () => void
+  onConfirm: (incasat: boolean) => void
+}) {
+  const rest = orderRest(vanzare)
+  const total = Number(vanzare.total_lei || 0)
+  return (
+    <div
+      className="fixed inset-0 z-[1001] flex items-end justify-center bg-black/45 md:items-center"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !pending) onClose()
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !pending) onClose()
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Marchează comanda livrată"
+        className="w-full max-w-md space-y-3 rounded-t-[28px] bg-[var(--surface-card)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-3 md:rounded-[28px]"
+      >
+        <div className="mx-auto mb-1 h-1.5 w-11 rounded-full bg-[var(--border-default)]" aria-hidden />
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-[22px] font-extrabold leading-tight text-[var(--text-primary)]">Comanda e livrată?</h2>
+            <p className="text-base text-[var(--text-secondary)]">
+              {clientNume ?? vanzare.client_nume_manual ?? 'Client'} · {formatLei(total)}
+            </p>
+          </div>
+          <button
+            type="button"
+            autoFocus
+            onClick={onClose}
+            disabled={pending}
+            aria-label="Închide"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--agri-surface-muted)] text-[var(--text-primary)]"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+        {rest > 0 ? (
+          <>
+            <p className="rounded-2xl bg-[var(--status-warning-bg)] px-4 py-3 text-[15px] font-semibold text-[var(--status-warning-text)]">
+              Mai are de plată {formatLei(rest)}.
+            </p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => onConfirm(true)}
+              className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-[var(--agri-primary)] px-4 text-[17px] font-extrabold text-[var(--agri-primary-contrast)] disabled:opacity-60"
+            >
+              {pending ? 'Se salvează…' : `Livrată și încasată (${formatLei(rest)})`}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => onConfirm(false)}
+              className="flex min-h-14 w-full items-center justify-center rounded-2xl border-2 border-[var(--border-default)] px-4 text-base font-bold text-[var(--text-primary)] disabled:opacity-60"
+            >
+              Livrată, încasez mai târziu
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => onConfirm(false)}
+            className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-[var(--agri-primary)] px-4 text-[17px] font-extrabold text-[var(--agri-primary-contrast)] disabled:opacity-60"
+          >
+            {pending ? 'Se salvează…' : 'Da, e livrată'}
+          </button>
+        )}
+        <p className="text-center text-[13px] text-[var(--text-secondary)]">Totalul comenzii intră la venituri, la data livrării.</p>
+      </div>
+    </div>
   )
 }
 
@@ -250,6 +355,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
   const [sursaFilter, setSursaFilter] = useState<SursaFilter>('toate')
   const [sortKey, setSortKey] = useState<SortKey>('noi')
   const [sortOpen, setSortOpen] = useState(false)
+  const [deliveringVanzare, setDeliveringVanzare] = useState<VanzareButasi | null>(null)
   const [sharedContact, setSharedContact] = useState<SharedContact | null>(null)
 
   // „Distribuie” din Contacte → /api/share/contact → aici, cu contactul în fragmentul URL (#contact=…).
@@ -380,6 +486,27 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
     return map
   }, [clientiData])
 
+  const deliverMutation = useMutation({
+    mutationFn: async ({ vanzare, incasat }: { vanzare: VanzareButasi; incasat: boolean }) => {
+      const today = isoInDays(0)
+      const livrare = vanzare.data_livrare_estimata?.slice(0, 10)
+      return updateVanzareButasi(vanzare.id, {
+        status: 'livrata',
+        // Data livrării devine azi dacă lipsea sau era în viitor (contează la venituri pe data asta).
+        ...(!livrare || livrare > today ? { data_livrare_estimata: today } : {}),
+        ...(incasat ? { avans_suma: Number(vanzare.total_lei || 0), avans_data: today } : {}),
+      })
+    },
+    onSuccess: (_saved, { incasat }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.vanzariButasi })
+      toast.success(incasat ? 'Livrată și încasată — a intrat la venituri' : 'Marcată livrată — a intrat la venituri')
+      setDeliveringVanzare(null)
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error && err.message ? err.message : 'Nu am putut marca comanda ca livrată.')
+    },
+  })
+
   // ── Computed ───────────────────────────────────────────────────────────────
 
   const currentMonth = useMemo(() => {
@@ -393,7 +520,8 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
       (sum, v) => sum + (v.items ?? []).reduce((s, item) => s + Number(item.cantitate || 0), 0),
       0,
     )
-    const deIncasat = vanzari.filter(isActiveOrder).reduce((sum, v) => sum + orderRest(v), 0)
+    // De încasat: tot ce nu e anulat și n-a fost plătit integral (inclusiv livrate cu rest).
+    const deIncasat = vanzari.filter((v) => v.status !== 'anulata').reduce((sum, v) => sum + orderRest(v), 0)
     return {
       nrLuna: lunaOrders.length,
       totalButasi,
@@ -623,6 +751,7 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
                 vanzare={vanzare}
                 clientNume={vanzare.client_id ? clientMap[vanzare.client_id] : (vanzare.client_nume_manual ?? undefined)}
                 onOpen={() => setEditingVanzare(vanzare)}
+                onDeliver={() => setDeliveringVanzare(vanzare)}
               />
             ))}
           </div>
@@ -698,11 +827,30 @@ export function VanzariButasiPageClient({ initialVanzari, clienti }: VanzariButa
         initialContact={sharedContact}
       />
 
-      <EditVanzareButasiDialog
-        vanzare={editingVanzare}
+      <ComandaButasiWizard
         open={!!editingVanzare}
-        onOpenChange={(nextOpen) => { if (!nextOpen) setEditingVanzare(null) }}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setEditingVanzare(null)
+        }}
+        editOrder={editingVanzare}
+        editClientName={editingVanzare?.client_id ? (clientMap[editingVanzare.client_id] ?? '') : ''}
+        onDelete={(order) => scheduleDelete(order)}
       />
+
+      {/* Marchează livrată — foaie de jos */}
+      {deliveringVanzare ? (
+        <DeliverSheet
+          vanzare={deliveringVanzare}
+          clientNume={
+            deliveringVanzare.client_id
+              ? clientMap[deliveringVanzare.client_id]
+              : (deliveringVanzare.client_nume_manual ?? undefined)
+          }
+          pending={deliverMutation.isPending}
+          onClose={() => setDeliveringVanzare(null)}
+          onConfirm={(incasat) => deliverMutation.mutate({ vanzare: deliveringVanzare, incasat })}
+        />
+      ) : null}
 
       <DeleteConfirmDialog
         open={!!deletingVanzare}

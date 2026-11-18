@@ -4,7 +4,7 @@ import { RapoartePageClient } from './RapoartePageClient'
 export default async function RapoartePage() {
   const supabase = await createClient()
 
-  const [{ data: recoltari = [] }, { data: vanzari = [] }, { data: cheltuieli = [] }, { data: parcele = [] }, { data: culegatori = [] }, { data: clienti = [] }, { data: activitati = [] }] =
+  const [{ data: recoltari = [] }, { data: vanzari = [] }, { data: cheltuieli = [] }, { data: parcele = [] }, { data: culegatori = [] }, { data: clienti = [] }, { data: activitati = [] }, { data: butasiLivrate = [] }] =
     await Promise.all([
       supabase
         .from('recoltari')
@@ -31,6 +31,11 @@ export default async function RapoartePage() {
         .from('activitati_agricole')
         .select('id,data_aplicare,parcela_id,tip_activitate,tip_deprecat,produs_utilizat,doza,timp_pauza_zile,observatii')
         .order('data_aplicare', { ascending: false }),
+      // Material săditor livrat = venit (la data livrării).
+      supabase
+        .from('vanzari_butasi')
+        .select('id,status,total_lei,data_livrare_estimata,data_comanda')
+        .eq('status', 'livrata'),
     ])
 
   return (
@@ -42,6 +47,7 @@ export default async function RapoartePage() {
       initialCulegatori={culegatori ?? []}
       initialClienți={clienti ?? []}
       initialActivitati={activitati ?? []}
+      initialButasiLivrate={butasiLivrate ?? []}
     />
   )
 }
