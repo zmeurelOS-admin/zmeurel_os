@@ -66,3 +66,38 @@ Totul de mai jos e dedus din cod; nimic nu a fost văzut pe ecran.
 | 10 | Orice pagină | Există vreun buton care deschide chat-ul AI? | Nu am găsit niciun apel care să-l deschidă. |
 | 11 | `/clienti-magazin` și `/analytics-magazin` pe telefon (adresă scrisă de mână) | Au antet? Tabelul se derulează lateral? | Nu folosesc `AppShell`; nu sunt în meniul de mobil. |
 | 12 | `/recoltari` → adăugare, pe un telefon mic | Butonul „Salvează” rămâne vizibil cu tastatura deschisă? | Dialog centrat cu înălțime maximă 88 % din ecran. |
+
+---
+
+# Curățenie cod mort (prompt 02, 18.11.2026)
+
+Branch `redesign/cleanup` (din `redesign/audit`). Doar ștergeri de fișiere și docs; nicio schimbare de logică. Nimic în baza de date.
+
+## Ce s-a șters
+
+- **Val 1 — Anexa E:** 38 de fișiere, 6.947 de linii (cele 37 din anexă + `parcele/ParcelaForm`, importat doar de `AddParcelaDialog`).
+- **Val 2 — orfani:** 6 fișiere, 358 de linii: `app/CompactListCard`, `app/SyncBadge`, `app/status-config`, `clienti/import-types`, `ui/TrendBadge`, `lib/ui/status-badges`.
+- **Dependență:** `cmdk` (folosit doar de `ui/command`, șters).
+- **Total:** 44 de fișiere, 7.305 linii.
+- Metoda: nume ca cuvânt întreg, cale de import și fiecare export, căutate în `src/` (inclusiv teste), `e2e/`, `tests/`, `tests-e2e/`, `scripts/` și configurările din rădăcină. Niciun test nu atingea fișierele șterse, deci nu s-a șters niciun test.
+- `ActivitatiAgricolePageClient.tsx` nu mai exista (șters în `dac7c3e`); s-a scos doar mențiunea din `CLAUDE.md`.
+- Auditul: 1.3 și 3.3 aliniate la decizia „tema coral dispare”; rând nou în secțiunea 5 despre coada offline.
+
+## Verificare
+
+- `lint`: 3 erori, 14 avertismente — aceleași dinainte, în fișiere neatinse (`analytics-magazin/page.tsx`, `RecoltariPageClient.tsx`, `ui/app-date-picker.tsx`, reguli `react-hooks`). Rulat după fiecare commit de ștergere.
+- `typecheck`: trece (după fiecare commit).
+- `build`: trece.
+- `test:critical:unit`: 135/137 la rularea completă; cele 2 picate (`integrations/google` callback + connect) au fost timeout de 5 s la prima încărcare a modulului. Rerulate separat: 19/19 trec. Mediu, nu ștergere.
+
+## Ce a rămas și de ce
+
+- **De făcut mai târziu (zona Asociație, în afara revamp-ului):** `shop/association/marketplace/` — `MarketAbout`, `MarketCheckoutPanel`, `MarketFilterRail`, `MarketHeader`, `MarketHero`, `MarketHowItWorks`, `MarketProductCard` — și `shop/association/AssociationProductDetailContent`. Au rămas fără importuri după ștergerea lui `AssociationShopClient`. (`MarketSuccessOverlay` și `marketTokens` sunt încă folosite.)
+- **Coada offline (`lib/offline`) e inactivă:** enqueue nu e apelat, syncEngine nu pornește; CLAUDE.md o descrie ca activă; e2e/offline.spec.ts probabil pică. De tratat separat, după revamp.
+- `lib/design-tokens.ts` rămâne: îl folosesc încă `ComenziPageClient`, `ParcelePageClient`, `ui/Sparkline`.
+
+## De deschis pe telefon (preview)
+
+Fișierele șterse nu erau randate nicăieri, deci nu ar trebui să se schimbe nimic. Verificare rapidă că paginile se încarcă fără eroare:
+
+`/dashboard`, `/parcele` și o parcelă (`/parcele/[id]`), `/activitati-agricole`, `/recoltari`, `/comenzi`, `/livrari`, `/vanzari`, `/vanzari-butasi`, `/clienti` (inclusiv importul de clienți), `/culegatori`, meniul „Mai mult” din bara de jos, `/admin` (superadmin), `/magazin/asociatie`.
