@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getTenantIdOrNull } from '@/lib/tenant/get-tenant'
 import { VanzariButasiPageClient } from './VanzariButasiPageClient'
-import type { VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
+import { isSursaComandaButasi, type VanzareButasi } from '@/lib/supabase/queries/vanzari-butasi'
 
 export default async function VanzariButasiPage() {
   const supabase = await createClient()
@@ -39,6 +39,7 @@ export default async function VanzariButasiPage() {
       cantitate_butasi,
       pret_unitar_lei,
       observatii,
+      sursa_comanda,
       created_at,
       updated_at,
       tenant_id,
@@ -79,10 +80,17 @@ export default async function VanzariButasiPage() {
   }
 
   // Map raw Supabase rows: nested join comes back as `vanzari_butasi_items`, component expects `items`
-  const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []).map((row) => ({
-    ...(row as unknown as VanzareButasi),
-    items: (row as unknown as { vanzari_butasi_items?: VanzareButasi['items'] }).vanzari_butasi_items ?? [],
-  }))
+  const safeVanzari: VanzareButasi[] = (vanzariButasi ?? []).map((row) => {
+    const raw = row as unknown as VanzareButasi & {
+      vanzari_butasi_items?: VanzareButasi['items']
+      sursa_comanda?: string | null
+    }
+    return {
+      ...raw,
+      sursa_comanda: isSursaComandaButasi(raw.sursa_comanda) ? raw.sursa_comanda : null,
+      items: raw.vanzari_butasi_items ?? [],
+    }
+  })
   const safeClienți = clienti ?? []
   const safeParcele = parcele ?? []
 
