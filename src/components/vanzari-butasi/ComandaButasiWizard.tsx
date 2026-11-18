@@ -379,6 +379,8 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
   const { data: vanzari = [] } = useQuery({ queryKey: queryKeys.vanzariButasi, queryFn: getVanzariButasi })
   const { data: parcele = [] } = useQuery({ queryKey: queryKeys.parcele, queryFn: getParcele })
   const [contactsManager] = useState(getContactsManager)
+  // Diagnostic temporar pentru agenda telefonului (se vede direct în formular).
+  const [agendaStatus, setAgendaStatus] = useState<string | null>(null)
 
   // Clienți recenți (din comenzile anterioare), soiuri folosite și ultimul preț pe soi.
   const { recentClients, orderCountByClient, soiOptions, lastPriceBySoi } = useMemo(() => {
@@ -466,6 +468,7 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
 
   const pickFromAgenda = async () => {
     if (!contactsManager) return
+    setAgendaStatus('Agenda: s-a deschis, aștept contactul…')
     const isStandalone =
       typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches
     try {
@@ -478,6 +481,11 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
       }
       const name = firstText(contact?.name)
       const tel = firstText(contact?.tel)
+      setAgendaStatus(
+        `Agenda a răspuns: ${Array.isArray(result) ? `${result.length} contact(e)` : `tip ${typeof result}`}` +
+          `, câmpuri: ${contact ? Object.keys(contact).join(', ') || 'niciunul' : '—'}` +
+          `, nume ${name ? 'da' : 'nu'}, telefon ${tel ? 'da' : 'nu'}`,
+      )
 
       if (!name && !tel) {
         // Diagnostic fără date personale: doar forma răspunsului primit de la telefon.
@@ -512,6 +520,7 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
       toast.success('Contact preluat din agendă')
     } catch (error) {
       const errName = error instanceof Error ? error.name : typeof error
+      setAgendaStatus(`Agenda: eroare ${errName}${error instanceof Error && error.message ? ` — ${error.message}` : ''}`)
       captureReactError(error, {
         component: 'ComandaButasiWizard',
         tags: { action: 'contact_picker' },
@@ -713,6 +722,11 @@ export function ComandaButasiWizard({ open, onOpenChange }: ComandaButasiWizardP
             </button>
           ) : null}
         </div>
+        {agendaStatus ? (
+          <p className="rounded-xl bg-[var(--agri-surface-muted)] px-3 py-2 text-[13px] font-medium text-[var(--text-secondary)]">
+            {agendaStatus}
+          </p>
+        ) : null}
 
         {isNew ? (
           <div className="space-y-2">
