@@ -102,7 +102,7 @@ Urmări:
 - Un dialog deschis în portal iese din `.theme`, dacă nu o re-aplică singur (`EditOrderSheet` o face; `AlertDialog`-urile din `UnifiedOrderCard` și `LivrariPageClient` nu au fost găsite făcând asta).
 - Aceleași nume de tokeni înseamnă culori diferite în funcție de pagină, deci o componentă de kit arată diferit în Comenzi față de Cheltuieli fără ca nimeni să fi cerut asta.
 
-Decizia e a voastră (întrebarea 1 din final): coralul rămâne ca accent al zonei de comenzi sau dispare.
+**Decis (18.11.2026):** tema coral dispare; Comenzi / Livrări / Recoltări trec pe setul unic de tokeni al aplicației, pentru zi și noapte (întrebarea 1, blocul „Decizii”).
 
 ### 1.4 Tokeni: ~12 familii în paralel — mare
 
@@ -323,7 +323,7 @@ De curățat înainte de extragere: cele 3 fișiere nefolosite din `components/v
 3. **Setul nou**, definit o singură dată pentru zi și noapte.
 4. **Numele vechi devin aliasuri** către cele noi (`--agri-text: var(--text)` etc.). Mecanismul există deja pentru jumătate din `--agri-*`, deci modulele nerefăcute nu se schimbă vizual. Unde seturile paralele au valori diferite (de exemplu `--danger-text` și `--soft-danger-text`) se alege o valoare după contrast și se acceptă o diferență mică de nuanță.
 5. **Cei 7 tokeni lipsă** primesc alias imediat (e reparație de eroare, nu redesign).
-6. **Tema coral** (1.3) devine fie un accent cu valori și pentru noapte, aplicat cu un atribut pe zonă, fie dispare. Depinde de răspunsul vostru.
+6. **Tema coral** (1.3) dispare (decis 18.11.2026): clasa `.theme` din `zmeurel-orders.module.css` se scoate, iar Comenzi / Livrări / Recoltări folosesc același set unic de tokeni ca restul aplicației.
 7. **La fiecare modul refăcut** se înlocuiesc numele vechi. O verificare automată (regulă de lint sau un `git grep` în CI) interzice `--agri-`, hex, `dark:` și `text-[1Xpx]` sub 13 în folderele deja migrate.
 8. **Retragere.** Un alias se șterge când numărul lui de utilizări ajunge la 0. `lib/design-tokens.ts` pleacă odată cu fișierele nefolosite care îl importă.
 
@@ -399,6 +399,7 @@ Limite: `page_view` se trimite doar din zona de dashboard, cu utilizator autenti
 | Butonul „înapoi” pe Android | `lib/ui/dialog-history.ts`, proprietatea `disableHistory` din `Dialog` | Foaia nouă trebuie să se închidă la „înapoi”, nu să schimbe pagina. Foaia din Material săditor nu e legată de mecanism. |
 | Ascunderea FAB-ului sub ferestre | `ui/modal-layer.ts` + `globals.css:348` | Orice suprapunere scrisă de mână o ocolește. |
 | Densitate și vizibilitate ridicată | `globals.css:450-512` schimbă `--touch-control-h` și mărimea textului | Kit-ul trebuie să citească variabilele, nu să fixeze pixeli. |
+| Coada offline inactivă | `lib/offline` (`syncEngine.ts`) | Coada offline (lib/offline) e inactivă: enqueue nu e apelat, syncEngine nu pornește; CLAUDE.md o descrie ca activă; e2e/offline.spec.ts probabil pică. De tratat separat, după revamp. |
 | Stocul derivat | Recoltări, Comenzi, Livrări | Refacerea e doar de interfață; datele trimise la salvare nu trebuie atinse. |
 | Tragere și reordonare | `@dnd-kit` în Livrări și Asociație, grila editabilă din Dashboard | Sensibile la schimbări de structură și de straturi. |
 | Actualizare automată a aplicației instalate | service worker cu `skipWaiting` (commit `cde014f`) | Fiecare livrare ajunge imediat la toți. Nu există comutator pe modul; merită unul pentru primele module. |

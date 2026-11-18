@@ -60,7 +60,7 @@ Client pages follow a two-file pattern:
 - `page.tsx` — thin server component that just renders the client component
 - `*PageClient.tsx` — `'use client'` component with all React Query hooks and mutations
 
-**Exception**: `src/app/(dashboard)/activitati-agricole/page.tsx` is itself the full client implementation (not split into a separate file). `ActivitatiAgricolePageClient.tsx` in the same folder is dead code.
+**Exception**: `src/app/(dashboard)/activitati-agricole/page.tsx` is itself the full client implementation (not split into a separate file).
 
 TanStack Query defaults (set in `src/app/providers.tsx`):
 ```ts
