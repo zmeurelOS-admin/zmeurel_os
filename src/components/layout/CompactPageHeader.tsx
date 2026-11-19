@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 interface CompactPageHeaderProps {
   title?: string
+  /** Titlul afișat sub 768 px în locul lui `title` (ex. „Acasă” în loc de salut). */
+  phoneTitle?: string
   subtitle?: string
   rightSlot?: React.ReactNode
   summary?: React.ReactNode
@@ -23,6 +25,7 @@ interface CompactPageHeaderProps {
 
 export function CompactPageHeader({
   title,
+  phoneTitle,
   subtitle,
   rightSlot,
   summary,
@@ -51,7 +54,15 @@ export function CompactPageHeader({
             >
               {title ? (
                 <h1 className="text-[clamp(1.12rem,4.4vw,1.3rem)] leading-[1.12] tracking-[-0.02em] text-[var(--text-primary)] [font-weight:750]">
-                  {title}
+                  {phoneTitle ? (
+                    // Ales din CSS, nu din JavaScript: titlul de telefon e corect de la prima randare.
+                    <>
+                      <span className="md:hidden">{phoneTitle}</span>
+                      <span className="hidden md:inline">{title}</span>
+                    </>
+                  ) : (
+                    title
+                  )}
                 </h1>
               ) : null}
               {subtitle ? (

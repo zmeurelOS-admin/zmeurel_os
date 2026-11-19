@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+import { AcasaMobile } from '@/components/acasa/AcasaMobile'
 import { AppShell } from '@/components/app/AppShell'
 import { DashboardContentShell } from '@/components/app/DashboardContentShell'
 import { useDashboardAuth } from '@/components/app/DashboardAuthContext'
@@ -1474,6 +1475,8 @@ export default function DashboardPage() {
       header={
         <PageHeader
           title={`${greeting} 👋`}
+          // Pe telefon antetul spune unde ești; salutul rămâne pe desktop.
+          phoneTitle="Acasă"
           subtitle={todayLabel}
           contentVariant="analytics"
           headerClassName="dashboard-premium-header"
@@ -1638,64 +1641,19 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="mb-[var(--dashboard-stack-gap)] grid gap-4 md:hidden">
-              <DashboardTodayCard stats={todayOverviewStats} focusItems={todayFocusItems} />
-              <div className="dashboard-stack-meteo">
-                <MeteoDashboardCard
-                  data={meteo.data}
-                  loading={meteo.loading}
-                  error={meteo.error}
-                  primaryContext={farmContext.primaryContext}
-                  microclimate={dashboardMicroclimate}
-                  className="dashboard-meteo-hero"
-                />
-              </div>
-              <DashboardRecommendationsCard
-                items={recommendationItems}
-                helperText={recommendationsConfidenceHint ?? undefined}
-                boostText={recommendationsBoostHint ?? undefined}
-                setupHelper={recommendationsSetupHelper}
+            {/* Telefon (sub 768 px): Acasă pe kit, „ce am de făcut azi”. Grila de pe desktop e mai jos, neschimbată. */}
+            <div className="mb-[var(--dashboard-stack-gap)] md:hidden">
+              <AcasaMobile
+                todayIso={todayIso}
+                comenzi={comenzi}
+                recoltari={recoltari}
+                activitati={activitati}
+                vanzari={vanzari}
+                vanzariButasi={vanzariButasi}
+                stocDisponibilKg={stocuriQuery.data ? stocuriQuery.data.disponibilCal1Kg : null}
+                parcelStates={parcelStates}
+                meteo={meteo.data}
               />
-              {attentionNowItems.length > 0 ? (
-                <DashboardAttentionCard items={attentionNowItems} />
-              ) : null}
-              <DashboardComenziSnapshotCard
-                activeCount={comenziSnapshot?.activeTotalCount ?? 0}
-                // „kg în curs” = kgAngajat: cantitatea promisă/confirmată care nu a intrat încă în livrare.
-                kgInCursLabel={`${formatNumber(comenziSnapshot?.kgAngajat ?? 0)} kg în curs`}
-                previewClient={recentOrders[0]?.client}
-                previewMeta={recentOrders[0]?.deliveryDate}
-                setupHelper={ordersSetupHelper}
-                loading={!comenziSnapshotReady}
-              />
-              <DashboardCommercialSnapshotCard
-                mode={associationShopApproved ? 'association' : 'farmer'}
-                href={
-                  associationShopApproved
-                    ? '/magazin/asociatie'
-                    : tenantId
-                      ? `/magazin/${tenantId}`
-                      : '/magazin'
-                }
-                setupHelper={shopSetupHelper}
-              />
-              <DashboardFarmPulseCard sections={farmPulseSections} footnote={DASHBOARD_SCOPE_FOOTNOTE} />
-              <DashboardQuickActionsCard
-                primaryActions={DASHBOARD_PRIMARY_QUICK_ACTIONS}
-                contextualActions={contextualQuickActions}
-              />
-              {!editMode ? (
-                <DashboardUnifiedFinancialCard
-                  kpiItems={kpiItems}
-                  empty={showFinancialSetupHelper}
-                  total={`${formatMoney(venitSezon)} RON`}
-                  previous={`${formatMoney(venitSezonAnterior)} RON`}
-                  periodLabel="Sezon curent"
-                  trendLabel={venitTrend ? `${venitTrend.positive ? '+' : '-'}${Math.round(venitTrend.percent)}%` : null}
-                  series={revenueSeries}
-                  setupHelper={financialSetupHelper}
-                />
-              ) : null}
             </div>
 
             <div className="relative hidden md:block">

@@ -20,6 +20,8 @@ export const KIT_RULE_DIRS = [
   'src/app/(dashboard)/livrari',
   'src/components/livrari',
   'src/lib/livrari',
+  // Acasă pe telefon (grila de desktop din `components/dashboard` nu e refăcută)
+  'src/components/acasa',
 ]
 
 /**

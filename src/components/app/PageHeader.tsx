@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils'
 
 interface PageHeaderProps {
   title: string
+  /** Titlul afișat sub 768 px în locul lui `title`. */
+  phoneTitle?: string
   subtitle?: string
   rightSlot?: React.ReactNode
   summary?: React.ReactNode
@@ -37,6 +39,7 @@ function isQuickNavActive(pathname: string, href: (typeof QUICK_NAV_ITEMS)[numbe
 
 export function PageHeader({
   title,
+  phoneTitle,
   subtitle,
   rightSlot,
   summary,
@@ -51,6 +54,7 @@ export function PageHeader({
   return (
     <CompactPageHeader
       title={title}
+      phoneTitle={phoneTitle}
       subtitle={subtitle}
       summary={summary}
       className={headerClassName}
